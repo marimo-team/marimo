@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
 import os
@@ -8,11 +9,14 @@ import queue
 import sys
 import time
 from multiprocessing.queues import Queue as MPQueue
-from typing import Any
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
+from marimo._messaging.ops import UpdateCellCodes
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -20,12 +24,20 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.file_manager import AppFileManager
+from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionMode
-from marimo._server.sessions import KernelManager, QueueManager, Session
+from marimo._server.sessions import (
+    KernelManager,
+    QueueManager,
+    Session,
+    SessionManager,
+)
 from marimo._server.utils import initialize_asyncio
+from marimo._utils.marimo_path import MarimoPath
 
 initialize_asyncio()
 
+F = TypeVar("F", bound=Callable[..., Any])
 
 app_metadata = AppMetadata(
     query_params={"some_param": "some_value"}, filename="test.py", cli_args={}
@@ -33,7 +45,7 @@ app_metadata = AppMetadata(
 
 
 # TODO(akshayka): automatically do this for every test in our test suite
-def save_and_restore_main(f):
+def save_and_restore_main(f: F) -> F:
     """Kernels swap out the main module; restore it after running tests"""
 
     @functools.wraps(f)
@@ -44,7 +56,7 @@ def save_and_restore_main(f):
         finally:
             sys.modules["__main__"] = main
 
-    return wrapper
+    return wrapper  # type: ignore
 
 
 @save_and_restore_main
@@ -380,3 +392,223 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
     assert not session.room.consumers
     assert session.room.main_consumer is None
+
+
+@save_and_restore_main
+async def test_session_manager_file_watching() -> None:
+    # Create a temporary file
+    with NamedTemporaryFile(delete=False, suffix=".py") as tmp_file:
+        tmp_path = Path(tmp_file.name)
+        # Write initial notebook content
+        tmp_file.write(
+            b"""import marimo as mo
+
+@mo.cell
+def __():
+    return 1
+"""
+        )
+
+    try:
+        # Create a session manager with file watching enabled
+        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path)))
+        session_manager = SessionManager(
+            file_router=file_router,
+            mode=SessionMode.EDIT,
+            development_mode=False,
+            quiet=True,
+            include_code=True,
+            lsp_server=MagicMock(),
+            user_config_manager=get_default_config_manager(current_path=None),
+            cli_args={},
+            auth_token=None,
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            watch=True,
+        )
+
+        # Create a mock session consumer
+        session_consumer = MagicMock()
+        session_consumer.connection_state.return_value = ConnectionState.OPEN
+        operations: list[Any] = []
+        session_consumer.write_operation = (
+            lambda op, *_args: operations.append(op)
+        )
+
+        # Create a session
+        session_manager.create_session(
+            session_id="test",
+            session_consumer=session_consumer,
+            query_params={},
+            file_key=str(tmp_path),
+        )
+
+        # Wait a bit and then modify the file
+        await asyncio.sleep(0.2)
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    return 2
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        await asyncio.sleep(0.2)
+
+        # Check that UpdateCellCodes was sent with the new code
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert "return 2" in update_ops[0].codes[0]
+        assert update_ops[0].code_is_stale is True
+
+        # Create another session for the same file
+        session_consumer2 = MagicMock()
+        session_consumer2.connection_state.return_value = ConnectionState.OPEN
+        operations2: list[Any] = []
+        session_consumer2.write_operation = (
+            lambda op, *_args: operations2.append(op)
+        )
+
+        session_manager.create_session(
+            session_id="test2",
+            session_consumer=session_consumer2,
+            query_params={},
+            file_key=str(tmp_path),
+        )
+
+        # Modify the file again
+        operations.clear()
+        operations2.clear()
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    return 3
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        await asyncio.sleep(0.2)
+
+        # Both sessions should receive the update
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        update_ops2 = [
+            op for op in operations2 if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert len(update_ops2) == 1
+        assert "return 3" in update_ops[0].codes[0]
+        assert "return 3" in update_ops2[0].codes[0]
+
+        # Close one session and verify the other still receives updates
+        assert session_manager.close_session("test")
+        operations.clear()
+        operations2.clear()
+
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    return 4
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        await asyncio.sleep(0.2)
+
+        # Only session2 should receive the update
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        update_ops2 = [
+            op for op in operations2 if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 0
+        assert len(update_ops2) == 1
+        assert "return 4" in update_ops2[0].codes[0]
+
+    finally:
+        # Cleanup
+        session_manager.shutdown()
+        os.remove(tmp_path)
+
+
+@save_and_restore_main
+def test_watch_mode_config_override() -> None:
+    """Test that watch mode properly overrides config settings."""
+    # Create a temporary file
+    with NamedTemporaryFile(delete=False, suffix=".py") as tmp_file:
+        tmp_path = Path(tmp_file.name)
+        tmp_file.write(b"import marimo as mo")
+
+    # Create a config with autosave enabled
+    config_reader = get_default_config_manager(current_path=None)
+    config_reader_watch = config_reader.with_overrides(
+        {
+            "save": {
+                "autosave": "off",
+                "format_on_save": False,
+                "autosave_delay": 2000,
+            }
+        }
+    )
+
+    # Create a session manager with watch mode enabled
+    file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path)))
+    session_manager = SessionManager(
+        file_router=file_router,
+        mode=SessionMode.EDIT,
+        development_mode=False,
+        quiet=True,
+        include_code=True,
+        lsp_server=MagicMock(),
+        user_config_manager=config_reader_watch,
+        cli_args={},
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        watch=True,
+    )
+
+    session_manager_no_watch = SessionManager(
+        file_router=file_router,
+        mode=SessionMode.EDIT,
+        development_mode=False,
+        quiet=True,
+        include_code=True,
+        lsp_server=MagicMock(),
+        user_config_manager=config_reader,
+        cli_args={},
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        watch=False,
+    )
+
+    try:
+        # Verify that the config was overridden
+        config = session_manager.user_config_manager.get_config()
+        assert config["save"]["autosave"] == "off"
+        assert config["save"]["format_on_save"] is False
+
+        # Verify that the config was not overridden
+        config = session_manager_no_watch.user_config_manager.get_config()
+        assert config["save"]["autosave"] == "after_delay"
+        assert config["save"]["format_on_save"] is True
+
+    finally:
+        # Cleanup
+        session_manager.shutdown()
+        session_manager_no_watch.shutdown()
+        os.remove(tmp_path)
