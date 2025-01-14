@@ -841,9 +841,52 @@ class SessionManager:
                 from_consumer_id=None,
             )
 
+        session._unsubscribe_file_watcher_ = on_file_changed  # type: ignore
+
         self.watcher_manager.add_callback(
             Path(session.app_file_manager.path), on_file_changed
         )
+
+    def handle_file_rename_for_watch(
+        self, session_id: SessionId, new_path: str
+    ) -> tuple[bool, Optional[str]]:
+        """Handle renaming a file for a session.
+
+        Returns:
+            tuple[bool, Optional[str]]: (success, error_message)
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return False, "Session not found"
+
+        if not os.path.exists(new_path):
+            return False, f"File {new_path} does not exist"
+
+        if not session.app_file_manager.path:
+            return False, "Session has no associated file"
+
+        old_path = session.app_file_manager.path
+
+        try:
+            # Remove the old file watcher if it exists
+            if self.watch:
+                self.watcher_manager.remove_callback(
+                    Path(old_path),
+                    session._unsubscribe_file_watcher_,  # type: ignore
+                )
+
+            # Add a watcher for the new path if needed
+            if self.watch:
+                self._start_file_watcher_for_session(session)
+
+            return True, None
+
+        except Exception as e:
+            LOGGER.error(f"Error handling file rename: {e}")
+
+            if self.watch:
+                self._start_file_watcher_for_session(session)
+            return False, str(e)
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         session = self.sessions.get(session_id)
@@ -971,7 +1014,7 @@ class SessionManager:
         if session.app_file_manager.path and self.watch:
             self.watcher_manager.remove_callback(
                 Path(session.app_file_manager.path),
-                self._start_file_watcher_for_session(session).__wrapped__,  # type: ignore
+                session._unsubscribe_file_watcher_,  # type: ignore
             )
 
         session.close()

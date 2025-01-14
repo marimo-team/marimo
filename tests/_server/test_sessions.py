@@ -612,3 +612,129 @@ def test_watch_mode_config_override() -> None:
         session_manager.shutdown()
         session_manager_no_watch.shutdown()
         os.remove(tmp_path)
+
+
+@save_and_restore_main
+async def test_session_manager_file_rename() -> None:
+    """Test that file renaming works correctly with file watching."""
+    # Create two temporary files
+    with (
+        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
+        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file2,
+    ):
+        tmp_path1 = Path(tmp_file1.name)
+        tmp_path2 = Path(tmp_file2.name)
+        # Write initial notebook content
+        tmp_file1.write(
+            b"""import marimo as mo
+
+@mo.cell
+def __():
+    return 1
+"""
+        )
+        tmp_file2.write(b"import marimo as mo")
+
+    try:
+        # Create a session manager with file watching enabled
+        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path1)))
+        session_manager = SessionManager(
+            file_router=file_router,
+            mode=SessionMode.EDIT,
+            development_mode=False,
+            quiet=True,
+            include_code=True,
+            lsp_server=MagicMock(),
+            user_config_manager=get_default_config_manager(current_path=None),
+            cli_args={},
+            auth_token=None,
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            watch=True,
+        )
+
+        # Create a mock session consumer
+        session_consumer = MagicMock()
+        session_consumer.connection_state.return_value = ConnectionState.OPEN
+        operations: list[Any] = []
+        session_consumer.write_operation = (
+            lambda op, *_args: operations.append(op)
+        )
+
+        # Create a session
+        session_manager.create_session(
+            session_id="test",
+            session_consumer=session_consumer,
+            query_params={},
+            file_key=str(tmp_path1),
+        )
+
+        # Try to rename to a non-existent file
+        success, error = session_manager.handle_file_rename_for_watch(
+            "test", "/nonexistent/file.py"
+        )
+        assert not success
+        assert error is not None
+        assert "does not exist" in error
+
+        # Try to rename with an invalid session
+        success, error = session_manager.handle_file_rename_for_watch(
+            "nonexistent", str(tmp_path2)
+        )
+        assert not success
+        assert error is not None
+        assert "Session not found" in error
+
+        # Rename to the second file
+        success, error = session_manager.handle_file_rename_for_watch(
+            "test", str(tmp_path2)
+        )
+        assert success
+        assert error is None
+
+        # Modify the new file
+        operations.clear()
+        with open(tmp_path2, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    return 2
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        await asyncio.sleep(0.2)
+
+        # Check that UpdateCellCodes was sent with the new code
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert "return 2" in update_ops[0].codes[0]
+
+        # Modify the old file - should not trigger any updates
+        operations.clear()
+        with open(tmp_path1, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    return 3
+"""
+            )
+
+        # Wait to verify no updates are triggered
+        await asyncio.sleep(0.2)
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 0
+
+    finally:
+        # Cleanup
+        session_manager.shutdown()
+        os.remove(tmp_path1)
+        os.remove(tmp_path2)
