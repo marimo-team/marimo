@@ -5,6 +5,8 @@ import pytest
 from marimo._cli.sandbox import (
     _get_dependencies,
     _get_python_version_requirement,
+    _is_marimo_dependency,
+    _normalize_sandbox_dependencies,
     _pyproject_toml_to_requirements_txt,
     _read_pyproject,
     get_dependencies_from_filename,
@@ -239,3 +241,70 @@ def test_get_dependencies_with_nonexistent_file():
 
     # Test with None
     assert get_dependencies_from_filename(None) == []  # type: ignore
+
+
+def test_normalize_marimo_dependencies():
+    # Test adding marimo when not present
+    assert _normalize_sandbox_dependencies(["numpy"], "1.0.0") == [
+        "numpy",
+        "marimo==1.0.0",
+    ]
+
+    # Test preferring bracketed version
+    assert _normalize_sandbox_dependencies(
+        ["marimo", "marimo[extras]", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]==1.0.0"]
+
+    # Test keeping existing version with brackets
+    assert _normalize_sandbox_dependencies(
+        ["marimo[extras]>=0.1.0", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]>=0.1.0"]
+
+    # Test adding version when none exists
+    assert _normalize_sandbox_dependencies(
+        ["marimo[extras]", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]==1.0.0"]
+
+    # Test keeping only one marimo dependency
+    assert _normalize_sandbox_dependencies(
+        ["marimo>=0.1.0", "marimo[extras]>=0.2.0", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]>=0.2.0"]
+    assert _normalize_sandbox_dependencies(
+        ["marimo", "marimo[extras]>=0.2.0", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]>=0.2.0"]
+
+    # Test various version specifiers are preserved
+    version_specs = [
+        "==0.1.0",
+        ">=0.1.0",
+        "<=0.1.0",
+        ">0.1.0",
+        "<0.1.0",
+        "~=0.1.0",
+    ]
+    for spec in version_specs:
+        assert _normalize_sandbox_dependencies(
+            [f"marimo{spec}", "numpy"], "1.0.0"
+        ) == ["numpy", f"marimo{spec}"]
+
+
+def test_is_marimo_dependency():
+    assert _is_marimo_dependency("marimo")
+    assert _is_marimo_dependency("marimo[extras]")
+    assert not _is_marimo_dependency("marimo-extras")
+    assert not _is_marimo_dependency("marimo-ai")
+
+    # With version specifiers
+    assert _is_marimo_dependency("marimo==0.1.0")
+    assert _is_marimo_dependency("marimo[extras]>=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]==0.1.0")
+    assert _is_marimo_dependency("marimo[extras]~=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]<=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]>=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]<=0.1.0")
+
+    # With other packages
+    assert not _is_marimo_dependency("numpy")
+    assert not _is_marimo_dependency("pandas")
+    assert not _is_marimo_dependency("marimo-ai")
+    assert not _is_marimo_dependency("marimo-ai==0.1.0")
