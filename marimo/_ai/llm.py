@@ -128,7 +128,7 @@ class openai(ChatModel):
             client: AzureOpenAI | OpenAI = AzureOpenAI(
                 api_key=self._require_api_key,
                 api_version=api_version,
-                azure_endpoint=f"{cast(str,parsed_url.scheme)}://{cast(str,parsed_url.hostname)}",
+                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
             )
         else:
             client = OpenAI(

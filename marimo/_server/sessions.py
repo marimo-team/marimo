@@ -365,9 +365,9 @@ class Room:
         self.consumers[consumer] = consumer_id
         self.disposables[consumer] = dispose
         if main:
-            assert (
-                self.main_consumer is None
-            ), "Main session consumer already exists"
+            assert self.main_consumer is None, (
+                "Main session consumer already exists"
+            )
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:

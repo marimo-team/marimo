@@ -770,9 +770,9 @@ class TestCacheDecorator:
                 f.base_block.execution_refs,
                 f.base_block.content_refs,
             )
-            assert f.base_block.context_refs == {
-                "ns"
-            }, f.base_block.context_refs
+            assert f.base_block.context_refs == {"ns"}, (
+                f.base_block.context_refs
+            )
             return
 
         app.run()
@@ -851,9 +851,9 @@ class TestCacheDecorator:
             assert f.hits == 0
             assert f() == 1
             assert f.hits == 1
-            assert (
-                f.base_block.execution_refs == set()
-            ), f.base_block.execution_refs
+            assert f.base_block.execution_refs == set(), (
+                f.base_block.execution_refs
+            )
             assert f.base_block.missing == {"ns"}, f.base_block.missing
             return
 

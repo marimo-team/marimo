@@ -322,9 +322,9 @@ class BlockHasher:
         if not scoped_refs:
             scoped_refs = set()
         else:
-            assert (
-                not apply_content_hash
-            ), "scoped_refs should only be used with deferred hashing."
+            assert not apply_content_hash, (
+                "scoped_refs should only be used with deferred hashing."
+            )
 
         self._hash: Optional[str] = None
         self.graph = graph

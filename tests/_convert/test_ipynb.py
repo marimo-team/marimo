@@ -250,21 +250,18 @@ def test_transform_magic_commands_complex():
         "%env MY_VAR=value",
     ]
     result = transform_magic_commands(sources)
-    assert (
-        result
-        == [
-            '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
-            (
-                "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
-                "# %%time\nfor i in range(1000000):\n"
-                "    pass"
-            ),
-            (
-                "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
-            ),
-            "import os\nos.environ['MY_VAR'] = 'value'",
-        ]
-    )
+    assert result == [
+        '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
+        (
+            "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
+            "# %%time\nfor i in range(1000000):\n"
+            "    pass"
+        ),
+        (
+            "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
+        ),
+        "import os\nos.environ['MY_VAR'] = 'value'",
+    ]
 
 
 @pytest.mark.skipif(

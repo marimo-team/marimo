@@ -250,7 +250,9 @@ def app_meta() -> AppMeta:
         import altair as alt
 
         # Enable dark theme for Altair when marimo is in dark mode
-        alt.themes.enable("dark" if mo.app_meta().theme == "dark" else "default")
+        alt.themes.enable(
+            "dark" if mo.app_meta().theme == "dark" else "default"
+        )
         ```
 
         Show content only in edit mode:

@@ -296,8 +296,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         if not isinstance(chart, (alt.TopLevelMixin)):
             raise ValueError(
-                "Invalid type for chart: "
-                f"{type(chart)}; expected altair.Chart"
+                f"Invalid type for chart: {type(chart)}; expected altair.Chart"
             )
 
         # Make full-width if no width is specified

@@ -83,25 +83,25 @@ async def _run_test(
 
         if failed_reason:
             # Expecting an error
-            assert (
-                process.returncode != 0
-            ), f"{relative_file} Expected error: {failed_reason}"
+            assert process.returncode != 0, (
+                f"{relative_file} Expected error: {failed_reason}"
+            )
             if isinstance(failed_reason, list):
-                assert any(
-                    reason in stderr for reason in failed_reason
-                ), f"File: {file}. Expected error one of {failed_reason} in {stderr}"  # noqa: E501
+                assert any(reason in stderr for reason in failed_reason), (
+                    f"File: {file}. Expected error one of {failed_reason} in {stderr}"
+                )  # noqa: E501
             else:
                 assert failed_reason in stderr, f"File: {file}"
         # Allow MarimoStop
         elif "MarimoStop" in stderr:
-            assert (
-                process.returncode != 0
-            ), f"{relative_file} Unexpected error: {stderr}"
+            assert process.returncode != 0, (
+                f"{relative_file} Unexpected error: {stderr}"
+            )
         else:
             # Expecting no error, allow MarimoStop
-            assert (
-                process.returncode == 0
-            ), f"{relative_file} Unexpected error: {stderr}"
+            assert process.returncode == 0, (
+                f"{relative_file} Unexpected error: {stderr}"
+            )
             assert not any(
                 line.startswith("Traceback") for line in stderr.splitlines()
             )

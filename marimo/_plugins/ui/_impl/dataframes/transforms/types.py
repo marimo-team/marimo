@@ -75,9 +75,9 @@ class Condition:
 
     def __post_init__(self) -> None:
         if self.operator == "in":
-            assert isinstance(
-                self.value, list
-            ), "value must be a list for 'in' operator"
+            assert isinstance(self.value, list), (
+                "value must be a list for 'in' operator"
+            )
 
 
 @dataclass
