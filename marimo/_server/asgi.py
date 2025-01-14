@@ -491,6 +491,8 @@ def create_asgi_app(
             def create_redirect_to_slash(
                 base_url: str,
             ) -> Callable[[Request], Response]:
+                # Strip leading slash
+                base_url = base_url.lstrip("/")
                 redirect_path = f"{base_url}/"
                 return lambda _: RedirectResponse(
                     url=redirect_path, status_code=301
