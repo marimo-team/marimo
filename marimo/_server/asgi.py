@@ -267,8 +267,10 @@ class DynamicDirectoryMiddleware:
         if cache_key not in self._app_cache:
             LOGGER.debug(f"Creating new app for {cache_key}")
             try:
+                # Construct the full path for the app
+                base_url = f"{self.base_path}/{relative_path}"
                 self._app_cache[cache_key] = self.app_builder(
-                    cache_key, cache_key
+                    base_url, cache_key
                 )
                 LOGGER.debug(f"Successfully created app for {cache_key}")
             except Exception as e:
@@ -465,7 +467,7 @@ def create_asgi_app(
                 ttl_seconds=None,
             )
             app = create_starlette_app(
-                base_url="",
+                base_url=base_url,
                 lifespan=lifespans.Lifespans(
                     [
                         # Not all lifespans are needed for run mode
@@ -498,14 +500,24 @@ def create_asgi_app(
 
             for path, root, middleware in self._mount_configs:
                 if root not in self._app_cache:
+                    # Create the base app with the correct base_url
                     single_asgi_app: ASGIApp = self._create_app_for_file(
                         base_url=path, file_path=root
                     )
                     # Apply middleware if provided
                     if middleware:
+                        # Create a wrapper app to maintain the base_url context
+                        mount_app = Starlette()
                         for m in middleware:
-                            single_asgi_app = m(single_asgi_app)
-                    self._app_cache[root] = single_asgi_app
+                            mount_app.add_middleware(m)
+                        # Mount with the same base_url
+                        mount_app.mount("/", single_asgi_app)
+                        mount_app.state.base_url = path
+                        mount_app.state.session_manager = single_asgi_app.state.session_manager
+                        mount_app.state.config_manager = single_asgi_app.state.config_manager
+                        self._app_cache[root] = mount_app
+                    else:
+                        self._app_cache[root] = single_asgi_app
                 base_app.mount(path, self._app_cache[root])
 
                 # If path is not empty,
@@ -531,13 +543,22 @@ def create_asgi_app(
                     path: str,
                     file_path: str,
                 ) -> ASGIApp:
+                    # Create the base app with the correct base_url
                     single_asgi_app: ASGIApp = self._create_app_for_file(
                         base_url=path, file_path=file_path
                     )
-                    # Apply middleware if provided.
+                    # Apply middleware if provided
                     if middleware:
+                        # Create a wrapper app to maintain the base_url context
+                        mount_app = Starlette()
                         for m in middleware:
-                            single_asgi_app = m(single_asgi_app)
+                            mount_app.add_middleware(m)
+                        # Mount with the same base_url
+                        mount_app.mount("/", single_asgi_app)
+                        mount_app.state.base_url = path
+                        mount_app.state.session_manager = single_asgi_app.state.session_manager
+                        mount_app.state.config_manager = single_asgi_app.state.config_manager
+                        return mount_app
                     return single_asgi_app
 
                 # This comes after the middleware, so it's applied first.

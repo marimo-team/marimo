@@ -142,6 +142,27 @@ class TestASGIAppBuilder(unittest.TestCase):
         response = client.get("/app1/health")
         assert response.status_code == 200, response.text
 
+    def test_mount_non_root_assets(self) -> None:
+        """Test that assets are correctly served when app is mounted at a non-root path."""
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/marimo/motest", root=self.app1)
+        app = builder.build()
+        client = TestClient(app)
+        
+        # First request to create the app
+        response = client.get("/marimo/motest")
+        assert response.status_code == 200, response.text
+        
+        # Test asset request
+        response = client.get("/marimo/motest/assets/test.css")
+        assert response.status_code == 404, "Asset should 404 but path should be correct"
+        
+        # Verify that the HTML contains correct asset paths
+        response = client.get("/marimo/motest")
+        assert response.status_code == 200, response.text
+        assert "/marimo/motest/assets/" in response.text, "Asset paths should include full mount path"
+        assert "/motest/assets/" not in response.text, "Asset paths should not use incorrect mount path"
+
     def test_app_with_middleware(self):
         # Create a simple middleware
         class TestMiddleware:
