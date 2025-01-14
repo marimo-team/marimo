@@ -1837,6 +1837,8 @@ components:
           items:
             type: string
           type: array
+        code_is_stale:
+          type: boolean
         codes:
           items:
             type: string
@@ -1848,6 +1850,7 @@ components:
       required:
       - cell_ids
       - codes
+      - code_is_stale
       - name
       type: object
     UpdateCellIdsRequest:
@@ -1956,7 +1959,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.2
+  version: 0.10.13
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

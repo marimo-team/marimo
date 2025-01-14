@@ -165,7 +165,7 @@ class KernelManager:
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
+        self.kernel_task: Optional[threading.Thread | mp.Process] = None
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -554,6 +554,8 @@ class Session:
                 UpdateCellCodes(
                     cell_ids=request.cell_ids,
                     codes=request.codes,
+                    # Not stale because we just ran the code
+                    code_is_stale=False,
                 ),
                 except_consumer=from_consumer_id,
             )
@@ -933,14 +935,6 @@ class SessionManager:
 
     def start_file_watcher(self) -> Disposable:
         """Starts the file watcher if it is not already started"""
-        if self.mode == SessionMode.EDIT:
-            # We don't support file watching in edit mode yet
-            # as there are some edge cases that would need to be handled.
-            # - what to do if the file is deleted, or is renamed
-            # - do we re-run the app or just show the changed code
-            # - we don't properly handle saving from the frontend
-            LOGGER.warning("Cannot start file watcher in edit mode")
-            return Disposable.empty()
         file = self.file_router.maybe_get_single_file()
         if not file:
             return Disposable.empty()
@@ -950,8 +944,37 @@ class SessionManager:
         async def on_file_changed(path: Path) -> None:
             LOGGER.debug(f"{path} was modified")
             for _, session in self.sessions.items():
+                # Skip if the session does not relate to the file
+                print(
+                    "Handling file change", session.app_file_manager.path, path
+                )
+                if session.app_file_manager.path != os.path.abspath(path):
+                    continue
+
+                # Reload the file manager to get the latest code
                 session.app_file_manager.reload()
-                session.write_operation(Reload(), from_consumer_id=None)
+                # In run, we just call Reload()
+                if self.mode == SessionMode.RUN:
+                    session.write_operation(Reload(), from_consumer_id=None)
+                    continue
+
+                # Get the latest codes
+                codes = list(session.app_file_manager.app.cell_manager.codes())
+                cell_ids = list(
+                    session.app_file_manager.app.cell_manager.cell_ids()
+                )
+                # Send the updated codes to the frontend
+                session.write_operation(
+                    UpdateCellCodes(
+                        cell_ids=cell_ids,
+                        codes=codes,
+                        # The code is considered stale
+                        # because it has not been run yet.
+                        # In the future, we may add auto-run here.
+                        code_is_stale=True,
+                    ),
+                    from_consumer_id=None,
+                )
 
         LOGGER.debug("Starting file watcher for %s", file_path)
         self.watcher = FileWatcher.create(Path(file_path), on_file_changed)

@@ -286,6 +286,14 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
+@click.option(
+    "--watch",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Watch the file for changes and reload the code when saved in another editor.",
+)
 @click.argument("name", required=False, type=click.Path())
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -300,6 +308,7 @@ def edit(
     skip_update_check: bool,
     sandbox: bool,
     profile_dir: Optional[str],
+    watch: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -369,7 +378,7 @@ def edit(
         headless=headless,
         mode=SessionMode.EDIT,
         include_code=True,
-        watch=False,
+        watch=watch,
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,

@@ -1305,9 +1305,29 @@ describe("cell reducer", () => {
     actions.setCellIds({ cellIds: newIds });
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual(newIds);
 
-    actions.setCellCodes({ codes: newCodes, ids: newIds });
+    // When codeIsStale is false, lastCodeRun should match code
+    actions.setCellCodes({
+      codes: newCodes,
+      ids: newIds,
+      codeIsStale: false,
+    });
     newIds.forEach((id, index) => {
       expect(state.cellData[id].code).toBe(newCodes[index]);
+      expect(state.cellData[id].lastCodeRun).toBe(newCodes[index]);
+      expect(state.cellData[id].edited).toBe(false);
+    });
+
+    // When codeIsStale is true, lastCodeRun should not change
+    const staleCodes = ["stale1", "stale2", "stale3"];
+    actions.setCellCodes({
+      codes: staleCodes,
+      ids: newIds,
+      codeIsStale: true,
+    });
+    newIds.forEach((id, index) => {
+      expect(state.cellData[id].code).toBe(staleCodes[index]);
+      expect(state.cellData[id].lastCodeRun).toBe(newCodes[index]);
+      expect(state.cellData[id].edited).toBe(true);
     });
   });
 

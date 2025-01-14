@@ -780,7 +780,10 @@ const {
       cellHandles: nextCellHandles,
     };
   },
-  setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
+  setCellCodes: (
+    state,
+    action: { codes: string[]; ids: CellId[]; codeIsStale: boolean },
+  ) => {
     invariant(
       action.codes.length === action.ids.length,
       "Expected codes and ids to have the same length",
@@ -791,11 +794,26 @@ const {
       const code = action.codes[i];
 
       state = updateCellData(state, cellId, (cell) => {
+        // No change
+        if (cell.code.trim() === code.trim()) {
+          return cell;
+        }
+
+        // Update codemirror if mounted
+        const cellHandle = state.cellHandles[cellId].current;
+        if (cellHandle?.editorView) {
+          updateEditorCodeFromPython(cellHandle.editorView, code);
+        }
+
+        // If code is stale, we don't promote it to lastCodeRun
+        const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
+
         return {
           ...cell,
-          code,
-          edited: false,
-          lastCodeRun: code,
+          code: code,
+          // Mark as edited if the code has changed
+          edited: lastCodeRun ? lastCodeRun.trim() !== code.trim() : false,
+          lastCodeRun,
         };
       });
     }

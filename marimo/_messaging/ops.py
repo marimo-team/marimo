@@ -639,6 +639,7 @@ class UpdateCellCodes(Op):
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: List[CellId_t]
     codes: List[str]
+    code_is_stale: bool
 
 
 @dataclass
