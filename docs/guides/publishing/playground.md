@@ -67,7 +67,7 @@ navigate to `https://marimo.app/path/to/notebook.py`. For example:
     Clicking the bookmark when you are viewing a notebook will
     open it in [marimo.app](https://marimo.app/).
 
-!!! note "From Jupyter notebooks"
+!!! tip "From Jupyter notebooks"
 
     You can also create Playground notebooks from Jupyter notebooks hosted
     on GitHub. marimo will attempt to automatically convert the notebook
@@ -90,6 +90,33 @@ locally and in the playground.
     <https://marimo.app/github.com/marimo-team/marimo/blob/main/examples/misc/notebook_dir.py>
 
     and open the file explorer panel to see all the files available to the notebook.
+
+#### Open in marimo badge
+
+Include an "open in marimo" badge in your README to link to playground
+notebooks hosted on GitHub:
+
+[![Open with marimo](https://marimo.io/shield.svg)](https://marimo.app/GITHUB_URL)
+
+=== "Markdown"
+
+     Replace `GITHUB_URL` with the URL to a notebook on GitHub.
+
+     ```markdown
+     [![Open with marimo](https://marimo.io/shield.svg)](https://marimo.app/GITHUB_URL)
+     ```
+
+
+
+=== "HTML"
+
+     Replace `GITHUB_URL` with the URL to a notebook on GitHub.
+
+     ```html
+     <a href="https://marimo.app/GITHUB_URL" target="_blank">
+         <img alt="Open in marimo" src="https://marimo.io/shield.svg" />
+     </a>
+     ```
 
 ### Creating playground notebooks from local notebooks
 
