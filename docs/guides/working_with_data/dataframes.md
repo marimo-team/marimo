@@ -116,7 +116,7 @@ transformed_df.value
 ```python
 # Cell 1
 import marimo as mo
-import pandas as pl
+import polars as pl
 
 df = pl.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
 transformed_df = mo.ui.dataframe(df)
@@ -229,7 +229,7 @@ table.value
 ```python
 # Cell 1 - display a dataframe
 import marimo as mo
-import pandas as pl
+import polars as pl
 
 df = pl.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
 table = mo.ui.table(df, selection="multi")
