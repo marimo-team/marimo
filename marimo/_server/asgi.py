@@ -47,24 +47,28 @@ class StatePreservingMiddleware:
         self._state = getattr(app, "state", None)
         # Apply middleware
         self.wrapped = middleware_factory(app)
+        # Ensure wrapped app has state
+        if hasattr(app, "state") and not hasattr(self.wrapped, "state"):
+            setattr(self.wrapped, "state", self._state)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        # Call the wrapped middleware with original scope
+        # Update scope with base_url if available
+        if hasattr(self.app, "state") and hasattr(self.app.state, "base_url"):
+            scope["base_url"] = self.app.state.base_url
+        # Call the wrapped middleware with updated scope
         await self.wrapped(scope, receive, send)
 
     def __getattr__(self, name: str) -> Any:
-        # Try wrapped app first
-        try:
+        # First try wrapped app
+        if hasattr(self.wrapped, name):
             return getattr(self.wrapped, name)
-        except AttributeError:
-            # Then try original app
-            try:
-                return getattr(self.app, name)
-            except AttributeError:
-                # Finally try state if it exists
-                if self._state is not None and hasattr(self._state, name):
-                    return getattr(self._state, name)
-                raise
+        # Then try original app
+        if hasattr(self.app, name):
+            return getattr(self.app, name)
+        # Finally try state
+        if self._state is not None and hasattr(self._state, name):
+            return getattr(self._state, name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @property
     def state(self) -> Any:
@@ -578,9 +582,10 @@ def create_asgi_app(
                         create_redirect_to_slash(path),
                     )
 
-            # Start with the base app and prepare mounted apps
-            app: ASGIApp = base_app
-            mounted_apps = []
+            from starlette.applications import Starlette
+
+            # Start with the base app
+            app: Starlette = base_app
 
             # First create all static apps with their middleware
             for path, root, middleware in self._mount_configs:
@@ -595,13 +600,16 @@ def create_asgi_app(
                     if middleware:
                         # Apply middleware in reverse order so the first middleware in the list is outermost
                         for m in reversed(middleware):
-                            mounted_app = StatePreservingMiddleware(mounted_app, m)
+                            wrapped_app = m(mounted_app)
+                            # Preserve state from the original app
+                            if hasattr(mounted_app, "state"):
+                                wrapped_app.state = mounted_app.state
+                            mounted_app = wrapped_app
                     self._app_cache[root] = mounted_app
-                mounted_apps.append((path, self._app_cache[root]))
 
-            # Then mount all apps after middleware is applied
-            for path, mounted_app in mounted_apps:
-                app.mount(path, mounted_app)
+                # Mount the app at the original path
+                app.mount(path, self._app_cache[root])
+
                 # Add redirect for paths without trailing slash
                 if path and not path.endswith("/"):
                     app.add_route(
