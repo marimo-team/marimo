@@ -37,9 +37,9 @@ def generate_from_sources(
     if cell_configs is None:
         cell_configs = [CellConfig() for _ in range(len(sources))]
     else:
-        assert len(cell_configs) == len(
-            sources
-        ), "cell_configs must be the same length as sources"
+        assert len(cell_configs) == len(sources), (
+            "cell_configs must be the same length as sources"
+        )
 
     return codegen.generate_filecontents(
         sources,
