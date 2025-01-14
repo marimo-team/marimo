@@ -8,6 +8,7 @@ from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Any,
     Awaitable,
     Callable,
     Dict,
@@ -35,6 +36,55 @@ LOGGER = logging.getLogger(__name__)
 
 class MiddlewareFactory(Protocol):
     def __call__(self, app: ASGIApp) -> ASGIApp: ...  # pragma: no cover
+
+
+class StatePreservingMiddleware:
+    """Middleware that preserves the state of the wrapped app."""
+
+    def __init__(self, app: ASGIApp, middleware_factory: MiddlewareFactory) -> None:
+        self.app = app
+        # Store original state
+        self._state = getattr(app, "state", None)
+        # Apply middleware
+        self.wrapped = middleware_factory(app)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # Create a new scope to avoid modifying the original
+        new_scope = dict(scope)
+
+        # Preserve base_url in scope
+        if "base_url" not in new_scope and self._state is not None:
+            base_url = getattr(self._state, "base_url", None)
+            if base_url is not None:
+                new_scope["base_url"] = base_url
+
+        # Call the wrapped middleware
+        await self.wrapped(new_scope, receive, send)
+
+    def __getattr__(self, name: str) -> Any:
+        # Forward attribute access to wrapped app, except for 'state'
+        if name == "state":
+            return self._state
+
+        # For base_url, try to get it from state first
+        if name == "base_url" and self._state is not None:
+            base_url = getattr(self._state, "base_url", None)
+            if base_url is not None:
+                return base_url
+
+        # Try wrapped app first
+        try:
+            return getattr(self.wrapped, name)
+        except AttributeError:
+            # Then try state if it exists
+            if self._state is not None and hasattr(self._state, name):
+                return getattr(self._state, name)
+            raise
+
+    @property
+    def state(self):
+        """Expose state as a property to match Starlette's API."""
+        return self._state
 
 
 class ASGIAppBuilder(abc.ABC):
@@ -181,14 +231,20 @@ class DynamicDirectoryMiddleware:
             return
 
         path = scope["path"]
-        if not path.startswith(self.base_path + "/"):
+        # Normalize paths by removing trailing slashes
+        base_path = self.base_path.rstrip("/")
+        request_path = path.rstrip("/")
+
+        # Check if the path matches our base path
+        if not request_path.startswith(base_path):
             await self.app(scope, receive, send)
             return
 
-        app_path = path[len(self.base_path) + 1 :]
+        # Get the app-specific part of the path
+        app_path = request_path[len(base_path):].lstrip("/")
 
         # Empty path or starts with an underscore is not a valid app
-        if not app_path or app_path.startswith("/_"):
+        if not app_path or app_path.startswith("_"):
             await self.app(scope, receive, send)
             return
 
@@ -268,7 +324,8 @@ class DynamicDirectoryMiddleware:
             LOGGER.debug(f"Creating new app for {cache_key}")
             try:
                 # Construct the full path for the app
-                base_url = f"{self.base_path}/{relative_path}"
+                # Remove trailing slash for consistent path handling
+                base_url = f"{self.base_path}/{relative_path}".rstrip("/")
                 self._app_cache[cache_key] = self.app_builder(
                     base_url, cache_key
                 )
@@ -278,10 +335,12 @@ class DynamicDirectoryMiddleware:
                 await self.app(scope, receive, send)
                 return
 
-        # Update scope to use the remaining path
+        # Update scope to use the remaining path and preserve base_url
         old_path = scope["path"]
         new_scope["path"] = f"/{remaining_path}" if remaining_path else "/"
-        LOGGER.debug(f"Updated path: {old_path} -> {new_scope['path']}")
+        # Add base_url to scope for middleware to use
+        new_scope["base_url"] = base_url
+        LOGGER.debug(f"Updated path: {old_path} -> {new_scope['path']} with base_url: {base_url}")
 
         try:
             await self._app_cache[cache_key](new_scope, receive, send)
@@ -501,27 +560,17 @@ def create_asgi_app(
             for path, root, middleware in self._mount_configs:
                 if root not in self._app_cache:
                     # Create the base app with the correct base_url
-                    single_asgi_app: ASGIApp = self._create_app_for_file(
-                        base_url=path, file_path=root
+                    # Remove trailing slash for consistent path handling
+                    base_url = path.rstrip("/")
+                    app = self._create_app_for_file(
+                        base_url=base_url, file_path=root
                     )
                     # Apply middleware if provided
                     if middleware:
-                        # Create a wrapper app to maintain the base_url context
-                        mount_app = Starlette()
-                        for m in middleware:
-                            mount_app.add_middleware(m)
-                        # Mount with the same base_url
-                        mount_app.mount("/", single_asgi_app)
-                        mount_app.state.base_url = path
-                        mount_app.state.session_manager = (
-                            single_asgi_app.state.session_manager
-                        )
-                        mount_app.state.config_manager = (
-                            single_asgi_app.state.config_manager
-                        )
-                        self._app_cache[root] = mount_app
-                    else:
-                        self._app_cache[root] = single_asgi_app
+                        # Create a StatePreservingMiddleware for each middleware
+                        for m in reversed(middleware):
+                            app = StatePreservingMiddleware(app, m)
+                    self._app_cache[root] = app
                 base_app.mount(path, self._app_cache[root])
 
                 # If path is not empty,
@@ -548,26 +597,17 @@ def create_asgi_app(
                     file_path: str,
                 ) -> ASGIApp:
                     # Create the base app with the correct base_url
-                    single_asgi_app: ASGIApp = self._create_app_for_file(
-                        base_url=path, file_path=file_path
+                    # Remove trailing slash for consistent path handling
+                    base_url = path.rstrip("/")
+                    app = self._create_app_for_file(
+                        base_url=base_url, file_path=file_path
                     )
                     # Apply middleware if provided
                     if middleware:
-                        # Create a wrapper app to maintain the base_url context
-                        mount_app = Starlette()
-                        for m in middleware:
-                            mount_app.add_middleware(m)
-                        # Mount with the same base_url
-                        mount_app.mount("/", single_asgi_app)
-                        mount_app.state.base_url = path
-                        mount_app.state.session_manager = (
-                            single_asgi_app.state.session_manager
-                        )
-                        mount_app.state.config_manager = (
-                            single_asgi_app.state.config_manager
-                        )
-                        return mount_app
-                    return single_asgi_app
+                        # Create a StatePreservingMiddleware for each middleware
+                        for m in reversed(middleware):
+                            app = StatePreservingMiddleware(app, m)
+                    return app
 
                 # This comes after the middleware, so it's applied first.
                 app = DynamicDirectoryMiddleware(
