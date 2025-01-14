@@ -410,9 +410,9 @@ class TestDataHash:
             one = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         @app.cell
@@ -424,9 +424,9 @@ class TestDataHash:
             two = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (two,)
 
         @app.cell
@@ -468,9 +468,9 @@ class TestDataHash:
             one = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         @app.cell
@@ -482,9 +482,9 @@ class TestDataHash:
             two = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (two,)
 
         @app.cell
@@ -528,9 +528,9 @@ class TestDataHash:
             one = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         @app.cell
@@ -544,9 +544,9 @@ class TestDataHash:
             two = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (two,)
 
         @app.cell
@@ -591,12 +591,12 @@ class TestDataHash:
                 _A = torch.sum(_a)
             one = _A
 
-            assert (
-                _cache._cache.cache_type == "ContextExecutionPath"
-            ), _cache._cache.cache_type
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.cache_type == "ContextExecutionPath", (
+                _cache._cache.cache_type
+            )
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         app.run()
@@ -638,9 +638,9 @@ class TestDataHash:
                 assert strand == sibling
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         app.run()
@@ -685,9 +685,9 @@ class TestDataHash:
             one = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         @app.cell
@@ -702,9 +702,9 @@ class TestDataHash:
             two = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (two,)
 
         @app.cell
@@ -754,9 +754,9 @@ class TestDataHash:
             one = _A
 
             assert _cache._cache.cache_type == "ContextExecutionPath"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         app.run()
@@ -798,9 +798,9 @@ class TestDataHash:
             one = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (one,)
 
         @app.cell
@@ -813,9 +813,9 @@ class TestDataHash:
             two = _A
 
             assert _cache._cache.cache_type == "ContentAddressed"
-            assert (
-                _cache._cache.hash == expected_hash
-            ), f"expected_hash != {_cache._cache.hash}"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
             return (two,)
 
         @app.cell

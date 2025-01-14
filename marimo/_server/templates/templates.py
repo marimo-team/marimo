@@ -155,17 +155,23 @@ def static_notebook_template(
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.version = "{__version__}";
-        window.__MARIMO_STATIC__.notebookState = {json.dumps({
-          "cellIds": cell_ids,
-          "cellNames": _serialize_list_to_base64(cell_names),
-          "cellCodes": _serialize_list_to_base64(cell_codes),
-          "cellConfigs": _serialize_list_to_base64([
-            json.dumps(config.asdict())
-            for config in cell_configs
-          ]),
-          "cellOutputs": serialized_cell_outputs,
-          "cellConsoleOutputs": serialized_cell_console_outputs,
-        })};
+        window.__MARIMO_STATIC__.notebookState = {
+            json.dumps(
+                {
+                    "cellIds": cell_ids,
+                    "cellNames": _serialize_list_to_base64(cell_names),
+                    "cellCodes": _serialize_list_to_base64(cell_codes),
+                    "cellConfigs": _serialize_list_to_base64(
+                        [
+                            json.dumps(config.asdict())
+                            for config in cell_configs
+                        ]
+                    ),
+                    "cellOutputs": serialized_cell_outputs,
+                    "cellConsoleOutputs": serialized_cell_console_outputs,
+                }
+            )
+        };
         window.__MARIMO_STATIC__.assetUrl = "{asset_url}";
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>

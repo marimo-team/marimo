@@ -55,9 +55,9 @@ class MemoryLoader(Loader):
         return self._maybe_lock(lambda: key in self._cache)
 
     def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
-        assert self.cache_hit(
-            hashed_context, cache_type
-        ), INCONSISTENT_CACHE_BOILER_PLATE
+        assert self.cache_hit(hashed_context, cache_type), (
+            INCONSISTENT_CACHE_BOILER_PLATE
+        )
         self.hits += 1
         key = self.build_path(hashed_context, cache_type)
         if self.is_lru:

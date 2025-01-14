@@ -62,7 +62,9 @@ class AppMeta:
 
             ```python
             # Only show this content when editing the notebook
-            mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
+            mo.md(
+                "# Developer Notes"
+            ) if mo.app_meta().mode == "edit" else None
             ```
 
         Returns:

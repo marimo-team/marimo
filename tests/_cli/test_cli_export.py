@@ -450,9 +450,9 @@ class TestExportScript:
             ],
             capture_output=True,
         )
-        assert (
-            p.returncode != 0
-        ), "Expected non-zero return code due to multiple definitions"
+        assert p.returncode != 0, (
+            "Expected non-zero return code due to multiple definitions"
+        )
         error_message = p.stderr.decode()
         assert (
             "MultipleDefinitionError: This app can't be run because it has multiple definitions of the name x"

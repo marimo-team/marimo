@@ -28,9 +28,9 @@ class UpdateComponentValuesRequest:
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.object_ids) == len(
-            self.values
-        ), "Mismatched object_ids and values"
+        assert len(self.object_ids) == len(self.values), (
+            "Mismatched object_ids and values"
+        )
 
 
 @dataclass
@@ -89,9 +89,9 @@ class RunRequest:
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(
-            self.codes
-        ), "Mismatched cell_ids and codes"
+        assert len(self.cell_ids) == len(self.codes), (
+            "Mismatched cell_ids and codes"
+        )
 
 
 @dataclass
@@ -121,15 +121,15 @@ class SaveNotebookRequest:
 
     # Validate same length
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(
-            self.codes
-        ), "Mismatched cell_ids and codes"
-        assert len(self.cell_ids) == len(
-            self.names
-        ), "Mismatched cell_ids and names"
-        assert len(self.cell_ids) == len(
-            self.configs
-        ), "Mismatched cell_ids and configs"
+        assert len(self.cell_ids) == len(self.codes), (
+            "Mismatched cell_ids and codes"
+        )
+        assert len(self.cell_ids) == len(self.names), (
+            "Mismatched cell_ids and names"
+        )
+        assert len(self.cell_ids) == len(self.configs), (
+            "Mismatched cell_ids and configs"
+        )
 
 
 @dataclass
@@ -147,9 +147,9 @@ class CopyNotebookRequest:
             f'File "{self.source}" does not exist.'
             + "Please save the notebook and try again."
         )
-        assert not os.path.exists(
-            self.destination
-        ), f'File "{destination}" already exists in this directory.'
+        assert not os.path.exists(self.destination), (
+            f'File "{destination}" already exists in this directory.'
+        )
 
 
 @dataclass

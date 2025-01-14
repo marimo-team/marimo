@@ -540,9 +540,7 @@ Example:
     default=120,
     show_default=True,
     type=int,
-    help=(
-        "Seconds to wait before closing a session on " "websocket disconnect."
-    ),
+    help=("Seconds to wait before closing a session on websocket disconnect."),
 )
 @click.option(
     "--watch",

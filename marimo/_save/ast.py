@@ -159,9 +159,9 @@ def strip_function(fn: Callable[..., Any]) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
     function_ast = ast.parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
-    assert isinstance(
-        body, (ast.FunctionDef, ast.AsyncFunctionDef)
-    ), "Expected a function definition"
+    assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (
+        "Expected a function definition"
+    )
     extracted = ast.Module(body.body, type_ignores=[])
     module = RemoveReturns().visit(extracted)
     assert isinstance(module, ast.Module), "Expected a module"
