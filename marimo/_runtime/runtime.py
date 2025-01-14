@@ -549,11 +549,12 @@ class Kernel:
         ):
             self.package_manager = create_package_manager(package_manager)
 
-        if self._should_update_script_metadata():
-            # All marimo notebooks depend on the marimo package; if the
-            # notebook already has an optional dependency group with marimo,
-            # such as marimo[sql], this is a NOOP.
-            self._update_script_metadata(["marimo"])
+            if self._should_update_script_metadata():
+                # All marimo notebooks depend on the marimo package; if the
+                # notebook already has marimo as a dependency, or an optional
+                # dependency group with marimo, such as marimo[sql], this is a
+                # NOOP.
+                self._update_script_metadata(["marimo"])
 
         if (
             autoreload_mode == "lazy" or autoreload_mode == "autorun"
