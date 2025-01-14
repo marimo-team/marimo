@@ -2846,6 +2846,7 @@ export interface components {
     };
     UpdateCellCodes: {
       cell_ids: string[];
+      code_is_stale: boolean;
       codes: string[];
       /** @enum {string} */
       name: "update-cell-codes";

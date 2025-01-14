@@ -76,15 +76,6 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def watcher(app: Starlette) -> AsyncIterator[None]:
-    state = AppState.from_app(app)
-    if state.watch:
-        session_mgr = state.session_manager
-        session_mgr.start_file_watcher()
-    yield
-
-
-@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     if not state.headless:

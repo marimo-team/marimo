@@ -151,8 +151,9 @@ def test_close_session(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
     session_id = "test_session_id"
+    mock_session.app_file_manager = AppFileManager(filename=None)
     session_manager.sessions[session_id] = mock_session
-    session_manager.close_session(session_id)
+    assert session_manager.close_session(session_id)
     assert session_id not in session_manager.sessions
     mock_session.close.assert_called_once()
 
