@@ -213,6 +213,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
       notebookFileStore.saveFile(code.contents);
       fallbackFileStore.saveFile(code.contents);
     }
+    // Also save to the other worker, since this is needed for
+    // exporting to HTML
+    // Fire-and-forget
+    void this.rpc.proxy.request.saveNotebook(request).catch((error) => {
+      Logger.error(error);
+    });
     return null;
   };
 

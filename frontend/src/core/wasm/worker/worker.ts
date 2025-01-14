@@ -26,6 +26,7 @@ import { getController } from "./getController";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
+  SaveNotebookRequest,
 } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
 
@@ -228,6 +229,19 @@ const requestHandler = createRPCRequestHandler({
     return {
       packages: JSON.parse(packages) as ListPackagesResponse["packages"],
     };
+  },
+
+  /**
+   * Save the notebook
+   */
+  saveNotebook: async (opts: SaveNotebookRequest) => {
+    // Partially duplicated from save-worker.ts
+    await pyodideReadyPromise; // Make sure loading is done
+    const saveFile = self.pyodide.runPython(`
+      from marimo._pyodide.bootstrap import save_file
+      save_file
+    `);
+    await saveFile(JSON.stringify(opts), WasmFileSystem.NOTEBOOK_FILENAME);
   },
 
   /**
