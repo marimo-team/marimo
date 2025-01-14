@@ -49,41 +49,28 @@ class StatePreservingMiddleware:
         self.wrapped = middleware_factory(app)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        # Create a new scope to avoid modifying the original
-        new_scope = dict(scope)
-
-        # Preserve base_url in scope
-        if "base_url" not in new_scope and self._state is not None:
-            base_url = getattr(self._state, "base_url", None)
-            if base_url is not None:
-                new_scope["base_url"] = base_url
-
-        # Call the wrapped middleware
-        await self.wrapped(new_scope, receive, send)
+        # Call the wrapped middleware with original scope
+        await self.wrapped(scope, receive, send)
 
     def __getattr__(self, name: str) -> Any:
-        # Forward attribute access to wrapped app, except for 'state'
-        if name == "state":
-            return self._state
-
-        # For base_url, try to get it from state first
-        if name == "base_url" and self._state is not None:
-            base_url = getattr(self._state, "base_url", None)
-            if base_url is not None:
-                return base_url
-
         # Try wrapped app first
         try:
             return getattr(self.wrapped, name)
         except AttributeError:
-            # Then try state if it exists
-            if self._state is not None and hasattr(self._state, name):
-                return getattr(self._state, name)
-            raise
+            # Then try original app
+            try:
+                return getattr(self.app, name)
+            except AttributeError:
+                # Finally try state if it exists
+                if self._state is not None and hasattr(self._state, name):
+                    return getattr(self._state, name)
+                raise
 
     @property
-    def state(self):
+    def state(self) -> Any:
         """Expose state as a property to match Starlette's API."""
+        if hasattr(self.wrapped, "state"):
+            return self.wrapped.state
         return self._state
 
 
@@ -318,14 +305,15 @@ class DynamicDirectoryMiddleware:
             await response(new_scope, receive, send)
             return
 
+        # Construct the full path for the app
+        # Remove trailing slash for consistent path handling
+        base_url = f"{self.base_path}/{relative_path}".rstrip("/")
+
         # Create or get cached app
         cache_key = str(marimo_file)
         if cache_key not in self._app_cache:
             LOGGER.debug(f"Creating new app for {cache_key}")
             try:
-                # Construct the full path for the app
-                # Remove trailing slash for consistent path handling
-                base_url = f"{self.base_path}/{relative_path}".rstrip("/")
                 self._app_cache[cache_key] = self.app_builder(
                     base_url, cache_key
                 )
@@ -567,20 +555,20 @@ def create_asgi_app(
                     )
                     # Apply middleware if provided
                     if middleware:
-                        # Create a StatePreservingMiddleware for each middleware
+                        # Apply middleware in reverse order so the first middleware in the list is outermost
                         for m in reversed(middleware):
                             app = StatePreservingMiddleware(app, m)
                     self._app_cache[root] = app
-                base_app.mount(path, self._app_cache[root])
-
-                # If path is not empty,
-                # add a redirect from /{path} to /{path}/
-                # otherwise, we get a 404
-                if path and not path.endswith("/"):
+                # Mount the app and ensure trailing slash
+                if not path.endswith("/"):
+                    base_app.mount(path + "/", self._app_cache[root])
+                    # Add redirect for path without trailing slash
                     base_app.add_route(
                         path,
                         create_redirect_to_slash(path),
                     )
+                else:
+                    base_app.mount(path, self._app_cache[root])
 
             # Add dynamic directory middleware for each directory config
             app: ASGIApp = base_app
@@ -604,7 +592,7 @@ def create_asgi_app(
                     )
                     # Apply middleware if provided
                     if middleware:
-                        # Create a StatePreservingMiddleware for each middleware
+                        # Apply middleware in reverse order so the first middleware in the list is outermost
                         for m in reversed(middleware):
                             app = StatePreservingMiddleware(app, m)
                     return app
