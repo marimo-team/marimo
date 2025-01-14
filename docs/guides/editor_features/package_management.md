@@ -15,4 +15,4 @@ they use. This makes it possible to share standalone notebooks without shipping
 `requirements.txt` files alongside them, and guarantees your notebooks will
 work weeks, months, even years into the future.
 
-To learn more, see the [Package Reproducibility Guide](../package_reproducibility.md)
+To learn more, see the [Package Reproducibility Guide](../package_reproducibility.md).
