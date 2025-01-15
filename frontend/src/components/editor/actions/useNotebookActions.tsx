@@ -363,6 +363,7 @@ export function useNotebookActions() {
     {
       icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
       label: "Re-run all cells",
+      hotkey: "global.runAll",
       handle: async () => {
         runAllCells();
       },
