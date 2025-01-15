@@ -93,8 +93,8 @@ nav:
           - AI completion: guides/editor_features/ai_completion.md
           - Package management: guides/editor_features/package_management.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
-          - Watching notebooks: guides/editor_features/watching.md
           - Hotkeys: guides/editor_features/hotkeys.md
+      - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
       - Test notebooks:

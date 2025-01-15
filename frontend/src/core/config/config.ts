@@ -38,7 +38,7 @@ export const hotkeysAtom = atom((get) => {
 });
 
 export const autoSaveConfigAtom = atom((get) => {
-  return get(userConfigAtom).save;
+  return get(resolvedMarimoConfigAtom).save;
 });
 
 /**
