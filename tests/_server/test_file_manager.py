@@ -251,7 +251,7 @@ def test_to_code(app_file_manager: AppFileManager) -> None:
     )
 
 
-def test_reload_reorders_cells(app_file_manager: AppFileManager) -> None:
+def test_reload_reorders_cells() -> None:
     """Test that reload() reorders cell IDs based on similarity to previous cells."""
     # Create a temporary file with initial content
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
@@ -279,6 +279,7 @@ if __name__ == "__main__":
     # Initialize AppFileManager with the temp file
     manager = AppFileManager(filename=temp_file.name)
     original_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert original_cell_ids == ["Hbol", "MJUe"]
 
     # Modify the file content - swap the cells but keep similar content
     modified_content = """
@@ -305,17 +306,16 @@ if __name__ == "__main__":
     # Reload the file
     manager.reload()
 
-    # The cell IDs should be reordered to match the original order
-    # since the content is similar
+    # The cell IDs should be reordered to match the original code
     reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
     assert len(reloaded_cell_ids) == len(original_cell_ids)
-    assert reloaded_cell_ids == original_cell_ids
+    assert reloaded_cell_ids == ["MJUe", "Hbol"]
 
     # Clean up
     os.remove(temp_file.name)
 
 
-def test_reload_updates_content(app_file_manager: AppFileManager) -> None:
+def test_reload_updates_content() -> None:
     """Test that reload() updates the file contents correctly."""
     # Create a temporary file with initial content
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
