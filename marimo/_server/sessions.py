@@ -41,6 +41,7 @@ from marimo._messaging.ops import (
     MessageOperation,
     Reload,
     UpdateCellCodes,
+    UpdateCellIdsRequest,
 )
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
@@ -828,7 +829,11 @@ class SessionManager:
             cell_ids = list(
                 session.app_file_manager.app.cell_manager.cell_ids()
             )
-            # Send the updated codes to the frontend
+            # Send the updated cell ids and codes to the frontend
+            session.write_operation(
+                UpdateCellIdsRequest(cell_ids=cell_ids),
+                from_consumer_id=None,
+            )
             session.write_operation(
                 UpdateCellCodes(
                     cell_ids=cell_ids,
