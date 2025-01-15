@@ -76,7 +76,7 @@ marimo has built-in support for generating and refactoring code with AI, with a 
 
 ### Custom AI Rules
 
-You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](https://docs.marimo.io/guides/working_with_data/plotting.html#plotting) and [working with data guide](https://docs.marimo.io/guides/working_with_data/index.html).
+You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](../working_with_data/plotting.md#plotting) and [working with data guide](../working_with_data/index.md).
 
 <div align="center">
   <figure>
