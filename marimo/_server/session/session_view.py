@@ -13,6 +13,7 @@ from marimo._messaging.ops import (
     Datasets,
     Interrupted,
     MessageOperation,
+    UpdateCellCodes,
     UpdateCellIdsRequest,
     Variables,
     VariableValue,
@@ -52,6 +53,8 @@ class SessionView:
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
+        # Any stale code that was read from a file-watcher
+        self.stale_code: Optional[UpdateCellCodes] = None
 
         # Auto-saving
         self.has_auto_exported_html = False
@@ -172,6 +175,11 @@ class SessionView:
         elif isinstance(operation, UpdateCellIdsRequest):
             self.cell_ids = operation
 
+        elif (
+            isinstance(operation, UpdateCellCodes) and operation.code_is_stale
+        ):
+            self.stale_code = operation
+
     def get_cell_outputs(
         self, ids: list[CellId_t]
     ) -> dict[CellId_t, CellOutput]:
@@ -226,6 +234,8 @@ class SessionView:
         if self.datasets.tables:
             all_ops.append(self.datasets)
         all_ops.extend(self.cell_operations.values())
+        if self.stale_code:
+            all_ops.append(self.stale_code)
         return all_ops
 
     def mark_auto_export_html(self) -> None:

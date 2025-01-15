@@ -52,6 +52,22 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         click.echo(self.ctx.get_help(), file=file, color=color)
 
 
+def check_app_correctness(filename: str) -> None:
+    try:
+        codegen.get_app(filename)
+    except SyntaxError:
+        import traceback
+
+        # This prints a more readable error message, without internal details
+        # e.g.
+        # Error:   File "/my/bad/file.py", line 17
+        #     x.
+        #     ^
+        # SyntaxError: invalid syntax
+        click.echo(f"Failed to parse notebook: {filename}\n", err=True)
+        raise click.ClickException(traceback.format_exc(limit=0)) from None
+
+
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
 
 
@@ -351,7 +367,7 @@ def edit(
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
-            codegen.get_app(name)
+            check_app_correctness(name)
         elif not is_dir:
             # write empty file
             try:
@@ -640,7 +656,7 @@ def run(
     name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
 
     # correctness check - don't start the server if we can't import the module
-    codegen.get_app(name)
+    check_app_correctness(name)
 
     start(
         file_router=AppFileRouter.from_filename(MarimoPath(name)),
