@@ -24,7 +24,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { formatAll } from "../codemirror/format";
 import { useFilename, useUpdateFilename } from "./filename";
 import { connectionAtom } from "../network/connection";
-import { autoSaveConfigAtom, resolvedMarimoConfigAtom } from "../config/config";
+import { autoSaveConfigAtom } from "../config/config";
 import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { RecoveryButton } from "@/components/editor/RecoveryButton";
@@ -33,7 +33,6 @@ import { SaveIcon } from "lucide-react";
 import { useHotkey } from "@/hooks/useHotkey";
 import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
 import { useAutoExport } from "../export/hooks";
-import {autoMaxBins} from "vega-lite/build/src/bin";
 
 interface SaveNotebookProps {
   kioskMode: boolean;
@@ -77,7 +76,7 @@ export const SaveComponent = ({ kioskMode, appConfig }: SaveNotebookProps) => {
 };
 
 export function useSaveNotebook({ kioskMode, appConfig }: SaveNotebookProps) {
-  const autoSaveConfig = useAtomValue(autoSaveConfigAtom)
+  const autoSaveConfig = useAtomValue(autoSaveConfigAtom);
   const { updateCellCode } = useCellActions();
   const notebook = useNotebook();
   const [connection] = useAtom(connectionAtom);
