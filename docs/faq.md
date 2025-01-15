@@ -106,7 +106,7 @@ marimo is both a notebook and a library.
 - Use the _marimo library_ (`import marimo as mo`) in
   marimo notebooks. Write markdown with `mo.md(...)`,
   create stateful interactive elements with `mo.ui` (`mo.ui.slider(...)`), and
-  more. See the docs for an [API reference](https://docs.marimo.io/api/).
+  more. See the docs for an [API reference](./api/index.md).
 
 <a name="faq-notebook-app"></a>
 

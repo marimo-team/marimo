@@ -12,7 +12,7 @@ global variable automatically runs all cells that reference it.**
 </div>
 
 !!! example "Examples"
-    See the [API reference](http://127.0.0.1:8000/api/inputs/) or our [GitHub
+    See the [API reference](../api/inputs/index.md) or our [GitHub
     repo](https://github.com/marimo-team/marimo/tree/main/examples/ui) for
     bite-sized examples on using input elements.
 
