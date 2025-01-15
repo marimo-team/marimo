@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.0"
+__generated_with = "0.10.13"
 app = marimo.App(width="columns")
 
 
 @app.cell(column=0)
-def __():
+def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
@@ -13,29 +13,29 @@ def __():
 
 
 @app.cell
-def __(dataset, mo, plot, x, y):
+def _(dataset, mo, plot, x, y):
     mo.vstack([dataset, x, y, plot])
     return
 
 
 @app.cell
-def __(selected_dataset):
+def _(selected_dataset):
     df = selected_dataset()
     df
     return (df,)
 
 
 @app.cell(column=1)
-def __(plot_type, x, y):
+def _(plot_type, x, y):
     plot_type().encode(
         x=x.value,
         y=y.value,
-    ).interactive()
+    ).interactive().properties(width="container")
     return
 
 
 @app.cell
-def __(data, mo):
+def _(data, mo):
     dataset = mo.ui.dropdown(
         label="Choose dataset", options=data.list_datasets(), value="iris"
     )
@@ -43,7 +43,7 @@ def __(data, mo):
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     x = mo.ui.dropdown(
         label="Choose X value", options=df.columns.to_list(), value=df.columns[0]
     )
@@ -59,15 +59,20 @@ def __(df, mo):
 
 
 @app.cell
-def __(data, dataset):
+def _(data, dataset):
     selected_dataset = getattr(data, dataset.value)
     return (selected_dataset,)
 
 
 @app.cell
-def __(alt, df, plot):
+def _(alt, df, plot):
     plot_type = getattr(alt.Chart(df), plot.value)
     return (plot_type,)
+
+
+@app.cell(column=2)
+def _():
+    return
 
 
 if __name__ == "__main__":
