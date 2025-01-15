@@ -1,7 +1,7 @@
 # Using your own editor
 
 While we recommend using the [marimo editor](editor_features/index.md),
-we understand that you may prefer to use your own own. marimo provides a
+we understand that you may prefer to use your own editor. marimo provides a
 `--watch` flag that watches your notebook file for changes, syncing them to
 the marimo editor or running application. This lets you to edit your notebook
 using an editor of your choice, like neovim, VSCode, Cursor, or PyCharm, and
