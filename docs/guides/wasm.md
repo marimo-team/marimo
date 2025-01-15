@@ -24,7 +24,7 @@ traditional client-server model. WASM notebooks:
     with code and models, doing lightweight data exploration, authoring blog
     posts, tutorials, and educational materials, and even building tools. For
     notebooks that do heavy computation, [use marimo
-    locally](http://127.0.0.1:8000/getting_started/) or on a backend.
+    locally](../getting_started/index.md) or on a backend.
 
 **Try it!** Try editing the below notebook (your browser, not a backend server, is executing it!)
 
@@ -95,7 +95,6 @@ For a full list of supported packages, see [Pyodide's
 documentation on supported packages.](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
 
 If you want a package to be supported, consider [filing an issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+package+request&projects=&template=package_request.md&title=).
-
 
 ## Including data
 
