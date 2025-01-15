@@ -50,7 +50,7 @@ relationships between cells, and automatically re-running cells as needed.
 
 In addition, marimo notebooks can serialize package requirements inline;
 marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages]guides/editor_features/package_management.md).
+making them [reproducible down to the packages](guides/editor_features/package_management.md).
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
