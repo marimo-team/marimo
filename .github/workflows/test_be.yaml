@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -23,6 +24,26 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+            docs:
+              - 'docs/**'
+
+  test_docs:
+    needs: changes
+    if: ${{ needs.changes.outputs.docs == 'true' }}
+    name: Test docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      - name: ⬇️ Install Hatch
+        uses: pypa/hatch@install
+
+      - name: 📚 Build docs
+        run: hatch run docs:build
 
   test_python:
     needs: changes

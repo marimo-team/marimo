@@ -1,7 +1,7 @@
 # Module autoreloading
 
 marimo has an advanced module autoreloader built-in, which you can
-enable in the [notebook settings](../../configuration/runtime_configuration/).
+enable in the [notebook settings](../configuration/runtime_configuration.md).
 When you make edits to Python modules that your notebook has imported, the
 module autoreloader will automatically mark cells that use them as stale and,
 optionally, automatically run them.

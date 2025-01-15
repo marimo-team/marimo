@@ -172,10 +172,10 @@ subprocess.run(["ls", "-l"])
 | %env          | `os.environ`                                                                                   |
 | %load         | N/A - use Python imports                                                                       |
 | %load_ext     | N/A                                                                                            |
-| %autoreload   | marimo's [module autoreloader](../../editor_features/module_autoreloading/)                       |
+| %autoreload   | marimo's [module autoreloader](../editor_features/module_autoreloading.md)                     |
 | %matplotlib   | marimo auto-displays plots                                                                     |
 | %pwd          | `os.getcwd()`                                                                                  |
-| %pip          | Use marimo's [built-in package management](../../editor_features/package_management/)   |                
+| %pip          | Use marimo's [built-in package management](../editor_features/package_management.md)           |
 | %who_ls       | `dir()`, `globals()`, [`mo.refs()`][marimo.refs], [`mo.defs()`][marimo.defs]                   |
 | %system       | `subprocess.run()`                                                                             |
 | %%time        | `time.perf_counter()` or Python's timeit module                                                |
