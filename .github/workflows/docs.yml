@@ -36,7 +36,9 @@ jobs:
         # This is technically off by 1 commit, but generating the llm.txt file is easiest from a
         # deployed site.
         # We also ignore txt and xml files
-        run: npx sitefetch https://docs.marimo.io -o site/llm.txt --match "!**/*.{txt,xml}"
+        run: npx sitefetch https://docs.marimo.io -o ${{ env.OUTPUT_FILE }} --match '!**/*.{txt,xml}'
+        env:
+          OUTPUT_FILE: .vercel/output/static/llm.txt
 
       - name: 🚀 Deploy to Vercel
         if: github.ref == 'refs/heads/main'
