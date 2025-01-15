@@ -265,7 +265,7 @@ dependencies = [
 marimo_docs = { path = "./docs", editable = true }
 
 [tool.hatch.envs.docs.scripts]
-build = "mkdocs build --strict {args}"
+build = "mkdocs build {args}"
 serve = "mkdocs serve --clean {args}"
 deploy = "mkdocs gh-deploy --force {args}"
 

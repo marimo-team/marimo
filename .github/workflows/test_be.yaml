@@ -43,7 +43,7 @@ jobs:
         uses: pypa/hatch@install
 
       - name: 📚 Build docs
-        run: hatch run docs:build
+        run: hatch run docs:build --strict
 
   test_python:
     needs: changes
