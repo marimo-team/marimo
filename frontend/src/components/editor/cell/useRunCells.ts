@@ -5,7 +5,7 @@ import { getNotebook, useCellActions } from "@/core/cells/cells";
 import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { Logger } from "@/utils/Logger";
-import { staleCellIds } from "@/core/cells/utils";
+import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
@@ -28,6 +28,12 @@ export function useRunCell(cellId: CellId | undefined) {
     runCells([cellId]);
   });
   return runCell;
+}
+
+export function useRunAllCells() {
+  const runCells = useRunCells();
+  const runAllCells = useEvent(() => runCells(enabledCellIds(getNotebook())));
+  return runAllCells;
 }
 
 /**
