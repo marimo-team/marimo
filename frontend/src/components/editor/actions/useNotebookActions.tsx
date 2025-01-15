@@ -29,6 +29,7 @@ import {
   SettingsIcon,
   XCircleIcon,
   FilePlus2Icon,
+  FastForwardIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -69,6 +70,7 @@ import { settingDialogAtom } from "@/components/app-config/app-config-button";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { copyToClipboard } from "@/utils/copy";
 import { newNotebookURL } from "@/utils/urls";
+import { useRunAllCells } from "../cell/useRunCells";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -86,6 +88,7 @@ export function useNotebookActions() {
   const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
     useCellActions();
   const restartKernel = useRestartKernel();
+  const runAllCells = useRunAllCells();
   const copyNotebook = useCopyNotebook(filename);
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
@@ -355,6 +358,13 @@ export function useNotebookActions() {
       label: "Clear all outputs",
       handle: () => {
         clearAllCellOutputs();
+      },
+    },
+    {
+      icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
+      label: "Re-run all cells",
+      handle: async () => {
+        runAllCells();
       },
     },
     {
