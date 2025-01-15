@@ -1,6 +1,6 @@
 # Using your own editor
 
-While we recommend using the [marimo editor](editor_features/index.md),
+While we recommend using the [marimo editor](index.md),
 we understand that you may prefer to use your own. marimo provides a
 `--watch` flag that watches your notebook file for changes, syncing them to
 the marimo editor or running application. This lets you edit your notebook
