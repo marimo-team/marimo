@@ -249,3 +249,121 @@ def test_to_code(app_file_manager: AppFileManager) -> None:
             "",
         ]
     )
+
+
+def test_reload_reorders_cells(app_file_manager: AppFileManager) -> None:
+    """Test that reload() reorders cell IDs based on similarity to previous cells."""
+    # Create a temporary file with initial content
+    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    initial_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+if __name__ == "__main__":
+    app.run()
+"""
+    temp_file.write(initial_content.encode())
+    temp_file.close()
+
+    # Initialize AppFileManager with the temp file
+    manager = AppFileManager(filename=temp_file.name)
+    original_cell_ids = list(manager.app.cell_manager.cell_ids())
+
+    # Modify the file content - swap the cells but keep similar content
+    modified_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = 2
+    return y
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    with open(temp_file.name, "w") as f:
+        f.write(modified_content)
+
+    # Reload the file
+    manager.reload()
+
+    # The cell IDs should be reordered to match the original order
+    # since the content is similar
+    reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(reloaded_cell_ids) == len(original_cell_ids)
+    assert reloaded_cell_ids == original_cell_ids
+
+    # Clean up
+    os.remove(temp_file.name)
+
+
+def test_reload_updates_content(app_file_manager: AppFileManager) -> None:
+    """Test that reload() updates the file contents correctly."""
+    # Create a temporary file with initial content
+    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+    initial_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    temp_file.write(initial_content.encode())
+    temp_file.close()
+
+    # Initialize AppFileManager with the temp file
+    manager = AppFileManager(filename=temp_file.name)
+    original_code = list(manager.app.cell_manager.codes())[0]
+    assert "x = 1" in original_code
+
+    # Modify the file content
+    modified_content = """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 42  # Changed value
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    with open(temp_file.name, "w") as f:
+        f.write(modified_content)
+
+    # Reload the file
+    manager.reload()
+
+    # Check that the code was updated
+    reloaded_code = list(manager.app.cell_manager.codes())[0]
+    assert "x = 42" in reloaded_code
+    assert "x = 1" not in reloaded_code
+
+    # Clean up
+    os.remove(temp_file.name)
