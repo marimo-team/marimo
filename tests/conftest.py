@@ -262,6 +262,49 @@ def temp_marimo_file() -> Generator[str, None, None]:
 
 
 @pytest.fixture
+def temp_sandboxed_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        # Copyright 2024 Marimo. All rights reserved.
+        # /// script
+        # requires-python = ">=3.11"
+        # dependencies = [
+        #     "polars",
+        #     "marimo>=0.8.0",
+        #     "quak",
+        #     "vega-datasets",
+        # ]
+        # ///
+
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 10)
+            return slider,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
 def temp_async_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
     tmp_file = os.path.join(tmp_dir.name, "notebook.py")
