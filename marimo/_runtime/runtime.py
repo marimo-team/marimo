@@ -1899,11 +1899,13 @@ class Kernel:
             return
 
         missing_packages_set = set(request.versions.keys())
-        # Append missing modules
+        # Append all other missing packages from the notebook; the missing
+        # package request only contains the packages from the cell the user
+        # executed.
         missing_packages_set.update(
             [
-                self.package_manager.package_to_module(pkg)
-                for pkg in self.module_registry.missing_modules()
+                self.package_manager.module_to_package(module)
+                for module in self.module_registry.missing_modules()
             ]
         )
         missing_packages = list(sorted(missing_packages_set))
