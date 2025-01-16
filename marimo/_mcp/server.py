@@ -32,7 +32,7 @@ class MCPServer:
         self.prompts: Dict[str, MCPFunction] = {}
 
         # Register with current context
-        # TODO: how to get the current context (session view)?
+        # TODO(mcp): how to get the current runtime context (session view)?
         ctx = get_context()
         if not hasattr(ctx, "mcp_servers"):
             ctx.mcp_servers = {}
