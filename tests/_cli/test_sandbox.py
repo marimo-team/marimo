@@ -320,6 +320,8 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
     # a file that doesn't yet exist
     uv_cmd = construct_uv_command(["edit", "foo_123.py"], "foo_123.py")
     assert "--refresh" in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
 
 
 def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
@@ -328,6 +330,8 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
     # a file that has no inline metadata yet
     uv_cmd = construct_uv_command(["edit", temp_marimo_file], temp_marimo_file)
     assert "--refresh" in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
 
 
 def test_construct_uv_cmd_marimo_edit_sandboxed_file(
@@ -339,3 +343,5 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         ["edit", temp_sandboxed_marimo_file], temp_sandboxed_marimo_file
     )
     assert "--refresh" not in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
