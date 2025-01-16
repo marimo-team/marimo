@@ -9,6 +9,7 @@ from marimo._cli.sandbox import (
     _normalize_sandbox_dependencies,
     _pyproject_toml_to_requirements_txt,
     _read_pyproject,
+    construct_uv_command,
     get_dependencies_from_filename,
 )
 
@@ -308,3 +309,33 @@ def test_is_marimo_dependency():
     assert not _is_marimo_dependency("pandas")
     assert not _is_marimo_dependency("marimo-ai")
     assert not _is_marimo_dependency("marimo-ai==0.1.0")
+
+
+def test_construct_uv_cmd_marimo_new() -> None:
+    uv_cmd = construct_uv_command(["new"], None)
+    assert "--refresh" in uv_cmd
+
+
+def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
+    # a file that doesn't yet exist
+    uv_cmd = construct_uv_command(["edit", "foo_123.py"], "foo_123.py")
+    assert "--refresh" in uv_cmd
+
+
+def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
+    temp_marimo_file: str,
+) -> None:
+    # a file that has no inline metadata yet
+    uv_cmd = construct_uv_command(["edit", temp_marimo_file], temp_marimo_file)
+    assert "--refresh" in uv_cmd
+
+
+def test_construct_uv_cmd_marimo_edit_sandboxed_file(
+    temp_sandboxed_marimo_file: str,
+) -> None:
+    # a file that has inline metadata; shouldn't refresh the cache, uv
+    # --isolated will do the right thing.
+    uv_cmd = construct_uv_command(
+        ["edit", temp_sandboxed_marimo_file], temp_sandboxed_marimo_file
+    )
+    assert "--refresh" not in uv_cmd

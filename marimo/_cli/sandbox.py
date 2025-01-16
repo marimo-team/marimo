@@ -248,13 +248,7 @@ def _normalize_sandbox_dependencies(
     return filtered + [chosen]
 
 
-def run_in_sandbox(
-    args: List[str],
-    name: Optional[str] = None,
-) -> int:
-    if not DependencyManager.which("uv"):
-        raise click.UsageError("uv must be installed to use --sandbox")
-
+def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
@@ -303,8 +297,8 @@ def run_in_sandbox(
             # which may conflict with the sandbox requirements
             "--no-project",
             "--with-requirements",
+            temp_file_path,
         ]
-        + [temp_file_path]
         + ["--refresh"]
         if uv_needs_refresh
         else []
@@ -314,8 +308,18 @@ def run_in_sandbox(
     if python_version:
         uv_cmd.extend(["--python", python_version])
 
-    # Final command assembly
-    uv_cmd = uv_cmd + cmd
+    # Final command assembly: combine the uv prefix with the original marimo
+    # command.
+    return uv_cmd + cmd
+
+
+def run_in_sandbox(
+    args: list[str],
+    name: Optional[str] = None,
+) -> int:
+    if not DependencyManager.which("uv"):
+        raise click.UsageError("uv must be installed to use --sandbox")
+    uv_cmd = construct_uv_command(args, name)
 
     echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
 
