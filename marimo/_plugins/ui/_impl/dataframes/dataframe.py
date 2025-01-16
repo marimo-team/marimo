@@ -36,7 +36,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
-from marimo._plugins.validators import validate_no_integer_columns
+from marimo._plugins.validators import (
+    validate_no_integer_columns,
+    validate_page_size,
+)
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
 from marimo._utils.parse_dataclass import parse_raw
@@ -112,6 +115,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         limit: Optional[int] = None,
     ) -> None:
         validate_no_integer_columns(df)
+        validate_page_size(page_size)
         # This will raise an error if the dataframe type is not supported.
         handler = get_handler_for_dataframe(df)
 

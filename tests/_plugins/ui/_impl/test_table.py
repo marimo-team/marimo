@@ -396,6 +396,13 @@ def test_table_with_too_many_rows_gets_clamped() -> None:
     assert len(table._component_args["data"]) == 10
 
 
+def test_table_too_large_pagesize_throws_error() -> None:
+    data = {"a": list(range(20_002))}
+    with pytest.raises(ValueError) as e:
+        _ = ui.table(data, page_size=201)
+    assert "limited to 200 rows" in str(e.value)
+
+
 def test_can_get_second_page() -> None:
     data = {"a": list(range(40))}
     table = ui.table(data)
