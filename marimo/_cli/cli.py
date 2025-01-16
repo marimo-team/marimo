@@ -800,7 +800,8 @@ def shell_completion() -> None:
         )
         return
 
-    shell_name = Path(shell).name
+    # in case we're on a windows system, use .stem to remove extension
+    shell_name = Path(shell).stem
 
     commands = {
         "bash": (
