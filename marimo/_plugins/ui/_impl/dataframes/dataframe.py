@@ -96,7 +96,8 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
 
     Args:
         df (DataFrameType): The DataFrame or series to transform.
-        page_size (int): The number of rows to show in the table. Defaults to 5.
+        page_size (Optional[int], optional): The number of rows to show in the table.
+            Defaults to 5.
         limit (Optional[int], optional): The number of items to load into memory, in case
             the data is remote and lazily fetched. This is likely true for SQL-backed
             dataframes via Ibis.
@@ -110,11 +111,10 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         self,
         df: DataFrameType,
         on_change: Optional[Callable[[DataFrameType], None]] = None,
-        page_size: int = 5,
+        page_size: Optional[int] = 5,
         limit: Optional[int] = None,
     ) -> None:
         validate_no_integer_columns(df)
-        validate_page_size(page_size)
         # This will raise an error if the dataframe type is not supported.
         handler = get_handler_for_dataframe(df)
 
@@ -144,6 +144,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
         self._page_size = page_size or 5  # Default to 5 rows (.head())
+        validate_page_size(self._page_size)
 
         super().__init__(
             component_name=dataframe._name,
