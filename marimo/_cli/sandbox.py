@@ -288,21 +288,16 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
         python_version = None
 
     # Construct base UV command
-    uv_cmd = (
-        [
-            "uv",
-            "run",
-            "--isolated",
-            # sandboxed notebook shouldn't pick up existing pyproject.toml,
-            # which may conflict with the sandbox requirements
-            "--no-project",
-            "--with-requirements",
-            temp_file_path,
-        ]
-        + ["--refresh"]
-        if uv_needs_refresh
-        else []
-    )
+    uv_cmd = [
+        "uv",
+        "run",
+        "--isolated",
+        # sandboxed notebook shouldn't pick up existing pyproject.toml,
+        # which may conflict with the sandbox requirements
+        "--no-project",
+        "--with-requirements",
+        temp_file_path,
+    ] + (["--refresh"] if uv_needs_refresh else [])
 
     # Add Python version if specified
     if python_version:
