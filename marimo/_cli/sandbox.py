@@ -264,6 +264,12 @@ def run_in_sandbox(
         get_dependencies_from_filename(name) if name is not None else []
     )
 
+    # If there are no dependences, which can happen for marimo new or
+    # on marimo edit a_new_file.py, uv may use a cached venv, even though
+    # we are passing --isolated; `--refresh` ensures that the venv is
+    # actually ephemeral.
+    uv_needs_refresh = not dependencies
+
     # Normalize marimo dependencies
     dependencies = _normalize_sandbox_dependencies(dependencies, __version__)
 
@@ -298,12 +304,10 @@ def run_in_sandbox(
             "--no-project",
             "--with-requirements",
         ]
-        # If there are no dependences, uv may use a cached venv, even though
-        # we are passing --isolated; `--refresh` ensures that the venv is
-        # actually ephemeral
+        + [temp_file_path]
         + ["--refresh"]
-        if not dependencies
-        else [] + [temp_file_path]
+        if uv_needs_refresh
+        else []
     )
 
     # Add Python version if specified
