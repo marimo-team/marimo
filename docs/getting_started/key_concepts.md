@@ -12,7 +12,7 @@ elements in a reproducible **notebook environment**.
 
 marimo notebooks are **reactive**: they automatically react to your code
 changes and UI interactions and keep your notebook up-to-date, not unlike a
-spreadsheet. This makes your notebooks reproducibile, [eliminating hidden
+spreadsheet. This makes your notebooks reproducible, [eliminating hidden
 state](../faq.md#faq-problems); it's also what enables marimo notebooks to double as
 apps and Python scripts.
 
