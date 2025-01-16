@@ -52,6 +52,8 @@ class SessionView:
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
+        # Map of MCP server name to server instance
+        self.mcp_servers: dict[str, Any] = {}
 
         # Auto-saving
         self.has_auto_exported_html = False
