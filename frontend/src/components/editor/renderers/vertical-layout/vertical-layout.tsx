@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
 import { memo, useRef, useState } from "react";
-import type { CellRuntimeState } from "@/core/cells/types";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
@@ -86,31 +86,63 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
   const canShowCode = evaluateCanShowCode();
 
-  const verticalCells = (
-    <>
-      {cells.map((cell) => (
-        <VerticalCell
-          key={cell.id}
-          cellId={cell.id}
-          output={cell.output}
-          consoleOutputs={cell.consoleOutputs}
-          status={cell.status}
-          code={cell.code}
-          config={cell.config}
-          cellOutputArea={userConfig.display.cell_output}
-          stopped={cell.stopped}
-          showCode={showCode && canShowCode}
-          errored={cell.errored}
-          mode={mode}
-          runStartTimestamp={cell.runStartTimestamp}
-          interrupted={cell.interrupted}
-          staleInputs={cell.staleInputs}
-          name={cell.name}
-          kiosk={kioskMode}
-        />
-      ))}
-    </>
-  );
+  const renderCell = (cell: CellRuntimeState & CellData) => {
+    return (
+      <VerticalCell
+        key={cell.id}
+        cellId={cell.id}
+        output={cell.output}
+        consoleOutputs={cell.consoleOutputs}
+        status={cell.status}
+        code={cell.code}
+        config={cell.config}
+        cellOutputArea={userConfig.display.cell_output}
+        stopped={cell.stopped}
+        showCode={showCode && canShowCode}
+        errored={cell.errored}
+        mode={mode}
+        runStartTimestamp={cell.runStartTimestamp}
+        interrupted={cell.interrupted}
+        staleInputs={cell.staleInputs}
+        name={cell.name}
+        kiosk={kioskMode}
+      />
+    );
+  };
+
+  const renderCells = () => {
+    if (appConfig.width === "columns") {
+      // Group cells by column
+      const cellsByColumn = new Map<number, typeof cells>();
+      cells.forEach((cell) => {
+        const column = cell.config.column ?? 0;
+        if (!cellsByColumn.has(column)) {
+          cellsByColumn.set(column, []);
+        }
+        cellsByColumn.get(column)?.push(cell);
+      });
+
+      // Sort columns by index
+      const sortedColumns = [...cellsByColumn.entries()].sort(
+        ([a], [b]) => a - b,
+      );
+
+      return (
+        <div className="flex flex-row gap-8 w-full">
+          {sortedColumns.map(([columnIndex, columnCells]) => (
+            <div
+              key={columnIndex}
+              className="flex-1 flex flex-col gap-2 w-contentWidth"
+            >
+              {columnCells.map(renderCell)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <>{cells.map(renderCell)}</>;
+  };
 
   // in read mode (required for canShowCode to be true), we need to insert
   // spacing between cells to prevent them from colliding; in edit mode,
@@ -118,9 +150,9 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {showCode && canShowCode ? (
-        <div className="flex flex-col gap-5"> {verticalCells}</div>
+        <div className="flex flex-col gap-5"> {renderCells()}</div>
       ) : (
-        verticalCells
+        renderCells()
       )}
       {mode === "read" && (
         <ActionButtons

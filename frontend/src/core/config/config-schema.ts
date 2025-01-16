@@ -127,7 +127,6 @@ export const UserConfigSchema = z
     experimental: z
       .object({
         markdown: z.boolean().optional(),
-        multi_column: z.boolean().optional(),
         rtc: z.boolean().optional(),
         // Add new experimental features here
       })

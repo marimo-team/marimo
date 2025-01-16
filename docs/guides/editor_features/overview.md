@@ -105,6 +105,23 @@ Hit `Cmd/Ctrl+K` to open the command palette.
 _Missing a command? File a
 [GitHub issue](https://github.com/marimo-team/marimo/issues)._
 
+## Editor widths
+
+You can set the width of the editor in the notebook settings:
+
+- **Compact**: A narrow width with generous margins, ideal for reading
+- **Wide**: A wider layout that gives more space for content
+- **Full**: Uses the full width of your browser window, ideal for dashboard-style notebooks
+- **Multi-column**: Splits your notebook into multiple columns, letting you view and edit cells side-by-side. This is only possible because marimo models your notebook as a directed acyclic graph (DAG) and the [execution order](../reactivity.md#execution-order) is determined by the relationships between
+cells and their variables, not by the order of cells on the page.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-multi-column.png"/>
+<figcaption>Multi-column notebook</figcaption>
+</figure>
+</div>
+
 ## Share on our online playground
 
 Get a link to share your notebook via our [online playground](../wasm.md):
