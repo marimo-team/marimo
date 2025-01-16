@@ -4,6 +4,9 @@ on:
   # Deploy on push to main
   push:
     branches: [main]
+  # Deploy on pull requests in main repo
+  pull_request:
+    branches: [main]
   # Deploy on workflow dispatch
   workflow_dispatch: {}
 
@@ -13,6 +16,8 @@ env:
 
 jobs:
   deploy:
+    # Only run on main repo, not forks
+    if: github.repository == 'marimo-team/marimo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,5 +46,10 @@ jobs:
           OUTPUT_FILE: .vercel/output/static/llms.txt
 
       - name: 🚀 Deploy to Vercel
-        if: github.ref == 'refs/heads/main'
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        # Deploy to production for main branch, preview for PRs
+        run: |
+          if [ ${{ github.ref == 'refs/heads/main' }} = true ]; then
+            vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+          fi
