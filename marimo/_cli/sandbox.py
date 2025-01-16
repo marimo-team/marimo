@@ -288,16 +288,23 @@ def run_in_sandbox(
         python_version = None
 
     # Construct base UV command
-    uv_cmd = [
-        "uv",
-        "run",
-        "--isolated",
-        # sandboxed notebook shouldn't pick up existing pyproject.toml,
-        # which may conflict with the sandbox requirements
-        "--no-project",
-        "--with-requirements",
-        temp_file_path,
-    ]
+    uv_cmd = (
+        [
+            "uv",
+            "run",
+            "--isolated",
+            # sandboxed notebook shouldn't pick up existing pyproject.toml,
+            # which may conflict with the sandbox requirements
+            "--no-project",
+            "--with-requirements",
+        ]
+        # If there are no dependences, uv may use a cached venv, even though
+        # we are passing --isolated; `--refresh` ensures that the venv is
+        # actually ephemeral
+        + ["--refresh"]
+        if not dependencies
+        else [] + [temp_file_path]
+    )
 
     # Add Python version if specified
     if python_version:
