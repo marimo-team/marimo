@@ -82,4 +82,4 @@ def validate_no_integer_columns(df: Any) -> None:
 def validate_page_size(page_size: int) -> None:
     # We will need to support frontend row virtualization beyond this limit
     if page_size > 200:
-        raise ValueError("Table limited to 200 rows. If you'd like this increased, please file an issue")
+        raise ValueError("Page size limited to 200 rows. If you'd like this increased, please file an issue")
