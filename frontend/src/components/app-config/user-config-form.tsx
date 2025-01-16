@@ -1067,31 +1067,6 @@ export const UserConfigForm: React.FC = () => {
             </p>
             <FormField
               control={form.control}
-              name="experimental.multi_column"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Multi-column layout
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="multi-column-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental support for multi-column notebook
-                    layouts. This adds a new width setting to the notebook
-                    settings menu.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.chat_sidebar"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">

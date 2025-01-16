@@ -215,7 +215,21 @@ class MarimoFileError(Exception):
 
 
 def get_app(filename: Optional[str]) -> Optional[App]:
-    """Load and return app from a marimo-generated module"""
+    """Load and return app from a marimo-generated module.
+
+    Args:
+        filename: Path to a marimo notebook file (.py or .md)
+
+    Returns:
+        The marimo App instance if the file exists and contains valid code,
+        None if the file is empty or contains only comments.
+
+    Raises:
+        MarimoFileError: If the file exists but doesn't define a valid marimo app
+        RuntimeError: If there are issues loading the module
+        SyntaxError: If the file contains a syntax error
+        FileNotFoundError: If the file doesn't exist
+    """
     if filename is None:
         return None
 
@@ -247,7 +261,7 @@ def get_app(filename: Optional[str]) -> Optional[App]:
     marimo_app = importlib.util.module_from_spec(spec)
     if spec.loader is None:
         raise RuntimeError("Failed to load module spec's loader")
-    spec.loader.exec_module(marimo_app)
+    spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
     if not hasattr(marimo_app, "app"):
         raise MarimoFileError(f"{filename} missing attribute `app`.")
     if not isinstance(marimo_app.app, App):

@@ -8,6 +8,7 @@ import sys
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Union
 
+from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
@@ -641,9 +642,11 @@ def _transform_sources(
 
 def convert_from_ipynb(raw_notebook: str) -> str:
     notebook = json.loads(raw_notebook)
-    sources: List[str] = []
-    metadata: List[Dict[str, Any]] = []
+    sources: list[str] = []
+    metadata: list[Dict[str, Any]] = []
+    cell_configs: list[CellConfig] = []
     inline_meta: Union[str, None] = None
+    md_cells: set[str] = set()
 
     for cell in notebook["cells"]:
         source = (
@@ -651,8 +654,10 @@ def convert_from_ipynb(raw_notebook: str) -> str:
             if isinstance(cell["source"], list)
             else cell["source"]
         )
-        if cell["cell_type"] == "markdown":
+        is_markdown: bool = cell["cell_type"] == "markdown"
+        if is_markdown:
             source = markdown_to_marimo(source)
+            md_cells.add(source)
         elif inline_meta is None:
             # Eagerly find PEP 723 metadata, first match wins
             inline_meta, source = extract_inline_meta(source)
@@ -661,6 +666,16 @@ def convert_from_ipynb(raw_notebook: str) -> str:
             sources.append(source)
             metadata.append(cell.get("metadata", {}))
 
+    transformed_sources = _transform_sources(sources, metadata)
+
+    # Cell configs must come after _transform_sources since this may add/remove cells
+    cell_configs = [
+        CellConfig(hide_code=source in md_cells)
+        for source in transformed_sources
+    ]
+
     return generate_from_sources(
-        _transform_sources(sources, metadata), header_comments=inline_meta
+        sources=transformed_sources,
+        header_comments=inline_meta,
+        cell_configs=cell_configs,
     )

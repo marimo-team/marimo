@@ -480,7 +480,7 @@ class persistent_cache(object):
         sys.settrace(self._old_trace)  # Clear to previous set trace.
         if not self._entered_trace:
             raise CacheException(
-                ("Unexpected block format" f"{UNEXPECTED_FAILURE_BOILERPLATE}")
+                (f"Unexpected block format{UNEXPECTED_FAILURE_BOILERPLATE}")
             )
 
         # Backfill the loaded values into global scope.
@@ -493,8 +493,7 @@ class persistent_cache(object):
         # NB: exception is a type.
         if exception:
             assert not isinstance(instance, SkipWithBlock), (
-                "Cache was not correctly set"
-                f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                f"Cache was not correctly set{UNEXPECTED_FAILURE_BOILERPLATE}"
             )
             if isinstance(instance, BaseException):
                 raise instance from CacheException("Failure during save.")

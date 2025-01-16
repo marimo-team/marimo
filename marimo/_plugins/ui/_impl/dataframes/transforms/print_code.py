@@ -21,7 +21,7 @@ def python_print_transforms(
     strs: List[str] = []
     for transform in transforms:
         strs.append(
-            f"{df_next_name} = {print_transform(df_next_name,all_columns, transform)}"  # noqa: E501
+            f"{df_next_name} = {print_transform(df_next_name, all_columns, transform)}"  # noqa: E501
         )
     return "\n".join([f"{df_next_name} = {df_name}"] + strs)
 
@@ -128,7 +128,7 @@ def python_print_pandas(
         )
         if not column_ids:
             return f"{df_name}.agg({_list_of_strings(aggregations)})"
-        return f'{df_name}.agg({{{", ".join(f"{_as_literal(column_id)}: {_list_of_strings(aggregations)}" for column_id in column_ids)}}})'  # noqa: E501
+        return f"{df_name}.agg({{{', '.join(f'{_as_literal(column_id)}: {_list_of_strings(aggregations)}' for column_id in column_ids)}}})"  # noqa: E501
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation, drop_na = (
@@ -480,7 +480,7 @@ def _as_literal(value: Any) -> str:
 
 def _list_of_strings(value: Union[List[Any], Any]) -> str:
     if isinstance(value, list):
-        return f'[{", ".join(_as_literal(v) for v in value)}]'
+        return f"[{', '.join(_as_literal(v) for v in value)}]"
     return _as_literal(value)
 
 

@@ -8,13 +8,39 @@ import { saveUserConfig } from "@/core/network/requests";
 import type { UserConfig } from "@/core/config/config-schema";
 import { userConfigAtom } from "@/core/config/config";
 import { PACKAGES_INPUT_ID } from "@/components/editor/chrome/panels/constants";
+import { Kbd } from "@/components/ui/kbd";
 
 interface ReplaceCommand {
   match: string;
   onMatch: () => void;
-  title: string;
+  title: React.ReactNode;
   description: React.ReactNode;
 }
+
+const COMMON_MAGIC_COMMANDS = [
+  // Line magics
+  "%alias",
+  "%cd",
+  "%clear",
+  "%debug",
+  "%env",
+  "%load",
+  "%load_ext",
+  "%lsmagic",
+  "%matplotlib",
+  "%pwd",
+  "%who_ls",
+  "%system",
+  // Cell magics
+  "%%time",
+  "%%timeit",
+  "%%writefile",
+  "%%capture",
+  "%%html",
+  "%%latex",
+];
+
+let toastResponse: ReturnType<typeof toast>;
 
 export function jupyterHelpExtension(): Extension {
   // Function to update the module reload mode
@@ -43,6 +69,7 @@ export function jupyterHelpExtension(): Extension {
   };
 
   const commands: ReplaceCommand[] = [
+    // Package installation
     {
       match: "!pip install",
       onMatch: () => {
@@ -83,8 +110,10 @@ export function jupyterHelpExtension(): Extension {
         </>
       ),
     },
+
+    // Module reload
     {
-      match: "%load_ext autoreload 2",
+      match: "%autoreload 2",
       onMatch: async () => {
         await handleUpdateModuleReload("autorun");
       },
@@ -97,7 +126,7 @@ export function jupyterHelpExtension(): Extension {
       ),
     },
     {
-      match: "%load_ext autoreload 1",
+      match: "%autoreload 1",
       onMatch: async () => {
         await handleUpdateModuleReload("lazy");
       },
@@ -110,7 +139,7 @@ export function jupyterHelpExtension(): Extension {
       ),
     },
     {
-      match: "%load_ext autoreload 0",
+      match: "%autoreload 0",
       onMatch: async () => {
         await handleUpdateModuleReload("off");
       },
@@ -119,6 +148,8 @@ export function jupyterHelpExtension(): Extension {
         <>Module reload disabled - module changes will not be detected.</>
       ),
     },
+
+    // Shell commands
     {
       match: "!ls",
       onMatch: () => {
@@ -133,6 +164,30 @@ export function jupyterHelpExtension(): Extension {
         </>
       ),
     },
+
+    // Common magic commands
+    ...COMMON_MAGIC_COMMANDS.map((cmd) => ({
+      match: cmd,
+      onMatch: () => {
+        // noop
+      },
+      title: <Kbd className="inline">{cmd}</Kbd>,
+      description: (
+        <>
+          Magic commands are not supported in marimo. Read more about
+          replacements in the{" "}
+          <a
+            href="https://docs.marimo.io/guides/coming_from/jupyter/#adapting-to-the-absence-of-magic-commands"
+            target="_blank"
+            className="text-link underline cursor-pointer"
+            rel="noopener noreferrer"
+          >
+            documentation
+          </a>
+          .
+        </>
+      ),
+    })),
   ];
 
   const commandMap = new Map(commands.map((cmd) => [cmd.match, cmd]));
@@ -151,10 +206,17 @@ export function jupyterHelpExtension(): Extension {
         cmd.onMatch();
 
         // Show toast
-        toast({
-          title: cmd.title,
-          description: cmd.description,
-        });
+        if (toastResponse) {
+          toastResponse.upsert({
+            title: cmd.title,
+            description: cmd.description,
+          });
+        } else {
+          toastResponse = toast({
+            title: cmd.title,
+            description: cmd.description,
+          });
+        }
       }
     }
   });

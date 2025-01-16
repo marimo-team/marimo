@@ -96,7 +96,7 @@ use them are automatically re-run with their latest values.
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
 
 **Interactive dataframes.** [Page through, search, filter, and
-sort](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+sort](./guides/working_with_data/dataframes.md)
 millions of rows blazingly fast, no code required.
 
 <img src="_static/docs-df.gif">
@@ -200,38 +200,38 @@ GitHub to learn more.
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="getting_started/key_concepts.md">
+      <a target="_blank" href="getting_started/key_concepts">
         <img src="_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="api/inputs/index.md">
+      <a target="_blank" href="api/inputs/">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="guides/working_with_data/plotting.md">
+      <a target="_blank" href="guides/working_with_data/plotting">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
-      <a target="_blank" href="api/layouts/index.md">
+      <a target="_blank" href="api/layouts/">
         <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="getting_started/key_concepts.md"> Tutorial </a>
+      <a target="_blank" href="getting_started/key_concepts"> Tutorial </a>
     </td>
     <td>
-      <a target="_blank" href="api/inputs/index.md"> Inputs </a>
+      <a target="_blank" href="api/inputs/"> Inputs </a>
     </td>
     <td>
-      <a target="_blank" href="guides/working_with_data/plotting.md"> Plots </a>
+      <a target="_blank" href="guides/working_with_data/plotting"> Plots </a>
     </td>
     <td>
-      <a target="_blank" href="api/layouts/index.md"> Layout </a>
+      <a target="_blank" href="api/layouts/"> Layout </a>
     </td>
   </tr>
   <tr>

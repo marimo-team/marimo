@@ -115,3 +115,111 @@ def test_update_script_metadata_with_mapping() -> None:
             "ibis-framework[duckdb]==2.0",
         ],
     ]
+
+
+def test_update_script_metadata_marimo_packages() -> None:
+    runs_calls: list[list[str]] = []
+
+    class MockUvPackageManager(UvPackageManager):
+        def run(self, command: list[str]) -> bool:
+            runs_calls.append(command)
+            return True
+
+        def _get_version_map(self) -> dict[str, str]:
+            return {
+                "marimo": "0.1.0",
+                "marimo-ai": "0.2.0",
+                "pandas": "2.0.0",
+            }
+
+    pm = MockUvPackageManager()
+
+    # Test 1: Basic package handling
+    pm.update_notebook_script_metadata(
+        filepath="nb.py",
+        packages_to_add=[
+            "marimo-ai",  # Should have version (different package)
+            "pandas",  # Should have version
+        ],
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "marimo-ai==0.2.0",
+            "pandas==2.0.0",
+        ]
+    ]
+    runs_calls.clear()
+
+    # Test 2: Marimo package consolidation - should prefer marimo[ai] over marimo
+    pm.update_notebook_script_metadata(
+        filepath="nb.py",
+        packages_to_add=[
+            "marimo",
+            "marimo[sql]",
+            "pandas",
+        ],
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "marimo",
+            "marimo[sql]",
+            "pandas==2.0.0",
+        ]
+    ]
+    runs_calls.clear()
+
+    # Test 3: Multiple marimo extras - should use first one
+    pm.update_notebook_script_metadata(
+        filepath="nb.py",
+        packages_to_add=[
+            "marimo",
+            "marimo[sql]",
+            "marimo[recommended]",
+            "pandas",
+        ],
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "marimo",
+            "marimo[sql]",
+            "marimo[recommended]",
+            "pandas==2.0.0",
+        ]
+    ]
+    runs_calls.clear()
+
+    # Test 4: Only plain marimo
+    pm.update_notebook_script_metadata(
+        filepath="nb.py",
+        packages_to_add=[
+            "marimo",
+            "pandas",
+        ],
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "marimo",
+            "pandas==2.0.0",
+        ]
+    ]
+    runs_calls.clear()

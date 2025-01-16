@@ -375,7 +375,7 @@ class ProxyMiddleware:
         websocket = WebSocket(scope, receive=receive, send=send)
         original_params = websocket.query_params
         if original_params:
-            ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k,v in original_params.items())}"
+            ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
         await websocket.accept()
 
         async with connect(ws_url) as ws_client:

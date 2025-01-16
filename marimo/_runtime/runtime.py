@@ -250,7 +250,9 @@ def app_meta() -> AppMeta:
         import altair as alt
 
         # Enable dark theme for Altair when marimo is in dark mode
-        alt.themes.enable("dark" if mo.app_meta().theme == "dark" else "default")
+        alt.themes.enable(
+            "dark" if mo.app_meta().theme == "dark" else "default"
+        )
         ```
 
         Show content only in edit mode:
@@ -546,6 +548,13 @@ class Kernel:
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(package_manager)
+
+            if self._should_update_script_metadata():
+                # All marimo notebooks depend on the marimo package; if the
+                # notebook already has marimo as a dependency, or an optional
+                # dependency group with marimo, such as marimo[sql], this is a
+                # NOOP.
+                self._update_script_metadata(["marimo"])
 
         if (
             autoreload_mode == "lazy" or autoreload_mode == "autorun"
@@ -1890,11 +1899,13 @@ class Kernel:
             return
 
         missing_packages_set = set(request.versions.keys())
-        # Append missing modules
+        # Append all other missing packages from the notebook; the missing
+        # package request only contains the packages from the cell the user
+        # executed.
         missing_packages_set.update(
             [
-                self.package_manager.package_to_module(pkg)
-                for pkg in self.module_registry.missing_modules()
+                self.package_manager.module_to_package(module)
+                for module in self.module_registry.missing_modules()
             ]
         )
         missing_packages = list(sorted(missing_packages_set))

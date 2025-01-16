@@ -74,8 +74,7 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
                 exception_type = type(runner.exceptions[raising_cell]).__name__
                 data = MarimoExceptionRaisedError(
                     msg=(
-                        "An ancestor raised an exception "
-                        f"({exception_type}): "
+                        f"An ancestor raised an exception ({exception_type}): "
                     ),
                     exception_type=exception_type,
                     raising_cell=raising_cell,

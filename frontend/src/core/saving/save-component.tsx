@@ -19,7 +19,6 @@ import { Button } from "../../components/ui/button";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { useAutoSave } from "./useAutoSave";
-import { toast } from "../../components/ui/use-toast";
 import { getSerializedLayout, useLayoutState } from "../layout/layout";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { formatAll } from "../codemirror/format";
@@ -121,11 +120,8 @@ export function useSaveNotebook({ kioskMode, appConfig }: SaveNotebookProps) {
       layout: getSerializedLayout(),
       persist: true,
     }).then(() => {
-      if (userInitiated) {
-        toast({ title: "Notebook saved" });
-        if (autoSaveConfig.format_on_save) {
-          formatAll(updateCellCode);
-        }
+      if (userInitiated && autoSaveConfig.format_on_save) {
+        formatAll(updateCellCode);
       }
       setLastSavedNotebook({
         names: cellNames,

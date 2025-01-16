@@ -76,8 +76,8 @@ def test_refresh_session(client: TestClient) -> None:
 
     # Check the session still exists after closing the websocket
     session = get_session(client, "123")
-    session_view = session.session_view
     assert session
+    session_view = session.session_view
 
     # Mimic cell execution time save
     cell_op = CellOp("Hbol")
@@ -283,4 +283,86 @@ def test_restart_session(client: TestClient) -> None:
         )
 
     # Shutdown the kernel
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+def test_resume_session_with_watch(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.watch = True
+
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data, create_response({}))
+
+        # Write to the notebook file to trigger a reload
+        # we write it as the second to last cell
+        filename = session_manager.file_router.get_unique_file_key()
+        assert filename
+        with open(filename, "r+") as f:
+            content = f.read()
+            last_cell_pos = content.rindex("@app.cell")
+            f.seek(last_cell_pos)
+            f.write(
+                "\n@app.cell\ndef _(): x=10; x\n" + content[last_cell_pos:]
+            )
+            f.close()
+
+        data = websocket.receive_json()
+        assert data == {
+            "op": "update-cell-ids",
+            "data": {"cell_ids": ["MJUe", "Hbol"]},
+        }
+        data = websocket.receive_json()
+        assert data == {
+            "op": "update-cell-codes",
+            "data": {
+                "cell_ids": ["MJUe", "Hbol"],
+                "code_is_stale": True,
+                "codes": ["x=10; x", "import marimo as mo"],
+            },
+        }
+
+    # Resume session with new ID (simulates refresh)
+    with client.websocket_connect("/ws?session_id=456") as websocket:
+        # First message is the kernel reconnected
+        data = websocket.receive_json()
+        assert data == {"op": "reconnected", "data": {}}
+
+        # Check for KernelReady message
+        data = websocket.receive_json()
+        assert parse_raw(data["data"], KernelReady)
+        messages: list[dict[str, Any]] = []
+
+        # Wait for update-cell-codes message
+        while True:
+            data = websocket.receive_json()
+            messages.append(data)
+            if data["op"] == "update-cell-codes":
+                break
+
+        # 3 messages:
+        # 1. banner
+        # 2. update-cell-ids
+        # 3. update-cell-codes
+        assert len(messages) == 3
+        assert messages[0]["op"] == "banner"
+        assert messages[1] == {
+            "op": "update-cell-ids",
+            "data": {"cell_ids": ["MJUe", "Hbol"]},
+        }
+        assert messages[2] == {
+            "op": "update-cell-codes",
+            "data": {
+                "cell_ids": ["MJUe", "Hbol"],
+                "code_is_stale": True,
+                "codes": ["x=10; x", "import marimo as mo"],
+            },
+        }
+
+    session = get_session(client, "456")
+    assert session
+    session_view = session.session_view
+    assert session_view.last_executed_code == {}
+
+    session_manager.watch = False
     client.post("/api/kernel/shutdown", headers=HEADERS)

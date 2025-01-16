@@ -145,7 +145,9 @@ def _read_pyproject(script: str) -> Dict[str, Any] | None:
         return None
 
 
-def _get_python_version_requirement(pyproject: Dict[str, Any]) -> str | None:
+def _get_python_version_requirement(
+    pyproject: Dict[str, Any] | None,
+) -> str | None:
     """Extract Python version requirement from pyproject metadata."""
     if pyproject is None:
         return None
@@ -203,13 +205,50 @@ def prompt_run_in_sandbox(name: str | None) -> bool:
     return False
 
 
-def run_in_sandbox(
-    args: List[str],
-    name: Optional[str] = None,
-) -> int:
-    if not DependencyManager.which("uv"):
-        raise click.UsageError("uv must be installed to use --sandbox")
+def _is_marimo_dependency(dependency: str) -> bool:
+    # Split on any version specifier
+    without_version = re.split(r"[=<>~]+", dependency)[0]
+    # Match marimo and marimo[extras], but not marimo-<something-else>
+    return without_version == "marimo" or without_version.startswith("marimo[")
 
+
+def _is_versioned(dependency: str) -> bool:
+    return any(c in dependency for c in ("==", ">=", "<=", ">", "<", "~"))
+
+
+def _normalize_sandbox_dependencies(
+    dependencies: List[str], marimo_version: str
+) -> List[str]:
+    """Normalize marimo dependencies to have only one version.
+
+    If multiple marimo dependencies exist, prefer the one with brackets.
+    Add version to the remaining one if not already versioned.
+    """
+    # Find all marimo dependencies
+    marimo_deps = [d for d in dependencies if _is_marimo_dependency(d)]
+    if not marimo_deps:
+        # During development, you can comment this out to install an
+        # editable version of marimo assuming you are in the marimo directory
+        # DO NOT COMMIT THIS WHEN SUBMITTING PRs
+        # return dependencies + [f"marimo -e ."]
+
+        return dependencies + [f"marimo=={marimo_version}"]
+
+    # Prefer the one with brackets if it exists
+    bracketed = next((d for d in marimo_deps if "[" in d), None)
+    chosen = bracketed if bracketed else marimo_deps[0]
+
+    # Remove all marimo deps
+    filtered = [d for d in dependencies if not _is_marimo_dependency(d)]
+
+    # Add version if not already versioned
+    if not _is_versioned(chosen):
+        chosen = f"{chosen}=={marimo_version}"
+
+    return filtered + [chosen]
+
+
+def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
@@ -219,20 +258,14 @@ def run_in_sandbox(
         get_dependencies_from_filename(name) if name is not None else []
     )
 
-    # The sandbox needs to manage marimo, too, to make sure
-    # that the outer environment doesn't leak into the sandbox.
-    if "marimo" not in dependencies:
-        dependencies.append("marimo")
+    # If there are no dependencies, which can happen for marimo new or
+    # on marimo edit a_new_file.py, uv may use a cached venv, even though
+    # we are passing --isolated; `--refresh` ensures that the venv is
+    # actually ephemeral.
+    uv_needs_refresh = not dependencies
 
-    # Rename marimo to marimo=={__version__}
-    index_of_marimo = dependencies.index("marimo")
-    if index_of_marimo != -1:
-        dependencies[index_of_marimo] = f"marimo=={__version__}"
-
-        # During development, you can comment this out to install an
-        # editable version of marimo assuming you are in the marimo directory
-        # DO NOT COMMIT THIS WHEN SUBMITTING PRs
-        # dependencies[index_of_marimo] = "-e ."
+    # Normalize marimo dependencies
+    dependencies = _normalize_sandbox_dependencies(dependencies, __version__)
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"
@@ -255,23 +288,38 @@ def run_in_sandbox(
         python_version = None
 
     # Construct base UV command
-    uv_cmd = [
-        "uv",
-        "run",
-        "--isolated",
-        # sandboxed notebook shouldn't pick up existing pyproject.toml,
-        # which may conflict with the sandbox requirements
-        "--no-project",
-        "--with-requirements",
-        temp_file_path,
-    ]
+    uv_cmd = (
+        [
+            "uv",
+            "run",
+            "--isolated",
+            # sandboxed notebook shouldn't pick up existing pyproject.toml,
+            # which may conflict with the sandbox requirements
+            "--no-project",
+            "--with-requirements",
+            temp_file_path,
+        ]
+        + ["--refresh"]
+        if uv_needs_refresh
+        else []
+    )
 
     # Add Python version if specified
     if python_version:
         uv_cmd.extend(["--python", python_version])
 
-    # Final command assembly
-    uv_cmd = uv_cmd + cmd
+    # Final command assembly: combine the uv prefix with the original marimo
+    # command.
+    return uv_cmd + cmd
+
+
+def run_in_sandbox(
+    args: list[str],
+    name: Optional[str] = None,
+) -> int:
+    if not DependencyManager.which("uv"):
+        raise click.UsageError("uv must be installed to use --sandbox")
+    uv_cmd = construct_uv_command(args, name)
 
     echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
 

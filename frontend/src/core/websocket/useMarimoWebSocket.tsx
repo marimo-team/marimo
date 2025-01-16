@@ -203,6 +203,7 @@ export function useMarimoWebSocket(opts: {
         setCellCodes({
           codes: msg.data.codes,
           ids: msg.data.cell_ids as CellId[],
+          codeIsStale: msg.data.code_is_stale,
         });
         return;
       case "update-cell-ids":

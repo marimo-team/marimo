@@ -27,13 +27,13 @@ class PickleLoader(Loader):
         return os.path.exists(path) and os.path.getsize(path) > 0
 
     def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
-        assert self.cache_hit(
-            hashed_context, cache_type
-        ), INCONSISTENT_CACHE_BOILER_PLATE
+        assert self.cache_hit(hashed_context, cache_type), (
+            INCONSISTENT_CACHE_BOILER_PLATE
+        )
         with open(self.build_path(hashed_context, cache_type), "rb") as handle:
             cache = pickle.load(handle)
             assert isinstance(cache, Cache), (
-                "Excepted cache object, got" f"{type(cache)} ",
+                f"Excepted cache object, got{type(cache)} ",
                 INCONSISTENT_CACHE_BOILER_PLATE,
             )
             return cache

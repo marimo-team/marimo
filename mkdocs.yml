@@ -90,9 +90,11 @@ nav:
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
-          - AI Completion: guides/editor_features/ai_completion.md
+          - AI completion: guides/editor_features/ai_completion.md
+          - Package management: guides/editor_features/package_management.md
+          - Module autoreloading: guides/editor_features/module_autoreloading.md
           - Hotkeys: guides/editor_features/hotkeys.md
-          - Package Management: guides/editor_features/package_management.md
+      - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
       - Test notebooks:
@@ -103,6 +105,7 @@ nav:
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - Embedding: guides/publishing/embedding.md
+          - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
           - Online playground: guides/publishing/playground.md
           - Community Cloud: guides/publishing/community_cloud/index.md

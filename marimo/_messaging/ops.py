@@ -639,6 +639,9 @@ class UpdateCellCodes(Op):
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: List[CellId_t]
     codes: List[str]
+    # If true, this means the code was not run on the backend when updating
+    # the cell codes.
+    code_is_stale: bool
 
 
 @dataclass
