@@ -227,6 +227,18 @@ class GoogleAiConfig(TypedDict, total=False):
     api_key: str
 
 
+@dataclass
+class SnippetsConfig(TypedDict):
+    """Configuration for snippets.
+
+    **Keys.**
+
+    - `custom_path`: the path to the custom snippets directory
+    """
+
+    custom_path: NotRequired[str]
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -242,7 +254,7 @@ class MarimoConfig(TypedDict):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
-
+    snippets: NotRequired[SnippetsConfig]
 
 @mddoc
 @dataclass
@@ -259,6 +271,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
+    snippets: SnippetsConfig
 
 
 DEFAULT_CONFIG: MarimoConfig = {

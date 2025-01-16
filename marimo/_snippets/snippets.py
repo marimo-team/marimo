@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Generator, List, Optional
 
 from marimo._ast.codegen import get_app
+from marimo._config.manager import get_default_config_manager
+from marimo._loggers import _loggers
 from marimo._utils.paths import import_files
+
+LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
@@ -86,10 +90,26 @@ def is_markdown(code: str) -> bool:
 
 
 def snippet_files() -> Generator[str, Any, None]:
-    root = os.path.realpath(
+    # Get default snippets path
+    default_root = os.path.realpath(
         str(import_files("marimo").joinpath("_snippets").joinpath("data"))
     )
-    for _root, _dirs, files in os.walk(root):
+
+    # Get custom snippets path from config if present
+    config = get_default_config_manager(current_path=None).get_config()
+    custom_path = config.get("snippets", {}).get("custom_path")
+
+    # Yield files from default path
+    for _root, _dirs, files in os.walk(default_root):
         for file in files:
             if file.endswith(".py"):
-                yield os.path.join(root, file)
+                yield os.path.join(default_root, file)
+
+    # Yield files from custom path if configured
+    if custom_path:
+        LOGGER.debug("Using custom snippets path: %s", custom_path)
+        custom_root = os.path.realpath(custom_path)
+        for _root, _dirs, files in os.walk(custom_root):
+            for file in files:
+                if file.endswith(".py"):
+                    yield os.path.join(custom_root, file)
