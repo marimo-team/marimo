@@ -82,6 +82,32 @@ for i_1 in range(X_1.shape[0]):
     assert_sources_equal(result, expected)
 
 
+def test_transform_fixup_multiple_definitions_scope():
+    # Makes everything private to avoid conflicts.
+    # Comments are removed, unfortunately.
+    sources = dd(
+        [
+            """K = 2\n
+def foo():
+    K
+    K = 1
+""",
+            "K = 1",
+        ]
+    )
+    result = transform_fixup_multiple_definitions(sources)
+    expected = [
+        """_K = 2\n
+def foo():
+    _K
+    _K = 1
+""",
+        "_K = 1",
+    ]
+
+    assert_sources_equal(result, expected)
+
+
 def test_transform_fixup_multiple_definitions_when_not_encapsulated():
     # Since the definitions are not encapsulated in a single cell, they should
     # not be transformed.

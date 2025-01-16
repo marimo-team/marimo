@@ -7,6 +7,12 @@ from typing import Any
 
 class NameTransformer(ast.NodeTransformer):
     def __init__(self, name_substitutions: dict[str, str]) -> None:
+        """Remaps names in an AST.
+
+        Naively remaps all occurrences of names in an AST, given a substitution
+        dict mapping old names to new names. In particular does not take
+        scoping into account.
+        """
         self._name_substitutions = name_substitutions
         self.made_changes = False
         super().__init__()
