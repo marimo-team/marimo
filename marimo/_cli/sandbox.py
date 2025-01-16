@@ -258,7 +258,7 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
         get_dependencies_from_filename(name) if name is not None else []
     )
 
-    # If there are no dependences, which can happen for marimo new or
+    # If there are no dependencies, which can happen for marimo new or
     # on marimo edit a_new_file.py, uv may use a cached venv, even though
     # we are passing --isolated; `--refresh` ensures that the venv is
     # actually ephemeral.
