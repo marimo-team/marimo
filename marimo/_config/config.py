@@ -256,6 +256,7 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[Dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
 
+
 @mddoc
 @dataclass
 class PartialMarimoConfig(TypedDict, total=False):
