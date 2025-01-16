@@ -344,6 +344,16 @@ const DEFAULT_HOT_KEY = {
     group: "Navigation",
     key: "F12",
   },
+  "completion.moveDown": {
+    name: "Move completion selection down",
+    group: "Editing",
+    key: "Ctrl-j",
+  },
+  "completion.moveUp": {
+    name: "Move completion selection up",
+    group: "Editing",
+    key: "Ctrl-k",
+  },
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
