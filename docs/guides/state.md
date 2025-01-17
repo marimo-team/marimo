@@ -42,7 +42,8 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<img src="/_static/docs-state-task-list.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.mp4">
+</video>
 </figure>
 <figcaption>A proof-of-concept TODO list made using state.</figcaption>
 </div>
@@ -52,7 +53,8 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<img src="/_static/docs-state-tied.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.mp4">
+</video>
 <figcaption>Use state to tie two elements together in a cycle.</figcaption>
 </figure>
 </div>
@@ -153,7 +155,8 @@ implementation using state is simpler.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-state-counter.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-counter.mp4">
+</video>
 </figure>
 </div>
 
@@ -195,7 +198,8 @@ value depends on the other. This is impossible to do without `mo.state`.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-state-tied.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.mp4">
+</video>
 </figure>
 </div>
 
@@ -249,7 +253,8 @@ The next few cells use state to create a todo list.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-state-task-list.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.mp4">
+</video>
 </figure>
 </div>
 

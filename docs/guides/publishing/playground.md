@@ -123,7 +123,8 @@ link` to get a `marimo.app/...` URL representing your notebook:
 
 <div align="center">
 <figure>
-<img src="/_static/share-wasm-link.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/share-wasm-link.mp4">
+</video>
 </figure>
 </div>
 

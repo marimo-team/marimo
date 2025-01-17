@@ -60,7 +60,8 @@ reference its variables, eliminating the error-prone task of manually
 re-running cells. Delete a cell and marimo scrubs its variables from program
 memory, eliminating hidden state.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
+<video autoplay controls loop width="700px" align="center" src="/_static/reactive.mp4">
+</video>
 
 <a name="expensive-notebooks"></a>
 
@@ -78,13 +79,15 @@ transformers](https://docs.marimo.io/api/inputs/dataframe.html), and [chat
 interfaces](https://docs.marimo.io/api/inputs/chat.html), and the cells that
 use them are automatically re-run with their latest values.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
+<video autoplay controls loop width="700px" align="center" src="/_static/readme-ui.mp4">
+</video>
 
 **Interactive dataframes.** [Page through, search, filter, and
 sort](https://docs.marimo.io/guides/working_with_data/dataframes.html)
 millions of rows blazingly fast, no code required.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-df.gif" width="700px" />
+<video autoplay controls loop width="700px" align="center" src="/_static/docs-df.mp4">
+</video>
 
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
@@ -175,7 +178,8 @@ marimo is easy to get started with, with lots of room for power users.
 For example, here's an embedding visualizer made in marimo
 ([video](https://marimo.io/videos/landing/full.mp4)):
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
+<video autoplay controls loop width="700px" align="center" src="/_static/embedding.mp4">
+</video>
 
 Check out our [docs](https://docs.marimo.io),
 the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/gallery) to learn more.
@@ -184,22 +188,26 @@ the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/gallery
   <tr>
     <td>
       <a target="_blank" href="https://docs.marimo.io/getting_started/key_concepts.html">
-        <img src="https://docs.marimo.io/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
+        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/reactive.mp4">
+        </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html">
-        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
+        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/readme-ui.mp4">
+        </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/guides/working_with_data/plotting.html">
-        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
+        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/docs-intro.mp4">
+        </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html">
-        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
+        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/outputs.mp4">
+        </video>
       </a>
     </td>
   </tr>

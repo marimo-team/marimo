@@ -86,7 +86,8 @@ notebook.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-dataframe-transform.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-dataframe-transform.mp4">
+</video>
 <figcaption>Build transformations using a GUI</figcaption>
 </figure>
 </div>
@@ -200,7 +201,8 @@ dataframe_.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-dataframe-table.gif"/>
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-dataframe-table.mp4">
+</video>
 <figcaption>Select rows in a table, get them back as a dataframe</figcaption>
 </figure>
 </div>
