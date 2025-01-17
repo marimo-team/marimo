@@ -69,7 +69,7 @@ automatically made available as Pandas dataframes in Python._
 
 <div align="center">
 <figure>
-<video autoplay controls loop width="600px" align="center" src="/_static/docs-intro.mp4">
+<video autoplay controls loop width="600px" align="center" src="/_static/docs-intro.webm">
 </video>
 </figure>
 </div>

@@ -42,7 +42,7 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.mp4">
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.webm">
 </video>
 </figure>
 <figcaption>A proof-of-concept TODO list made using state.</figcaption>
@@ -253,7 +253,7 @@ The next few cells use state to create a todo list.
 
 <div align="center">
 <figure>
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.mp4">
+<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.webm">
 </video>
 </figure>
 </div>

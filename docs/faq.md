@@ -90,7 +90,7 @@ synchronized with the Python kernel: no callbacks, no observers, no manually
 re-running cells.
 
 <p align="center">
-<video autoplay controls loop width="600px" align="center" src="/_static/faq-marimo-ui.mp4">
+<video autoplay controls loop width="600px" align="center" src="/_static/faq-marimo-ui.webm">
 </video>
 </p>
 
