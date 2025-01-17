@@ -5,7 +5,7 @@ import { cleanup } from "@testing-library/react";
 import "blob-polyfill";
 
 declare module "vitest" {
-  interface Assertion<T = any> {
+  interface Assertion<T = unknown> {
     toBeInTheDocument(): T;
     toHaveTextContent(text: string): T;
     toBeVisible(): T;
