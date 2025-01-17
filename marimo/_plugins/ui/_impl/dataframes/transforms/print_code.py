@@ -43,9 +43,13 @@ def python_print_pandas(
             # Use direct comparison operators for all numeric comparisons
             return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"
         elif operator == "equals":
-            return f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
+            return (
+                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
+            )
         elif operator == "does_not_equal":
-            return f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)}"
+            return (
+                f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)}"
+            )
         elif operator == "contains":
             return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)})"  # noqa: E501
         elif operator == "regex":

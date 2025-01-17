@@ -39,10 +39,10 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
         df: "pd.DataFrame", transform: ColumnConversionTransform
     ) -> "pd.DataFrame":
         import numpy as np
+
         # Use numpy dtype for type conversion
         df[transform.column_id] = df[transform.column_id].astype(
-            np.dtype(transform.data_type),
-            errors=transform.errors
+            np.dtype(transform.data_type), errors=transform.errors
         )
         return df
 
@@ -80,7 +80,12 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             value = condition.value if condition.value is not None else ""
 
             # Ensure string values for string operations
-            if condition.operator in ["contains", "regex", "starts_with", "ends_with"]:
+            if condition.operator in [
+                "contains",
+                "regex",
+                "starts_with",
+                "ends_with",
+            ]:
                 value = str(value)
             # Ensure list values for isin operation
             elif condition.operator == "in":
