@@ -30,7 +30,7 @@ jobs:
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
-    timeout-minutes: 13  # Reduced from 16 minutes based on timing analysis (max runtime 7.0 minutes)
+    timeout-minutes: 13  # 2024-01-18 avg: 5.0m max: 7.0m
     runs-on: ubuntu-latest
     defaults:
       run:
