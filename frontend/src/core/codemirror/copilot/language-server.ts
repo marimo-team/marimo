@@ -115,7 +115,10 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       Logger.log("Copilot#signInInitiate: Sign-in flow started successfully");
       return result;
     } catch (error) {
-      Logger.warn("Copilot#signInInitiate: Failed to start sign-in flow", error);
+      Logger.warn(
+        "Copilot#signInInitiate: Failed to start sign-in flow",
+        error,
+      );
       throw error;
     }
   }

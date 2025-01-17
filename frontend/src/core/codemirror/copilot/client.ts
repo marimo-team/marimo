@@ -44,13 +44,17 @@ class LazyWebsocketTransport extends Transport {
         Logger.log("Copilot#connect: Connected successfully");
         return;
       } catch (error) {
-        Logger.warn(`Copilot#connect: Connection attempt ${attempt}/${retries} failed`, error);
+        Logger.warn(
+          `Copilot#connect: Connection attempt ${attempt}/${retries} failed`,
+          error,
+        );
         if (attempt === retries) {
           // Show error toast on final retry
           toast({
             variant: "danger",
             title: "GitHub Copilot Connection Error",
-            description: "Failed to connect to GitHub Copilot. Please check settings and try again.",
+            description:
+              "Failed to connect to GitHub Copilot. Please check settings and try again.",
           });
           throw error;
         }

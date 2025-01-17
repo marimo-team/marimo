@@ -38,22 +38,29 @@ export const CopilotConfig = memo(() => {
       try {
         // If we fail to initialize, show connection error
         await client.initializePromise;
-        
-        if (!mounted) {return;}
+
+        if (!mounted) {
+          return;
+        }
 
         const signedIn = await client.signedIn();
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
 
         copilotChangeSignIn(signedIn);
         setStep(signedIn ? "signedIn" : "signedOut");
       } catch (error) {
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         Logger.warn("Copilot#checkConnection: Connection failed", error);
         copilotChangeSignIn(false);
         setStep("connectionError");
         toast({
           title: "GitHub Copilot Connection Error",
-          description: "Failed to connect to GitHub Copilot. Check settings and try again.",
+          description:
+            "Failed to connect to GitHub Copilot. Check settings and try again.",
           variant: "danger",
           action: <Button onClick={openSettings}>Settings</Button>,
         });
@@ -108,19 +115,28 @@ export const CopilotConfig = memo(() => {
         copilotChangeSignIn(true);
         setStep("signedIn");
       } else {
-        Logger.warn("Copilot#tryFinishSignIn: Sign-in confirmation returned unexpected status", { status });
+        Logger.warn(
+          "Copilot#tryFinishSignIn: Sign-in confirmation returned unexpected status",
+          { status },
+        );
         setStep("signInFailed");
       }
     } catch (error) {
-      Logger.warn("Copilot#tryFinishSignIn: Initial sign-in confirmation failed, attempting retries");
-      
+      Logger.warn(
+        "Copilot#tryFinishSignIn: Initial sign-in confirmation failed, attempting retries",
+      );
+
       // Check if it's a connection error
-      if (error instanceof Error && (
-        error.message.includes("ECONNREFUSED") || 
-        error.message.includes("WebSocket") ||
-        error.message.includes("network")
-      )) {
-        Logger.error("Copilot#tryFinishSignIn: Connection error during sign-in", error);
+      if (
+        error instanceof Error &&
+        (error.message.includes("ECONNREFUSED") ||
+          error.message.includes("WebSocket") ||
+          error.message.includes("network"))
+      ) {
+        Logger.error(
+          "Copilot#tryFinishSignIn: Connection error during sign-in",
+          error,
+        );
         setStep("connectionError");
         toast({
           title: "GitHub Copilot Connection Error",
@@ -138,23 +154,30 @@ export const CopilotConfig = memo(() => {
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
           const signedIn = await client.signedIn();
           if (signedIn) {
-            Logger.log("Copilot#tryFinishSignIn: Successfully signed in after retry");
+            Logger.log(
+              "Copilot#tryFinishSignIn: Successfully signed in after retry",
+            );
             copilotChangeSignIn(true);
             setStep("signedIn");
             return;
           }
         } catch (retryError) {
-          Logger.warn("Copilot#tryFinishSignIn: Retry attempt failed", { attempt: i + 1, maxRetries: MAX_RETRIES });
+          Logger.warn("Copilot#tryFinishSignIn: Retry attempt failed", {
+            attempt: i + 1,
+            maxRetries: MAX_RETRIES,
+          });
           // Check for connection errors during retry
-          if (retryError instanceof Error && (
-            retryError.message.includes("ECONNREFUSED") ||
-            retryError.message.includes("WebSocket") ||
-            retryError.message.includes("network")
-          )) {
+          if (
+            retryError instanceof Error &&
+            (retryError.message.includes("ECONNREFUSED") ||
+              retryError.message.includes("WebSocket") ||
+              retryError.message.includes("network"))
+          ) {
             setStep("connectionError");
             toast({
               title: "GitHub Copilot Connection Error",
-              description: "Lost connection during sign-in. Please check settings and try again.",
+              description:
+                "Lost connection during sign-in. Please check settings and try again.",
               variant: "danger",
               action: <Button onClick={openSettings}>Settings</Button>,
             });
@@ -273,9 +296,7 @@ export const CopilotConfig = memo(() => {
               <XIcon className="h-4 w-4 mr-1" />
               Connection Error
             </Label>
-            <div className="text-sm">
-              Unable to connect to GitHub Copilot.
-            </div>
+            <div className="text-sm">Unable to connect to GitHub Copilot.</div>
             <Button onClick={trySignIn} size="xs" variant="link">
               Retry Connection
             </Button>

@@ -5,7 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import { CopilotConfig } from "../copilot-config";
 import { getCopilotClient } from "../client";
 import { toast } from "@/components/ui/use-toast";
-import { CopilotLanguageServerClient } from "../language-server";
+import type { CopilotLanguageServerClient } from "../language-server";
 import { useAtom } from "jotai";
 import { Provider as JotaiProvider } from "jotai";
 
@@ -26,7 +26,14 @@ vi.mock("jotai", () => ({
 
 describe("CopilotConfig", () => {
   // Create a mock with just the methods we need for testing
-  let mockClient: Pick<CopilotLanguageServerClient, 'initializePromise' | 'signedIn' | 'signInInitiate' | 'signInConfirm' | 'signOut'>;
+  let mockClient: Pick<
+    CopilotLanguageServerClient,
+    | "initializePromise"
+    | "signedIn"
+    | "signInInitiate"
+    | "signInConfirm"
+    | "signOut"
+  >;
 
   beforeEach(() => {
     mockClient = {
@@ -40,7 +47,9 @@ describe("CopilotConfig", () => {
       signInConfirm: vi.fn().mockResolvedValue({ status: "OK" }),
       signOut: vi.fn().mockResolvedValue(undefined),
     };
-    vi.mocked(getCopilotClient).mockReturnValue(mockClient as CopilotLanguageServerClient);
+    vi.mocked(getCopilotClient).mockReturnValue(
+      mockClient as CopilotLanguageServerClient,
+    );
     vi.clearAllMocks();
   });
 
@@ -52,7 +61,7 @@ describe("CopilotConfig", () => {
     render(
       <JotaiProvider>
         <CopilotConfig />
-      </JotaiProvider>
+      </JotaiProvider>,
     );
     await waitFor(() => {
       expect(screen.getByText("Sign in to GitHub Copilot")).toBeInTheDocument();
@@ -63,7 +72,7 @@ describe("CopilotConfig", () => {
     render(
       <JotaiProvider>
         <CopilotConfig />
-      </JotaiProvider>
+      </JotaiProvider>,
     );
     // Click sign in button
     const signInButton = await screen.findByText("Sign in to GitHub Copilot");
@@ -88,18 +97,20 @@ describe("CopilotConfig", () => {
   it("shows toast on connection error", async () => {
     // Mock connection failure
     mockClient.initializePromise = Promise.reject(new Error("ECONNREFUSED"));
-    
+
     render(
       <JotaiProvider>
         <CopilotConfig />
-      </JotaiProvider>
+      </JotaiProvider>,
     );
 
     await waitFor(() => {
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: "GitHub Copilot Connection Error",
-        variant: "danger",
-      }));
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "GitHub Copilot Connection Error",
+          variant: "danger",
+        }),
+      );
     });
   });
 
@@ -107,15 +118,15 @@ describe("CopilotConfig", () => {
     render(
       <JotaiProvider>
         <CopilotConfig />
-      </JotaiProvider>
+      </JotaiProvider>,
     );
 
     // Mock initial failure then success
-    mockClient.signInConfirm = vi.fn()
+    mockClient.signInConfirm = vi
+      .fn()
       .mockRejectedValueOnce(new Error("Failed"))
       .mockResolvedValueOnce({ status: "OK" });
-    mockClient.signedIn = vi.fn()
-      .mockResolvedValueOnce(true);
+    mockClient.signedIn = vi.fn().mockResolvedValueOnce(true);
 
     // Start sign-in flow
     const signInButton = await screen.findByText("Sign in to GitHub Copilot");
@@ -135,11 +146,11 @@ describe("CopilotConfig", () => {
   it("handles sign-out", async () => {
     // Start in signed-in state
     vi.mocked(useAtom).mockImplementation(() => [true, vi.fn()]);
-    
+
     render(
       <JotaiProvider>
         <CopilotConfig />
-      </JotaiProvider>
+      </JotaiProvider>,
     );
 
     // Click disconnect button
@@ -154,12 +165,14 @@ describe("CopilotConfig", () => {
 
   it("shows connection error state with retry button", async () => {
     // Mock connection error during sign-in
-    mockClient.signInConfirm = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
-    
+    mockClient.signInConfirm = vi
+      .fn()
+      .mockRejectedValue(new Error("ECONNREFUSED"));
+
     render(
       <JotaiProvider>
         <CopilotConfig />
-      </JotaiProvider>
+      </JotaiProvider>,
     );
 
     // Start sign-in flow
@@ -174,10 +187,12 @@ describe("CopilotConfig", () => {
     await waitFor(() => {
       expect(screen.getByText("Connection Error")).toBeInTheDocument();
       expect(screen.getByText("Retry Connection")).toBeInTheDocument();
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: "GitHub Copilot Connection Error",
-        variant: "danger",
-      }));
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "GitHub Copilot Connection Error",
+          variant: "danger",
+        }),
+      );
     });
   });
 });
