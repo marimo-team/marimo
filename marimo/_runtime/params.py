@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Dict, Iterator, List, Optional, Union
+from typing import Dict, Iterator, List, Optional, TypeVar, Union, overload
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import (
@@ -37,13 +37,27 @@ class QueryParams(State[SerializedQueryParams]):
         self._params = params
         self._stream = stream
 
-    def get(self, key: str) -> Optional[Union[str, List[str]]]:
+    T = TypeVar('T', str, List[str])
+
+    @overload
+    def get(self, key: str) -> Optional[Union[str, List[str]]]: ...
+
+    @overload
+    def get(self, key: str, default: T) -> Union[str, List[str], T]: ...
+
+    def get(self, key: str, default: Optional[Union[str, List[str]]] = None) -> Optional[Union[str, List[str]]]:
         """Get the value of the query parameter.
 
-        Returns a str if there is only one item, a list of str otherwise.
+        Args:
+            key: The key to look up
+            default: Value to return if key is not found
+
+        Returns:
+            A str if there is only one item, a list of str otherwise.
+            If key is not found and default is provided, returns default.
         """
         if key not in self._params:
-            return None
+            return default
         return self._params[key]
 
     def get_all(self, key: str) -> List[str]:
@@ -153,14 +167,28 @@ class CLIArgs:
     ):
         self._params = params
 
-    def get(self, key: str) -> Optional[ListOrValue[Primitive]]:
+    T = TypeVar('T', Primitive, List[Primitive])
+
+    @overload
+    def get(self, key: str) -> Optional[ListOrValue[Primitive]]: ...
+
+    @overload
+    def get(self, key: str, default: T) -> Union[ListOrValue[Primitive], T]: ...
+
+    def get(self, key: str, default: Optional[ListOrValue[Primitive]] = None) -> Optional[ListOrValue[Primitive]]:
         """Get the value of the CLI arg.
 
-        Returns a singleton value if there is only one item,
-        a list of values otherwise.
+        Args:
+            key: The key to look up
+            default: Value to return if key is not found
+
+        Returns:
+            A singleton value if there is only one item,
+            a list of values otherwise.
+            If key is not found and default is provided, returns default.
         """
         if key not in self._params:
-            return None
+            return default
         return self._params[key]
 
     def get_all(self, key: str) -> List[Primitive]:
