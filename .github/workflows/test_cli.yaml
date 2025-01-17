@@ -31,7 +31,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
     runs-on: ubuntu-latest
-    timeout-minutes: 3 # 2024-01-18 avg: 0.8m max: 1.0m
+    timeout-minutes: 8 # 2024-01-18
     defaults:
       run:
         shell: bash
