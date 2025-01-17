@@ -36,6 +36,8 @@ You can find a list of available hotkeys below:
 | `cell.unfold`               |
 | `cell.unfoldAll`            |
 | `cell.viewAsMarkdown`       |
+| `completion.moveDown`        |
+| `completion.moveUp`          |
 | `global.commandPalette`     |
 | `global.focusBottom`        |
 | `global.focusTop`           |
