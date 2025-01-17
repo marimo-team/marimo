@@ -132,7 +132,7 @@ jobs:
       - name: Test CLI
         shell: bash
         run: |
-          uv run pytest -v tests/_cli/test_cli* --maxfail=2
+          uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:
     needs: [changes, build_wheel]
