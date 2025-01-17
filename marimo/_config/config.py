@@ -12,7 +12,7 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired
 
-from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
+from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast, List
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -236,7 +236,8 @@ class SnippetsConfig(TypedDict):
     - `custom_path`: the path to the custom snippets directory
     """
 
-    custom_path: NotRequired[str]
+    custom_paths: NotRequired[List[str]]
+    include_default_snippets: NotRequired[bool]
 
 
 @mddoc
@@ -300,6 +301,10 @@ DEFAULT_CONFIG: MarimoConfig = {
     "server": {
         "browser": "default",
         "follow_symlink": False,
+    },
+    "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": True,
     },
 }
 

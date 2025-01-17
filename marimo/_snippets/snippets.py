@@ -1,11 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Awaitable, Generator, List, Optional
 
+from marimo import _loggers
 from marimo._ast.codegen import get_app
 from marimo._config.manager import get_default_config_manager
-from marimo._loggers import _loggers
 from marimo._utils.paths import import_files
 
 LOGGER = _loggers.marimo_logger()
@@ -90,26 +91,30 @@ def is_markdown(code: str) -> bool:
 
 
 def snippet_files() -> Generator[str, Any, None]:
-    # Get default snippets path
-    default_root = os.path.realpath(
-        str(import_files("marimo").joinpath("_snippets").joinpath("data"))
-    )
-
     # Get custom snippets path from config if present
     config = get_default_config_manager(current_path=None).get_config()
-    custom_path = config.get("snippets", {}).get("custom_path")
-
-    # Yield files from default path
-    for _root, _dirs, files in os.walk(default_root):
-        for file in files:
-            if file.endswith(".py"):
-                yield os.path.join(default_root, file)
-
-    # Yield files from custom path if configured
-    if custom_path:
-        LOGGER.debug("Using custom snippets path: %s", custom_path)
-        custom_root = os.path.realpath(custom_path)
-        for _root, _dirs, files in os.walk(custom_root):
-            for file in files:
-                if file.endswith(".py"):
-                    yield os.path.join(custom_root, file)
+    custom_paths = [
+        Path(p) for p in config.get("snippets", {}).get("custom_paths", [])
+    ]
+    include_default_snippets = config.get("snippets", {}).get(
+        "include_default_snippets", True
+    )
+    paths = []
+    if include_default_snippets:
+        paths.append(import_files("marimo") / "_snippets" / "data")
+    if custom_paths:
+        paths.extend(custom_paths)
+    for root_path in paths:
+        if not root_path.is_dir():
+            # Note: currently no handling of permissions errors, but theoretically
+            # this shouldn't be required for `is_dir` or `rglob`
+            # Other possible errors:
+            # - RecursionError: not possible, since by default symlinks are not followed
+            # - FileNotFoundError: not possible, `is_dir` checks if the path exists,
+            # but also resolve() is not called with strict=True
+            LOGGER.warning(
+                "Snippets path %s not a directory - ignoring", root_path
+            )
+            continue
+        for file in root_path.resolve().rglob("*.py"):
+            yield str(file)
