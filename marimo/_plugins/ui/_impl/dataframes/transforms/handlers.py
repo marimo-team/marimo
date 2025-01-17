@@ -73,58 +73,88 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
         clauses: List[pd.Series[Any]] = []
         for condition in transform.where:
-            try:
-                value = _coerce_value(
-                    df[condition.column_id].dtype, condition.value
+            # Get column and its type
+            column = df[condition.column_id]
+            dtype = column.dtype
+
+            # Handle string operations
+            if condition.operator in ["contains", "regex", "starts_with", "ends_with"]:
+                df_filter = column.str.contains(
+                    str(condition.value or ""),
+                    regex=condition.operator == "regex",
+                    na=False
+                ) if condition.operator in ["contains", "regex"] else (
+                    column.str.startswith(str(condition.value or ""), na=False)
+                    if condition.operator == "starts_with"
+                    else column.str.endswith(str(condition.value or ""), na=False)
                 )
-            except Exception:
-                value = condition.value or ""
-            if condition.operator == "==":
-                df_filter = df[condition.column_id] == value
-            elif condition.operator == "!=":
-                df_filter = df[condition.column_id] != value
-            elif condition.operator == ">":
-                df_filter = df[condition.column_id] > value
-            elif condition.operator == "<":
-                df_filter = df[condition.column_id] < value
-            elif condition.operator == ">=":
-                df_filter = df[condition.column_id] >= value
-            elif condition.operator == "<=":
-                df_filter = df[condition.column_id] <= value
-            elif condition.operator == "is_true":
-                df_filter = df[condition.column_id].eq(True)
-            elif condition.operator == "is_false":
-                df_filter = df[condition.column_id].eq(False)
-            elif condition.operator == "is_nan":
-                df_filter = df[condition.column_id].isna()
-            elif condition.operator == "is_not_nan":
-                df_filter = df[condition.column_id].notna()
-            elif condition.operator == "equals":
-                df_filter = df[condition.column_id].eq(value)
-            elif condition.operator == "does_not_equal":
-                df_filter = df[condition.column_id].ne(value)
-            elif condition.operator == "contains":
-                df_filter = df[condition.column_id].str.contains(
-                    value, regex=False, na=False
-                )
-            elif condition.operator == "regex":
-                df_filter = df[condition.column_id].str.contains(
-                    value, regex=True, na=False
-                )
-            elif condition.operator == "starts_with":
-                df_filter = df[condition.column_id].str.startswith(
-                    value, na=False
-                )
-            elif condition.operator == "ends_with":
-                df_filter = df[condition.column_id].str.endswith(
-                    value, na=False
-                )
+            # Handle numeric comparisons
+            elif condition.operator in ["==", "!=", ">", "<", ">=", "<="]:
+                # Skip coercion for integer columns with float values
+                if dtype.kind == "i" and isinstance(condition.value, float):
+                    value = condition.value
+                else:
+                    try:
+                        value = _coerce_value(dtype, condition.value)
+                    except Exception:
+                        value = condition.value
+
+                if condition.operator == "==":
+                    df_filter = column == value
+                elif condition.operator == "!=":
+                    df_filter = column != value
+                else:
+                    df_filter = eval(f"column {condition.operator} value")
+            # Handle list operations
             elif condition.operator == "in":
-                df_filter = df[condition.column_id].isin(value)
+                value = condition.value if isinstance(condition.value, (list, tuple)) else []
+                df_filter = column.isin(value)
+            # Handle boolean operations
+            elif condition.operator in ["is_true", "is_false"]:
+                df_filter = column.eq(True if condition.operator == "is_true" else False)
+            # Handle null checks
+            elif condition.operator == "is_nan":
+                df_filter = column.isna()
+            elif condition.operator == "is_not_nan":
+                df_filter = column.notna()
+            # Handle equality operations with proper type handling
+            elif condition.operator in ["equals", "does_not_equal"]:
+                # For numeric types, handle direct comparison
+                if dtype.kind in ["i", "f"] and isinstance(condition.value, (int, float)):
+                    # For numeric comparisons, we can use the value directly
+                    scalar_value = condition.value
+                else:
+                    # For other types, try coercion with fallback
+                    try:
+                        scalar_value = _coerce_value(dtype, condition.value)
+                    except Exception:
+                        # Use the original value as a last resort
+                        scalar_value = condition.value if condition.value is not None else None
+
+                # Apply the comparison with proper scalar value
+                if scalar_value is not None:
+                    df_filter = column.eq(scalar_value) if condition.operator == "equals" else column.ne(scalar_value)
+                else:
+                    # Handle None values specially
+                    df_filter = column.isna() if condition.operator == "equals" else column.notna()
             else:
-                assert_never(condition.operator)
+                # All valid operators should be handled above
+                # This is just to satisfy the type checker
+                from typing import get_args
+
+                from marimo._plugins.ui._impl.dataframes.transforms.types import (
+                    Operator,
+                )
+
+                # Get all possible values of the Operator type
+                operator_values = get_args(Operator)
+                if condition.operator not in operator_values:
+                    raise ValueError(f"Invalid operator: {condition.operator}")
+                # This line should never be reached
+                raise AssertionError("Unhandled operator case")
 
             clauses.append(df_filter)
+
 
         if transform.operation == "keep_rows":
             df = df[pd.concat(clauses, axis=1).all(axis=1)]

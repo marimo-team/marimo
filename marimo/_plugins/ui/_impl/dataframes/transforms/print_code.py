@@ -38,17 +38,25 @@ def python_print_pandas(
             where.value,
         )
 
-        if operator == "==":
+        # For numeric comparisons, check if we're comparing an integer column with a float
+        if operator in ["==", "!=", ">", "<", ">=", "<="]:
+            # Add dtype check in the generated code
             return (
-                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
+                f"(lambda col: col {operator} {_as_literal(value)} "
+                f"if col.dtype.kind == 'i' and isinstance({_as_literal(value)}, float) "
+                f"else col {operator} {_as_literal(value)})({df_name}[{_as_literal(column_id)}])"
             )
         elif operator == "equals":
             return (
-                f"{df_name}[{_as_literal(column_id)}].eq({_as_literal(value)})"
+                f"(lambda col: col.eq({_as_literal(value)}) "
+                f"if col.dtype.kind == 'i' and isinstance({_as_literal(value)}, float) "
+                f"else col.eq({_as_literal(value)}))({df_name}[{_as_literal(column_id)}])"
             )
         elif operator == "does_not_equal":
             return (
-                f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
+                f"(lambda col: col.ne({_as_literal(value)}) "
+                f"if col.dtype.kind == 'i' and isinstance({_as_literal(value)}, float) "
+                f"else col.ne({_as_literal(value)}))({df_name}[{_as_literal(column_id)}])"
             )
         elif operator == "contains":
             return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)})"  # noqa: E501
@@ -60,12 +68,6 @@ def python_print_pandas(
             return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"  # noqa: E501
         elif operator == "in":
             return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
-        elif operator == "!=":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
-            )
-        elif operator in [">", ">=", "<", "<="]:
-            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
         elif operator == "is_nan":
             return f"{df_name}[{_as_literal(column_id)}].isna()"
         elif operator == "is_not_nan":
