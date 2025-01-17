@@ -20,7 +20,7 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 vi.mock("jotai", () => ({
   useAtom: vi.fn().mockImplementation(() => {
-    const setState = vi.fn<[boolean], void>();
+    const setState = vi.fn((value: boolean) => {});
     return [false, setState] as const;
   }),
 }));
