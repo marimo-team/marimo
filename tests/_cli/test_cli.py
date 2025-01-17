@@ -806,13 +806,19 @@ shell_completion_test_results = [
     ("bash.exe", 0, True, False),
     ("/usr/bin/zsh", 0, True, False),
     (r"c:\spam\eggs\fish.exe", 0, True, False),
-
     # invalid shell values, rc of 0, data only on stderr
     # (N.B. rc will become 2 when Issue #3476 is fixed)
     ("bogus", 0, False, True),
 ]
-@pytest.mark.parametrize("shell,rc,expect_stdout,expect_stderr".split(','), shell_completion_test_results)
-def test_shell_completion(shell:str, rc:int, expect_stdout:bool, expect_stderr:bool) -> None:
+
+
+@pytest.mark.parametrize(
+    "shell,rc,expect_stdout,expect_stderr".split(","),
+    shell_completion_test_results,
+)
+def test_shell_completion(
+    shell: str, rc: int, expect_stdout: bool, expect_stderr: bool
+) -> None:
     test_env = os.environ.copy()
     test_env["SHELL"] = shell
     p = subprocess.run(
