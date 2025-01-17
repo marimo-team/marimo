@@ -32,7 +32,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 3  # Reduced from 10 minutes based on timing analysis (max runtime ~1 minute)
     defaults:
       run:
         shell: bash
@@ -100,7 +100,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 10  # Reduced from 15 minutes based on timing analysis (max runtime ~4.5 minutes on Windows)
     strategy:
       matrix:
         # TODO(akshayka): consider adding 3.8, 3.9
@@ -141,7 +141,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests examples and smoke_tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 3  # Reduced from 15 minutes based on timing analysis (max runtime ~0.5 minutes)
 
     steps:
       - name: 🛑 Cancel Previous Runs
