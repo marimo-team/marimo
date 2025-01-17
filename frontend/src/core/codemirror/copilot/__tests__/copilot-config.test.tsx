@@ -6,8 +6,9 @@ import { CopilotConfig } from "../copilot-config";
 import { getCopilotClient } from "../client";
 import { toast } from "@/components/ui/use-toast";
 import type { CopilotLanguageServerClient } from "../language-server";
-import { useAtom } from "jotai";
 import { Provider as JotaiProvider } from "jotai";
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 // Mock dependencies
 vi.mock("../client", () => ({
@@ -18,12 +19,13 @@ vi.mock("@/components/ui/use-toast", () => ({
   toast: vi.fn(),
 }));
 
-vi.mock("jotai", () => ({
-  useAtom: vi.fn().mockImplementation(() => {
-    const setState = vi.fn((value: boolean) => {});
-    return [false, setState] as const;
-  }),
-}));
+vi.mock("../state", () => {
+  const mockAtom = atomWithStorage("marimo:copilot:signedIn", false);
+  return {
+    isGitHubCopilotSignedInState: mockAtom,
+    githubCopilotLoadingVersion: atom(null),
+  };
+});
 
 describe("CopilotConfig", () => {
   // Create a mock with just the methods we need for testing
@@ -146,10 +148,7 @@ describe("CopilotConfig", () => {
 
   it("handles sign-out", async () => {
     // Start in signed-in state
-    vi.mocked(useAtom).mockImplementation(() => [
-      true,
-      vi.fn() as (value: boolean) => void,
-    ]);
+    localStorage.setItem("marimo:copilot:signedIn", JSON.stringify(true));
 
     render(
       <JotaiProvider>
