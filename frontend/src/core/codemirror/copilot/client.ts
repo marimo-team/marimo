@@ -27,6 +27,7 @@ export const createWSTransport = once(() => {
  */
 class LazyWebsocketTransport extends Transport {
   private delegate: WebSocketTransport | undefined;
+  private readonly WS_URL = resolveToWsUrl("lsp/copilot");
 
   constructor() {
     super();
@@ -38,7 +39,7 @@ class LazyWebsocketTransport extends Transport {
       try {
         // Create delegate, if it doesn't exist
         if (!this.delegate) {
-          this.delegate = new WebSocketTransport(createWsUrl());
+          this.delegate = new WebSocketTransport(this.WS_URL);
         }
         await this.delegate.connect();
         Logger.log("Copilot#connect: Connected successfully");
@@ -49,6 +50,7 @@ class LazyWebsocketTransport extends Transport {
           error,
         );
         if (attempt === retries) {
+          this.delegate = undefined;
           // Show error toast on final retry
           toast({
             variant: "danger",
@@ -67,7 +69,7 @@ class LazyWebsocketTransport extends Transport {
     // Wait for copilot to be enabled
     await waitForEnabledCopilot();
     // Wait for ws to be available with retries
-    await waitForWs(createWsUrl(), 3);
+    await waitForWs(this.WS_URL, 3);
 
     // Try connecting with retries
     return this.tryConnect();
@@ -75,12 +77,15 @@ class LazyWebsocketTransport extends Transport {
 
   override close() {
     this.delegate?.close();
+    this.delegate = undefined;
   }
 
   override async sendData(
     data: JSONRPCRequestData,
-    timeout?: number | null | undefined,
+    timeout: number | null | undefined,
   ) {
+    // Clamp timeout to 5 seconds
+    timeout = Math.min(timeout ?? 5000, 5000);
     return this.delegate?.sendData(data, timeout);
   }
 }
@@ -105,8 +110,4 @@ export function copilotServer() {
     client: getCopilotClient(),
     languageId: LANGUAGE_ID,
   });
-}
-
-export function createWsUrl(): string {
-  return resolveToWsUrl("lsp/copilot");
 }

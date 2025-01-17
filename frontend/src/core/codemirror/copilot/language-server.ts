@@ -50,12 +50,17 @@ export interface LSPRequestMap {
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
 
-  private _request<Method extends keyof LSPRequestMap>(
+  private async _request<Method extends keyof LSPRequestMap>(
     method: Method,
     params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (this as any).request(method, params);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (this as any).request(method, params);
+    } catch (error) {
+      Logger.error("CopilotLanguageServerClient#request: Error", error);
+      throw error;
+    }
   }
 
   private isDisabled() {

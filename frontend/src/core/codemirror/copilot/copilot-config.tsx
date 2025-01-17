@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtom } from "jotai";
-import { isGitHubCopilotSignedInState } from "./state";
-import { memo, useEffect, useState } from "react";
+import { copilotSignedInState, isGitHubCopilotSignedInState } from "./state";
+import { memo, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useOpenAISettings } from "@/components/editor/chrome/wrapper/copilot-status";
@@ -11,69 +11,14 @@ import { toast } from "@/components/ui/use-toast";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 
-type Step =
-  | "signedIn"
-  | "signingIn"
-  | "signInFailed"
-  | "signedOut"
-  | "connecting"
-  | "connectionError"
-  | "notConnected";
-
 export const CopilotConfig = memo(() => {
   const [copilotSignedIn, copilotChangeSignIn] = useAtom(
     isGitHubCopilotSignedInState,
   );
-  const [step, setStep] = useState<Step>();
+  const [step, setStep] = useAtom(copilotSignedInState);
   const { handleClick: openSettings } = useOpenAISettings();
   const [localData, setLocalData] = useState<{ url: string; code: string }>();
   const [loading, setLoading] = useState(false);
-
-  // Check connection on mount
-  useEffect(() => {
-    const client = getCopilotClient();
-    let mounted = true;
-
-    const checkConnection = async () => {
-      try {
-        // If we fail to initialize, show connection error
-        await client.initializePromise;
-
-        if (!mounted) {
-          return;
-        }
-
-        const signedIn = await client.signedIn();
-        if (!mounted) {
-          return;
-        }
-
-        copilotChangeSignIn(signedIn);
-        setStep(signedIn ? "signedIn" : "signedOut");
-      } catch (error) {
-        if (!mounted) {
-          return;
-        }
-        Logger.warn("Copilot#checkConnection: Connection failed", error);
-        copilotChangeSignIn(false);
-        setStep("connectionError");
-        toast({
-          title: "GitHub Copilot Connection Error",
-          description:
-            "Failed to connect to GitHub Copilot. Check settings and try again.",
-          variant: "danger",
-          action: <Button onClick={openSettings}>Settings</Button>,
-        });
-      }
-    };
-
-    checkConnection();
-
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const trySignIn = async (evt: React.MouseEvent) => {
     evt.preventDefault();
@@ -100,7 +45,7 @@ export const CopilotConfig = memo(() => {
       return;
     }
     const client = getCopilotClient();
-    const MAX_RETRIES = 5;
+    const MAX_RETRIES = 3;
     const RETRY_DELAY_MS = 1000;
 
     try {
@@ -179,7 +124,11 @@ export const CopilotConfig = memo(() => {
               description:
                 "Lost connection during sign-in. Please check settings and try again.",
               variant: "danger",
-              action: <Button onClick={openSettings}>Settings</Button>,
+              action: (
+                <Button variant="link" onClick={openSettings}>
+                  Settings
+                </Button>
+              ),
             });
             return;
           }
