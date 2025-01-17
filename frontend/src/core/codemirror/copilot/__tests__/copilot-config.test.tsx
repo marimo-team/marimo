@@ -1,10 +1,11 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import React from "react";
 import { CopilotConfig } from "../copilot-config";
 import { getCopilotClient } from "../client";
 import { toast } from "@/components/ui/use-toast";
+import { CopilotLanguageServerClient } from "../language-server";
 import { useAtom } from "jotai";
 import { Provider as JotaiProvider } from "jotai";
 
@@ -24,13 +25,8 @@ vi.mock("jotai", () => ({
 }));
 
 describe("CopilotConfig", () => {
-  let mockClient: {
-    initializePromise: Promise<void>;
-    signedIn: () => Promise<boolean>;
-    signInInitiate: () => Promise<any>;
-    signInConfirm: () => Promise<any>;
-    signOut: () => Promise<void>;
-  };
+  // Create a mock with just the methods we need for testing
+  let mockClient: Pick<CopilotLanguageServerClient, 'initializePromise' | 'signedIn' | 'signInInitiate' | 'signInConfirm' | 'signOut'>;
 
   beforeEach(() => {
     mockClient = {
@@ -44,7 +40,7 @@ describe("CopilotConfig", () => {
       signInConfirm: vi.fn().mockResolvedValue({ status: "OK" }),
       signOut: vi.fn().mockResolvedValue(undefined),
     };
-    (getCopilotClient as any).mockReturnValue(mockClient);
+    vi.mocked(getCopilotClient).mockReturnValue(mockClient as CopilotLanguageServerClient);
     vi.clearAllMocks();
   });
 

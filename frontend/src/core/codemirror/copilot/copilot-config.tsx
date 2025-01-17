@@ -4,6 +4,7 @@ import { isGitHubCopilotSignedInState } from "./state";
 import { memo, useEffect, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useOpenAISettings } from "@/components/editor/chrome/wrapper/copilot-status";
 import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
@@ -24,7 +25,7 @@ export const CopilotConfig = memo(() => {
     isGitHubCopilotSignedInState,
   );
   const [step, setStep] = useState<Step>();
-
+  const { handleClick: openSettings } = useOpenAISettings();
   const [localData, setLocalData] = useState<{ url: string; code: string }>();
   const [loading, setLoading] = useState(false);
 
@@ -38,23 +39,23 @@ export const CopilotConfig = memo(() => {
         // If we fail to initialize, show connection error
         await client.initializePromise;
         
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         const signedIn = await client.signedIn();
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         copilotChangeSignIn(signedIn);
         setStep(signedIn ? "signedIn" : "signedOut");
       } catch (error) {
-        if (!mounted) return;
+        if (!mounted) {return;}
         Logger.warn("Copilot#checkConnection: Connection failed", error);
         copilotChangeSignIn(false);
         setStep("connectionError");
         toast({
           title: "GitHub Copilot Connection Error",
-          description: "Failed to connect to GitHub Copilot. Click to retry.",
-          variant: "destructive",
-          action: <Button onClick={trySignIn}>Retry</Button>,
+          description: "Failed to connect to GitHub Copilot. Check settings and try again.",
+          variant: "danger",
+          action: <Button onClick={openSettings}>Settings</Button>,
         });
       }
     };
@@ -153,9 +154,9 @@ export const CopilotConfig = memo(() => {
             setStep("connectionError");
             toast({
               title: "GitHub Copilot Connection Error",
-              description: "Lost connection during sign-in. Please try again.",
+              description: "Lost connection during sign-in. Please check settings and try again.",
               variant: "danger",
-              action: <Button onClick={trySignIn}>Retry</Button>,
+              action: <Button onClick={openSettings}>Settings</Button>,
             });
             return;
           }

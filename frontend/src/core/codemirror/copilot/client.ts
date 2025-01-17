@@ -9,6 +9,7 @@ import { waitForEnabledCopilot } from "./state";
 import { waitForWs } from "@/utils/waitForWs";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { Logger } from "@/utils/Logger";
+import { toast } from "@/components/ui/use-toast";
 
 // Dummy file for the copilot language server
 export const COPILOT_FILENAME = "/marimo.py";
@@ -45,6 +46,12 @@ class LazyWebsocketTransport extends Transport {
       } catch (error) {
         Logger.warn(`Copilot#connect: Connection attempt ${attempt}/${retries} failed`, error);
         if (attempt === retries) {
+          // Show error toast on final retry
+          toast({
+            variant: "danger",
+            title: "GitHub Copilot Connection Error",
+            description: "Failed to connect to GitHub Copilot. Please check settings and try again.",
+          });
           throw error;
         }
         await new Promise((resolve) => setTimeout(resolve, delayMs));
