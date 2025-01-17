@@ -53,7 +53,7 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.webm">
 </video>
 <figcaption>Use state to tie two elements together in a cycle.</figcaption>
 </figure>
@@ -155,7 +155,7 @@ implementation using state is simpler.
 
 <div align="center">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-counter.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-counter.webm">
 </video>
 </figure>
 </div>
@@ -198,7 +198,7 @@ value depends on the other. This is impossible to do without `mo.state`.
 
 <div align="center">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.webm">
 </video>
 </figure>
 </div>
