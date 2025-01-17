@@ -1216,11 +1216,15 @@ class TestCacheDecorator:
             @mo.cache
             def h(state):
                 x = state()
+
                 def g():
                     global state
+
                     def f(state):
                         return x + state()
+
                     return state() + g(state2)
+
                 return g()
 
             assert g(state0) == 111

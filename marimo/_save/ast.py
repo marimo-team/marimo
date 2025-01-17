@@ -92,7 +92,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         assert isinstance(node, list), "Unexpected block structure."
         for n in node:
             # There's a chance that the block is first evaluated somewhere in a
-            # multine line expression, so check that the "target" line is in the
+            # multiline line expression, so check that the "target" line is in the
             # interval.
             parent = None
             if n.lineno < self.target_line:
