@@ -12,7 +12,7 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired
 
-from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast, List
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
