@@ -218,6 +218,13 @@ class TestDataframes:
         assert search_result.data == result.url
 
     @staticmethod
+    def test_dataframe_too_large_page_size() -> None:
+        df = pd.DataFrame({"A": range(300)})
+        with pytest.raises(ValueError) as e:
+            _ = ui.dataframe(df, page_size=201)
+        assert "limited to 200 rows" in str(e.value)
+
+    @staticmethod
     def test_dataframe_with_non_string_column_names() -> None:
         df = pd.DataFrame(
             {0: [1, 2, 3], 1.5: ["a", "b", "c"], "2": [True, False, True]}
