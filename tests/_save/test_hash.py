@@ -173,6 +173,63 @@ class TestHash:
         app.run()
 
     @staticmethod
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_execution_reproducibility_different_cell_order() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one(persistent_cache, MockLoader, shared) -> tuple[int]:
+            _a = [1, object()]
+            with persistent_cache(
+                name="one", _loader=MockLoader(data={"_X": 7})
+            ) as _cache:
+                _X = 10 + _a[0] - len(shared)  # Comment
+            assert _X == 7
+            # Cannot be reused/ shared, because it will change the hash.
+            assert (
+                _cache._cache.hash
+                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
+            ), _cache._cache.hash
+            assert _cache._cache.cache_type == "ContextExecutionPath"
+            return
+
+        @app.cell
+        def two(persistent_cache, MockLoader, shared) -> tuple[int]:
+            # The same as cell one, but with this comment
+            _a = [
+                1,  # Comment
+                object(),
+            ]
+            # Some white space
+            with persistent_cache(
+                name="one", _loader=MockLoader(data={"_X": 7})
+            ) as _cache:
+                # More Comments
+                _X = 10 + _a[0] - len(shared)
+            assert _X == 7
+            assert (
+                _cache._cache.hash
+                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
+            ), _cache._cache.hash
+            assert _cache._cache.cache_type == "ContextExecutionPath"
+            # and a post block difference
+            Z = 11
+            return (Z,)
+
+        @app.cell
+        def load() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            shared = [None, object()]
+            return persistent_cache, MockLoader, shared
+
+        app.run()
+
+    @staticmethod
     def test_transitive_content_hash() -> None:
         app = App()
         app._anonymous_file = True
@@ -655,7 +712,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_process_dataframe() -> None:
+    def test_dataframe() -> None:
         app = App()
         app._anonymous_file = True
 
@@ -724,7 +781,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_process_dataframe_object() -> None:
+    def test_dataframe_object() -> None:
         app = App()
         app._anonymous_file = True
 
@@ -771,7 +828,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_process_polars_dataframe() -> None:
+    def test_polars_dataframe() -> None:
         app = App()
         app._anonymous_file = True
 
@@ -822,5 +879,43 @@ class TestDataHash:
         def three(one, two) -> None:
             assert one == two
             assert one == 14
+
+        app.run()
+
+    @pytest.mark.skipif(
+        "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
+    )
+    def test_polars_object() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import polars as pl
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            expected_hash = "rC6YiNsuaZKQ1JqMgSRa0itEDwi7ZTl6InABjuM0RDY"
+            return MockLoader, persistent_cache, expected_hash, pl
+
+        @app.cell
+        def two(MockLoader, persistent_cache, expected_hash, pl) -> tuple[int]:
+            _a = {
+                "A": [2, 8, 18],
+                "B": ["a", "a", "a"],
+                "C": [14, 16, 18],
+            }
+            _a = pl.DataFrame(_a)
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = _a.select(pl.col("A").sum()).item()
+
+            assert _cache._cache.cache_type == "ContextExecutionPath"
+            assert _cache._cache.hash == expected_hash, (
+                f"expected_hash != {_cache._cache.hash}"
+            )
+            assert _A == 28
+            return (two,)
 
         app.run()
