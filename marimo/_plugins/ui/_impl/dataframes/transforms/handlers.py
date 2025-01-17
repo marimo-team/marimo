@@ -78,15 +78,28 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             dtype = column.dtype
 
             # Handle string operations
-            if condition.operator in ["contains", "regex", "starts_with", "ends_with"]:
-                df_filter = column.str.contains(
-                    str(condition.value or ""),
-                    regex=condition.operator == "regex",
-                    na=False
-                ) if condition.operator in ["contains", "regex"] else (
-                    column.str.startswith(str(condition.value or ""), na=False)
-                    if condition.operator == "starts_with"
-                    else column.str.endswith(str(condition.value or ""), na=False)
+            if condition.operator in [
+                "contains",
+                "regex",
+                "starts_with",
+                "ends_with",
+            ]:
+                df_filter = (
+                    column.str.contains(
+                        str(condition.value or ""),
+                        regex=condition.operator == "regex",
+                        na=False,
+                    )
+                    if condition.operator in ["contains", "regex"]
+                    else (
+                        column.str.startswith(
+                            str(condition.value or ""), na=False
+                        )
+                        if condition.operator == "starts_with"
+                        else column.str.endswith(
+                            str(condition.value or ""), na=False
+                        )
+                    )
                 )
             # Handle numeric comparisons
             elif condition.operator in ["==", "!=", ">", "<", ">=", "<="]:
@@ -107,11 +120,17 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                     df_filter = eval(f"column {condition.operator} value")
             # Handle list operations
             elif condition.operator == "in":
-                value = condition.value if isinstance(condition.value, (list, tuple)) else []
+                value = (
+                    condition.value
+                    if isinstance(condition.value, (list, tuple))
+                    else []
+                )
                 df_filter = column.isin(value)
             # Handle boolean operations
             elif condition.operator in ["is_true", "is_false"]:
-                df_filter = column.eq(True if condition.operator == "is_true" else False)
+                df_filter = column.eq(
+                    True if condition.operator == "is_true" else False
+                )
             # Handle null checks
             elif condition.operator == "is_nan":
                 df_filter = column.isna()
@@ -120,7 +139,9 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             # Handle equality operations with proper type handling
             elif condition.operator in ["equals", "does_not_equal"]:
                 # For numeric types, handle direct comparison
-                if dtype.kind in ["i", "f"] and isinstance(condition.value, (int, float)):
+                if dtype.kind in ["i", "f"] and isinstance(
+                    condition.value, (int, float)
+                ):
                     # For numeric comparisons, we can use the value directly
                     scalar_value = condition.value
                 else:
@@ -129,14 +150,26 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                         scalar_value = _coerce_value(dtype, condition.value)
                     except Exception:
                         # Use the original value as a last resort
-                        scalar_value = condition.value if condition.value is not None else None
+                        scalar_value = (
+                            condition.value
+                            if condition.value is not None
+                            else None
+                        )
 
                 # Apply the comparison with proper scalar value
                 if scalar_value is not None:
-                    df_filter = column.eq(scalar_value) if condition.operator == "equals" else column.ne(scalar_value)
+                    df_filter = (
+                        column.eq(scalar_value)
+                        if condition.operator == "equals"
+                        else column.ne(scalar_value)
+                    )
                 else:
                     # Handle None values specially
-                    df_filter = column.isna() if condition.operator == "equals" else column.notna()
+                    df_filter = (
+                        column.isna()
+                        if condition.operator == "equals"
+                        else column.notna()
+                    )
             else:
                 # All valid operators should be handled above
                 # This is just to satisfy the type checker
@@ -154,7 +187,6 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                 raise AssertionError("Unhandled operator case")
 
             clauses.append(df_filter)
-
 
         if transform.operation == "keep_rows":
             df = df[pd.concat(clauses, axis=1).all(axis=1)]
