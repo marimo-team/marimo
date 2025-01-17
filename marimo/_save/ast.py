@@ -91,11 +91,17 @@ class ExtractWithBlock(ast.NodeTransformer):
 
         assert isinstance(node, list), "Unexpected block structure."
         for n in node:
+            # There's a chance that the block is first evaluated somewhere in a
+            # multine line expression, so check that the "target" line is in the
+            # interval.
+            parent = None
             if n.lineno < self.target_line:
                 pre_block.append(n)
                 previous = n
-            elif n.lineno == self.target_line:
+            # the line is contained with this
+            elif n.lineno <= self.target_line <= n.end_lineno:
                 on_line.append(n)
+                parent = n
             # The target line can easily be skipped if there are comments or
             # white space or if the block is contained within another block.
             else:
@@ -106,15 +112,25 @@ class ExtractWithBlock(ast.NodeTransformer):
         # excluding by omission try, for, classes and functions.
         if len(on_line) == 0:
             if isinstance(previous, (ast.With, ast.If)):
-                try:
-                    # Recursion by referring the the containing block also
-                    # captures the case where the target line number was not
-                    # exactly hit.
-                    return ExtractWithBlock(self.target_line).generic_visit(
-                        previous.body  # type: ignore[arg-type]
-                    )
-                except BlockException:
-                    on_line.append(previous)
+                on_line.append(previous)
+                bodies = (
+                    [previous.body]
+                    if isinstance(previous, ast.With)
+                    else [previous.body, previous.orelse]
+                )
+                for body in bodies:
+                    try:
+                        # Recursion by referring the the containing block also
+                        # captures the case where the target line number was not
+                        # exactly hit.
+                        return ExtractWithBlock(
+                            self.target_line
+                        ).generic_visit(
+                            body  # type: ignore[arg-type]
+                        )
+                    except BlockException:
+                        pass
+
             else:
                 raise BlockException(
                     "persistent_cache cannot be invoked within a block "
@@ -122,12 +138,19 @@ class ExtractWithBlock(ast.NodeTransformer):
                 )
         # Intentionally not elif (on_line can be added in previous block)
         if len(on_line) == 1:
-            assert isinstance(on_line[0], ast.With), "Unexpected block."
+            if parent and not isinstance(on_line[0], ast.With):
+                raise BlockException("Detected line is not a With statement.")
+            if not isinstance(on_line[0], ast.With):
+                raise BlockException(
+                    "Saving on a shared line may lead to unexpected behavior. "
+                    "Please format your code, and or reduce nesting."
+                )
             return clean_to_modules(pre_block, on_line[0])
         # It should be possible to relate the lines with the AST,
         # but reduce potential bugs by just throwing an error.
         raise BlockException(
-            "Saving on a shared line may lead to unexpected behavior."
+            "Unable to determine structure your call. Please"
+            " report this to github:marimo-team/marimo/issues"
         )
 
 

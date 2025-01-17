@@ -69,7 +69,10 @@ class TestScriptCache:
             from tests._save.mocks import MockLoader
 
             # fmt: off
-            with persistent_cache(name="one", _loader=MockLoader(data={"X": 7, "Y": 8})) as cache: # noqa: E501
+            with persistent_cache(name="one",
+                                  _loader=MockLoader(
+                                    data={"X": 7, "Y": 8})
+                                  ) as cache: # noqa: E501
                 Y = 9
                 X = 10
             # fmt: on
@@ -80,6 +83,201 @@ class TestScriptCache:
             return X, Y, persistent_cache
 
         app.run()
+
+    @staticmethod
+    def test_cache_linebreak() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            # fmt: off
+            # issues 3332, 2633
+            with persistent_cache("one", _loader=_loader) as cache:
+                b = [
+                    8
+                ]
+            # fmt: on
+            assert cache._cache.defs == {"b": [8]}
+
+        app.run()
+
+    @staticmethod
+    def test_cache_if_block_and_break() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            # fmt: off
+            b = [2]
+            if True:
+              with persistent_cache("if", _loader=_loader) as cache:
+                  b = [
+                      7
+                  ]
+            # fmt: on
+            assert b == [7]
+
+        app.run()
+
+    @staticmethod
+    def test_cache_if_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            b = 2
+            if True:
+                with persistent_cache("if", _loader=_loader) as cache:
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_else_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            if False:
+                b = 2
+            else:
+                with persistent_cache("else", _loader=_loader) as cache:
+                    b = 8
+            assert b == 8
+
+    @staticmethod
+    def test_cache_elif_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            if False:
+                b = 2
+            elif True:
+                with persistent_cache("else", _loader=_loader) as cache:
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_with_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from contextlib import contextmanager
+
+            @contextmanager
+            def called(v):
+                assert v
+                yield 1
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            with called(True):
+                with persistent_cache("else", _loader=_loader) as cache:
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_with_block_inner() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from contextlib import contextmanager
+
+            @contextmanager
+            def called(v):
+                assert v
+                yield 1
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            with persistent_cache("else", _loader=_loader) as cache:
+                with called(True):
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_same_line_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+        from marimo._save.ast import BlockException
+
+        @app.cell
+        def one() -> tuple[int]:
+            def call(v):
+                assert v
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            with persistent_cache("else", _loader=_loader) as cache:
+                call(False)
+
+        with pytest.raises(BlockException):
+            app.run()
+
+    @staticmethod
+    def test_cache_in_fn_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+        from marimo._save.ast import BlockException
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+
+            def call():
+                with persistent_cache("else", _loader=_loader) as cache:
+                    return 1
+
+            call()
+
+        with pytest.raises(BlockException):
+            app.run()
 
 
 class TestAppCache:
