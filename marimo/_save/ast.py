@@ -154,6 +154,27 @@ class ExtractWithBlock(ast.NodeTransformer):
         )
 
 
+class MangleArguments(ast.NodeTransformer):
+    """Mangles arguments names to prevent shadowing issues in analysis."""
+
+    def __init__(
+        self, prefix: str, args: set[str], *arg: Any, **kwargs: Any
+    ) -> None:
+        super().__init__(*arg, **kwargs)
+        self.prefix = prefix
+        self.args = args
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        if node.id in self.args:
+            node.id = f"{self.prefix}{node.id}"
+        return node
+
+    def generic_visit(self, node: ast.AST) -> ast.AST:
+        if hasattr(node, "name") and node.name in self.args:
+            node.name = f"{self.prefix}{node.name}"
+        return super().generic_visit(node)
+
+
 class DeprivateVisitor(ast.NodeTransformer):
     """Removes the mangling of private variables from a module."""
 
@@ -180,6 +201,7 @@ class RemoveReturns(ast.NodeTransformer):
 
 def strip_function(fn: Callable[..., Any]) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
+    args = list(fn.__code__.co_varnames)
     function_ast = ast.parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
     assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (
@@ -187,5 +209,6 @@ def strip_function(fn: Callable[..., Any]) -> ast.Module:
     )
     extracted = ast.Module(body.body, type_ignores=[])
     module = RemoveReturns().visit(extracted)
+    module = MangleArguments("*", args).visit(module)
     assert isinstance(module, ast.Module), "Expected a module"
     return module

@@ -251,8 +251,9 @@ class TestScriptCache:
             from tests._save.mocks import MockLoader
 
             _loader = MockLoader()
-            with persistent_cache("else", _loader=_loader) as cache:
-                call(False)
+            # fmt: off
+            with persistent_cache("else", _loader=_loader) as cache: call(False)
+            # fmt: on
 
         with pytest.raises(BlockException):
             app.run()
@@ -1194,11 +1195,9 @@ class TestCacheDecorator:
         app.run()
 
     @staticmethod
-    def test_transitive_shadowed_state_fails() -> None:
+    def test_internal_shadowed() -> None:
         app = App()
         app._anonymous_file = True
-
-        # Add a unit test to denote a known failure case
 
         @app.cell
         def __():
@@ -1208,29 +1207,69 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
+            state0, set_state0 = mo.state(1)
             state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(2)
+            state2, set_state2 = mo.state(10)
 
-            state, set_state = mo.state(3)
+            state, set_state = mo.state(100)
+
+            @mo.cache
+            def h(state):
+                x = state()
+                def g():
+                    global state
+                    def f(state):
+                        return x + state()
+                    return state() + g(state2)
+                return g()
+
+            assert g(state0) == 111
+            assert g.hits == 0
+            assert g(state1) == 111
+            assert g.hits == 1
+
+        app.run()
+
+    @staticmethod
+    def test_transitive_shadowed_state_passes() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            state0, set_state0 = mo.state(1)
+            state1, set_state1 = mo.state(1)
+            state2, set_state2 = mo.state(10)
+
+            state, set_state = mo.state(100)
 
             # Example of a case where things start to get very tricky. There
             # comes a point where you might also have to capture frame levels
             # as well if you mix scope.
             #
-            # This is solved by throwing an exception when state
-            # shadowing occurs.
-            def f():
+            # This is solved by rewriting potential name collisions
+            def h(state):
                 return state()
+
+            def f():
+                return state() + h(state2)
 
             @mo.cache
             def g(state):
                 return state() + f()
 
-        # Cannot resolved shadowed ref.
-        with pytest.raises(RuntimeError) as e:
-            app.run()
+            assert g(state0) == 1111
+            assert g.hits == 0
+            assert g(state1) == 1111
+            assert g.hits == 1
 
-        assert "rename the argument" in str(e)
+        app.run()
 
     @staticmethod
     def test_shadowed_state_mismatch() -> None:
@@ -1248,6 +1287,7 @@ class TestCacheDecorator:
             state1, set_state1 = mo.state(1)
             state2, set_state2 = mo.state(2)
 
+            # Here as a var for shadowing
             state, set_state = mo.state(3)
 
             @mo.cache
@@ -1256,7 +1296,7 @@ class TestCacheDecorator:
 
             a = g(state1)
             b = g(state2)
-
+            assert g.hits == 0
             A = g(state1)
             B = g(state2)
             assert g.hits == 2
