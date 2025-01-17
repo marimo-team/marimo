@@ -95,7 +95,7 @@ def test_markdown_frontmatter() -> None:
 
     # Notebook
 
-    ```{.python.marimo}
+    ```python {.marimo}
     print("Hello, World!")
     ```
     """[1:]
@@ -145,7 +145,7 @@ def test_python_to_md_code_injection() -> None:
                 print("Hello World")
                 ```
                 Execute print
-                ```{python}
+                ```python {.marimo}
                 print("Hello World")
                 ```
             \""")
@@ -154,7 +154,7 @@ def test_python_to_md_code_injection() -> None:
         def __(mo):
             mo.md(f\"""
                 with f-string too!
-                ```{{python}}
+                ```python {{.marimo}}
                 print("Hello World")
                 ```
             \""")
@@ -163,7 +163,7 @@ def test_python_to_md_code_injection() -> None:
         def __(mo):
             mo.md(f\"""
                 Not markdown
-                ```{{python}}
+                ```python {{.marimo}}
                 print("1 + 1 = {1 + 1}")
                 ```
             \""")
@@ -174,7 +174,7 @@ def test_python_to_md_code_injection() -> None:
                 Nested fence
                 ````text
                 The guards are
-                ```{python}
+                ```python {.marimo}
                 ````
             \""")
             return
@@ -227,7 +227,7 @@ def test_python_to_md_code_injection() -> None:
     )
 
 
-def test_md_to_python_code_injection() -> None:
+def test_old_md_to_python_code_injection() -> None:
     script = dedent(
         """
     ---
@@ -292,6 +292,91 @@ def test_md_to_python_code_injection() -> None:
     mo.md(\"""
       This is a markdown cell with an execution block in it
       ```{python}
+      # To ambiguous to convert
+      ```
+      \""")
+    ````
+
+    """[1:]
+    )
+
+    maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
+    maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
+
+    # Idempotent even under strange conditions.
+    assert maybe_unsafe_py == sanitized_version(
+        convert_from_md(maybe_unsafe_md).strip()
+    )
+
+    snapshot("unsafe-doc-old.py.txt", maybe_unsafe_py)
+    snapshot("unsafe-doc-old.md.txt", maybe_unsafe_md)
+
+
+def test_md_to_python_code_injection() -> None:
+    script = dedent(
+        """
+    ---
+    title: "Casually malicious md"
+    ---
+
+    What happens if I just leave a \"""
+    " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \\ /
+
+    # Notebook
+    <!--
+    \\
+    ```python {.marimo}
+    print("Hello, World!")
+    ```
+    -->
+
+    ```marimo run convert document.md```
+
+    ```python {.marimo}
+    it's an unparsable cell
+    ```
+
+    <!-- Actually markdown -->
+    ```python {.marimo} `
+      print("Hello, World!")
+
+    <!-- Disabled code block -->
+    ```python {.marimo disabled="true"}
+    1 + 1
+    ```
+
+    <!-- Hidden code block -->
+    ```python {.marimo hide_code="true"}
+    1 + 1
+    ```
+
+    <!-- Empty code block -->
+    ```python {.marimo}
+    ```
+
+    <!-- Improperly nested code block -->
+    ```python {.marimo}
+    \"""
+    ```python {.marimo}
+    print("Hello, World!")
+    ```
+    \"""
+    ```
+
+    <!-- Improperly nested code block -->
+    ```python {.marimo}
+    ````python {.marimo}
+    print("Hello, World!")
+    ````
+    ```
+
+    -->
+
+    <!-- from the notebook, should remain unchanged -->
+    ````python {.marimo}
+    mo.md(\"""
+      This is a markdown cell with an execution block in it
+      ```python {.marimo}
       # To ambiguous to convert
       ```
       \""")

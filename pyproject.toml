@@ -17,7 +17,8 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.4,<4",
     # add features to markdown
-    "pymdown-extensions>=10,<11",
+    # Pinned to specific version for introduction of codeblock handling.
+    "pymdown-extensions>=10.11.2,<11",
     # syntax highlighting of code in markdown
     "pygments>=2.13,<3",
     # for reading, writing configs

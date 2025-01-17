@@ -14,7 +14,7 @@ class Dependency:
     min_version: str | None = None
     max_version: str | None = None
 
-    def has(self, quiet=False) -> bool:
+    def has(self, quiet: bool = False) -> bool:
         """Return True if the dependency is installed."""
         try:
             has_dep = importlib.util.find_spec(self.pkg) is not None
@@ -33,7 +33,7 @@ class Dependency:
         *,
         min_version: str | None,
         max_version: str | None = None,
-        quiet=False,
+        quiet: bool = False,
     ) -> bool:
         if not self.has(quiet=quiet):
             return False
@@ -45,7 +45,7 @@ class Dependency:
             quiet=quiet,
         )
 
-    def has_required_version(self, quiet=False) -> bool:
+    def has_required_version(self, quiet: bool = False) -> bool:
         return self.has_at_version(
             min_version=self.min_version,
             max_version=self.max_version,
@@ -90,7 +90,7 @@ class Dependency:
         try:
             return importlib.metadata.version(self.pkg)
         except importlib.metadata.PackageNotFoundError:
-            return __import__(self.pkg).__version__
+            return f"{__import__(self.pkg).__version__}"
 
     def warn_if_mismatch_version(
         self,

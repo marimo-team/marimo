@@ -70,7 +70,7 @@ def backwards_compatible_sanitization(line: str) -> str:
 
 
 def extract_attribs(
-    line: str, fence_start: Optional[re.Match] = None
+    line: str, fence_start: Optional[re.Match[str]] = None
 ) -> dict[str, str]:
     # Extract attributes from the code block.
     # Blocks are expected to be like this:
@@ -100,8 +100,8 @@ def _is_code_tag(text: str) -> bool:
 def _get_language(text: str) -> str:
     header = text.split("\n").pop()
     match = RE_NESTED_FENCE_START.match(header)
-    if match:
-        return match.group("lang")
+    if match and match.group("lang"):
+        return str(match.group("lang"))
     return "python"
 
 
@@ -297,10 +297,6 @@ class MarimoParser(IdentityParser):
         self.preprocessors.register(
             FrontMatterPreprocessor(self), "frontmatter", 100
         )
-        # Preprocess for backwards compatibility.
-        self.preprocessors.register(
-            MdCompatPreprocessor(self), "md-compat", 100
-        )
         fences_ext = SuperFencesCodeExtension()
         fences_ext.extendMarkdown(self)
         # TODO: Consider adding the admonition extension, and integrating it
@@ -380,71 +376,6 @@ class FrontMatterPreprocessor(Preprocessor):
             except yaml.YAMLError as e:
                 raise e
         return doc.split("\n")
-
-
-class MdCompatPreprocessor(Preprocessor):
-    """Preprocessor for backwards compatibility with old code blocks.
-
-    This preprocessor is used to convert old code blocks to the new format.
-    """
-
-    def run(self, lines: list[str]) -> list[str]:
-        response = []
-        old_to_old = False
-        old_to_new = False
-        for line in lines:
-            # TODO: Remove with some minor release.
-            if DependencyManager.new_superfences.has_required_version(
-                quiet=True
-            ):
-                response.append(line)
-                continue
-            # If old format, old regex, pass through but warn.
-            if RE_NESTED_FENCE_START.match(line):
-                old_to_old = True
-                response.append(line)
-                continue
-            # There's a chance that the new format is used with the old regex.
-            # since pymdownx.superfences < 10.11
-            # will not match
-            # ```lang {.marimo}
-            # put it into the old format, so super fences can handle it.
-            if new_match := COMPAT_RE_NESTED_FENCE_START.match(line):
-                old_to_new = True
-                attribute_str = " ".join(
-                    [""]
-                    + [
-                        f'{key}="{value}"'
-                        for key, value in extract_attribs(
-                            line, new_match
-                        ).items()
-                    ]
-                )
-                response.append(
-                    "".join(
-                        [
-                            new_match.group("fence"),
-                            "{",
-                            ".",
-                            new_match.group("lang"),
-                            ".marimo",
-                            attribute_str,
-                            "}",
-                        ]
-                    )
-                )
-                continue
-            response.append(line)
-        if old_to_old:
-            LOGGER.warning(
-                "Legacy format used for code block. Please update pymdownx to >= 10.11"
-            )
-
-        if old_to_new:
-            LOGGER.warning(
-                "Unsupported code fence, applying heuristic. Please update pymdownx to >= 10.11"
-            )
-        return response
 
 
 class SanitizeProcessor(Preprocessor):
