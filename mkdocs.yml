@@ -232,6 +232,7 @@ plugins:
         color: '#000000'
         font_family: Roboto
   - tags
+  - glightbox
   - redirects:
       redirect_maps: {}
   - mkdocstrings:
