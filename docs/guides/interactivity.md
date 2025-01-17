@@ -7,7 +7,8 @@ global variable automatically runs all cells that reference it.**
 
 <div align="center">
 <figure>
-<img src="/_static/readme-ui.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/readme-ui.webm">
+</video>
 </figure>
 </div>
 
@@ -74,7 +75,8 @@ value on form submission.
 
 <div align="center">
 <figure>
-<img src="/_static/readme-ui-form.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/readme-ui-form.webm">
+</video>
 <figcaption>Use a form to gate value updates on submission</figcaption>
 </figure>
 </div>
