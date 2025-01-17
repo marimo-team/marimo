@@ -20,7 +20,8 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 vi.mock("jotai", () => ({
   useAtom: vi.fn().mockImplementation(() => {
-    return [false, vi.fn()] as [boolean, (value: boolean) => void];
+    const setState = vi.fn<[boolean], void>();
+    return [false, setState] as const;
   }),
 }));
 
@@ -145,7 +146,10 @@ describe("CopilotConfig", () => {
 
   it("handles sign-out", async () => {
     // Start in signed-in state
-    vi.mocked(useAtom).mockImplementation(() => [true, vi.fn()]);
+    vi.mocked(useAtom).mockImplementation(() => [
+      true,
+      vi.fn() as (value: boolean) => void,
+    ]);
 
     render(
       <JotaiProvider>
