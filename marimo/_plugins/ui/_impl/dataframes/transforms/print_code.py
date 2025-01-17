@@ -38,18 +38,14 @@ def python_print_pandas(
             where.value,
         )
 
-        if operator == "==":
-            return (
-                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
-            )
+        # Handle numeric comparisons consistently without type coercion
+        if operator in ["==", "!=", ">", "<", ">=", "<="]:
+            # Use direct comparison operators for all numeric comparisons
+            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"
         elif operator == "equals":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].eq({_as_literal(value)})"
-            )
+            return f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
         elif operator == "does_not_equal":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
-            )
+            return f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)}"
         elif operator == "contains":
             return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)})"  # noqa: E501
         elif operator == "regex":
@@ -60,12 +56,6 @@ def python_print_pandas(
             return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"  # noqa: E501
         elif operator == "in":
             return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
-        elif operator == "!=":
-            return (
-                f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
-            )
-        elif operator in [">", ">=", "<", "<="]:
-            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
         elif operator == "is_nan":
             return f"{df_name}[{_as_literal(column_id)}].isna()"
         elif operator == "is_not_nan":

@@ -38,10 +38,12 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
     def handle_column_conversion(
         df: "pd.DataFrame", transform: ColumnConversionTransform
     ) -> "pd.DataFrame":
+        import numpy as np
+        # Use numpy dtype for type conversion
         df[transform.column_id] = df[transform.column_id].astype(
-            transform.data_type,
-            errors=transform.errors,
-        )  # type: ignore[call-overload]
+            np.dtype(transform.data_type),
+            errors=transform.errors
+        )
         return df
 
     @staticmethod
@@ -73,56 +75,59 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
         clauses: List[pd.Series[Any]] = []
         for condition in transform.where:
-            try:
-                value = _coerce_value(
-                    df[condition.column_id].dtype, condition.value
-                )
-            except Exception:
-                value = condition.value or ""
-            if condition.operator == "==":
-                df_filter = df[condition.column_id] == value
-            elif condition.operator == "!=":
-                df_filter = df[condition.column_id] != value
-            elif condition.operator == ">":
-                df_filter = df[condition.column_id] > value
-            elif condition.operator == "<":
-                df_filter = df[condition.column_id] < value
-            elif condition.operator == ">=":
-                df_filter = df[condition.column_id] >= value
-            elif condition.operator == "<=":
-                df_filter = df[condition.column_id] <= value
-            elif condition.operator == "is_true":
-                df_filter = df[condition.column_id].eq(True)
-            elif condition.operator == "is_false":
-                df_filter = df[condition.column_id].eq(False)
-            elif condition.operator == "is_nan":
-                df_filter = df[condition.column_id].isna()
-            elif condition.operator == "is_not_nan":
-                df_filter = df[condition.column_id].notna()
-            elif condition.operator == "equals":
-                df_filter = df[condition.column_id].eq(value)
-            elif condition.operator == "does_not_equal":
-                df_filter = df[condition.column_id].ne(value)
-            elif condition.operator == "contains":
-                df_filter = df[condition.column_id].str.contains(
-                    value, regex=False, na=False
-                )
-            elif condition.operator == "regex":
-                df_filter = df[condition.column_id].str.contains(
-                    value, regex=True, na=False
-                )
-            elif condition.operator == "starts_with":
-                df_filter = df[condition.column_id].str.startswith(
-                    value, na=False
-                )
-            elif condition.operator == "ends_with":
-                df_filter = df[condition.column_id].str.endswith(
-                    value, na=False
-                )
+            # Get column and value without type coercion
+            column = df[condition.column_id]
+            value = condition.value if condition.value is not None else ""
+
+            # Ensure string values for string operations
+            if condition.operator in ["contains", "regex", "starts_with", "ends_with"]:
+                value = str(value)
+            # Ensure list values for isin operation
             elif condition.operator == "in":
-                df_filter = df[condition.column_id].isin(value)
+                value = list(value) if value else []
+
+            # Handle numeric comparisons consistently without type coercion
+            if condition.operator == "==":
+                df_filter = column == value
+            elif condition.operator == "!=":
+                df_filter = column != value
+            elif condition.operator == ">":
+                df_filter = column > value
+            elif condition.operator == "<":
+                df_filter = column < value
+            elif condition.operator == ">=":
+                df_filter = column >= value
+            elif condition.operator == "<=":
+                df_filter = column <= value
+            # Handle boolean operations
+            elif condition.operator == "is_true":
+                df_filter = column.eq(True)
+            elif condition.operator == "is_false":
+                df_filter = column.eq(False)
+            # Handle null checks
+            elif condition.operator == "is_nan":
+                df_filter = column.isna()
+            elif condition.operator == "is_not_nan":
+                df_filter = column.notna()
+            # Handle equality operations consistently with numeric comparisons
+            elif condition.operator == "equals":
+                df_filter = column == value
+            elif condition.operator == "does_not_equal":
+                df_filter = column != value
+            # Handle string operations
+            elif condition.operator == "contains":
+                df_filter = column.str.contains(value, regex=False, na=False)
+            elif condition.operator == "regex":
+                df_filter = column.str.contains(value, regex=True, na=False)
+            elif condition.operator == "starts_with":
+                df_filter = column.str.startswith(value, na=False)
+            elif condition.operator == "ends_with":
+                df_filter = column.str.endswith(value, na=False)
+            # Handle list operations
+            elif condition.operator == "in":
+                df_filter = column.isin(value)
             else:
-                assert_never(condition.operator)
+                raise ValueError(f"Unknown operator: {condition.operator}")
 
             clauses.append(df_filter)
 
@@ -131,7 +136,7 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
         elif transform.operation == "remove_rows":
             df = df[~pd.concat(clauses, axis=1).all(axis=1)]
         else:
-            assert_never(transform.operation)
+            raise ValueError(f"Unknown operation: {transform.operation}")
 
         return df
 
@@ -153,7 +158,7 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
         elif transform.aggregation == "max":
             return group.max()
         else:
-            assert_never(transform.aggregation)
+            raise ValueError(f"Unknown aggregation: {transform.aggregation}")
 
     @staticmethod
     def handle_aggregate(
@@ -362,7 +367,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             elif agg_func == "max":
                 aggs.append(col(column_id).max().alias(f"{column_id}_max"))
             else:
-                assert_never(agg_func)
+                raise ValueError(f"Unknown aggregation function: {agg_func}")
 
         return df.group_by(transform.column_ids, maintain_order=True).agg(aggs)
 
@@ -388,7 +393,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             elif agg_func == "max":
                 agg_df = selected_df.max()
             else:
-                assert_never(agg_func)
+                raise ValueError(f"Unknown aggregation function: {agg_func}")
 
             # Rename all
             agg_df = agg_df.rename(
@@ -539,7 +544,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             elif condition.operator == "in":
                 filter_conditions.append(column.isin(value))
             else:
-                assert_never(condition.operator)
+                raise ValueError(f"Unknown operator: {condition.operator}")
 
         combined_condition = ibis.and_(*filter_conditions)
 
@@ -651,7 +656,4 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             return None
 
 
-def _coerce_value(dtype: Any, value: Any) -> Any:
-    import numpy as np
-
-    return np.array([value]).astype(dtype)[0]
+# Removed _coerce_value function as we now use direct comparisons without type coercion
