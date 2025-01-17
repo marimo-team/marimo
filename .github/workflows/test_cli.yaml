@@ -9,7 +9,6 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
-  UV_SYSTEM_PYTHON: 1
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -32,7 +31,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
     runs-on: ubuntu-latest
-    timeout-minutes: 3  # 2024-01-18 avg: 0.8m max: 1.0m
+    timeout-minutes: 3 # 2024-01-18 avg: 0.8m max: 1.0m
     defaults:
       run:
         shell: bash
@@ -100,7 +99,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10  # 2024-01-18 avg: 2.5m max: 4.5m
+    timeout-minutes: 10 # 2024-01-18 avg: 2.5m max: 4.5m
     strategy:
       matrix:
         python-version: ['3.12']
@@ -140,7 +139,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests examples and smoke_tests
     runs-on: ubuntu-latest
-    timeout-minutes: 3  # 2024-01-18 avg: 0.3m max: 0.5m
+    timeout-minutes: 3 # 2024-01-18 avg: 0.3m max: 0.5m
 
     steps:
       - name: 🛑 Cancel Previous Runs
