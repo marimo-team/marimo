@@ -70,8 +70,12 @@ const {
       if (!state.isSidebarOpen || !state.selectedPanel) {
         return state;
       }
-      const visiblePanels = PANELS.filter((p) => !p.hidden && p.position === "sidebar");
-      const currentIndex = visiblePanels.findIndex((p) => p.type === state.selectedPanel);
+      const visiblePanels = PANELS.filter(
+        (p) => !p.hidden && p.position === "sidebar",
+      );
+      const currentIndex = visiblePanels.findIndex(
+        (p) => p.type === state.selectedPanel,
+      );
       const nextIndex = (currentIndex + 1) % visiblePanels.length;
       return {
         ...state,
@@ -82,9 +86,14 @@ const {
       if (!state.isSidebarOpen || !state.selectedPanel) {
         return state;
       }
-      const visiblePanels = PANELS.filter((p) => !p.hidden && p.position === "sidebar");
-      const currentIndex = visiblePanels.findIndex((p) => p.type === state.selectedPanel);
-      const prevIndex = (currentIndex - 1 + visiblePanels.length) % visiblePanels.length;
+      const visiblePanels = PANELS.filter(
+        (p) => !p.hidden && p.position === "sidebar",
+      );
+      const currentIndex = visiblePanels.findIndex(
+        (p) => p.type === state.selectedPanel,
+      );
+      const prevIndex =
+        (currentIndex - 1 + visiblePanels.length) % visiblePanels.length;
       return {
         ...state,
         selectedPanel: visiblePanels[prevIndex].type,
