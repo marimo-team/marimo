@@ -30,7 +30,7 @@ jobs:
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
-    timeout-minutes: 13  # 2024-01-18 avg: 5.0m max: 7.0m
+    timeout-minutes: 13 # 2024-01-18 avg: 5.0m max: 7.0m
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -65,23 +65,15 @@ jobs:
       - name: 📦 Build frontend
         run: make fe
 
-      - name: 🐍 Setup Python 3.12
-        uses: actions/setup-python@v5
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      # We tried to add uv, but marimo is unable to
-      # start when installed.
-      # - name: 🐍 Setup uv
-      #   uses: yezz123/setup-uv@v4
-      #   with:
-      #     uv-venv: marimo-venv
+          enable-cache: true
+          python-version: 3.12
 
       - name: 🐍 Install marimo
         run: |
-          python -m pip install --upgrade pip
-          pip install .
+          uv pip install .
           echo "MARIMO_VERSION=$(marimo --version)" >> $GITHUB_ENV
 
       - name: 🎭 Get installed Playwright version
