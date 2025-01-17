@@ -67,7 +67,7 @@ eliminates a common cause of bugs in traditional notebooks like Jupyter.
 
 <!-- <div align="center">
 <figure>
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-delete-cell.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-delete-cell.mp4">
 </video>
 <figcaption>No hidden state: deleting a cell deletes its variables.</figcaption>
 </figure>
@@ -196,7 +196,7 @@ disabled, it and its dependents are blocked from running.
 
 <div align="center">
 <figure>
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-disable-cell.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-disable-cell.mp4">
 </video>
 <figcaption>Disabling a cell blocks it from running.</figcaption>
 </figure>
@@ -207,7 +207,7 @@ disabled, marimo will automatically run it.
 
 <div align="center">
 <figure>
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-enable-cell.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-enable-cell.mp4">
 </video>
 <figcaption>Enable a cell through the context menu. Stale cells run
 automatically.</figcaption>

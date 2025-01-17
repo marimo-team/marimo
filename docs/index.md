@@ -75,7 +75,7 @@ reference its variables, eliminating the error-prone task of manually
 re-running cells. Delete a cell and marimo scrubs its variables from program
 memory, eliminating hidden state.
 
-<video autoplay controls loop width="700px" align="center" src="/_static/reactive.webm">
+<video autoplay muted loop width="700px" align="center" src="/_static/reactive.webm">
 </video>
 
 <a name="expensive-notebooks"></a>
@@ -94,14 +94,14 @@ transformers](api/inputs/dataframe.md), and [chat
 interfaces](api/inputs/chat.md), and the cells that
 use them are automatically re-run with their latest values.
 
-<video autoplay controls loop width="700px" align="center" src="/_static/readme-ui.webm">
+<video autoplay muted loop width="700px" align="center" src="/_static/readme-ui.webm">
 </video>
 
 **Interactive dataframes.** [Page through, search, filter, and
 sort](./guides/working_with_data/dataframes.md)
 millions of rows blazingly fast, no code required.
 
-<video autoplay controls loop width="100%" height="100%" align="center" src="/_static/docs-df.webm">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.webm">
 </video>
 
 **Performant runtime.** marimo runs only those cells that need to be run by
@@ -158,7 +158,7 @@ code hidden and uneditable:
 marimo run your_notebook.py
 ```
 
-<video autoplay controls loop width="450px" align="center" src="/_static/docs-model-comparison.webm" style="border-radius: 8px">
+<video autoplay muted loop width="450px" align="center" src="/_static/docs-model-comparison.webm" style="border-radius: 8px">
 </video>
 
 **Execute as scripts.** Execute a notebook as a script at the
@@ -194,7 +194,7 @@ marimo is easy to get started with, with lots of room for power users.
 For example, here's an embedding visualizer made in marimo
 ([video](https://marimo.io/videos/landing/full.mp4)):
 
-<video autoplay controls loop width="700px" align="center" src="/_static/embedding.webm">
+<video autoplay muted loop width="700px" align="center" src="/_static/embedding.webm">
 </video>
 
 Check out our [guides](guides/index.md), our [example
@@ -206,25 +206,25 @@ GitHub to learn more.
   <tr>
     <td>
       <a target="_blank" href="getting_started/key_concepts">
-        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/reactive.mp4">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/reactive.mp4">
         </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="api/inputs/">
-        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/readme-ui.mp4">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/readme-ui.mp4">
         </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="guides/working_with_data/plotting">
-        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/docs-intro.mp4">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/docs-intro.mp4">
         </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="api/layouts/">
-        <video autoplay controls loop style="max-height: 150px; width: auto; display: block" src="/_static/outputs.mp4">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/outputs.mp4">
         </video>
       </a>
     </td>
