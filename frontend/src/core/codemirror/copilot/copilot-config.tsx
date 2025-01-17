@@ -8,6 +8,7 @@ import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { copyToClipboard } from "@/utils/copy";
+import { Logger } from "@/utils/Logger";
 
 type Step =
   | "signedIn"
@@ -15,6 +16,7 @@ type Step =
   | "signInFailed"
   | "signedOut"
   | "connecting"
+  | "connectionError"
   | "notConnected";
 
 export const CopilotConfig = memo(() => {
@@ -29,21 +31,39 @@ export const CopilotConfig = memo(() => {
   // Check connection on mount
   useEffect(() => {
     const client = getCopilotClient();
-    // If we fail to initialize, show not connected
-    client.initializePromise.catch(() => {
-      copilotChangeSignIn(false);
-      setStep("notConnected");
-    });
-    client
-      .signedIn()
-      .then((signedIn) => {
+    let mounted = true;
+
+    const checkConnection = async () => {
+      try {
+        // If we fail to initialize, show connection error
+        await client.initializePromise;
+        
+        if (!mounted) return;
+
+        const signedIn = await client.signedIn();
+        if (!mounted) return;
+
         copilotChangeSignIn(signedIn);
         setStep(signedIn ? "signedIn" : "signedOut");
-      })
-      .catch(() => {
+      } catch (error) {
+        if (!mounted) return;
+        Logger.warn("Copilot#checkConnection: Connection failed", error);
         copilotChangeSignIn(false);
-        setStep("notConnected");
-      });
+        setStep("connectionError");
+        toast({
+          title: "GitHub Copilot Connection Error",
+          description: "Failed to connect to GitHub Copilot. Click to retry.",
+          variant: "destructive",
+          action: <Button onClick={trySignIn}>Retry</Button>,
+        });
+      }
+    };
+
+    checkConnection();
+
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -72,31 +92,76 @@ export const CopilotConfig = memo(() => {
       return;
     }
     const client = getCopilotClient();
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY_MS = 1000;
+
     try {
       setLoading(true);
+      Logger.log("Copilot#tryFinishSignIn: Attempting to confirm sign-in");
       const { status } = await client.signInConfirm({
         userCode: localData.code,
       });
 
       if (status === "OK" || status === "AlreadySignedIn") {
+        Logger.log("Copilot#tryFinishSignIn: Sign-in confirmed successfully");
         copilotChangeSignIn(true);
         setStep("signedIn");
       } else {
+        Logger.warn("Copilot#tryFinishSignIn: Sign-in confirmation returned unexpected status", { status });
         setStep("signInFailed");
       }
-    } catch {
-      // If request failed, try seeing if we're already signed in
-      // otherwise, show the error
-      // We try 3 times, waiting 1 second between each try
-      for (let i = 0; i < 3; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const signedIn = await client.signedIn();
-        if (signedIn) {
-          copilotChangeSignIn(true);
-          setStep("signedIn");
-          return;
+    } catch (error) {
+      Logger.warn("Copilot#tryFinishSignIn: Initial sign-in confirmation failed, attempting retries");
+      
+      // Check if it's a connection error
+      if (error instanceof Error && (
+        error.message.includes("ECONNREFUSED") || 
+        error.message.includes("WebSocket") ||
+        error.message.includes("network")
+      )) {
+        Logger.error("Copilot#tryFinishSignIn: Connection error during sign-in", error);
+        setStep("connectionError");
+        toast({
+          title: "GitHub Copilot Connection Error",
+          description: "Lost connection during sign-in. Please try again.",
+          variant: "danger",
+          action: <Button onClick={trySignIn}>Retry</Button>,
+        });
+        return;
+      }
+
+      // If not a connection error, try seeing if we're already signed in
+      // We try multiple times with a delay between attempts
+      for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+          const signedIn = await client.signedIn();
+          if (signedIn) {
+            Logger.log("Copilot#tryFinishSignIn: Successfully signed in after retry");
+            copilotChangeSignIn(true);
+            setStep("signedIn");
+            return;
+          }
+        } catch (retryError) {
+          Logger.warn("Copilot#tryFinishSignIn: Retry attempt failed", { attempt: i + 1, maxRetries: MAX_RETRIES });
+          // Check for connection errors during retry
+          if (retryError instanceof Error && (
+            retryError.message.includes("ECONNREFUSED") ||
+            retryError.message.includes("WebSocket") ||
+            retryError.message.includes("network")
+          )) {
+            setStep("connectionError");
+            toast({
+              title: "GitHub Copilot Connection Error",
+              description: "Lost connection during sign-in. Please try again.",
+              variant: "danger",
+              action: <Button onClick={trySignIn}>Retry</Button>,
+            });
+            return;
+          }
         }
       }
+      Logger.error("Copilot#tryFinishSignIn: All sign-in attempts failed");
       setStep("signInFailed");
     } finally {
       setLoading(false);
@@ -196,6 +261,22 @@ export const CopilotConfig = memo(() => {
             </Label>
             <Button onClick={signOut} size="xs" variant="text">
               Disconnect
+            </Button>
+          </div>
+        );
+
+      case "connectionError":
+        return (
+          <div className="flex flex-col gap-1">
+            <Label className="font-normal flex">
+              <XIcon className="h-4 w-4 mr-1" />
+              Connection Error
+            </Label>
+            <div className="text-sm">
+              Unable to connect to GitHub Copilot.
+            </div>
+            <Button onClick={trySignIn} size="xs" variant="link">
+              Retry Connection
             </Button>
           </div>
         );
