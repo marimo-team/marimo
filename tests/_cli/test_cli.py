@@ -818,8 +818,8 @@ def test_cli_run_sandbox_prompt_yes() -> None:
             ),
         ),
         # invalid shell values, rc of 0, data only on stderr
-        # (N.B. rc will become 2 when Issue #3476 is fixed)
-        ("bogus", 0, False, True),
+        ("bogus", 2, False, True),
+        ("", 2, False, True),  # usage error displayed
     ],
 )
 def test_shell_completion(
