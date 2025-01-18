@@ -357,12 +357,12 @@ const DEFAULT_HOT_KEY = {
   "panel.nextPanel": {
     name: "Navigate to next panel",
     group: "Navigation",
-    key: "Ctrl-Shift-}",
+    key: NOT_SET,
   },
   "panel.previousPanel": {
     name: "Navigate to previous panel",
     group: "Navigation",
-    key: "Ctrl-Shift-{",
+    key: NOT_SET,
   },
 } satisfies Record<string, Hotkey>;
 
