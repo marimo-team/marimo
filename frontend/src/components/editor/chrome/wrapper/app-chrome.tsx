@@ -37,7 +37,8 @@ const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isSidebarOpen, isTerminalOpen, selectedPanel } = useChromeState();
-  const { setIsSidebarOpen, setIsTerminalOpen, nextPanel, previousPanel } = useChromeActions();
+  const { setIsSidebarOpen, setIsTerminalOpen, nextPanel, previousPanel } =
+    useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
 
