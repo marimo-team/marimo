@@ -409,6 +409,7 @@ const ExpandableOutput = React.memo(
             {...props}
             className={cn(
               "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
+              "fullscreen:[align-items:safe_center]",
               props.className,
             )}
             ref={containerRef}

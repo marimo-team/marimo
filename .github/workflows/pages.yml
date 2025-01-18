@@ -24,21 +24,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 🚀 Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: 3.12
-
-      - name: 📦 Install marimo
-        run: |
-          uv pip install marimo
 
       - name: 🛠️ Run export
         run: |
-          marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode run
+          uvx marimo export html-wasm frontend/public/files/wasm-intro.py -o out --mode run
           sed -i -e "s/after_delay/off/g" out/index.html
 
       - name: 📄 List changed files

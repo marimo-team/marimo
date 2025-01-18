@@ -17,11 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: 3.12
-          cache: 'pip'
 
       - name: ⚡ Install Vercel CLI
         run: npm install --global vercel@latest

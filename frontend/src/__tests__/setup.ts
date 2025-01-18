@@ -1,4 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
-// Required for testing ser/deser of blobs
+import { afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
 import "blob-polyfill";
+
+// Cleanup after each test case (e.g., clearing jsdom)
+afterEach(() => {
+  cleanup();
+});

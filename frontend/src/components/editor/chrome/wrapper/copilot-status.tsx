@@ -5,6 +5,7 @@ import { Spinner } from "@/components/icons/spinner";
 import {
   isGitHubCopilotSignedInState,
   githubCopilotLoadingVersion,
+  copilotSignedInState,
 } from "@/core/codemirror/copilot/state";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { aiEnabledAtom, resolvedMarimoConfigAtom } from "@/core/config/config";
@@ -13,7 +14,11 @@ import { SparklesIcon } from "lucide-react";
 import { FooterItem } from "./footer-item";
 import { activeUserConfigCategoryAtom } from "@/components/app-config/user-config-form";
 import { settingDialogAtom } from "@/components/app-config/app-config-button";
-
+import { toast } from "@/components/ui/use-toast";
+import { getCopilotClient } from "@/core/codemirror/copilot/client";
+import { Logger } from "@/utils/Logger";
+import { Button } from "@/components/ui/button";
+import { useOnMount } from "@/hooks/useLifecycle";
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -82,6 +87,61 @@ const GitHubCopilotStatus: React.FC = () => {
   const { handleClick } = useOpenAISettings();
 
   const label = isGitHubCopilotSignedIn ? "Ready" : "Not connected";
+  const setCopilotSignedIn = useSetAtom(isGitHubCopilotSignedInState);
+  const setStep = useSetAtom(copilotSignedInState);
+
+  // Check connection on mount
+  useOnMount(() => {
+    const client = getCopilotClient();
+    let mounted = true;
+
+    const checkConnection = async () => {
+      try {
+        // If we fail to initialize, show connection error
+        await client.initializePromise.catch((error) => {
+          Logger.error("Copilot#checkConnection: Failed to initialize", error);
+          client.close();
+          throw error;
+        });
+
+        if (!mounted) {
+          return;
+        }
+
+        const signedIn = await client.signedIn();
+        if (!mounted) {
+          return;
+        }
+
+        setCopilotSignedIn(signedIn);
+        setStep(signedIn ? "signedIn" : "signedOut");
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        Logger.warn("Copilot#checkConnection: Connection failed", error);
+        setCopilotSignedIn(false);
+        setStep("connectionError");
+        toast({
+          title: "GitHub Copilot Connection Error",
+          description:
+            "Failed to connect to GitHub Copilot. Check settings and try again.",
+          variant: "danger",
+          action: (
+            <Button variant="link" onClick={handleClick}>
+              Settings
+            </Button>
+          ),
+        });
+      }
+    };
+
+    checkConnection();
+
+    return () => {
+      mounted = false;
+    };
+  });
 
   return (
     <FooterItem
