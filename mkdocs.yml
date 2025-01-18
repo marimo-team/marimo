@@ -274,6 +274,8 @@ plugins:
             show_symbol_type_toc: true
             show_signature_annotations: true
   - autorefs
+hooks:
+  - docs/hooks.py
 repo_name: marimo-team/marimo
 repo_url: https://github.com/marimo-team/marimo
 site_description: The next generation of Python notebooks
