@@ -237,17 +237,13 @@ class App:
                 except SyntaxError as e:
                     error_line = e.text
                     error_marker = " " * (e.offset - 1) + "^"
-                    err = (
-                        f"{error_line}"
-                        f"{error_marker}\n"
-                        f"{e.msg}"
-                    )
+                    err = f"{error_line}{error_marker}\n{e.msg}"
                     errors.append(err)
             syntax_errors = "\n-----\n".join(errors)
 
             raise UnparsableError(
-                f"The notebook '{self._filename}' has cells with syntax errors, " +
-                f"so it cannot be initialized:\n {syntax_errors}"
+                f"The notebook '{self._filename}' has cells with syntax errors, "
+                + f"so it cannot be initialized:\n {syntax_errors}"
             ) from None
 
         if self._initialized:
