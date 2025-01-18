@@ -407,6 +407,7 @@ const ExpandableOutput = React.memo(
           </div>
           <div
             {...props}
+            data-cell-role="output"
             className={cn(
               "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
               "fullscreen:[align-items:safe_center]",
