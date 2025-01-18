@@ -634,6 +634,11 @@
       "source": "/:path*.html",
       "destination": "/:path*/",
       "permanent": true
+    },
+    {
+      "source": "/:path([^.]*[^/]$)",
+      "destination": "/:path/",
+      "permanent": true
     }
   ]
 }
