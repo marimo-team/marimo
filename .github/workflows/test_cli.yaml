@@ -113,7 +113,7 @@ jobs:
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@v5
         # Windows is throwing an error with uv on the Post step
-        if: ${{ matrix.os != 'windows-latest' }}
+        continue-on-error: ${{ matrix.os == 'windows-latest' }}
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
