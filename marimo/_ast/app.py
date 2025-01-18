@@ -1,8 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import inspect
 from dataclasses import asdict, dataclass, field
+from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -155,6 +157,7 @@ class App:
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
 
+        self._unparsable_code: list[str] = []
         self._unparsable = False
         self._initialized = False
         # injection hook set by contexts like tests such that script traces are
@@ -222,14 +225,30 @@ class App:
             name,
             CellConfig.from_dict(config),
         )
+        self._unparsable_code.append(code)
         self._unparsable = True
 
     def _maybe_initialize(self) -> None:
         if self._unparsable:
+            errors = []
+            for code in self._unparsable_code:
+                try:
+                    ast.parse(dedent(code))
+                except SyntaxError as e:
+                    error_line = e.text
+                    error_marker = " " * (e.offset - 1) + "^"
+                    err = (
+                        f"{error_line}"
+                        f"{error_marker}\n"
+                        f"{e.msg}"
+                    )
+                    errors.append(err)
+            syntax_errors = "\n-----\n".join(errors)
+
             raise UnparsableError(
-                "This notebook has cells with syntax errors, "
-                "so it cannot be initialized."
-            )
+                f"The notebook '{self._filename}' has cells with syntax errors, " +
+                f"so it cannot be initialized:\n {syntax_errors}"
+            ) from None
 
         if self._initialized:
             return
