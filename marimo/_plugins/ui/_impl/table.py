@@ -189,7 +189,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             Defaults to True when above 10 rows, False otherwise.
         selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
             or None to disable. Defaults to "multi".
-        initial_selection (List[int], optional): Indexes of the rows you want selected by default.
+        initial_selection (List[int], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.

@@ -264,7 +264,6 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         self._initial_value_frontend = initial_value
         self._value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
-
         self._on_change = on_change
         self._component_args = args
 
