@@ -448,6 +448,15 @@ class CompletionResult(Op):
 
 
 @dataclass
+class MCPServerEvaluationResult(Op):
+    """MCP server evaluation result."""
+
+    name: ClassVar[str] = "mcp-server-evaluation-result"
+    request_id: str
+    result: str
+
+
+@dataclass
 class Alert(Op):
     name: ClassVar[str] = "alert"
     title: str
@@ -671,6 +680,7 @@ MessageOperation = Union[
     KernelReady,
     # Editor operations
     CompletionResult,
+    MCPServerEvaluationResult,
     # Alerts
     Alert,
     Banner,

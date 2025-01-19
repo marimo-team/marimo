@@ -42,6 +42,7 @@ def _generate_schema() -> dict[str, Any]:
         PythonTypeToOpenAPI,
     )
 
+    # TODO(mcp): add message, request here
     # dataclass components used in websocket messages
     # these are always snake_case
     MESSAGES = [
@@ -83,6 +84,7 @@ def _generate_schema() -> dict[str, Any]:
         ops.CompletedRun,
         ops.KernelReady,
         ops.CompletionResult,
+        ops.MCPServerEvaluationResult,
         ops.Alert,
         ops.MissingPackageAlert,
         ops.InstallingPackageAlert,
@@ -171,6 +173,7 @@ def _generate_schema() -> dict[str, Any]:
         requests.ExecutionRequest,
         requests.FunctionCallRequest,
         requests.InstallMissingPackagesRequest,
+        requests.MCPServerEvaluationRequest,
         requests.PreviewDatasetColumnRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,

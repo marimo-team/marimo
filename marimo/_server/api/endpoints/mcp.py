@@ -22,44 +22,24 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-@router.get("/servers")
-@requires("edit")
-async def list_servers(request: Request) -> JSONResponse:
-    """List all registered MCP servers and their capabilities."""
-    app_state = AppState(request)
-    session = app_state.get_current_session()
-    servers = []
-
-    if session:
-        for server in session.session_view.mcp_servers.values():
-            servers.append(
-                {
-                    "name": server.name,
-                    "tools": [
-                        {"name": name, "description": tool.description}
-                        for name, tool in server.tools.items()
-                    ],
-                    "resources": [
-                        {"name": name, "description": resource.description}
-                        for name, resource in server.resources.items()
-                    ],
-                    "prompts": [
-                        {"name": name, "description": prompt.description}
-                        for name, prompt in server.prompts.items()
-                    ],
-                }
-            )
-
-    return JSONResponse({"servers": servers})
-
-
+# TODO(mcp): should rewrite this function
 @router.post("/evaluate")
 @requires("edit")
-async def evaluate_mcp_call(
-    *,
-    request: Request,
-) -> JSONResponse:
-    """Evaluate an MCP function call."""
+async def mcp_evaluate(request: Request) -> JSONResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/MCPServerEvaluationRequest"
+    responses:
+        200:
+            description: Evaluate an MCP server request
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     app_state = AppState(request)
     session = app_state.get_current_session()
 
@@ -70,8 +50,8 @@ async def evaluate_mcp_call(
         )
 
     body = await parse_request(request)
-    server_name = body.get("server")
-    function_type = body.get("type")  # tool, resource, or prompt
+    server_name = body.get("server_name")
+    function_type = body.get("request_type")  # tool, resource, or prompt
     function_name = body.get("name")
     args = body.get("args", {})
 

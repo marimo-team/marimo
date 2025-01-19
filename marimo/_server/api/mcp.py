@@ -36,27 +36,17 @@ class MCPWebSocket(WebSocketEndpoint):
     async def on_receive(self, websocket: WebSocket, data) -> None:
         server = websocket.scope["server"]
         try:
-            if data.get("type") == "execute_tool":
-                tool_name = data.get("tool")
+            if data.get("type") == "evaluate":
+                request_type = data.get("request_type")
+                name = data.get("name")
                 args = data.get("args", {})
-                result = await server.execute_tool(tool_name, **args)
-                await websocket.send_json(
-                    {"type": "tool_result", "result": result}
+                result = await server.evaluate_request(
+                    request_type, name, args
                 )
-            elif data.get("type") == "execute_resource":
-                resource_name = data.get("resource")
-                args = data.get("args", {})
-                result = await server.execute_resource(resource_name, **args)
                 await websocket.send_json(
-                    {"type": "resource_result", "result": result}
+                    {"type": "evaluation_result", "result": result}
                 )
-            elif data.get("type") == "execute_prompt":
-                prompt_name = data.get("prompt")
-                args = data.get("args", {})
-                result = await server.execute_prompt(prompt_name, **args)
-                await websocket.send_json(
-                    {"type": "prompt_result", "result": result}
-                )
+
         except Exception as e:
             await websocket.send_json({"type": "error", "error": str(e)})
 

@@ -150,6 +150,31 @@ class MCPServer:
             raise ValueError(f"Prompt {name} not found")
         return await self._maybe_await(self.prompts[name].func(**kwargs))
 
+    async def execute_tool(self, name: str, **kwargs) -> Any:
+        """Execute a tool by name."""
+        return await self.call_tool(name, **kwargs)
+
+    async def execute_resource(self, name: str, **kwargs) -> Any:
+        """Execute a resource by name."""
+        return await self.call_resource(name, **kwargs)
+
+    async def execute_prompt(self, name: str, **kwargs) -> Any:
+        """Execute a prompt by name."""
+        return await self.call_prompt(name, **kwargs)
+
+    async def evaluate_request(
+        self, request_type: str, name: str, args: Dict[str, Any]
+    ) -> Any:
+        """Evaluate a request based on its type."""
+        if request_type == "tool":
+            return await self.execute_tool(name, **args)
+        elif request_type == "resource":
+            return await self.execute_resource(name, **args)
+        elif request_type == "prompt":
+            return await self.execute_prompt(name, **args)
+        else:
+            raise ValueError(f"Unknown request type: {request_type}")
+
     @staticmethod
     async def _maybe_await(result: Any) -> Any:
         """Convert result to awaitable if it isn't already."""

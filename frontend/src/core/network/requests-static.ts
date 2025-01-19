@@ -72,5 +72,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     addPackage: throwNotInEditMode,
     removePackage: throwNotInEditMode,
     getPackageList: throwNotInEditMode,
+    sendMCPEvaluationRequest: throwNotInEditMode,
   };
 }

@@ -130,6 +130,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendMCPEvaluationRequest: (request) => {
+      return marimoClient
+        // TODO(mcp): should we use MCPServerEvaluationResponse instead of null?
+        .POST("/api/mcp/evaluate", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     sendStdin: (request) => {
       return marimoClient
         .POST("/api/kernel/stdin", {

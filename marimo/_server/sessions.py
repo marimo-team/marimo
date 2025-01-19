@@ -12,6 +12,7 @@ in which we have at most one connected client, a session may be kept around
 even if its socket is closed.
 """
 
+# TODO(mcp): search for CodeCompletion and implement this after massage.
 from __future__ import annotations
 
 import asyncio
@@ -104,6 +105,11 @@ class QueueManager:
             context.Queue() if context is not None else queue.Queue()
         )
 
+        # MCP evaluation requests are sent through a separate queue
+        self.mcp_evaluation_queue: QueueType[
+            requests.MCPServerEvaluationRequest
+        ] = context.Queue() if context is not None else queue.Queue()
+
         self.win32_interrupt_queue: QueueType[bool] | None
         if sys.platform == "win32":
             self.win32_interrupt_queue = (
@@ -149,6 +155,10 @@ class QueueManager:
         if isinstance(self.completion_queue, MPQueue):
             self.completion_queue.cancel_join_thread()
             self.completion_queue.close()
+
+        if isinstance(self.mcp_evaluation_queue, MPQueue):
+            self.mcp_evaluation_queue.cancel_join_thread()
+            self.mcp_evaluation_queue.close()
 
         if isinstance(self.win32_interrupt_queue, MPQueue):
             self.win32_interrupt_queue.cancel_join_thread()
@@ -549,6 +559,9 @@ class Session:
         self._queue_manager.control_queue.put(request)
         if isinstance(request, SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put(request)
+        elif isinstance(request, requests.MCPServerEvaluationRequest):
+            # Handle MCP server evaluation request
+            self._queue_manager.mcp_evaluation_queue.put(request)
         # Propagate the control request to the room
         if isinstance(request, ExecuteMultipleRequest):
             self.room.broadcast(
@@ -572,6 +585,12 @@ class Session:
     ) -> None:
         """Put a code completion request in the completion queue."""
         self._queue_manager.completion_queue.put(request)
+
+    def put_mcp_evaluation_request(
+        self, request: requests.MCPServerEvaluationRequest
+    ) -> None:
+        """Put an MCP evaluation request in the MCP evaluation queue."""
+        self._queue_manager.mcp_evaluation_queue.put(request)
 
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""

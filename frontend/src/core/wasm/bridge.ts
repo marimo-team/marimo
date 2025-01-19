@@ -483,6 +483,14 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  sendMCPEvaluationRequest: EditRequests["sendMCPEvaluationRequest"] = async (request) => {
+    await this.rpc.proxy.request.bridge({
+      functionName: "mcp_evaluate",
+      payload: request,
+    });
+    return null;
+  };
+
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
