@@ -263,13 +263,6 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 )
         self._initial_value_frontend = initial_value
         self._value_frontend = initial_value
-
-        # if user defined an initial value, we use that
-        initial_value = (
-            self._initial_value
-            if hasattr(self, "_initial_value")
-            else initial_value
-        )
         self._value = self._initial_value = self._convert_value(initial_value)
 
         self._on_change = on_change

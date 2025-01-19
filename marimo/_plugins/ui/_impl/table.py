@@ -296,6 +296,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
 
+        initial_value = []
         if initial_selection and self._manager.supports_selection():
             if selection == "single" and len(initial_selection) > 1:
                 raise ValueError(
@@ -309,7 +310,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
                 raise IndexError(
                     "initial_selection contains invalid row indices"
                 ) from e
-            self._initial_value = initial_selection
+            initial_value = initial_selection
             self._has_any_selection = True
 
         # We will need this when calling table manager's to_data()
@@ -400,7 +401,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         super().__init__(
             component_name=table._name,
             label=label,
-            initial_value=[],
+            initial_value=initial_value,
             args={
                 "data": search_result.data,
                 "total-rows": total_rows,
