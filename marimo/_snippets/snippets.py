@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Generator, List, Optional
