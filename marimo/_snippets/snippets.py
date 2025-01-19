@@ -33,7 +33,7 @@ class Snippets:
 async def read_snippets() -> Snippets:
     snippets: List[Snippet] = []
 
-    for file in snippet_files():
+    for file in read_snippet_filenames_from_config():
         app = get_app(file)
         assert app is not None
         sections: List[SnippetSection] = []
@@ -90,20 +90,21 @@ def is_markdown(code: str) -> bool:
     return code.startswith("mo.md")
 
 
-def snippet_files() -> Generator[str, Any, None]:
+def read_snippet_filenames_from_config() -> Generator[str, Any, None]:
     # Get custom snippets path from config if present
     config = get_default_config_manager(current_path=None).get_config()
-    custom_paths = [
-        Path(p) for p in config.get("snippets", {}).get("custom_paths", [])
-    ]
+    custom_paths = config.get("snippets", {}).get("custom_paths", [])
     include_default_snippets = config.get("snippets", {}).get(
         "include_default_snippets", True
     )
+    return read_snippet_filenames(include_default_snippets, custom_paths)
+
+def read_snippet_filenames(include_default_snippets: bool, custom_paths: List[str]) -> Generator[str, Any, None]:
     paths = []
     if include_default_snippets:
         paths.append(import_files("marimo") / "_snippets" / "data")
     if custom_paths:
-        paths.extend(custom_paths)
+        paths.extend([Path(p) for p in custom_paths])
     for root_path in paths:
         if not root_path.is_dir():
             # Note: currently no handling of permissions errors, but theoretically
