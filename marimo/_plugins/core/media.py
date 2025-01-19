@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import pathlib
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from urllib.parse import urlparse
 
 import narwhals.stable.v1 as nw
@@ -139,7 +139,7 @@ def io_to_data_url(
     return str(src)
 
 
-def is_data_empty(data: Union[str, bytes, Any]) -> bool:
+def is_data_empty(data: Union[str, bytes, io.BytesIO, Any]) -> bool:
     """Check if a data object is empty."""
     if isinstance(data, str):
         return data == ""
@@ -148,6 +148,6 @@ def is_data_empty(data: Union[str, bytes, Any]) -> bool:
         return data == b""
 
     if hasattr(data, "getbuffer"):
-        return data.getbuffer().nbytes == 0
+        return cast(io.BytesIO, data).getbuffer().nbytes == 0
 
     return False
