@@ -130,7 +130,6 @@ export interface CellProps
   collapseCount: number;
 }
 
-// TODO(akshayka): a component for displaying/editing the cell's name.
 const CellComponent = (
   {
     theme,
@@ -592,7 +591,13 @@ const CellComponent = (
         canMoveX={canMoveX}
         title={cellTitle()}
       >
-        <div className={className} id={HTMLId} ref={cellContainerRef}>
+        <div
+          className={className}
+          id={HTMLId}
+          ref={cellContainerRef}
+          data-cell-id={cellId}
+          data-cell-name={name}
+        >
           {cellOutput === "above" && outputArea}
           <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
             <div className="absolute right-2 -top-4 z-10">
