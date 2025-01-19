@@ -1,9 +1,10 @@
+import pytest
+
 from marimo._snippets.snippets import (
     get_title_from_code,
-    read_snippets,
     read_snippet_filenames,
+    read_snippets,
 )
-import pytest
 
 
 async def test_snippets() -> None:

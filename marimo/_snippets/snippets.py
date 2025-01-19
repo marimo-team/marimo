@@ -99,7 +99,10 @@ def read_snippet_filenames_from_config() -> Generator[str, Any, None]:
     )
     return read_snippet_filenames(include_default_snippets, custom_paths)
 
-def read_snippet_filenames(include_default_snippets: bool, custom_paths: List[str]) -> Generator[str, Any, None]:
+
+def read_snippet_filenames(
+    include_default_snippets: bool, custom_paths: List[str]
+) -> Generator[str, Any, None]:
     paths = []
     if include_default_snippets:
         paths.append(import_files("marimo") / "_snippets" / "data")
