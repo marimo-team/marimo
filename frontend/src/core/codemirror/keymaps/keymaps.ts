@@ -49,9 +49,10 @@ export function keymapBundle(
             },
           ),
         ),
-        Prec.highest(vim({ status: false })),
-        // Needs to come after the vim extension
-        Prec.highest(vimKeymapExtension(callbacks)),
+        // Base vim mode
+        vim({ status: false }),
+        // Custom vim keymaps for cell navigation
+        Prec.high(vimKeymapExtension(callbacks)),
       ];
     default:
       logNever(config.preset);
