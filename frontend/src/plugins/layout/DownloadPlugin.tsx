@@ -44,7 +44,7 @@ type Functions = {
      * URL or data-uri
      */
     data: string;
-    filename: string;
+    filename?: string | null;
   }>;
 };
 export const DownloadPlugin = createPlugin("marimo-download")
