@@ -35,6 +35,7 @@ interface Data {
   lazy?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type Functions = {
   /**
    * Function to call for lazy loading
@@ -44,7 +45,7 @@ type Functions = {
      * URL or data-uri
      */
     data: string;
-    filename?: string | null;
+    filename?: string | null | undefined;
   }>;
 };
 export const DownloadPlugin = createPlugin("marimo-download")
