@@ -46,9 +46,6 @@ class download(UIElement[None, None]):
         disabled (bool): Whether to disable the download button.
         label (str): The label of the download button.
 
-    Returns:
-        An `Html` object for a download button.
-
     Example:
         ```python
         # Eager loading
