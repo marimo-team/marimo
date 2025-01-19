@@ -223,6 +223,25 @@ def test_value_with_selection() -> None:
     assert list(table._convert_value(["0", "2"])) == ["banana", "cherry"]
 
 
+def test_value_with_initial_selection() -> None:
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    table = ui.table(data, initial_selection=[0, 2])
+    assert table.value == ["banana", "cherry"]
+
+
+def test_invalid_initial_selection() -> None:
+    data = ["banana", "apple"]
+    with pytest.raises(IndexError):
+        ui.table(data, initial_selection=[2])
+
+    with pytest.raises(TypeError):
+        ui.table(data, initial_selection=["apple"])
+
+    # multiple rows cannot be selected for single selection mode
+    with pytest.raises(ValueError):
+        ui.table(data, selection="single", initial_selection=[0, 1])
+
+
 def test_value_with_sorting_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)

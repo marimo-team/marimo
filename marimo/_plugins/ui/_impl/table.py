@@ -189,6 +189,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             Defaults to True when above 10 rows, False otherwise.
         selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
             or None to disable. Defaults to "multi".
+        initial_selection (List[int], optional): Indexes of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.
@@ -221,6 +222,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
+        initial_selection: Optional[List[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
@@ -293,6 +295,22 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         self._searched_manager = self._manager
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
+
+        if initial_selection and self._manager.supports_selection():
+            if selection == "single" and len(initial_selection) > 1:
+                raise ValueError(
+                    "For single selection mode, initial_selection can only contain one row index"
+                )
+            try:
+                self._selected_manager = self._searched_manager.select_rows(
+                    initial_selection
+                )
+            except IndexError as e:
+                raise IndexError(
+                    "initial_selection contains invalid row indices"
+                ) from e
+            self._initial_value = initial_selection
+            self._has_any_selection = True
 
         # We will need this when calling table manager's to_data()
         self._format_mapping = format_mapping
