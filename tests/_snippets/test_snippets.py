@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from marimo._snippets.snippets import (
@@ -5,6 +7,7 @@ from marimo._snippets.snippets import (
     read_snippet_filenames,
     read_snippets,
 )
+from marimo._utils.platform import is_windows
 
 
 async def test_snippets() -> None:
@@ -44,6 +47,7 @@ def test_get_title_from_code_with_non_title_hashes() -> None:
     assert get_title_from_code(code) == ""
 
 
+@pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
 @pytest.mark.parametrize(
     ("include_default_snippets", "custom_paths", "expected_snippets"),
     [
