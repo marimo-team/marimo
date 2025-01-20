@@ -230,13 +230,17 @@ class App:
 
     def _maybe_initialize(self) -> None:
         if self._unparsable:
-            errors = []
+            errors: list[str] = []
             for code in self._unparsable_code:
                 try:
                     ast.parse(dedent(code))
                 except SyntaxError as e:
                     error_line = e.text
-                    error_marker = " " * (e.offset - 1) + "^"
+                    error_marker: str = (
+                        " " * (e.offset - 1) + "^"
+                        if e.offset is not None
+                        else ""
+                    )
                     err = f"{error_line}{error_marker}\n{e.msg}"
                     errors.append(err)
             syntax_errors = "\n-----\n".join(errors)
