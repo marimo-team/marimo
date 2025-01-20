@@ -914,16 +914,11 @@ class Kernel:
                     )
                 )
             )
-            if self.package_manager.should_auto_install():
-                self._execute_install_missing_packages_callback(
-                    self.package_manager.name, packages
-                )
-            else:
-                # Deleting a cell can make the set of missing packages smaller
-                MissingPackageAlert(
-                    packages=packages,
-                    isolated=is_python_isolated(),
-                ).broadcast()
+            # Deleting a cell can make the set of missing packages smaller
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
         cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
