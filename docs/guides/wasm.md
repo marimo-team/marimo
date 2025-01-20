@@ -113,7 +113,7 @@ your data:
 import polars as pl
 
 path_to_csv = mo.notebook_location() / "public" / "data.csv"
-df = pl.read_csv(path_to_csv)
+df = pl.read_csv(str(path_to_csv))
 df.head()
 ```
 

@@ -348,7 +348,7 @@ def notebook_location() -> pathlib.PurePath | None:
         import polars as pl
 
         data_path = mo.notebook_location() / "public" / "data.csv"
-        df = pl.read_csv(data_path)
+        df = pl.read_csv(str(data_path))
         df.head()
         ```
 
