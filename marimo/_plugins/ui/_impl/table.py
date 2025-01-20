@@ -99,7 +99,11 @@ class SortArgs:
 
 
 @mddoc
-class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
+class table(
+    UIElement[
+        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
+    ]
+):
     """A table component with selectable rows.
 
     Get the selected rows with `table.value`. The table data can be supplied as:
@@ -464,7 +468,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         return ""
 
     def _convert_value(
-        self, value: list[str]
+        self, value: Union[List[int] | List[str]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         indices = [int(v) for v in value]
         self._selected_manager = self._searched_manager.select_rows(indices)
