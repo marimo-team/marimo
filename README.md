@@ -14,6 +14,7 @@
 <p align="center">
   <b>English | </b>
   <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
 </p>
 
 <p align="center">
