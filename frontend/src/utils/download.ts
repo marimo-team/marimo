@@ -43,4 +43,5 @@ export function downloadByURL(url: string, filename: string) {
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   downloadByURL(url, filename);
+  URL.revokeObjectURL(url);
 }
