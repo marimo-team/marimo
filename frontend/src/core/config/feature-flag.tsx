@@ -11,7 +11,6 @@ export interface ExperimentalFeatures {
   wasm_layouts: boolean;
   scratchpad: boolean;
   chat_sidebar: boolean;
-  tracing: boolean;
   rtc: boolean;
   // Add new feature flags here
 }
@@ -21,7 +20,6 @@ const defaultValues: ExperimentalFeatures = {
   wasm_layouts: false,
   scratchpad: true,
   chat_sidebar: import.meta.env.DEV,
-  tracing: import.meta.env.DEV,
   rtc: false,
 };
 

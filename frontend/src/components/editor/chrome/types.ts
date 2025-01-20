@@ -101,7 +101,6 @@ export const PANELS: PanelDescriptor[] = [
     Icon: ActivityIcon,
     tooltip: "Tracing",
     position: "sidebar",
-    hidden: !getFeatureFlag("tracing"),
   },
   {
     type: "snippets",
