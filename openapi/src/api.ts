@@ -2579,6 +2579,10 @@ export interface components {
         browser: "default" | string;
         follow_symlink: boolean;
       };
+      snippets?: {
+        custom_paths?: string[];
+        include_default_snippets?: boolean;
+      };
     };
     MarimoExceptionRaisedError: {
       exception_type: string;

@@ -1226,6 +1226,15 @@ components:
           - browser
           - follow_symlink
           type: object
+        snippets:
+          properties:
+            custom_paths:
+              items:
+                type: string
+              type: array
+            include_default_snippets:
+              type: boolean
+          type: object
       required:
       - completion
       - display
