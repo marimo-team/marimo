@@ -531,10 +531,13 @@ class Kernel:
         return self.enqueue_control_request(ExecuteStaleRequest())
 
     def _execute_install_missing_packages_callback(
-        self, package_manager: str
+        self, package_manager: str, packages: list[str]
     ) -> None:
+        version = {pkg: "" for pkg in packages}
         return self.enqueue_control_request(
-            InstallMissingPackagesRequest(manager=package_manager, versions={})
+            InstallMissingPackagesRequest(
+                manager=package_manager, versions=version
+            )
         )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
@@ -902,26 +905,20 @@ class Kernel:
             and missing_modules_after_deletion
             != missing_modules_before_deletion
         ):
-            if self.package_manager.should_auto_install():
-                self._execute_install_missing_packages_callback(
-                    self.package_manager.name
+            packages = list(
+                sorted(
+                    pkg
+                    for mod in missing_modules_after_deletion
+                    if not self.package_manager.attempted_to_install(
+                        pkg := self.package_manager.module_to_package(mod)
+                    )
                 )
-            else:
-                # Deleting a cell can make the set of missing packages smaller
-                MissingPackageAlert(
-                    packages=list(
-                        sorted(
-                            pkg
-                            for mod in missing_modules_after_deletion
-                            if not self.package_manager.attempted_to_install(
-                                pkg := self.package_manager.module_to_package(
-                                    mod
-                                )
-                            )
-                        )
-                    ),
-                    isolated=is_python_isolated(),
-                ).broadcast()
+            )
+            # Deleting a cell can make the set of missing packages smaller
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
         cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
@@ -1252,13 +1249,14 @@ class Kernel:
             ]
 
             if missing_packages:
+                packages = list(sorted(missing_packages))
                 if self.package_manager.should_auto_install():
                     self._execute_install_missing_packages_callback(
-                        self.package_manager.name
+                        self.package_manager.name, packages
                     )
                 else:
                     MissingPackageAlert(
-                        packages=list(sorted(missing_packages)),
+                        packages=packages,
                         isolated=is_python_isolated(),
                     ).broadcast()
 
