@@ -147,7 +147,9 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
                     command_parts.append(source_lines[0])
                     # Add remaining lines with escaped newlines
                     if len(source_lines) > 1:
-                        command_parts.append("\\n" + "\\n".join(source_lines[1:]))
+                        command_parts.append(
+                            "\\n" + "\\n".join(source_lines[1:])
+                        )
                 return f"# '{''.join(command_parts)}' command supported automatically in marimo"
             elif "\n" in source:
                 # Multiple magic commands
@@ -155,7 +157,9 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
                 return f"# '{full_command}' command supported automatically in marimo"
             else:
                 # Single magic command
-                full_command = command + (" " + source.strip() if source.strip() else "")
+                full_command = command + (
+                    " " + source.strip() if source.strip() else ""
+                )
                 return f"# {full_command!r} command supported automatically in marimo"
 
         # For cell magic commands (like %%sql)
@@ -685,15 +689,17 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         if cell_type == "markdown":
             return "".join(lines)
         # For code cells, preserve structure but remove trailing newlines
-        lines = [line.rstrip('\n') for line in lines]
+        lines = [line.rstrip("\n") for line in lines]
         # Special handling for magic commands to preserve structure
         if lines and lines[0].strip().startswith("%"):
             if lines[0].strip().startswith("%matplotlib"):
                 # Handle matplotlib separately to preserve structure
-                return "\n".join([
-                    "# %matplotlib inline",
-                    *[line.rstrip('\n') for line in lines[1:]]
-                ])
+                return "\n".join(
+                    [
+                        "# %matplotlib inline",
+                        *[line.rstrip("\n") for line in lines[1:]],
+                    ]
+                )
             elif len(lines) > 1:
                 # For other magic commands with multiple lines
                 return "\n".join(lines)

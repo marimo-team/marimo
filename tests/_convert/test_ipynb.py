@@ -904,22 +904,22 @@ def test_multiline_source_preservation() -> None:
                     "%matplotlib inline\n",
                     "import numpy as np\n",
                     "import matplotlib.pyplot as plt\n",
-                    "plt.style.use('seaborn-whitegrid')"
+                    "plt.style.use('seaborn-whitegrid')",
                 ],
                 "metadata": {},
                 "outputs": [],
-                "execution_count": None
+                "execution_count": None,
             }
         ],
         "metadata": {},
         "nbformat": 4,
-        "nbformat_minor": 5
+        "nbformat_minor": 5,
     }
     result = convert_from_ipynb(json.dumps(notebook))
-    
+
     print("\nFull marimo app output:")
     print(result)
-    
+
     # Extract just the cell content from the full marimo app
     cell_content = []
     in_cell = False
@@ -939,12 +939,14 @@ def test_multiline_source_preservation() -> None:
         elif stripped.startswith("@app.cell"):
             in_cell = True
             skip_next = True  # Skip the next line (def _():)
-    
+
     expected = [
         "# %matplotlib inline",
         "import numpy as np",
         "import matplotlib.pyplot as plt",
-        "plt.style.use('seaborn-whitegrid')"
+        "plt.style.use('seaborn-whitegrid')",
     ]
-    
-    assert cell_content == expected, f"Expected:\n{expected}\nGot:\n{cell_content}"
+
+    assert cell_content == expected, (
+        f"Expected:\n{expected}\nGot:\n{cell_content}"
+    )
