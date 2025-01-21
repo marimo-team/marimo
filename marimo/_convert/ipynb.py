@@ -173,13 +173,13 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
         os.makedirs('path/to/directory', exist_ok=True)
         """
         del command
-        return f"import os\nos.mkdir({source!r}, exist_ok=True)"
+        return f"import os\nos.makedirs({source!r}, exist_ok=True)"
 
     def magic_cd(source: str, command: str) -> str:
         """
         Transform cd magic into marimo cd functions.
 
-        command := %cd path/to/directory
+        %cd path/to/directory
 
         to
 
