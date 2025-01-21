@@ -1223,7 +1223,7 @@ class TestCacheDecorator:
                     def f(state):
                         return x + state()
 
-                    return state() + f(state2)
+                    return state() + g(state2)
 
                 return g()
 

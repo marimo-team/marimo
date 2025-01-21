@@ -124,7 +124,7 @@ def hash_cell_group(
         cell_impl = graph.cells[cell_id]
         hashes.append(hash_cell_impl(cell_impl, hash_alg.name))
 
-    # Sort results post hash, to ensure deterministic oredering.
+    # Sort results post hash, to ensure deterministic ordering.
     for hashed_cell in sorted(hashes):
         hash_alg.update(hashed_cell)
     return hash_alg.digest()
