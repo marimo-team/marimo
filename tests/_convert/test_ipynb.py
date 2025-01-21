@@ -136,6 +136,7 @@ def test_transform_magic_commands():
         "%%sql\nSELECT * FROM table",
         "%%sql\nSELECT * \nFROM table",
         "%cd /path/to/dir",
+        "%mkdir /path/to/dir",
         "%matplotlib inline",
     ]
     result = transform_magic_commands(sources)
@@ -143,6 +144,7 @@ def test_transform_magic_commands():
         '_df = mo.sql("""\nSELECT * FROM table\n""")',
         '_df = mo.sql("""\nSELECT * \nFROM table\n""")',
         "import os\nos.chdir('/path/to/dir')",
+        "import os\nos.makedirs('/path/to/dir', exist_ok=True)",
         "# '%matplotlib inline' command supported automatically in marimo",
     ]
 
