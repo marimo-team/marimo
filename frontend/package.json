@@ -230,7 +230,7 @@
     "typescript": "^5.7.2",
     "vite": "^5.4.2",
     "vite-tsconfig-paths": "^4.3.2",
-    "vitest": "^2.0.0"
+    "vitest": "^3.0.2"
   },
   "packageManager": "pnpm@9.8.0",
   "pnpm": {
