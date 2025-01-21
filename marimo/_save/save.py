@@ -177,7 +177,7 @@ class _cache_base(object):
 
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"*{k}": v for (k, v) in zip(self._args, args)}
-        kwargs = {"*{k}": v for (k, v) in kwargs.items()}
+        kwargs = {f"*{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
         scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE

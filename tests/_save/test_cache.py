@@ -102,6 +102,7 @@ class TestScriptCache:
                     8
                 ]
             # fmt: on
+            assert b == [8]
             assert cache._cache.defs == {"b": [8]}
 
         app.run()
@@ -120,7 +121,7 @@ class TestScriptCache:
             # fmt: off
             b = [2]
             if True:
-              with persistent_cache("if", _loader=_loader) as cache:
+              with persistent_cache("if", _loader=_loader):
                   b = [
                       7
                   ]
@@ -142,7 +143,7 @@ class TestScriptCache:
             _loader = MockLoader()
             b = 2
             if True:
-                with persistent_cache("if", _loader=_loader) as cache:
+                with persistent_cache("if", _loader=_loader):
                     b = 8
             assert b == 8
 
@@ -162,7 +163,7 @@ class TestScriptCache:
             if False:
                 b = 2
             else:
-                with persistent_cache("else", _loader=_loader) as cache:
+                with persistent_cache("else", _loader=_loader):
                     b = 8
             assert b == 8
 
@@ -180,7 +181,7 @@ class TestScriptCache:
             if False:
                 b = 2
             elif True:
-                with persistent_cache("else", _loader=_loader) as cache:
+                with persistent_cache("else", _loader=_loader):
                     b = 8
             assert b == 8
 
@@ -205,7 +206,7 @@ class TestScriptCache:
 
             _loader = MockLoader()
             with called(True):
-                with persistent_cache("else", _loader=_loader) as cache:
+                with persistent_cache("else", _loader=_loader):
                     b = 8
             assert b == 8
 
@@ -229,7 +230,7 @@ class TestScriptCache:
             from tests._save.mocks import MockLoader
 
             _loader = MockLoader()
-            with persistent_cache("else", _loader=_loader) as cache:
+            with persistent_cache("else", _loader=_loader):
                 with called(True):
                     b = 8
             assert b == 8
@@ -252,7 +253,7 @@ class TestScriptCache:
 
             _loader = MockLoader()
             # fmt: off
-            with persistent_cache("else", _loader=_loader) as cache: call(False)
+            with persistent_cache("else", _loader=_loader): call(False) # noqa: E701
             # fmt: on
 
         with pytest.raises(BlockException):
@@ -272,7 +273,7 @@ class TestScriptCache:
             _loader = MockLoader()
 
             def call():
-                with persistent_cache("else", _loader=_loader) as cache:
+                with persistent_cache("else", _loader=_loader):
                     return 1
 
             call()
@@ -1223,7 +1224,7 @@ class TestCacheDecorator:
                     def f(state):
                         return x + state()
 
-                    return state() + g(state2)
+                    return state() + f(state2)
 
                 return g()
 
