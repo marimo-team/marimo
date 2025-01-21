@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import ast
+import json
 from textwrap import dedent
 
 import pytest
 
 from marimo._convert.ipynb import (
     _transform_sources,
+    convert_from_ipynb,
     transform_add_marimo_import,
     transform_cell_metadata,
     transform_duplicate_definitions,
@@ -890,3 +892,59 @@ def test_transform_duplicate_definitions_syntax_error() -> None:
             "x",
         ],
     )
+
+
+def test_multiline_source_preservation() -> None:
+    """Test that multiline source code is preserved during conversion."""
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": [
+                    "%matplotlib inline\n",
+                    "import numpy as np\n",
+                    "import matplotlib.pyplot as plt\n",
+                    "plt.style.use('seaborn-whitegrid')"
+                ],
+                "metadata": {},
+                "outputs": [],
+                "execution_count": None
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5
+    }
+    result = convert_from_ipynb(json.dumps(notebook))
+    
+    print("\nFull marimo app output:")
+    print(result)
+    
+    # Extract just the cell content from the full marimo app
+    cell_content = []
+    in_cell = False
+    skip_next = False
+    for line in result.splitlines():
+        stripped = line.strip()
+        if skip_next:
+            skip_next = False
+            continue
+        if in_cell:
+            if stripped.startswith("return"):
+                in_cell = False
+            elif stripped.startswith("def _():"):
+                skip_next = True  # Skip the next line after def _():
+            elif stripped and not stripped.startswith("@app.cell"):
+                cell_content.append(stripped)
+        elif stripped.startswith("@app.cell"):
+            in_cell = True
+            skip_next = True  # Skip the next line (def _():)
+    
+    expected = [
+        "# %matplotlib inline",
+        "import numpy as np",
+        "import matplotlib.pyplot as plt",
+        "plt.style.use('seaborn-whitegrid')"
+    ]
+    
+    assert cell_content == expected, f"Expected:\n{expected}\nGot:\n{cell_content}"
