@@ -67,6 +67,7 @@ class KeymapConfig(TypedDict):
     """
 
     preset: Literal["default", "vim"]
+    # TODO(eugene): how to add symbol to overrides (api.yaml)
     overrides: NotRequired[Dict[str, str]]
 
 

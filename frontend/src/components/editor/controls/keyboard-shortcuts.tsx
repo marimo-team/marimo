@@ -13,6 +13,7 @@ import {
   type HotkeyAction,
   type HotkeyGroup,
   getDefaultHotkey,
+  NOT_SET,
 } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useState } from "react";
@@ -44,6 +45,21 @@ export const KeyboardShortcuts: React.FC = () => {
       setConfig(prevConfig);
       throw error;
     });
+  };
+
+  const handleDisableHotkey = async (action: HotkeyAction) => {
+    const newConfig = {
+      ...config,
+      keymap: {
+        ...config.keymap,
+        overrides: {
+          ...config.keymap.overrides,
+          [action]: NOT_SET,
+        },
+      },
+    };
+    // TODO(eugene): how to add symbol to overrides (api.yaml)
+    await saveConfigOptimistic(newConfig);
   };
 
   const handleNewShortcut = async (shortcut: string[]) => {
@@ -216,17 +232,25 @@ export const KeyboardShortcuts: React.FC = () => {
         key={action}
         className="grid grid-cols-[auto,2fr,3fr] gap-2 items-center"
       >
-        {hotkeys.isEditable(action) ? (
-          <EditIcon
-            className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3"
-            onClick={() => {
-              setNewShortcut([]);
-              setEditingShortcut(action);
-            }}
-          />
-        ) : (
-          <div className="w-3 h-3" />
-        )}
+        <div className="flex gap-1">
+          {hotkeys.isEditable(action) ? (
+            <>
+              <EditIcon
+                className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3"
+                onClick={() => {
+                  setNewShortcut([]);
+                  setEditingShortcut(action);
+                }}
+              />
+              <XIcon
+                className="cursor-pointer opacity-60 hover:opacity-100 text-muted-foreground w-3 h-3"
+                onClick={() => handleDisableHotkey(action)}
+              />
+            </>
+          ) : (
+            <div className="w-3 h-3" />
+          )}
+        </div>
         <KeyboardHotkeys className="justify-end" shortcut={hotkey.key} />
         <span>{hotkey.name.toLowerCase()}</span>
       </div>
