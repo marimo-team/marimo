@@ -322,7 +322,7 @@ export const LoadingDataTableComponent = memo(
       tableData = await vegaLoadData(
         tableData,
         { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
-        { handleBigInt: true },
+        { handleBigIntAndNumberLike: true },
       );
 
       return {

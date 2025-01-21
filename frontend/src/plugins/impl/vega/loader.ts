@@ -29,18 +29,27 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
       return v;
     }
 
+    function previousIntegerParserWithoutNaN(v: string) {
+      const result = previousIntegerParser(v);
+      // If the result is NaN, return the original value
+      if (Number.isNaN(result)) {
+        return v;
+      }
+      return result;
+    }
+
     const parsedInt = Number.parseInt(v);
     if (isNumber(parsedInt)) {
       const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
       if (!needsBigInt) {
-        return previousIntegerParser(v);
+        return previousIntegerParserWithoutNaN(v);
       }
       try {
         return BigInt(v);
       } catch {
         // Floats like 2.0 are parseable as ints but not
         // as BigInt
-        return previousIntegerParser(v);
+        return previousIntegerParserWithoutNaN(v);
       }
     } else {
       return "";
@@ -53,7 +62,11 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
     if (v === "inf") {
       return v;
     }
-    return previousNumberParser(v);
+    const result = previousNumberParser(v);
+    if (Number.isNaN(result)) {
+      return v;
+    }
+    return result;
   };
 
   return () => {
@@ -121,14 +134,14 @@ export async function vegaLoadData<T = object>(
   opts: {
     // We support enabling/disabling since the Table enables it
     // but Vega does not support BigInts
-    handleBigInt?: boolean;
+    handleBigIntAndNumberLike?: boolean;
     replacePeriod?: boolean;
   } = {},
 ): Promise<T[]> {
-  const { handleBigInt = false, replacePeriod = false } = opts;
+  const { handleBigIntAndNumberLike = false, replacePeriod = false } = opts;
 
   const middleware: Middleware[] = [DATE_MIDDLEWARE];
-  if (handleBigInt) {
+  if (handleBigIntAndNumberLike) {
     middleware.push(BIG_INT_MIDDLEWARE);
   }
 
@@ -203,9 +216,12 @@ export async function vegaLoadData<T = object>(
   }
 }
 
-export function parseCsvData(csvData: string, handleBigInt = true): object[] {
+export function parseCsvData(
+  csvData: string,
+  handleBigIntAndNumberLike = true,
+): object[] {
   const middleware: Middleware[] = [DATE_MIDDLEWARE];
-  if (handleBigInt) {
+  if (handleBigIntAndNumberLike) {
     middleware.push(BIG_INT_MIDDLEWARE);
   }
 
