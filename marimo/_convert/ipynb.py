@@ -82,10 +82,6 @@ def transform_add_marimo_import(sources: List[str]) -> List[str]:
     return sources
 
 
-# TODO(akshayka): Handle multiple magic lines in a row in a single cell
-# % foo
-# % bar
-# asdfadsf
 def transform_magic_commands(sources: List[str]) -> List[str]:
     """
     Transform Jupyter magic commands to their marimo equivalents
