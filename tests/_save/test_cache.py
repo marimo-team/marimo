@@ -1216,17 +1216,21 @@ class TestCacheDecorator:
             @mo.cache
             def h(state):
                 x = state()
+
                 def g():
                     global state
+
                     def f(state):
                         return x + state()
-                    return state() + g(state2)
+
+                    return state() + f(state2)
+
                 return g()
 
-            assert g(state0) == 111
-            assert g.hits == 0
-            assert g(state1) == 111
-            assert g.hits == 1
+            assert h(state0) == 111
+            assert h.hits == 0
+            assert h(state1) == 111
+            assert h.hits == 1
 
         app.run()
 
@@ -1264,9 +1268,9 @@ class TestCacheDecorator:
             def g(state):
                 return state() + f()
 
-            assert g(state0) == 1111
+            assert g(state0) == 111
             assert g.hits == 0
-            assert g(state1) == 1111
+            assert g(state1) == 111
             assert g.hits == 1
 
         app.run()

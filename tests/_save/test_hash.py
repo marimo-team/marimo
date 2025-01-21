@@ -142,7 +142,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
+                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -163,7 +163,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
+                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -180,6 +180,7 @@ class TestHash:
         app = App()
         app._anonymous_file = True
 
+        # NB. load is last for cell order difference.
         @app.cell
         def one(persistent_cache, MockLoader, shared) -> tuple[int]:
             _a = [1, object()]
@@ -191,7 +192,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
+                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -212,7 +213,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "V_BAVE7PI97W7iec44GYXD69pebyztj7R3jgGFAnnEM"
+                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -882,6 +883,11 @@ class TestDataHash:
 
         app.run()
 
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("polars"),
+        reason="optional dependencies not installed",
+    )
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
@@ -896,7 +902,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.mocks import MockLoader
 
-            expected_hash = "rC6YiNsuaZKQ1JqMgSRa0itEDwi7ZTl6InABjuM0RDY"
+            expected_hash = "QzGgcNS-eEP58qkkFphgAOJNKEpoTNcXhJ-L2exXzr4"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell

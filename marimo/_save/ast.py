@@ -201,7 +201,7 @@ class RemoveReturns(ast.NodeTransformer):
 
 def strip_function(fn: Callable[..., Any]) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
-    args = list(fn.__code__.co_varnames)
+    args = set(fn.__code__.co_varnames)
     function_ast = ast.parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
     assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (

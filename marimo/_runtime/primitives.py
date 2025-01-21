@@ -81,28 +81,22 @@ def is_data_primitive(value: Any) -> bool:
     elif hasattr(value, "dtypes"):
         # Use narwhals to normalize the dataframe if it's present, otherwise
         # default to naive check.
-        if DependencyManager.narwhals.has():
-            import narwhals as nw
+        import narwhals as nw
 
-            try:
-                return nw.narwhalify(
+        try:
+            return bool(
+                nw.narwhalify(
                     lambda df: all(
-                        df[col].dtype.is_numeric for col in df.columns
+                        df[col].dtype.is_numeric() for col in df.columns
                     )
-                )(df)
-            except Exception as err:
-                raise ValueError(
-                    "Unexpected datatype, narwhals was unable to normalize "
-                    "dataframe. Please report this to "
-                    "github.com/marimo-team/marimo"
-                ) from err
-        for dtype in value.dtypes:
-            # Capture pandas cases
-            if getattr(dtype, "hasobject", None):
-                return False
-            # Capture polars cases
-            if hasattr(dtype, "is_numeric") and not dtype.is_numeric:
-                return False
+                )(value)
+            )
+        except Exception as err:
+            raise err from ValueError(
+                "Unexpected datatype, narwhals was unable to normalize "
+                "dataframe. Please report this to "
+                "github.com/marimo-team/marimo"
+            )
     # Otherwise may be a closely related array object
     return True
 
