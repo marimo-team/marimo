@@ -13,7 +13,6 @@ import {
   type HotkeyAction,
   type HotkeyGroup,
   getDefaultHotkey,
-  NOT_SET,
 } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useState } from "react";
@@ -54,11 +53,10 @@ export const KeyboardShortcuts: React.FC = () => {
         ...config.keymap,
         overrides: {
           ...config.keymap.overrides,
-          [action]: NOT_SET,
+          [action]: "NOT_SET",
         },
       },
     };
-    // TODO(eugene): how to add symbol to overrides (api.yaml)
     await saveConfigOptimistic(newConfig);
   };
 
