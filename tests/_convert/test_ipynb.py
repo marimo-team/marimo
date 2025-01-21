@@ -147,6 +147,52 @@ def test_transform_magic_commands():
     ]
 
 
+def test_transform_magic_command_with_code():
+    sources = dd(
+        [
+            """
+        %matplotlib inline
+        import numpy as np
+        import matplotlib.pyplot as plt
+        plt.style.use('seaborn-whitegrid')
+        """
+        ]
+    )
+    result = transform_magic_commands(sources)
+    expected = dd(
+        [
+            """# '%matplotlib inline' command supported automatically in marimo
+import numpy as np
+import matplotlib.pyplot as plt
+plt.style.use('seaborn-whitegrid')"""
+        ]
+    )
+    assert result == expected
+
+
+def test_transform_magic_command_multiple_args_with_code():
+    sources = dd(
+        [
+            """
+        %matplotlib inline foo
+        import numpy as np
+        import matplotlib.pyplot as plt
+        plt.style.use('seaborn-whitegrid')
+        """
+        ]
+    )
+    result = transform_magic_commands(sources)
+    expected = dd(
+        [
+            """# '%matplotlib inline foo' command supported automatically in marimo
+import numpy as np
+import matplotlib.pyplot as plt
+plt.style.use('seaborn-whitegrid')"""
+        ]
+    )
+    assert result == expected
+
+
 def test_transform_exclamation_mark():
     sources = [
         "!pip install package",
@@ -269,7 +315,7 @@ def test_transform_magic_commands_complex():
         "%env MY_VAR=value",
     ]
     result = transform_magic_commands(sources)
-    assert result == [
+    expected = [
         '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
         (
             "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
@@ -277,10 +323,13 @@ def test_transform_magic_commands_complex():
             "    pass"
         ),
         (
-            "# '%load_ext autoreload\\n%autoreload 2' command supported automatically in marimo"  # noqa: E501
+            "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
+            "# %load_ext autoreload\n"
+            "# '%autoreload 2' command supported automatically in marimo"
         ),
         "import os\nos.environ['MY_VAR'] = 'value'",
     ]
+    assert result == expected
 
 
 def test_transform_exclamation_mark_complex():
@@ -372,7 +421,7 @@ def test_transform_magic_commands_unsupported():
     ]
     result = transform_magic_commands(sources)
     assert result == [
-        "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic # arg1 arg2",  # noqa: E501
+        "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic arg1 arg2",  # noqa: E501
         "# magic command not supported in marimo; please file an issue to add support\n# %%custom_cell_magic\n# some\n# content",  # noqa: E501
     ]
 
