@@ -373,6 +373,18 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
+  const cellOutput = userConfig.display.cell_output;
+
+  const hasOutputAbove = hasOutput && cellOutput === "above";
+  const hasOutputBelow = hasOutput && cellOutput === "below";
+
+  const hideCodeButton = (className: string) => (
+    <HideCodeButton
+      tooltip="Edit markdown"
+      className={cn("z-20 relative", className)}
+      onClick={temporarilyShowCode}
+    />
+  );
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
@@ -389,6 +401,7 @@ const CellComponent = (
           canCollapse={canCollapse}
         />
       </div>
+      {isMarkdownCodeHidden && hasOutputBelow && hideCodeButton("top-3")}
       <OutputArea
         // Only allow expanding in edit mode
         allowExpand={editing}
@@ -399,13 +412,7 @@ const CellComponent = (
         cellId={cellId}
         stale={outputStale}
       />
-      {isMarkdownCodeHidden && (
-        <HideCodeButton
-          tooltip="Edit markdown"
-          className="z-20 relative -top-3"
-          onClick={temporarilyShowCode}
-        />
-      )}
+      {isMarkdownCodeHidden && hasOutputAbove && hideCodeButton("bottom-3")}
     </div>
   );
 
@@ -566,11 +573,6 @@ const CellComponent = (
       lastRunStartTimestamp={lastRunStartTimestamp}
     />
   );
-
-  const cellOutput = userConfig.display.cell_output;
-
-  const hasOutputAbove = hasOutput && cellOutput === "above";
-  const hasOutputBelow = hasOutput && cellOutput === "below";
 
   return (
     <CellActionsContextMenu
