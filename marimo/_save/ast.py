@@ -8,6 +8,8 @@ from typing import Any, Callable, Sequence, cast
 
 from marimo._utils.variables import unmangle_local
 
+ARG_PREFIX: str = "*"
+
 
 class BlockException(Exception):
     pass
@@ -92,8 +94,13 @@ class ExtractWithBlock(ast.NodeTransformer):
         assert isinstance(node, list), "Unexpected block structure."
         for n in node:
             # There's a chance that the block is first evaluated somewhere in a
-            # multiline line expression, so check that the "target" line is in the
-            # interval.
+            # multiline line expression, for instance:
+            # 1 >>> with cache as c:
+            # 2 >>>    a = [
+            # 3 >>>        f(x) # <<< first frame call is here, and not line 2
+            # 4 >>>    ]
+            # so check that the "target" line is in the interval
+            # (i.e. 1 <= 3 <= 4)
             parent = None
             if n.lineno < self.target_line:
                 pre_block.append(n)
@@ -113,6 +120,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         if len(on_line) == 0:
             if isinstance(previous, (ast.With, ast.If)):
                 on_line.append(previous)
+                # Captures both branches of If, and the With block.
                 bodies = (
                     [previous.body]
                     if isinstance(previous, ast.With)
@@ -123,6 +131,15 @@ class ExtractWithBlock(ast.NodeTransformer):
                         # Recursion by referring the the containing block also
                         # captures the case where the target line number was not
                         # exactly hit.
+                        # for instance:
+                        # 1 >>> if True:          # Captured ast node
+                        # 2 >>>     with fn() as x:
+                        # 3 >>>         with cache as c:
+                        # 4 >>>             a = 1 # <<< frame line
+                        # will recurse through here thrice to get to the frame
+                        # line.
+                        # NB. the "extracted" With block is the one that
+                        # invoked this call
                         return ExtractWithBlock(
                             self.target_line
                         ).generic_visit(
@@ -142,8 +159,10 @@ class ExtractWithBlock(ast.NodeTransformer):
                 raise BlockException("Detected line is not a With statement.")
             if not isinstance(on_line[0], ast.With):
                 raise BlockException(
-                    "Saving on a shared line may lead to unexpected behavior. "
-                    "Please format your code, and or reduce nesting."
+                    "Unconventional formatting may lead to unexpected behavior. "
+                    "Please format your code, and/or reduce nesting.\n"
+                    "For instance, the following is not supported:\n"
+                    ">>>> with cache() as c: a = 1 # all one line"
                 )
             return clean_to_modules(pre_block, on_line[0])
         # It should be possible to relate the lines with the AST,
@@ -158,7 +177,11 @@ class MangleArguments(ast.NodeTransformer):
     """Mangles arguments names to prevent shadowing issues in analysis."""
 
     def __init__(
-        self, prefix: str, args: set[str], *arg: Any, **kwargs: Any
+        self,
+        args: set[str],
+        *arg: Any,
+        prefix: str = ARG_PREFIX,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*arg, **kwargs)
         self.prefix = prefix
@@ -168,11 +191,6 @@ class MangleArguments(ast.NodeTransformer):
         if node.id in self.args:
             node.id = f"{self.prefix}{node.id}"
         return node
-
-    def generic_visit(self, node: ast.AST) -> ast.AST:
-        if hasattr(node, "name") and node.name in self.args:
-            node.name = f"{self.prefix}{node.name}"
-        return super().generic_visit(node)
 
 
 class DeprivateVisitor(ast.NodeTransformer):
@@ -209,6 +227,6 @@ def strip_function(fn: Callable[..., Any]) -> ast.Module:
     )
     extracted = ast.Module(body.body, type_ignores=[])
     module = RemoveReturns().visit(extracted)
-    module = MangleArguments("*", args).visit(module)
+    module = MangleArguments(args).visit(module)
     assert isinstance(module, ast.Module), "Expected a module"
     return module

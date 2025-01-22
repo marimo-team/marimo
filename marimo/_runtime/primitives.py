@@ -79,8 +79,8 @@ def is_data_primitive(value: Any) -> bool:
             or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)
         )
     elif hasattr(value, "dtypes"):
-        # Use narwhals to normalize the dataframe if it's present, otherwise
-        # default to naive check.
+        # Bit of discrepancy between objects like polars and pandas, so use
+        # narwhals to normalize the dataframe.
         import narwhals as nw
 
         try:

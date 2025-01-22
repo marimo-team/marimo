@@ -21,7 +21,7 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
-from marimo._save.ast import ExtractWithBlock, strip_function
+from marimo._save.ast import ARG_PREFIX, ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
     DEFAULT_HASH,
@@ -120,7 +120,7 @@ class _cache_base(object):
         # For instance, the args of the invoked function are restricted to the
         # block.
         cell_id = ctx.cell_id or ctx.execution_context.cell_id or ""
-        self.scoped_refs = set([f"*{k}" for k in self._args])
+        self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
         # # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(ctx.globals.keys())
         # Defined in the cell, and currently available in scope
@@ -176,8 +176,8 @@ class _cache_base(object):
             return self
 
         # Rewrite scoped args to prevent shadowed variables
-        arg_dict = {f"*{k}": v for (k, v) in zip(self._args, args)}
-        kwargs = {f"*{k}": v for (k, v) in kwargs.items()}
+        arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
+        kwargs = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
         scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
@@ -186,7 +186,7 @@ class _cache_base(object):
             scope,
             self._loader(),
             scoped_refs=self.scoped_refs,
-            required_refs=set([f"*{k}" for k in self._args]),
+            required_refs=set([f"{ARG_PREFIX}{k}" for k in self._args]),
             as_fn=True,
         )
 
