@@ -21,12 +21,11 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
-from marimo._save.ast import ExtractWithBlock, strip_function
+from marimo._save.ast import ARG_PREFIX, ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
     DEFAULT_HASH,
     BlockHasher,
-    ShadowedRef,
     cache_attempt_from_hash,
     content_cache_attempt_from_base,
 )
@@ -115,21 +114,13 @@ class _cache_base(object):
         # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
         self.scope = {**ctx.globals, **f_locals}
-        # In case scope shadows variables
-        #
-        # TODO(akshayka, dmadisetti): rewrite function args with an AST pass
-        # to make them unique, deterministically based on function body; this
-        # will allow for lifting the error when a ShadowedRef is also used
-        # as a regular ref.
-        for arg in self._args:
-            self.scope[arg] = ShadowedRef()
 
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.
         # For instance, the args of the invoked function are restricted to the
         # block.
         cell_id = ctx.cell_id or ctx.execution_context.cell_id or ""
-        self.scoped_refs = set(self._args)
+        self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
         # # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(ctx.globals.keys())
         # Defined in the cell, and currently available in scope
@@ -184,8 +175,10 @@ class _cache_base(object):
             self._set_context(args[0])
             return self
 
+        # Rewrite scoped args to prevent shadowed variables
+        arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
+        kwargs = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
-        arg_dict = {k: v for (k, v) in zip(self._args, args)}
         scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         attempt = content_cache_attempt_from_base(
@@ -193,7 +186,7 @@ class _cache_base(object):
             scope,
             self._loader(),
             scoped_refs=self.scoped_refs,
-            required_refs=set(self._args),
+            required_refs=set([f"{ARG_PREFIX}{k}" for k in self._args]),
             as_fn=True,
         )
 

@@ -69,7 +69,10 @@ class TestScriptCache:
             from tests._save.mocks import MockLoader
 
             # fmt: off
-            with persistent_cache(name="one", _loader=MockLoader(data={"X": 7, "Y": 8})) as cache: # noqa: E501
+            with persistent_cache(name="one",
+                                  _loader=MockLoader(
+                                    data={"X": 7, "Y": 8})
+                                  ) as cache: # noqa: E501
                 Y = 9
                 X = 10
             # fmt: on
@@ -80,6 +83,203 @@ class TestScriptCache:
             return X, Y, persistent_cache
 
         app.run()
+
+    @staticmethod
+    def test_cache_linebreak() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            # fmt: off
+            # issues 3332, 2633
+            with persistent_cache("one", _loader=_loader) as cache:
+                b = [
+                    8
+                ]
+            # fmt: on
+            assert b == [8]
+            assert cache._cache.defs == {"b": [8]}
+
+        app.run()
+
+    @staticmethod
+    def test_cache_if_block_and_break() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            # fmt: off
+            b = [2]
+            if True:
+              with persistent_cache("if", _loader=_loader):
+                  b = [
+                      7
+                  ]
+            # fmt: on
+            assert b == [7]
+
+        app.run()
+
+    @staticmethod
+    def test_cache_if_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            b = 2
+            if True:
+                with persistent_cache("if", _loader=_loader):
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_else_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            if False:
+                b = 2
+            else:
+                with persistent_cache("else", _loader=_loader):
+                    b = 8
+            assert b == 8
+
+    @staticmethod
+    def test_cache_elif_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            if False:
+                b = 2
+            elif True:
+                with persistent_cache("else", _loader=_loader):
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_with_block() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from contextlib import contextmanager
+
+            @contextmanager
+            def called(v):
+                assert v
+                yield 1
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            with called(True):
+                with persistent_cache("else", _loader=_loader):
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_with_block_inner() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from contextlib import contextmanager
+
+            @contextmanager
+            def called(v):
+                assert v
+                yield 1
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            with persistent_cache("else", _loader=_loader):
+                with called(True):
+                    b = 8
+            assert b == 8
+
+        app.run()
+
+    @staticmethod
+    def test_cache_same_line_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+        from marimo._save.ast import BlockException
+
+        @app.cell
+        def one() -> tuple[int]:
+            def call(v):
+                assert v
+
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+            # fmt: off
+            with persistent_cache("else", _loader=_loader): call(False) # noqa: E701
+            # fmt: on
+
+        with pytest.raises(BlockException):
+            app.run()
+
+    @staticmethod
+    def test_cache_in_fn_fails() -> None:
+        app = App()
+        app._anonymous_file = True
+        from marimo._save.ast import BlockException
+
+        @app.cell
+        def one() -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.mocks import MockLoader
+
+            _loader = MockLoader()
+
+            def call():
+                with persistent_cache("else", _loader=_loader):
+                    return 1
+
+            call()
+
+        with pytest.raises(BlockException):
+            app.run()
 
 
 class TestAppCache:
@@ -996,11 +1196,9 @@ class TestCacheDecorator:
         app.run()
 
     @staticmethod
-    def test_transitive_shadowed_state_fails() -> None:
+    def test_internal_shadowed() -> None:
         app = App()
         app._anonymous_file = True
-
-        # Add a unit test to denote a known failure case
 
         @app.cell
         def __():
@@ -1010,29 +1208,73 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
+            state0, set_state0 = mo.state(1)
             state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(2)
+            state2, set_state2 = mo.state(10)
 
-            state, set_state = mo.state(3)
+            state, set_state = mo.state(100)
+
+            @mo.cache
+            def h(state):
+                x = state()
+
+                def g():
+                    global state
+
+                    def f(state):
+                        return x + state()
+
+                    return state() + f(state2)
+
+                return g()
+
+            assert h(state0) == 111
+            assert h.hits == 0
+            assert h(state1) == 111
+            assert h.hits == 1
+
+        app.run()
+
+    @staticmethod
+    def test_transitive_shadowed_state_passes() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            state0, set_state0 = mo.state(1)
+            state1, set_state1 = mo.state(1)
+            state2, set_state2 = mo.state(10)
+
+            state, set_state = mo.state(100)
 
             # Example of a case where things start to get very tricky. There
             # comes a point where you might also have to capture frame levels
             # as well if you mix scope.
             #
-            # This is solved by throwing an exception when state
-            # shadowing occurs.
-            def f():
+            # This is solved by rewriting potential name collisions
+            def h(state):
                 return state()
+
+            def f():
+                return state() + h(state2)
 
             @mo.cache
             def g(state):
                 return state() + f()
 
-        # Cannot resolved shadowed ref.
-        with pytest.raises(RuntimeError) as e:
-            app.run()
+            assert g(state0) == 111
+            assert g.hits == 0
+            assert g(state1) == 111
+            assert g.hits == 1
 
-        assert "rename the argument" in str(e)
+        app.run()
 
     @staticmethod
     def test_shadowed_state_mismatch() -> None:
@@ -1050,6 +1292,7 @@ class TestCacheDecorator:
             state1, set_state1 = mo.state(1)
             state2, set_state2 = mo.state(2)
 
+            # Here as a var for shadowing
             state, set_state = mo.state(3)
 
             @mo.cache
@@ -1058,7 +1301,7 @@ class TestCacheDecorator:
 
             a = g(state1)
             b = g(state2)
-
+            assert g.hits == 0
             A = g(state1)
             B = g(state2)
             assert g.hits == 2

@@ -8,7 +8,7 @@ import inspect
 import struct
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterable, NamedTuple, Optional
 
 from marimo._ast.visitor import Name, ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
@@ -22,7 +22,7 @@ from marimo._runtime.primitives import (
     is_pure_function,
 )
 from marimo._runtime.state import SetFunctor, State
-from marimo._save.ast import DeprivateVisitor
+from marimo._save.ast import DeprivateVisitor, strip_function
 from marimo._save.cache import Cache, CacheType
 from marimo._utils.variables import (
     get_cell_from_local,
@@ -57,10 +57,6 @@ class SerialRefs(NamedTuple):
     stateful_refs: set[Name]
 
 
-class ShadowedRef:
-    """Stub for scoped variables that may shadow global references"""
-
-
 def hash_module(
     code: Optional[CodeType], hash_type: str = DEFAULT_HASH
 ) -> bytes:
@@ -79,7 +75,9 @@ def hash_module(
                 hash_alg.update(str(const).encode("utf8"))
         # Concatenate the names and bytecode of the current code object
         # Will cause invalidation of variable naming at the top level
-        hash_alg.update(bytes("|".join(code_obj.co_names), "utf8"))
+
+        names = [unmangle_local(name).name for name in code_obj.co_names]
+        hash_alg.update(bytes("|".join(names), "utf8"))
         hash_alg.update(code_obj.co_code)
 
     process(code)
@@ -92,7 +90,7 @@ def hash_raw_module(
     # AST has to be compiled to code object prior to process.
     return hash_module(
         compile(
-            module,
+            DeprivateVisitor().visit(module),
             "<hash>",
             mode="exec",
             flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
@@ -105,6 +103,38 @@ def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
     return hash_module(cell.body, hash_type) + hash_module(
         cell.last_expr, hash_type
     )
+
+
+def hash_function(
+    fn: Callable[..., Any], hash_type: str = DEFAULT_HASH
+) -> bytes:
+    return hash_raw_module(
+        DeprivateVisitor().visit(strip_function(fn)), hash_type
+    )
+
+
+def hash_cell_group(
+    cell_ids: set[CellId_t],
+    graph: DirectedGraph,
+    hash_type: str = DEFAULT_HASH,
+) -> bytes:
+    hash_alg = hashlib.new(hash_type, usedforsecurity=False)
+    hashes = []
+    for cell_id in cell_ids:
+        cell_impl = graph.cells[cell_id]
+        hashes.append(hash_cell_impl(cell_impl, hash_alg.name))
+
+    # Sort results post hash, to ensure deterministic ordering.
+    for hashed_cell in sorted(hashes):
+        hash_alg.update(hashed_cell)
+    return hash_alg.digest()
+
+
+def hash_cell_execution(
+    cell_id: CellId_t, graph: DirectedGraph, hash_type: str = DEFAULT_HASH
+) -> bytes:
+    ancestors = graph.ancestors(cell_id)
+    return hash_cell_group(ancestors, graph, hash_type)
 
 
 def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
@@ -719,22 +749,6 @@ class BlockHasher:
             refs, inclusive=False
         )
 
-        for ref in transitive_state_refs:
-            if ref in scope and isinstance(scope[ref], ShadowedRef):
-                # TODO(akshayka, dmadisetti): Lift this restriction once
-                # function args are rewritten.
-                #
-                # This makes more sense as a NameError, but the marimo's
-                # explainer text for NameError's doesn't make sense in this
-                # context. ("Definition expected in ...")
-                raise RuntimeError(
-                    f"The cached function declares an argument '{ref}'"
-                    "but a captured function or class uses the "
-                    f"global variable '{ref}'. Please rename "
-                    "the argument, or restructure the use "
-                    f"of the global variable."
-                )
-
         # Filter for relevant stateful cases.
         refs |= set(
             filter(
@@ -776,9 +790,8 @@ class BlockHasher:
             *[self.graph.definitions.get(ref, set()) for ref in refs]
         )
         to_hash = ancestors & ref_cells
-        for ancestor_id in sorted(to_hash):
+        for ancestor_id in to_hash:
             cell_impl = self.graph.cells[ancestor_id]
-            self.hash_alg.update(hash_cell_impl(cell_impl, self.hash_alg.name))
             for ref in cell_impl.defs:
                 # Look for both, since mangle reference depends on the context
                 # of the definition.
@@ -787,6 +800,9 @@ class BlockHasher:
                 unmangled_ref, _ = unmangle_local(ref)
                 if unmangled_ref in refs:
                     refs.remove(unmangled_ref)
+        self.hash_alg.update(
+            hash_cell_group(to_hash, self.graph, self.hash_alg.name)
+        )
         return refs
 
     def hash_and_verify_context_refs(
