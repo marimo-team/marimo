@@ -128,7 +128,7 @@ class ExtractWithBlock(ast.NodeTransformer):
                 )
                 for body in bodies:
                     try:
-                        # Recursion by referring the the containing block also
+                        # Recursion by referring to the containing block also
                         # captures the case where the target line number was not
                         # exactly hit.
                         # for instance:
