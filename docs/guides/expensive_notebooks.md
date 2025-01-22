@@ -159,7 +159,7 @@ def expensive_component():
     data = db.query("SELECT * FROM data")
     return mo.ui.table(data)
 
-accordion = mo.ui.accordion({
+accordion = mo.accordion({
     "Charts": mo.lazy(expensive_component)
 })
 ```
