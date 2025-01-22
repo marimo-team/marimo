@@ -540,7 +540,14 @@ const CellComponent = (
       return null;
     }
     return (
-      <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+      <div
+        tabIndex={-1}
+        id={HTMLId}
+        ref={cellRef}
+        className={className}
+        data-cell-id={cellId}
+        data-cell-name={name}
+      >
         {outputArea}
       </div>
     );
