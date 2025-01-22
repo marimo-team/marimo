@@ -290,6 +290,7 @@ button .prose.prose {
 
 .markdown details {
   @apply rounded-lg border bg-card;
+
   margin: 1rem 0;
   border-left-width: 6px;
 }
@@ -325,6 +326,7 @@ button .prose.prose {
 
 .markdown details summary {
   @apply flex cursor-pointer items-center justify-between p-4 font-medium;
+
   list-style: none;
   user-select: none;
 }
