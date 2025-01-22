@@ -25,6 +25,7 @@ import {
   XCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ScissorsIcon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -54,6 +55,7 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
 import { switchLanguage } from "@/core/codemirror/language/extension";
+import { useSplitCellCallback } from "../cell/useSplitCell";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -79,6 +81,7 @@ export function useCellActionButtons({ cell }: Props) {
     addColumnBreakpoint,
     clearCellOutput,
   } = useCellActions();
+  const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const canDelete = !hasOnlyOneCell;
@@ -184,6 +187,12 @@ export function useCellActionButtons({ cell }: Props) {
           );
         },
         hotkey: "cell.aiCompletion",
+      },
+      {
+        icon: <ScissorsIcon size={13} strokeWidth={1.5} />,
+        label: "Split cell",
+        hotkey: "cell.splitCell",
+        handle: () => splitCell({ cellId }),
       },
       {
         icon: <ImageIcon size={13} strokeWidth={1.5} />,
