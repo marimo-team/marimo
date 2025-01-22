@@ -8,15 +8,19 @@ app = marimo.App(app_title="My Title")
 def _(mo):
     mo.md(
         r"""
-        # Notebook
+        # SQL notebook
+
+        ```sql
+        SELECT * FROM my_table;
+        ```
         """
     )
     return
 
 
 @app.cell
-def _():
-    print("Hello, World!")
+def _(mo, my_table):
+    _df = mo.sql("SELECT * FROM my_table;")
     return
 
 

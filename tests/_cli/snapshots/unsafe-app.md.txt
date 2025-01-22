@@ -15,7 +15,7 @@ mo.md("""
     print("Hello World")
     ```
     Execute print
-    ```{python}
+    ```python {.marimo}
     print("Hello World")
     ```
 """)
@@ -24,7 +24,7 @@ mo.md("""
 ````python {.marimo}
 mo.md(f"""
     with f-string too!
-    ```{{python}}
+    ```python {{.marimo}}
     print("Hello World")
     ```
 """)
@@ -33,7 +33,7 @@ mo.md(f"""
 ````python {.marimo}
 mo.md(f"""
     Not markdown
-    ```{{python}}
+    ```python {{.marimo}}
     print("1 + 1 = {1 + 1}")
     ```
 """)
@@ -42,7 +42,7 @@ mo.md(f"""
 Nested fence
 ````text
 The guards are
-```{python}
+```python {.marimo}
 ````
 
 ````python {.marimo}

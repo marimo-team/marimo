@@ -227,7 +227,10 @@ def _tree_to_app(root: Element) -> str:
     cell_config: list[CellConfig] = []
     for child in root:
         names.append(child.get("name", DEFAULT_CELL_NAME))
-        cell_config.append(get_cell_config_from_tag(child))
+        # Default to hiding markdown cells.
+        cell_config.append(
+            get_cell_config_from_tag(child, hide_code=child.tag == MARIMO_MD)
+        )
         sources.append(get_source_from_tag(child))
 
     return codegen.generate_filecontents(
@@ -494,7 +497,13 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
 
 def convert_from_md_to_app(text: str) -> App:
-    return MarimoParser(output_format="marimo-app").convert(text)  # type: ignore[arg-type, return-value]
+    if not text.strip():
+        app = App()
+    else:
+        app: App = MarimoParser(output_format="marimo-app").convert(text)  # type: ignore[arg-type, return-value]
+
+    app._cell_manager.ensure_one_cell()
+    return app
 
 
 def convert_from_md(text: str) -> str:

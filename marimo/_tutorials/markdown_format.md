@@ -12,6 +12,7 @@ work on prose-heavy marimo notebooks in your editor of choice.
 _Make sure to look at the markdown
 [source code](https://github.com/marimo-team/marimo/blob/main/marimo/_tutorials/markdown_format.md)
 of this tutorial!_
+
 ## Running markdown notebooks
 
 To edit a markdown notebook, use
@@ -58,6 +59,7 @@ plt.gca()
 
 As long as your code block contains the word `marimo` in a brace, like
 `{marimo}`, or `{.marimo note="Whatever you want"}`, marimo will treat it as a Python cell.
+
 ## `mo` tricks and tips
 
 You can break up markdown into multiple cells by using an empty html tag `<!---->`:
@@ -166,12 +168,47 @@ give your cells a name:
 ```
 
 ## Converting back to the Python file format
+
 The markdown format is supposed to lower the barrier for writing text heavy
 documents, it's not meant to be a full replacement for the Python notebook
 format. You can always convert back to a Python notebook if you need to:
 
 ```bash
 $ marimo convert my_marimo.md > my_marimo.py
+```
+
+<!---->
+
+## SQL in markdown
+
+You can also run parameterized SQL queries in markdown cells through marimo.
+
+```python {.marimo hide_code="true"}
+num = mo.ui.slider(1, 15, label="Fibonacci numbers")
+num
+```
+
+```python {.marimo}
+_df = mo.sql(
+    f"""
+    WITH RECURSIVE fibonacci AS (
+      SELECT
+        1 as n,
+        1 as fib,
+        1 as prev
+      UNION ALL
+      SELECT
+        n + 1,
+        fib + prev,
+        fib
+      FROM fibonacci
+      WHERE n < {num.value}
+    )
+    SELECT n, fib
+    FROM fibonacci
+    ORDER BY n;
+    """
+)
 ```
 
 ## More on markdown
