@@ -93,7 +93,7 @@ const LoadingDataEditor = (props: Props) => {
     return await vegaLoadData(
       props.data,
       { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
-      { handleBigInt: true },
+      { handleBigIntAndNumberLike: true },
     );
   }, [props.fieldTypes, props.data]);
 

@@ -120,7 +120,7 @@ yield_error,yield_center
     const data = await vegaLoadData(
       csvData,
       { type: "csv", parse: "auto" },
-      { handleBigInt: true },
+      { handleBigIntAndNumberLike: true },
     );
     expect(data).toMatchInlineSnapshot(`
       [
@@ -133,7 +133,7 @@ yield_error,yield_center
     const dataWithoutFlag = await vegaLoadData(
       csvData,
       { type: "csv" },
-      { handleBigInt: false },
+      { handleBigIntAndNumberLike: false },
     );
     expect(dataWithoutFlag).toMatchInlineSnapshot(`
       [
@@ -148,7 +148,9 @@ yield_error,yield_center
     const csvData = "id\n912312851340981241284";
     vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
     const format = undefined;
-    const data = await vegaLoadData(csvData, format, { handleBigInt: true });
+    const data = await vegaLoadData(csvData, format, {
+      handleBigIntAndNumberLike: true,
+    });
     expect(data).toMatchInlineSnapshot(`
       [
         {
@@ -246,7 +248,7 @@ id,name
     const dataWithBigInt = await vegaLoadData(
       csvData,
       { type: "csv", parse: "auto" },
-      { handleBigInt: true },
+      { handleBigIntAndNumberLike: true },
     );
 
     expect(dataWithBigInt).toMatchInlineSnapshot(`
@@ -265,7 +267,7 @@ id,name
     const dataWithoutBigInt = await vegaLoadData(
       csvData,
       { type: "csv", parse: "auto" },
-      { handleBigInt: false },
+      { handleBigIntAndNumberLike: false },
     );
 
     expect(dataWithoutBigInt).toMatchInlineSnapshot(`
@@ -390,6 +392,60 @@ Bob.Jones,25
         },
         {
           "created_at": "",
+          "name": "Bob",
+        },
+      ]
+    `);
+  });
+
+  it("should handle NaN numbers, when handleBigInt is true", async () => {
+    const csvData = 'name,amount,id\nAlice,,"#1"\nBob,"$2,000","#2"';
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+    const data = await vegaLoadData(
+      csvData,
+      {
+        type: "csv",
+        parse: { amount: "number", name: "string", id: "integer" },
+      },
+      { handleBigIntAndNumberLike: true },
+    );
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "amount": null,
+          "id": "#1",
+          "name": "Alice",
+        },
+        {
+          "amount": "$2,000",
+          "id": "#2",
+          "name": "Bob",
+        },
+      ]
+    `);
+  });
+
+  it("should handle NaN numbers, when handleBigInt is false", async () => {
+    const csvData = 'name,amount,id\nAlice,,"#1"\nBob,"$2,000","#2"';
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+    const data = await vegaLoadData(
+      csvData,
+      {
+        type: "csv",
+        parse: { amount: "number", name: "string", id: "integer" },
+      },
+      { handleBigIntAndNumberLike: false },
+    );
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "amount": null,
+          "id": NaN,
+          "name": "Alice",
+        },
+        {
+          "amount": NaN,
+          "id": NaN,
           "name": "Bob",
         },
       ]
