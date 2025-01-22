@@ -337,9 +337,9 @@ button .prose.prose {
   content: "";
   border-style: solid;
   border-color: var(--slate-8);
-  border-width: 0.15em 0.15em 0 0;
+  border-width: 0.15rem 0.15rem 0 0;
   display: inline-block;
-  padding: 0.2em;
+  padding: 0.2rem;
   transform: rotate(135deg);
   transition: transform 0.2s;
   vertical-align: middle;
