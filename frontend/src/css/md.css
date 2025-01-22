@@ -281,3 +281,74 @@ button .prose.prose {
 .prose .keys {
   @apply space-x-1;
 }
+
+/* Details */
+
+.prose .details {
+  @apply space-y-1;
+}
+
+.markdown details {
+  @apply rounded-lg border bg-card;
+  margin: 1rem 0;
+  border-left-width: 6px;
+}
+
+.markdown details.warn,
+.markdown details.warning {
+  border-left-color: var(--yellow-8);
+}
+
+.markdown details.info,
+.markdown details.note {
+  border-left-color: var(--blue-8);
+}
+
+.markdown details.error,
+.markdown details.danger,
+.markdown details.caution {
+  border-left-color: var(--red-8);
+}
+
+.markdown details.success,
+.markdown details.tip {
+  border-left-color: var(--grass-8);
+}
+
+.markdown details.important {
+  border-left-color: var(--cyan-8);
+}
+
+.markdown details.hint {
+  border-left-color: var(--gray-8);
+}
+
+.markdown details summary {
+  @apply flex cursor-pointer items-center justify-between p-4 font-medium;
+  list-style: none;
+  user-select: none;
+}
+
+.markdown details summary::-webkit-details-marker {
+  display: none;
+}
+
+.markdown details summary::after {
+  content: "";
+  border-style: solid;
+  border-color: var(--slate-8);
+  border-width: 0.15em 0.15em 0 0;
+  display: inline-block;
+  padding: 0.2em;
+  transform: rotate(135deg);
+  transition: transform 0.2s;
+  vertical-align: middle;
+}
+
+.markdown details[open] summary::after {
+  transform: rotate(-45deg);
+}
+
+.markdown details > :not(summary) {
+  @apply p-4 pt-0;
+}
