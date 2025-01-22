@@ -324,7 +324,14 @@ const VerticalCell = memo(
       const isCodeEmpty = code.trim() === "";
 
       return (
-        <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+        <div
+          tabIndex={-1}
+          id={HTMLId}
+          ref={cellRef}
+          className={className}
+          data-cell-id={cellId}
+          data-cell-name={name}
+        >
           {cellOutputArea === "above" && outputArea}
           {/* Hide code if it's empty or pure markdown */}
           {!isPureMarkdown && !isCodeEmpty && (
@@ -355,7 +362,14 @@ const VerticalCell = memo(
     }
 
     return (
-      <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+      <div
+        tabIndex={-1}
+        id={HTMLId}
+        ref={cellRef}
+        className={className}
+        data-cell-id={cellId}
+        data-cell-name={name}
+      >
         <OutputArea
           allowExpand={mode === "edit"}
           output={output}
