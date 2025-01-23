@@ -30,3 +30,17 @@ mo.ui.button(
     label='<div data-tooltip="This is a tooltip">Hover over me</div>'
 )
 ```
+
+## Rendering images
+
+You can render images from a local `public/` folder:
+
+```python
+mo.md(
+    '''
+    <img src="public/image.png" width="100" />
+    '''
+)
+```
+
+See [Static files](../guides/outputs.md#static-files) for information about serving images and other static assets.
