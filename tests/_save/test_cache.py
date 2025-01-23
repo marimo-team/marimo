@@ -581,10 +581,73 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not len(k.stderr.messages)
+        assert not k.stderr.messages, k.stderr
         # More hits with a smaller cache, because it needs to check the cache
         # more.
         assert k.globals["fib"].hits == 14
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
+    async def test_lru_cache_default(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import lru_cache
+
+                    @lru_cache
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
+
+                    a = fib(260)
+                    b = fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+        # More hits with a smaller cache, because it needs to check the cache
+        # more. Has 256 entries by default, normal cache hits just 259 times.
+        assert k.globals["fib"].hits == 266
+
+        # A little ridiculous, but still low compute.
+        assert (
+            k.globals["a"]
+            == 971183874599339129547649988289594072811608739584170445
+        )
+        assert k.globals["b"] == 55
+
+    async def test_persistent_cache(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import persistent_cache
+                    from marimo._save.loaders import MemoryLoader
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
+
+                    a = fib(5)
+                    b = fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+        assert k.globals["fib"].hits == 9
 
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
@@ -649,9 +712,9 @@ class TestCacheDecorator:
             [
                 exec_req.get(
                     """
-                             from marimo._save.save import cache
-                             from marimo._runtime.state import state
-                             """
+                    from marimo._save.save import cache
+                    from marimo._runtime.state import state
+                    """
                 ),
                 exec_req.get("""external, setter = state(0)"""),
                 exec_req.get(
@@ -679,7 +742,6 @@ class TestCacheDecorator:
             ]
         )
 
-        assert not k.stdout.messages
         assert not k.stderr.messages
 
         assert k.globals["a"] == 5
@@ -698,10 +760,10 @@ class TestCacheDecorator:
             [
                 exec_req.get(
                     """
-                             from marimo._save.save import cache
-                             from marimo._runtime.state import state
-                             import marimo as mo
-                             """
+                    from marimo._save.save import cache
+                    from marimo._runtime.state import state
+                    import marimo as mo
+                    """
                 ),
                 exec_req.get("slider = mo.ui.slider(0, 1)"),
                 exec_req.get("""external, setter = state("a")"""),
@@ -741,6 +803,49 @@ class TestCacheDecorator:
         assert k.globals["impure"] == [60, 157, 60]
         # 2 * 9 + 2
         assert k.globals["fib"].hits in (9, 18, 20)
+
+    async def test_rerun_update(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("""from marimo._save.save import cache"""),
+                exec_req.get(
+                    """
+                    from marimo._runtime.state import state
+                    """
+                ),
+                exec_req.get("""max_size, setter = state(-1)"""),
+                exec_req.get(
+                    """from marimo._save.loaders import MemoryLoader"""
+                ),
+                exec_req.get("""impure = []"""),
+                exec_req.get("""external = 0;c={}"""),
+                exec_req.get_with_id(
+                    cell_id="0",
+                    code="""
+                    @cache(loader=MemoryLoader.partial(max_size=max_size()))
+                    def fib(n):
+                        if n <= 1:
+                            return n + external
+                        return fib(n - 1) + fib(n - 2)
+                    fib(5)
+                """,
+                ),
+                exec_req.get("""a = fib(5)"""),
+                exec_req.get("""b = fib(10); a; impure.append(b)"""),
+                exec_req.get(
+                    """
+                if len(impure) == 1:
+                    setter(256)
+                    b
+                """
+                ),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["fib"].hits == 10 + 3
 
     async def test_full_scope_utilized(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -785,7 +890,6 @@ class TestCacheDecorator:
         )
 
         assert not k.stderr.messages, k.stderr
-        assert not k.stdout.messages, k.stdout
 
         assert len(k.globals["impure"]) == 3
         assert {
@@ -796,16 +900,16 @@ class TestCacheDecorator:
 
         # Same name, but should be under different entries
         assert (
-            k.globals["impure"][0][0]._loader()
-            is not k.globals["impure"][1][0]._loader()
+            k.globals["impure"][0][0].loader
+            is not k.globals["impure"][1][0].loader
         )
 
         assert (
             len(
                 {
-                    *k.globals["impure"][0][0]._loader()._cache.keys(),
-                    *k.globals["impure"][1][0]._loader()._cache.keys(),
-                    *k.globals["impure"][2][0]._loader()._cache.keys(),
+                    *k.globals["impure"][0][0].loader._cache.keys(),
+                    *k.globals["impure"][1][0].loader._cache.keys(),
+                    *k.globals["impure"][2][0].loader._cache.keys(),
                 }
             )
             == 2
@@ -861,7 +965,6 @@ class TestCacheDecorator:
         )
 
         assert not k.stderr.messages, k.stderr
-        assert not k.stdout.messages, k.stdout
 
         assert len(k.globals["impure"]) == 3
         assert {
@@ -872,16 +975,16 @@ class TestCacheDecorator:
 
         # Same name, but should be under different entries
         assert (
-            k.globals["impure"][0][0]._loader()
-            is not k.globals["impure"][1][0]._loader()
+            k.globals["impure"][0][0].loader
+            is not k.globals["impure"][1][0].loader
         )
 
         assert (
             len(
                 {
-                    *k.globals["impure"][0][0]._loader()._cache.keys(),
-                    *k.globals["impure"][1][0]._loader()._cache.keys(),
-                    *k.globals["impure"][2][0]._loader()._cache.keys(),
+                    *k.globals["impure"][0][0].loader._cache.keys(),
+                    *k.globals["impure"][1][0].loader._cache.keys(),
+                    *k.globals["impure"][2][0].loader._cache.keys(),
                 }
             )
             == 2

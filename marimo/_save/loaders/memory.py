@@ -38,8 +38,7 @@ class MemoryLoader(Loader):
         if self.is_lru:
             self._cache = OrderedDict()
             self._cache_lock = threading.Lock()
-        self.max_size = max_size
-        self.hits = 0
+        self._max_size = max_size
         if cache is not None:
             self._maybe_lock(lambda: self._cache.update(cache))
 
@@ -58,7 +57,6 @@ class MemoryLoader(Loader):
         assert self.cache_hit(hashed_context, cache_type), (
             INCONSISTENT_CACHE_BOILER_PLATE
         )
-        self.hits += 1
         key = self.build_path(hashed_context, cache_type)
         if self.is_lru:
             assert isinstance(self._cache, OrderedDict)
@@ -86,7 +84,7 @@ class MemoryLoader(Loader):
             if self.is_lru:
                 self._cache = OrderedDict(self._cache.items())
                 self._cache_lock = threading.Lock()
-            self.max_size = max_size
+            self._max_size = max_size
             return
         assert isinstance(self._cache, OrderedDict)
         assert self._cache_lock is not None
@@ -94,8 +92,16 @@ class MemoryLoader(Loader):
             self.is_lru = max_size > 0
             if not self.is_lru:
                 self._cache = dict(self._cache.items())
-                self.max_size = max_size
+                self._max_size = max_size
                 return
             while len(self._cache) > max_size:
                 self._cache.popitem(last=False)
-        self.max_size = max_size
+        self._max_size = max_size
+
+    @property
+    def max_size(self) -> int:
+        return self._max_size
+
+    @max_size.setter
+    def max_size(self, value: int) -> None:
+        self.resize(value)

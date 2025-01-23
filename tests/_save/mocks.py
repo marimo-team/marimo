@@ -14,13 +14,13 @@ class MockLoader(Loader):
         data: Optional[Dict[str, Any]] = None,
         stateful_refs: Optional[set[str]] = None,
     ) -> None:
-        self.name = name
         self.save_path = save_path
         self._data = data or {}
         self._cache_hit = data is not None
         self._loaded = False
         self._saved = False
         self._stateful_refs = stateful_refs or set()
+        super().__init__(name)
 
     def cache_hit(self, _hashed_context: str, _cache_type: CacheType) -> bool:
         return self._cache_hit
