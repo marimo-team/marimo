@@ -15,7 +15,7 @@ to `tqdm`.
 ```python
 @app.cell
 def __():
-    rerun = mo.ui.button("Rerun")
+    rerun = mo.ui.button(label="Rerun")
     rerun
     return
 
@@ -46,7 +46,7 @@ async def __():
 ```python
 @app.cell
 def __():
-    rerun = mo.ui.button("Rerun")
+    rerun = mo.ui.button(label="Rerun")
     rerun
     return
 

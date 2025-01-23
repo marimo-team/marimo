@@ -62,7 +62,7 @@ But sometimes, you might want interactions to mutate state:
 !!! warning "Use reactive execution for uni-directional flow"
     If you just want the value of a single element to update another element,
     then **you shouldn't use `mo.state`**. Instead, use marimo's built-in
-    reactive execution --- see the [interactivity guide](`../guides/interactivity.md`).
+    reactive execution --- see the [interactivity guide](../guides/interactivity.md).
 
 For cases like these, marimo provides the function [`mo.state()`](../api/state.md),
 which creates a state object and returns a getter and setter function. When you

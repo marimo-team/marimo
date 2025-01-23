@@ -40,7 +40,7 @@ class lazy(UIElement[bool, bool]):
 
         Create a lazy-loaded accordion:
         ```python
-        accordion = mo.ui.accordion({"Charts": mo.lazy(expensive_component)})
+        accordion = mo.accordion({"Charts": mo.lazy(expensive_component)})
         ```
 
         Usage with async functions:
