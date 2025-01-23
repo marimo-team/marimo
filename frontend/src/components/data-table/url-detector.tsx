@@ -4,6 +4,7 @@ import { useState } from "react";
 
 const urlRegex = /(https?:\/\/\S+)/g;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
+const dataImageRegex = /^data:image\//i;
 const knownImageDomains = ["avatars.githubusercontent.com"];
 
 const ImageWithFallback = ({ url }: { url: string }) => {
@@ -26,6 +27,10 @@ const ImageWithFallback = ({ url }: { url: string }) => {
 };
 
 export const UrlDetector = ({ text }: { text: string }) => {
+  if (dataImageRegex.test(text)) {
+    return <ImageWithFallback url={text} />;
+  }
+
   const createMarkup = (text: string) => {
     const parts = text.split(urlRegex);
 
@@ -33,6 +38,7 @@ export const UrlDetector = ({ text }: { text: string }) => {
       if (urlRegex.test(part)) {
         const isImage =
           imageRegex.test(part) ||
+          dataImageRegex.test(part) ||
           knownImageDomains.some((domain) => part.includes(domain));
 
         if (isImage) {

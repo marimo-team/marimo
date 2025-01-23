@@ -69,6 +69,14 @@ describe("UrlDetector", () => {
     });
   });
 
+  it("renders data URIs as images", () => {
+    const dataUri =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    render(<UrlDetector text={dataUri} />);
+    const img = screen.getByRole("img");
+    expect(img).toHaveAttribute("src", dataUri);
+  });
+
   it.skip("prevents event propagation on link clicks", () => {
     const mockStopPropagation = vi.fn();
     render(<UrlDetector text="Check https://marimo.io" />);
