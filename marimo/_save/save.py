@@ -2,18 +2,28 @@
 from __future__ import annotations
 
 import ast
+import functools
 import inspect
 import io
 import os
 import sys
 import traceback
 from collections import abc
-from functools import singledispatch
+from pathlib import Path
 
 # NB: maxsize follows functools.cache, but renamed max_size outside of drop-in
 # api.
 from sys import maxsize as MAXINT
-from typing import TYPE_CHECKING, Any, Callable, Optional, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    Type,
+    Union,
+    cast,
+    overload,
+)
 
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
@@ -214,6 +224,7 @@ class _cache_context(object):
         loader: Loader,
         *,
         pin_modules: bool = False,
+        hash_type: str = DEFAULT_HASH,
     ) -> None:
         # For an implementation sibling regarding the block skipping, see
         # `withhacks` in pypi.
@@ -227,6 +238,7 @@ class _cache_context(object):
         self._body_start: int = MAXINT
         # TODO: Consider having a user level setting.
         self.pin_modules = pin_modules
+        self.hash_type = hash_type
         self._loader = loader
 
     def __enter__(self) -> Self:
@@ -293,6 +305,7 @@ class _cache_context(object):
                     loader=self._loader,
                     context=pre_module,
                     pin_modules=self.pin_modules,
+                    hash_type=self.hash_type,
                 )
 
                 self.cache_type = self._cache.cache_type
@@ -366,7 +379,20 @@ class _cache_context(object):
         return False
 
 
-@singledispatch
+# A note on overloading:
+# Single dispatch cues off only the first argument, and expects a similar
+# signature for every overload: https://peps.python.org/pep-0443/
+# However.
+# The context and call APIs are slightly different, so `*` expansions are used
+# to propagate that information down to the actually implementation.
+# As such, we also leverage the `@overload` decorator to provide the correct
+# signature and documentation for the singledispatch entry points.
+
+# mypy also seems to do pretty poorly with this overloading, so there is liberal
+# removal type rules.
+
+
+@functools.singledispatch
 def _cache_invocation(
     arg: Any,
     loader: Union[LoaderPartial, Loader, LoaderType],
@@ -392,7 +418,12 @@ def _invoke_call(
             f"partial (e.g. `{loader.__class__}.partial(arg=value)`)."
         )
     elif isinstance(loader, type) and issubclass(loader, Loader):
-        loader = cast(Loader, loader).partial()
+        cache_args = {
+            "pin_modules": kwargs.pop("pin_modules", False),
+            "hash_type": kwargs.pop("hash_type", DEFAULT_HASH),
+        }
+        loader = cast(Loader, loader).partial(**kwargs)
+        kwargs = cache_args
 
     if not isinstance(loader, LoaderPartial):
         raise TypeError(
@@ -444,16 +475,92 @@ def _invoke_context(
     if isinstance(loader, LoaderPartial):
         loader = loader.create_or_reconfigure(name)()
     elif isinstance(loader, type) and issubclass(loader, Loader):
+        cache_args = {
+            "pin_modules": kwargs.pop("pin_modules", False),
+            "hash_type": kwargs.pop("hash_type", DEFAULT_HASH),
+        }
         # Create through partial for meaningful error message.
-        loader = cast(Loader, loader).partial()
-        assert isinstance(loader, LoaderPartial), (
-            UNEXPECTED_FAILURE_BOILERPLATE
+        loader = (
+            cast(Loader, loader)
+            .partial(**kwargs)
+            .create_or_reconfigure(name)()
         )
-        loader = loader.create_or_reconfigure(name)()
+        kwargs = cache_args
     return _cache_context(name, loader, *args, **kwargs)
 
 
-def cache(
+@overload
+def cache(  # noqa: D418
+    fn: Optional[Callable[..., Any]] = None,
+    pin_modules: bool = False,
+    loader: LoaderPartial | LoaderType = MemoryLoader,  # type: ignore[assignment]
+) -> _cache_call:
+    """Decorator for caching the return value of a function.
+
+    For general usage, refer to `mo.cache` general documentation. This
+    decorator usage also allows for a custom `loader` parameter to be passed
+    directly.
+
+    **Advanced Usage.**
+
+    ```python
+    from marimo._save.loaders import Loader
+
+
+    class MyCache(Loader): ...
+
+
+    @mo.cache(loader=MyCache)
+    def my_function():
+        return 0
+    ```
+
+    **Args**:
+    - `fn`: the wrapped function if no settings are passed.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
+    """
+
+
+@overload
+def cache(  # noqa: D418
+    name: str,
+    pin_modules: bool = False,
+    loader: LoaderPartial | Loader | LoaderType = MemoryLoader,  # type: ignore[assignment]
+) -> _cache_context:
+    """Context manager to cache the return value of a block of code.
+
+    The `mo.cache` context manager lets you delimit a block of code in which
+    variables will be cached to memory when they are first computed.
+
+    By default, the cache is stored in memory and is not persisted across kernel
+    runs, for that functionality, refer to `mo.persistent_cache`.
+
+    However, `mo.cache` does expose a `loader` parameter which can be leveraged
+    to create a custom cache loader.
+
+    **Advanced Usage.**
+
+    ```python
+    from marimo._save.loaders import PickleLoader
+
+    with mo.cache(
+        "my_cache", loader=PickleLoader.partial(save_path="./path")
+    ) as cache:
+        variable = expensive_function()
+    ```
+
+    **Args**:
+    - `name`: the name of the cache, used to set saving path- to manually
+      invalidate the cache, change the name.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
+    """
+
+
+def cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     *args: Any,
     loader: Optional[Union[LoaderPartial, Loader]] = None,
@@ -522,7 +629,42 @@ def cache(
     )
 
 
-def lru_cache(
+@overload
+def lru_cache(  # noqa: D418
+    fn: Optional[Callable[..., Any]] = None,
+    maxsize: int = 128,
+    pin_modules: bool = False,
+) -> _cache_call:
+    """Decorator for LRU caching the return value of a function.
+
+    **Args**:
+
+    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
+      Setting to -1 disables cache limits.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    """
+
+
+@overload
+def lru_cache(  # noqa: D418
+    name: str,
+    maxsize: int = 128,
+    pin_modules: bool = False,
+) -> _cache_call:
+    """Context manager for LRU caching the return value of a block of code.
+
+    **Args**:
+
+    - `name`: Namespace key for the cache.
+    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
+      Setting to -1 disables cache limits.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    """
+
+
+def lru_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     maxsize: int = 128,
     *args: Any,
@@ -545,13 +687,6 @@ def lru_cache(
     def factorial(n):
         return n * factorial(n - 1) if n else 1
     ```
-
-    **Args**:
-
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
     """
     arg = name
     del name
@@ -562,7 +697,7 @@ def lru_cache(
             "for lru_cache, use mo.cache instead."
         )
 
-    return cache(
+    return cache(  # type: ignore[no-any-return, call-overload]
         arg,
         *args,
         loader=MemoryLoader.partial(max_size=maxsize),
@@ -571,13 +706,14 @@ def lru_cache(
     )
 
 
-def persistent_cache(
-    name: Union[str, Optional[Callable[..., Any]]] = None,
+# Jedi seems to want to show the first doc string first.
+@overload
+def persistent_cache(  # noqa: D418
+    name: str,
     save_path: str | None = None,
-    *args: Any,
-    **kwargs: Any,
-) -> Union[_cache_call, _cache_context]:
-    """Save variables to disk and restore them thereafter.
+    pin_modules: bool = False,
+) -> _cache_context:
+    """Context manager to save variables to disk and restore them thereafter.
 
     The `mo.persistent_cache` context manager lets you delimit a block of code
     in which variables will be cached to disk when they are first computed. On
@@ -608,9 +744,6 @@ def persistent_cache(
     Note that `mo.state` and `UIElement` changes will also trigger cache
     invalidation, and be accordingly updated.
 
-    `persistent_cache` can also be used as a drop in function-level memoization
-    for `@mo.cache` or `@mo.lru_cache`.
-
     **Warning.** Since context abuses sys frame trace, this may conflict with
     debugging tools or libraries that also use `sys.settrace`.
 
@@ -622,6 +755,61 @@ def persistent_cache(
       `__marimo__/cache` in the directory of the notebook file
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
+    """
+
+
+@overload
+def persistent_cache(  # noqa: D418
+    fn: Optional[Callable[..., Any]] = None,
+    save_path: str | None = None,
+    pin_modules: bool = False,
+) -> _cache_call:
+    """Decorator for persistently caching the return value of a function.
+
+    `persistent_cache` can also be used as a drop in function-level memoization
+    for `@mo.cache` or `@mo.lru_cache`. This is much slower than cache, but
+    can be useful for saving function values between kernel restarts. For more
+    details, refer to `mo.cache`.
+
+    **Usage.**
+
+    ```python
+    import marimo as mo
+
+
+    @mo.persistent_cache
+    def my_expensive_function():
+        # Do expensive things
+
+    # or
+
+    @mo.persistent_cache(save_path="my/path/to/cache")
+    def my_expensive_function_cached_in_a_certain_location():
+        # Do expensive things
+    ```
+
+    **Args**:
+
+    - `fn`: the wrapped function if no settings are passed.
+    - `save_path`: the folder in which to save the cache, defaults to
+      `__marimo__/cache` in the directory of the notebook file
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ between runs, defaults to False.
+    """
+
+
+def persistent_cache(  # type: ignore[misc]
+    name: Union[str, Optional[Callable[..., Any]]] = None,
+    save_path: str | None = None,
+    *args: Any,
+    **kwargs: Any,
+) -> Union[_cache_call, _cache_context]:
+    """Cache interface to persistently pickle values and load them depending on
+    notebook state.
+
+    Can be used as a context manager or a decorator. Mainly expected to be used
+    as a decorator due to expensive overhead. Refer to `mo.cache` for equivalent
+    functionality on how to use as this as a decorator.
     """
     arg = name
     del name
@@ -638,15 +826,15 @@ def persistent_cache(
         # This can happen if the notebook file is unnamed.
         save_path = os.path.join("__marimo__", "cache")
 
-    loader = PickleLoader.partial(save_path=save_path)
+    loader = PickleLoader.partial(save_path=Path(save_path))
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")
 
-    return cache(
+    return cache(  # type: ignore[no-any-return, call-overload]
         arg,
         *args,
         loader=loader,
         _frame_offset=2,
         **kwargs,
-    )
+    )  # type: ignore[no-any-return]

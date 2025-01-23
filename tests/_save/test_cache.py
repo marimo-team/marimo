@@ -59,6 +59,26 @@ class TestScriptCache:
         app.run()
 
     @staticmethod
+    def test_cache_loader_api() -> None:
+        app = App()
+        app._anonymous_file = True
+
+        @app.cell
+        def one() -> tuple[int]:
+            from tests._save.mocks import MockLoader
+
+            with MockLoader.cache("one", data={"X": 7, "Y": 8}) as cache:
+                Y = 9
+                X = 10
+            assert X == 7
+            assert cache._cache.defs == {"X": 7, "Y": 8}
+            assert not cache._loader._saved
+            assert cache._loader._loaded
+            return X, Y
+
+        app.run()
+
+    @staticmethod
     def test_cache_hit_whitespace() -> None:
         app = App()
         app._anonymous_file = True
@@ -381,6 +401,7 @@ class TestAppCache:
                 ),
             ]
         )
+        assert not k.stderr.messages, k.stderr
         assert k.errors == {}
         assert k.errors == {}
         assert k.globals["X"] == 1
@@ -531,6 +552,62 @@ class TestStateCache:
 
 
 class TestCacheDecorator:
+    async def test_basic_cache_api(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.loaders import MemoryLoader
+
+                    @MemoryLoader.cache
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
+
+                    a = fib(5)
+                    b = fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+        assert k.globals["fib"].hits == 9
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
+    async def test_basic_cache_api_with_arg(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.loaders import MemoryLoader
+
+                    @MemoryLoader.cache(max_size=2)
+                    def fib(n):
+                        if n <= 1:
+                            return n
+                        return fib(n - 1) + fib(n - 2)
+
+                    a = fib(5)
+                    b = fib(10)
+                """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages
+        assert k.globals["fib"].hits == 14
+
+        assert k.globals["a"] == 5
+        assert k.globals["b"] == 55
+
     async def test_basic_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:

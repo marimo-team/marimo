@@ -135,6 +135,13 @@ class Loader(ABC):
     def partial(cls, **kwargs: Any) -> LoaderPartial:
         return LoaderPartial(cls, **kwargs)
 
+    @classmethod
+    def cache(cls, *args: Any, **kwargs: Any) -> Any:
+        """General `mo.cache` api for this loader"""
+        from marimo._save.save import cache
+
+        return cache(*args, loader=cls, **kwargs)  # type: ignore
+
     @abstractmethod
     def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
         """Check if cache has been hit given a result hash.
