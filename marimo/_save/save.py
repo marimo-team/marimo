@@ -490,74 +490,19 @@ def _invoke_context(
 
 
 @overload
-def cache(  # noqa: D418
+def cache(
     fn: Optional[Callable[..., Any]] = None,
     pin_modules: bool = False,
     loader: LoaderPartial | LoaderType = MemoryLoader,  # type: ignore[assignment]
-) -> _cache_call:
-    """Decorator for caching the return value of a function.
-
-    For general usage, refer to `mo.cache` general documentation. This
-    decorator usage also allows for a custom `loader` parameter to be passed
-    directly.
-
-    **Advanced Usage.**
-
-    ```python
-    from marimo._save.loaders import Loader
-
-
-    class MyCache(Loader): ...
-
-
-    @mo.cache(loader=MyCache)
-    def my_function():
-        return 0
-    ```
-
-    **Args**:
-    - `fn`: the wrapped function if no settings are passed.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
-    """
+) -> _cache_call: ...
 
 
 @overload
-def cache(  # noqa: D418
+def cache(
     name: str,
     pin_modules: bool = False,
     loader: LoaderPartial | Loader | LoaderType = MemoryLoader,  # type: ignore[assignment]
-) -> _cache_context:
-    """Context manager to cache the return value of a block of code.
-
-    The `mo.cache` context manager lets you delimit a block of code in which
-    variables will be cached to memory when they are first computed.
-
-    By default, the cache is stored in memory and is not persisted across kernel
-    runs, for that functionality, refer to `mo.persistent_cache`.
-
-    However, `mo.cache` does expose a `loader` parameter which can be leveraged
-    to create a custom cache loader.
-
-    **Advanced Usage.**
-
-    ```python
-    from marimo._save.loaders import PickleLoader
-
-    with mo.cache(
-        "my_cache", loader=PickleLoader.partial(save_path="./path")
-    ) as cache:
-        variable = expensive_function()
-    ```
-
-    **Args**:
-    - `name`: the name of the cache, used to set saving path- to manually
-      invalidate the cache, change the name.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
-    """
+) -> _cache_context: ...
 
 
 def cache(  # type: ignore[misc]
@@ -565,9 +510,10 @@ def cache(  # type: ignore[misc]
     *args: Any,
     loader: Optional[Union[LoaderPartial, Loader]] = None,
     _frame_offset: int = 1,
+    _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
 ) -> Union[_cache_call, _cache_context]:
-    """Cache the value of a function based on args and closed-over variables.
+    """## Cache the value of a function based on args and closed-over variables.
 
     Decorating a function with `@mo.cache` will cache its value based on
     the function's arguments, closed-over values, and the notebook code.
@@ -613,6 +559,28 @@ def cache(  # type: ignore[misc]
 
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ.
+
+    ## Context manager to cache the return value of a block of code.
+
+    The `mo.cache` context manager lets you delimit a block of code in which
+    variables will be cached to memory when they are first computed.
+
+    By default, the cache is stored in memory and is not persisted across kernel
+    runs, for that functionality, refer to `mo.persistent_cache`.
+
+    **Usage.**
+
+    ```python
+    with mo.cache("my_cache") as cache:
+        variable = expensive_function()
+    ```
+
+    **Args**:
+    - `name`: the name of the cache, used to set saving path- to manually
+      invalidate the cache, change the name.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
     """
     arg = name
     del name
@@ -630,44 +598,26 @@ def cache(  # type: ignore[misc]
 
 
 @overload
-def lru_cache(  # noqa: D418
+def lru_cache(
     fn: Optional[Callable[..., Any]] = None,
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_call:
-    """Decorator for LRU caching the return value of a function.
-
-    **Args**:
-
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    """
+) -> _cache_call: ...
 
 
 @overload
-def lru_cache(  # noqa: D418
+def lru_cache(
     name: str,
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_call:
-    """Context manager for LRU caching the return value of a block of code.
-
-    **Args**:
-
-    - `name`: Namespace key for the cache.
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    """
+) -> _cache_call: ...
 
 
 def lru_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     maxsize: int = 128,
     *args: Any,
+    _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
 ) -> Union[_cache_call, _cache_context]:
     """Decorator for LRU caching the return value of a function.
@@ -687,6 +637,23 @@ def lru_cache(  # type: ignore[misc]
     def factorial(n):
         return n * factorial(n - 1) if n else 1
     ```
+
+    **Args**:
+
+    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
+      Setting to -1 disables cache limits.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
+
+    ## Context manager for LRU caching the return value of a block of code.
+
+    **Args**:
+
+    - `name`: Namespace key for the cache.
+    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
+      Setting to -1 disables cache limits.
+    - `pin_modules`: if True, the cache will be invalidated if module versions
+      differ.
     """
     arg = name
     del name
@@ -706,14 +673,30 @@ def lru_cache(  # type: ignore[misc]
     )
 
 
-# Jedi seems to want to show the first doc string first.
 @overload
-def persistent_cache(  # noqa: D418
+def persistent_cache(
     name: str,
     save_path: str | None = None,
     pin_modules: bool = False,
-) -> _cache_context:
-    """Context manager to save variables to disk and restore them thereafter.
+) -> _cache_context: ...
+
+
+@overload
+def persistent_cache(
+    fn: Optional[Callable[..., Any]] = None,
+    save_path: str | None = None,
+    pin_modules: bool = False,
+) -> _cache_call: ...
+
+
+def persistent_cache(  # type: ignore[misc]
+    name: Union[str, Optional[Callable[..., Any]]] = None,
+    save_path: str | None = None,
+    *args: Any,
+    _internal_interface_not_for_external_use: None = None,
+    **kwargs: Any,
+) -> Union[_cache_call, _cache_context]:
+    """## Context manager to save variables to disk and restore them thereafter.
 
     The `mo.persistent_cache` context manager lets you delimit a block of code
     in which variables will be cached to disk when they are first computed. On
@@ -755,16 +738,9 @@ def persistent_cache(  # noqa: D418
       `__marimo__/cache` in the directory of the notebook file
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
-    """
 
 
-@overload
-def persistent_cache(  # noqa: D418
-    fn: Optional[Callable[..., Any]] = None,
-    save_path: str | None = None,
-    pin_modules: bool = False,
-) -> _cache_call:
-    """Decorator for persistently caching the return value of a function.
+    ## Decorator for persistently caching the return value of a function.
 
     `persistent_cache` can also be used as a drop in function-level memoization
     for `@mo.cache` or `@mo.lru_cache`. This is much slower than cache, but
@@ -797,20 +773,6 @@ def persistent_cache(  # noqa: D418
       differ between runs, defaults to False.
     """
 
-
-def persistent_cache(  # type: ignore[misc]
-    name: Union[str, Optional[Callable[..., Any]]] = None,
-    save_path: str | None = None,
-    *args: Any,
-    **kwargs: Any,
-) -> Union[_cache_call, _cache_context]:
-    """Cache interface to persistently pickle values and load them depending on
-    notebook state.
-
-    Can be used as a context manager or a decorator. Mainly expected to be used
-    as a decorator due to expensive overhead. Refer to `mo.cache` for equivalent
-    functionality on how to use as this as a decorator.
-    """
     arg = name
     del name
 
@@ -837,4 +799,4 @@ def persistent_cache(  # type: ignore[misc]
         loader=loader,
         _frame_offset=2,
         **kwargs,
-    )  # type: ignore[no-any-return]
+    )
