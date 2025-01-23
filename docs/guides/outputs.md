@@ -62,6 +62,30 @@ mo.md(
 )
 ```
 
+### Static files
+
+marimo supports serving static files from a `public/` folder located next to your notebook. This is useful for including images or other static assets in your notebook.
+
+To use files from the public folder, create a `public` directory next to your notebook and reference files using the `public/` path prefix:
+
+```python
+mo.md(
+    '''
+    <img src="public/image.png" width="100" />
+
+    or
+
+    ![alt text](public/image.png)
+    '''
+)
+```
+
+For security reasons:
+
+- Only files within the `public` directory can be accessed
+- Symlinks are not followed
+- Path traversal attempts (e.g., `../`) are blocked
+
 ### Markdown editor
 
 marimo automatically renders cells that only use `mo.md("")`, without an
