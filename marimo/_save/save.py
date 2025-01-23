@@ -576,6 +576,7 @@ def cache(  # type: ignore[misc]
     ```
 
     **Args**:
+
     - `name`: the name of the cache, used to set saving path- to manually
       invalidate the cache, change the name.
     - `pin_modules`: if True, the cache will be invalidated if module versions
