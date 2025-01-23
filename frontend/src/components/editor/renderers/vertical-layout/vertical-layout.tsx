@@ -112,21 +112,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
   const renderCells = () => {
     if (appConfig.width === "columns") {
-      // Group cells by column
-      const cellsByColumn = new Map<number, typeof cells>();
-      cells.forEach((cell) => {
-        const column = cell.config.column ?? 0;
-        if (!cellsByColumn.has(column)) {
-          cellsByColumn.set(column, []);
-        }
-        cellsByColumn.get(column)?.push(cell);
-      });
-
-      // Sort columns by index
-      const sortedColumns = [...cellsByColumn.entries()].sort(
-        ([a], [b]) => a - b,
-      );
-
+      const sortedColumns = groupCellsByColumn(cells);
       return (
         <div className="flex flex-row gap-8 w-full">
           {sortedColumns.map(([columnIndex, columnCells]) => (
@@ -395,3 +381,22 @@ export const VerticalLayoutPlugin: ICellRendererPlugin<
   serializeLayout: (layout) => layout,
   getInitialLayout: () => null,
 };
+
+export function groupCellsByColumn(
+  cells: Array<CellRuntimeState & CellData>,
+): Array<[number, Array<CellRuntimeState & CellData>]> {
+  // Group cells by column
+  const cellsByColumn = new Map<number, Array<CellRuntimeState & CellData>>();
+  let lastSeenColumn = 0;
+  cells.forEach((cell) => {
+    const column = cell.config.column ?? lastSeenColumn;
+    lastSeenColumn = column;
+    if (!cellsByColumn.has(column)) {
+      cellsByColumn.set(column, []);
+    }
+    cellsByColumn.get(column)?.push(cell);
+  });
+
+  // Sort columns by index
+  return [...cellsByColumn.entries()].sort(([a], [b]) => a - b);
+}
