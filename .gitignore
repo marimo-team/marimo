@@ -91,6 +91,9 @@ env.bak/
 venv.bak/
 uv.lock
 
+# WIP files
+.wip/
+
 # editors
 *.swp
 

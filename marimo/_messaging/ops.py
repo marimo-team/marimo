@@ -28,7 +28,12 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t, RuntimeStateType
-from marimo._data.models import ColumnSummary, DataTable, DataTableSource
+from marimo._data.models import (
+    ColumnSummary,
+    DataSourceConnection,
+    DataTable,
+    DataTableSource,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
@@ -598,6 +603,12 @@ class DataColumnPreview(Op):
 
 
 @dataclass
+class DataSourceConnections(Op):
+    name: ClassVar[str] = "data-source-connections"
+    connections: List[DataSourceConnection]
+
+
+@dataclass
 class QueryParamsSet(Op):
     """Set query parameters."""
 
@@ -687,6 +698,7 @@ MessageOperation = Union[
     # Datasets
     Datasets,
     DataColumnPreview,
+    DataSourceConnections,
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,
