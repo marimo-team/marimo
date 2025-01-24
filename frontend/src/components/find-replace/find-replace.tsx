@@ -56,6 +56,12 @@ export const FindReplace: React.FC = () => {
     return openFindReplacePanel();
   });
 
+  const resetMatches = () => {
+    const matches = getMatches();
+    // False count means an invalid regex
+    setMatches(matches === false ? undefined : matches);
+  };
+
   useEffect(() => {
     if (state.isOpen && findInputRef.current) {
       findInputRef.current.focus(); // Focus the input
@@ -75,9 +81,7 @@ export const FindReplace: React.FC = () => {
       return;
     }
 
-    const matches = getMatches();
-    // False count means an invalid regex
-    setMatches(matches === false ? undefined : matches);
+    resetMatches();
     setGlobalSearchQuery();
   }, [
     // Re-search when any of these change
@@ -205,8 +209,10 @@ export const FindReplace: React.FC = () => {
                 size="xs"
                 variant="outline"
                 className="h-6 text-xs"
-                onClick={() => replaceNext()}
-                disabled={state.findText === "" || state.replaceText === ""}
+                onClick={() => {
+                  replaceNext() && resetMatches();
+                }}
+                disabled={state.findText === ""}
               >
                 Replace Next
               </Button>
@@ -220,6 +226,7 @@ export const FindReplace: React.FC = () => {
                   if (!undo) {
                     return;
                   }
+                  resetMatches();
 
                   // Show toast with undo button
                   const { dismiss } = toast({
@@ -235,7 +242,7 @@ export const FindReplace: React.FC = () => {
                     ),
                   });
                 }}
-                disabled={state.findText === "" || state.replaceText === ""}
+                disabled={state.findText === ""}
               >
                 Replace All
               </Button>
