@@ -75,9 +75,7 @@ export const FindReplace: React.FC = () => {
       return;
     }
 
-    const matches = getMatches();
-    // False count means an invalid regex
-    setMatches(matches === false ? undefined : matches);
+    resetMatches();
     setGlobalSearchQuery();
   }, [
     // Re-search when any of these change
