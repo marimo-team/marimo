@@ -11,6 +11,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    DataSourceConnections,
     Interrupted,
     MessageOperation,
     UpdateCellCodes,
@@ -42,7 +43,9 @@ class SessionView:
         # List of operations we care about keeping track of.
         self.cell_operations: dict[CellId_t, CellOp] = {}
         # The most recent datasets operation.
-        self.datasets: Datasets = Datasets(tables=[])
+        self.datasets = Datasets(tables=[])
+        # The most recent data-connectors operation
+        self.data_connectors = DataSourceConnections(connections=[])
         # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
         # Map of variable name to value.
@@ -171,6 +174,13 @@ class SessionView:
             for table in operation.tables:
                 tables[table.name] = table
             self.datasets = Datasets(tables=list(tables.values()))
+
+        elif isinstance(operation, DataSourceConnections):
+            # Update data source connections, dedupe by name and keep the latest
+            connections = {c.name: c for c in operation.connections}
+            self.data_connectors = DataSourceConnections(
+                connections=list(connections.values())
+            )
 
         elif isinstance(operation, UpdateCellIdsRequest):
             self.cell_ids = operation

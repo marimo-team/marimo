@@ -169,6 +169,7 @@ class DependencyManager:
     google_ai = Dependency("google.generativeai")
     groq = Dependency("groq")
     panel = Dependency("panel")
+    sqlalchemy = Dependency("sqlalchemy")
 
     @staticmethod
     def has(pkg: str) -> bool:

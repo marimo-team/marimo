@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -11,9 +11,12 @@ from marimo._runtime.context.types import (
     get_context,
 )
 from marimo._runtime.output import replace
-
-if TYPE_CHECKING:
-    import duckdb
+from marimo._sql.engines import (
+    DuckDBEngine,
+    SQLAlchemyEngine,
+    raise_df_import_error,
+)
+from marimo._sql.types import SQLEngine
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -21,31 +24,49 @@ def get_default_result_limit() -> Optional[int]:
     return int(limit) if limit is not None else None
 
 
+if TYPE_CHECKING:
+    import duckdb
+
+
 @mddoc
 def sql(
     query: str,
     output: bool = True,
+    engine: Optional[Any] = None,
 ) -> Any:
     """
     Execute a SQL query.
 
-    This uses duckdb to execute the query. Any dataframes in the global
+    By default, this uses duckdb to execute the query. Any dataframes in the global
     namespace can be used inside the query.
+
+    You can also pass a SQLAlchemy engine to execute queries against other databases.
 
     The result of the query is displayed in the UI if output is True.
 
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
+        engine: Optional SQL engine to use. Can be a SQLAlchemy engine or DuckDB connection.
+               If None, uses DuckDB.
 
     Returns:
         The result of the query.
     """
-    DependencyManager.duckdb.require("to execute sql")
+    if engine is None:
+        DependencyManager.duckdb.require("to execute sql")
+        engine = DuckDBEngine(connection=None)
+    elif SQLAlchemyEngine.is_compatible(engine):
+        engine = SQLAlchemyEngine(engine)
+    elif DuckDBEngine.is_compatible(engine):
+        engine = DuckDBEngine(engine)
+    else:
+        raise ValueError(
+            "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
+        )
 
-    relation = _wrapped_sql(query)
-
-    if not relation:
+    df = _execute_query(query, engine)
+    if df is None:
         return None
 
     has_limit = _query_includes_limit(query)
@@ -56,38 +77,24 @@ def sql(
 
     enforce_own_limit = not has_limit and default_result_limit is not None
 
+    custom_total_count = None
     if enforce_own_limit:
-        relation = relation.limit(
-            cast(int, default_result_limit) + 1
-        )  # request 1 more
-
-    custom_total_count: Optional[Literal["too_many"]] = None
-
-    df: Any
-    if DependencyManager.polars.has():
-        df = relation.pl()
-        if enforce_own_limit:
+        if DependencyManager.polars.has():
             custom_total_count = (
                 "too_many"
                 if len(df) > cast(int, default_result_limit)
                 else None
             )
             df = df.limit(default_result_limit)
-    elif DependencyManager.pandas.has():
-        df = relation.df()
-        if enforce_own_limit:
+        elif DependencyManager.pandas.has():
             custom_total_count = (
                 "too_many"
                 if len(df) > cast(int, default_result_limit)
                 else None
             )
             df = df.head(default_result_limit)
-    else:
-        raise ModuleNotFoundError(
-            "pandas or polars is required to execute sql. "
-            + "You can install them with 'pip install pandas polars'",
-            name="polars",
-        )
+        else:
+            raise_df_import_error("polars")
 
     if output:
         from marimo._plugins.ui._impl import table
@@ -104,34 +111,51 @@ def sql(
 
 
 def _query_includes_limit(query: str) -> bool:
-    import duckdb
+    """Check if a SQL query includes a LIMIT clause."""
+    import sqlglot
+    from sqlglot.expressions import Limit, Select
 
     try:
-        statements = duckdb.extract_statements(query.strip())
+        expressions = sqlglot.parse(query.strip())
     except Exception:
         # May not be valid SQL
         return False
 
-    if not statements:
+    if not expressions:
         return False
 
-    last_statement = statements[-1]
+    # Only check the last statement in case of multiple statements
+    last_expr = expressions[-1]
+    if not isinstance(last_expr, Select):
+        return False
 
-    return last_statement.type == duckdb.StatementType.SELECT and (
-        "LIMIT " in last_statement.query.upper()
-        or "LIMIT\n" in last_statement.query.upper()
-    )
+    # Look for any LIMIT clause in the SELECT statement
+    return last_expr.find(Limit) is not None
 
 
-def _wrapped_sql(query: str) -> "duckdb.DuckDBPyRelation":
-    import duckdb
-
+def _execute_query(query: str, engine: SQLEngine) -> Any:
     # In Python globals() are scoped to modules; since this function
     # is in a different module than user code, globals() doesn't return
     # the kernel globals, it just returns this module's global namespace.
     #
     # However, duckdb needs access to the kernel's globals. For this reason,
     # we manually exec duckdb and provide it with the kernel's globals.
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return engine.execute(query)
+    else:
+        return eval(
+            "engine.execute(query)",
+            ctx.globals,
+            {"query": query, "engine": engine},
+        )
+
+
+def wrapped_sql(query: str) -> "duckdb.DuckDBPyRelation":
+    import duckdb
+
+    # Same as above, but for plain duckdb
     try:
         ctx = get_context()
     except ContextNotInitializedError:

@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnSummary, DataType
-from marimo._sql.sql import _wrapped_sql
+from marimo._sql.sql import wrapped_sql
 
 
 def get_sql_summary(
@@ -66,7 +66,7 @@ def get_sql_summary(
         FROM {table_name}
         """  # noqa: E501
 
-    stats_result: Tuple[int, ...] | None = _wrapped_sql(stats_query).fetchone()
+    stats_result: Tuple[int, ...] | None = wrapped_sql(stats_query).fetchone()
     if stats_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"
@@ -141,7 +141,7 @@ def get_column_type(table_name: str, column_name: str) -> DataType:
     AND column_name = '{column_name}'
     """
 
-    column_info_result: Tuple[str] | None = _wrapped_sql(
+    column_info_result: Tuple[str] | None = wrapped_sql(
         column_info_query
     ).fetchone()
     if column_info_result is None:
