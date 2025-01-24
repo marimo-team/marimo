@@ -56,6 +56,12 @@ export const FindReplace: React.FC = () => {
     return openFindReplacePanel();
   });
 
+  const resetMatches = () => {
+    const matches = getMatches();
+    // False count means an invalid regex
+    setMatches(matches === false ? undefined : matches);
+  };
+
   useEffect(() => {
     if (state.isOpen && findInputRef.current) {
       findInputRef.current.focus(); // Focus the input
@@ -97,11 +103,6 @@ export const FindReplace: React.FC = () => {
           .get(selection.view)
           ?.get(`${selection.range.from}:${selection.range.to}`)
       : undefined;
-
-  const resetMatches = () => {
-    const matches = getMatches();
-    setMatches(matches === false ? undefined : matches);
-  };
 
   return (
     <FocusScope restoreFocus={true} autoFocus={true}>
