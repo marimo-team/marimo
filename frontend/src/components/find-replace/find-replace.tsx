@@ -100,6 +100,11 @@ export const FindReplace: React.FC = () => {
           ?.get(`${selection.range.from}:${selection.range.to}`)
       : undefined;
 
+  const resetMatches = () => {
+    const matches = getMatches();
+    setMatches(matches === false ? undefined : matches);
+  };
+
   return (
     <FocusScope restoreFocus={true} autoFocus={true}>
       <div
@@ -205,8 +210,10 @@ export const FindReplace: React.FC = () => {
                 size="xs"
                 variant="outline"
                 className="h-6 text-xs"
-                onClick={() => replaceNext()}
-                disabled={state.findText === "" || state.replaceText === ""}
+                onClick={() => {
+                  replaceNext() && resetMatches();
+                }}
+                disabled={state.findText === ""}
               >
                 Replace Next
               </Button>
@@ -220,6 +227,7 @@ export const FindReplace: React.FC = () => {
                   if (!undo) {
                     return;
                   }
+                  resetMatches();
 
                   // Show toast with undo button
                   const { dismiss } = toast({
@@ -235,7 +243,7 @@ export const FindReplace: React.FC = () => {
                     ),
                   });
                 }}
-                disabled={state.findText === "" || state.replaceText === ""}
+                disabled={state.findText === ""}
               >
                 Replace All
               </Button>
