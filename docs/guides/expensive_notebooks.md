@@ -64,19 +64,42 @@ execution of other parts. See the
 
 ## Caching
 
-### Cache computations with `@mo.cache`
+marimo provides two caching utilities to help you manage expensive computations:
+
+1. In-memory caching with [`mo.cache`][marimo.cache]
+2. Disk caching with [`mo.persistent_cache`][marimo.persistent_cache]
+
+Both utilities can be used as decorators or context managers.
+
+### In-memory caching
 
 Use [`mo.cache`][marimo.cache] to cache the return values of
 expensive functions, based on their arguments:
 
+/// tab | decorator
+
 ```python
-import mo
+import marimo as mo
 
 @mo.cache
 def compute_predictions(problem_parameters):
   # do some expensive computations and return a value
   ...
 ```
+
+///
+
+/// tab | context manager
+
+```python
+import marimo as mo
+
+with mo.cache("my_cache") as c:
+    predictions = compute_predictions(problem_parameters):
+```
+
+///
+
 
 When `compute_predictions` is called with a value of
 `problem_parameters` it hasn't seen, it will compute the predictions and store
@@ -86,25 +109,27 @@ previously computed value from the cache.
 
 ??? note "Comparison to `functools.cache`"
 
-    `mo.cache` is like `functools.cache` but smarter. `functools` will sometimes
-    evict values from the cache when it doesn't need to.
+    [`mo.cache`][marimo.cache] is like `functools.cache` but smarter.
+    `functools` will sometimes evict values from the cache when it doesn't need to.
 
     In particular, consider the case when a cell defining a `@mo.cache`-d function
     re-runs due to an ancestor of it running, or a UI element value changing.
-    `mo.cache` will use sophisticated analysis of the dataflow graph to determine
-    whether or not the decorated function has changed, and if it hasn't, it's
-    cache won't be invalidated. In contrast, on re-run a `functools` cache is
-    always invalidated, because `functools` has no knowledge about the structure
-    of marimo's dataflow graph.
+    `mo.cache` will analyze the dataflow graph to determine whether or not the
+    decorated function has changed, and if it hasn't, it's cache won't be
+    invalidated. In contrast, on re-run a `functools` cache is always invalidated,
+    because `functools` has no knowledge about the structure of marimo's dataflow
+    graph.
 
-    Conversely, `mo.cache` knows to invalidate the cache if closed over variables
-    change, whereas `functools.cache` doesn't, yielding incorrect cache hits.
+    Conversely, [`mo.cache`][marimo.cache] knows to invalidate the cache if
+    closed over variables change, whereas `functools.cache` doesn't, yielding
+    incorrect cache hits.
 
-    `mo.cache` is slightly slower than `functools.cache`, but in most applications
-    the overhead is negligible. For performance critical code, where the decorated
-    function will be called in a tight loop, prefer `functools.cache`.
+    [`mo.cache`][marimo.cache] is slightly slower than `functools.cache`, but
+    in most applications the overhead is negligible. For performance critical code,
+    where the decorated function will be called in a tight loop, prefer
+    `functools.cache`.
 
-### Save and load from disk with `mo.persistent_cache`
+### Disk caching
 
 Use [`mo.persistent_cache`][marimo.persistent_cache] to cache variables to
 disk. The next time your run your notebook, the cached variables will be loaded
@@ -115,21 +140,38 @@ notebook restarts. Cached outputs are automatically saved to `__marimo__/cache`.
 
 **Example.**
 
+/// tab | decorator
+
+```python
+import marimo as mo
+
+@mo.persistent_cache(name="my_cache")
+def compute_predictions(problem_parameters):
+    # do some expensive computations and return a value
+    ...
+```
+///
+
+
+/// tab | context manager
+
 ```python
 import marimo as mo
 
 with mo.persistent_cache(name="my_cache"):
     # This block of code and its computed variables will be cached to disk
-    # the first time it's run. The next time it's run, `my_variable`
+    # the first time it's run. The next time it's run, `predictions``
     # will be loaded from disk.
-    my_variable = some_expensive_function()
+    predictions = compute_predictions(problem_parameters)
     ...
 ```
 
-Roughly speaking, `mo.persistent_cache` registers a cache hit when the cell
-is not stale, meaning its code hasn't changed and neither have its ancestors.
-On cache hit the code block won't execute and instead variables will be loaded
-into memory.
+///
+
+Roughly speaking, [`mo.persistent_cache`][marimo.persistent_cache] registers a
+cache hit when the cell is not stale, meaning its code hasn't changed and
+neither have its ancestors. On cache hit the code block won't execute and
+instead variables will be loaded into memory.
 
 ## Lazy-load expensive UIs
 
