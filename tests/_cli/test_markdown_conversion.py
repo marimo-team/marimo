@@ -63,9 +63,7 @@ def convert_from_py(py: str) -> str:
 )
 def test_markdown_snapshots() -> None:
     for name, mod in modules.items():
-        output = sanitized_version(
-            export_as_md(MarimoPath(mod.__file__)).contents
-        )
+        output = export_as_md(MarimoPath(mod.__file__)).contents
         snapshot(f"{name}.md.txt", output)
 
 
@@ -100,7 +98,7 @@ def test_markdown_frontmatter() -> None:
     ```
     """[1:]
     )
-    output = sanitized_version(convert_from_md(script))
+    output = convert_from_md(script)
     assert 'app_title="My Title"' in output
     snapshot("frontmatter-test.py.txt", output)
 
@@ -210,9 +208,7 @@ def test_python_to_md_code_injection() -> None:
         """[1:]
     )
     maybe_unsafe_md = convert_from_py(unsafe_app).strip()
-    maybe_unsafe_py = sanitized_version(
-        convert_from_md(maybe_unsafe_md).strip()
-    )
+    maybe_unsafe_py = convert_from_md(maybe_unsafe_md).strip()
     snapshot("unsafe-app.py.txt", maybe_unsafe_py)
     snapshot("unsafe-app.md.txt", maybe_unsafe_md)
 
