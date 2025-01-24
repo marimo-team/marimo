@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
+from marimo._runtime.context import get_context
+from marimo._runtime.state import State
 from marimo._save.cache import CACHE_PREFIX, Cache, CacheType
 
 if TYPE_CHECKING:
@@ -20,6 +22,60 @@ INCONSISTENT_CACHE_BOILER_PLATE = (
 )
 
 
+LoaderType = TypeVar("LoaderType", bound="Loader")
+
+
+class LoaderPartial:
+    """Cache implementation sometimes requires a deferred construction.
+    Moreover, for a cache persistence, we utilize the state registry to store
+    the loader such that the loader object is not actually reconstructed if it
+    does not need to be.
+    """
+
+    def __init__(self, loader_type: type[Loader], **kwargs: Any) -> None:
+        self.loader_type = loader_type
+        self.kwargs = kwargs
+
+    def __call__(self, name: str) -> Loader:
+        try:
+            return self.loader_type(name, **self.kwargs)
+        except TypeError as e:
+            raise TypeError(
+                f"Could not create {self.loader_type} from the construction "
+                f"arguments: [{', '.join(self.kwargs.keys())}]. Consider "
+                "setting these arguments explicitly with "
+                f"{self.loader_type}.partial(needed_arg=value)."
+            ) from e
+
+    def create_or_reconfigure(
+        self, name: str, context: str = "cache_partial"
+    ) -> State[Loader]:
+        ctx = get_context()
+        if ctx.state_registry is None:
+            return State(self(name), _name=name, _context=context)
+
+        loader_state: State[Loader] | None = ctx.state_registry.lookup(
+            name, context=context
+        )
+        if loader_state is None:
+            loader = self(name)
+            # State creation automatically registers itself.
+            return State(loader, _name=name, _context=context)
+        else:
+            loader = loader_state()
+            if isinstance(loader, self.loader_type):
+                # Manually set the attributes of the old loader.
+                # Overriding attr.setter is useful for
+                # managed behavior.
+                for key, value in self.kwargs.items():
+                    setattr(loader, key, value)
+            else:
+                loader = self(name)
+                # Replace the previous loader with the new construction.
+                loader_state._set_value(loader)
+        return loader_state
+
+
 class Loader(ABC):
     """Loaders are responsible for saving and loading persistent caches.
 
@@ -33,6 +89,7 @@ class Loader(ABC):
 
     def __init__(self, name: str) -> None:
         self.name = name
+        self._hits = 0
 
     def build_path(self, hashed_context: str, cache_type: CacheType) -> Path:
         prefix = CACHE_PREFIX.get(cache_type, "U_")
@@ -60,6 +117,7 @@ class Loader(ABC):
         assert set(defs | stateful_refs) == set(loaded.defs), (
             INCONSISTENT_CACHE_BOILER_PLATE
         )
+        self._hits += 1
         return Cache(
             loaded.defs,
             hashed_context,
@@ -68,6 +126,21 @@ class Loader(ABC):
             True,
             loaded.meta,
         )
+
+    @property
+    def hits(self) -> int:
+        return self._hits
+
+    @classmethod
+    def partial(cls, **kwargs: Any) -> LoaderPartial:
+        return LoaderPartial(cls, **kwargs)
+
+    @classmethod
+    def cache(cls, *args: Any, **kwargs: Any) -> Any:
+        """General `mo.cache` api for this loader"""
+        from marimo._save.save import cache
+
+        return cache(*args, loader=cls, **kwargs)  # type: ignore
 
     @abstractmethod
     def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
