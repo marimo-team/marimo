@@ -20,4 +20,4 @@ def is_editable(pkg_name: str) -> bool:
     pkg_is_editable = (
         json.loads(direct_url).get("dir_info", {}).get("editable", False)
     )
-    return pkg_is_editable
+    return bool(pkg_is_editable)
