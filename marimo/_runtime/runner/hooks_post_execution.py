@@ -133,9 +133,12 @@ def _broadcast_data_source_connection(
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
-    engines = get_engines_from_variables(
-        [(variable, runner.glbls[variable]) for variable in cell.defs]
-    )
+    variables = []
+    for variable in cell.defs:
+        if variable in runner.glbls:
+            variables.append((variable, runner.glbls[variable]))
+    engines = get_engines_from_variables(variables)
+
     if engines:
         LOGGER.debug("Broadcasting data source connections")
         DataSourceConnections(
