@@ -163,7 +163,11 @@ class TestExportHTML:
         )
         assert "<marimo-wasm" in html
 
-    # if hangs on watchdog, add a dependency check
+    @pytest.mark.skipif(
+        # if hangs on watchdog, add a dependency check
+        condition=_is_win32(),
+        reason="flaky on Windows",
+    )
     @staticmethod
     def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:
         out_dir = Path(temp_marimo_file).parent / "out"
