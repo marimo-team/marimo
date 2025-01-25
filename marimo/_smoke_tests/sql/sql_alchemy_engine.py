@@ -23,48 +23,50 @@ def _(mo):
 
 
 @app.cell
-def _(sa):
+def _(mo, products, sa):
     from sqlalchemy import text
 
     # Create an in-memory SQLite database
-    engine = sa.create_engine("sqlite:///:memory:")
+    sqlite = sa.create_engine("sqlite:///:memory:")
 
-    with engine.connect() as con:
-        con.execute(
-            text("""
-        CREATE TABLE products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            category TEXT NOT NULL
-        )
-        """)
-        )
+    mo.sql("DROP TABLE IF EXISTS products;", engine=sqlite)
 
-        con.execute(
-            text("""
-        INSERT INTO products (name, price, category) VALUES
-            ('Laptop', 999.99, 'Electronics'),
-            ('Coffee Maker', 49.99, 'Appliances'),
-            ('Headphones', 79.99, 'Electronics'),
-            ('Toaster', 29.99, 'Appliances'),
-            ('Smartphone', 599.99, 'Electronics'),
-            ('Blender', 39.99, 'Appliances')
-        """)
-        )
-        con.commit()
-    return con, engine, text
+    mo.sql(
+        """
+    CREATE TABLE products (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        category TEXT NOT NULL
+    );
+    """,
+        engine=sqlite,
+    )
+
+    mo.sql(
+        """
+    INSERT INTO products (name, price, category) VALUES
+        ('Laptop', 999.99, 'Electronics'),
+        ('Coffee Maker', 49.99, 'Appliances'),
+        ('Headphones', 79.99, 'Electronics'),
+        ('Toaster', 29.99, 'Appliances'),
+        ('Smartphone', 599.99, 'Electronics'),
+        ('Blender', 39.99, 'Appliances');
+    """,
+        engine=sqlite,
+    )
+    return products, sqlite, text
 
 
 @app.cell
-def _(engine, mo, products):
+def _(mo, products, sqlite):
     products = mo.sql(
         """
     SELECT name, price, category
     FROM products
     ORDER BY price DESC
     """,
-        engine=engine,
+        engine=sqlite,
     )
     return (products,)
 
@@ -99,7 +101,7 @@ def _(mo):
 
 
 @app.cell
-def _(engine, mo, products):
+def _(mo, products, sqlite):
     mo.sql(
         """
     -- Category summary
@@ -113,7 +115,7 @@ def _(engine, mo, products):
     GROUP BY category
     ORDER BY avg_price DESC
     """,
-        engine=engine,
+        engine=sqlite,
     )
     return
 
@@ -129,7 +131,7 @@ def _(mo):
 
 
 @app.cell
-def _(engine, mo, price_threshold, products):
+def _(mo, price_threshold, products, sqlite):
     mo.sql(
         f"""
     SELECT name, price, category
@@ -137,7 +139,7 @@ def _(engine, mo, price_threshold, products):
     WHERE price < {price_threshold.value}
     ORDER BY price DESC
     """,
-        engine=engine,
+        engine=sqlite,
     )
     return
 

@@ -156,6 +156,23 @@ def test_sql_output_formatting() -> None:
     #         mock_replace.assert_called_once()
 
 
+@pytest.mark.xfail(
+    reason="Multiple select statements are not supported for sqlite"
+)
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sql_multiple_statements(sqlite_engine: sa.Engine) -> None:
+    import pandas as pd
+    import polars as pl
+
+    multi_statement = """
+    SELECT 1, 2;
+    SELECT 3, 4;
+    """
+    result = sql(multi_statement, engine=sqlite_engine)
+    assert isinstance(result, (pd.DataFrame, pl.DataFrame))
+    assert len(result) == 2
+
+
 @pytest.mark.skipif(not HAS_SQLGLOT, reason="sqlglot not installed")
 def test_query_includes_limit() -> None:
     """Test _query_includes_limit function."""

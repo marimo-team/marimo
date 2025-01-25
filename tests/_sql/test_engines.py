@@ -102,6 +102,7 @@ def test_duckdb_engine_execute(
     duckdb_connection: duckdb.DuckDBPyConnection,
 ) -> None:
     """Test DuckDBEngine execute with both connection and no connection."""
+    import duckdb
     import pandas as pd
     import polars as pl
 
@@ -110,6 +111,14 @@ def test_duckdb_engine_execute(
     result = _execute_query("SELECT * FROM test ORDER BY id", engine)
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
     assert len(result) == 3
+
+    # Test empty SQL
+    result = _execute_query("", engine)
+    assert result is None
+
+    # Test invalid SQL
+    with pytest.raises(duckdb.Error):
+        result = _execute_query("SELECT *", engine)
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

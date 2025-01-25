@@ -26,13 +26,14 @@ def get_default_result_limit() -> Optional[int]:
 
 if TYPE_CHECKING:
     import duckdb
+    import sqlalchemy
 
 
 @mddoc
 def sql(
     query: str,
     output: bool = True,
-    engine: Optional[Any] = None,
+    engine: Optional[sqlalchemy.Engine | duckdb.DuckDBPyConnection] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -53,6 +54,9 @@ def sql(
     Returns:
         The result of the query.
     """
+    if query is None or query.strip() == "":
+        return None
+
     if engine is None:
         DependencyManager.duckdb.require("to execute sql")
         engine = DuckDBEngine(connection=None)
