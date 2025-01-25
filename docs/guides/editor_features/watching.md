@@ -45,11 +45,15 @@ Guide](module_autoreloading.md)
 !!! note
     Support for watching data files and automatically refreshing cells that depend on them is coming soon. Follow along at <https://github.com/marimo-team/marimo/issues/3258>
 
-## Developing in WASM mode
+## Hot-reloading WebAssembly notebooks
 
-Follow these steps to develop a notebook using your own editor, while previewing it as a WebAssembly notebook in the browser. This lets you take advantage of local development tools while seeing the notebook as it appears when deployed as a [WebAssembly notebook](../wasm.md).
+Follow these steps to develop a notebook using your own editor while
+previewing it as a [WebAssembly notebook](../wasm.md) in the browser. This lets
+you take advantage of local development tools while seeing the notebook as it
+appears when deployed as a WebAssembly notebook.
+
 ```bash
-# in one terminal, start a watched edit session
+# in one terminal, start a watched edit (or run) session
 marimo edit notebook.py --watch
 
 # in another terminal

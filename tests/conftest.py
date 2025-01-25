@@ -229,6 +229,16 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
+def _cleanup_tmp_dir(tmp_dir: TemporaryDirectory) -> None:
+    try:
+        # Tests shouldn't care whether temporary directory cleanup
+        # fails. Python 3.10+ has an ignore_cleanup_error argument,
+        # but we still support 3.9.
+        tmp_dir.cleanup()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def temp_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
@@ -258,7 +268,7 @@ def temp_marimo_file() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -301,7 +311,7 @@ def temp_sandboxed_marimo_file() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -330,7 +340,7 @@ def temp_async_marimo_file() -> Generator[str, None, None]:
             f.flush()
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -372,7 +382,7 @@ def temp_unparsable_marimo_file() -> Generator[str, None, None]:
             f.flush()
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -416,7 +426,7 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -449,7 +459,7 @@ def temp_md_marimo_file() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -486,7 +496,7 @@ def temp_marimo_file_with_errors() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -518,7 +528,7 @@ def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 # Factory to create ExecutionRequests and abstract away cell ID
