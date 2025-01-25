@@ -47,9 +47,9 @@ Guide](module_autoreloading.md)
 
 ## Developing in WASM mode
 
-You can develop a notebook locally and preview it as a WASM application. This lets you take advantage of local development tools while seeing the notebook as it will appear when deployed to production.
+Follow these steps to develop a notebook using your own editor, while previewing it as a WebAssembly notebook in the browser. This lets you take advantage of local development tools while seeing the notebook as it appears when deployed as a [WebAssembly notebook](../wasm.md).
 ```bash
-# in one terminal, edit your notebook here / editor of choice
+# in one terminal, start a watched edit session
 marimo edit notebook.py --watch
 
 # in another terminal
