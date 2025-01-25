@@ -235,7 +235,7 @@ def _cleanup_tmp_dir(tmp_dir: TemporaryDirectory) -> None:
         # fails. Python 3.10+ has an ignore_cleanup_error argument,
         # but we still support 3.9.
         tmp_dir.cleanup()
-    except:
+    except Exception:
         pass
 
 
