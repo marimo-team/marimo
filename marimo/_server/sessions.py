@@ -13,10 +13,12 @@ even if its socket is closed.
 """
 
 from __future__ import annotations
-
 import asyncio
 import multiprocessing as mp
+from multiprocessing import connection
+from multiprocessing.queues import Queue as MPQueue
 import os
+from pathlib import Path
 import queue
 import shutil
 import signal
@@ -24,10 +26,7 @@ import subprocess
 import sys
 import threading
 import time
-from multiprocessing import connection
-from multiprocessing.queues import Queue as MPQueue
-from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, TYPE_CHECKING, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -68,16 +67,16 @@ from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
 from marimo._tracer import server_tracer
 from marimo._utils.disposable import Disposable
-from marimo._utils.distributor import (
-    ConnectionDistributor,
-    QueueDistributor,
-)
+from marimo._utils.distributor import ConnectionDistributor, QueueDistributor
 from marimo._utils.file_watcher import FileWatcherManager
 from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    import multiprocessing.context
 
 
 class QueueManager:
@@ -166,7 +165,10 @@ class KernelManager:
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[threading.Thread | mp.Process] = None
+        self.kernel_task: Optional[
+            threading.Thread | multiprocessing.context.SpawnProcess
+        ] = None
+        self._mpctx = mp.get_context("spawn")
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -187,7 +189,11 @@ class KernelManager:
         if is_edit_mode:
             # Need to use a socket for windows compatibility
             listener = connection.Listener(family="AF_INET")
-            self.kernel_task = mp.Process(
+            print(sys.version)
+            self._mpctx.set_executable(
+                "/home/akshay/envs/marimo-kernel-test/bin/python"
+            )
+            self.kernel_task = self._mpctx.Process(
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
@@ -206,6 +212,7 @@ class KernelManager:
                     self.queue_manager.win32_interrupt_queue,
                     self.profile_path,
                     GLOBAL_SETTINGS.LOG_LEVEL,
+                    #"/home/akshay/envs/marimo-kernel-test/"
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -254,6 +261,9 @@ class KernelManager:
                     None,
                     # log level
                     GLOBAL_SETTINGS.LOG_LEVEL,
+                    # run mode doesn't allow for changing the Python
+                    # environment
+                    None,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes

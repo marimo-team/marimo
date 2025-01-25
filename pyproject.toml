@@ -151,7 +151,7 @@ dependencies = ["uv>=0.4.17"]
 
 [tool.hatch.envs.default]
 features = ["dev"]
-python = "3.12"
+python = "3.11"
 installer = "uv"
 dependencies = [
     "uv>=0.4.17", # so we can bump the version used by hatch

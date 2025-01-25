@@ -84,6 +84,24 @@ __all__ = [
 ]
 __version__ = "0.10.13"
 
+import sys
+
+print(sys.executable)
+print(sys.path)
+
+
+if "kernel-test" in sys.executable:
+    with open(
+        "/home/akshay/envs/marimo-kernel-test/bin/activate_this.py"
+    ) as f:
+        exec(
+            f.read(),
+            {
+                "__file__": "/home/akshay/envs/marimo-kernel-test/bin/activate_this.py"
+            },
+        )
+    print(sys.path)
+
 import marimo._ai as ai
 import marimo._islands as islands
 from marimo._ast.app import App

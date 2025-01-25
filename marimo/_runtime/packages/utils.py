@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import os
+import site
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 from marimo._utils.platform import is_pyodide
@@ -98,3 +100,50 @@ def split_packages(package: str) -> List[str]:
         packages.append(" ".join(current_package))
 
     return [pkg.strip() for pkg in packages]
+
+
+def activate_environment(environment: Path) -> None:
+    """Activate the virtual environment at `environment`
+
+    Adapted from virtualenv's bin/activate_this.py.
+    """
+    # virtual env is right above bin directory
+    bin_dir = environment / "bin"
+
+    # prepend bin to PATH (this file is inside the bin directory)
+    os.environ["PATH"] = os.pathsep.join(
+        [str(bin_dir), *os.environ.get("PATH", "").split(os.pathsep)]
+    )
+    os.environ["VIRTUAL_ENV"] = str(environment)
+    os.environ["VIRTUAL_ENV_PROMPT"] = "" or os.path.basename(str(environment))  # noqa: SIM222
+
+    lib_dir = environment / "lib"
+    if not lib_dir.exists():
+        raise RuntimeError(f"Virtual environment {environment} does not exist")
+    python_dirname: str | None = None
+    for d in lib_dir.iterdir():
+        if d.is_dir() and d.name.startswith("python"):
+            python_dirname = d.name
+            break
+    if python_dirname is None:
+        raise RuntimeError(
+            "Failed to activate virtuale environment: "
+            f" could not find python directory in {lib_dir}"
+        )
+
+    # Add the virtual environments libraries to the host python import mechanism
+    prev_length = len(sys.path)
+    for lib in f"../lib/{python_dirname}/site-packages".split(os.pathsep):
+        path = os.path.realpath(os.path.join(bin_dir, lib))
+        site.addsitedir(path.decode("utf-8") if "" else path)
+
+    # TODO(akshayka): Remove the old environment from the path
+    # as a heuristic, remove any other site-packages directories from the path;
+    # we should instead really just figure out how to bootstrap sys.path
+    original_path = [
+        p for p in sys.path[0:prev_length] if "site-packages" not in p
+    ]
+
+    sys.path[:] = sys.path[prev_length:] + original_path
+    sys.real_prefix = sys.prefix
+    sys.prefix = str(environment)

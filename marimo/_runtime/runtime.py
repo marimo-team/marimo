@@ -85,7 +85,10 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
-from marimo._runtime.packages.utils import is_python_isolated
+from marimo._runtime.packages.utils import (
+    activate_environment,
+    is_python_isolated,
+)
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -2102,7 +2105,11 @@ def launch_kernel(
     interrupt_queue: QueueType[bool] | None = None,
     profile_path: Optional[str] = None,
     log_level: int | None = None,
+    environment: str | None = None,
 ) -> None:
+    #if environment is not None:
+    #    activate_environment(pathlib.Path(environment))
+
     if log_level is not None:
         _loggers.set_level(log_level)
     LOGGER.debug("Launching kernel")
