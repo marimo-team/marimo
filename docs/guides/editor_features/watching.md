@@ -45,3 +45,17 @@ Guide](module_autoreloading.md)
 !!! note
     Support for watching data files and automatically refreshing cells that depend on them is coming soon. Follow along at <https://github.com/marimo-team/marimo/issues/3258>
 
+## Developing in WASM mode
+
+You can develop a notebook locally and preview it as a WASM application. This lets you take advantage of local development tools while seeing the notebook as it will appear when deployed to production.
+```bash
+# in one terminal, edit your notebook here / editor of choice
+marimo edit notebook.py --watch
+
+# in another terminal
+marimo export html-wasm notebook.py -o output_dir --watch
+
+# in a third terminal, serve the WASM application
+cd path/to/output_dir
+python -m http.server  # or a server that watches for changes
+```

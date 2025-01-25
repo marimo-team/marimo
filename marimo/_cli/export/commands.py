@@ -415,6 +415,12 @@ and cannot be opened directly from the file system (e.g. file://).
     required=True,
 )
 @click.option(
+    "--watch/--no-watch",
+    default=False,
+    show_default=True,
+    help=("Whether to watch the original file and export upon change"),
+)
+@click.option(
     "--show-code/--no-show-code",
     default=False,
     show_default=True,
@@ -432,6 +438,7 @@ def html_wasm(
     name: str,
     output: str,
     mode: Literal["edit", "run"],
+    watch: bool,
     show_code: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
@@ -475,7 +482,7 @@ def html_wasm(
     )
 
     outfile = os.path.join(out_dir, filename)
-    return watch_and_export(MarimoPath(name), outfile, False, export_callback)
+    return watch_and_export(MarimoPath(name), outfile, watch, export_callback)
 
 
 export.add_command(html)

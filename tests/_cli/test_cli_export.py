@@ -163,6 +163,45 @@ class TestExportHTML:
         assert "<marimo-wasm" in html
 
     @staticmethod
+    def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                out_dir,
+                "--watch",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        watch_echo_found = False
+        for _ in range(10):  # try 10 times
+            line = p.stdout.readline()
+            if not line:
+                break
+            line_str = line.decode()
+            if f"Watching {temp_marimo_file}" in line_str:
+                watch_echo_found = True
+                break
+        assert watch_echo_found is True
+
+        # Modify file
+        with open(temp_marimo_file, "a") as f:
+            f.write("\n# comment\n")
+
+        assert p.poll() is None
+        for _ in range(5):
+            line = p.stdout.readline().decode()
+            if line:
+                assert "Re-exporting" in line
+                break
+
+    @staticmethod
     def test_cli_export_async(temp_async_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "html", temp_async_marimo_file],
