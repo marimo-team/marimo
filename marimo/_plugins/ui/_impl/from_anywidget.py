@@ -133,7 +133,9 @@ class anywidget(UIElement[T, T]):
             _put_buffers(change, buffer_paths, buffers)
             widget.set_state(change)
 
-        js_hash: str = hashlib.md5(js.encode("utf-8"), usedforsecurity=False).hexdigest()
+        js_hash: str = hashlib.md5(
+            js.encode("utf-8"), usedforsecurity=False
+        ).hexdigest()
 
         super().__init__(
             component_name="marimo-anywidget",
