@@ -7,6 +7,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from os import path
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -160,6 +161,52 @@ class TestExportHTML:
             not in html
         )
         assert "<marimo-wasm" in html
+
+    @pytest.mark.skipif(
+        # if hangs on watchdog, add a dependency check
+        condition=_is_win32(),
+        reason="flaky on Windows",
+    )
+    @staticmethod
+    def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                out_dir,
+                "--watch",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        watch_echo_found = False
+        for _ in range(10):  # read 10 lines
+            line = p.stdout.readline()
+            if not line:
+                break
+            line_str = line.decode()
+            if f"Watching {temp_marimo_file}" in line_str:
+                watch_echo_found = True
+                break
+            time.sleep(0.01)  # avoid flaky test
+        assert watch_echo_found is True
+
+        # Modify file
+        with open(temp_marimo_file, "a") as f:
+            f.write("\n# comment\n")
+
+        assert p.poll() is None
+        for _ in range(5):
+            line = p.stdout.readline().decode()
+            if line:
+                assert "Re-exporting" in line
+                break
+            time.sleep(0.01)
 
     @staticmethod
     def test_cli_export_async(temp_async_marimo_file: str) -> None:

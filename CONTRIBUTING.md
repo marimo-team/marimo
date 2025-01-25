@@ -168,7 +168,9 @@ make fe-test
 
 ### Python
 
-Using Make:
+We use [pytest syntax](https://docs.pytest.org/en/stable/how-to/usage.html) for Python tests.
+
+#### Using Make
 
 ```bash
 make py-test
@@ -176,27 +178,25 @@ make py-test
 
 #### Using Hatch
 
-**Run a specific tests.**
+Run a specific test
 
 ```bash
 hatch run test:test tests/_ast/
 ```
 
-**Run a specific test with optional dependencies.**
-
+Run tests with optional dependencies
 ```bash
 hatch run test-optional:test tests/_ast/
 ```
 
-**Run tests with a specific Python version.**
-
+Run tests with a specific Python version
 ```bash
 hatch run +py=3.10 test:test tests/_ast/
 # or
 hatch run +py=3.10 test-optional:test tests/_ast/
 ```
 
-**Run all tests across all Python versions.**
+Run all tests across all Python versions
 
 Not recommended since it takes a long time.
 
