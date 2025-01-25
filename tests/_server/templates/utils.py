@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 import re
 
-from marimo import __version__
-
 
 def remove_hash_from_href(url: str) -> str:
     base, ext = os.path.splitext(url)
@@ -39,5 +37,4 @@ def normalize_index_html(index_html: str) -> str:
         lambda x: remove_hash_from_href(x.group(0)),
         index_html,
     )
-    index_html = index_html.replace(__version__, "0.0.0")
     return index_html

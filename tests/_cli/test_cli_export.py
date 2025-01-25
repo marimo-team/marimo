@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
@@ -422,7 +421,6 @@ class TestExportScript:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("script.txt", output)
 
     @staticmethod
@@ -469,7 +467,6 @@ class TestExportScript:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("script_with_errors.txt", output)
 
     @pytest.mark.skipif(
@@ -556,7 +553,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("markdown.txt", output)
 
     @staticmethod
@@ -567,7 +563,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("async.txt", output)
 
     @staticmethod
@@ -578,7 +573,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("broken.txt", output)
 
     @staticmethod
@@ -591,7 +585,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("export_markdown_with_errors.txt", output)
 
     @pytest.mark.skipif(
@@ -792,7 +785,7 @@ class TestExportIpynb:
         assert p.returncode != 0, p.stderr.decode()
         assert "ZeroDivisionError" in p.stderr.decode()
         output = p.stdout.decode()
-        output = _delete_lines_with_files(output.replace(__version__, "0.0.0"))
+        output = _delete_lines_with_files(output)
         snapshot("ipynb_with_errors.txt", output)
 
     @staticmethod
