@@ -7,6 +7,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from os import path
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -162,6 +163,7 @@ class TestExportHTML:
         )
         assert "<marimo-wasm" in html
 
+    # if hangs on watchdog, add a dependency check
     @staticmethod
     def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:
         out_dir = Path(temp_marimo_file).parent / "out"
@@ -180,7 +182,7 @@ class TestExportHTML:
         )
 
         watch_echo_found = False
-        for _ in range(10):  # try 10 times
+        for _ in range(10):  # read 10 lines
             line = p.stdout.readline()
             if not line:
                 break
@@ -188,6 +190,7 @@ class TestExportHTML:
             if f"Watching {temp_marimo_file}" in line_str:
                 watch_echo_found = True
                 break
+            time.sleep(0.01)  # avoid flaky test
         assert watch_echo_found is True
 
         # Modify file
@@ -200,6 +203,7 @@ class TestExportHTML:
             if line:
                 assert "Re-exporting" in line
                 break
+            time.sleep(0.01)
 
     @staticmethod
     def test_cli_export_async(temp_async_marimo_file: str) -> None:
