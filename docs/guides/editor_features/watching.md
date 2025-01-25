@@ -48,9 +48,9 @@ Guide](module_autoreloading.md)
 ## Hot-reloading WebAssembly notebooks
 
 Follow these steps to develop a notebook using your own editor while
-previewing it as a WebAssembly notebook in the browser. This lets you take
-advantage of local development tools while seeing the notebook as it appears
-when deployed as a [WebAssembly notebook](../wasm.md).
+previewing it as a [WebAssembly notebook](../wasm.md) in the browser. This lets
+you take advantage of local development tools while seeing the notebook as it
+appears when deployed as a WebAssembly notebook.
 
 ```bash
 # in one terminal, start a watched edit (or run) session
