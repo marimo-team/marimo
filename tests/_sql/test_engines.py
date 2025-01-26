@@ -13,7 +13,7 @@ from marimo._sql.engines import (
     SQLAlchemyEngine,
     raise_df_import_error,
 )
-from marimo._sql.sql import _execute_query
+from marimo._sql.sql import _execute_query, sql
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -32,6 +32,8 @@ def sqlite_engine() -> sa.Engine:
     from sqlalchemy import text
 
     engine = sa.create_engine("sqlite:///:memory:")
+
+    # Test if standard syntax works
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -53,6 +55,9 @@ def sqlite_engine() -> sa.Engine:
                 """
             )
         )
+
+    # Test if mo.sql works
+    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=engine)
     return engine
 
 
@@ -79,6 +84,7 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         (3, 'Charlie');
         """
     )
+    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=conn)
     yield conn
     conn.close()
 
@@ -102,7 +108,6 @@ def test_duckdb_engine_execute(
     duckdb_connection: duckdb.DuckDBPyConnection,
 ) -> None:
     """Test DuckDBEngine execute with both connection and no connection."""
-    import duckdb
     import pandas as pd
     import polars as pl
 
@@ -110,15 +115,7 @@ def test_duckdb_engine_execute(
     engine = DuckDBEngine(duckdb_connection)
     result = _execute_query("SELECT * FROM test ORDER BY id", engine)
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
-    assert len(result) == 3
-
-    # Test empty SQL
-    result = _execute_query("", engine)
-    assert result is None
-
-    # Test invalid SQL
-    with pytest.raises(duckdb.Error):
-        result = _execute_query("SELECT *", engine)
+    assert len(result) == 4
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -130,7 +127,7 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
     engine = SQLAlchemyEngine(sqlite_engine)
     result = _execute_query("SELECT * FROM test ORDER BY id", engine)
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
-    assert len(result) == 3
+    assert len(result) == 4
 
 
 def test_engine_compatibility() -> None:

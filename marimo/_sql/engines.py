@@ -80,30 +80,39 @@ class SQLAlchemyEngine(SQLEngine):
     def execute(self, query: str) -> Any:
         # Can't use polars.imported() because this is the first time we
         # might come across polars.
-        if (
-            DependencyManager.polars.has()
-            and DependencyManager.sqlalchemy.has()
+        if not (
+            DependencyManager.polars.has() or DependencyManager.pandas.has()
         ):
-            import polars as pl
+            raise_df_import_error("polars")
+
+        if DependencyManager.sqlalchemy.has():
             from sqlalchemy import text
 
             with self._engine.connect() as connection:
                 result = connection.execute(text(query))
                 connection.commit()
-                if result.returns_rows:
-                    return pl.DataFrame(result)
+
+            if not result.returns_rows:
                 return None
-        # TODO: The following doesn't work for ddl's, maybe suggest to install sqlalchemy
-        elif DependencyManager.polars.has():
+
+            if DependencyManager.polars.has():
+                import polars as pl
+
+                return pl.DataFrame(result)
+            else:
+                import pandas as pd
+
+                return pd.DataFrame(result)
+
+        # Fallback for non-SQLAlchemy execution, TODO: maybe suggest install sqlalchemy when fail
+        if DependencyManager.polars.has():
             import polars as pl
 
             return pl.read_database(query, connection=self._engine)
-        elif DependencyManager.pandas.has():
+        else:
             import pandas as pd
 
             return pd.read_sql_query(query, self._engine)
-        else:
-            raise_df_import_error("polars")
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

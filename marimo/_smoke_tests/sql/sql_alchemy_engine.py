@@ -60,7 +60,8 @@ def _(mo, products, sa):
 
 @app.cell
 def _(mo, products, sqlite):
-    products = mo.sql(
+    # TODO: This raises an error when defined as products (var defined previously)
+    products_df = mo.sql(
         """
     SELECT name, price, category
     FROM products
@@ -68,7 +69,7 @@ def _(mo, products, sqlite):
     """,
         engine=sqlite,
     )
-    return (products,)
+    return (products_df,)
 
 
 @app.cell(hide_code=True)
@@ -78,15 +79,15 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, products):
+def _(mo, products_df):
     mo.hstack(
         [
-            products,
+            products_df,
             mo.vstack(
                 [
                     mo.md("### Summary"),
-                    f"Total products: {len(products)}",
-                    f"Average price: ${products['price'].mean():.2f}",
+                    f"Total products: {len(products_df)}",
+                    f"Average price: ${products_df['price'].mean():.2f}",
                 ]
             ),
         ]

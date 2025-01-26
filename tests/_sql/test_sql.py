@@ -27,30 +27,26 @@ HAS_SQLGLOT = DependencyManager.sqlglot.has()
 def sqlite_engine() -> sa.Engine:
     """Create a temporary SQLite database for testing."""
     import sqlalchemy as sa
-    from sqlalchemy import text
 
     engine = sa.create_engine("sqlite:///:memory:")
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE test (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                INSERT INTO test (id, name) VALUES
-                (1, 'Alice'),
-                (2, 'Bob'),
-                (3, 'Charlie')
-                """
-            )
-        )
+    sql(
+        """
+        CREATE TABLE test (
+            id INTEGER PRIMARY KEY,
+            name TEXT
+        );
+        """,
+        engine=engine,
+    )
+    sql(
+        """
+        INSERT INTO test VALUES
+        (1, 'Alice'),
+        (2, 'Bob'),
+        (3, 'Charlie');
+        """,
+        engine=engine,
+    )
     return engine
 
 
@@ -60,21 +56,23 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
     import duckdb
 
     conn = duckdb.connect(":memory:")
-    conn.execute(
+    sql(
         """
         CREATE TABLE test (
             id INTEGER PRIMARY KEY,
             name TEXT
         );
-        """
+        """,
+        engine=conn,
     )
-    conn.execute(
+    sql(
         """
         INSERT INTO test VALUES
         (1, 'Alice'),
         (2, 'Bob'),
         (3, 'Charlie');
-        """
+        """,
+        engine=conn,
     )
 
     yield conn
@@ -111,6 +109,31 @@ def test_sql_with_invalid_engine() -> None:
     """Test sql function with invalid engine."""
     with pytest.raises(ValueError, match="Unsupported engine"):
         sql("SELECT 1", engine="invalid")
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_empty_sql(
+    sqlite_engine: sa.Engine, duckdb_connection: duckdb.DuckDBPyConnection
+) -> None:
+    result = sql("", engine=duckdb_connection)
+    assert result is None
+
+    result = sql("", engine=sqlite_engine)
+    assert result is None
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_invalid_sql(
+    sqlite_engine: sa.Engine, duckdb_connection: duckdb.DuckDBPyConnection
+) -> None:
+    import duckdb
+    import sqlalchemy
+
+    with pytest.raises(duckdb.Error):
+        sql("SELECT *", engine=duckdb_connection)
+
+    with pytest.raises(sqlalchemy.exc.StatementError):
+        sql("SELECT *", engine=sqlite_engine)
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
