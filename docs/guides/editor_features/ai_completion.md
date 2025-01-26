@@ -17,8 +17,8 @@ _Get started with Copilot_:
 2. Enable Copilot via the settings menu in the marimo editor.
 
 !!! note "Installation Requirement"
-   Copilot is not yet available in our conda distribution; please install
-   marimo using ``pip`` if you need Copilot.
+    Copilot is not yet available in our conda distribution; please install
+    marimo using ``pip`` if you need Copilot.
 
 ## Codeium Copilot
 
@@ -207,7 +207,8 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 
 4. Visit <http://127.0.0.1:11434> to confirm that the server is running.
 
-   > **Note**: If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
+!!! note "Port already in use"
+    If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
 5. Open a new terminal and start marimo:
 
