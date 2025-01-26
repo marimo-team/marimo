@@ -1089,24 +1089,21 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.tracing"
+              name="experimental.sql_engine"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Tracing sidebar
-                    </FormLabel>
+                    <FormLabel className="font-normal">SQL Engine</FormLabel>
                     <FormControl>
                       <Checkbox
-                        data-testid="tracing-sidebar-checkbox"
+                        data-testid="sqlengine-sidebar-checkbox"
                         checked={field.value === true}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
                   </FormItem>
                   <FormDescription>
-                    Enable experimental tracing sidebar to debug cell execution
-                    times and dependencies.
+                    Define your own engine and select it in an SQL cell.
                   </FormDescription>
                 </div>
               )}

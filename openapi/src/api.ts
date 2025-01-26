@@ -2268,6 +2268,14 @@ export interface components {
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
     };
+    DataSourceConnections: {
+      connections?: {
+        source: string;
+        dialect: string;
+        name: string;
+        display_name?: string;
+      }[];
+    };
     DeleteCellRequest: {
       cellId: string;
     };
@@ -2643,6 +2651,7 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
+      | components["schemas"]["DataSourceConnections"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];

@@ -4,19 +4,27 @@ import { languageAdapterState } from "./extension";
 import { SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import {
+  dataSourceConnectionsAtom,
+  type DataSourceState,
+} from "@/core/cells/data-source-connections";
+import { useAtomValue } from "jotai";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
 }> = ({ view }) => {
   const languageAdapter = view.state.field(languageAdapterState);
   const { spanProps, inputProps } = useAutoGrowInputProps({ minWidth: 50 });
+  const dataSourceState = useAtomValue(dataSourceConnectionsAtom);
+
   let actions: React.ReactNode = <div />;
   let showDivider = false;
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
     showDivider = true;
     actions = (
-      <div className="flex flex-1 gap-2 relative items-center justify-between">
+      <div className="flex flex-1 gap-2 relative items-center">
         <label className="flex gap-2 items-center">
           <span className="select-none">Output variable: </span>
           <input
@@ -45,7 +53,10 @@ export const LanguagePanelComponent: React.FC<{
           />
           <span {...spanProps} />
         </label>
-        <label className="flex items-center gap-2">
+        {getFeatureFlag("sql_engines") && (
+          <SQLEngineSelect dataSourceState={dataSourceState} />
+        )}
+        <label className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
             onChange={(e) => {
@@ -73,5 +84,22 @@ export const LanguagePanelComponent: React.FC<{
       {showDivider && <div className="h-4 border-r border-border" />}
       {languageAdapter.type}
     </div>
+  );
+};
+
+const SQLEngineSelect: React.FC<{ dataSourceState: DataSourceState }> = ({
+  dataSourceState,
+}) => {
+  return (
+    <select
+      id="sql-engine"
+      name="sql-engine"
+      className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
+    >
+      <option value="In-memory duckdb">In-memory duckdb</option>
+      <option value="PostgreSQL">PostgreSQL</option>
+      <option value="SQLite">SQLite</option>
+    </select>
+    // TODO: add a question mark icon that links to how to create an engine
   );
 };
