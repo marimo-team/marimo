@@ -59,17 +59,17 @@ def sql(
 
     if engine is None:
         DependencyManager.duckdb.require("to execute sql")
-        engine = DuckDBEngine(connection=None)
+        sql_engine = DuckDBEngine(connection=None)
     elif SQLAlchemyEngine.is_compatible(engine):
-        engine = SQLAlchemyEngine(engine)
+        sql_engine = SQLAlchemyEngine(engine)
     elif DuckDBEngine.is_compatible(engine):
-        engine = DuckDBEngine(engine)
+        sql_engine = DuckDBEngine(engine)
     else:
         raise ValueError(
             "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
         )
 
-    df = _execute_query(query, engine)
+    df = _execute_query(query, sql_engine)
     if df is None:
         return None
 

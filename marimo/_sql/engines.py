@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
@@ -98,7 +99,7 @@ class SQLAlchemyEngine(SQLEngine):
             if DependencyManager.polars.has():
                 import polars as pl
 
-                return pl.DataFrame(result)
+                return pl.DataFrame(result)  # type: ignore
             else:
                 import pandas as pd
 
