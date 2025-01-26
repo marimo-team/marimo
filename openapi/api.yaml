@@ -415,6 +415,7 @@ components:
           enum:
           - local
           - duckdb
+          - connection
           type: string
         variable_name:
           nullable: true
@@ -459,6 +460,7 @@ components:
           enum:
           - local
           - duckdb
+          - connection
           nullable: true
           type: string
         name:
@@ -473,26 +475,6 @@ components:
       - tables
       - name
       type: object
-    DataSourceConnections:
-      type: object
-      properties:
-        connections:
-          type: array
-          items:
-            type: object
-            properties:
-              source:
-                type: string
-              dialect:
-                type: string
-              name:
-                type: string
-              display_name:
-                type: string
-            required:
-              - source
-              - dialect
-              - name
     DeleteCellRequest:
       properties:
         cellId:
@@ -1380,7 +1362,33 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
-      - $ref: '#/components/schemas/DataSourceConnections'
+      - properties:
+          connections:
+            items:
+              properties:
+                dialect:
+                  type: string
+                display_name:
+                  type: string
+                name:
+                  type: string
+                source:
+                  type: string
+              required:
+              - source
+              - dialect
+              - name
+              - display_name
+              type: object
+            type: array
+          name:
+            enum:
+            - data-source-connections
+            type: string
+        required:
+        - connections
+        - name
+        type: object
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -1515,6 +1523,7 @@ components:
           enum:
           - local
           - duckdb
+          - connection
           type: string
         tableName:
           type: string
@@ -1989,7 +1998,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.13
+  version: 0.10.16
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
