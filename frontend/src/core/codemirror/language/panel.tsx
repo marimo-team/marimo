@@ -10,6 +10,8 @@ import {
   type DataSourceState,
 } from "@/core/cells/data-source-connections";
 import { useAtomValue } from "jotai";
+import { CircleHelpIcon } from "lucide-react";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -91,15 +93,28 @@ const SQLEngineSelect: React.FC<{ dataSourceState: DataSourceState }> = ({
   dataSourceState,
 }) => {
   return (
-    <select
-      id="sql-engine"
-      name="sql-engine"
-      className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
-    >
-      <option value="In-memory duckdb">In-memory duckdb</option>
-      <option value="PostgreSQL">PostgreSQL</option>
-      <option value="SQLite">SQLite</option>
-    </select>
-    // TODO: add a question mark icon that links to how to create an engine
+    <>
+      <select
+        id="sql-engine"
+        name="sql-engine"
+        className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
+      >
+        {[...dataSourceState.connectionsMap.entries()].map(([key, value]) => (
+          <option key={key} value={value.name}>
+            {value.display_name || value.name}
+          </option>
+        ))}
+      </select>
+      <TooltipProvider>
+        <Tooltip
+          content="Click to find out how to add a custom engine"
+          delayDuration={200}
+        >
+          <a href="https://TODO.com" target="_blank" rel="noreferrer">
+            <CircleHelpIcon size={13} color="var(--blue-10)" />
+          </a>
+        </Tooltip>
+      </TooltipProvider>
+    </>
   );
 };

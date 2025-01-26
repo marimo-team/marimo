@@ -43,12 +43,13 @@ const {
         state.connectionsMap.set(newConn.name, newConn);
       }
     }
-
     return state;
   },
+
   clearDataSourceConnections: (): DataSourceState => ({
     connectionsMap: new Map(),
   }),
+
   removeDataSourceConnection: (
     state: DataSourceState,
     connectionName: ConnectionName,
