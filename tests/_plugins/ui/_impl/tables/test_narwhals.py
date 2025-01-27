@@ -840,7 +840,7 @@ def test_get_sample_values(df: Any) -> None:
     # Datetime with timezone
     sample_values = manager.get_sample_values("C")
     # Polars on windows is missing timezone info
-    if is_windows():
+    if is_windows() and "polars" in str(type(df)):
         assert sample_values == []
     else:
         assert sample_values == [
@@ -864,18 +864,15 @@ def test_get_sample_values(df: Any) -> None:
     # Date
     sample_values = manager.get_sample_values("G")
     # Polars on windows is missing timezone info
-    if is_windows():
-        assert sample_values == []
-    else:
-        assert sample_values == [
-            "2021-01-01",
-            "2021-01-02",
-            "2021-01-03",
-        ] or sample_values == [
-            "2021-01-01 00:00:00",
-            "2021-01-02 00:00:00",
-            "2021-01-03 00:00:00",
-        ]
+    assert sample_values == [
+        "2021-01-01",
+        "2021-01-02",
+        "2021-01-03",
+    ] or sample_values == [
+        "2021-01-01 00:00:00",
+        "2021-01-02 00:00:00",
+        "2021-01-03 00:00:00",
+    ]
 
     # Large integers
     sample_values = manager.get_sample_values("H")
