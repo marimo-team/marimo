@@ -2235,6 +2235,17 @@ export interface components {
       summary?: components["schemas"]["ColumnSummary"];
       table_name: string;
     };
+    DataSourceConnection: {
+      dialect: string;
+      display_name: string;
+      name: string;
+      source: string;
+    };
+    DataSourceConnections: {
+      connections: components["schemas"]["DataSourceConnection"][];
+      /** @enum {string} */
+      name: "data-source-connections";
+    };
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       name: string;
@@ -2644,12 +2655,7 @@ export interface components {
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
       | {
-          connections: {
-            dialect: string;
-            display_name: string;
-            name: string;
-            source: string;
-          }[];
+          connections: components["schemas"]["DataSourceConnection"][];
           /** @enum {string} */
           name: "data-source-connections";
         }

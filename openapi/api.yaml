@@ -395,6 +395,36 @@ components:
       - chart_max_rows_errors
       - name
       type: object
+    DataSourceConnection:
+      properties:
+        dialect:
+          type: string
+        display_name:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+      required:
+      - source
+      - dialect
+      - name
+      - display_name
+      type: object
+    DataSourceConnections:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/DataSourceConnection'
+          type: array
+        name:
+          enum:
+          - data-source-connections
+          type: string
+      required:
+      - connections
+      - name
+      type: object
     DataTable:
       properties:
         columns:
@@ -1365,21 +1395,7 @@ components:
       - properties:
           connections:
             items:
-              properties:
-                dialect:
-                  type: string
-                display_name:
-                  type: string
-                name:
-                  type: string
-                source:
-                  type: string
-              required:
-              - source
-              - dialect
-              - name
-              - display_name
-              type: object
+              $ref: '#/components/schemas/DataSourceConnection'
             type: array
           name:
             enum:
