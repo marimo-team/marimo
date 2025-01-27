@@ -12,14 +12,12 @@ vi.mock("@marimo-team/react-slotz", () => ({
     registerComponent() {}
     unregisterComponent() {}
   },
-  Slot: () => null // Mock Slot component as a null-rendering component
+  Slot: () => null, // Mock Slot component as a null-rendering component
 }));
 
 describe("Sidebar", () => {
   it("should use default width when no width is provided", () => {
-    const { container } = render(
-      <Sidebar isOpen={false} toggle={() => {}} />
-    );
+    const { container } = render(<Sidebar isOpen={false} toggle={() => {}} />);
     const aside = container.querySelector("aside");
     expect(aside?.getAttribute("data-width")).toBe("288px");
     expect(aside?.style.width).toBe("68px"); // closed width when not open
@@ -27,7 +25,7 @@ describe("Sidebar", () => {
 
   it("should use provided width when width is specified", () => {
     const { container } = render(
-      <Sidebar isOpen={true} toggle={() => {}} width="400px" />
+      <Sidebar isOpen={true} toggle={() => {}} width="400px" />,
     );
     const aside = container.querySelector("aside");
     expect(aside?.getAttribute("data-width")).toBe("400px");
@@ -36,7 +34,7 @@ describe("Sidebar", () => {
 
   it("should convert numeric width to px", () => {
     const { container } = render(
-      <Sidebar isOpen={true} toggle={() => {}} width="400" />
+      <Sidebar isOpen={true} toggle={() => {}} width="400" />,
     );
     const aside = container.querySelector("aside");
     expect(aside?.getAttribute("data-width")).toBe("400px");

@@ -59,7 +59,7 @@ class sidebar(Html):
         self,
         item: object,
         footer: Optional[object] = None,
-        width: Optional[str] = None
+        width: Optional[str] = None,
     ) -> None:
         # If its a string, wrap in md
         if isinstance(item, str):
