@@ -111,7 +111,10 @@ const SQLEngineSelect: React.FC<{ dataSourceState: DataSourceState }> = ({
           delayDuration={200}
         >
           <a href="https://TODO.com" target="_blank" rel="noreferrer">
-            <CircleHelpIcon size={13} color="var(--blue-10)" />
+            <CircleHelpIcon
+              size={13}
+              className="text-[var(--blue-10)] hover:text-[var(--blue-11)]"
+            />
           </a>
         </Tooltip>
       </TooltipProvider>

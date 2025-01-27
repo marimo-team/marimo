@@ -1089,7 +1089,7 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.sql_engine"
+              name="experimental.sql_engines"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
@@ -1103,7 +1103,7 @@ export const UserConfigForm: React.FC = () => {
                     </FormControl>
                   </FormItem>
                   <FormDescription>
-                    Define your own engine and select it in an SQL cell.
+                    Define your own engine and use it in an SQL cell.
                   </FormDescription>
                 </div>
               )}
