@@ -67,6 +67,13 @@ def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
     """Return True if the spec has geoshape."""
     try:
         if not hasattr(spec, "mark"):
+            # Check for nested layers, vconcat, hconcat
+            if hasattr(spec, "layer"):
+                return any(_has_geoshape(layer) for layer in spec.layer)
+            if hasattr(spec, "vconcat"):
+                return any(_has_geoshape(layer) for layer in spec.vconcat)
+            if hasattr(spec, "hconcat"):
+                return any(_has_geoshape(layer) for layer in spec.hconcat)
             return False
         mark = spec.mark  # type: ignore
         return mark == "geoshape" or mark.type == "geoshape"  # type: ignore
@@ -95,13 +102,16 @@ def _filter_dataframe(
         # and instead passes an individual selected point.
         if len(fields) == 2 and "vlPoint" in fields and "_vgsid_" in fields:
             # Vega is 1-indexed, so subtract 1
+            vgsid = fields.get("_vgsid_", [])
             try:
-                indexes = [int(i) - 1 for i in fields["_vgsid_"]]
+                indexes = [int(i) - 1 for i in vgsid]
                 df = cast(nw.DataFrame[Any], df)[indexes]
-            except (ValueError, IndexError) as e:
-                raise ValueError(
-                    f"Invalid index in selection: {fields['_vgsid_']}"
-                ) from e
+            except IndexError:
+                # Out of bounds index, return empty dataframe if it's the
+                df = cast(nw.DataFrame[Any], df)[[]]
+                LOGGER.error(f"Invalid index in selection: {vgsid}")
+            except ValueError:
+                LOGGER.error(f"Invalid index in selection: {vgsid}")
             continue
 
         # If vlPoint is in the selection,
