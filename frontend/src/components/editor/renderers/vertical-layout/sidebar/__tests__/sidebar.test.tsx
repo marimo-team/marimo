@@ -1,43 +1,39 @@
-import { describe, it, expect, vi } from "vitest";
+/* Copyright 2024 Marimo. All rights reserved. */
+import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { Sidebar } from "../sidebar";
 import { normalizeWidth } from "../state";
-
-// Mock the react-slotz module
-vi.mock("@marimo-team/react-slotz", () => ({
-  useSlot: () => [],
-  SlotzController: class {
-    constructor() {}
-    onComponentsChange() {}
-    registerComponent() {}
-    unregisterComponent() {}
-  },
-  Slot: () => null, // Mock Slot component as a null-rendering component
-}));
+import { Functions } from "@/utils/functions";
+import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 
 describe("Sidebar", () => {
   it("should use default width when no width is provided", () => {
-    const { container } = render(<Sidebar isOpen={false} toggle={() => {}} />);
+    const { container } = render(
+      <SlotzProvider>
+        <Sidebar isOpen={false} toggle={Functions.NOOP} />
+      </SlotzProvider>,
+    );
     const aside = container.querySelector("aside");
-    expect(aside?.getAttribute("data-width")).toBe("288px");
     expect(aside?.style.width).toBe("68px"); // closed width when not open
   });
 
   it("should use provided width when width is specified", () => {
     const { container } = render(
-      <Sidebar isOpen={true} toggle={() => {}} width="400px" />,
+      <SlotzProvider>
+        <Sidebar isOpen={true} toggle={Functions.NOOP} width="400px" />
+      </SlotzProvider>,
     );
     const aside = container.querySelector("aside");
-    expect(aside?.getAttribute("data-width")).toBe("400px");
     expect(aside?.style.width).toBe("400px"); // open width when isOpen is true
   });
 
   it("should convert numeric width to px", () => {
     const { container } = render(
-      <Sidebar isOpen={true} toggle={() => {}} width="400" />,
+      <SlotzProvider>
+        <Sidebar isOpen={true} toggle={Functions.NOOP} width={400} />
+      </SlotzProvider>,
     );
     const aside = container.querySelector("aside");
-    expect(aside?.getAttribute("data-width")).toBe("400px");
     expect(aside?.style.width).toBe("400px"); // open width when isOpen is true
   });
 });

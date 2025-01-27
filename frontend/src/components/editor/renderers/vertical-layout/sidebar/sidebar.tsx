@@ -2,28 +2,23 @@
 import { cn } from "@/utils/cn";
 import { SidebarToggle } from "./toggle";
 import { SidebarSlot } from "./sidebar-slot";
+import { CLOSED_WIDTH } from "./state";
 import "./sidebar.css";
 
 interface SidebarProps {
   isOpen: boolean;
   toggle: () => void;
-  width?: string;
+  width?: string | number;
 }
 
-import { normalizeWidth } from "./state";
-
 export const Sidebar = ({ isOpen, toggle, width }: SidebarProps) => {
-  const normalizedWidth = normalizeWidth(width);
-  const closedWidth = "68px";
-
   return (
     <aside
       data-expanded={isOpen}
-      data-width={normalizedWidth}
-      style={{ width: isOpen ? normalizedWidth : closedWidth }}
+      style={{ width: isOpen ? width : CLOSED_WIDTH }}
       className={cn(
         "app-sidebar auto-collapse-nav",
-        "absolute top-0 left-0 z-20 h-full -translate-x-full lg:translate-x-0 transition-[width] ease-in-out duration-300",
+        "top-0 left-0 z-20 h-full hidden lg:block relative transition-[width] ease-in-out duration-300",
       )}
     >
       <SidebarToggle isOpen={isOpen} toggle={toggle} />
