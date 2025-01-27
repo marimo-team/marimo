@@ -73,7 +73,7 @@ def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
     config_reader.write_toml(state)
 
 
-DATA_FORMAT = "%Y-%m-%d"
+DATE_FORMAT = "%Y-%m-%d"
 
 
 def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
@@ -94,7 +94,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     now = datetime.now()
     if state.last_checked_at:
         last_checked_date = datetime.strptime(
-            state.last_checked_at, DATA_FORMAT
+            state.last_checked_at, DATE_FORMAT
         )
         if _is_same_day(last_checked_date, now):
             # Same day, so do nothing
@@ -105,12 +105,12 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         response = _fetch_data_from_url(api_url)
         version = response["info"]["version"]
         state.latest_version = version
-        state.last_checked_at = now.strftime(DATA_FORMAT)
+        state.last_checked_at = now.strftime(DATE_FORMAT)
         return state
     except Exception:
         # Set that we have checked for updates
         # so we don't fail multiple times a day
-        state.last_checked_at = now.strftime(DATA_FORMAT)
+        state.last_checked_at = now.strftime(DATE_FORMAT)
         return state
 
 
