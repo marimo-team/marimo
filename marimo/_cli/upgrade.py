@@ -38,9 +38,8 @@ def check_for_updates(on_update: Callable[[str, str], None]) -> None:
     try:
         _check_for_updates_internal(on_update)
     except Exception as e:
-        # Errors are caught internally
-        # but as a last resort, we don't want to crash the CLI
         LOGGER.warning("Failed to check for updates", exc_info=e)
+        # Don't want to crash the CLI on any errors.
         pass
 
 
@@ -108,8 +107,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         state.latest_version = version
         state.last_checked_at = now.strftime(DATA_FORMAT)
         return state
-    except Exception as e:
-        LOGGER.warning("Failed to check for updates", exc_info=e)
+    except Exception:
         # Set that we have checked for updates
         # so we don't fail multiple times a day
         state.last_checked_at = now.strftime(DATA_FORMAT)
@@ -130,14 +128,16 @@ def _fetch_data_from_url(url: str) -> Dict[str, Any]:
                     detail=f"HTTP request failed with status code {status}",
                 )
     except urllib.error.URLError as e:
-        LOGGER.warning(f"Network error while checking for updates: {e}")
+        LOGGER.warning(
+            f"Network error while checking for version updates: {e}"
+        )
         raise
     except json.JSONDecodeError as e:
         LOGGER.warning(f"Invalid JSON response from version check: {e}")
         raise
     except TimeoutError:
         LOGGER.warning(
-            f"Timeout ({FETCH_TIMEOUT}s) while checking for updates"
+            f"Timeout ({FETCH_TIMEOUT}s) while checking for version updates"
         )
         raise
 
