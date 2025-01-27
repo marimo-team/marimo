@@ -7,17 +7,23 @@ import "./sidebar.css";
 interface SidebarProps {
   isOpen: boolean;
   toggle: () => void;
+  width?: string;
 }
 
-export const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
+import { normalizeWidth } from "./state";
+
+export const Sidebar = ({ isOpen, toggle, width }: SidebarProps) => {
+  const normalizedWidth = normalizeWidth(width);
+  const closedWidth = "68px";
+
   return (
     <aside
       data-expanded={isOpen}
+      data-width={normalizedWidth}
+      style={{ width: isOpen ? normalizedWidth : closedWidth }}
       className={cn(
         "app-sidebar auto-collapse-nav",
         "absolute top-0 left-0 z-20 h-full -translate-x-full lg:translate-x-0 transition-[width] ease-in-out duration-300",
-        // These values need to match wrapped-with-sidebar.tsx
-        isOpen ? "w-72" : "w-[68px]",
       )}
     >
       <SidebarToggle isOpen={isOpen} toggle={toggle} />
