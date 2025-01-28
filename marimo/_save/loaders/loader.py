@@ -1,11 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Type
 
 from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
+from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
 from marimo._save.cache import CACHE_PREFIX, Cache, CacheType
 
@@ -22,7 +25,10 @@ INCONSISTENT_CACHE_BOILER_PLATE = (
 )
 
 
-LoaderType = TypeVar("LoaderType", bound="Loader")
+class LoaderError(BaseException):
+    def __init__(self, message: str) -> None:
+        self.message = "\n".join([message, INCONSISTENT_CACHE_BOILER_PLATE])
+        super().__init__(message)
 
 
 class LoaderPartial:
@@ -50,7 +56,10 @@ class LoaderPartial:
     def create_or_reconfigure(
         self, name: str, context: str = "cache_partial"
     ) -> State[Loader]:
-        ctx = get_context()
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            return State(self(name), _name=name, _context=context)
         if ctx.state_registry is None:
             return State(self(name), _name=name, _context=context)
 
@@ -58,6 +67,10 @@ class LoaderPartial:
             name, context=context
         )
         if loader_state is None:
+            # There's a change it's in the registry, but the reference is None.
+            # Delete the reference just in case, otherwise GC won't hold on to
+            # this instance either.
+            ctx.state_registry.delete(name, context=context)
             loader = self(name)
             # State creation automatically registers itself.
             return State(loader, _name=name, _context=context)
@@ -113,10 +126,10 @@ class Loader(ABC):
             )
         loaded = self.load_cache(hashed_context, cache_type)
         # TODO: Consider more robust verification
-        assert loaded.hash == hashed_context, INCONSISTENT_CACHE_BOILER_PLATE
-        assert set(defs | stateful_refs) == set(loaded.defs), (
-            INCONSISTENT_CACHE_BOILER_PLATE
-        )
+        if loaded.hash != hashed_context:
+            raise LoaderError("Hash mismatch in loaded cache.")
+        if set(defs | stateful_refs) != set(loaded.defs):
+            raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
         return Cache(
             loaded.defs,
@@ -161,3 +174,54 @@ class Loader(ABC):
     @abstractmethod
     def save_cache(self, cache: Cache) -> None:
         """Save Cache"""
+
+
+class BasePersistenceLoader(Loader):
+    """General loader for serializable objects."""
+
+    def __init__(
+        self, name: str, suffix: str, save_path: str | Path | None
+    ) -> None:
+        super().__init__(name)
+
+        self.name = name
+        # Setter takes care of this, not sure why mypy is complaining.
+        self.save_path = save_path  # type: ignore
+        self.suffix = suffix
+
+    @property
+    def save_path(self) -> Path:
+        return self._save_path / self.name
+
+    @save_path.setter
+    def save_path(self, save_path: str | Path | None) -> None:
+        if save_path is None and (root := notebook_dir()) is not None:
+            save_path = str(root / "__marimo__" / "cache")
+        elif save_path is None:
+            # This can happen if the notebook file is unnamed.
+            save_path = os.path.join("__marimo__", "cache")
+        self._save_path = Path(save_path)
+        (self._save_path / self.name).mkdir(parents=True, exist_ok=True)
+
+    def build_path(self, hashed_context: str, cache_type: CacheType) -> Path:
+        prefix = CACHE_PREFIX.get(cache_type, "U_")
+        return self.save_path / f"{prefix}{hashed_context}.{self.suffix}"
+
+    def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
+        path = self.build_path(hashed_context, cache_type)
+        return os.path.exists(path) and os.path.getsize(path) > 0
+
+    def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
+        try:
+            return self.load_persistent_cache(hashed_context, cache_type)
+        except FileNotFoundError as e:
+            raise LoaderError("Unexpected cache miss.") from e
+
+    @abstractmethod
+    def load_persistent_cache(
+        self, hashed_context: str, cache_type: CacheType
+    ) -> Cache:
+        """May throw FileNotFoundError"""
+
+
+LoaderType = Type[Loader]

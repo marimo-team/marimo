@@ -93,7 +93,7 @@ class CellManager:
                 func,
                 cell_id=self.create_cell_id(),
                 anonymous_file=app._app._anonymous_file if app else False,
-                test_rewrite=is_top_level_pytest,
+                test_rewrite=is_top_level_pytest or app._app._pytest_rewrite,
             )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)

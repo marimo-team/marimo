@@ -558,6 +558,18 @@ def mo_fixture() -> ModuleType:
     return mo
 
 
+# fixture that provides a kernel (and tears it down)
+@pytest.fixture
+def app() -> Generator[Kernel, None, None]:
+    import marimo
+
+    app = marimo.App()
+    app._anonymous_file = True
+    app._pytest_rewrite = True
+    yield app
+    app.run()
+
+
 # A pytest hook to fail when raw marimo cells are not collected.
 @pytest.hookimpl
 def pytest_make_collect_report(collector):

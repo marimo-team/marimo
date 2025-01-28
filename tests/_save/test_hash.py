@@ -12,10 +12,7 @@ from marimo._dependencies.dependencies import DependencyManager
 
 class TestHash:
     @staticmethod
-    def test_pure_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_pure_hash(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -27,13 +24,8 @@ class TestHash:
             assert cache._cache.cache_type == "Pure"
             return Y, Z
 
-        app.run()
-
     @staticmethod
-    def test_content_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_content_hash(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -45,17 +37,12 @@ class TestHash:
             assert cache._cache.cache_type == "ContentAddressed"
             return (Y,)
 
-        app.run()
-
     # Note: Hash may change based on byte code, so pin to particular version
     @staticmethod
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_content_reproducibility() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_content_reproducibility(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             from marimo._save.save import persistent_cache
@@ -94,13 +81,8 @@ class TestHash:
             Z = 11
             return (Z,)
 
-        app.run()
-
     @staticmethod
-    def test_execution_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_execution_hash(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -113,15 +95,13 @@ class TestHash:
             assert cache._cache.cache_type == "ContextExecutionPath"
             return (Y,)
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_execution_reproducibility() -> None:
-        app = App()
-        app._anonymous_file = True
+    def test_execution_reproducibility(app) -> None:
+        # Rewrite changes the AST, breaking the hash
+        app._pytest_rewrite = False
 
         @app.cell
         def load() -> tuple[int]:
@@ -170,17 +150,15 @@ class TestHash:
             Z = 11
             return (Z,)
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_execution_reproducibility_different_cell_order() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_execution_reproducibility_different_cell_order(app) -> None:
         # NB. load is last for cell order difference.
+        # Rewrite changes the AST, breaking the hash
+        app._pytest_rewrite = False
+
         @app.cell
         def one(persistent_cache, MockLoader, shared) -> tuple[int]:
             _a = [1, object()]
@@ -228,13 +206,8 @@ class TestHash:
             shared = [None, object()]
             return persistent_cache, MockLoader, shared
 
-        app.run()
-
     @staticmethod
-    def test_transitive_content_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_transitive_content_hash(app) -> None:
         @app.cell
         def load() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -251,13 +224,8 @@ class TestHash:
             assert cache._cache.cache_type == "ContentAddressed"
             return (Y,)
 
-        app.run()
-
     @staticmethod
-    def test_function_ui_content_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_function_ui_content_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import marimo as mo
@@ -287,13 +255,8 @@ class TestHash:
             assert cache2._cache.hash != cache._cache.hash
             return (cache2,)
 
-        app.run()
-
     @staticmethod
-    def test_function_state_content_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_function_state_content_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import marimo as mo
@@ -327,13 +290,8 @@ class TestHash:
             assert cache2._cache.hash != cache._cache.hash
             return (cache2,)
 
-        app.run()
-
     @staticmethod
-    def test_function_state_content_hash_distinct() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_function_state_content_hash_distinct(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import marimo as mo
@@ -352,13 +310,8 @@ class TestHash:
             assert "State" in b, b
             return a, b
 
-        app.run()
-
     @staticmethod
-    def test_transitive_execution_path_when_state_dependent() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_transitive_execution_path_when_state_dependent(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import marimo as mo
@@ -394,13 +347,8 @@ class TestHash:
             assert cache2._cache.hash != cache._cache.hash
             return (cache2,)
 
-        app.run()
-
     @staticmethod
-    def test_version_pinning() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_version_pinning(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import marimo as mo
@@ -432,8 +380,6 @@ class TestHash:
             assert cache2._cache.hash != cache._cache.hash
             return (cache2,)
 
-        app.run()
-
 
 class TestDataHash:
     @staticmethod
@@ -446,10 +392,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_numpy_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_numpy_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import numpy as np
@@ -492,8 +435,6 @@ class TestDataHash:
             assert one == two
             assert one == 512
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("jax"),
@@ -504,10 +445,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_jax_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_jax_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             from jax import numpy as np
@@ -550,8 +488,6 @@ class TestDataHash:
             assert one == two
             assert one == 512
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("torch"),
@@ -562,10 +498,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_torch_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_torch_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import torch
@@ -612,8 +545,6 @@ class TestDataHash:
             assert one == two
             assert one == 512
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("torch"),
@@ -624,11 +555,9 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_torch_device_hash() -> None:
+    def test_torch_device_hash(app) -> None:
         # Utilizing the "meta" device should give similar cross device behavior
         # as gpu.
-        app = App()
-        app._anonymous_file = True
 
         @app.cell
         def load() -> tuple[Any]:
@@ -657,8 +586,6 @@ class TestDataHash:
             )
             return (one,)
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("skbio"),
@@ -669,10 +596,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_skibio_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_skibio_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             from copy import copy
@@ -701,8 +625,6 @@ class TestDataHash:
             )
             return (one,)
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("pandas"),
@@ -713,10 +635,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_dataframe() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_dataframe(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import numpy as np
@@ -770,8 +689,6 @@ class TestDataHash:
             assert one == two
             assert one == 14
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("pandas"),
@@ -782,10 +699,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_dataframe_object() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_dataframe_object(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import numpy as np
@@ -817,8 +731,6 @@ class TestDataHash:
             )
             return (one,)
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("polars"),
@@ -829,10 +741,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_polars_dataframe() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_polars_dataframe(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import polars as pl
@@ -881,8 +790,6 @@ class TestDataHash:
             assert one == two
             assert one == 14
 
-        app.run()
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.has("polars"),
@@ -891,10 +798,7 @@ class TestDataHash:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_polars_object() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_polars_object(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
             import polars as pl
@@ -923,5 +827,3 @@ class TestDataHash:
             )
             assert _A == 28
             return (two,)
-
-        app.run()

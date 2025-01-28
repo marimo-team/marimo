@@ -5,11 +5,9 @@ import ast
 import functools
 import inspect
 import io
-import os
 import sys
 import traceback
 from collections import abc
-from pathlib import Path
 
 # NB: maxsize follows functools.cache, but renamed max_size outside of drop-in
 # api.
@@ -27,7 +25,6 @@ from typing import (
 
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
-from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
 from marimo._save.ast import ARG_PREFIX, ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
@@ -38,11 +35,11 @@ from marimo._save.hash import (
     content_cache_attempt_from_base,
 )
 from marimo._save.loaders import (
+    PERSISTENT_LOADERS,
     Loader,
     LoaderPartial,
     LoaderType,
     MemoryLoader,
-    PickleLoader,
 )
 from marimo._utils.variables import is_mangled_local, unmangle_local
 
@@ -287,10 +284,13 @@ class _cache_context(object):
             _filename, lineno, function_name, _code = frame
             if function_name == "<module>":
                 ctx = get_context()
-                assert ctx.execution_context is not None, (
-                    "Could not resolve context for cache.",
-                    f"{UNEXPECTED_FAILURE_BOILERPLATE}",
-                )
+                if ctx.execution_context is None:
+                    raise CacheException(
+                        (
+                            "Could not resolve context for cache."
+                            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                        ),
+                    )
                 graph = ctx.graph
                 cell_id = ctx.cell_id or ctx.execution_context.cell_id
                 pre_module, save_module = ExtractWithBlock(lineno - 1).visit(
@@ -339,7 +339,7 @@ class _cache_context(object):
         sys.settrace(self._old_trace)  # Clear to previous set trace.
         if not self._entered_trace:
             raise CacheException(
-                (f"Unexpected block format{UNEXPECTED_FAILURE_BOILERPLATE}")
+                (f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}")
             )
 
         # Backfill the loaded values into global scope.
@@ -352,15 +352,17 @@ class _cache_context(object):
         # NB: exception is a type.
         if exception:
             assert not isinstance(instance, SkipWithBlock), (
-                f"Cache was not correctly set{UNEXPECTED_FAILURE_BOILERPLATE}"
+                f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
             if isinstance(instance, BaseException):
                 raise instance from CacheException("Failure during save.")
             raise exception
 
         # Fill the cache object and save.
-        assert self._cache is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
+        if self._cache is None or self._frame is None:
+            raise CacheException(
+                f"Cache was not correctly set{UNEXPECTED_FAILURE_BOILERPLATE}"
+            )
         self._cache.update(self._frame.f_locals)
 
         try:
@@ -493,7 +495,7 @@ def _invoke_context(
 def cache(
     fn: Optional[Callable[..., Any]] = None,
     pin_modules: bool = False,
-    loader: LoaderPartial | LoaderType = MemoryLoader,  # type: ignore[assignment]
+    loader: LoaderPartial | LoaderType = MemoryLoader,
 ) -> _cache_call: ...
 
 
@@ -501,7 +503,7 @@ def cache(
 def cache(
     name: str,
     pin_modules: bool = False,
-    loader: LoaderPartial | Loader | LoaderType = MemoryLoader,  # type: ignore[assignment]
+    loader: LoaderPartial | Loader | LoaderType = MemoryLoader,
 ) -> _cache_context: ...
 
 
@@ -665,12 +667,15 @@ def lru_cache(  # type: ignore[misc]
             "for lru_cache, use mo.cache instead."
         )
 
-    return cache(  # type: ignore[no-any-return, call-overload]
-        arg,
-        *args,
-        loader=MemoryLoader.partial(max_size=maxsize),
-        _frame_offset=2,
-        **kwargs,
+    return cast(
+        Union[_cache_call, _cache_context],
+        cache(  # type: ignore[call-overload]
+            arg,
+            *args,
+            loader=MemoryLoader.partial(max_size=maxsize),
+            _frame_offset=2,
+            **kwargs,
+        ),
     )
 
 
@@ -693,6 +698,7 @@ def persistent_cache(
 def persistent_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     save_path: str | None = None,
+    method: str = "pickle",
     *args: Any,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
@@ -782,22 +788,23 @@ def persistent_cache(  # type: ignore[misc]
             "loader is not a valid argument "
             "for persistent_cache, use mo.cache instead."
         )
-
-    if save_path is None and (root := notebook_dir()) is not None:
-        save_path = str(root / "__marimo__" / "cache")
-    elif save_path is None:
-        # This can happen if the notebook file is unnamed.
-        save_path = os.path.join("__marimo__", "cache")
-
-    loader = PickleLoader.partial(save_path=Path(save_path))
+    if method not in PERSISTENT_LOADERS:
+        raise ValueError(
+            f"Invalid method {method}, expected one of "
+            f"{PERSISTENT_LOADERS.keys()}"
+        )
+    loader = PERSISTENT_LOADERS[method].partial(save_path=save_path)
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")
 
-    return cache(  # type: ignore[no-any-return, call-overload]
-        arg,
-        *args,
-        loader=loader,
-        _frame_offset=2,
-        **kwargs,
+    return cast(
+        Union[_cache_call, _cache_context],
+        cache(  # type: ignore[call-overload]
+            arg,
+            *args,
+            loader=loader,
+            _frame_offset=2,
+            **kwargs,
+        ),
     )
