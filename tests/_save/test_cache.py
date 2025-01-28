@@ -777,7 +777,10 @@ class TestCacheDecorator:
         # the registry. The actual cache hit is less important than caching
         # occurring in the first place.
         # 2 * 9 + 2
-        assert k.globals["fib"].hits in (9, 18, 20)
+        assert k.globals["fib"].hits not in (9, 18), (
+            "Potentially flaky edge case."
+        )
+        assert k.globals["fib"].hits == 20
 
     async def test_cross_cell_cache_with_external_ui(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -828,7 +831,10 @@ class TestCacheDecorator:
         assert k.globals["b"] == 55
         assert k.globals["impure"] == [60, 157, 60]
         # 2 * 9 + 2
-        assert k.globals["fib"].hits in (9, 18, 20)
+        assert k.globals["fib"].hits not in (9, 18), (
+            "Potentially flaky edge case."
+        )
+        assert k.globals["fib"].hits == 20
 
     async def test_rerun_update(
         self, k: Kernel, exec_req: ExecReqProvider
