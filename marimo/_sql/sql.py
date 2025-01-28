@@ -81,7 +81,7 @@ def sql(
 
     enforce_own_limit = not has_limit and default_result_limit is not None
 
-    custom_total_count: Optional[Literal["too_many"]]
+    custom_total_count: Optional[Literal["too_many"]] = None
     if enforce_own_limit:
         if DependencyManager.polars.has():
             custom_total_count = (
