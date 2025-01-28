@@ -37,6 +37,7 @@ from marimo._save.hash import (
 from marimo._save.loaders import (
     PERSISTENT_LOADERS,
     Loader,
+    LoaderKey,
     LoaderPartial,
     LoaderType,
     MemoryLoader,
@@ -683,6 +684,7 @@ def lru_cache(  # type: ignore[misc]
 def persistent_cache(
     name: str,
     save_path: str | None = None,
+    method: LoaderKey = "pickle",
     pin_modules: bool = False,
 ) -> _cache_context: ...
 
@@ -691,6 +693,7 @@ def persistent_cache(
 def persistent_cache(
     fn: Optional[Callable[..., Any]] = None,
     save_path: str | None = None,
+    method: LoaderKey = "pickle",
     pin_modules: bool = False,
 ) -> _cache_call: ...
 
@@ -698,7 +701,7 @@ def persistent_cache(
 def persistent_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     save_path: str | None = None,
-    method: str = "pickle",
+    method: LoaderKey = "pickle",
     *args: Any,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
@@ -743,6 +746,8 @@ def persistent_cache(  # type: ignore[misc]
       invalidate the cache, change the name.
     - `save_path`: the folder in which to save the cache, defaults to
       `__marimo__/cache` in the directory of the notebook file
+    - `method`: the serialization method to use, current options are "json",
+      and "pickle" (default).
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
 
@@ -776,6 +781,8 @@ def persistent_cache(  # type: ignore[misc]
     - `fn`: the wrapped function if no settings are passed.
     - `save_path`: the folder in which to save the cache, defaults to
       `__marimo__/cache` in the directory of the notebook file
+    - `method`: the serialization method to use, current options are "json",
+      and "pickle" (default).
     - `pin_modules`: if True, the cache will be invalidated if module versions
       differ between runs, defaults to False.
     """
