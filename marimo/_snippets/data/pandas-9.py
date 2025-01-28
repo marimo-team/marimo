@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.3.8"
+__generated_with = "0.10.12"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Pandas: Describe Timestamp values in a column
@@ -16,29 +17,18 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import pandas as pd
 
-    df = pd.DataFrame(
-        {
-            "time": [
-                "2022-09-14 00:52:00-07:00",
-                "2022-09-14 00:52:30-07:00",
-                "2022-09-14 01:52:30-07:00",
-            ],
-            "letter": ["A", "B", "C"],
-        }
-    )
-    df["time"] = pd.to_datetime(df.time)
+    df = pd.DataFrame({'timestamp': pd.date_range('2023-01-01', periods=5, freq='D')})
 
-    df["time"].describe(datetime_is_numeric=True)
+    df['timestamp'].describe()
     return df, pd
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-
     return (mo,)
 
 
