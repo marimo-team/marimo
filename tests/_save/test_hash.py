@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 
-from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
 
 

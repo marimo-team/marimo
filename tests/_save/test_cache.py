@@ -1442,6 +1442,7 @@ class TestPersistentCache:
                     _b = 1
                 assert _b == 1
                 assert not cache._cache.hit
+                assert cache._cache.meta["version"] == mo._save.MARIMO_CACHE_VERSION
                 assert os.path.exists(tmp_path_fixture / "basic" / f"P_{cache._cache.hash}.pickle")
                 """),
                 exec_req.get("""
@@ -1489,7 +1490,3 @@ class TestPersistentCache:
         )
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
-
-
-if __name__ == "__main__":
-    app.run()

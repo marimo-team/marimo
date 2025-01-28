@@ -27,6 +27,12 @@ def extract_name(key: str) -> str:
     return key.split(":")[-1]
 
 
+def contextualize_name(key: str, context: Optional[str]) -> str:
+    if context is None:
+        return key
+    return f"{context}:{key}"
+
+
 class StateRegistry:
     def __init__(self) -> None:
         # variable name -> state
@@ -45,8 +51,7 @@ class StateRegistry:
     ) -> None:
         if name is None:
             name = str(uuid4())
-        if context is not None:
-            name = f"{context}:{name}"
+        name = contextualize_name(name, context)
 
         if id(state) in self._inv_states:
             ref = next(iter(self._inv_states[id(state)]))
@@ -79,8 +84,23 @@ class StateRegistry:
                 self.register(lookup, variable)
 
     def _delete(self, name: str, state_item: StateItem[T]) -> None:
-        self._states.pop(name, None)
-        self._inv_states.pop(state_item.id, None)
+        return self.delete(name, state_item.ref())
+
+    def delete(
+        self,
+        name: str,
+        state: Optional[State[T]] = None,
+        context: Optional[str] = None,
+    ) -> None:
+        name = contextualize_name(name, context)
+        saved_state = self._states.pop(name, None)
+        state_id = id(state)
+        if saved_state and state_id != saved_state.id:
+            self.delete(name, saved_state.ref())
+
+        if state:
+            if name in self._inv_states.get(state_id, set()):
+                del self._inv_states[state_id]
 
     def retain_active_states(self, active_variables: set[str]) -> None:
         """Retains only the active states in the registry."""
@@ -107,8 +127,7 @@ class StateRegistry:
     def lookup(
         self, name: str, context: Optional[str] = None
     ) -> Optional[State[T]]:
-        if context is not None:
-            name = f"{context}:{name}"
+        name = contextualize_name(name, context)
         if name in self._states:
             return self._states[name].ref()
         return None

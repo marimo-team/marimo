@@ -10,7 +10,12 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
-from marimo._save.cache import CACHE_PREFIX, Cache, CacheType
+from marimo._save.cache import (
+    MARIMO_CACHE_VERSION,
+    CACHE_PREFIX,
+    Cache,
+    CacheType,
+)
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
@@ -26,6 +31,8 @@ INCONSISTENT_CACHE_BOILER_PLATE = (
 
 
 class LoaderError(BaseException):
+    """Base exception such that it can be raised as context for other errors."""
+
     def __init__(self, message: str) -> None:
         self.message = "\n".join([message, INCONSISTENT_CACHE_BOILER_PLATE])
         super().__init__(message)
@@ -67,7 +74,7 @@ class LoaderPartial:
             name, context=context
         )
         if loader_state is None:
-            # There's a change it's in the registry, but the reference is None.
+            # There's a chance it's in the registry, but the reference is None.
             # Delete the reference just in case, otherwise GC won't hold on to
             # this instance either.
             ctx.state_registry.delete(name, context=context)
@@ -128,7 +135,7 @@ class Loader(ABC):
         # TODO: Consider more robust verification
         if loaded.hash != hashed_context:
             raise LoaderError("Hash mismatch in loaded cache.")
-        if set(defs | stateful_refs) != set(loaded.defs):
+        if (defs | stateful_refs) != set(loaded.defs):
             raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
         return Cache(
@@ -136,7 +143,7 @@ class Loader(ABC):
             hashed_context,
             stateful_refs,
             cache_type,
-            True,
+            True,  # hit
             loaded.meta,
         )
 
