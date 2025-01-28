@@ -227,7 +227,29 @@ base_url = "http://127.0.0.1:11434/v1"
 
 ### Using other AI providers
 
-marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) follow this pattern.
+marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) and [DeepSeek](https://platform.deepseek.com) follow this pattern.
+
+??? tip "Using OpenAI-compatible providers (e.g., DeepSeek)"
+
+    === "Via marimo.toml"
+
+        Add the following configuration to your `marimo.toml` file:
+
+        ```toml
+        [ai.open_ai]
+        api_key = "dsk-..." # Your provider's API key
+        model = "deepseek-chat" # or "deepseek-reasoner"
+        base_url = "https://api.deepseek.com/"
+        ```
+
+    === "Via UI Settings"
+
+        1. Open marimo's Settings panel
+        2. Navigate to the AI section
+        3. Enter your provider's API key in the "OpenAI API Key" field
+        4. Under AI Assist settings:
+           - Set Base URL to your provider's endpoint (e.g., `https://api.deepseek.com`)
+           - Set Model to your chosen model (e.g., `deepseek-chat` or `deepseek-reasoner`)
 
 For a comprehensive list of compatible providers and their configurations, please refer to the [liteLLM Providers documentation](https://litellm.vercel.app/docs/providers).
 
