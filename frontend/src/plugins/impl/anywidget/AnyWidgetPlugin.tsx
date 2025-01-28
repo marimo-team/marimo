@@ -71,12 +71,40 @@ const AnyWidgetSlot = (props: Props) => {
 
   // Mount the CSS
   useEffect(() => {
-    if (!css || !props.host.shadowRoot) {
+    const shadowRoot = props.host.shadowRoot;
+    if (!css || !shadowRoot) {
       return;
     }
+
+    // Try constructed stylesheets first
+    if (
+      "adoptedStyleSheets" in Document.prototype &&
+      "replace" in CSSStyleSheet.prototype
+    ) {
+      const sheet = new CSSStyleSheet();
+      try {
+        sheet.replaceSync(css);
+        if (shadowRoot) {
+          shadowRoot.adoptedStyleSheets = [
+            ...shadowRoot.adoptedStyleSheets,
+            sheet,
+          ];
+        }
+        return () => {
+          if (shadowRoot) {
+            shadowRoot.adoptedStyleSheets =
+              shadowRoot.adoptedStyleSheets.filter((s) => s !== sheet);
+          }
+        };
+      } catch {
+        // Fall through to inline styles if constructed sheets fail
+      }
+    }
+
+    // Fallback to inline styles
     const style = document.createElement("style");
     style.innerHTML = css;
-    props.host.shadowRoot.append(style);
+    shadowRoot.append(style);
     return () => {
       style.remove();
     };
