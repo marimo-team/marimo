@@ -98,9 +98,8 @@ class StateRegistry:
         if saved_state and state_id != saved_state.id:
             self.delete(name, saved_state.ref())
 
-        if state:
-            if name in self._inv_states.get(state_id, set()):
-                del self._inv_states[state_id]
+        if state and name in self._inv_states.get(state_id, set()):
+            del self._inv_states[state_id]
 
     def retain_active_states(self, active_variables: set[str]) -> None:
         """Retains only the active states in the registry."""
