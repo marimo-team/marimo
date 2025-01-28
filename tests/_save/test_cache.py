@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import textwrap
+import warnings
 
 import pytest
 
@@ -777,7 +778,10 @@ class TestCacheDecorator:
         # the registry. The actual cache hit is less important than caching
         # occurring in the first place.
         # 2 * 9 + 2
-        assert k.globals["fib"].hits in (9, 18, 20)
+        if k.globals["fib"].hits in (9, 18):
+            warnings.warn("Known flaky edge case for cache.", stacklevel=1)
+        else:
+            assert k.globals["fib"].hits == 20
 
     async def test_cross_cell_cache_with_external_ui(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -827,8 +831,12 @@ class TestCacheDecorator:
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
         assert k.globals["impure"] == [60, 157, 60]
+
         # 2 * 9 + 2
-        assert k.globals["fib"].hits in (9, 18, 20)
+        if k.globals["fib"].hits in (9, 18):
+            warnings.warn("Known flaky edge case for cache.", stacklevel=1)
+        else:
+            assert k.globals["fib"].hits == 20
 
     async def test_rerun_update(
         self, k: Kernel, exec_req: ExecReqProvider
