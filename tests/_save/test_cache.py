@@ -1435,7 +1435,9 @@ class TestPersistentCache:
                 from pathlib import Path
                 pc = mo.persistent_cache
                 """),
-                exec_req.get(f'tmp_path_fixture = Path("{str(tmp_path)}")'),
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
                 exec_req.get("""
                 assert not os.path.exists(tmp_path_fixture / "basic")
                 with pc("basic", save_path=tmp_path_fixture) as cache:
@@ -1469,7 +1471,9 @@ class TestPersistentCache:
                 from pathlib import Path
                 pc = mo.persistent_cache
                 """),
-                exec_req.get(f'tmp_path_fixture = Path("{str(tmp_path)}")'),
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
                 exec_req.get("""
                 assert not os.path.exists(tmp_path_fixture / "json")
                 with pc("json", save_path=tmp_path_fixture, method="json") as json_cache:
