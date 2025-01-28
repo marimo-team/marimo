@@ -183,7 +183,7 @@ class Loader(ABC):
 
 
 class BasePersistenceLoader(Loader):
-    """General loader for serializable objects."""
+    """Abstract base for cache written to disk."""
 
     def __init__(
         self, name: str, suffix: str, save_path: str | Path | None

@@ -361,7 +361,7 @@ class _cache_context(object):
         # Fill the cache object and save.
         if self._cache is None or self._frame is None:
             raise CacheException(
-                f"Cache was not correctly set{UNEXPECTED_FAILURE_BOILERPLATE}"
+                f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
         self._cache.update(self._frame.f_locals)
 

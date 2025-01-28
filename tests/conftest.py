@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Generator
 import pytest
 from _pytest import runner
 
-from marimo._ast.app import CellManager
+from marimo._ast.app import App, CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
@@ -558,13 +558,14 @@ def mo_fixture() -> ModuleType:
     return mo
 
 
-# fixture that provides a kernel (and tears it down)
+# Sets some non-public attributes on App and runs it.
 @pytest.fixture
-def app() -> Generator[Kernel, None, None]:
-    import marimo
-
-    app = marimo.App()
+def app() -> Generator[App, None, None]:
+    app = App()
+    # Needed for consistent stack trace paths.
     app._anonymous_file = True
+    # Provides verbose traceback on assertion errors. Note it does alter the
+    # cell AST.
     app._pytest_rewrite = True
     yield app
     app.run()
