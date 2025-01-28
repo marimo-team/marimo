@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -61,9 +61,9 @@ def sql(
         DependencyManager.duckdb.require("to execute sql")
         sql_engine = DuckDBEngine(connection=None)
     elif SQLAlchemyEngine.is_compatible(engine):
-        sql_engine = SQLAlchemyEngine(engine)
+        sql_engine = SQLAlchemyEngine(engine)  # type: ignore
     elif DuckDBEngine.is_compatible(engine):
-        sql_engine = DuckDBEngine(engine)
+        sql_engine = DuckDBEngine(engine)  # type: ignore
     else:
         raise ValueError(
             "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
@@ -81,7 +81,7 @@ def sql(
 
     enforce_own_limit = not has_limit and default_result_limit is not None
 
-    custom_total_count = None
+    custom_total_count: Optional[Literal["too_many"]]
     if enforce_own_limit:
         if DependencyManager.polars.has():
             custom_total_count = (

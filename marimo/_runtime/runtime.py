@@ -2005,6 +2005,9 @@ class Kernel:
             elif source_type == "local":
                 dataset = self.globals[table_name]
                 column_preview = get_column_preview_dataframe(dataset, request)
+            elif source_type == "connection":
+                # TODO: Handle data-source-connection / engine display
+                pass
             else:
                 assert_never(source_type)
 

@@ -5,7 +5,6 @@ import type { TypedString } from "@/utils/typed";
 export type ConnectionName = TypedString<"ConnectionName">;
 
 export interface DataSourceConnection {
-  // Backend will dedupe by name & keep the latest, so we use this as the key
   name: ConnectionName;
   source: string;
   display_name?: string;
@@ -34,6 +33,7 @@ const {
   ): DataSourceState => {
     // update existing connections with latest values
     // add new ones if they don't exist
+    // Backend will dedupe by connection name & keep the latest, so we use this as the key
     for (const conn of opts.connections) {
       state.connectionsMap.set(conn.name, conn);
     }
