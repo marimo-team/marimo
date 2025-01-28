@@ -86,34 +86,23 @@ class SQLAlchemyEngine(SQLEngine):
         ):
             raise_df_import_error("polars")
 
-        if DependencyManager.sqlalchemy.has():
-            from sqlalchemy import text
+        from sqlalchemy import text
 
-            with self._engine.connect() as connection:
-                result = connection.execute(text(query))
-                connection.commit()
+        with self._engine.connect() as connection:
+            result = connection.execute(text(query))
+            connection.commit()
 
-            if not result.returns_rows:
-                return None
+        if not result.returns_rows:
+            return None
 
-            if DependencyManager.polars.has():
-                import polars as pl
-
-                return pl.DataFrame(result)  # type: ignore
-            else:
-                import pandas as pd
-
-                return pd.DataFrame(result)
-
-        # Fallback for non-SQLAlchemy execution, TODO: maybe suggest install sqlalchemy when fail
         if DependencyManager.polars.has():
             import polars as pl
 
-            return pl.read_database(query, connection=self._engine)
+            return pl.DataFrame(result)  # type: ignore
         else:
             import pandas as pd
 
-            return pd.read_sql_query(query, self._engine)
+            return pd.DataFrame(result)
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

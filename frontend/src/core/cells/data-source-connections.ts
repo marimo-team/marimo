@@ -32,16 +32,10 @@ const {
     state: DataSourceState,
     opts: { connections: DataSourceConnection[] },
   ): DataSourceState => {
-    const newConnections = opts.connections;
-
-    for (const newConn of newConnections) {
-      const existingConnection = state.connectionsMap.get(newConn.name);
-      if (existingConnection) {
-        // update the existing connection
-        state.connectionsMap.set(existingConnection.name, newConn);
-      } else {
-        state.connectionsMap.set(newConn.name, newConn);
-      }
+    // update existing connections with latest values
+    // add new ones if they don't exist
+    for (const conn of opts.connections) {
+      state.connectionsMap.set(conn.name, conn);
     }
     return state;
   },
