@@ -11,9 +11,9 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { DelayMount } from "@/components/utils/delay-mount";
 import React from "react";
-import "./data-editor/grid.css";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-quartz.css";
+import gridCss from "./data-editor/grid.css?inline";
+import agGridCss from "ag-grid-community/styles/ag-grid.css?inline";
+import agThemeCss from "ag-grid-community/styles/ag-theme-quartz.css?inline";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { toFieldTypes } from "@/components/data-table/types";
 
@@ -31,7 +31,9 @@ interface Edits {
 // Lazy load the data editor since it brings in ag-grid
 const LazyDataEditor = React.lazy(() => import("./data-editor/data-editor"));
 
-export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
+export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
+  cssStyles: [gridCss, agGridCss, agThemeCss],
+})
   .withData(
     z.object({
       initialValue: z.object({
