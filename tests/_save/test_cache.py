@@ -876,7 +876,7 @@ class TestCacheDecorator:
     async def test_full_scope_utilized(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        # This is not completly obvious, but @cache needs to know what frame it
+        # This is not completely obvious, but @cache needs to know what frame it
         # is on so it can get locals or globals.
         await k.run(
             [

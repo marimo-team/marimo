@@ -11,7 +11,6 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
 from marimo._save.cache import (
-    MARIMO_CACHE_VERSION,
     CACHE_PREFIX,
     Cache,
     CacheType,
