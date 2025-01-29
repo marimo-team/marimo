@@ -10,6 +10,7 @@ from marimo._runtime.context.types import (
     get_context,
 )
 from marimo._runtime.context.utils import RunMode, get_mode
+from marimo._runtime.requests import HTTPRequest
 
 
 @mddoc
@@ -75,3 +76,17 @@ class AppMeta:
             - None: The mode could not be determined
         """
         return get_mode()
+
+    @property
+    def request(self) -> Optional[HTTPRequest]:
+        """
+        The current HTTP request if any.
+
+        Returns:
+            Optional[Request]: The current request object if available, None otherwise.
+        """
+        try:
+            context = get_context()
+            return context.request
+        except ContextNotInitializedError:
+            return None

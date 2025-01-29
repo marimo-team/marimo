@@ -10,6 +10,7 @@ from marimo._config.config import MarimoConfig
 from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
+    HTTPRequest,
     RenameRequest,
 )
 
@@ -83,9 +84,15 @@ class RunRequest:
     cell_ids: List[CellId_t]
     # code to register/run for each cell
     codes: List[str]
+    # incoming request, e.g. from Starlette or FastAPI
+    request: Optional[HTTPRequest] = None
 
     def as_execution_request(self) -> ExecuteMultipleRequest:
-        return ExecuteMultipleRequest(cell_ids=self.cell_ids, codes=self.codes)
+        return ExecuteMultipleRequest(
+            cell_ids=self.cell_ids,
+            codes=self.codes,
+            request=self.request,
+        )
 
     # Validate same length
     def __post_init__(self) -> None:
@@ -97,9 +104,14 @@ class RunRequest:
 @dataclass
 class RunScratchpadRequest:
     code: str
+    # incoming request, e.g. from Starlette or FastAPI
+    request: Optional[Any] = None
 
     def as_execution_request(self) -> ExecuteScratchpadRequest:
-        return ExecuteScratchpadRequest(code=self.code)
+        return ExecuteScratchpadRequest(
+            code=self.code,
+            request=self.request,
+        )
 
 
 @dataclass

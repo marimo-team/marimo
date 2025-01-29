@@ -110,7 +110,7 @@ class AppKernelRunner:
 
     async def run(self, cells_to_run: set[CellId_t]) -> RunOutput:
         execution_requests = [
-            ExecutionRequest(cell_id=cid, code=cell._cell.code)
+            ExecutionRequest(cell_id=cid, code=cell._cell.code, request=None)
             for cid in cells_to_run
             if (cell := self.app.cell_manager.cell_data_at(cid).cell)
             is not None

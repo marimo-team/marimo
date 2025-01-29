@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from marimo._plugins.ui._impl.tables.format import (
+    FormatMapping,
     format_column,
     format_row,
     format_value,
@@ -9,7 +10,7 @@ from marimo._plugins.ui._impl.tables.format import (
 
 def test_format_value():
     # Test with string formatter
-    format_mapping = {"col1": "{:.2f}"}
+    format_mapping: FormatMapping = {"col1": "{:.2f}"}
     assert format_value("col1", 123.456, format_mapping) == "123.46"
 
     # Test with callable formatter
@@ -43,13 +44,13 @@ def test_format_value():
 
 def test_format_row():
     # Test with string formatter
-    format_mapping = {"col1": "{:.2f}", "col2": "{:.1f}"}
+    format_mapping: FormatMapping = {"col1": "{:.2f}", "col2": "{:.1f}"}
     row = {"col1": 123.456, "col2": 78.9}
     expected = {"col1": "123.46", "col2": "78.9"}
     assert format_row(row, format_mapping) == expected
 
     # Test with callable formatter
-    format_mapping = {
+    format_mapping: FormatMapping = {
         "col1": lambda x: f"${x:.2f}",
         "col2": lambda x: f"{x:.1f}%",
     }
@@ -93,7 +94,7 @@ def test_format_row():
 
 def test_format_column():
     # Test with string formatter
-    format_mapping = {"col1": "{:.2f}"}
+    format_mapping: FormatMapping = {"col1": "{:.2f}"}
     values = [123.456, 78.9]
     expected = ["123.46", "78.90"]
     assert format_column("col1", values, format_mapping) == expected
