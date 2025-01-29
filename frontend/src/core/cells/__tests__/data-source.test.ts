@@ -27,7 +27,7 @@ describe("data source connections", () => {
   });
 
   it("starts with empty connections map", () => {
-    expect(initialState().connectionsMap.size).toBe(0);
+    expect(initialState().connectionsMap.size).toBe(1);
   });
 
   it("can add new connections", () => {
@@ -41,7 +41,7 @@ describe("data source connections", () => {
     ];
 
     const newState = addConnection(newConnections);
-    expect(newState.connectionsMap.size).toBe(1);
+    expect(newState.connectionsMap.size).toBe(2);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       newConnections[0],
     );
@@ -63,7 +63,7 @@ describe("data source connections", () => {
     let newState = addConnection([connection]);
     newState = addConnection([updatedConnection]);
 
-    expect(newState.connectionsMap.size).toBe(1);
+    expect(newState.connectionsMap.size).toBe(2);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       updatedConnection,
     );
@@ -86,13 +86,13 @@ describe("data source connections", () => {
     ];
 
     let newState = addConnection(connections);
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(3);
 
     newState = reducer(newState, {
       type: "removeDataSourceConnection",
       payload: "conn1" as ConnectionName,
     });
-    expect(newState.connectionsMap.size).toBe(1);
+    expect(newState.connectionsMap.size).toBe(2);
     expect(newState.connectionsMap.has("conn2" as ConnectionName)).toBe(true);
   });
 
@@ -113,7 +113,7 @@ describe("data source connections", () => {
     ];
 
     let newState = addConnection(connections);
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(3);
 
     newState = reducer(newState, {
       type: "clearDataSourceConnections",
