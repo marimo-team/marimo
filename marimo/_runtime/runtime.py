@@ -262,6 +262,14 @@ def app_meta() -> AppMeta:
         mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
         ```
 
+        Get the current request headers or user info:
+
+        ```python
+        request = mo.app_meta().request
+        print(request.headers)
+        print(request.user)
+        ```
+
     Returns:
         AppMeta: An AppMeta object containing the app's metadata.
     """
