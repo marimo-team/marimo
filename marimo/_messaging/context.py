@@ -37,7 +37,6 @@ class http_request_context:
     request: Optional[HTTPRequest]
 
     def __init__(self, request: Optional[HTTPRequest]) -> None:
-        assert request is not None
         self.request = request
 
     def __enter__(self) -> None:

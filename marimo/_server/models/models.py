@@ -105,7 +105,7 @@ class RunRequest:
 class RunScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[Any] = None
+    request: Optional[HTTPRequest] = None
 
     def as_execution_request(self) -> ExecuteScratchpadRequest:
         return ExecuteScratchpadRequest(

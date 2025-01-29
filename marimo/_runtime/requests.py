@@ -120,7 +120,7 @@ class ExecutionRequest:
     cell_id: CellId_t
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
     timestamp: float = field(default_factory=time.time)
 
 
@@ -135,7 +135,7 @@ class ExecuteMultipleRequest:
     # code to register/run for each cell
     codes: List[str]
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[Any]
+    request: Optional[HTTPRequest]
     # time at which the request was received
     timestamp: float = field(default_factory=time.time)
 
@@ -161,7 +161,7 @@ class ExecuteMultipleRequest:
 class ExecuteScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[Any]
+    request: Optional[HTTPRequest]
 
 
 @dataclass
@@ -174,7 +174,7 @@ class SetUIElementValueRequest:
     object_ids: List[UIElementId]
     values: List[Any]
     # Incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
     # uniquely identifies the request
     token: str = field(default_factory=lambda: str(uuid4()))
 
