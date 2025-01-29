@@ -111,6 +111,12 @@ describe("SQLLanguageAdapter", () => {
       expect(innerCode).toBe("SELECT * FROM table");
       expect(adapter.showOutput).toBe(false);
       expect(offset).toBe(16);
+
+      // handle trailing comma
+      const pythonCode2 =
+        '_df = mo.sql("""SELECT * FROM table""", output=False,)';
+      const [innerCode2] = adapter.transformIn(pythonCode2);
+      expect(innerCode2).toBe("SELECT * FROM table");
     });
 
     it("should default to showing output when flag is not specified", () => {
@@ -126,6 +132,12 @@ describe("SQLLanguageAdapter", () => {
       expect(innerCode).toBe("SELECT * FROM table");
       expect(offset).toBe(16);
       expect(adapter.engine).toBe("postgres_engine");
+
+      // handle trailing comma
+      const pythonCode2 =
+        '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine,)';
+      const [innerCode2] = adapter.transformIn(pythonCode2);
+      expect(innerCode2).toBe("SELECT * FROM table");
     });
 
     it("should handle engine param with output flag", () => {
@@ -136,6 +148,12 @@ describe("SQLLanguageAdapter", () => {
       expect(offset).toBe(16);
       expect(adapter.showOutput).toBe(false);
       expect(adapter.engine).toBe("postgres_engine");
+
+      // handle reversed order
+      const pythonCode2 =
+        '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine, output=False)';
+      const [innerCode2] = adapter.transformIn(pythonCode2);
+      expect(innerCode2).toBe("SELECT * FROM table");
     });
   });
 
