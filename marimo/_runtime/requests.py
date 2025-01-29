@@ -69,7 +69,10 @@ class HTTPRequest(Mapping[str, Any]):
         return len(self.__dict__)
 
     def _display_(self) -> Any:
-        return asdict(self)
+        try:
+            return asdict(self)
+        except TypeError:
+            return self.__dict__
 
     @staticmethod
     def from_request(request: HTTPConnection) -> "HTTPRequest":
