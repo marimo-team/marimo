@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_POLARS = DependencyManager.polars.has()
+HAS_PANDAS = DependencyManager.pandas.has()
 HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 
@@ -136,7 +137,8 @@ def test_invalid_sql(
         sql("SELECT *", engine=sqlite_engine)
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+# TODO
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
 def test_sql_with_limit() -> None:
     """Test sql function respects LIMIT clause and environment variable."""
     import pandas as pd
@@ -157,7 +159,7 @@ def test_sql_with_limit() -> None:
     #         assert len(result) == 3
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
 def test_sql_output_formatting() -> None:
     """Test sql function output formatting."""
     import pandas as pd

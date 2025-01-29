@@ -12,7 +12,7 @@ export interface DataSourceConnection {
 }
 
 export interface DataSourceState {
-  connectionsMap: Map<ConnectionName, DataSourceConnection>;
+  connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
 }
 
 function initialState(): DataSourceState {
@@ -31,13 +31,19 @@ const {
     state: DataSourceState,
     opts: { connections: DataSourceConnection[] },
   ): DataSourceState => {
+    if (opts.connections.length === 0) {
+      return state;
+    }
+
     // update existing connections with latest values
     // add new ones if they don't exist
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
+    const newMap = new Map(state.connectionsMap);
     for (const conn of opts.connections) {
-      state.connectionsMap.set(conn.name, conn);
+      newMap.set(conn.name, conn);
     }
-    return state;
+
+    return { connectionsMap: newMap };
   },
 
   clearDataSourceConnections: (): DataSourceState => ({
@@ -48,8 +54,9 @@ const {
     state: DataSourceState,
     connectionName: ConnectionName,
   ): DataSourceState => {
-    state.connectionsMap.delete(connectionName);
-    return state;
+    const newMap = new Map(state.connectionsMap);
+    newMap.delete(connectionName);
+    return { connectionsMap: newMap };
   },
 });
 

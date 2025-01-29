@@ -114,6 +114,7 @@ export const DataSourcesPanel: React.FC = () => {
         break;
       case "connection":
         // TODO: Handle connection source
+        code = `_df = mo.sql("SELECT 1", engine=${table.source_type})`;
         break;
       default:
         logNever(table.source_type);
