@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, beforeAll } from "vitest";
-import { SQLLanguageAdapter } from "../sql";
+import { expect, describe, it, beforeAll, afterAll, afterEach } from "vitest";
+import { DEFAULT_ENGINE, SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
 import { capabilitiesAtom } from "@/core/config/capabilities";
+import type { ConnectionName } from "@/core/cells/data-source-connections";
 
 const adapter = new SQLLanguageAdapter();
 
@@ -15,6 +16,11 @@ describe("SQLLanguageAdapter", () => {
   });
 
   describe("transformIn", () => {
+    afterAll(() => {
+      adapter.engine = DEFAULT_ENGINE;
+      adapter.showOutput = true;
+    });
+
     it("empty", () => {
       const [innerCode, offset] = adapter.transformIn("");
       expect(innerCode).toBe("");
@@ -112,9 +118,34 @@ describe("SQLLanguageAdapter", () => {
       adapter.transformIn(pythonCode);
       expect(adapter.showOutput).toBe(true);
     });
+
+    it("should handle engine param when provided", () => {
+      const pythonCode =
+        '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(offset).toBe(16);
+      expect(adapter.engine).toBe("postgres_engine");
+    });
+
+    it("should handle engine param with output flag", () => {
+      const pythonCode =
+        '_df = mo.sql("""SELECT * FROM table""", output=False, engine=postgres_engine)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(offset).toBe(16);
+      expect(adapter.showOutput).toBe(false);
+      expect(adapter.engine).toBe("postgres_engine");
+    });
   });
 
   describe("transformOut", () => {
+    afterEach(() => {
+      adapter.engine = DEFAULT_ENGINE;
+      adapter.showOutput = true;
+      adapter.dataframeName = "_df";
+    });
+
     it("should wrap SQL code with triple double-quoted string format", () => {
       const code = "SELECT * FROM {df}";
       adapter.lastQuotePrefix = "";
@@ -141,7 +172,7 @@ describe("SQLLanguageAdapter", () => {
             f"""
             SELECT * FROM table
             """,
-            output=False,
+            output=False
         )"
       `);
       expect(offset).toBe(26);
@@ -161,6 +192,38 @@ describe("SQLLanguageAdapter", () => {
         )"
       `);
       expect(offset).toBe(26);
+    });
+
+    it("should add engine connection when provided", () => {
+      const code = "SELECT * FROM table";
+      adapter.engine = "postgres_engine" as ConnectionName;
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "_df = mo.sql(
+            f"""
+            SELECT * FROM table
+            """,
+            engine=postgres_engine
+        )"
+      `);
+      expect(offset).toBe(24);
+    });
+
+    it("should add engine connection and output flag when provided", () => {
+      const code = "SELECT * FROM table";
+      adapter.showOutput = false;
+      adapter.engine = "postgres_engine" as ConnectionName;
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "_df = mo.sql(
+            f"""
+            SELECT * FROM table
+            """,
+            output=False,
+            engine=postgres_engine
+        )"
+      `);
+      expect(offset).toBe(24);
     });
   });
 

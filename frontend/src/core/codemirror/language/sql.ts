@@ -20,6 +20,7 @@ import {
 } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
+import type { ConnectionName } from "@/core/cells/data-source-connections";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -27,6 +28,8 @@ const quoteKinds = [
   ["'", "'"],
   ['"', '"'],
 ];
+
+export const DEFAULT_ENGINE: ConnectionName = "duckdb" as ConnectionName;
 
 // explode into all combinations
 // only f is supported
@@ -36,11 +39,11 @@ const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
 
 const regexes = pairs.map(
   ([start, end]) =>
-    // df = mo.sql( space + start + capture + space + end, optional output flag)
+    // df = mo.sql( space + start + capture + space + end, optional output flag, optional engine param)
     [
       start,
       new RegExp(
-        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:,\\s*output\\s*=\\s*(?<output>True|False),?)?\\s*\\)$`,
+        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:(?:,\\s*output\\s*=\\s*(?<output>True|False))?,?(?:,\\s*engine\\s*=\\s*(?<engine>\\w+))?)?\\s*\\)$`,
         "s",
       ),
     ] as const,
@@ -52,13 +55,16 @@ const regexes = pairs.map(
 export class SQLLanguageAdapter implements LanguageAdapter {
   readonly type = "sql";
   readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
-  static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
+  static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`; // TODO: add engine for conversion
 
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
   showOutput = true;
+  engine: ConnectionName = DEFAULT_ENGINE;
 
-  transformIn(pythonCode: string): [string, number] {
+  transformIn(
+    pythonCode: string,
+  ): [cleanSqlQuery: string, queryStartOffset: number] {
     if (!this.isSupported(pythonCode)) {
       // Attempt to remove any markdown wrappers
       const [transformedCode, offset] =
@@ -82,12 +88,15 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         const dataframe = match.groups?.dataframe || this.dataframeName;
         const innerCode = match.groups?.sql || "";
         const output = match.groups?.output;
+        const engine = match.groups?.engine;
 
         const [quotePrefix, quoteType] = splitQuotePrefix(start);
         // store the quote prefix for later when we transform out
         this.lastQuotePrefix = quotePrefix;
         this.dataframeName = dataframe;
         this.showOutput = output === undefined ? true : output === "True";
+        this.engine =
+          engine === undefined ? DEFAULT_ENGINE : (engine as ConnectionName);
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
@@ -106,7 +115,12 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     // Multiline code
     const start = `${this.dataframeName} = mo.sql(\n    ${prefix}"""\n`;
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
-    const end = `\n    """${this.showOutput ? "" : ",\n    output=False,"}\n)`;
+
+    const showOutputParam = this.showOutput ? "" : ",\n    output=False";
+    const engineParam =
+      this.engine === DEFAULT_ENGINE ? "" : `,\n    engine=${this.engine}`;
+    const end = `\n    """${showOutputParam}${engineParam}\n)`;
+
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
 
@@ -126,6 +140,14 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     }
 
     return regexes.some(([, regex]) => regex.test(pythonCode));
+  }
+
+  selectEngine(connectionName: ConnectionName): void {
+    this.engine = connectionName;
+  }
+
+  setShowOutput(showOutput: boolean): void {
+    this.showOutput = showOutput;
   }
 
   getExtension(

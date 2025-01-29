@@ -81,6 +81,7 @@ describe("data source connections", () => {
         name: "conn2" as ConnectionName,
         source: "postgres",
         dialect: "postgres",
+        display_name: "Postgres DB",
       },
     ];
 

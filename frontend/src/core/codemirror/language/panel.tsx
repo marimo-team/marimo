@@ -6,6 +6,7 @@ import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
+  type ConnectionName,
   dataSourceConnectionsAtom,
   type DataSourceState,
 } from "@/core/cells/data-source-connections";
@@ -56,13 +57,16 @@ export const LanguagePanelComponent: React.FC<{
           <span {...spanProps} />
         </label>
         {getFeatureFlag("sql_engines") && (
-          <SQLEngineSelect dataSourceState={dataSourceState} />
+          <SQLEngineSelect
+            dataSourceState={dataSourceState}
+            languageAdapter={languageAdapter}
+          />
         )}
         <label className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
             onChange={(e) => {
-              languageAdapter.showOutput = !e.target.checked;
+              languageAdapter.setShowOutput(!e.target.checked);
               // Trigger an update to reflect the change
               view.dispatch({
                 changes: {
@@ -89,19 +93,27 @@ export const LanguagePanelComponent: React.FC<{
   );
 };
 
-const SQLEngineSelect: React.FC<{ dataSourceState: DataSourceState }> = ({
-  dataSourceState,
-}) => {
+const SQLEngineSelect: React.FC<{
+  dataSourceState: DataSourceState;
+  languageAdapter: SQLLanguageAdapter;
+}> = ({ dataSourceState, languageAdapter }) => {
   return (
     <>
       <select
         id="sql-engine"
         name="sql-engine"
         className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
+        onChange={(e) => {
+          languageAdapter.selectEngine(e.target.value as ConnectionName);
+        }}
       >
         {[...dataSourceState.connectionsMap.entries()].map(([key, value]) => (
-          <option key={key} value={value.name}>
-            {value.display_name || value.name}
+          <option
+            key={key}
+            value={value.name}
+            selected={languageAdapter.engine === value.name}
+          >
+            {value.display_name}
           </option>
         ))}
       </select>
