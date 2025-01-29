@@ -29,7 +29,9 @@ const quoteKinds = [
   ['"', '"'],
 ];
 
-export const DEFAULT_ENGINE: ConnectionName = "duckdb" as ConnectionName;
+// Default engine to use when not specified, shouldn't conflict with user_defined engines
+export const DEFAULT_ENGINE: ConnectionName =
+  "_marimo_duckdb" as ConnectionName;
 
 // explode into all combinations
 // only f is supported
