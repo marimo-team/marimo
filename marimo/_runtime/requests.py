@@ -135,7 +135,7 @@ class ExecuteMultipleRequest:
     # code to register/run for each cell
     codes: List[str]
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
     # time at which the request was received
     timestamp: float = field(default_factory=time.time)
 

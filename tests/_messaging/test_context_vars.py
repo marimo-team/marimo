@@ -93,7 +93,6 @@ class TestHTTPRequestContext:
         with pytest.raises(LookupError):
             HTTP_REQUEST_CTX.get()
 
-    def test_none_request_assertion(self):
-        with pytest.raises(AssertionError):
-            with http_request_context(None):
-                pass
+    def test_none_request(self):
+        with http_request_context(None):
+            assert HTTP_REQUEST_CTX.get() is None
