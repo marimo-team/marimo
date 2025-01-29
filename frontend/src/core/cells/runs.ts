@@ -15,13 +15,13 @@ export interface CellRun {
 
 export interface Run {
   runId: RunId;
-  cellRuns: ReadonlyMap<CellId, CellRun>;
+  cellRuns: Map<CellId, CellRun>;
   runStartTime: number;
 }
 
 export interface RunsState {
   runIds: RunId[];
-  runMap: ReadonlyMap<RunId, Run>;
+  runMap: Map<RunId, Run>;
 }
 
 function initialState(): RunsState {
