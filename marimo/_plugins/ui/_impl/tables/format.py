@@ -21,7 +21,7 @@ def format_value(
                 # Handle numeric formatting specially to preserve signs and separators
                 if isinstance(value, (int, float)):
                     # Keep integers as integers for 'd' format specifier
-                    if isinstance(value, int) and 'd' in formatter:
+                    if isinstance(value, int) and "d" in formatter:
                         return formatter.format(value)
                     # Convert to float for float formatting
                     return formatter.format(float(value))
