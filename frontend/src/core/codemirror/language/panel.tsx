@@ -122,7 +122,7 @@ const SQLEngineSelect: React.FC<{ languageAdapter: SQLLanguageAdapter }> = ({
           <a href="https://TODO.com" target="_blank" rel="noreferrer">
             <CircleHelpIcon
               size={13}
-              className="text-[grey] opacity-60 hover:text-[var(--blue-11)]"
+              className="text-[var(--sky-11)] opacity-60 hover:opacity-100"
             />
           </a>
         </Tooltip>
