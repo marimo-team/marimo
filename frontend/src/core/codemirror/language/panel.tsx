@@ -23,6 +23,17 @@ export const LanguagePanelComponent: React.FC<{
   let actions: React.ReactNode = <div />;
   let showDivider = false;
 
+  // Send noop update code event, which will trigger an update to the new output variable name
+  const triggerUpdate = () => {
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: view.state.doc.toString(),
+      },
+    });
+  };
+
   if (languageAdapter instanceof SQLLanguageAdapter) {
     showDivider = true;
     actions = (
@@ -33,44 +44,33 @@ export const LanguagePanelComponent: React.FC<{
             {...inputProps}
             defaultValue={languageAdapter.dataframeName}
             onChange={(e) => {
-              languageAdapter.dataframeName = e.target.value;
+              languageAdapter.setDataframeName(e.target.value);
               inputProps.onChange?.(e);
             }}
             onBlur={(e) => {
               // Normalize the name to a valid variable name
               const name = normalizeName(e.target.value, false);
-              languageAdapter.dataframeName = name;
+              languageAdapter.setDataframeName(name);
               e.target.value = name;
 
-              // Send noop update code event, which will trigger an update to the new output variable name
-              view.dispatch({
-                changes: {
-                  from: 0,
-                  to: view.state.doc.length,
-                  insert: view.state.doc.toString(),
-                },
-              });
+              triggerUpdate();
             }}
             className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <span {...spanProps} />
         </label>
         {getFeatureFlag("sql_engines") && (
-          <SQLEngineSelect languageAdapter={languageAdapter} />
+          <SQLEngineSelect
+            languageAdapter={languageAdapter}
+            onChange={triggerUpdate}
+          />
         )}
         <label className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
             onChange={(e) => {
               languageAdapter.setShowOutput(!e.target.checked);
-              // Trigger an update to reflect the change
-              view.dispatch({
-                changes: {
-                  from: 0,
-                  to: view.state.doc.length,
-                  insert: view.state.doc.toString(),
-                },
-              });
+              triggerUpdate();
             }}
             checked={!languageAdapter.showOutput}
           />
@@ -89,9 +89,10 @@ export const LanguagePanelComponent: React.FC<{
   );
 };
 
-const SQLEngineSelect: React.FC<{ languageAdapter: SQLLanguageAdapter }> = ({
-  languageAdapter,
-}) => {
+const SQLEngineSelect: React.FC<{
+  languageAdapter: SQLLanguageAdapter;
+  onChange: (engine: ConnectionName) => void;
+}> = ({ languageAdapter, onChange }) => {
   // use local state as languageAdapter may not trigger an update
   const [engine, setEngine] = useState(languageAdapter.engine);
   const dataSourceState = useAtomValue(dataSourceConnectionsAtom);
@@ -104,8 +105,10 @@ const SQLEngineSelect: React.FC<{ languageAdapter: SQLLanguageAdapter }> = ({
         className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
         value={engine}
         onChange={(e) => {
-          languageAdapter.selectEngine(e.target.value as ConnectionName);
-          setEngine(e.target.value as ConnectionName);
+          const nextEngine = e.target.value as ConnectionName;
+          languageAdapter.selectEngine(nextEngine);
+          setEngine(nextEngine);
+          onChange(nextEngine);
         }}
       >
         {[...dataSourceState.connectionsMap.entries()].map(([key, value]) => (

@@ -1,3 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "polars==1.21.0",
+#     "psycopg==3.2.4",
+#     "sqlglot==26.3.9",
+#     "sqlmodel==0.0.22",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.10.17"
@@ -12,13 +23,13 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# SQL Alchemy with `mo.sql()`""")
+    mo.md("""# SQLModel with `mo.sql()`""")
     return
 
 
 @app.cell
 def _():
-    from sqlalchemy import text, create_engine
+    from sqlmodel import text, create_engine
     return create_engine, text
 
 
@@ -174,7 +185,7 @@ def _(create_engine, mo, psql_url):
 
     # Create a PostgreSQL database
     my_postgres = create_engine(
-        psql_url.value.replace("postgresql", "postgresql+psycopg")
+        psql_url.value.replace("postgresql", "postgresql+psycopg2")
     )
     return (my_postgres,)
 

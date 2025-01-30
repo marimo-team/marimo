@@ -137,6 +137,10 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     this.showOutput = showOutput;
   }
 
+  setDataframeName(dataframeName: string): void {
+    this.dataframeName = dataframeName;
+  }
+
   getExtension(
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,

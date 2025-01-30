@@ -131,6 +131,24 @@ To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
 SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 ```
 
+## Bringing your SQL connection engine
+
+marimo also supports connecting to your database via a connection engine created with a library like SQLAlchemy, SQLModel, or a custom DuckDB connection. First, you need to define the engine as a Python variable in a cell.
+marimo will auto-discover the engine and let you select it in a dropdown in the SQL cell.
+
+```python
+from sqlalchemy import text
+
+# Create an in-memory SQLite database
+sqlite_engine = sa.create_engine("sqlite:///:memory:")
+# Create a Postgres database
+postgres_engine = sa.create_engine("postgresql://username:password@server:port/database")
+# Snowflake database
+snowflake_engine = sa.create_engine("snowflake://username:password@server:port/database")
+```
+
+// TODO: Image of dropdown
+
 ## Interactive tutorial
 
 For an interactive tutorial, run
