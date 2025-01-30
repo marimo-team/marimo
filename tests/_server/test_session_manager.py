@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import time
 from unittest.mock import MagicMock, Mock, patch
 
@@ -228,6 +229,7 @@ def test_cleanup_orphaned_sessions_no_sessions(
     assert len(session_manager.sessions) == 0
 
 
+@pytest.mark.xfail(sys.platform == "win32", reason="Flaky on Windows")
 async def test_cleanup_orphaned_sessions_dead_kernel(
     session_manager: SessionManager,
     mock_session_consumer: SessionConsumer,

@@ -32,7 +32,12 @@ const Watermark = () => {
         rel="noreferrer"
       >
         <span className="pb-[2px]">made with marimo</span>
-        <img src="./favicon.ico" alt="marimo" className="h-4 w-auto" />
+        <img
+          // Static HTML doesn't include a ./favicon.ico
+          src="https://marimo.io/mini-logo.png"
+          alt="marimo"
+          className="h-4 w-auto"
+        />
       </a>
     </div>
   );
