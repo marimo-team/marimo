@@ -308,7 +308,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "auto_instantiate": True,
         "auto_reload": "off",
         "on_cell_change": "autorun",
-        "output_max_byes": 5_000_000
+        "output_max_byes": 5_000_000,
     },
     "save": {
         "autosave": "after_delay",
