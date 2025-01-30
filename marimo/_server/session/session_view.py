@@ -57,9 +57,9 @@ class SessionView:
         self.stale_code: Optional[UpdateCellCodes] = None
 
         # Auto-saving
-        self.last_auto_exported_html: Optional[float] = None
-        self.last_auto_exported_md: Optional[float] = None
-        self.last_auto_exported_ipynb: Optional[float] = None
+        self.has_auto_exported_html = False
+        self.has_auto_exported_md = False
+        self.has_auto_exported_ipynb = False
         self.last_active_time = time.time()
 
     def _add_ui_value(self, name: str, value: Any) -> None:
@@ -240,37 +240,19 @@ class SessionView:
         return all_ops
 
     def mark_auto_export_html(self) -> None:
-        self.last_auto_exported_html = time.time()
+        self.has_auto_exported_html = True
 
     def mark_auto_export_md(self) -> None:
-        self.last_auto_exported_md = time.time()
+        self.has_auto_exported_md = True
 
     def mark_auto_export_ipynb(self) -> None:
-        self.last_auto_exported_ipynb = time.time()
-
-    @property
-    def has_auto_exported_html(self) -> bool:
-        return (
-            self.last_auto_exported_html is not None
-            and self.last_active_time <= self.last_auto_exported_html
-        )
-
-    @property
-    def has_auto_exported_md(self) -> bool:
-        return (
-            self.last_auto_exported_md is not None
-            and self.last_active_time <= self.last_auto_exported_md
-        )
-
-    @property
-    def has_auto_exported_ipynb(self) -> bool:
-        return (
-            self.last_auto_exported_ipynb is not None
-            and self.last_active_time <= self.last_auto_exported_ipynb
-        )
+        self.has_auto_exported_ipynb = True
 
     def _touch(self) -> None:
         self.last_active_time = time.time()
+        self.has_auto_exported_html = False
+        self.has_auto_exported_md = False
+        self.has_auto_exported_ipynb = False
 
 
 def merge_cell_operation(
