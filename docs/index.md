@@ -94,8 +94,8 @@ transformers](api/inputs/dataframe.md), and [chat
 interfaces](api/inputs/chat.md), and the cells that
 use them are automatically re-run with their latest values.
 
-<!-- <video autoplay muted loop width="700px" align="center" src="/_static/readme-ui.webm">
-</video> -->
+<video autoplay muted loop width="700px" align="center" src="/_static/readme-ui.webm">
+</video>
 
 **Interactive dataframes.** [Page through, search, filter, and
 sort](./guides/working_with_data/dataframes.md)
@@ -157,8 +157,8 @@ code hidden and uneditable:
 marimo run your_notebook.py
 ```
 
-<!-- <video autoplay muted loop width="450px" align="center" src="/_static/docs-model-comparison.webm" style="border-radius: 8px">
-</video> -->
+<video autoplay muted loop width="450px" align="center" src="/_static/docs-model-comparison.webm" style="border-radius: 8px">
+</video>
 
 **Execute as scripts.** Execute a notebook as a script at the
 command line:
@@ -193,8 +193,8 @@ marimo is easy to get started with, with lots of room for power users.
 For example, here's an embedding visualizer made in marimo
 ([video](https://marimo.io/videos/landing/full.mp4)):
 
-<!-- <video autoplay muted loop width="700px" align="center" src="/_static/embedding.webm">
-</video> -->
+<video autoplay muted loop width="700px" align="center" src="/_static/embedding.webm">
+</video>
 
 Check out our [guides](guides/index.md), our [example
 gallery](https://marimo.io/gallery), and our
