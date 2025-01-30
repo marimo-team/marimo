@@ -358,7 +358,9 @@ def _launch_pyodide_kernel(
         stderr=stderr,
         stdin=stdin,
         module=patches.patch_main_module(
-            file=app_metadata.filename, input_override=input_override
+            file=app_metadata.filename,
+            input_override=input_override,
+            print_override=None,
         ),
         enqueue_control_request=_enqueue_control_request,
         debugger_override=debugger,

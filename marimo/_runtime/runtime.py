@@ -30,6 +30,7 @@ from marimo._data.preview_column import (
     get_column_preview_for_sql,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.print_override import print_override
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
@@ -2198,7 +2199,9 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         module=patches.patch_main_module(
-            file=app_metadata.filename, input_override=input_override
+            file=app_metadata.filename,
+            input_override=input_override,
+            print_override=print_override,
         ),
         debugger_override=debugger,
         user_config=user_config,

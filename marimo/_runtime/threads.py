@@ -17,6 +17,10 @@ from marimo._runtime.context.types import (
 )
 
 
+# Set of thread ids for running mo.Threads
+THREADS = set()
+
+
 class Thread(threading.Thread):
     """A Thread subclass that is aware of marimo internals.
 
@@ -24,9 +28,12 @@ class Thread(threading.Thread):
     but `mo.Thread`s are able to communicate with the marimo
     frontend, whereas `threading.Thread` can't.
 
-    Currently, threads can append to a cell's output using
-    `mo.output.append`, but messages written to stdout and stderr won't
-    be forwarded to the frontend.
+    Threads can append to a cell's output using `mo.output.append`, or to the
+    console output area using `print`. The corresponding outputs will be
+    forwarded to the frontend.
+
+    Writing directly to sys.stdout or sys.stderr, or to file descriptors 1 and
+    2, is not yet supported.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -84,4 +91,7 @@ class Thread(threading.Thread):
                 cell_id=self._marimo_ctx.stream.cell_id,  # type: ignore
                 setting_element_value=False,
             )
+        thread_id = threading.get_ident()
+        THREADS.add(thread_id)
         super().run()
+        THREADS.remove(thread_id)

@@ -1090,7 +1090,7 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None),
+                module=create_main_module(None, None, None),
             )
             initialize_kernel_context(
                 kernel=k,
@@ -1151,7 +1151,7 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None),
+                module=create_main_module(None, None, None),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]

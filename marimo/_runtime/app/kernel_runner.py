@@ -71,7 +71,9 @@ class AppKernelRunner:
             stdout=None,
             stderr=None,
             stdin=None,
-            module=create_main_module(filename, None),
+            module=create_main_module(
+                filename, input_override=None, print_override=None
+            ),
             user_config=DEFAULT_CONFIG,
             enqueue_control_request=lambda _: None,
             post_execution_hooks=[cache_output, _reset_matplotlib_context],
