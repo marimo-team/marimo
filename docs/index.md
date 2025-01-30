@@ -101,7 +101,8 @@ use them are automatically re-run with their latest values.
 sort](./guides/working_with_data/dataframes.md)
 millions of rows blazingly fast, no code required.
 
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.mp4">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.webm">
+</video>
 
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
