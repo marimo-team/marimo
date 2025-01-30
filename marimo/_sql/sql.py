@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -26,13 +26,14 @@ def get_default_result_limit() -> Optional[int]:
 
 if TYPE_CHECKING:
     import duckdb
+    import sqlalchemy
 
 
 @mddoc
 def sql(
     query: str,
     output: bool = True,
-    engine: Optional[Any] = None,
+    engine: Optional[sqlalchemy.Engine | duckdb.DuckDBPyConnection] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -53,19 +54,22 @@ def sql(
     Returns:
         The result of the query.
     """
+    if query is None or query.strip() == "":
+        return None
+
     if engine is None:
         DependencyManager.duckdb.require("to execute sql")
-        engine = DuckDBEngine(connection=None)
+        sql_engine = DuckDBEngine(connection=None)
     elif SQLAlchemyEngine.is_compatible(engine):
-        engine = SQLAlchemyEngine(engine)
+        sql_engine = SQLAlchemyEngine(engine)  # type: ignore
     elif DuckDBEngine.is_compatible(engine):
-        engine = DuckDBEngine(engine)
+        sql_engine = DuckDBEngine(engine)  # type: ignore
     else:
         raise ValueError(
             "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
         )
 
-    df = _execute_query(query, engine)
+    df = _execute_query(query, sql_engine)
     if df is None:
         return None
 
@@ -77,7 +81,7 @@ def sql(
 
     enforce_own_limit = not has_limit and default_result_limit is not None
 
-    custom_total_count = None
+    custom_total_count: Optional[Literal["too_many"]] = None
     if enforce_own_limit:
         if DependencyManager.polars.has():
             custom_total_count = (

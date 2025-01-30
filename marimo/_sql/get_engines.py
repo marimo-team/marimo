@@ -1,10 +1,11 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any, cast
 
 from marimo._data.models import DataSourceConnection
 from marimo._sql.engines import DuckDBEngine, SQLAlchemyEngine
-from marimo._sql.sql import SQLEngine
+from marimo._sql.types import SQLEngine
 
 
 def get_engines_from_variables(

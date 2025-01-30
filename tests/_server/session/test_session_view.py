@@ -477,7 +477,7 @@ def test_add_data_source_connections() -> None:
         )
     )
 
-    assert len(session_view.data_connectors.connections) == 2
+    assert len(session_view.data_connectors.connections) == 3
     conns = {c.name: c for c in session_view.data_connectors.connections}
 
     # Check updated connection
@@ -486,8 +486,12 @@ def test_add_data_source_connections() -> None:
 
     # Check new connection replaced old one
     assert "mysql1" in conns
-    assert "pg1" not in conns
     assert conns["mysql1"].dialect == "mysql"
+    # Check existing connection
+    assert "pg1" in conns
+
+    # Check connectors in operations
+    assert session_view.data_connectors in session_view.operations
 
 
 def test_add_cell_op() -> None:

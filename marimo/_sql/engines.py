@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
@@ -42,6 +43,10 @@ class DuckDBEngine(SQLEngine):
         else:
             relation = self._connection.sql(query)
 
+        # Invalid / empty query
+        if relation is None:
+            return None
+
         if DependencyManager.polars.has():
             return relation.pl()
         elif DependencyManager.pandas.has():
@@ -76,19 +81,28 @@ class SQLAlchemyEngine(SQLEngine):
     def execute(self, query: str) -> Any:
         # Can't use polars.imported() because this is the first time we
         # might come across polars.
+        if not (
+            DependencyManager.polars.has() or DependencyManager.pandas.has()
+        ):
+            raise_df_import_error("polars")
+
+        from sqlalchemy import text
+
+        with self._engine.connect() as connection:
+            result = connection.execute(text(query))
+            connection.commit()
+
+        if not result.returns_rows:
+            return None
+
         if DependencyManager.polars.has():
-            import pandas as pd
             import polars as pl
 
-            # SQLAlchemy doesn't support polars directly, so we go through pandas
-            df = pd.read_sql_query(query, self._engine)
-            return pl.from_pandas(df)
-        elif DependencyManager.pandas.has():
+            return pl.DataFrame(result)  # type: ignore
+        else:
             import pandas as pd
 
-            return pd.read_sql_query(query, self._engine)
-        else:
-            raise_df_import_error("pandas")
+            return pd.DataFrame(result)
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

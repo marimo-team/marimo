@@ -20,6 +20,8 @@ import {
 } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
+import type { ConnectionName } from "@/core/cells/data-source-connections";
+import { atom } from "jotai";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -27,6 +29,12 @@ const quoteKinds = [
   ["'", "'"],
   ['"', '"'],
 ];
+
+// Default engine to use when not specified, shouldn't conflict with user_defined engines
+export const DEFAULT_ENGINE: ConnectionName =
+  "_marimo_duckdb" as ConnectionName;
+
+export const latestEngineSelected = atom<ConnectionName>(DEFAULT_ENGINE);
 
 // explode into all combinations
 // only f is supported
@@ -36,11 +44,11 @@ const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
 
 const regexes = pairs.map(
   ([start, end]) =>
-    // df = mo.sql( space + start + capture + space + end, optional output flag)
+    // df = mo.sql( space + start + capture + space + end, optional output flag, optional engine param)
     [
       start,
       new RegExp(
-        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:,\\s*output\\s*=\\s*(?<output>True|False),?)?\\s*\\)$`,
+        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:(?:,\\s*output\\s*=\\s*(?<output>True|False))?,?(?:,\\s*engine\\s*=\\s*(?<engine>\\w+))?)?,?\\s*\\)$`,
         "s",
       ),
     ] as const,
@@ -57,8 +65,18 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
   showOutput = true;
+  engine: ConnectionName = store.get(latestEngineSelected);
 
-  transformIn(pythonCode: string): [string, number] {
+  getDefaultCode(): string {
+    if (this.engine === DEFAULT_ENGINE) {
+      return `_df = mo.sql(f"""SELECT * FROM """)`;
+    }
+    return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
+  }
+
+  transformIn(
+    pythonCode: string,
+  ): [sqlQuery: string, queryStartOffset: number] {
     if (!this.isSupported(pythonCode)) {
       // Attempt to remove any markdown wrappers
       const [transformedCode, offset] =
@@ -82,12 +100,18 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         const dataframe = match.groups?.dataframe || this.dataframeName;
         const innerCode = match.groups?.sql || "";
         const output = match.groups?.output;
+        const engine = match.groups?.engine;
 
         const [quotePrefix, quoteType] = splitQuotePrefix(start);
         // store the quote prefix for later when we transform out
         this.lastQuotePrefix = quotePrefix;
         this.dataframeName = dataframe;
         this.showOutput = output === undefined ? true : output === "True";
+        this.engine = (engine as ConnectionName) ?? DEFAULT_ENGINE;
+        if (engine !== undefined) {
+          // user selected a new engine, set it as latest
+          store.set(latestEngineSelected, this.engine);
+        }
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
@@ -106,7 +130,12 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     // Multiline code
     const start = `${this.dataframeName} = mo.sql(\n    ${prefix}"""\n`;
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
-    const end = `\n    """${this.showOutput ? "" : ",\n    output=False,"}\n)`;
+
+    const showOutputParam = this.showOutput ? "" : ",\n    output=False";
+    const engineParam =
+      this.engine === DEFAULT_ENGINE ? "" : `,\n    engine=${this.engine}`;
+    const end = `\n    """${showOutputParam}${engineParam}\n)`;
+
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
 
@@ -126,6 +155,15 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     }
 
     return regexes.some(([, regex]) => regex.test(pythonCode));
+  }
+
+  selectEngine(connectionName: ConnectionName): void {
+    this.engine = connectionName;
+    store.set(latestEngineSelected, connectionName);
+  }
+
+  setShowOutput(showOutput: boolean): void {
+    this.showOutput = showOutput;
   }
 
   getExtension(

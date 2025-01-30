@@ -395,6 +395,36 @@ components:
       - chart_max_rows_errors
       - name
       type: object
+    DataSourceConnection:
+      properties:
+        dialect:
+          type: string
+        display_name:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+      required:
+      - source
+      - dialect
+      - name
+      - display_name
+      type: object
+    DataSourceConnections:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/DataSourceConnection'
+          type: array
+        name:
+          enum:
+          - data-source-connections
+          type: string
+      required:
+      - connections
+      - name
+      type: object
     DataTable:
       properties:
         columns:
@@ -415,6 +445,7 @@ components:
           enum:
           - local
           - duckdb
+          - connection
           type: string
         variable_name:
           nullable: true
@@ -459,6 +490,7 @@ components:
           enum:
           - local
           - duckdb
+          - connection
           nullable: true
           type: string
         name:
@@ -1360,6 +1392,19 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
+      - properties:
+          connections:
+            items:
+              $ref: '#/components/schemas/DataSourceConnection'
+            type: array
+          name:
+            enum:
+            - data-source-connections
+            type: string
+        required:
+        - connections
+        - name
+        type: object
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -1494,6 +1539,7 @@ components:
           enum:
           - local
           - duckdb
+          - connection
           type: string
         tableName:
           type: string
@@ -1968,7 +2014,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.13
+  version: 0.10.16
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
