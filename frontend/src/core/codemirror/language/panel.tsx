@@ -13,6 +13,7 @@ import {
 import { useAtomValue } from "jotai";
 import { CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { useState } from "react";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -97,22 +98,23 @@ const SQLEngineSelect: React.FC<{
   dataSourceState: DataSourceState;
   languageAdapter: SQLLanguageAdapter;
 }> = ({ dataSourceState, languageAdapter }) => {
+  // local state as languageAdapter may not trigger an update
+  const [engine, setEngine] = useState(languageAdapter.engine);
+
   return (
     <div className="flex flex-row gap-1 items-center">
       <select
         id="sql-engine"
         name="sql-engine"
         className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
+        value={engine}
         onChange={(e) => {
           languageAdapter.selectEngine(e.target.value as ConnectionName);
+          setEngine(e.target.value as ConnectionName);
         }}
       >
         {[...dataSourceState.connectionsMap.entries()].map(([key, value]) => (
-          <option
-            key={key}
-            value={value.name}
-            selected={languageAdapter.engine === value.name}
-          >
+          <option key={key} value={value.name}>
             {value.display_name}
           </option>
         ))}

@@ -21,6 +21,7 @@ import {
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import type { ConnectionName } from "@/core/cells/data-source-connections";
+import { atom } from "jotai";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -32,6 +33,8 @@ const quoteKinds = [
 // Default engine to use when not specified, shouldn't conflict with user_defined engines
 export const DEFAULT_ENGINE: ConnectionName =
   "_marimo_duckdb" as ConnectionName;
+
+export const latestEngineSelected = atom<ConnectionName>(DEFAULT_ENGINE);
 
 // explode into all combinations
 // only f is supported
@@ -62,7 +65,14 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
   showOutput = true;
-  engine: ConnectionName = DEFAULT_ENGINE;
+  engine: ConnectionName = store.get(latestEngineSelected);
+
+  getDefaultCode(): string {
+    if (this.engine === DEFAULT_ENGINE) {
+      return `_df = mo.sql(f"""SELECT * FROM """)`;
+    }
+    return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
+  }
 
   transformIn(
     pythonCode: string,
@@ -97,8 +107,11 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         this.lastQuotePrefix = quotePrefix;
         this.dataframeName = dataframe;
         this.showOutput = output === undefined ? true : output === "True";
-        this.engine =
-          engine === undefined ? DEFAULT_ENGINE : (engine as ConnectionName);
+        this.engine = (engine as ConnectionName) ?? DEFAULT_ENGINE;
+        if (engine !== undefined) {
+          // user selected a new engine, set it as latest
+          store.set(latestEngineSelected, this.engine);
+        }
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
@@ -146,6 +159,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
   selectEngine(connectionName: ConnectionName): void {
     this.engine = connectionName;
+    store.set(latestEngineSelected, connectionName);
   }
 
   setShowOutput(showOutput: boolean): void {
