@@ -16,7 +16,6 @@ from marimo._runtime.context.types import (
     runtime_context_installed,
 )
 
-
 # Set of thread ids for running mo.Threads
 THREADS = set()
 
