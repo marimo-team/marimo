@@ -91,14 +91,28 @@ class RuntimeConfig(TypedDict):
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
-    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
-      if `strict` marimo will clone cell declarations by default, avoiding
-      hidden potential state build up.
+    - `output_max_byes`:  Byte limits on outputs. Limits exist for two reasons:
+        1. We use a multiprocessing.Connection object to send outputs from
+           the kernel to the server (the server then sends the output to
+           the frontend via a websocket). The Connection object has a limit
+           of ~32MiB that it can send before it chokes
+           (https://docs.python.org/3/library/multiprocessing.html#multiprocessing.connection.Connection.send).
+
+        2. The frontend chokes when we send outputs that are too big, i.e.
+           it freezes and sometimes even crashes. That can lead to lost work.
+           It appears this is the bottleneck right now, compared to 1.
+
+           Usually users only output gigantic things accidentally, so refusing
+           to show large outputs should in most cases not bother the user too much.
+           In any case, it's better than breaking the frontend/kernel.
+
+        Output not shown if larger than OUTPUT_MAX_BYTES=5MB
     """
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
     on_cell_change: OnCellChangeType
+    output_max_byes: int
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -291,6 +305,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "auto_instantiate": True,
         "auto_reload": "off",
         "on_cell_change": "autorun",
+        "output_max_byes": 5_000_000
     },
     "save": {
         "autosave": "after_delay",
