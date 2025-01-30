@@ -101,8 +101,8 @@ use them are automatically re-run with their latest values.
 sort](./guides/working_with_data/dataframes.md)
 millions of rows blazingly fast, no code required.
 
-<!-- <video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.mp4">
-</video> -->
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.mp4">
+
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
 
@@ -205,26 +205,26 @@ GitHub to learn more.
   <tr>
     <td>
       <a target="_blank" href="getting_started/key_concepts">
-        <!-- <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/reactive.webm">
-        </video> -->
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/reactive.webm">
+        </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="api/inputs/">
-        <!-- <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/readme-ui.webm">
-        </video> -->
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/readme-ui.webm">
+        </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="guides/working_with_data/plotting">
-        <!-- <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/docs-intro.webm">
-        </video> -->
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/docs-intro.webm">
+        </video>
       </a>
     </td>
     <td>
       <a target="_blank" href="api/layouts/">
-        <!-- <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/outputs.webm">
-        </video> -->
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/outputs.webm">
+        </video>
       </a>
     </td>
   </tr>
