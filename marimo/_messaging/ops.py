@@ -153,7 +153,9 @@ class CellOp(Op):
 
     @staticmethod
     def maybe_truncate_output(
-        mimetype: KnownMimeType, data: str, output_max_bytes:int=OUTPUT_MAX_BYTES
+        mimetype: KnownMimeType,
+        data: str,
+        output_max_bytes: int = OUTPUT_MAX_BYTES,
     ) -> tuple[KnownMimeType, str]:
         if (size := sys.getsizeof(data)) > output_max_bytes:
             from marimo._output.md import md
@@ -199,7 +201,9 @@ class CellOp(Op):
         marimo_conf = get_context().marimo_config
         output_max_bytes = marimo_conf.runtime.output_max_bytes
 
-        mimetype, data = CellOp.maybe_truncate_output(mimetype, data, output_max_bytes)
+        mimetype, data = CellOp.maybe_truncate_output(
+            mimetype, data, output_max_bytes
+        )
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
