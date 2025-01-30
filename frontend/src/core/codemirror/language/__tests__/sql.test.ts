@@ -76,7 +76,7 @@ describe("SQLLanguageAdapter", () => {
       const pythonCode = 'next_df = mo.sql("")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("");
-      expect(offset).toBe(0);
+      expect(offset).toBe(18);
     });
 
     it("simple sql", () => {
@@ -154,13 +154,14 @@ describe("SQLLanguageAdapter", () => {
       expect(adapter.engine).toBe("postgres_engine");
     });
 
-    // TODO: Add support for reversed order
-    it("regex currently does not support reversed order of params", () => {
+    it("should handle reversed order of params", () => {
       const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine, output=False)';
-      const [innerCode] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe(pythonCode); // Expect to return original code since format is unsupported
-      expect(adapter.isSupported(pythonCode)).toBe(false);
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(offset).toBe(16);
+      expect(adapter.showOutput).toBe(false);
+      expect(adapter.engine).toBe("postgres_engine");
     });
   });
 
