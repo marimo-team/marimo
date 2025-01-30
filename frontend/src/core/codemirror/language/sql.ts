@@ -20,6 +20,7 @@ import { atom } from "jotai";
 import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
+import { Logger } from "@/utils/Logger";
 
 // Default engine to use when not specified, shouldn't conflict with user_defined engines
 export const DEFAULT_ENGINE: ConnectionName =
@@ -191,24 +192,18 @@ function getStringContent(node: SyntaxNode, code: string): string | null {
     const content = code.slice(node.from, node.to);
     // Remove quotes and trim
     if (content.startsWith('"""') || content.startsWith("'''")) {
-      return content.slice(3, -3).trim();
+      return safeDedent(content.slice(3, -3));
     }
     // Handle single quoted strings
-    return content.slice(1, -1).trim();
+    return safeDedent(content.slice(1, -1));
   }
   // Handle f-strings
-  if (node.name === "FString" || node.name === "FormatString") {
-    // Replace formatted values with 'null' as per test cases
-    let result = "";
-    const cursor = node.cursor();
-    do {
-      if (cursor.name === "StringContent") {
-        result += code.slice(cursor.from, cursor.to);
-      } else if (cursor.name === "FormattedValue") {
-        result += "null";
-      }
-    } while (cursor.next());
-    return result.trim();
+  if (node.name === "FormatString") {
+    const content = code.slice(node.from, node.to);
+    if (content.startsWith('f"""') || content.startsWith("f'''")) {
+      return safeDedent(content.slice(4, -3));
+    }
+    return safeDedent(content.slice(2, -1));
   }
   return null;
 }
@@ -221,7 +216,7 @@ function getStringContent(node: SyntaxNode, code: string): string | null {
  */
 export function parseSQLStatement(code: string): SQLConfig | null {
   try {
-    const tree = parser.parse(code.trim());
+    const tree = parser.parse(code);
     const cursor = tree.cursor();
 
     // Find assignment statement
@@ -315,7 +310,8 @@ export function parseSQLStatement(code: string): SQLConfig | null {
       output,
       startPosition,
     };
-  } catch (e) {
+  } catch (error) {
+    Logger.warn("Failed to parse SQL statement", { error: error });
     return null;
   }
 }
@@ -337,4 +333,13 @@ function getPrefixLength(code: string): number {
     return 1;
   }
   return 0;
+}
+
+function safeDedent(code: string): string {
+  try {
+    // Dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
+    return dedent(`\n${code}\n`).trim();
+  } catch {
+    return code;
+  }
 }

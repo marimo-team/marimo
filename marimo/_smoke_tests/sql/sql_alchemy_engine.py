@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.16"
+__generated_with = "0.10.17"
 app = marimo.App(width="medium")
 
 
@@ -60,14 +60,13 @@ def _(mo, products, sa):
 
 @app.cell
 def _(mo, products, sqlite):
-    # TODO: This raises an error when defined as products (var defined previously)
     products_df = mo.sql(
-        """
-    SELECT name, price, category
-    FROM products
-    ORDER BY price DESC
-    """,
-        engine=sqlite,
+        f"""
+        SELECT name, price, category
+        FROM products
+        ORDER BY price DESC
+        """,
+        engine=sqlite
     )
     return (products_df,)
 
@@ -103,20 +102,20 @@ def _(mo):
 
 @app.cell
 def _(mo, products, sqlite):
-    mo.sql(
-        """
-    -- Category summary
-    SELECT
-        category,
-        COUNT(*) as count,
-        ROUND(AVG(price), 2) as avg_price,
-        ROUND(MIN(price), 2) as min_price,
-        ROUND(MAX(price), 2) as max_price
-    FROM products
-    GROUP BY category
-    ORDER BY avg_price DESC
-    """,
-        engine=sqlite,
+    _df = mo.sql(
+        f"""
+        -- Category summary
+        SELECT
+            category,
+            COUNT(*) as count,
+            ROUND(AVG(price), 2) as avg_price,
+            ROUND(MIN(price), 2) as min_price,
+            ROUND(MAX(price), 2) as max_price
+        FROM products
+        GROUP BY category
+        ORDER BY avg_price DESC
+        """,
+        engine=sqlite
     )
     return
 

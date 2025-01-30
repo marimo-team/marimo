@@ -163,6 +163,84 @@ describe("SQLLanguageAdapter", () => {
       expect(adapter.showOutput).toBe(false);
       expect(adapter.engine).toBe("postgres_engine");
     });
+
+    it("should handle parametrized sql", () => {
+      const pythonCode = `
+_df = mo.sql(
+    f"""
+    SELECT name, price, category
+    FROM products
+    WHERE price < {price_threshold.value}
+    ORDER BY price DESC
+    """,
+    engine=sqlite,
+)
+`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(
+        `
+SELECT name, price, category
+FROM products
+WHERE price < {price_threshold.value}
+ORDER BY price DESC
+        `.trim(),
+      );
+      expect(offset).toBe(22);
+      expect(adapter.showOutput).toBe(true);
+      expect(adapter.engine).toBe("sqlite");
+    });
+
+    it("should handle parametrized sql with triple single quotes f-string", () => {
+      const pythonCode = `
+_df = mo.sql(
+    f'''
+    SELECT name, price, category
+    FROM products
+    WHERE price < {price_threshold.value}
+    ORDER BY price DESC
+    ''',
+    engine=sqlite,
+)
+`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(
+        `
+SELECT name, price, category
+FROM products
+WHERE price < {price_threshold.value}
+ORDER BY price DESC
+        `.trim(),
+      );
+      expect(offset).toBe(22);
+    });
+
+    it("should handle parametrized sql with inline double quotes f-string", () => {
+      const pythonCode = `
+_df = mo.sql(
+    f"FROM products WHERE price < {price_threshold.value}",
+    engine=sqlite,
+)
+`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(
+        "FROM products WHERE price < {price_threshold.value}",
+      );
+      expect(offset).toBe(20);
+    });
+
+    it("should handle parametrized sql with inline single quotes f-string", () => {
+      const pythonCode = `
+_df = mo.sql(
+    f"FROM products WHERE price < {price_threshold.value}",
+    engine=sqlite,
+)
+`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(
+        "FROM products WHERE price < {price_threshold.value}",
+      );
+      expect(offset).toBe(20);
+    });
   });
 
   describe("transformOut", () => {
