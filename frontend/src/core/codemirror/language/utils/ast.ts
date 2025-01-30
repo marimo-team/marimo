@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Logger } from "@/utils/Logger";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 
@@ -8,7 +9,7 @@ export function parseArgsKwargs(
   code: string,
 ): {
   args: SyntaxNode[];
-  kwargs: { key: string; value: string }[];
+  kwargs: Array<{ key: string; value: string }>;
 } {
   // Check we are in an ArgList
   const name = argCursor.name;
@@ -44,7 +45,7 @@ export function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
     }
 
     args.push(argCursor.node);
-  } while (argCursor.next());
+  } while (argCursor.nextSibling());
 
   return args;
 }
@@ -52,30 +53,31 @@ export function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
 export function parseKwargs(
   argCursor: TreeCursor,
   code: string,
-): { key: string; value: string }[] {
-  const kwargs: { key: string; value: string }[] = [];
+): Array<{ key: string; value: string }> {
+  const kwargs: Array<{ key: string; value: string }> = [];
   let name = argCursor.name;
 
   do {
     name = argCursor.name;
     if (name === "VariableName") {
       const key = code.slice(argCursor.from, argCursor.to);
-      const kwCursor = argCursor;
 
-      // Move cursor, check that it is an AssignOp
-      kwCursor.next();
-      let name = kwCursor.name;
-      if (name !== "AssignOp") {
+      // Check for AssignOp
+      const assignNode = argCursor.node.nextSibling;
+      if (!assignNode || assignNode.name !== "AssignOp") {
         continue;
       }
 
-      // Get the value
-      kwCursor.next();
-      name = kwCursor.name;
-      const value = code.slice(kwCursor.from, kwCursor.to).trim();
+      // Get the value node
+      const valueNode = assignNode.nextSibling;
+      if (!valueNode) {
+        continue;
+      }
+
+      const value = code.slice(valueNode.from, valueNode.to).trim();
       kwargs.push({ key, value });
     }
-  } while (argCursor.next());
+  } while (argCursor.nextSibling());
 
   return kwargs;
 }
