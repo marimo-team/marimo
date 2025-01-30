@@ -705,6 +705,27 @@ def test_has_geoshape() -> None:
     chart_without_geoshape = alt.Chart().mark_bar()
     assert _has_geoshape(chart_without_geoshape) is False
 
+    # Test nested charts
+    nested_layer = alt.layer(
+        alt.Chart().mark_bar(), alt.Chart().mark_geoshape()
+    )
+    assert _has_geoshape(nested_layer) is True
+
+    nested_vconcat = alt.vconcat(
+        alt.Chart().mark_bar(), alt.Chart().mark_geoshape()
+    )
+    assert _has_geoshape(nested_vconcat) is True
+
+    nested_hconcat = alt.hconcat(
+        alt.Chart().mark_bar(), alt.Chart().mark_geoshape()
+    )
+    assert _has_geoshape(nested_hconcat) is True
+
+    all_non_geoshape = alt.layer(
+        alt.Chart().mark_bar(), alt.Chart().mark_line()
+    )
+    assert _has_geoshape(all_non_geoshape) is False
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_no_selection_pandas() -> None:

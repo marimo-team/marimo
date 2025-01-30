@@ -282,7 +282,10 @@ async def run_app_until_completion(
     )
 
     # Run the notebook to completion once
-    session.instantiate(InstantiateRequest(object_ids=[], values=[]))
+    session.instantiate(
+        InstantiateRequest(object_ids=[], values=[]),
+        http_request=None,
+    )
     await instantiated_event.wait()
     # Process console messages
     #

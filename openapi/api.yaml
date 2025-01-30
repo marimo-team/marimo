@@ -330,21 +330,6 @@ components:
       - source
       - destination
       type: object
-    CreationRequest:
-      properties:
-        autoRun:
-          type: boolean
-        executionRequests:
-          items:
-            $ref: '#/components/schemas/ExecutionRequest'
-          type: array
-        setUiElementValueRequest:
-          $ref: '#/components/schemas/SetUIElementValueRequest'
-      required:
-      - executionRequests
-      - setUiElementValueRequest
-      - autoRun
-      type: object
     CycleError:
       properties:
         edges_with_vars:
@@ -552,6 +537,9 @@ components:
           items:
             type: string
           type: array
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
         timestamp:
           type: number
       required:
@@ -563,6 +551,9 @@ components:
       properties:
         code:
           type: string
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       required:
       - code
       type: object
@@ -575,6 +566,9 @@ components:
           type: string
         code:
           type: string
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
         timestamp:
           type: number
       required:
@@ -848,6 +842,8 @@ components:
       - status
       - name
       type: object
+    HTTPRequest:
+      type: 'null'
     HumanReadableStatus:
       properties:
         code:
@@ -1684,6 +1680,9 @@ components:
           items:
             type: string
           type: array
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       required:
       - cellIds
       - codes
@@ -1692,6 +1691,9 @@ components:
       properties:
         code:
           type: string
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       required:
       - code
       type: object
@@ -1799,6 +1801,9 @@ components:
           items:
             type: string
           type: array
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
         token:
           type: string
         values:
@@ -2014,7 +2019,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.16
+  version: 0.10.17
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

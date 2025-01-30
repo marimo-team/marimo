@@ -286,7 +286,13 @@ class NarwhalsTableManager(
         return self.nw_schema.names()
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
-        return self.data[column].unique().to_list()
+        try:
+            return self.data[column].unique().to_list()
+        except BaseException:
+            # Catch-all: some libraries like Polars have bugs and raise
+            # BaseExceptions, which shouldn't crash the kernel
+            # If an exception occurs, try converting to strings first
+            return self.data[column].cast(nw.String).unique().to_list()
 
     def get_sample_values(self, column: str) -> list[str | int | float]:
         # Sample 3 values from the column
@@ -305,10 +311,23 @@ class NarwhalsTableManager(
                     return value
                 return str(value)
 
-            values = self.data[column].head(SAMPLE_SIZE).to_list()
+            if self.data[column].dtype == nw.Datetime:
+                # Drop timezone info for datetime columns
+                # It's ok to drop timezone since these are just sample values
+                # and not used for any calculations
+                values = (
+                    self.data[column]
+                    .dt.replace_time_zone(None)
+                    .head(SAMPLE_SIZE)
+                    .to_list()
+                )
+            else:
+                values = self.data[column].head(SAMPLE_SIZE).to_list()
             # Serialize values to primitives
             return [to_primitive(v) for v in values]
-        except Exception:
+        except BaseException:
+            # Catch-all: some libraries like Polars have bugs and raise
+            # BaseExceptions, which shouldn't crash the kernel
             # May be metadata-only frame
             return []
 

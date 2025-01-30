@@ -794,16 +794,101 @@ def test_sort_values_with_nulls(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]},
+        {
+            "A": [1, 2, 3, 4],  # Integer
+            "B": ["a", "b", "c", "d"],  # String
+            "C": [
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 2, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 3, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 4, tzinfo=datetime.timezone.utc),
+            ],  # Datetime with timezone
+            "D": [1.1, 2.2, 3.3, 4.4],  # Float
+            "E": [True, False, True, False],  # Boolean
+            "F": [None, "b", "c", None],  # Mixed with nulls
+            "G": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 2),
+                datetime.date(2021, 1, 3),
+                datetime.date(2021, 1, 4),
+            ],  # Date
+            "H": [10_000, -5_000, 0, 999_999],  # Large integers
+            "I": [
+                float("inf"),
+                float("-inf"),
+                float("nan"),
+                1.0,
+            ],  # Special floats
+            "J": ["", "  ", "test", "\t\n"],  # Whitespace strings
+            "K": [b"bytes1", b"bytes2", b"bytes3", b"bytes4"],  # Bytes
+        },
         exclude=["ibis", "duckdb"],
     ),
 )
 def test_get_sample_values(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
+
+    # Integer
     sample_values = manager.get_sample_values("A")
     assert sample_values == [1, 2, 3]
+
+    # String
     sample_values = manager.get_sample_values("B")
     assert sample_values == ["a", "b", "c"]
+
+    # Datetime with timezone
+    sample_values = manager.get_sample_values("C")
+    assert (
+        sample_values
+        == [
+            "2021-01-01 00:00:00",
+            "2021-01-02 00:00:00",
+            "2021-01-03 00:00:00",
+        ]
+        # Polars on windows is missing timezone info
+        or sample_values == []
+    )
+
+    # Float
+    sample_values = manager.get_sample_values("D")
+    assert sample_values == [1.1, 2.2, 3.3]
+
+    # Boolean
+    sample_values = manager.get_sample_values("E")
+    assert sample_values == [True, False, True]
+
+    # Mixed with nulls
+    sample_values = manager.get_sample_values("F")
+    assert sample_values == ["None", "b", "c"]
+
+    # Date
+    sample_values = manager.get_sample_values("G")
+    # Polars on windows is missing timezone info
+    assert sample_values == [
+        "2021-01-01",
+        "2021-01-02",
+        "2021-01-03",
+    ] or sample_values == [
+        "2021-01-01 00:00:00",
+        "2021-01-02 00:00:00",
+        "2021-01-03 00:00:00",
+    ]
+
+    # Large integers
+    sample_values = manager.get_sample_values("H")
+    assert sample_values == [10_000, -5_000, 0]
+
+    # Special floats
+    sample_values = manager.get_sample_values("I")
+    assert len(sample_values) == 3
+
+    # Whitespace strings
+    sample_values = manager.get_sample_values("J")
+    assert sample_values == ["", "  ", "test"]
+
+    # Bytes
+    sample_values = manager.get_sample_values("K")
+    assert sample_values == ["b'bytes1'", "b'bytes2'", "b'bytes3'"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

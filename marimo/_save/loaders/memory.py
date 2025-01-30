@@ -6,7 +6,7 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 
 from marimo._save.cache import Cache, CacheType
-from marimo._save.loaders.loader import INCONSISTENT_CACHE_BOILER_PLATE, Loader
+from marimo._save.loaders.loader import Loader, LoaderError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -54,9 +54,8 @@ class MemoryLoader(Loader):
         return self._maybe_lock(lambda: key in self._cache)
 
     def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
-        assert self.cache_hit(hashed_context, cache_type), (
-            INCONSISTENT_CACHE_BOILER_PLATE
-        )
+        if not self.cache_hit(hashed_context, cache_type):
+            raise LoaderError("Unexpected cache miss.")
         key = self.build_path(hashed_context, cache_type)
         if self.is_lru:
             assert isinstance(self._cache, OrderedDict)

@@ -31,7 +31,7 @@ from marimo._data.preview_column import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.context import run_id_context
+from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
     MarimoInterruptionError,
@@ -79,7 +79,10 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
-from marimo._runtime.context.kernel_context import initialize_kernel_context
+from marimo._runtime.context.kernel_context import (
+    KernelRuntimeContext,
+    initialize_kernel_context,
+)
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -260,6 +263,14 @@ def app_meta() -> AppMeta:
         ```python
         # Only show this content when editing the notebook
         mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
+        ```
+
+        Get the current request headers or user info:
+
+        ```python
+        request = mo.app_meta().request
+        print(request.headers)
+        print(request.user)
         ```
 
     Returns:
@@ -510,8 +521,6 @@ class Kernel:
         ).get("execution_type", "relaxed")
         self._update_runtime_from_user_config(user_config)
 
-        # Set up the execution context
-        self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
         # errored cells
@@ -640,8 +649,10 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
-        self.execution_context = ExecutionContext(
-            cell_id, setting_element_value
+        ctx = get_context()
+        assert isinstance(ctx, KernelRuntimeContext)
+        ctx.execution_context = (
+            exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
         with (
             get_context().provide_ui_ids(str(cell_id)),
@@ -661,9 +672,9 @@ class Kernel:
                     self.module_reloader.check(
                         modules=sys.modules, reload=True
                     )
-                yield self.execution_context
+                yield exec_ctx
             finally:
-                self.execution_context = None
+                ctx.execution_context = None
                 if self.module_reloader is not None and modules is not None:
                     # Note timestamps for newly loaded modules
                     new_modules = set(sys.modules) - modules
@@ -1335,8 +1346,9 @@ class Kernel:
         Should be called when a state's setter is called.
         """
         # store the state and the currently executing cell
-        assert self.execution_context is not None
-        self.state_updates[state] = self.execution_context.cell_id
+        ctx = get_context()
+        assert ctx.execution_context is not None
+        self.state_updates[state] = ctx.execution_context.cell_id
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
@@ -1593,7 +1605,9 @@ class Kernel:
                         child_context.app is not None
                         and await child_context.app.set_ui_element_value(
                             SetUIElementValueRequest(
-                                object_ids=[object_id], values=[value]
+                                object_ids=[object_id],
+                                values=[value],
+                                request=request.request,
                             )
                         )
                     ):
@@ -2046,13 +2060,16 @@ class Kernel:
         with self.lock_globals():
             LOGGER.debug("Handling control request: %s", request)
             if isinstance(request, CreationRequest):
-                await self.instantiate(request)
+                with http_request_context(request.request):
+                    await self.instantiate(request)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteMultipleRequest):
-                await self.run(request.execution_requests)
+                with http_request_context(request.request):
+                    await self.run(request.execution_requests)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteScratchpadRequest):
-                await self.run_scratchpad(request.code)
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, RenameRequest):
@@ -2062,7 +2079,8 @@ class Kernel:
             elif isinstance(request, SetUserConfigRequest):
                 self.set_user_config(request)
             elif isinstance(request, SetUIElementValueRequest):
-                await self.set_ui_element_value(request)
+                with http_request_context(request.request):
+                    await self.set_ui_element_value(request)
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
                 status, ret, _ = await self.function_call_request(request)
@@ -2189,7 +2207,7 @@ def launch_kernel(
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
     )
-    initialize_kernel_context(
+    ctx = initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         stdout=stdout,
@@ -2217,9 +2235,7 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
 
-        signal.signal(
-            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
-        )
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
         if sys.platform == "win32":
             if interrupt_queue is not None:

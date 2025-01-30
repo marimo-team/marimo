@@ -164,6 +164,8 @@ class App:
         # deterministic and not dependent on the test itself.
         # Set as a private attribute as not to pollute AppConfig or kwargs.
         self._anonymous_file = False
+        # injection hook to rewrite cells for pytest
+        self._pytest_rewrite = False
 
         # Filename is derived from the callsite of the app
         self._filename: str | None = None

@@ -36,6 +36,7 @@ class KernelRuntimeContext(RuntimeContext):
     # app that owns this context; None for top-level contexts
     _app: Optional[InternalApp] = None
     _id_provider: Optional[IDProvider] = None
+    _execution_context: Optional[ExecutionContext] = None
 
     @property
     def graph(self) -> DirectedGraph:
@@ -47,7 +48,13 @@ class KernelRuntimeContext(RuntimeContext):
 
     @property
     def execution_context(self) -> ExecutionContext | None:
-        return self._kernel.execution_context
+        return self._execution_context
+
+    @execution_context.setter
+    def execution_context(
+        self, execution_context: ExecutionContext | None
+    ) -> None:
+        self._execution_context = execution_context
 
     @property
     def marimo_config(self) -> MarimoConfig:
@@ -60,8 +67,8 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def cell_id(self) -> Optional[CellId_t]:
         """Get the cell id of the currently executing cell, if any."""
-        if self._kernel.execution_context is not None:
-            return self._kernel.execution_context.cell_id
+        if self.execution_context is not None:
+            return self.execution_context.cell_id
         return None
 
     @property
@@ -107,13 +114,13 @@ class KernelRuntimeContext(RuntimeContext):
                 setting_element_value = old.setting_element_value
             else:
                 setting_element_value = False
-            self._kernel.execution_context = ExecutionContext(
+            self.execution_context = ExecutionContext(
                 cell_id=cell_id,
                 setting_element_value=setting_element_value,
             )
             yield
         finally:
-            self._kernel.execution_context = old
+            self.execution_context = old
 
     @property
     def app(self) -> InternalApp:
@@ -163,18 +170,18 @@ def initialize_kernel_context(
     stderr: Stderr | None,
     virtual_files_supported: bool,
     mode: SessionMode,
-) -> None:
+) -> KernelRuntimeContext:
     """Initializes thread-local/session-specific context.
 
     Must be called exactly once for each client thread.
     """
-    initialize_context(
-        runtime_context=create_kernel_context(
-            kernel=kernel,
-            stream=stream,
-            stdout=stdout,
-            stderr=stderr,
-            virtual_files_supported=virtual_files_supported,
-            mode=mode,
-        )
+    ctx = create_kernel_context(
+        kernel=kernel,
+        stream=stream,
+        stdout=stdout,
+        stderr=stderr,
+        virtual_files_supported=virtual_files_supported,
+        mode=mode,
     )
+    initialize_context(runtime_context=ctx)
+    return ctx

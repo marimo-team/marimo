@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 
 from marimo._cli.sandbox import (
@@ -244,12 +247,14 @@ def test_get_dependencies_with_nonexistent_file():
     assert get_dependencies_from_filename(None) == []  # type: ignore
 
 
-def test_normalize_marimo_dependencies():
+@patch("marimo._cli.sandbox.is_editable", return_value=False)
+def test_normalize_marimo_dependencies(mock_is_editable: Any):
     # Test adding marimo when not present
     assert _normalize_sandbox_dependencies(["numpy"], "1.0.0") == [
         "numpy",
         "marimo==1.0.0",
     ]
+    assert mock_is_editable.call_count == 1
 
     # Test preferring bracketed version
     assert _normalize_sandbox_dependencies(
@@ -287,6 +292,18 @@ def test_normalize_marimo_dependencies():
         assert _normalize_sandbox_dependencies(
             [f"marimo{spec}", "numpy"], "1.0.0"
         ) == ["numpy", f"marimo{spec}"]
+
+
+def test_normalize_marimo_dependencies_editable():
+    deps = _normalize_sandbox_dependencies(["numpy"], "1.0.0")
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert "marimo" in deps[1]
+
+    deps = _normalize_sandbox_dependencies(["numpy", "marimo"], "1.0.0")
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert "marimo" in deps[1]
 
 
 def test_is_marimo_dependency():

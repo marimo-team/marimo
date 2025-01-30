@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import textwrap
+import warnings
 
 import pytest
 
@@ -14,10 +15,7 @@ from tests.conftest import ExecReqProvider
 
 class TestScriptCache:
     @staticmethod
-    def test_cache_miss() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_miss(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             # Check top level import
@@ -33,13 +31,8 @@ class TestScriptCache:
             assert not cache._loader._loaded
             return X, Y, persistent_cache
 
-        app.run()
-
     @staticmethod
-    def test_cache_hit() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_hit(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -56,13 +49,8 @@ class TestScriptCache:
             assert cache._loader._loaded
             return X, Y, persistent_cache
 
-        app.run()
-
     @staticmethod
-    def test_cache_loader_api() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_loader_api(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from tests._save.mocks import MockLoader
@@ -76,13 +64,8 @@ class TestScriptCache:
             assert cache._loader._loaded
             return X, Y
 
-        app.run()
-
     @staticmethod
-    def test_cache_hit_whitespace() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_hit_whitespace(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -102,13 +85,8 @@ class TestScriptCache:
             assert cache._loader._loaded
             return X, Y, persistent_cache
 
-        app.run()
-
     @staticmethod
-    def test_cache_linebreak() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_linebreak(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -125,13 +103,8 @@ class TestScriptCache:
             assert b == [8]
             assert cache._cache.defs == {"b": [8]}
 
-        app.run()
-
     @staticmethod
-    def test_cache_if_block_and_break() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_if_block_and_break(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -148,13 +121,8 @@ class TestScriptCache:
             # fmt: on
             assert b == [7]
 
-        app.run()
-
     @staticmethod
-    def test_cache_if_block() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_if_block(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -167,13 +135,8 @@ class TestScriptCache:
                     b = 8
             assert b == 8
 
-        app.run()
-
     @staticmethod
-    def test_cache_else_block() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_else_block(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -188,10 +151,7 @@ class TestScriptCache:
             assert b == 8
 
     @staticmethod
-    def test_cache_elif_block() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_elif_block(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
@@ -205,13 +165,8 @@ class TestScriptCache:
                     b = 8
             assert b == 8
 
-        app.run()
-
     @staticmethod
-    def test_cache_with_block() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_with_block(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from contextlib import contextmanager
@@ -230,13 +185,8 @@ class TestScriptCache:
                     b = 8
             assert b == 8
 
-        app.run()
-
     @staticmethod
-    def test_cache_with_block_inner() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_cache_with_block_inner(app) -> None:
         @app.cell
         def one() -> tuple[int]:
             from contextlib import contextmanager
@@ -255,13 +205,12 @@ class TestScriptCache:
                     b = 8
             assert b == 8
 
-        app.run()
-
     @staticmethod
     def test_cache_same_line_fails() -> None:
+        from marimo._save.ast import BlockException
+
         app = App()
         app._anonymous_file = True
-        from marimo._save.ast import BlockException
 
         @app.cell
         def one() -> tuple[int]:
@@ -281,9 +230,10 @@ class TestScriptCache:
 
     @staticmethod
     def test_cache_in_fn_fails() -> None:
+        from marimo._save.ast import BlockException
+
         app = App()
         app._anonymous_file = True
-        from marimo._save.ast import BlockException
 
         @app.cell
         def one() -> tuple[int]:
@@ -828,7 +778,10 @@ class TestCacheDecorator:
         # the registry. The actual cache hit is less important than caching
         # occurring in the first place.
         # 2 * 9 + 2
-        assert k.globals["fib"].hits in (9, 18, 20)
+        if k.globals["fib"].hits in (9, 18):
+            warnings.warn("Known flaky edge case for cache.", stacklevel=1)
+        else:
+            assert k.globals["fib"].hits == 20
 
     async def test_cross_cell_cache_with_external_ui(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -878,8 +831,12 @@ class TestCacheDecorator:
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
         assert k.globals["impure"] == [60, 157, 60]
+
         # 2 * 9 + 2
-        assert k.globals["fib"].hits in (9, 18, 20)
+        if k.globals["fib"].hits in (9, 18):
+            warnings.warn("Known flaky edge case for cache.", stacklevel=1)
+        else:
+            assert k.globals["fib"].hits == 20
 
     async def test_rerun_update(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -927,6 +884,8 @@ class TestCacheDecorator:
     async def test_full_scope_utilized(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
+        # This is not completely obvious, but @cache needs to know what frame it
+        # is on so it can get locals or globals.
         await k.run(
             [
                 exec_req.get(
@@ -1075,10 +1034,7 @@ class TestCacheDecorator:
         } == {0}
 
     @staticmethod
-    def test_object_content_hash() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_object_execution_hash(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1108,13 +1064,8 @@ class TestCacheDecorator:
             assert f.base_block.execution_refs == {"ns"}
             return
 
-        app.run()
-
     @staticmethod
-    def test_execution_hash_same_block() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_execution_hash_same_block(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1155,13 +1106,8 @@ class TestCacheDecorator:
             )
             return
 
-        app.run()
-
     @staticmethod
-    def test_execution_hash_diff_block() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_execution_hash_diff_block(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1194,13 +1140,8 @@ class TestCacheDecorator:
             assert f.base_block.execution_refs == {"ns", "z"}
             return
 
-        app.run()
-
     @staticmethod
-    def test_content_hash_define_after() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_content_hash_define_after(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1236,8 +1177,6 @@ class TestCacheDecorator:
             )
             assert f.base_block.missing == {"ns"}, f.base_block.missing
             return
-
-        app.run()
 
     @staticmethod
     def test_execution_hash_same_block_fails() -> None:
@@ -1283,10 +1222,7 @@ class TestCacheDecorator:
             app.run()
 
     @staticmethod
-    def test_unused_args() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_unused_args(app) -> None:
         @app.cell
         def __():
             import random
@@ -1313,13 +1249,8 @@ class TestCacheDecorator:
             assert a != g("world")
             return
 
-        app.run()
-
     @staticmethod
-    def test_shadowed_state() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_shadowed_state(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1342,13 +1273,8 @@ class TestCacheDecorator:
             assert v == 3
             return
 
-        app.run()
-
     @staticmethod
-    def test_shadowed_state_redefined() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_shadowed_state_redefined(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1373,13 +1299,8 @@ class TestCacheDecorator:
             assert v == 3
             return
 
-        app.run()
-
     @staticmethod
-    def test_internal_shadowed() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_internal_shadowed(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1413,13 +1334,8 @@ class TestCacheDecorator:
             assert h(state1) == 111
             assert h.hits == 1
 
-        app.run()
-
     @staticmethod
-    def test_transitive_shadowed_state_passes() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_transitive_shadowed_state_passes(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1454,13 +1370,8 @@ class TestCacheDecorator:
             assert g(state1) == 111
             assert g.hits == 1
 
-        app.run()
-
     @staticmethod
-    def test_shadowed_state_mismatch() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_shadowed_state_mismatch(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1495,13 +1406,8 @@ class TestCacheDecorator:
             assert state() == 3
             return
 
-        app.run()
-
     @staticmethod
-    def test_shadowed_ui() -> None:
-        app = App()
-        app._anonymous_file = True
-
+    def test_shadowed_ui(app) -> None:
         @app.cell
         def __():
             import marimo as mo
@@ -1524,4 +1430,75 @@ class TestCacheDecorator:
             assert v == 3
             return
 
-        app.run()
+
+class TestPersistentCache:
+    async def test_pickle_context(
+        self, k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("""
+                import marimo as mo
+                import os
+                from pathlib import Path
+                pc = mo.persistent_cache
+                """),
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                assert not os.path.exists(tmp_path_fixture / "basic")
+                with pc("basic", save_path=tmp_path_fixture) as cache:
+                    _b = 1
+                assert _b == 1
+                assert not cache._cache.hit
+                assert cache._cache.meta["version"] == mo._save.MARIMO_CACHE_VERSION
+                assert os.path.exists(tmp_path_fixture / "basic" / f"P_{cache._cache.hash}.pickle")
+                """),
+                exec_req.get("""
+                with pc("basic", save_path=tmp_path_fixture) as cache_2:
+                    _b = 1
+                assert _b == 1
+                assert cache_2._cache.hit
+                assert cache._cache.hash == cache_2._cache.hash
+                assert os.path.exists(tmp_path_fixture / "basic" / f"P_{cache._cache.hash}.pickle")
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+
+    async def test_json_context(
+        self, k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("""
+                import marimo as mo
+                import os
+                from pathlib import Path
+                pc = mo.persistent_cache
+                """),
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                assert not os.path.exists(tmp_path_fixture / "json")
+                with pc("json", save_path=tmp_path_fixture, method="json") as json_cache:
+                    _b = 1
+                assert _b == 1
+                assert not json_cache._cache.hit
+                assert os.path.exists(tmp_path_fixture / "json" / f"P_{json_cache._cache.hash}.json")
+                """),
+                exec_req.get("""
+                with pc("json", save_path=tmp_path_fixture, method="json") as json_cache_2:
+                    _b = 1
+                assert _b == 1
+                assert json_cache_2._cache.hit
+                assert json_cache._cache.hash == json_cache_2._cache.hash
+                assert os.path.exists(tmp_path_fixture / "json" / f"P_{json_cache._cache.hash}.json")
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
