@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_POLARS = DependencyManager.polars.has()
+HAS_PANDAS = DependencyManager.pandas.has()
 HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 
@@ -27,30 +28,26 @@ HAS_SQLGLOT = DependencyManager.sqlglot.has()
 def sqlite_engine() -> sa.Engine:
     """Create a temporary SQLite database for testing."""
     import sqlalchemy as sa
-    from sqlalchemy import text
 
     engine = sa.create_engine("sqlite:///:memory:")
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE test (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                INSERT INTO test (id, name) VALUES
-                (1, 'Alice'),
-                (2, 'Bob'),
-                (3, 'Charlie')
-                """
-            )
-        )
+    sql(
+        """
+        CREATE TABLE test (
+            id INTEGER PRIMARY KEY,
+            name TEXT
+        );
+        """,
+        engine=engine,
+    )
+    sql(
+        """
+        INSERT INTO test VALUES
+        (1, 'Alice'),
+        (2, 'Bob'),
+        (3, 'Charlie');
+        """,
+        engine=engine,
+    )
     return engine
 
 
@@ -60,21 +57,23 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
     import duckdb
 
     conn = duckdb.connect(":memory:")
-    conn.execute(
+    sql(
         """
         CREATE TABLE test (
             id INTEGER PRIMARY KEY,
             name TEXT
         );
-        """
+        """,
+        engine=conn,
     )
-    conn.execute(
+    sql(
         """
         INSERT INTO test VALUES
         (1, 'Alice'),
         (2, 'Bob'),
         (3, 'Charlie');
-        """
+        """,
+        engine=conn,
     )
 
     yield conn
@@ -113,7 +112,33 @@ def test_sql_with_invalid_engine() -> None:
         sql("SELECT 1", engine="invalid")
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_empty_sql(
+    sqlite_engine: sa.Engine, duckdb_connection: duckdb.DuckDBPyConnection
+) -> None:
+    result = sql("", engine=duckdb_connection)
+    assert result is None
+
+    result = sql("", engine=sqlite_engine)
+    assert result is None
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_invalid_sql(
+    sqlite_engine: sa.Engine, duckdb_connection: duckdb.DuckDBPyConnection
+) -> None:
+    import duckdb
+    import sqlalchemy
+
+    with pytest.raises(duckdb.Error):
+        sql("SELECT *", engine=duckdb_connection)
+
+    with pytest.raises(sqlalchemy.exc.StatementError):
+        sql("SELECT *", engine=sqlite_engine)
+
+
+# TODO
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
 def test_sql_with_limit() -> None:
     """Test sql function respects LIMIT clause and environment variable."""
     import pandas as pd
@@ -134,7 +159,7 @@ def test_sql_with_limit() -> None:
     #         assert len(result) == 3
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
 def test_sql_output_formatting() -> None:
     """Test sql function output formatting."""
     import pandas as pd
@@ -154,6 +179,23 @@ def test_sql_output_formatting() -> None:
     #     with patch.dict(globals(), {"df": df}):
     #         sql("SELECT * FROM df", output=True)
     #         mock_replace.assert_called_once()
+
+
+@pytest.mark.xfail(
+    reason="Multiple select statements are not supported for sqlite"
+)
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sql_multiple_statements(sqlite_engine: sa.Engine) -> None:
+    import pandas as pd
+    import polars as pl
+
+    multi_statement = """
+    SELECT 1, 2;
+    SELECT 3, 4;
+    """
+    result = sql(multi_statement, engine=sqlite_engine)
+    assert isinstance(result, (pd.DataFrame, pl.DataFrame))
+    assert len(result) == 2
 
 
 @pytest.mark.skipif(not HAS_SQLGLOT, reason="sqlglot not installed")

@@ -13,7 +13,6 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -23,7 +22,6 @@ def _():
     from sqlalchemy.orm import declarative_base, Session
     from sqlalchemy.orm import Mapped, mapped_column
     import polars as pl
-
     return Mapped, Session, declarative_base, mapped_column, pl, sa
 
 
@@ -35,12 +33,14 @@ def _(Mapped, declarative_base, mapped_column, sa):
     # Define our models
     Base = declarative_base()
 
+
     class User(Base):
         __tablename__ = "users"
 
         id: Mapped[int] = mapped_column(primary_key=True)
         name: Mapped[str] = mapped_column(sa.String(50))
         age: Mapped[int] = mapped_column(sa.Integer)
+
 
     # Create tables
     Base.metadata.create_all(engine)
@@ -75,7 +75,9 @@ def _(Session, User, engine, mo, pl):
         # Basic query
         all_users = _session.query(User).all()
         df = pl.DataFrame(
-            [(u.name, u.age) for u in all_users], schema=["Name", "Age"]
+            [(u.name, u.age) for u in all_users],
+            schema=["Name", "Age"],
+            orient="row",
         )
 
     mo.hstack(
@@ -105,10 +107,7 @@ def _(Session, User, engine, mo):
     with Session(engine) as _session:
         # Filter and order
         young_users = (
-            _session.query(User)
-            .filter(User.age < 30)
-            .order_by(User.name)
-            .all()
+            _session.query(User).filter(User.age < 30).order_by(User.name).all()
         )
 
     mo.ui.table(

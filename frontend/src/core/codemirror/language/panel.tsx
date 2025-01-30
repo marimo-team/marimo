@@ -4,19 +4,31 @@ import { languageAdapterState } from "./extension";
 import { SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import {
+  type ConnectionName,
+  dataSourceConnectionsAtom,
+  type DataSourceState,
+} from "@/core/cells/data-source-connections";
+import { useAtomValue } from "jotai";
+import { CircleHelpIcon } from "lucide-react";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { useState } from "react";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
 }> = ({ view }) => {
   const languageAdapter = view.state.field(languageAdapterState);
   const { spanProps, inputProps } = useAutoGrowInputProps({ minWidth: 50 });
+  const dataSourceState = useAtomValue(dataSourceConnectionsAtom);
+
   let actions: React.ReactNode = <div />;
   let showDivider = false;
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
     showDivider = true;
     actions = (
-      <div className="flex flex-1 gap-2 relative items-center justify-between">
+      <div className="flex flex-1 gap-2 relative items-center">
         <label className="flex gap-2 items-center">
           <span className="select-none">Output variable: </span>
           <input
@@ -45,11 +57,17 @@ export const LanguagePanelComponent: React.FC<{
           />
           <span {...spanProps} />
         </label>
-        <label className="flex items-center gap-2">
+        {getFeatureFlag("sql_engines") && (
+          <SQLEngineSelect
+            dataSourceState={dataSourceState}
+            languageAdapter={languageAdapter}
+          />
+        )}
+        <label className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
             onChange={(e) => {
-              languageAdapter.showOutput = !e.target.checked;
+              languageAdapter.setShowOutput(!e.target.checked);
               // Trigger an update to reflect the change
               view.dispatch({
                 changes: {
@@ -72,6 +90,48 @@ export const LanguagePanelComponent: React.FC<{
       {actions}
       {showDivider && <div className="h-4 border-r border-border" />}
       {languageAdapter.type}
+    </div>
+  );
+};
+
+const SQLEngineSelect: React.FC<{
+  dataSourceState: DataSourceState;
+  languageAdapter: SQLLanguageAdapter;
+}> = ({ dataSourceState, languageAdapter }) => {
+  // local state as languageAdapter may not trigger an update
+  const [engine, setEngine] = useState(languageAdapter.engine);
+
+  return (
+    <div className="flex flex-row gap-1 items-center">
+      <select
+        id="sql-engine"
+        name="sql-engine"
+        className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
+        value={engine}
+        onChange={(e) => {
+          languageAdapter.selectEngine(e.target.value as ConnectionName);
+          setEngine(e.target.value as ConnectionName);
+        }}
+      >
+        {[...dataSourceState.connectionsMap.entries()].map(([key, value]) => (
+          <option key={key} value={value.name}>
+            {value.display_name}
+          </option>
+        ))}
+      </select>
+      <TooltipProvider>
+        <Tooltip
+          content="Find out how to add an SQL engine"
+          delayDuration={200}
+        >
+          <a href="https://TODO.com" target="_blank" rel="noreferrer">
+            <CircleHelpIcon
+              size={13}
+              className="text-[grey] opacity-60 hover:text-[var(--blue-11)]"
+            />
+          </a>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 };

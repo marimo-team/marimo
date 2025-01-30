@@ -177,7 +177,12 @@ class SessionView:
 
         elif isinstance(operation, DataSourceConnections):
             # Update data source connections, dedupe by name and keep the latest
-            connections = {c.name: c for c in operation.connections}
+            prev_connections = self.data_connectors.connections
+            connections = {c.name: c for c in prev_connections}
+
+            for c in operation.connections:
+                connections[c.name] = c
+
             self.data_connectors = DataSourceConnections(
                 connections=list(connections.values())
             )
@@ -243,6 +248,8 @@ class SessionView:
             )
         if self.datasets.tables:
             all_ops.append(self.datasets)
+        if self.data_connectors.connections:
+            all_ops.append(self.data_connectors)
         all_ops.extend(self.cell_operations.values())
         if self.stale_code:
             all_ops.append(self.stale_code)
