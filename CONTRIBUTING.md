@@ -12,6 +12,7 @@ Before sending a pull request, make sure to do the following:
 - [Lint, typecheck, and format](#lint-typecheck-format) your code
 - [Write tests](#tests)
 - [Run tests](#tests) and check that they pass
+- Read the [CLA](https://marimo.io/cla)
 
 _Please reach out to the marimo team before starting work on a large
 contribution._ Get in touch at
@@ -327,3 +328,7 @@ If you use vscode, you might find the following `settings.json` useful:
   }
 }
 ```
+
+## Your first PR
+
+Marimo has a variety of CI jobs that run on pull requests.  All new PRs will fail until you have signed the [CLA](https://marimo.io/cla).  Don't fret.  You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`
