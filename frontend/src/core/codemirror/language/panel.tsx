@@ -98,7 +98,7 @@ const SQLEngineSelect: React.FC<{
   languageAdapter: SQLLanguageAdapter;
 }> = ({ dataSourceState, languageAdapter }) => {
   return (
-    <>
+    <div className="flex flex-row gap-1 items-center">
       <select
         id="sql-engine"
         name="sql-engine"
@@ -119,17 +119,17 @@ const SQLEngineSelect: React.FC<{
       </select>
       <TooltipProvider>
         <Tooltip
-          content="Click to find out how to add a custom engine"
+          content="Find out how to add an SQL engine"
           delayDuration={200}
         >
           <a href="https://TODO.com" target="_blank" rel="noreferrer">
             <CircleHelpIcon
               size={13}
-              className="text-[var(--blue-10)] hover:text-[var(--blue-11)]"
+              className="text-[grey] opacity-60 hover:text-[var(--blue-11)]"
             />
           </a>
         </Tooltip>
       </TooltipProvider>
-    </>
+    </div>
   );
 };

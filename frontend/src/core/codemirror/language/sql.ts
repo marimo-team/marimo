@@ -57,7 +57,7 @@ const regexes = pairs.map(
 export class SQLLanguageAdapter implements LanguageAdapter {
   readonly type = "sql";
   readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
-  static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`; // TODO: add engine for conversion
+  static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
 
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
@@ -66,7 +66,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
   transformIn(
     pythonCode: string,
-  ): [cleanSqlQuery: string, queryStartOffset: number] {
+  ): [sqlQuery: string, queryStartOffset: number] {
     if (!this.isSupported(pythonCode)) {
       // Attempt to remove any markdown wrappers
       const [transformedCode, offset] =
