@@ -95,6 +95,9 @@ def test_get_engines_from_variables_multiple():
         ("sa_engine", mock_sqlalchemy_engine),
         ("duckdb_conn", mock_duckdb_conn),
         ("not_an_engine", "some string"),
+        # TODO: (?)
+        ("# sa_engine_commented", mock_sqlalchemy_engine),
+        ("sa_engine # commented", mock_sqlalchemy_engine),
     ]
 
     engines = get_engines_from_variables(variables)

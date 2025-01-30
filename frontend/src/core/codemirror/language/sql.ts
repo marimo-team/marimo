@@ -42,7 +42,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
   getDefaultCode(): string {
     if (this.engine === DEFAULT_ENGINE) {
-      return `_df = mo.sql(f"""SELECT * FROM """)`;
+      return this.defaultCode;
     }
     return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
   }
