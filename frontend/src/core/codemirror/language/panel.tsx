@@ -8,7 +8,6 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   type ConnectionName,
   dataSourceConnectionsAtom,
-  type DataSourceState,
 } from "@/core/cells/data-source-connections";
 import { useAtomValue } from "jotai";
 import { CircleHelpIcon } from "lucide-react";
@@ -20,7 +19,6 @@ export const LanguagePanelComponent: React.FC<{
 }> = ({ view }) => {
   const languageAdapter = view.state.field(languageAdapterState);
   const { spanProps, inputProps } = useAutoGrowInputProps({ minWidth: 50 });
-  const dataSourceState = useAtomValue(dataSourceConnectionsAtom);
 
   let actions: React.ReactNode = <div />;
   let showDivider = false;
@@ -58,10 +56,7 @@ export const LanguagePanelComponent: React.FC<{
           <span {...spanProps} />
         </label>
         {getFeatureFlag("sql_engines") && (
-          <SQLEngineSelect
-            dataSourceState={dataSourceState}
-            languageAdapter={languageAdapter}
-          />
+          <SQLEngineSelect languageAdapter={languageAdapter} />
         )}
         <label className="flex items-center gap-2 ml-auto">
           <input
@@ -94,12 +89,12 @@ export const LanguagePanelComponent: React.FC<{
   );
 };
 
-const SQLEngineSelect: React.FC<{
-  dataSourceState: DataSourceState;
-  languageAdapter: SQLLanguageAdapter;
-}> = ({ dataSourceState, languageAdapter }) => {
-  // local state as languageAdapter may not trigger an update
+const SQLEngineSelect: React.FC<{ languageAdapter: SQLLanguageAdapter }> = ({
+  languageAdapter,
+}) => {
+  // use local state as languageAdapter may not trigger an update
   const [engine, setEngine] = useState(languageAdapter.engine);
+  const dataSourceState = useAtomValue(dataSourceConnectionsAtom);
 
   return (
     <div className="flex flex-row gap-1 items-center">

@@ -2,6 +2,7 @@
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
 import { DEFAULT_ENGINE } from "../codemirror/language/sql";
+import type { VariableName } from "../variables/types";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -49,6 +50,21 @@ const {
       newMap.set(conn.name, conn);
     }
 
+    return { connectionsMap: newMap };
+  },
+
+  // Keep default engine and any connections that are used by variables
+  filterDataSourcesFromVariables: (
+    state: DataSourceState,
+    variableNames: VariableName[],
+  ) => {
+    const newMap = new Map(
+      [...state.connectionsMap].filter(
+        ([name]) =>
+          name === DEFAULT_ENGINE ||
+          variableNames.includes(name as unknown as VariableName),
+      ),
+    );
     return { connectionsMap: newMap };
   },
 
