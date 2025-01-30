@@ -46,6 +46,10 @@ register_formatters()
 class _MockStream(ThreadSafeStream):
     """Captures the ops sent through the stream"""
 
+    cell_id: int | None = None
+    input_queue: None = None
+    pipe: None = None
+
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
         default_factory=list
     )

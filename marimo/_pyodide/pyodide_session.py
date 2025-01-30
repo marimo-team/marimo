@@ -364,7 +364,7 @@ def _launch_pyodide_kernel(
         debugger_override=debugger,
         user_config=user_config,
     )
-    initialize_kernel_context(
+    ctx = initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         stdout=stdout,
@@ -374,9 +374,7 @@ def _launch_pyodide_kernel(
     )
 
     if is_edit_mode:
-        signal.signal(
-            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
-        )
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 

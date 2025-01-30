@@ -79,7 +79,10 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
-from marimo._runtime.context.kernel_context import initialize_kernel_context
+from marimo._runtime.context.kernel_context import (
+    KernelRuntimeContext,
+    initialize_kernel_context,
+)
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -518,8 +521,6 @@ class Kernel:
         ).get("execution_type", "relaxed")
         self._update_runtime_from_user_config(user_config)
 
-        # Set up the execution context
-        self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
         # errored cells
@@ -648,8 +649,10 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
-        self.execution_context = ExecutionContext(
-            cell_id, setting_element_value
+        ctx = get_context()
+        assert isinstance(ctx, KernelRuntimeContext)
+        ctx.execution_context = (
+            exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
         with (
             get_context().provide_ui_ids(str(cell_id)),
@@ -669,9 +672,9 @@ class Kernel:
                     self.module_reloader.check(
                         modules=sys.modules, reload=True
                     )
-                yield self.execution_context
+                yield exec_ctx
             finally:
-                self.execution_context = None
+                ctx.execution_context = None
                 if self.module_reloader is not None and modules is not None:
                     # Note timestamps for newly loaded modules
                     new_modules = set(sys.modules) - modules
@@ -1343,8 +1346,9 @@ class Kernel:
         Should be called when a state's setter is called.
         """
         # store the state and the currently executing cell
-        assert self.execution_context is not None
-        self.state_updates[state] = self.execution_context.cell_id
+        ctx = get_context()
+        assert ctx.execution_context is not None
+        self.state_updates[state] = ctx.execution_context.cell_id
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
@@ -2200,7 +2204,7 @@ def launch_kernel(
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
     )
-    initialize_kernel_context(
+    ctx = initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         stdout=stdout,
@@ -2228,9 +2232,7 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
 
-        signal.signal(
-            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
-        )
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
         if sys.platform == "win32":
             if interrupt_queue is not None:
