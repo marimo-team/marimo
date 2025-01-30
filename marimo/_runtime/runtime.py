@@ -54,6 +54,7 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
+from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     QueuePipe,
     ThreadSafeStderr,
@@ -2198,7 +2199,9 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         module=patches.patch_main_module(
-            file=app_metadata.filename, input_override=input_override
+            file=app_metadata.filename,
+            input_override=input_override,
+            print_override=print_override,
         ),
         debugger_override=debugger,
         user_config=user_config,

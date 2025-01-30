@@ -18,6 +18,7 @@ from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
+from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -132,7 +133,9 @@ class MockedKernel:
         self.stdin = MockStdin(self.stream)
         self._main = sys.modules["__main__"]
         module = patches.patch_main_module(
-            file=None, input_override=input_override
+            file=None,
+            input_override=input_override,
+            print_override=print_override,
         )
 
         self.k = Kernel(

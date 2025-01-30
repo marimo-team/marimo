@@ -117,7 +117,9 @@ del Loader; del MetaPathFinder
 
 
 def create_main_module(
-    file: str | None, input_override: Callable[[Any], str] | None
+    file: str | None,
+    input_override: Callable[[Any], str] | None,
+    print_override: Callable[[Any], None] | None,
 ) -> types.ModuleType:
     # Every kernel gets its own main module, whose __dict__ attribute
     # serves as the global namespace
@@ -129,6 +131,8 @@ def create_main_module(
 
     if input_override is not None:
         _module.__dict__.setdefault("input", input_override)
+    if print_override is not None:
+        _module.__dict__.setdefault("print", print_override)
 
     if file is not None:
         _module.__dict__.setdefault("__file__", file)
@@ -145,14 +149,16 @@ def create_main_module(
 
 
 def patch_main_module(
-    file: str | None, input_override: Callable[[Any], str] | None
+    file: str | None,
+    input_override: Callable[[Any], str] | None,
+    print_override: Callable[[Any], None] | None,
 ) -> types.ModuleType:
     """Patches __main__ module
 
     - Makes functions pickleable
     - Loads some overrides and mocks into globals
     """
-    _module = create_main_module(file, input_override)
+    _module = create_main_module(file, input_override, print_override)
 
     # TODO(akshayka): In run mode, this can introduce races between different
     # kernel threads, since they each share sys.modules. Unfortunately, Python

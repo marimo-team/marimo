@@ -49,7 +49,9 @@ class ScriptRuntimeContext(RuntimeContext):
     @property
     def globals(self) -> dict[str, Any]:
         with patch_main_module_context(
-            create_main_module(file=None, input_override=None)
+            create_main_module(
+                file=None, input_override=None, print_override=None
+            )
         ) as module:
             glbls = module.__dict__
         glbls.update(sys.modules["__main__"].__dict__)
