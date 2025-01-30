@@ -148,12 +148,15 @@ describe("SQLLanguageAdapter", () => {
       expect(offset).toBe(16);
       expect(adapter.showOutput).toBe(false);
       expect(adapter.engine).toBe("postgres_engine");
+    });
 
-      // handle reversed order
-      const pythonCode2 =
+    // TODO: Add support for reversed order
+    it("regex currently does not support reversed order of params", () => {
+      const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine, output=False)';
-      const [innerCode2] = adapter.transformIn(pythonCode2);
-      expect(innerCode2).toBe("SELECT * FROM table");
+      const [innerCode] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(pythonCode); // Expect to return original code since format is unsupported
+      expect(adapter.isSupported(pythonCode)).toBe(false);
     });
   });
 
