@@ -18,6 +18,7 @@ from marimo._sql.sql import _execute_query, sql
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_POLARS = DependencyManager.polars.has()
+HAS_PANDAS = DependencyManager.pandas.has()
 
 if TYPE_CHECKING:
     import duckdb
@@ -103,7 +104,9 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
     assert engine.dialect == "sqlite"
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_PANDAS, reason="DuckDB and Pandas not installed"
+)
 def test_duckdb_engine_execute(
     duckdb_connection: duckdb.DuckDBPyConnection,
 ) -> None:
@@ -118,7 +121,10 @@ def test_duckdb_engine_execute(
     assert len(result) == 4
 
 
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+@pytest.mark.skipif(
+    not HAS_SQLALCHEMY or not HAS_PANDAS,
+    reason="SQLAlchemy and Pandas not installed",
+)
 def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine execute."""
     import pandas as pd
@@ -130,6 +136,10 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
     assert len(result) == 4
 
 
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_SQLALCHEMY or not HAS_PANDAS,
+    reason="Duckdb, sqlalchemy and pandas not installed",
+)
 def test_engine_compatibility() -> None:
     """Test engine compatibility checks."""
     import duckdb
