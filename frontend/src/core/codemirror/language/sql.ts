@@ -12,47 +12,20 @@ import {
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
 import { datasetsAtom } from "@/core/datasets/state";
-import {
-  QUOTE_PREFIX_KINDS,
-  type QuotePrefixKind,
-  splitQuotePrefix,
-  upgradePrefixKind,
-} from "./utils/quotes";
+import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import type { ConnectionName } from "@/core/cells/data-source-connections";
 import { atom } from "jotai";
-
-const quoteKinds = [
-  ['"""', '"""'],
-  ["'''", "'''"],
-  ["'", "'"],
-  ['"', '"'],
-];
+import { parser } from "@lezer/python";
+import type { SyntaxNode, TreeCursor } from "@lezer/common";
+import { parseArgsKwargs } from "./utils/ast";
 
 // Default engine to use when not specified, shouldn't conflict with user_defined engines
 export const DEFAULT_ENGINE: ConnectionName =
   "_marimo_duckdb" as ConnectionName;
 
 export const latestEngineSelected = atom<ConnectionName>(DEFAULT_ENGINE);
-
-// explode into all combinations
-// only f is supported
-const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
-  quoteKinds.map(([start, end]) => [prefix + start, end]),
-);
-
-const regexes = pairs.map(
-  ([start, end]) =>
-    // df = mo.sql( space + start + capture + space + end, optional output flag, optional engine param)
-    [
-      start,
-      new RegExp(
-        `^(?<dataframe>\\w*)\\s*=\\s*mo\\.sql\\(\\s*${start}(?<sql>.*)${end}\\s*(?:(?:,\\s*output\\s*=\\s*(?<output>True|False))?,?(?:,\\s*engine\\s*=\\s*(?<engine>\\w+))?)?,?\\s*\\)$`,
-        "s",
-      ),
-    ] as const,
-);
 
 /**
  * Language adapter for SQL.
@@ -94,30 +67,22 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       return ["", 0];
     }
 
-    for (const [start, regex] of regexes) {
-      const match = pythonCode.match(regex);
-      if (match) {
-        const dataframe = match.groups?.dataframe || this.dataframeName;
-        const innerCode = match.groups?.sql || "";
-        const output = match.groups?.output;
-        const engine = match.groups?.engine;
+    const sqlStatement = parseSQLStatement(pythonCode);
+    if (sqlStatement) {
+      this.dataframeName = sqlStatement.dfName;
+      this.showOutput = sqlStatement.output ?? true;
+      this.engine = (sqlStatement.engine as ConnectionName) ?? DEFAULT_ENGINE;
 
-        const [quotePrefix, quoteType] = splitQuotePrefix(start);
-        // store the quote prefix for later when we transform out
-        this.lastQuotePrefix = quotePrefix;
-        this.dataframeName = dataframe;
-        this.showOutput = output === undefined ? true : output === "True";
-        this.engine = (engine as ConnectionName) ?? DEFAULT_ENGINE;
-        if (engine !== undefined) {
-          // user selected a new engine, set it as latest
-          store.set(latestEngineSelected, this.engine);
-        }
-        const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
-
-        const offset = pythonCode.indexOf(innerCode);
-        // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
-        return [dedent(`\n${unescapedCode}\n`).trim(), offset];
+      if (this.engine !== DEFAULT_ENGINE) {
+        // User selected a new engine, set it as latest.
+        // This makes new SQL statements use the new engine by default.
+        store.set(latestEngineSelected, this.engine);
       }
+
+      return [
+        dedent(`\n${sqlStatement.sqlString}\n`).trim(),
+        sqlStatement.startPosition,
+      ];
     }
 
     return [pythonCode, 0];
@@ -149,12 +114,17 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       return true;
     }
 
-    // not 2 mo.sql calls
+    // Does not have 2 `mo.sql` calls
     if (pythonCode.split("mo.sql").length > 2) {
       return false;
     }
 
-    return regexes.some(([, regex]) => regex.test(pythonCode));
+    // Has at least one `mo.sql` call
+    if (!pythonCode.includes("mo.sql")) {
+      return false;
+    }
+
+    return parseSQLStatement(pythonCode) !== null;
   }
 
   selectEngine(connectionName: ConnectionName): void {
@@ -196,4 +166,177 @@ function tablesCompletionSource(): CompletionSource {
       schema,
     })(ctx);
   };
+}
+
+interface SQLConfig {
+  dfName: string;
+  sqlString: string;
+  engine: string | undefined;
+  output: boolean | undefined;
+  startPosition: number;
+}
+
+function findAssignment(cursor: TreeCursor): SyntaxNode | null {
+  do {
+    if (cursor.name === "AssignStatement") {
+      return cursor.node;
+    }
+  } while (cursor.next());
+  return null;
+}
+
+function getStringContent(node: SyntaxNode, code: string): string | null {
+  // Handle triple quoted strings
+  if (node.name === "String") {
+    const content = code.slice(node.from, node.to);
+    // Remove quotes and trim
+    if (content.startsWith('"""') || content.startsWith("'''")) {
+      return content.slice(3, -3).trim();
+    }
+    // Handle single quoted strings
+    return content.slice(1, -1).trim();
+  }
+  // Handle f-strings
+  if (node.name === "FString" || node.name === "FormatString") {
+    // Replace formatted values with 'null' as per test cases
+    let result = "";
+    const cursor = node.cursor();
+    do {
+      if (cursor.name === "StringContent") {
+        result += code.slice(cursor.from, cursor.to);
+      } else if (cursor.name === "FormattedValue") {
+        result += "null";
+      }
+    } while (cursor.next());
+    return result.trim();
+  }
+  return null;
+}
+
+/**
+ * Parses a SQL statement from a Python code string.
+ *
+ * @param code - The Python code string to parse.
+ * @returns The parsed SQL statement or null if parsing fails.
+ */
+export function parseSQLStatement(code: string): SQLConfig | null {
+  try {
+    const tree = parser.parse(code.trim());
+    const cursor = tree.cursor();
+
+    // Find assignment statement
+    const assignStmt = findAssignment(cursor);
+    if (!assignStmt) {
+      return null;
+    }
+
+    let dfName: string | null = null;
+    let sqlString: string | null = null;
+    let engine: string | undefined;
+    let output: boolean | undefined;
+    let startPosition = 0;
+
+    // Parse the assignment
+    const assignCursor = assignStmt.cursor();
+    assignCursor.firstChild(); // Move to first child of assignment
+
+    // First child should be the variable name
+    if (assignCursor.name === "VariableName") {
+      dfName = code.slice(assignCursor.from, assignCursor.to);
+    }
+
+    if (!dfName) {
+      return null;
+    }
+
+    // Move to the expression part (after the =)
+    while (assignCursor.next()) {
+      if (assignCursor.name === "CallExpression") {
+        // Check if it's mo.sql call
+        const callCursor = assignCursor.node.cursor();
+        let isMoSql = false;
+
+        callCursor.firstChild(); // Move to first child of call
+        if (callCursor.name === "MemberExpression") {
+          const memberText = code.slice(callCursor.from, callCursor.to);
+          isMoSql = memberText === "mo.sql";
+        }
+
+        if (!isMoSql) {
+          return null;
+        }
+
+        // Move to arguments
+        while (callCursor.next()) {
+          if (callCursor.name === "ArgList") {
+            const argListCursor = callCursor.node.cursor();
+
+            const { args, kwargs } = parseArgsKwargs(argListCursor, code);
+
+            // Parse positional args (SQL query)
+            if (args.length === 1) {
+              console.log("args", args);
+              sqlString = getStringContent(args[0], code);
+              startPosition =
+                args[0].from +
+                getPrefixLength(code.slice(args[0].from, args[0].to));
+              console.log("sqlString", sqlString);
+            }
+
+            // Parse kwargs (engine and output)
+            for (const { key, value } of kwargs) {
+              switch (key) {
+                case "engine":
+                  engine = value;
+                  break;
+                case "output":
+                  output = value === "True";
+                  break;
+              }
+            }
+
+            // Check if sql string is empty
+            if (sqlString === "") {
+              return { dfName, sqlString: "", engine, output, startPosition };
+            }
+
+            break;
+          }
+        }
+      }
+    }
+
+    if (!dfName || !sqlString) {
+      return null;
+    }
+
+    return {
+      dfName,
+      sqlString,
+      engine,
+      output,
+      startPosition,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function getPrefixLength(code: string): number {
+  if (code === "") {
+    return 0;
+  }
+  if (code.startsWith('f"""') || code.startsWith("f'''")) {
+    return 4;
+  }
+  if (code.startsWith('"""') || code.startsWith("'''")) {
+    return 3;
+  }
+  if (code.startsWith("f'") || code.startsWith('f"')) {
+    return 2;
+  }
+  if (code.startsWith("'") || code.startsWith('"')) {
+    return 1;
+  }
+  return 0;
 }

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 @mddoc
 def sql(
     query: str,
+    *,
     output: bool = True,
     engine: Optional[sqlalchemy.Engine | duckdb.DuckDBPyConnection] = None,
 ) -> Any:

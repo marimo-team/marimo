@@ -1,0 +1,83 @@
+import { Logger } from "@/utils/Logger";
+import type { SyntaxNode, TreeCursor } from "@lezer/common";
+
+const SYNTAX_TOKENS = new Set(["(", "[", "{", ",", ")", "]", "}"]);
+
+export function parseArgsKwargs(
+  argCursor: TreeCursor,
+  code: string,
+): {
+  args: SyntaxNode[];
+  kwargs: { key: string; value: string }[];
+} {
+  // Check we are in an ArgList
+  const name = argCursor.name;
+
+  if (name !== "ArgList") {
+    Logger.warn("Not an ArgList");
+    return { args: [], kwargs: [] };
+  }
+
+  return { args: parseArgs(argCursor), kwargs: parseKwargs(argCursor, code) };
+}
+
+export function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
+  // Move to first argument
+  argCursor.firstChild();
+
+  const args: SyntaxNode[] = [];
+  let name = argCursor.name;
+
+  do {
+    name = argCursor.name;
+    if (SYNTAX_TOKENS.has(name)) {
+      continue;
+    }
+
+    if (name === "VariableName") {
+      // Stop if we hit a kwarg (next token is AssignOp)
+      const peek = argCursor.node.nextSibling;
+      if (peek?.name === "AssignOp") {
+        argCursor.prev();
+        break;
+      }
+    }
+
+    args.push(argCursor.node);
+  } while (argCursor.next());
+
+  return args;
+}
+
+export function parseKwargs(
+  argCursor: TreeCursor,
+  code: string,
+): { key: string; value: string }[] {
+  const kwargs: { key: string; value: string }[] = [];
+  let name = argCursor.name;
+
+  do {
+    name = argCursor.name;
+    console.log("name", name);
+    if (name === "VariableName") {
+      const key = code.slice(argCursor.from, argCursor.to);
+      const kwCursor = argCursor;
+
+      // Move cursor, check that it is an AssignOp
+      kwCursor.next();
+      let name = kwCursor.name;
+      console.log("name", name);
+      if (name !== "AssignOp") {
+        continue;
+      }
+
+      // Get the value
+      kwCursor.next();
+      name = kwCursor.name;
+      const value = code.slice(kwCursor.from, kwCursor.to).trim();
+      kwargs.push({ key, value });
+    }
+  } while (argCursor.next());
+
+  return kwargs;
+}
