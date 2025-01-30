@@ -107,6 +107,9 @@ class RuntimeConfig(TypedDict):
            In any case, it's better than breaking the frontend/kernel.
 
         Output not shown if larger than OUTPUT_MAX_BYTES=5MB
+    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
+      if `strict` marimo will clone cell declarations by default, avoiding
+      hidden potential state build up.
     """
 
     auto_instantiate: bool
