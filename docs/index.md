@@ -75,8 +75,8 @@ reference its variables, eliminating the error-prone task of manually
 re-running cells. Delete a cell and marimo scrubs its variables from program
 memory, eliminating hidden state.
 
-<!-- <video autoplay muted loop width="700px" align="center" src="/_static/reactive.webm">
-</video> -->
+<video autoplay muted loop width="700px" align="center" src="/_static/reactive.webm">
+</video>
 
 <a name="expensive-notebooks"></a>
 
