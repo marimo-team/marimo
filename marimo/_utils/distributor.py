@@ -80,7 +80,13 @@ class ConnectionDistributor(Generic[T]):
 
     def stop(self) -> None:
         """Stop distributing the response."""
-        asyncio.get_event_loop().remove_reader(self.input_connection.fileno())
+        try:
+            asyncio.get_event_loop().remove_reader(
+                self.input_connection.fileno()
+            )
+        except OSError:
+            # Handle may already be closed
+            pass
         if not self.input_connection.closed:
             self.input_connection.close()
         self.consumers.clear()

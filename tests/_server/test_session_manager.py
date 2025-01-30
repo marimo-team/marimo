@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock
+import asyncio
+import time
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -34,7 +36,7 @@ def mock_session():
 
 @pytest.fixture
 def session_manager():
-    return SessionManager(
+    sm = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
         development_mode=False,
@@ -47,6 +49,13 @@ def session_manager():
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
+
+    # Unwrap debounce from cleanup_orphaned_sessions
+    if hasattr(sm.cleanup_orphaned_sessions, "__wrapped__"):
+        unwrapped = sm.cleanup_orphaned_sessions.__wrapped__
+        sm.cleanup_orphaned_sessions = lambda: unwrapped(sm)
+    yield sm
+    sm.shutdown()
 
 
 async def test_start_lsp_server(session_manager: SessionManager) -> None:
@@ -209,3 +218,127 @@ def test_shutdown(
     session_manager.lsp_server.stop.assert_called_once()
     assert len(session_manager.sessions) == 0
     assert mock_session.close.call_count == 2
+
+
+def test_cleanup_orphaned_sessions_no_sessions(
+    session_manager: SessionManager,
+) -> None:
+    # Test with no sessions
+    session_manager.cleanup_orphaned_sessions()
+    assert len(session_manager.sessions) == 0
+
+
+async def test_cleanup_orphaned_sessions_dead_kernel(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+) -> None:
+    # Create a session with a dead kernel
+    session_id = "test_session_id"
+    session = session_manager.create_session(
+        session_id,
+        mock_session_consumer,
+        query_params={},
+        file_key=AppFileRouter.NEW_FILE,
+    )
+
+    assert session.kernel_manager.kernel_task is not None
+    session.kernel_manager.close_kernel()
+    await asyncio.sleep(0.05)  # Flush the close
+
+    # Run cleanup
+    session_manager.cleanup_orphaned_sessions()
+
+    # Session should be cleaned up
+    assert session_id not in session_manager.sessions
+    session.close()
+
+
+def test_cleanup_orphaned_sessions_stale_session(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+) -> None:
+    # Create a session that will become stale
+    session_id = "test_session_id"
+    ttl = 1  # 1 second TTL for testing
+    session_manager.ttl_seconds = ttl
+
+    session = session_manager.create_session(
+        session_id,
+        mock_session_consumer,
+        query_params={},
+        file_key=AppFileRouter.NEW_FILE,
+    )
+
+    # Mock the session to be orphaned
+    session.connection_state = lambda: ConnectionState.ORPHANED
+
+    # Mock last_active_time to be in the past
+    with patch.object(
+        session.session_view, "last_active_time", time.time() - ttl - 1
+    ):
+        # Run cleanup
+        session_manager.cleanup_orphaned_sessions()
+
+        # Session should be cleaned up
+        assert session_id not in session_manager.sessions
+        session.close()
+
+
+def test_cleanup_orphaned_sessions_active_session(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+) -> None:
+    # Create an active session
+    session_id = "test_session_id"
+    session = session_manager.create_session(
+        session_id,
+        mock_session_consumer,
+        query_params={},
+        file_key=AppFileRouter.NEW_FILE,
+    )
+
+    # Mock the session to be active
+    session.connection_state = lambda: ConnectionState.OPEN
+
+    # Run cleanup
+    session_manager.cleanup_orphaned_sessions()
+
+    # Session should still be there
+    assert session_id in session_manager.sessions
+    session.close()
+
+
+def test_cleanup_orphaned_sessions_not_stale_yet(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+) -> None:
+    # Create a session that is orphaned but not stale yet
+    session_id = "test_session_id"
+    ttl = 60  # 60 second TTL
+    session_manager.ttl_seconds = ttl
+
+    session = session_manager.create_session(
+        session_id,
+        mock_session_consumer,
+        query_params={},
+        file_key=AppFileRouter.NEW_FILE,
+    )
+
+    # Mock the session to be orphaned
+    session.connection_state = lambda: ConnectionState.ORPHANED
+
+    # Update last_active_time to be recent
+    session.session_view._touch()
+
+    # Run cleanup
+    session_manager.cleanup_orphaned_sessions()
+
+    # Session should still be there since it hasn't exceeded TTL
+    assert session_id in session_manager.sessions
+
+    # Set last_active_time to be stale
+    session.session_view.last_active_time = time.time() - ttl - 1
+
+    # Run cleanup
+    session_manager.cleanup_orphaned_sessions()
+    assert session_id not in session_manager.sessions

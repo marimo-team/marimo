@@ -68,6 +68,7 @@ from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
 from marimo._tracer import server_tracer
+from marimo._utils.debounce import debounce
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,
@@ -906,6 +907,11 @@ class SessionManager:
             return False, str(e)
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
+        # Clean up orphaned sessions periodically when looking up sessions
+        self.cleanup_orphaned_sessions()
+        return self._get_session_by_id(session_id)
+
+    def _get_session_by_id(self, session_id: SessionId) -> Optional[Session]:
         session = self.sessions.get(session_id)
         if session:
             return session
@@ -939,7 +945,7 @@ class SessionManager:
         # If in run mode, only resume the session if it is orphaned and has
         # the same session id, otherwise we want to create a new session
         if self.mode == SessionMode.RUN:
-            maybe_session = self.get_session(new_session_id)
+            maybe_session = self._get_session_by_id(new_session_id)
             if (
                 maybe_session
                 and maybe_session.connection_state()
@@ -951,13 +957,6 @@ class SessionManager:
                 )
                 return maybe_session
             return None
-
-        # Cleanup sessions with dead kernels; materializing as a list because
-        # close_sessions mutates self.sessions
-        for session_id, session in list(self.sessions.items()):
-            task = session.kernel_manager.kernel_task
-            if task is not None and not task.is_alive():
-                self.close_session(session_id)
 
         # Should only return an orphaned session
         sessions_with_the_same_file: dict[SessionId, Session] = {
@@ -1023,7 +1022,7 @@ class SessionManager:
     def close_session(self, session_id: SessionId) -> bool:
         """Close a session and remove its file watcher if it has one."""
         LOGGER.debug("Closing session %s", session_id)
-        session = self.get_session(session_id)
+        session = self._get_session_by_id(session_id)
         if session is None:
             return False
 
@@ -1064,6 +1063,42 @@ class SessionManager:
                 if session.connection_state() == ConnectionState.OPEN
             ]
         )
+
+    # Check every 1 minute.
+    # We check the TTL later, so the 1 minute check is just to avoid
+    # unnecessary work.
+    @debounce(60)
+    def cleanup_orphaned_sessions(self) -> None:
+        """Clean up any orphaned or dead sessions"""
+        if len(self.sessions) == 0:
+            return
+
+        cleaned_up_count = 0
+
+        LOGGER.debug("Cleaning up orphaned sessions")
+
+        # Materialize list since we'll modify self.sessions
+        for session_id, session in list(self.sessions.items()):
+            # Check if kernel is dead
+            task = session.kernel_manager.kernel_task
+            if task is not None and not task.is_alive():
+                cleaned_up_count += 1
+                self.close_session(session_id)
+                continue
+
+            # Check if session is orphaned and past TTL
+            if session.connection_state() == ConnectionState.ORPHANED:
+                # Get time since last activity
+                last_activity = session.session_view.last_active_time
+                stale_time = time.time() - last_activity
+                if stale_time > session.ttl_seconds:
+                    cleaned_up_count += 1
+                    self.close_session(session_id)
+
+        if cleaned_up_count > 0:
+            LOGGER.debug("Cleaned up %d orphaned sessions", cleaned_up_count)
+        else:
+            LOGGER.debug("No orphaned sessions to clean up")
 
 
 class LspServer:
