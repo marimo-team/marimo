@@ -275,12 +275,10 @@ export function parseSQLStatement(code: string): SQLConfig | null {
 
             // Parse positional args (SQL query)
             if (args.length === 1) {
-              console.log("args", args);
               sqlString = getStringContent(args[0], code);
               startPosition =
                 args[0].from +
                 getPrefixLength(code.slice(args[0].from, args[0].to));
-              console.log("sqlString", sqlString);
             }
 
             // Parse kwargs (engine and output)

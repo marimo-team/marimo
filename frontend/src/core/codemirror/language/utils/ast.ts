@@ -58,7 +58,6 @@ export function parseKwargs(
 
   do {
     name = argCursor.name;
-    console.log("name", name);
     if (name === "VariableName") {
       const key = code.slice(argCursor.from, argCursor.to);
       const kwCursor = argCursor;
@@ -66,7 +65,6 @@ export function parseKwargs(
       // Move cursor, check that it is an AssignOp
       kwCursor.next();
       let name = kwCursor.name;
-      console.log("name", name);
       if (name !== "AssignOp") {
         continue;
       }
