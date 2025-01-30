@@ -2214,11 +2214,6 @@ export interface components {
       destination: string;
       source: string;
     };
-    CreationRequest: {
-      autoRun: boolean;
-      executionRequests: components["schemas"]["ExecutionRequest"][];
-      setUiElementValueRequest: components["schemas"]["SetUIElementValueRequest"];
-    };
     CycleError: {
       edges_with_vars: [string, string[], string][];
       /** @enum {string} */
@@ -2292,15 +2287,18 @@ export interface components {
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
+      request?: components["schemas"]["HTTPRequest"];
       timestamp: number;
     };
     ExecuteScratchpadRequest: {
       code: string;
+      request?: components["schemas"]["HTTPRequest"];
     };
     ExecuteStaleRequest: Record<string, never>;
     ExecutionRequest: {
       cellId: string;
       code: string;
+      request?: components["schemas"]["HTTPRequest"];
       timestamp: number;
     };
     ExportAsHTMLRequest: {
@@ -2410,6 +2408,7 @@ export interface components {
       return_value?: components["schemas"]["JSONType"];
       status: components["schemas"]["HumanReadableStatus"];
     };
+    HTTPRequest: null;
     HumanReadableStatus: {
       /** @enum {string} */
       code: "ok" | "error";
@@ -2767,9 +2766,11 @@ export interface components {
     RunRequest: {
       cellIds: string[];
       codes: string[];
+      request?: components["schemas"]["HTTPRequest"];
     };
     RunScratchpadRequest: {
       code: string;
+      request?: components["schemas"]["HTTPRequest"];
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -2815,6 +2816,7 @@ export interface components {
     };
     SetUIElementValueRequest: {
       objectIds: string[];
+      request?: components["schemas"]["HTTPRequest"];
       token: string;
       values: unknown[];
     };

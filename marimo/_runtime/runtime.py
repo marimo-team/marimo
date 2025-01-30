@@ -31,7 +31,7 @@ from marimo._data.preview_column import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.context import run_id_context
+from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
     MarimoInterruptionError,
@@ -260,6 +260,14 @@ def app_meta() -> AppMeta:
         ```python
         # Only show this content when editing the notebook
         mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
+        ```
+
+        Get the current request headers or user info:
+
+        ```python
+        request = mo.app_meta().request
+        print(request.headers)
+        print(request.user)
         ```
 
     Returns:
@@ -1593,7 +1601,9 @@ class Kernel:
                         child_context.app is not None
                         and await child_context.app.set_ui_element_value(
                             SetUIElementValueRequest(
-                                object_ids=[object_id], values=[value]
+                                object_ids=[object_id],
+                                values=[value],
+                                request=request.request,
                             )
                         )
                     ):
@@ -2043,13 +2053,16 @@ class Kernel:
         with self.lock_globals():
             LOGGER.debug("Handling control request: %s", request)
             if isinstance(request, CreationRequest):
-                await self.instantiate(request)
+                with http_request_context(request.request):
+                    await self.instantiate(request)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteMultipleRequest):
-                await self.run(request.execution_requests)
+                with http_request_context(request.request):
+                    await self.run(request.execution_requests)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteScratchpadRequest):
-                await self.run_scratchpad(request.code)
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, RenameRequest):
@@ -2059,7 +2072,8 @@ class Kernel:
             elif isinstance(request, SetUserConfigRequest):
                 self.set_user_config(request)
             elif isinstance(request, SetUIElementValueRequest):
-                await self.set_ui_element_value(request)
+                with http_request_context(request.request):
+                    await self.set_ui_element_value(request)
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
                 status, ret, _ = await self.function_call_request(request)

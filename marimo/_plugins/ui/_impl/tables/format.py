@@ -14,34 +14,37 @@ def format_value(
     if format_mapping is None:
         return value
 
-    if value is None:
-        if col in format_mapping:
-            formatter = format_mapping[col]
-            if callable(formatter):
-                return formatter(value)
+    if col not in format_mapping:
         return value
 
-    if col in format_mapping:
-        formatter = format_mapping[col]
-        try:
-            if isinstance(formatter, str):
-                # Handle numeric formatting specially to preserve signs and separators
-                if isinstance(value, (int, float)):
-                    # Keep integers as integers for 'd' format specifier
-                    if isinstance(value, int) and "d" in formatter:
-                        return formatter.format(value)
-                    # Convert to float for float formatting
-                    return formatter.format(float(value))
-                return formatter.format(value)
-            if callable(formatter):
-                return formatter(value)
-        except Exception as e:
-            import logging
+    formatter = format_mapping[col]
 
-            logging.warning(
-                f"Error formatting for value {value} in column {col}: {str(e)}"
-            )
-            return value
+    # If the value is None, we don't want to format it
+    # with strings for formatting, but we do want to
+    # format it with callables.
+    if value is None and isinstance(formatter, str):
+        return value
+
+    try:
+        if isinstance(formatter, str):
+            # Handle numeric formatting specially to preserve signs and separators
+            if isinstance(value, (int, float)):
+                # Keep integers as integers for 'd' format specifier
+                if isinstance(value, int) and "d" in formatter:
+                    return formatter.format(value)
+                # Convert to float for float formatting
+                return formatter.format(float(value))
+            return formatter.format(value)
+        if callable(formatter):
+            return formatter(value)
+    except Exception as e:
+        import logging
+
+        logging.warning(
+            f"Error formatting for value {value} in column {col}: {str(e)}"
+        )
+        return value
+
     return value
 
 
