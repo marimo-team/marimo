@@ -1,18 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
-import { SQLLanguageAdapter } from "./sql";
+import { DEFAULT_ENGINE, SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   type ConnectionName,
-  dataSourceConnectionsAtom,
+  dataConnectionsMapAtom,
 } from "@/core/cells/data-source-connections";
 import { useAtomValue } from "jotai";
 import { CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { useState } from "react";
+import React from "react";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -95,7 +96,16 @@ const SQLEngineSelect: React.FC<{
 }> = ({ languageAdapter, onChange }) => {
   // use local state as languageAdapter may not trigger an update
   const [engine, setEngine] = useState(languageAdapter.engine);
-  const dataSourceState = useAtomValue(dataSourceConnectionsAtom);
+  const connectionsMap = useAtomValue(dataConnectionsMapAtom);
+
+  // Watch for changes in dataSourceState and choose default if current engine is not available
+  React.useEffect(() => {
+    if (!connectionsMap.has(engine)) {
+      languageAdapter.selectEngine(DEFAULT_ENGINE);
+      setEngine(DEFAULT_ENGINE);
+      onChange(DEFAULT_ENGINE);
+    }
+  }, [connectionsMap, engine, languageAdapter, onChange]);
 
   return (
     <div className="flex flex-row gap-1 items-center">
@@ -111,7 +121,7 @@ const SQLEngineSelect: React.FC<{
           onChange(nextEngine);
         }}
       >
-        {[...dataSourceState.connectionsMap.entries()].map(([key, value]) => (
+        {[...connectionsMap.entries()].map(([key, value]) => (
           <option key={key} value={value.name}>
             {value.display_name}
           </option>

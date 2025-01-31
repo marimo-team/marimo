@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { formatElapsedTime } from "../../../../components/editor/cell/CellStatus";
 import { describe, expect, test } from "vitest";
 

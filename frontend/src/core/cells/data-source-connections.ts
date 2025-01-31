@@ -3,6 +3,7 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
 import { DEFAULT_ENGINE } from "../codemirror/language/sql";
 import type { VariableName } from "../variables/types";
+import { atom } from "jotai";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -83,6 +84,10 @@ const {
 });
 
 export { dataSourceConnectionsAtom, useDataSourceActions };
+
+export const dataConnectionsMapAtom = atom(
+  (get) => get(dataSourceConnectionsAtom).connectionsMap,
+);
 
 export const exportedForTesting = {
   reducer,
