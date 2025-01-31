@@ -506,7 +506,7 @@ def test_add_data_source_connections() -> None:
         )
     )
     assert len(session_view.data_connectors.connections) == 1
-    assert "mysql1" in session_view.data_connectors.connections
+    assert session_view.data_connectors.connections[0].name == "mysql1"
 
 
 def test_add_cell_op() -> None:
