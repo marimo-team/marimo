@@ -152,6 +152,13 @@ class SessionView:
                     next_tables[table.name] = table
             self.datasets = Datasets(tables=list(next_tables.values()))
 
+            # Remove any data source connections that are no longer in scope.
+            next_connections: dict[str, DataSourceConnections] = {}
+            for connection in self.data_connectors.connections:
+                if connection.name in variable_names:
+                    next_connections[connection.name] = connection
+            self.data_connectors = DataSourceConnections(next_connections)
+
         elif isinstance(operation, VariableValues):
             for value in operation.variables:
                 self.variable_values[value.name] = value

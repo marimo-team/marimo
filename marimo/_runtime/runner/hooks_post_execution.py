@@ -142,6 +142,10 @@ def _broadcast_data_source_connection(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
+    # Skip if not in edit mode
+    if not _is_edit_mode():
+        return
+
     del run_result
     engines = get_engines_from_variables(
         [

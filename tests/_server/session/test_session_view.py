@@ -493,6 +493,21 @@ def test_add_data_source_connections() -> None:
     # Check connectors in operations
     assert session_view.data_connectors in session_view.operations
 
+    # Filter out connections from variables
+    session_view.add_raw_operation(
+        serialize(
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name="mysql1", declared_by=[cell_id], used_by=[]
+                    ),
+                ]
+            )
+        )
+    )
+    assert len(session_view.data_connectors.connections) == 1
+    assert "mysql1" in session_view.data_connectors.connections
+
 
 def test_add_cell_op() -> None:
     session_view = SessionView()
