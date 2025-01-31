@@ -12,7 +12,7 @@ import {
 import { useAtomValue } from "jotai";
 import { CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -94,17 +94,8 @@ const SQLEngineSelect: React.FC<{
   onChange: (engine: ConnectionName) => void;
 }> = ({ languageAdapter, onChange }) => {
   // use local state as languageAdapter may not trigger an update
-  const [engine, setEngine] = useState(languageAdapter.engine);
+  const [selectedEngine, setSelectedEngine] = useState(languageAdapter.engine);
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
-
-  // Watch for changes in dataSourceState and choose default if current engine is not available
-  useEffect(() => {
-    if (!connectionsMap.has(engine)) {
-      languageAdapter.selectEngine(DEFAULT_ENGINE);
-      setEngine(DEFAULT_ENGINE);
-      onChange(DEFAULT_ENGINE);
-    }
-  }, [connectionsMap, engine, languageAdapter, onChange]);
 
   return (
     <div className="flex flex-row gap-1 items-center">
@@ -112,14 +103,17 @@ const SQLEngineSelect: React.FC<{
         id="sql-engine"
         name="sql-engine"
         className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
-        value={engine}
+        value={selectedEngine}
         onChange={(e) => {
           const nextEngine = e.target.value as ConnectionName;
           languageAdapter.selectEngine(nextEngine);
-          setEngine(nextEngine);
+          setSelectedEngine(nextEngine);
           onChange(nextEngine);
         }}
       >
+        {/* Fallback option if an existing option is deleted, 
+        let's users intentionally switch to default if needed */}
+        <option value={DEFAULT_ENGINE}>Choose an option</option>
         {[...connectionsMap.entries()].map(([key, value]) => (
           <option key={key} value={value.name}>
             {value.display_name}
