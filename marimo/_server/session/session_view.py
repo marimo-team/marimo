@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Optional, Union
 
 from marimo._ast.cell import CellId_t
-from marimo._data.models import DataTable
+from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
@@ -153,11 +153,13 @@ class SessionView:
             self.datasets = Datasets(tables=list(next_tables.values()))
 
             # Remove any data source connections that are no longer in scope.
-            next_connections: dict[str, DataSourceConnections] = {}
+            next_connections: dict[str, DataSourceConnection] = {}
             for connection in self.data_connectors.connections:
                 if connection.name in variable_names:
                     next_connections[connection.name] = connection
-            self.data_connectors = DataSourceConnections(next_connections)
+            self.data_connectors = DataSourceConnections(
+                connections=list(next_connections.values())
+            )
 
         elif isinstance(operation, VariableValues):
             for value in operation.variables:
