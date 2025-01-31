@@ -59,12 +59,14 @@ const {
     state: DataSourceState,
     variableNames: VariableName[],
   ) => {
+    const names = new Set(variableNames);
     const newMap = new Map(
-      [...state.connectionsMap].filter(
-        ([name]) =>
-          name === DEFAULT_ENGINE ||
-          variableNames.includes(name as unknown as VariableName),
-      ),
+      [...state.connectionsMap].filter(([name]) => {
+        if (name === DEFAULT_ENGINE) {
+          return true;
+        }
+        return names.has(name as unknown as VariableName);
+      }),
     );
     return { connectionsMap: newMap };
   },
