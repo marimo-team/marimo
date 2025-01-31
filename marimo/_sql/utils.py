@@ -18,6 +18,12 @@ def wrapped_sql(
 ) -> "duckdb.DuckDBPyRelation":
     DependencyManager.duckdb.require("to execute sql")
 
+    # In Python globals() are scoped to modules; since this function
+    # is in a different module than user code, globals() doesn't return
+    # the kernel globals, it just returns this module's global namespace.
+    #
+    # However, duckdb needs access to the kernel's globals. For this reason,
+    # we manually exec duckdb and provide it with the kernel's globals.
     if connection is None:
         import duckdb
 
