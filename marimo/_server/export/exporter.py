@@ -307,6 +307,35 @@ class Exporter:
                     previous_was_markdown = True
                     document.append(markdown)
                     continue
+                attributes["language"] = cell._cell.language
+                # Definitely a code cell, but need to determine if it can be
+                # formatted as non-python.
+                if attributes["language"] == "sql":
+                    # Note frontend/src/core/codemirror/language/sql.ts
+                    # Determines sql structure by regex, but having access to
+                    # the AST gives us more flexibility.
+                    query = None
+                    valid_sql = True
+                    for maybe_query, def_vars in cell._cell.variable_data.items():
+                        if query:
+                            # query has already been set, hence this breaks
+                            # the expected format.
+                            query = None
+                            attributes.pop("language")
+                            valid_sql = False
+                            break
+                        for var in def_vars:
+                            # We are looking for the case where we assign a
+                            # query output to python.
+                            if var.language == "python":
+                                query = maybe_query
+                                break
+
+                    if valid_sql:
+                        code = "\n".join(cell._cell.raw_sqls).strip()
+                        if query:
+                            attributes["query"] = query
+
             # Definitely no "cell"; as such, treat as code, as everything in
             # marimo is code.
             else:

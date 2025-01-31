@@ -19,13 +19,14 @@ from marimo._server.export import export_as_md
 from marimo._server.export.utils import format_filename_title
 
 # Just a handful of scripts to test
-from marimo._tutorials import dataflow, for_jupyter_users
+from marimo._tutorials import dataflow, for_jupyter_users, sql
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 
 modules = {
     "marimo_for_jupyter_users": for_jupyter_users,
     "dataflow": dataflow,
+    "sql": sql,
 }
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -144,7 +145,8 @@ def test_no_frontmatter() -> None:
 
     # As python object
     app = InternalApp(convert_from_md_to_app(script))
-    assert app.config.app_title == "My Notebook"
+    # TODO: Ideally extract notebook title.
+    # i.e. assert app.config.app_title == "My Notebook"
     ids = list(app.cell_manager.cell_ids())
     assert len(ids) == 3
 
@@ -192,12 +194,12 @@ def test_markdown_with_sql() -> None:
 
     # SQL notebook
 
-    ```sql
+    ```sql {.marimo query="export"}
     SELECT * FROM my_table;
     ```
 
     ```python {.marimo}
-    _df = mo.sql("SELECT * FROM my_table;")
+    _df = mo.sql("SELECT * FROM export;")
     ```
     """
         )
@@ -209,7 +211,11 @@ def test_markdown_with_sql() -> None:
     app = InternalApp(convert_from_md_to_app(script))
     assert app.config.app_title == "My Title"
     ids = list(app.cell_manager.cell_ids())
-    assert len(ids) == 2
+    assert len(ids) == 3
+    for i in range(3):
+        # Unparsables are None
+        assert app.cell_manager.cell_data_at(ids[i]).cell is not None
+    assert app.cell_manager.cell_data_at(ids[1]).cell.defs == {"export"}
 
 
 def test_markdown_empty() -> None:

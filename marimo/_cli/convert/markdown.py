@@ -28,7 +28,7 @@ from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._convert.utils import markdown_to_marimo
+from marimo._convert.utils import markdown_to_marimo, sql_to_marimo
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
@@ -46,22 +46,6 @@ ConvertKeys = Union[Literal["marimo"], Literal["marimo-app"]]
 # ---
 YAML_FRONT_MATTER_REGEX = re.compile(
     r"^---\s*\n(.*?\n?)(?:---)\s*\n", re.UNICODE | re.DOTALL
-)
-
-# From pymdownx.superfences 10.11.2
-COMPAT_RE_NESTED_FENCE_START = re.compile(
-    r"""(?x)
-    (?P<fence>~{3,}|`{3,})
-    (?:[ \t]*\.?(?P<lang>[\w#.+-]+)(?=[\t ]|$))?                                           # Language
-    (?:
-        [ \t]*(\{(?P<attrs>[^\n]*)\}) |                                                    # Optional attributes or
-        (?P<options>
-            (?:
-                (?:[ \t]*[a-zA-Z][a-zA-Z0-9_]*(?:=(?P<quot>"|').*?(?P=quot))?)(?=[\t ]|$)  # Options
-            )+
-        )
-    )?[ \t]*$
-    """
 )
 
 
@@ -98,7 +82,7 @@ def _is_code_tag(text: str) -> bool:
 
 
 def _get_language(text: str) -> str:
-    header = text.split("\n").pop()
+    header = text.split("\n").pop(0)
     match = RE_NESTED_FENCE_START.match(header)
     if match and match.group("lang"):
         return str(match.group("lang"))
@@ -158,7 +142,7 @@ def get_source_from_tag(tag: Element) -> str:
             return ""
         source = markdown_to_marimo(source)
     elif tag.attrib.get("language") == "sql":
-        return "#sql + " + source
+        source = sql_to_marimo(source, tag.attrib.get("query", "_df"))
     else:
         assert tag.tag == MARIMO_CODE, f"Unknown tag: {tag.tag}"
     return source
@@ -485,11 +469,13 @@ class ExpandAndClassifyProcessor(BlockProcessor):
             code_block = SubElement(parent, MARIMO_CODE)
             block_lines = code.split("\n")
             code_block.text = "\n".join(block_lines[1:-1])
-            code_block.set("language", _get_language(code))
 
             attribs = extract_attribs(block_lines[0])
             if attribs:
                 code_block.attrib = attribs
+
+            # Set after to prevent lang being flushed.
+            code_block.set("language", _get_language(code))
 
         add_paragraph()
         # Flush to indicate all blocks have been processed.
