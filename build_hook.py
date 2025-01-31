@@ -4,12 +4,10 @@ import os
 import subprocess
 from typing import Any, Dict
 
-from hatchling.builders.hooks.plugin.interface import (  # type: ignore
-    BuildHookInterface,  # type: ignore
-)
+from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 
-class FrontendBuildHook(BuildHookInterface):  # type: ignore
+class FrontendBuildHook(BuildHookInterface[Any]):
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
         # Only build frontend if MARIMO_BUILD_FRONTEND variable exists
         MARIMO_BUILD_FRONTEND = os.getenv("MARIMO_BUILD_FRONTEND")
