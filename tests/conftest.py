@@ -13,11 +13,12 @@ from typing import TYPE_CHECKING, Any, Generator
 import pytest
 from _pytest import runner
 
-from marimo._ast.app import CellManager
+from marimo._ast.app import App, CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
+from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -45,6 +46,10 @@ register_formatters()
 @dataclasses.dataclass
 class _MockStream(ThreadSafeStream):
     """Captures the ops sent through the stream"""
+
+    cell_id: int | None = None
+    input_queue: None = None
+    pipe: None = None
 
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
         default_factory=list
@@ -128,7 +133,9 @@ class MockedKernel:
         self.stdin = MockStdin(self.stream)
         self._main = sys.modules["__main__"]
         module = patches.patch_main_module(
-            file=None, input_override=input_override
+            file=None,
+            input_override=input_override,
+            print_override=print_override,
         )
 
         self.k = Kernel(
@@ -229,6 +236,16 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
+def _cleanup_tmp_dir(tmp_dir: TemporaryDirectory) -> None:
+    try:
+        # Tests shouldn't care whether temporary directory cleanup
+        # fails. Python 3.10+ has an ignore_cleanup_error argument,
+        # but we still support 3.9.
+        tmp_dir.cleanup()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def temp_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
@@ -258,7 +275,50 @@ def temp_marimo_file() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
+
+
+@pytest.fixture
+def temp_sandboxed_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+    content = inspect.cleandoc(
+        """
+        # Copyright 2024 Marimo. All rights reserved.
+        # /// script
+        # requires-python = ">=3.11"
+        # dependencies = [
+        #     "polars",
+        #     "marimo>=0.8.0",
+        #     "quak",
+        #     "vega-datasets",
+        # ]
+        # ///
+
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 10)
+            return slider,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -287,7 +347,7 @@ def temp_async_marimo_file() -> Generator[str, None, None]:
             f.flush()
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -329,7 +389,7 @@ def temp_unparsable_marimo_file() -> Generator[str, None, None]:
             f.flush()
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -373,7 +433,7 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -439,7 +499,7 @@ def old_temp_md_marimo_file() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -476,7 +536,7 @@ def temp_marimo_file_with_errors() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture
@@ -508,7 +568,7 @@ def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 # Factory to create ExecutionRequests and abstract away cell ID
@@ -536,6 +596,19 @@ def mo_fixture() -> ModuleType:
     import marimo as mo
 
     return mo
+
+
+# Sets some non-public attributes on App and runs it.
+@pytest.fixture
+def app() -> Generator[App, None, None]:
+    app = App()
+    # Needed for consistent stack trace paths.
+    app._anonymous_file = True
+    # Provides verbose traceback on assertion errors. Note it does alter the
+    # cell AST.
+    app._pytest_rewrite = True
+    yield app
+    app.run()
 
 
 # A pytest hook to fail when raw marimo cells are not collected.

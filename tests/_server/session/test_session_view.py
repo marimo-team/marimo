@@ -10,6 +10,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    UpdateCellCodes,
     UpdateCellIdsRequest,
     VariableDeclaration,
     Variables,
@@ -652,3 +653,46 @@ def test_mark_auto_export():
     )
     assert not session_view.has_auto_exported_html
     assert not session_view.has_auto_exported_md
+
+
+def test_stale_code() -> None:
+    """Test that stale code is properly tracked and included in operations."""
+    session_view = SessionView()
+    assert session_view.stale_code is None
+
+    # Add stale code operation
+    stale_code_op = UpdateCellCodes(
+        cell_ids=["cell1"],
+        codes=["print('hello')"],
+        code_is_stale=True,
+    )
+    session_view.add_operation(stale_code_op)
+
+    # Verify stale code is tracked
+    assert session_view.stale_code == stale_code_op
+    assert session_view.stale_code in session_view.operations
+
+    # Add non-stale code operation
+    non_stale_code_op = UpdateCellCodes(
+        cell_ids=["cell2"],
+        codes=["print('world')"],
+        code_is_stale=False,
+    )
+    session_view.add_operation(non_stale_code_op)
+
+    # Verify non-stale code doesn't affect stale_code tracking
+    assert session_view.stale_code == stale_code_op
+    assert session_view.stale_code in session_view.operations
+
+    # Update stale code
+    new_stale_code_op = UpdateCellCodes(
+        cell_ids=["cell3"],
+        codes=["print('updated')"],
+        code_is_stale=True,
+    )
+    session_view.add_operation(new_stale_code_op)
+
+    # Verify stale code is updated
+    assert session_view.stale_code == new_stale_code_op
+    assert session_view.stale_code in session_view.operations
+    assert stale_code_op not in session_view.operations

@@ -55,7 +55,7 @@ class Prompter:
                 "Do not output markdown or backticks.",
             ] + language_rules[language]
             rules = "\n".join(
-                f"{i+1}. {rule}" for i, rule in enumerate(all_rules)
+                f"{i + 1}. {rule}" for i, rule in enumerate(all_rules)
             )
             system_prompt = (
                 f"You are a helpful assistant that can answer questions about {language}."
@@ -109,7 +109,7 @@ class Prompter:
                 continue
 
             rules = "\n".join(
-                f"{i+1}. {rule}"
+                f"{i + 1}. {rule}"
                 for i, rule in enumerate(language_rules[language])
             )
 

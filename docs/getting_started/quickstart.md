@@ -138,6 +138,6 @@ all marimo notebooks in your current directory.
 
 <div align="center">
 <figure>
-<img src="/assets/vscode-marimo.png" alt="VS Code extension for marimo"/>
+<img src="/_static/vscode-marimo.png" alt="VS Code extension for marimo"/>
 </figure>
 </div>

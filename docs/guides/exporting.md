@@ -146,11 +146,16 @@ Options:
 - `--mode`: Choose between `run` (read-only) or `edit` (allows editing)
 - `--output`: Directory to save the HTML and required assets
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
+- `--watch/--no-watch`: Watch the notebook for changes and automatically export
 
 !!! note "Note"
 
-  The exported file must be served over HTTP to function correctly - it cannot be opened directly from the filesystem (file://).
-  Your server must also serve the assets in the `assets` directory, next to the HTML file. For this reason, we recommend using the online playground if possible: <https://marimo.app>.
+    The exported file must be served over HTTP to function correctly - it
+    cannot be opened directly from the filesystem (`file://`). Your server must
+    also serve the assets in the `assets` directory, next to the HTML file. For
+    a simpler publishing experience, publish to [GitHub
+    Pages](publishing/github_pages.md) or use the [online
+    playground](publishing/playground.md).
 
 ### Testing the export
 
@@ -161,51 +166,17 @@ cd path/to/output_dir
 python -m http.server
 ```
 
-### Deploying to GitHub Pages
+### Including data files
 
-/// admonition | Template repository
-    type: tip
+See the docs for [mo.notebook_location][marimo.notebook_location] to learn how
+to include data files in exported WASM HTML notebooks.
 
-You can fork our [template repository](https://github.com/marimo-team/marimo-gh-pages-template) for deploying multiple notebooks to GitHub Pages. Once you have forked the repository, add your notebooks to the `notebooks`/`apps` directory.
-///
+### Publishing to GitHub Pages
 
-You can deploy your WebAssembly marimo notebook to GitHub Pages using the following GitHub Actions workflow:
+After exporting your notebook to WASM HTML, you can publish it to
+[GitHub Pages](https://pages.github.com/) for free. See our [guide on
+GitHub Pages](publishing/github_pages.md) to learn more.
 
-```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      # ... checkout and install dependencies
-
-      - name: 📄 Export notebook
-        run: |
-          marimo export html-wasm notebook.py -o path/to/output --mode run
-
-      - name: 📦 Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: path/to/output
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    permissions:
-      pages: write
-      id-token: write
-
-    steps:
-      - name: 🌐 Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages
-```
 
 ### Exporting multiple notebooks
 

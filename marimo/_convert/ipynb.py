@@ -8,6 +8,7 @@ import sys
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Union
 
+from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
@@ -85,6 +86,26 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
     """
     Transform Jupyter magic commands to their marimo equivalents
     or comment them out.
+
+    In the transformer helper methods, command is the magic command
+    starting with either % or %%; source is the args of the command
+    for a single line magic or the entire cell source for a double line magic
+
+    For example:
+
+    %load_ext autoreload
+
+    yields command == "%load_ext", source = "autoreload", but
+
+    %%sql
+    SELECT * FROM TABLE (
+    ...
+    )
+
+    yields command == "%%sql", source ==
+        SELECT * FROM TABLE (
+        ...
+        )
     """
 
     def magic_sql(source: str, command: str) -> str:
@@ -131,7 +152,7 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
         """
         double = command.startswith("%%")
         if not double:
-            return f"# {(command + ' ' + source)!r} command supported automatically in marimo"  # noqa: E501
+            return f"# {(command + ' ' + source)!r} command supported automatically in marimo"
 
         result = [
             f"# {command!r} command supported automatically in marimo",
@@ -152,7 +173,7 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
         os.makedirs('path/to/directory', exist_ok=True)
         """
         del command
-        return f"import os\nos.makedirs({source!r}, exist_ok"
+        return f"import os\nos.makedirs({source!r}, exist_ok=True)"
 
     def magic_cd(source: str, command: str) -> str:
         """
@@ -237,16 +258,25 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
         "bash": magic_bash,
         "!": magic_bash,
         "ls": magic_ls,
-        "load_ext": magic_already_supported,
+        "load_ext": magic_remove,
         "env": magic_env,
         # Already supported in marimo, can just comment out the magic
         "pip": magic_already_supported,
         "matplotlib": magic_already_supported,
+        "autoreload": magic_already_supported,
         # Remove the magic, but keep the code as is
         "timeit": magic_remove,
         "time": magic_remove,
         # Everything else is not supported and will be commented out
     }
+
+    def transform_single_line_magic(line: str) -> str:
+        pieces = line.strip().lstrip("%").split()
+        magic_cmd, args = pieces[0], pieces[1:]
+        rest = " ".join(args)
+        if magic_cmd in magics:
+            return magics[magic_cmd](rest, "%" + magic_cmd)
+        return magic_remove(rest, "%" + magic_cmd)
 
     def transform(cell: str) -> str:
         stripped = cell.strip()
@@ -260,14 +290,18 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
             return magic_remove(comment_out_code(rest), magic)
 
         # Single-line magic
-        elif stripped.startswith("%"):
-            magic, rest = stripped.split(" ", 1)
-            magic_cmd = magic.strip().lstrip("%")
-            if magic_cmd in magics:
-                return magics[magic_cmd](rest, magic)
-            return magic_remove(comment_out_code(rest), magic)
+        lines = stripped.split("\n")
+        result = []
+        if not any(line.startswith("%") for line in lines):
+            return cell
 
-        return cell
+        for line in lines:
+            result.append(
+                transform_single_line_magic(line)
+                if line.startswith("%")
+                else line
+            )
+        return "\n".join(result)
 
     return [transform(cell) for cell in sources]
 
@@ -641,9 +675,11 @@ def _transform_sources(
 
 def convert_from_ipynb(raw_notebook: str) -> str:
     notebook = json.loads(raw_notebook)
-    sources: List[str] = []
-    metadata: List[Dict[str, Any]] = []
+    sources: list[str] = []
+    metadata: list[Dict[str, Any]] = []
+    cell_configs: list[CellConfig] = []
     inline_meta: Union[str, None] = None
+    md_cells: set[str] = set()
 
     for cell in notebook["cells"]:
         source = (
@@ -651,8 +687,10 @@ def convert_from_ipynb(raw_notebook: str) -> str:
             if isinstance(cell["source"], list)
             else cell["source"]
         )
-        if cell["cell_type"] == "markdown":
+        is_markdown: bool = cell["cell_type"] == "markdown"
+        if is_markdown:
             source = markdown_to_marimo(source)
+            md_cells.add(source)
         elif inline_meta is None:
             # Eagerly find PEP 723 metadata, first match wins
             inline_meta, source = extract_inline_meta(source)
@@ -661,6 +699,16 @@ def convert_from_ipynb(raw_notebook: str) -> str:
             sources.append(source)
             metadata.append(cell.get("metadata", {}))
 
+    transformed_sources = _transform_sources(sources, metadata)
+
+    # Cell configs must come after _transform_sources since this may add/remove cells
+    cell_configs = [
+        CellConfig(hide_code=source in md_cells)
+        for source in transformed_sources
+    ]
+
     return generate_from_sources(
-        _transform_sources(sources, metadata), header_comments=inline_meta
+        sources=transformed_sources,
+        header_comments=inline_meta,
+        cell_configs=cell_configs,
     )

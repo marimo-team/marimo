@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarSlot } from "./sidebar-slot";
 
-export const SheetMenu = () => {
+interface SheetMenuProps {
+  /**
+   * The maximum width of the sidebar when it is open.
+   */
+  openWidth: string;
+}
+
+export const SheetMenu = ({ openWidth }: SheetMenuProps) => {
   return (
     <Sheet>
       <SheetTrigger className="lg:hidden" asChild={true}>
@@ -14,7 +21,8 @@ export const SheetMenu = () => {
         </Button>
       </SheetTrigger>
       <SheetContent
-        className="w-full max-w-72 px-3 h-full flex flex-col"
+        className="w-full px-3 h-full flex flex-col overflow-y-auto"
+        style={{ maxWidth: openWidth }}
         side="left"
       >
         <SidebarSlot />

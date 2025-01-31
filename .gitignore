@@ -110,6 +110,8 @@ marimo/_static/
 marimo/_lsp/
 
 .vscode
+.vercel
+.idea
 
 .marimo.toml
 .mypy_cache/

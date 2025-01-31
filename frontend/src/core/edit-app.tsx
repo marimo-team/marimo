@@ -22,7 +22,10 @@ import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useRunStaleCells } from "../components/editor/cell/useRunCells";
+import {
+  useRunAllCells,
+  useRunStaleCells,
+} from "../components/editor/cell/useRunCells";
 import { cn } from "@/utils/cn";
 import { useFilename } from "./saving/filename";
 import { getSessionId } from "./kernel/session";
@@ -92,6 +95,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, [appConfig.width, previousWidth, mergeAllColumns, numColumns]);
 
   const runStaleCells = useRunStaleCells();
+  const runAllCells = useRunAllCells();
   const togglePresenting = useTogglePresenting();
 
   // HOTKEYS
@@ -103,6 +107,9 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   });
   useHotkey("global.hideCode", () => {
     togglePresenting();
+  });
+  useHotkey("global.runAll", () => {
+    runAllCells();
   });
 
   const editableCellsArray = (

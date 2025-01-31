@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { type HotkeyAction, NOT_SET } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Kbd } from "../ui/kbd";
 import { DropdownMenuShortcut } from "../ui/dropdown-menu";
@@ -29,8 +29,11 @@ const Shortcut: React.FC<{ shortcut: HotkeyAction; includeName?: boolean }> = ({
 
 export const KeyboardHotkeys: React.FC<{
   className?: string;
-  shortcut: string;
+  shortcut: string | typeof NOT_SET;
 }> = ({ shortcut, className }) => {
+  if (shortcut === NOT_SET || shortcut === "") {
+    return <span />;
+  }
   const keys = shortcut.split("-");
 
   return (
@@ -71,8 +74,11 @@ export const MinimalShortcut: React.FC<{
 
 export const MinimalHotkeys: React.FC<{
   className?: string;
-  shortcut: string;
+  shortcut: string | typeof NOT_SET;
 }> = ({ shortcut, className }) => {
+  if (shortcut === NOT_SET || shortcut === "") {
+    return <span />;
+  }
   const keys = shortcut.split("-");
   return (
     <DropdownMenuShortcut className={cn("flex gap-1 items-center", className)}>

@@ -223,6 +223,25 @@ def test_value_with_selection() -> None:
     assert list(table._convert_value(["0", "2"])) == ["banana", "cherry"]
 
 
+def test_value_with_initial_selection() -> None:
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    table = ui.table(data, initial_selection=[0, 2])
+    assert table.value == ["banana", "cherry"]
+
+
+def test_invalid_initial_selection() -> None:
+    data = ["banana", "apple"]
+    with pytest.raises(IndexError):
+        ui.table(data, initial_selection=[2])
+
+    with pytest.raises(TypeError):
+        ui.table(data, initial_selection=["apple"])
+
+    # multiple rows cannot be selected for single selection mode
+    with pytest.raises(ValueError):
+        ui.table(data, selection="single", initial_selection=[0, 1])
+
+
 def test_value_with_sorting_then_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
@@ -394,6 +413,13 @@ def test_table_with_too_many_rows_gets_clamped() -> None:
     assert table._component_args["page-size"] == 10
     assert table._component_args["total-rows"] == 20_002
     assert len(table._component_args["data"]) == 10
+
+
+def test_table_too_large_pagesize_throws_error() -> None:
+    data = {"a": list(range(20_002))}
+    with pytest.raises(ValueError) as e:
+        _ = ui.table(data, page_size=201)
+    assert "limited to 200 rows" in str(e.value)
 
 
 def test_can_get_second_page() -> None:

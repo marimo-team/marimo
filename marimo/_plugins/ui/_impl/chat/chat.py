@@ -220,6 +220,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                     SetUIElementValueRequest(
                         object_ids=[self._id],
                         values=[{"messages": self._chat_history}],
+                        request=None,
                     )
                 )
 

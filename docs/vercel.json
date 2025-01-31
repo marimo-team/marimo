@@ -27,37 +27,37 @@
     },
     {
       "source": "/api/app.html",
-      "destination": "/api/app",
+      "destination": "/api/app/",
       "permanent": true
     },
     {
       "source": "/api/caching.html",
-      "destination": "/api/caching",
+      "destination": "/api/caching/",
       "permanent": true
     },
     {
       "source": "/api/cell.html",
-      "destination": "/api/cell",
+      "destination": "/api/cell/",
       "permanent": true
     },
     {
       "source": "/api/cli_args.html",
-      "destination": "/api/cli_args",
+      "destination": "/api/cli_args/",
       "permanent": true
     },
     {
       "source": "/api/control_flow.html",
-      "destination": "/api/control_flow",
+      "destination": "/api/control_flow/",
       "permanent": true
     },
     {
       "source": "/api/diagrams.html",
-      "destination": "/api/diagrams",
+      "destination": "/api/diagrams/",
       "permanent": true
     },
     {
       "source": "/api/html.html",
-      "destination": "/api/html",
+      "destination": "/api/html/",
       "permanent": true
     },
     {
@@ -67,77 +67,77 @@
     },
     {
       "source": "/api/inputs/anywidget.html",
-      "destination": "/api/inputs/anywidget",
+      "destination": "/api/inputs/anywidget/",
       "permanent": true
     },
     {
       "source": "/api/inputs/array.html",
-      "destination": "/api/inputs/array",
+      "destination": "/api/inputs/array/",
       "permanent": true
     },
     {
       "source": "/api/inputs/batch.html",
-      "destination": "/api/inputs/batch",
+      "destination": "/api/inputs/batch/",
       "permanent": true
     },
     {
       "source": "/api/inputs/button.html",
-      "destination": "/api/inputs/button",
+      "destination": "/api/inputs/button/",
       "permanent": true
     },
     {
       "source": "/api/inputs/chat.html",
-      "destination": "/api/inputs/chat",
+      "destination": "/api/inputs/chat/",
       "permanent": true
     },
     {
       "source": "/api/inputs/checkbox.html",
-      "destination": "/api/inputs/checkbox",
+      "destination": "/api/inputs/checkbox/",
       "permanent": true
     },
     {
       "source": "/api/inputs/code_editor.html",
-      "destination": "/api/inputs/code_editor",
+      "destination": "/api/inputs/code_editor/",
       "permanent": true
     },
     {
       "source": "/api/inputs/data_explorer.html",
-      "destination": "/api/inputs/data_explorer",
+      "destination": "/api/inputs/data_explorer/",
       "permanent": true
     },
     {
       "source": "/api/inputs/dataframe.html",
-      "destination": "/api/inputs/dataframe",
+      "destination": "/api/inputs/dataframe/",
       "permanent": true
     },
     {
       "source": "/api/inputs/dates.html",
-      "destination": "/api/inputs/dates",
+      "destination": "/api/inputs/dates/",
       "permanent": true
     },
     {
       "source": "/api/inputs/dictionary.html",
-      "destination": "/api/inputs/dictionary",
+      "destination": "/api/inputs/dictionary/",
       "permanent": true
     },
     {
       "source": "/api/inputs/dropdown.html",
-      "destination": "/api/inputs/dropdown",
+      "destination": "/api/inputs/dropdown/",
       "permanent": true
     },
     {
       "source": "/api/inputs/file.html",
-      "destination": "/api/inputs/file",
+      "destination": "/api/inputs/file/",
       "permanent": true
     },
     {
       "source": "/api/inputs/file_browser.html",
-      "destination": "/api/inputs/file_browser",
+      "destination": "/api/inputs/file_browser/",
       "permanent": true
     },
     {
       "source": "/api/inputs/form.html",
-      "destination": "/api/inputs/form",
+      "destination": "/api/inputs/form/",
       "permanent": true
     },
     {
@@ -147,87 +147,87 @@
     },
     {
       "source": "/api/inputs/microphone.html",
-      "destination": "/api/inputs/microphone",
+      "destination": "/api/inputs/microphone/",
       "permanent": true
     },
     {
       "source": "/api/inputs/multiselect.html",
-      "destination": "/api/inputs/multiselect",
+      "destination": "/api/inputs/multiselect/",
       "permanent": true
     },
     {
       "source": "/api/inputs/nav_menu.html",
-      "destination": "/api/inputs/nav_menu",
+      "destination": "/api/inputs/nav_menu/",
       "permanent": true
     },
     {
       "source": "/api/inputs/number.html",
-      "destination": "/api/inputs/number",
+      "destination": "/api/inputs/number/",
       "permanent": true
     },
     {
       "source": "/api/inputs/radio.html",
-      "destination": "/api/inputs/radio",
+      "destination": "/api/inputs/radio/",
       "permanent": true
     },
     {
       "source": "/api/inputs/range_slider.html",
-      "destination": "/api/inputs/range_slider",
+      "destination": "/api/inputs/range_slider/",
       "permanent": true
     },
     {
       "source": "/api/inputs/refresh.html",
-      "destination": "/api/inputs/refresh",
+      "destination": "/api/inputs/refresh/",
       "permanent": true
     },
     {
       "source": "/api/inputs/run_button.html",
-      "destination": "/api/inputs/run_button",
+      "destination": "/api/inputs/run_button/",
       "permanent": true
     },
     {
       "source": "/api/inputs/slider.html",
-      "destination": "/api/inputs/slider",
+      "destination": "/api/inputs/slider/",
       "permanent": true
     },
     {
       "source": "/api/inputs/switch.html",
-      "destination": "/api/inputs/switch",
+      "destination": "/api/inputs/switch/",
       "permanent": true
     },
     {
       "source": "/api/inputs/table.html",
-      "destination": "/api/inputs/table",
+      "destination": "/api/inputs/table/",
       "permanent": true
     },
     {
       "source": "/api/inputs/tabs.html",
-      "destination": "/api/inputs/tabs",
+      "destination": "/api/inputs/tabs/",
       "permanent": true
     },
     {
       "source": "/api/inputs/text.html",
-      "destination": "/api/inputs/text",
+      "destination": "/api/inputs/text/",
       "permanent": true
     },
     {
       "source": "/api/inputs/text_area.html",
-      "destination": "/api/inputs/text_area",
+      "destination": "/api/inputs/text_area/",
       "permanent": true
     },
     {
       "source": "/api/layouts/accordion.html",
-      "destination": "/api/layouts/accordion",
+      "destination": "/api/layouts/accordion/",
       "permanent": true
     },
     {
       "source": "/api/layouts/callout.html",
-      "destination": "/api/layouts/callout",
+      "destination": "/api/layouts/callout/",
       "permanent": true
     },
     {
       "source": "/api/layouts/carousel.html",
-      "destination": "/api/layouts/carousel",
+      "destination": "/api/layouts/carousel/",
       "permanent": true
     },
     {
@@ -237,57 +237,57 @@
     },
     {
       "source": "/api/layouts/justify.html",
-      "destination": "/api/layouts/justify",
+      "destination": "/api/layouts/justify/",
       "permanent": true
     },
     {
       "source": "/api/layouts/lazy.html",
-      "destination": "/api/layouts/lazy",
+      "destination": "/api/layouts/lazy/",
       "permanent": true
     },
     {
       "source": "/api/layouts/plain.html",
-      "destination": "/api/layouts/plain",
+      "destination": "/api/layouts/plain/",
       "permanent": true
     },
     {
       "source": "/api/layouts/routes.html",
-      "destination": "/api/layouts/routes",
+      "destination": "/api/layouts/routes/",
       "permanent": true
     },
     {
       "source": "/api/layouts/sidebar.html",
-      "destination": "/api/layouts/sidebar",
+      "destination": "/api/layouts/sidebar/",
       "permanent": true
     },
     {
       "source": "/api/layouts/stacks.html",
-      "destination": "/api/layouts/stacks",
+      "destination": "/api/layouts/stacks/",
       "permanent": true
     },
     {
       "source": "/api/layouts/tree.html",
-      "destination": "/api/layouts/tree",
+      "destination": "/api/layouts/tree/",
       "permanent": true
     },
     {
       "source": "/api/markdown.html",
-      "destination": "/api/markdown",
+      "destination": "/api/markdown/",
       "permanent": true
     },
     {
       "source": "/api/media/audio.html",
-      "destination": "/api/media/audio",
+      "destination": "/api/media/audio/",
       "permanent": true
     },
     {
       "source": "/api/media/download.html",
-      "destination": "/api/media/download",
+      "destination": "/api/media/download/",
       "permanent": true
     },
     {
       "source": "/api/media/image.html",
-      "destination": "/api/media/image",
+      "destination": "/api/media/image/",
       "permanent": true
     },
     {
@@ -297,67 +297,67 @@
     },
     {
       "source": "/api/media/pdf.html",
-      "destination": "/api/media/pdf",
+      "destination": "/api/media/pdf/",
       "permanent": true
     },
     {
       "source": "/api/media/plain_text.html",
-      "destination": "/api/media/plain_text",
+      "destination": "/api/media/plain_text/",
       "permanent": true
     },
     {
       "source": "/api/media/video.html",
-      "destination": "/api/media/video",
+      "destination": "/api/media/video/",
       "permanent": true
     },
     {
       "source": "/api/miscellaneous.html",
-      "destination": "/api/miscellaneous",
+      "destination": "/api/miscellaneous/",
       "permanent": true
     },
     {
       "source": "/api/outputs.html",
-      "destination": "/api/outputs",
+      "destination": "/api/outputs/",
       "permanent": true
     },
     {
       "source": "/api/plotting.html",
-      "destination": "/api/plotting",
+      "destination": "/api/plotting/",
       "permanent": true
     },
     {
       "source": "/api/query_params.html",
-      "destination": "/api/query_params",
+      "destination": "/api/query_params/",
       "permanent": true
     },
     {
       "source": "/api/state.html",
-      "destination": "/api/state",
+      "destination": "/api/state/",
       "permanent": true
     },
     {
       "source": "/api/status.html",
-      "destination": "/api/status",
+      "destination": "/api/status/",
       "permanent": true
     },
     {
       "source": "/apps/README.html",
-      "destination": "/apps",
+      "destination": "/apps/",
       "permanent": true
     },
     {
       "source": "/community.html",
-      "destination": "/community",
+      "destination": "/community/",
       "permanent": true
     },
     {
       "source": "/examples.html",
-      "destination": "/examples",
+      "destination": "/examples/",
       "permanent": true
     },
     {
       "source": "/faq.html",
-      "destination": "/faq",
+      "destination": "/faq/",
       "permanent": true
     },
     {
@@ -367,27 +367,27 @@
     },
     {
       "source": "/getting_started/installation.html",
-      "destination": "/getting_started/installation",
+      "destination": "/getting_started/installation/",
       "permanent": true
     },
     {
       "source": "/getting_started/key_concepts.html",
-      "destination": "/getting_started/key_concepts",
+      "destination": "/getting_started/key_concepts/",
       "permanent": true
     },
     {
       "source": "/getting_started/quickstart.html",
-      "destination": "/getting_started/quickstart",
+      "destination": "/getting_started/quickstart/",
       "permanent": true
     },
     {
       "source": "/guides/apps.html",
-      "destination": "/guides/apps",
+      "destination": "/guides/apps/",
       "permanent": true
     },
     {
       "source": "/guides/best_practices.html",
-      "destination": "/guides/best_practices",
+      "destination": "/guides/best_practices/",
       "permanent": true
     },
     {
@@ -397,27 +397,27 @@
     },
     {
       "source": "/guides/coming_from/jupyter.html",
-      "destination": "/guides/coming_from/jupyter",
+      "destination": "/guides/coming_from/jupyter/",
       "permanent": true
     },
     {
       "source": "/guides/coming_from/jupytext.html",
-      "destination": "/guides/coming_from/jupytext",
+      "destination": "/guides/coming_from/jupytext/",
       "permanent": true
     },
     {
       "source": "/guides/coming_from/papermill.html",
-      "destination": "/guides/coming_from/papermill",
+      "destination": "/guides/coming_from/papermill/",
       "permanent": true
     },
     {
       "source": "/guides/coming_from/streamlit.html",
-      "destination": "/guides/coming_from/streamlit",
+      "destination": "/guides/coming_from/streamlit/",
       "permanent": true
     },
     {
       "source": "/guides/configuration/html_head.html",
-      "destination": "/guides/configuration/html_head",
+      "destination": "/guides/configuration/html_head/",
       "permanent": true
     },
     {
@@ -427,42 +427,42 @@
     },
     {
       "source": "/guides/configuration/runtime_configuration.html",
-      "destination": "/guides/configuration/runtime_configuration",
+      "destination": "/guides/configuration/runtime_configuration/",
       "permanent": true
     },
     {
       "source": "/guides/configuration/theming.html",
-      "destination": "/guides/configuration/theming",
+      "destination": "/guides/configuration/theming/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/authentication.html",
-      "destination": "/guides/deploying/authentication",
+      "destination": "/guides/deploying/authentication/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/deploying_docker.html",
-      "destination": "/guides/deploying/deploying_docker",
+      "destination": "/guides/deploying/deploying_docker/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/deploying_hugging_face.html",
-      "destination": "/guides/deploying/deploying_hugging_face",
+      "destination": "/guides/deploying/deploying_hugging_face/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/deploying_ploomber.html",
-      "destination": "/guides/deploying/deploying_ploomber",
+      "destination": "/guides/deploying/deploying_ploomber/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/deploying_public_gallery.html",
-      "destination": "/guides/deploying/deploying_public_gallery",
+      "destination": "/guides/deploying/deploying_public_gallery/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/deploying_railway.html",
-      "destination": "/guides/deploying/deploying_railway",
+      "destination": "/guides/deploying/deploying_railway/",
       "permanent": true
     },
     {
@@ -472,22 +472,22 @@
     },
     {
       "source": "/guides/deploying/prebuilt_containers.html",
-      "destination": "/guides/deploying/prebuilt_containers",
+      "destination": "/guides/deploying/prebuilt_containers/",
       "permanent": true
     },
     {
       "source": "/guides/deploying/programmatically.html",
-      "destination": "/guides/deploying/programmatically",
+      "destination": "/guides/deploying/programmatically/",
       "permanent": true
     },
     {
       "source": "/guides/editor_features/ai_completion.html",
-      "destination": "/guides/editor_features/ai_completion",
+      "destination": "/guides/editor_features/ai_completion/",
       "permanent": true
     },
     {
       "source": "/guides/editor_features/hotkeys.html",
-      "destination": "/guides/editor_features/hotkeys",
+      "destination": "/guides/editor_features/hotkeys/",
       "permanent": true
     },
     {
@@ -497,22 +497,22 @@
     },
     {
       "source": "/guides/editor_features/overview.html",
-      "destination": "/guides/editor_features/overview",
+      "destination": "/guides/editor_features/overview/",
       "permanent": true
     },
     {
       "source": "/guides/editor_features/package_management.html",
-      "destination": "/guides/editor_features/package_management",
+      "destination": "/guides/editor_features/package_management/",
       "permanent": true
     },
     {
       "source": "/guides/expensive_notebooks.html",
-      "destination": "/guides/expensive_notebooks",
+      "destination": "/guides/expensive_notebooks/",
       "permanent": true
     },
     {
       "source": "/guides/exporting.html",
-      "destination": "/guides/exporting",
+      "destination": "/guides/exporting/",
       "permanent": true
     },
     {
@@ -522,12 +522,12 @@
     },
     {
       "source": "/guides/integrating_with_marimo/custom_ui_plugins.html",
-      "destination": "/guides/integrating_with_marimo/custom_ui_plugins",
+      "destination": "/guides/integrating_with_marimo/custom_ui_plugins/",
       "permanent": true
     },
     {
       "source": "/guides/integrating_with_marimo/displaying_objects.html",
-      "destination": "/guides/integrating_with_marimo/displaying_objects",
+      "destination": "/guides/integrating_with_marimo/displaying_objects/",
       "permanent": true
     },
     {
@@ -537,47 +537,47 @@
     },
     {
       "source": "/guides/interactivity.html",
-      "destination": "/guides/interactivity",
+      "destination": "/guides/interactivity/",
       "permanent": true
     },
     {
       "source": "/guides/island_example.html",
-      "destination": "/guides/island_example",
+      "destination": "/guides/island_example/",
       "permanent": true
     },
     {
       "source": "/guides/outputs.html",
-      "destination": "/guides/outputs",
+      "destination": "/guides/outputs/",
       "permanent": true
     },
     {
       "source": "/guides/reactivity.html",
-      "destination": "/guides/reactivity",
+      "destination": "/guides/reactivity/",
       "permanent": true
     },
     {
       "source": "/guides/scripts.html",
-      "destination": "/guides/scripts",
+      "destination": "/guides/scripts/",
       "permanent": true
     },
     {
       "source": "/guides/state.html",
-      "destination": "/guides/state",
+      "destination": "/guides/state/",
       "permanent": true
     },
     {
       "source": "/guides/troubleshooting.html",
-      "destination": "/guides/troubleshooting",
+      "destination": "/guides/troubleshooting/",
       "permanent": true
     },
     {
       "source": "/guides/wasm.html",
-      "destination": "/guides/wasm",
+      "destination": "/guides/wasm/",
       "permanent": true
     },
     {
       "source": "/guides/working_with_data/dataframes.html",
-      "destination": "/guides/working_with_data/dataframes",
+      "destination": "/guides/working_with_data/dataframes/",
       "permanent": true
     },
     {
@@ -587,12 +587,12 @@
     },
     {
       "source": "/guides/working_with_data/plotting.html",
-      "destination": "/guides/working_with_data/plotting",
+      "destination": "/guides/working_with_data/plotting/",
       "permanent": true
     },
     {
       "source": "/guides/working_with_data/sql.html",
-      "destination": "/guides/working_with_data/sql",
+      "destination": "/guides/working_with_data/sql/",
       "permanent": true
     },
     {
@@ -602,17 +602,17 @@
     },
     {
       "source": "/integrations/google_cloud_bigquery.html",
-      "destination": "/integrations/google_cloud_bigquery",
+      "destination": "/integrations/google_cloud_bigquery/",
       "permanent": true
     },
     {
       "source": "/integrations/google_cloud_storage.html",
-      "destination": "/integrations/google_cloud_storage",
+      "destination": "/integrations/google_cloud_storage/",
       "permanent": true
     },
     {
       "source": "/integrations/google_sheets.html",
-      "destination": "/integrations/google_sheets",
+      "destination": "/integrations/google_sheets/",
       "permanent": true
     },
     {
@@ -622,17 +622,22 @@
     },
     {
       "source": "/integrations/motherduck.html",
-      "destination": "/integrations/motherduck",
+      "destination": "/integrations/motherduck/",
       "permanent": true
     },
     {
       "source": "/recipes.html",
-      "destination": "/recipes",
+      "destination": "/recipes/",
       "permanent": true
     },
     {
       "source": "/:path*.html",
-      "destination": "/:path*",
+      "destination": "/:path*/",
+      "permanent": true
+    },
+    {
+      "source": "/:path([^.]*[^/]$)",
+      "destination": "/:path/",
       "permanent": true
     }
   ]

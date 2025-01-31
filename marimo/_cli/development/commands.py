@@ -163,7 +163,6 @@ def _generate_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.UpdateComponentValuesRequest,
         requests.CodeCompletionRequest,
-        requests.CreationRequest,
         requests.DeleteCellRequest,
         requests.ExecuteMultipleRequest,
         requests.ExecuteScratchpadRequest,
@@ -192,7 +191,8 @@ def _generate_schema() -> dict[str, Any]:
                 {"type": "boolean"},
                 {"type": "null"},
             ]
-        }
+        },
+        "HTTPRequest": {"type": "null"},
     }
     # We must override the names of some Union Types,
     # otherwise, their __name__ is "Union"

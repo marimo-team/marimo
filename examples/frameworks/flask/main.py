@@ -7,6 +7,7 @@
 #     "python-dotenv",
 #     "flask-session",
 #     "werkzeug",
+#     "vega-datasets==0.9.0",
 # ]
 # ///
 from flask import Flask, render_template, request, redirect, url_for, session

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from marimo import _loggers
 from marimo._messaging.ops import Interrupted
 from marimo._runtime.context import get_context
+from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.control_flow import MarimoInterrupt
 
 LOGGER = _loggers.marimo_logger()
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def construct_interrupt_handler(
-    kernel: "Kernel",
+    context: KernelRuntimeContext,
 ) -> Callable[[int, Any], None]:
     def interrupt_handler(signum: int, frame: Any) -> None:
         """Tries to interrupt the kernel."""
@@ -26,7 +27,7 @@ def construct_interrupt_handler(
         # TODO(akshayka): if kernel is in `run` but not executing,
         # it won't be interrupted, which isn't right ... but the
         # probability of that happening is low.
-        if kernel.execution_context is not None:
+        if context.execution_context is not None:
             Interrupted().broadcast()
             raise MarimoInterrupt
 

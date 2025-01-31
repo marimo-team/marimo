@@ -33,6 +33,6 @@ def test_openapi_up_to_date() -> None:
         del generated_content["info"]["version"]
 
     cmd = "marimo development openapi > openapi/api.yaml && make fe-codegen"
-    assert (
-        current_content == generated_content
-    ), f"openapi/api.yaml is not up to date. Run '{cmd}' to update it."
+    assert current_content == generated_content, (
+        f"openapi/api.yaml is not up to date. Run '{cmd}' to update it."
+    )

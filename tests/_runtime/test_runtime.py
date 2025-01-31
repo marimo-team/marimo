@@ -4,7 +4,6 @@ from __future__ import annotations
 import sys
 import textwrap
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -1039,6 +1038,9 @@ class TestExecution:
         assert "dir" in k.globals
         assert k.globals["dir"] is k.globals["loc"]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Windows paths behave differently"
+    )
     async def test_notebook_location_for_pyodide(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -1060,8 +1062,13 @@ class TestExecution:
                     )
                 ]
             )
-            assert k.globals["loc"] == Path(
-                "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+            assert (
+                str(k.globals["loc"])
+                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+            )
+            assert (
+                str(k.globals["loc"] / "public" / "data.csv")
+                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
             )
         finally:
             del sys.modules["pyodide"]
@@ -1083,7 +1090,7 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None),
+                module=create_main_module(None, None, None),
             )
             initialize_kernel_context(
                 kernel=k,
@@ -1144,7 +1151,7 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None),
+                module=create_main_module(None, None, None),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]

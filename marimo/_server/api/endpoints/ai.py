@@ -107,7 +107,7 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
             api_key=key,
             api_version=api_version,
             azure_deployment=deployment_model,
-            azure_endpoint=f"{cast(str,parsed_url.scheme)}://{cast(str,parsed_url.hostname)}",
+            azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
         )
     else:
         return OpenAI(

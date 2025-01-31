@@ -41,6 +41,7 @@ from marimo._messaging.ops import (
     MessageOperation,
     Reload,
     UpdateCellCodes,
+    UpdateCellIdsRequest,
 )
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
@@ -50,6 +51,7 @@ from marimo._runtime.requests import (
     CreationRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
+    HTTPRequest,
     SerializedCLIArgs,
     SerializedQueryParams,
     SetUIElementValueRequest,
@@ -71,7 +73,7 @@ from marimo._utils.distributor import (
     ConnectionDistributor,
     QueueDistributor,
 )
-from marimo._utils.file_watcher import FileWatcher
+from marimo._utils.file_watcher import FileWatcherManager
 from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
@@ -165,7 +167,7 @@ class KernelManager:
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
+        self.kernel_task: Optional[threading.Thread | mp.Process] = None
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -365,9 +367,9 @@ class Room:
         self.consumers[consumer] = consumer_id
         self.disposables[consumer] = dispose
         if main:
-            assert (
-                self.main_consumer is None
-            ), "Main session consumer already exists"
+            assert self.main_consumer is None, (
+                "Main session consumer already exists"
+            )
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:
@@ -554,6 +556,8 @@ class Session:
                 UpdateCellCodes(
                     cell_ids=request.cell_ids,
                     codes=request.codes,
+                    # Not stale because we just ran the code
+                    code_is_stale=False,
                 ),
                 except_consumer=from_consumer_id,
             )
@@ -648,10 +652,19 @@ class Session:
             self.heartbeat_task.cancel()
         self.kernel_manager.close_kernel()
 
-    def instantiate(self, request: InstantiateRequest) -> None:
+    def instantiate(
+        self,
+        request: InstantiateRequest,
+        *,
+        http_request: Optional[HTTPRequest],
+    ) -> None:
         """Instantiate the app."""
         execution_requests = tuple(
-            ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
+            ExecutionRequest(
+                cell_id=cell_data.cell_id,
+                code=cell_data.code,
+                request=http_request,
+            )
             for cell_data in self.app_file_manager.app.cell_manager.cell_data()
         )
 
@@ -662,8 +675,10 @@ class Session:
                     object_ids=request.object_ids,
                     values=request.values,
                     token=str(uuid4()),
+                    request=http_request,
                 ),
                 auto_run=request.auto_run,
+                request=http_request,
             ),
             from_consumer_id=None,
         )
@@ -704,6 +719,7 @@ class SessionManager:
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
+        watch: bool = False,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -713,7 +729,8 @@ class SessionManager:
         self.include_code = include_code
         self.ttl_seconds = ttl_seconds
         self.lsp_server = lsp_server
-        self.watcher: Optional[FileWatcher] = None
+        self.watcher_manager = FileWatcherManager()
+        self.watch = watch
         self.recents = RecentFilesManager()
         self.user_config_manager = user_config_manager
         self.cli_args = cli_args
@@ -772,7 +789,7 @@ class SessionManager:
             if app_file_manager.path:
                 self.recents.touch(app_file_manager.path)
 
-            self.sessions[session_id] = Session.create(
+            session = Session.create(
                 initialization_id=file_key,
                 session_consumer=session_consumer,
                 mode=self.mode,
@@ -787,7 +804,106 @@ class SessionManager:
                 redirect_console_to_browser=self.redirect_console_to_browser,
                 ttl_seconds=self.ttl_seconds,
             )
+            self.sessions[session_id] = session
+
+            # Start file watcher if enabled
+            if self.watch and app_file_manager.path:
+                self._start_file_watcher_for_session(session)
+
         return self.sessions[session_id]
+
+    def _start_file_watcher_for_session(self, session: Session) -> None:
+        """Start a file watcher for a session."""
+        if not session.app_file_manager.path:
+            return
+
+        async def on_file_changed(path: Path) -> None:
+            LOGGER.debug(f"{path} was modified")
+            # Skip if the session does not relate to the file
+            if session.app_file_manager.path != os.path.abspath(path):
+                return
+
+            # Reload the file manager to get the latest code
+            try:
+                session.app_file_manager.reload()
+            except Exception as e:
+                # If there are syntax errors, we just skip
+                # and don't send the changes
+                LOGGER.error(f"Error loading file: {e}")
+                return
+            # In run, we just call Reload()
+            if self.mode == SessionMode.RUN:
+                session.write_operation(Reload(), from_consumer_id=None)
+                return
+
+            # Get the latest codes
+            codes = list(session.app_file_manager.app.cell_manager.codes())
+            cell_ids = list(
+                session.app_file_manager.app.cell_manager.cell_ids()
+            )
+            # Send the updated cell ids and codes to the frontend
+            session.write_operation(
+                UpdateCellIdsRequest(cell_ids=cell_ids),
+                from_consumer_id=None,
+            )
+            session.write_operation(
+                UpdateCellCodes(
+                    cell_ids=cell_ids,
+                    codes=codes,
+                    # The code is considered stale
+                    # because it has not been run yet.
+                    # In the future, we may add auto-run here.
+                    code_is_stale=True,
+                ),
+                from_consumer_id=None,
+            )
+
+        session._unsubscribe_file_watcher_ = on_file_changed  # type: ignore
+
+        self.watcher_manager.add_callback(
+            Path(session.app_file_manager.path), on_file_changed
+        )
+
+    def handle_file_rename_for_watch(
+        self, session_id: SessionId, new_path: str
+    ) -> tuple[bool, Optional[str]]:
+        """Handle renaming a file for a session.
+
+        Returns:
+            tuple[bool, Optional[str]]: (success, error_message)
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return False, "Session not found"
+
+        if not os.path.exists(new_path):
+            return False, f"File {new_path} does not exist"
+
+        if not session.app_file_manager.path:
+            return False, "Session has no associated file"
+
+        old_path = session.app_file_manager.path
+
+        try:
+            # Remove the old file watcher if it exists
+            if self.watch:
+                self.watcher_manager.remove_callback(
+                    Path(old_path),
+                    session._unsubscribe_file_watcher_,  # type: ignore
+                )
+
+            # Add a watcher for the new path if needed
+            if self.watch:
+                self._start_file_watcher_for_session(session)
+
+            return True, None
+
+        except Exception as e:
+            LOGGER.error(f"Error handling file rename: {e}")
+
+            if self.watch:
+                self._start_file_watcher_for_session(session)
+            return False, str(e)
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         session = self.sessions.get(session_id)
@@ -905,13 +1021,22 @@ class SessionManager:
             return
 
     def close_session(self, session_id: SessionId) -> bool:
+        """Close a session and remove its file watcher if it has one."""
         LOGGER.debug("Closing session %s", session_id)
         session = self.get_session(session_id)
-        if session is not None:
-            session.close()
-            del self.sessions[session_id]
-            return True
-        return False
+        if session is None:
+            return False
+
+        # Remove the file watcher callback for this session
+        if session.app_file_manager.path and self.watch:
+            self.watcher_manager.remove_callback(
+                Path(session.app_file_manager.path),
+                session._unsubscribe_file_watcher_,  # type: ignore
+            )
+
+        session.close()
+        del self.sessions[session_id]
+        return True
 
     def close_all_sessions(self) -> None:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
@@ -921,42 +1046,15 @@ class SessionManager:
         self.sessions = {}
 
     def shutdown(self) -> None:
+        """Shutdown the session manager and stop all file watchers."""
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
         self.lsp_server.stop()
-        if self.watcher:
-            self.watcher.stop()
+        self.watcher_manager.stop_all()
 
     def should_send_code_to_frontend(self) -> bool:
         """Returns True if the server can send messages to the frontend."""
         return self.mode == SessionMode.EDIT or self.include_code
-
-    def start_file_watcher(self) -> Disposable:
-        """Starts the file watcher if it is not already started"""
-        if self.mode == SessionMode.EDIT:
-            # We don't support file watching in edit mode yet
-            # as there are some edge cases that would need to be handled.
-            # - what to do if the file is deleted, or is renamed
-            # - do we re-run the app or just show the changed code
-            # - we don't properly handle saving from the frontend
-            LOGGER.warning("Cannot start file watcher in edit mode")
-            return Disposable.empty()
-        file = self.file_router.maybe_get_single_file()
-        if not file:
-            return Disposable.empty()
-
-        file_path = file.path
-
-        async def on_file_changed(path: Path) -> None:
-            LOGGER.debug(f"{path} was modified")
-            for _, session in self.sessions.items():
-                session.app_file_manager.reload()
-                session.write_operation(Reload(), from_consumer_id=None)
-
-        LOGGER.debug("Starting file watcher for %s", file_path)
-        self.watcher = FileWatcher.create(Path(file_path), on_file_changed)
-        self.watcher.start()
-        return Disposable(self.watcher.stop)
 
     def get_active_connection_count(self) -> int:
         return len(

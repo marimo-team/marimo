@@ -51,7 +51,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return (
                     self.apply_formatting(format_mapping)
                     ._original_data.to_csv(
-                        index=has_headers, date_format="%Y-%m-%d %H:%M:%S"
+                        # By adding %H:%M:%S and %z, we ensure that the
+                        # datetime is displayed in the frontend with the
+                        # correct timezone.
+                        index=has_headers,
+                        date_format="%Y-%m-%d %H:%M:%S%z",
                     )
                     .encode("utf-8")
                 )

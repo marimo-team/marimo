@@ -50,7 +50,7 @@ relationships between cells, and automatically re-running cells as needed.
 
 In addition, marimo notebooks can serialize package requirements inline;
 marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages]guides/editor_features/package_management.md).
+making them [reproducible down to the packages](guides/editor_features/package_management.md).
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
@@ -90,7 +90,8 @@ synchronized with the Python kernel: no callbacks, no observers, no manually
 re-running cells.
 
 <p align="center">
-<img src="/_static/faq-marimo-ui.gif" width="600px" />
+<video autoplay muted loop width="600px" align="center" src="/_static/faq-marimo-ui.webm">
+</video>
 </p>
 
 ## Using marimo
@@ -106,7 +107,7 @@ marimo is both a notebook and a library.
 - Use the _marimo library_ (`import marimo as mo`) in
   marimo notebooks. Write markdown with `mo.md(...)`,
   create stateful interactive elements with `mo.ui` (`mo.ui.slider(...)`), and
-  more. See the docs for an [API reference](https://docs.marimo.io/api/).
+  more. See the docs for an [API reference](./api/index.md).
 
 <a name="faq-notebook-app"></a>
 

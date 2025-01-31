@@ -12,6 +12,7 @@ Before sending a pull request, make sure to do the following:
 - [Lint, typecheck, and format](#lint-typecheck-format) your code
 - [Write tests](#tests)
 - [Run tests](#tests) and check that they pass
+- Read the [CLA](https://marimo.io/cla)
 
 _Please reach out to the marimo team before starting work on a large
 contribution._ Get in touch at
@@ -168,7 +169,9 @@ make fe-test
 
 ### Python
 
-Using Make:
+We use [pytest syntax](https://docs.pytest.org/en/stable/how-to/usage.html) for Python tests.
+
+#### Using Make
 
 ```bash
 make py-test
@@ -176,27 +179,25 @@ make py-test
 
 #### Using Hatch
 
-**Run a specific tests.**
+Run a specific test
 
 ```bash
 hatch run test:test tests/_ast/
 ```
 
-**Run a specific test with optional dependencies.**
-
+Run tests with optional dependencies
 ```bash
 hatch run test-optional:test tests/_ast/
 ```
 
-**Run tests with a specific Python version.**
-
+Run tests with a specific Python version
 ```bash
 hatch run +py=3.10 test:test tests/_ast/
 # or
 hatch run +py=3.10 test-optional:test tests/_ast/
 ```
 
-**Run all tests across all Python versions.**
+Run all tests across all Python versions
 
 Not recommended since it takes a long time.
 
@@ -327,3 +328,7 @@ If you use vscode, you might find the following `settings.json` useful:
   }
 }
 ```
+
+## Your first PR
+
+Marimo has a variety of CI jobs that run on pull requests.  All new PRs will fail until you have signed the [CLA](https://marimo.io/cla).  Don't fret.  You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`

@@ -130,7 +130,6 @@ export interface CellProps
   collapseCount: number;
 }
 
-// TODO(akshayka): a component for displaying/editing the cell's name.
 const CellComponent = (
   {
     theme,
@@ -374,6 +373,18 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
+  const cellOutput = userConfig.display.cell_output;
+
+  const hasOutputAbove = hasOutput && cellOutput === "above";
+  const hasOutputBelow = hasOutput && cellOutput === "below";
+
+  const hideCodeButton = (className: string) => (
+    <HideCodeButton
+      tooltip="Edit markdown"
+      className={cn("z-20 relative", className)}
+      onClick={temporarilyShowCode}
+    />
+  );
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
@@ -390,6 +401,7 @@ const CellComponent = (
           canCollapse={canCollapse}
         />
       </div>
+      {isMarkdownCodeHidden && hasOutputBelow && hideCodeButton("top-3")}
       <OutputArea
         // Only allow expanding in edit mode
         allowExpand={editing}
@@ -400,13 +412,7 @@ const CellComponent = (
         cellId={cellId}
         stale={outputStale}
       />
-      {isMarkdownCodeHidden && (
-        <HideCodeButton
-          tooltip="Edit markdown"
-          className="z-20 relative -top-3"
-          onClick={temporarilyShowCode}
-        />
-      )}
+      {isMarkdownCodeHidden && hasOutputAbove && hideCodeButton("bottom-3")}
     </div>
   );
 
@@ -534,7 +540,14 @@ const CellComponent = (
       return null;
     }
     return (
-      <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+      <div
+        tabIndex={-1}
+        id={HTMLId}
+        ref={cellRef}
+        className={className}
+        data-cell-id={cellId}
+        data-cell-name={name}
+      >
         {outputArea}
       </div>
     );
@@ -568,11 +581,6 @@ const CellComponent = (
     />
   );
 
-  const cellOutput = userConfig.display.cell_output;
-
-  const hasOutputAbove = hasOutput && cellOutput === "above";
-  const hasOutputBelow = hasOutput && cellOutput === "below";
-
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -592,7 +600,13 @@ const CellComponent = (
         canMoveX={canMoveX}
         title={cellTitle()}
       >
-        <div className={className} id={HTMLId} ref={cellContainerRef}>
+        <div
+          className={className}
+          id={HTMLId}
+          ref={cellContainerRef}
+          data-cell-id={cellId}
+          data-cell-name={name}
+        >
           {cellOutput === "above" && outputArea}
           <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
             <div className="absolute right-2 -top-4 z-10">

@@ -64,3 +64,53 @@ for filename in sorted(notebooks_dir.iterdir()):
         server = server.with_app(path=f"/{app_name}", root=filename)
         app_names.append(app_name)
 ```
+
+## Accessing Request Data
+
+Inside your marimo notebooks, you can access the current request data using `mo.app_meta().request`. This is particularly useful when implementing authentication or accessing user data.
+
+```python
+import marimo as mo
+
+# Access request data in your notebook
+request = mo.app_meta().request
+if request and request.user and request.user["is_authenticated"]:
+    content = f"Welcome {request.user['username']}!"
+else:
+    content = "Please log in"
+
+mo.md(content)
+```
+
+### Authentication Middleware Example
+
+Here's an example of how to implement authentication middleware that populates `request.user`:
+
+```python
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Add user data to the request scope
+        # This will be accessible via mo.app_meta().request.user
+        request.scope["user"] = {
+            "is_authenticated": True,
+            "username": "example_user",
+            # Add any other user data
+        }
+        response = await call_next(request)
+        return response
+
+# Add the middleware to your FastAPI app
+app.add_middleware(AuthMiddleware)
+```
+
+The `request` object provides access to:
+
+- `request.headers`: Request headers
+- `request.cookies`: Request cookies
+- `request.query_params`: Query parameters
+- `request.path_params`: Path parameters
+- `request.user`: User data added by authentication middleware
+- `request.url`: URL information including path, query parameters

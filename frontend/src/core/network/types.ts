@@ -17,7 +17,6 @@ export type CellConfig = schemas["CellConfig"];
  */
 export type RuntimeState = schemas["RuntimeState"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
-export type CreationRequest = schemas["CreationRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
 export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];
 export type ExecutionRequest = schemas["ExecutionRequest"];

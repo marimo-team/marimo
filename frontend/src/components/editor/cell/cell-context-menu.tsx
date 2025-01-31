@@ -26,6 +26,7 @@ import { CellOutputId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 import { copyToClipboard } from "@/utils/copy";
 import { toast } from "@/components/ui/use-toast";
+import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -81,16 +82,22 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
         }
         // We can't use the native browser paste since we don't have focus
         // so instead we use the editorViewView
-        const clipText = await navigator.clipboard.readText();
-        if (clipText) {
-          // Get the current selection, or the start of the document if nothing is selected
-          const { from, to } = editorView.state.selection.main;
-          // Create a new transaction that replaces the selection with the clipboard text
-          const tr = editorView.state.update({
-            changes: { from, to, insert: clipText },
-          });
-          // Apply the transaction
-          editorView.dispatch(tr);
+        try {
+          const clipText = await navigator.clipboard.readText();
+          if (clipText) {
+            // Get the current selection, or the start of the document if nothing is selected
+            const { from, to } = editorView.state.selection.main;
+            // Create a new transaction that replaces the selection with the clipboard text
+            const tr = editorView.state.update({
+              changes: { from, to, insert: clipText },
+            });
+            // Apply the transaction
+            editorView.dispatch(tr);
+          }
+        } catch (error) {
+          Logger.error("Failed to paste from clipboard", error);
+          // Try vscode or other parent
+          sendToPanelManager({ command: "paste" });
         }
       },
     },

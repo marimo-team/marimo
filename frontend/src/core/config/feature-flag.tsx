@@ -10,9 +10,7 @@ export interface ExperimentalFeatures {
   markdown: boolean;
   wasm_layouts: boolean;
   scratchpad: boolean;
-  multi_column: boolean;
   chat_sidebar: boolean;
-  tracing: boolean;
   rtc: boolean;
   // Add new feature flags here
 }
@@ -21,9 +19,7 @@ const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
   scratchpad: true,
-  multi_column: import.meta.env.DEV,
   chat_sidebar: import.meta.env.DEV,
-  tracing: import.meta.env.DEV,
   rtc: false,
 };
 

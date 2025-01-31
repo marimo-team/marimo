@@ -31,7 +31,7 @@ from marimo._data.preview_column import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.context import run_id_context
+from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
     MarimoInterruptionError,
@@ -54,6 +54,7 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
+from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     QueuePipe,
     ThreadSafeStderr,
@@ -79,7 +80,11 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
-from marimo._runtime.context.kernel_context import initialize_kernel_context
+from marimo._runtime.context.kernel_context import (
+    KernelRuntimeContext,
+    initialize_kernel_context,
+)
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -250,7 +255,9 @@ def app_meta() -> AppMeta:
         import altair as alt
 
         # Enable dark theme for Altair when marimo is in dark mode
-        alt.themes.enable("dark" if mo.app_meta().theme == "dark" else "default")
+        alt.themes.enable(
+            "dark" if mo.app_meta().theme == "dark" else "default"
+        )
         ```
 
         Show content only in edit mode:
@@ -258,6 +265,14 @@ def app_meta() -> AppMeta:
         ```python
         # Only show this content when editing the notebook
         mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
+        ```
+
+        Get the current request headers or user info:
+
+        ```python
+        request = mo.app_meta().request
+        print(request.headers)
+        print(request.user)
         ```
 
     Returns:
@@ -317,8 +332,17 @@ def notebook_dir() -> pathlib.Path | None:
     return None
 
 
+class URLPath(pathlib.PurePosixPath):
+    """
+    Wrapper around pathlib.Path that preserves the "://" in the URL protocol.
+    """
+
+    def __str__(self) -> str:
+        return super().__str__().replace(":/", "://")
+
+
 @mddoc
-def notebook_location() -> pathlib.Path | None:
+def notebook_location() -> pathlib.PurePath | None:
     """Get the location of the currently executing notebook.
 
     In WASM, this is the URL of webpage, for example, `https://my-site.com`.
@@ -337,12 +361,12 @@ def notebook_location() -> pathlib.Path | None:
         import polars as pl
 
         data_path = mo.notebook_location() / "public" / "data.csv"
-        df = pl.read_csv(data_path)
+        df = pl.read_csv(str(data_path))
         df.head()
         ```
 
     Returns:
-        pathlib.Path | None: A pathlib.Path object representing the URL or directory of the current
+        Path | None: A Path object representing the URL or directory of the current
             notebook, or None if the notebook's directory cannot be determined.
     """
     if is_pyodide():
@@ -352,11 +376,14 @@ def notebook_location() -> pathlib.Path | None:
         # The location looks like https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js
         # We want to crawl out of the assets/ folder
         if "assets" in path_location.parts:
-            return path_location.parent.parent
-        return path_location
+            return URLPath(str(path_location.parent.parent))
+        return URLPath(str(path_location))
 
     else:
-        return notebook_dir()
+        nb_dir = notebook_dir()
+        if nb_dir is not None:
+            return nb_dir
+        return None
 
 
 @dataclasses.dataclass
@@ -392,6 +419,7 @@ class Kernel:
 
     def __init__(
         self,
+        *,
         cell_configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
@@ -496,8 +524,6 @@ class Kernel:
         ).get("execution_type", "relaxed")
         self._update_runtime_from_user_config(user_config)
 
-        # Set up the execution context
-        self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
         # errored cells
@@ -517,10 +543,13 @@ class Kernel:
         return self.enqueue_control_request(ExecuteStaleRequest())
 
     def _execute_install_missing_packages_callback(
-        self, package_manager: str
+        self, package_manager: str, packages: list[str]
     ) -> None:
+        version = {pkg: "" for pkg in packages}
         return self.enqueue_control_request(
-            InstallMissingPackagesRequest(manager=package_manager, versions={})
+            InstallMissingPackagesRequest(
+                manager=package_manager, versions=version
+            )
         )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
@@ -534,6 +563,13 @@ class Kernel:
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(package_manager)
+
+            if self._should_update_script_metadata():
+                # All marimo notebooks depend on the marimo package; if the
+                # notebook already has marimo as a dependency, or an optional
+                # dependency group with marimo, such as marimo[sql], this is a
+                # NOOP.
+                self._update_script_metadata(["marimo"])
 
         if (
             autoreload_mode == "lazy" or autoreload_mode == "autorun"
@@ -616,8 +652,10 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
-        self.execution_context = ExecutionContext(
-            cell_id, setting_element_value
+        ctx = get_context()
+        assert isinstance(ctx, KernelRuntimeContext)
+        ctx.execution_context = (
+            exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
         with (
             get_context().provide_ui_ids(str(cell_id)),
@@ -637,9 +675,9 @@ class Kernel:
                     self.module_reloader.check(
                         modules=sys.modules, reload=True
                     )
-                yield self.execution_context
+                yield exec_ctx
             finally:
-                self.execution_context = None
+                ctx.execution_context = None
                 if self.module_reloader is not None and modules is not None:
                     # Note timestamps for newly loaded modules
                     new_modules = set(sys.modules) - modules
@@ -881,26 +919,20 @@ class Kernel:
             and missing_modules_after_deletion
             != missing_modules_before_deletion
         ):
-            if self.package_manager.should_auto_install():
-                self._execute_install_missing_packages_callback(
-                    self.package_manager.name
+            packages = list(
+                sorted(
+                    pkg
+                    for mod in missing_modules_after_deletion
+                    if not self.package_manager.attempted_to_install(
+                        pkg := self.package_manager.module_to_package(mod)
+                    )
                 )
-            else:
-                # Deleting a cell can make the set of missing packages smaller
-                MissingPackageAlert(
-                    packages=list(
-                        sorted(
-                            pkg
-                            for mod in missing_modules_after_deletion
-                            if not self.package_manager.attempted_to_install(
-                                pkg := self.package_manager.module_to_package(
-                                    mod
-                                )
-                            )
-                        )
-                    ),
-                    isolated=is_python_isolated(),
-                ).broadcast()
+            )
+            # Deleting a cell can make the set of missing packages smaller
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
         cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
@@ -1231,13 +1263,14 @@ class Kernel:
             ]
 
             if missing_packages:
+                packages = list(sorted(missing_packages))
                 if self.package_manager.should_auto_install():
                     self._execute_install_missing_packages_callback(
-                        self.package_manager.name
+                        self.package_manager.name, packages
                     )
                 else:
                     MissingPackageAlert(
-                        packages=list(sorted(missing_packages)),
+                        packages=packages,
                         isolated=is_python_isolated(),
                     ).broadcast()
 
@@ -1316,8 +1349,9 @@ class Kernel:
         Should be called when a state's setter is called.
         """
         # store the state and the currently executing cell
-        assert self.execution_context is not None
-        self.state_updates[state] = self.execution_context.cell_id
+        ctx = get_context()
+        assert ctx.execution_context is not None
+        self.state_updates[state] = ctx.execution_context.cell_id
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
@@ -1574,7 +1608,9 @@ class Kernel:
                         child_context.app is not None
                         and await child_context.app.set_ui_element_value(
                             SetUIElementValueRequest(
-                                object_ids=[object_id], values=[value]
+                                object_ids=[object_id],
+                                values=[value],
+                                request=request.request,
                             )
                         )
                     ):
@@ -1878,11 +1914,13 @@ class Kernel:
             return
 
         missing_packages_set = set(request.versions.keys())
-        # Append missing modules
+        # Append all other missing packages from the notebook; the missing
+        # package request only contains the packages from the cell the user
+        # executed.
         missing_packages_set.update(
             [
-                self.package_manager.package_to_module(pkg)
-                for pkg in self.module_registry.missing_modules()
+                self.package_manager.module_to_package(module)
+                for module in self.module_registry.missing_modules()
             ]
         )
         missing_packages = list(sorted(missing_packages_set))
@@ -2022,13 +2060,16 @@ class Kernel:
         with self.lock_globals():
             LOGGER.debug("Handling control request: %s", request)
             if isinstance(request, CreationRequest):
-                await self.instantiate(request)
+                with http_request_context(request.request):
+                    await self.instantiate(request)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteMultipleRequest):
-                await self.run(request.execution_requests)
+                with http_request_context(request.request):
+                    await self.run(request.execution_requests)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteScratchpadRequest):
-                await self.run_scratchpad(request.code)
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, RenameRequest):
@@ -2038,7 +2079,8 @@ class Kernel:
             elif isinstance(request, SetUserConfigRequest):
                 self.set_user_config(request)
             elif isinstance(request, SetUIElementValueRequest):
-                await self.set_ui_element_value(request)
+                with http_request_context(request.request):
+                    await self.set_ui_element_value(request)
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
                 status, ret, _ = await self.function_call_request(request)
@@ -2159,13 +2201,15 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         module=patches.patch_main_module(
-            file=app_metadata.filename, input_override=input_override
+            file=app_metadata.filename,
+            input_override=input_override,
+            print_override=print_override,
         ),
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
     )
-    initialize_kernel_context(
+    ctx = initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         stdout=stdout,
@@ -2193,9 +2237,7 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
 
-        signal.signal(
-            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
-        )
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
         if sys.platform == "win32":
             if interrupt_queue is not None:
@@ -2211,7 +2253,7 @@ def launch_kernel(
 
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
-    async def control_loop() -> None:
+    async def control_loop(kernel: Kernel) -> None:
         while True:
             try:
                 request: ControlRequest | None = control_queue.get()
@@ -2232,14 +2274,22 @@ def launch_kernel(
     # top-level await; nothing else is awaited. Don't introduce async
     # primitives anywhere else in the runtime unless there is a *very* good
     # reason; prefer using threads (for performance and clarity).
-    asyncio.run(control_loop())
+    asyncio.run(control_loop(kernel))
 
     if stdout is not None:
         stdout._watcher.stop()
     if stderr is not None:
         stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()
+    stream.stop()
 
     if profiler is not None and profile_path is not None:
         profiler.disable()
         profiler.dump_stats(profile_path)
+
+    # TODO(akshayka): There's a memory leak in run mode, with memory
+    # usage increasing with each session creation. Somehow the kernel
+    # appears to leak, even though the thread exits. As a hack we manually
+    # clear various data structures.
+    teardown_context()
+    kernel._module.__dict__.clear()

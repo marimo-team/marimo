@@ -7,6 +7,7 @@
 #     "requests",
 #     "pydantic",
 #     "jinja2",
+#     "vega-datasets==0.9.0",
 # ]
 # ///
 import tempfile

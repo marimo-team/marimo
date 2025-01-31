@@ -464,5 +464,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
             assert head in result
             assert '<marimo-wasm hidden="">' in result
             assert '<marimo-code hidden="" data-show-code="false">' in result
+            assert "#save-button" in result
+            assert "#filename-input" in result
         finally:
             os.remove(head_file)

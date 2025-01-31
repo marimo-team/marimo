@@ -41,7 +41,6 @@ import { capabilitiesAtom } from "../config/capabilities";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useRunsActions } from "../cells/runs";
-import { getFeatureFlag } from "../config/feature-flag";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -119,9 +118,7 @@ export function useMarimoWebSocket(opts: {
         if (!cellData) {
           return;
         }
-        if (getFeatureFlag("tracing")) {
-          addCellOperation({ cellOperation: msg.data, code: cellData.code });
-        }
+        addCellOperation({ cellOperation: msg.data, code: cellData.code });
         return;
       }
 
@@ -203,6 +200,7 @@ export function useMarimoWebSocket(opts: {
         setCellCodes({
           codes: msg.data.codes,
           ids: msg.data.cell_ids as CellId[],
+          codeIsStale: msg.data.code_is_stale,
         });
         return;
       case "update-cell-ids":

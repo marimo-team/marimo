@@ -34,12 +34,12 @@ These guides help you deploy marimo notebooks as read-only apps.
 
 |                                 |                                                          |
 | :------------------------------ | :------------------------------------------------------- |
-| [programmatically](programmatically.md) | Programmatically run and customize read-only marimo apps |
-| [deploying_docker](deploying_docker.md) | Deploy with Docker                                       |
-| [authentication](authentication.md) | Authentication and security                              |
-| [deploying_public_gallery](deploying_public_gallery.md) | Deploy to our public gallery                             |
-| [deploying_hugging_face](deploying_hugging_face.md) | Deploy to Hugging Face                                   |
-| [deploying_ploomber](deploying_ploomber.md) | Deploy to Ploomber Cloud                                 |
+| [programmatically](./programmatically.md) | Programmatically run and customize read-only marimo apps |
+| [deploying_docker](./deploying_docker.md) | Deploy with Docker                                       |
+| [authentication](./authentication.md) | Authentication and security                              |
+| [deploying_public_gallery](./deploying_public_gallery.md) | Deploy to our public gallery                             |
+| [deploying_hugging_face](./deploying_hugging_face.md) | Deploy to Hugging Face                                   |
+| [deploying_ploomber](./deploying_ploomber.md) | Deploy to Ploomber Cloud                                 |
 
 ### Health and status endpoints
 

@@ -6,7 +6,6 @@ import { type Extension, Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 import { vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
-import { once } from "@/utils/once";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
@@ -35,8 +34,9 @@ export function keymapBundle(
       ];
     case "vim":
       return [
+        keymap.of(defaultKeymap),
         // delete the cell on double press of "d", if the cell is empty
-        Prec.highest(
+        Prec.high(
           doubleCharacterListener(
             "d",
             (view) => view.state.doc.toString() === "",
@@ -49,30 +49,16 @@ export function keymapBundle(
             },
           ),
         ),
-        keymap.of(defaultVimKeymap()),
+        // Base vim mode
         vim({ status: false }),
-        // Needs to come after the vim extension
-        vimKeymapExtension(callbacks),
+        // Custom vim keymaps for cell navigation
+        Prec.high(vimKeymapExtension(callbacks)),
       ];
     default:
       logNever(config.preset);
       return [];
   }
 }
-
-const defaultVimKeymap = once(() => {
-  const toRemove = new Set(["Enter", "Ctrl-v", "ArrowLeft", "ArrowRight"]);
-  // Remove conflicting keys from the keymap
-  // Enter (<CR>) adds a new line
-  //   - it should just go to the next line
-  // Ctrl-v goes to the bottom of the cell
-  //   - should enter blockwise visual mode
-  // ArrowLeft/ArrowRight exit blockwise visual mode
-  //   - should keep blockwise, but continue with cursor movement
-  return defaultKeymap.filter(
-    (k) => !toRemove.has(k.key || k.mac || k.linux || k.win || ""),
-  );
-});
 
 /**
  * Listen for a double keypress of a character and call a callback.

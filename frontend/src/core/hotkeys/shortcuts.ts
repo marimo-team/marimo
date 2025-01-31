@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
+import { NOT_SET } from "./hotkeys";
 
 /**
  * Check if the current platform is Mac
@@ -76,7 +77,14 @@ function normalizeKey(key: string): string {
   return specialKeys[key.toLowerCase()] || key.toLowerCase();
 }
 
-export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
+export function parseShortcut(
+  shortcut: string | typeof NOT_SET,
+): (e: KeyboardEvent) => boolean {
+  // Handle empty shortcut, e.g. not set
+  if (shortcut === NOT_SET || shortcut === "") {
+    return () => false;
+  }
+
   const separator = shortcut.includes("+") ? "+" : "-";
   const keys = shortcut.split(separator).map(normalizeKey);
   return (e: KeyboardEvent) => areKeysPressed(keys, e);
