@@ -226,7 +226,7 @@
     "stylelint": "^16.8.2",
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^3.4.17",
-    "turbo": "^2.0.14",
+    "turbo": "^2.3.4",
     "typescript": "^5.7.3",
     "vite": "^5.4.13",
     "vite-tsconfig-paths": "^4.3.2",

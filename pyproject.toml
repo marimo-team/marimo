@@ -133,6 +133,9 @@ docs = [
 [tool.hatch]
 installer = "uv"
 
+[tool.hatch.build.hooks.custom]
+path = "build_hook.py"
+
 [tool.hatch.version]
 path = "marimo/__init__.py"
 
