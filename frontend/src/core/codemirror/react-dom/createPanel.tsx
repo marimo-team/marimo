@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { store } from "@/core/state/jotai";
 import type { EditorView, Panel } from "@codemirror/view";
+import { Provider } from "jotai";
 import { type Root, createRoot } from "react-dom/client";
 
 export function createPanel(
@@ -13,10 +15,18 @@ export function createPanel(
     dom,
     mount() {
       root = createRoot(dom);
-      root.render(<Component view={view} />);
+      root.render(
+        <Provider store={store}>
+          <Component view={view} />
+        </Provider>,
+      );
     },
     update() {
-      root?.render(<Component view={view} />);
+      root?.render(
+        <Provider store={store}>
+          <Component view={view} />
+        </Provider>,
+      );
     },
     destroy() {
       root?.unmount();

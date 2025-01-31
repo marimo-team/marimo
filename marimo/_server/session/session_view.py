@@ -6,11 +6,12 @@ from dataclasses import dataclass
 from typing import Any, Literal, Optional, Union
 
 from marimo._ast.cell import CellId_t
-from marimo._data.models import DataTable
+from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    DataSourceConnections,
     Interrupted,
     MessageOperation,
     UpdateCellCodes,
@@ -42,7 +43,9 @@ class SessionView:
         # List of operations we care about keeping track of.
         self.cell_operations: dict[CellId_t, CellOp] = {}
         # The most recent datasets operation.
-        self.datasets: Datasets = Datasets(tables=[])
+        self.datasets = Datasets(tables=[])
+        # The most recent data-connectors operation
+        self.data_connectors = DataSourceConnections(connections=[])
         # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
         # Map of variable name to value.
@@ -149,6 +152,15 @@ class SessionView:
                     next_tables[table.name] = table
             self.datasets = Datasets(tables=list(next_tables.values()))
 
+            # Remove any data source connections that are no longer in scope.
+            next_connections: dict[str, DataSourceConnection] = {}
+            for connection in self.data_connectors.connections:
+                if connection.name in variable_names:
+                    next_connections[connection.name] = connection
+            self.data_connectors = DataSourceConnections(
+                connections=list(next_connections.values())
+            )
+
         elif isinstance(operation, VariableValues):
             for value in operation.variables:
                 self.variable_values[value.name] = value
@@ -171,6 +183,18 @@ class SessionView:
             for table in operation.tables:
                 tables[table.name] = table
             self.datasets = Datasets(tables=list(tables.values()))
+
+        elif isinstance(operation, DataSourceConnections):
+            # Update data source connections, dedupe by name and keep the latest
+            prev_connections = self.data_connectors.connections
+            connections = {c.name: c for c in prev_connections}
+
+            for c in operation.connections:
+                connections[c.name] = c
+
+            self.data_connectors = DataSourceConnections(
+                connections=list(connections.values())
+            )
 
         elif isinstance(operation, UpdateCellIdsRequest):
             self.cell_ids = operation
@@ -233,6 +257,8 @@ class SessionView:
             )
         if self.datasets.tables:
             all_ops.append(self.datasets)
+        if self.data_connectors.connections:
+            all_ops.append(self.data_connectors)
         all_ops.extend(self.cell_operations.values())
         if self.stale_code:
             all_ops.append(self.stale_code)

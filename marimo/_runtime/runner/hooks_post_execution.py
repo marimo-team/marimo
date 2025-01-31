@@ -20,6 +20,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    DataSourceConnections,
     VariableValue,
     VariableValues,
 )
@@ -31,6 +32,10 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
+from marimo._sql.get_engines import (
+    engine_to_data_source_connection,
+    get_engines_from_variables,
+)
 from marimo._tracer import kernel_tracer
 from marimo._utils.flatten import contains_instance
 
@@ -129,6 +134,35 @@ def _broadcast_datasets(
     if tables:
         LOGGER.debug("Broadcasting data tables")
         Datasets(tables=tables).broadcast()
+
+
+@kernel_tracer.start_as_current_span("broadcast_data_source_connection")
+def _broadcast_data_source_connection(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    # Skip if not in edit mode
+    if not _is_edit_mode():
+        return
+
+    del run_result
+    engines = get_engines_from_variables(
+        [
+            (variable, runner.glbls[variable])
+            for variable in cell.defs
+            if variable in runner.glbls
+        ]
+    )
+
+    if engines:
+        LOGGER.debug("Broadcasting data source connections")
+        DataSourceConnections(
+            connections=[
+                engine_to_data_source_connection(variable, engine)
+                for variable, engine in engines
+            ]
+        ).broadcast()
 
 
 @kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
@@ -330,6 +364,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _store_state_reference,
     _broadcast_variables,
     _broadcast_datasets,
+    _broadcast_data_source_connection,
     _broadcast_duckdb_tables,
     _broadcast_outputs,
     _reset_matplotlib_context,

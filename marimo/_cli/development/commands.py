@@ -73,6 +73,7 @@ def _generate_schema() -> dict[str, Any]:
         data.DataTableColumn,
         data.DataTable,
         data.ColumnSummary,
+        data.DataSourceConnection,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -103,6 +104,7 @@ def _generate_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
+        ops.DataSourceConnections,
     ]
 
     # dataclass components used in requests/responses

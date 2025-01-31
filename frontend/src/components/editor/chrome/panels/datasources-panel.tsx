@@ -112,6 +112,10 @@ export const DataSourcesPanel: React.FC = () => {
       case "duckdb":
         code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
         break;
+      case "connection":
+        // TODO: Handle connection source
+        code = `_df = mo.sql("SELECT 1", engine=${table.source_type})`;
+        break;
       default:
         logNever(table.source_type);
         break;

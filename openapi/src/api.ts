@@ -2230,6 +2230,17 @@ export interface components {
       summary?: components["schemas"]["ColumnSummary"];
       table_name: string;
     };
+    DataSourceConnection: {
+      dialect: string;
+      display_name: string;
+      name: string;
+      source: string;
+    };
+    DataSourceConnections: {
+      connections: components["schemas"]["DataSourceConnection"][];
+      /** @enum {string} */
+      name: "data-source-connections";
+    };
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       name: string;
@@ -2237,7 +2248,7 @@ export interface components {
       num_rows?: number | null;
       source: string;
       /** @enum {string} */
-      source_type: "local" | "duckdb";
+      source_type: "local" | "duckdb" | "connection";
       variable_name?: string | null;
     };
     DataTableColumn: {
@@ -2258,7 +2269,7 @@ export interface components {
       | "unknown";
     Datasets: {
       /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | null;
+      clear_channel?: "local" | "duckdb" | "connection" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -2642,6 +2653,11 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
+      | {
+          connections: components["schemas"]["DataSourceConnection"][];
+          /** @enum {string} */
+          name: "data-source-connections";
+        }
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -2710,7 +2726,7 @@ export interface components {
       columnName: string;
       source: string;
       /** @enum {string} */
-      sourceType: "local" | "duckdb";
+      sourceType: "local" | "duckdb" | "connection";
       tableName: string;
     };
     QueryParamsAppend: {
