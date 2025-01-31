@@ -6,17 +6,12 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
-from marimo._runtime.context.types import (
-    ContextNotInitializedError,
-    get_context,
-)
 from marimo._runtime.output import replace
 from marimo._sql.engines import (
     DuckDBEngine,
     SQLAlchemyEngine,
     raise_df_import_error,
 )
-from marimo._sql.types import SQLEngine
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -70,7 +65,7 @@ def sql(
             "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
         )
 
-    df = _execute_query(query, sql_engine)
+    df = sql_engine.execute(query)
     if df is None:
         return None
 
@@ -136,39 +131,3 @@ def _query_includes_limit(query: str) -> bool:
 
     # Look for any LIMIT clause in the SELECT statement
     return last_expr.find(Limit) is not None
-
-
-def _execute_query(query: str, engine: SQLEngine) -> Any:
-    # In Python globals() are scoped to modules; since this function
-    # is in a different module than user code, globals() doesn't return
-    # the kernel globals, it just returns this module's global namespace.
-    #
-    # However, duckdb needs access to the kernel's globals. For this reason,
-    # we manually exec duckdb and provide it with the kernel's globals.
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        return engine.execute(query)
-    else:
-        return eval(
-            "engine.execute(query)",
-            ctx.globals,
-            {"query": query, "engine": engine},
-        )
-
-
-def wrapped_sql(query: str) -> "duckdb.DuckDBPyRelation":
-    import duckdb
-
-    # Same as above, but for plain duckdb
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        relation = duckdb.sql(query=query)
-    else:
-        relation = eval(
-            "duckdb.sql(query=query)",
-            ctx.globals,
-            {"query": query, "duckdb": duckdb},
-        )
-    return relation
