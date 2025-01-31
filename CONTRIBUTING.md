@@ -333,7 +333,7 @@ If you use vscode, you might find the following `settings.json` useful:
 
 ## Testing a branch from GitHub
 
-This requires `uv` to be installed.
+This requires `uv` to be installed. This may take a bit to install frontend dependencies and build the frontend.
 
 ```bash
 MARIMO_BUILD_FRONTEND=true \
