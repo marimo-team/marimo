@@ -213,7 +213,7 @@ def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
     try:
         # convert the object to a string using the kernel globals;
         # some libraries like duckdb introspect globals() ...
-        data: str = eval("repr(obj)", glbls, {"obj": obj})
+        data_str: str = eval("repr(obj)", glbls, {"obj": obj})
     except Exception:
         return FormattedOutput(
             mimetype="text/plain",
@@ -224,9 +224,9 @@ def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
         return (
             FormattedOutput(
                 mimetype="text/html",
-                data=plain_text(escape(data)).text,
+                data=plain_text(escape(data_str)).text,
             )
-            if data
+            if data_str
             else FormattedOutput.empty()
         )
 
