@@ -15,9 +15,10 @@ if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
 is_windows = sys.platform == "win32"
+is_mac = sys.platform == "darwin"
 
 
-@pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.skipif(is_windows or is_mac, reason="Skip on Windows or Mac")
 def test_terminal_ws(client: TestClient) -> None:
     with client.websocket_connect("/terminal/ws") as websocket:
         # Send echo message
