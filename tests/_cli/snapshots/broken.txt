@@ -3,14 +3,14 @@ title: Notebook
 marimo-version: 0.0.0
 ---
 
-```{.python.marimo unparsable="true"}
+```python {.marimo unparsable="true"}
 return
 ```
 
-```{.python.marimo unparsable="true"}
+```python {.marimo unparsable="true"}
 partial_statement =
 ```
 
-```{.python.marimo}
+```python {.marimo}
 valid_statement = 1
 ```

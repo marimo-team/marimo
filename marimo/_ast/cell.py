@@ -146,6 +146,7 @@ class CellImpl:
     mod: ast.Module
     defs: set[Name]
     refs: set[Name]
+    # Variables that should only live for the duration of the cell
     temporaries: set[Name]
 
     # metadata about definitions
@@ -178,6 +179,9 @@ class CellImpl:
     _sqls: ParsedSQLStatements = dataclasses.field(
         default_factory=ParsedSQLStatements
     )
+    _raw_sqls: ParsedSQLStatements = dataclasses.field(
+        default_factory=ParsedSQLStatements
+    )
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
@@ -205,6 +209,14 @@ class CellImpl:
     def run_result_status(self) -> Optional[RunResultStatusType]:
         return self._run_result_status.state
 
+    def _get_sqls(self, raw: bool = False) -> list[str]:
+        try:
+            visitor = SQLVisitor(raw=raw)
+            visitor.visit(ast.parse(self.code))
+            return visitor.get_sqls()
+        except Exception:
+            return []
+
     @property
     def sqls(self) -> list[str]:
         """Returns parsed SQL statements from this cell.
@@ -215,15 +227,21 @@ class CellImpl:
         if self._sqls.parsed is not None:
             return self._sqls.parsed
 
-        try:
-            visitor = SQLVisitor()
-            visitor.visit(ast.parse(self.code))
-            sqls = visitor.get_sqls()
-            self._sqls.parsed = sqls
-        except Exception:
-            self._sqls.parsed = []
-
+        self._sqls.parsed = self._get_sqls()
         return self._sqls.parsed
+
+    @property
+    def raw_sqls(self) -> list[str]:
+        """Returns unparsed SQL statements from this cell.
+
+        Returns:
+            list[str]: List of SQL statements verbatim from the cell code.
+        """
+        if self._raw_sqls.parsed is not None:
+            return self._raw_sqls.parsed
+
+        self._raw_sqls.parsed = self._get_sqls(raw=True)
+        return self._raw_sqls.parsed
 
     @property
     def stale(self) -> bool:

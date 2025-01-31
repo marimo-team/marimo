@@ -164,7 +164,7 @@ def test_export_markdown(client: TestClient) -> None:
     )
     assert response.status_code == 200
     assert f"marimo-version: {__version__}" in response.text
-    assert "```{.python.marimo}" in response.text
+    assert "```python {.marimo}" in response.text
 
 
 @with_read_session(SESSION_ID)

@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import re
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import Any, List, Optional
 
 from marimo import _loggers
@@ -18,9 +19,10 @@ class SQLVisitor(ast.NodeVisitor):
     This should be inside a function called `.execute` or `.sql`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, raw: bool = False) -> None:
         super().__init__()
         self._sqls: list[str] = []
+        self._raw = raw
 
     def visit_Call(self, node: ast.Call) -> None:
         # Check if the call is a method call and the method is named
@@ -35,9 +37,18 @@ class SQLVisitor(ast.NodeVisitor):
                 first_arg = node.args[0]
                 sql: Optional[str] = None
                 if isinstance(first_arg, ast.Constant):
-                    sql = first_arg.s
+                    sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
-                    sql = normalize_sql_f_string(first_arg)
+                    if self._raw:
+                        f_sql = ast.unparse(first_arg)
+                        sql = dedent(
+                            f_sql[1:]
+                            .strip(f_sql[1])
+                            .encode()
+                            .decode("unicode_escape")
+                        )
+                    else:
+                        sql = normalize_sql_f_string(first_arg)
 
                 if sql is not None:
                     # Append the SQL query to the list
@@ -64,7 +75,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
         elif isinstance(part, ast.JoinedStr):
             return normalize_sql_f_string(part)
         elif isinstance(part, ast.Constant):
-            return str(part.s)
+            return str(part.value)
         else:
             # Just add null as a placeholder for {...} expressions
             return "null"
