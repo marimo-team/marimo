@@ -12,8 +12,7 @@ import {
 import { useAtomValue } from "jotai";
 import { CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { useState } from "react";
-import React from "react";
+import { useState, useEffect } from "react";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -99,7 +98,7 @@ const SQLEngineSelect: React.FC<{
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
 
   // Watch for changes in dataSourceState and choose default if current engine is not available
-  React.useEffect(() => {
+  useEffect(() => {
     if (!connectionsMap.has(engine)) {
       languageAdapter.selectEngine(DEFAULT_ENGINE);
       setEngine(DEFAULT_ENGINE);
