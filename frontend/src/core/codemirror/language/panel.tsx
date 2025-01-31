@@ -125,7 +125,11 @@ const SQLEngineSelect: React.FC<{
           content="Find out how to add an SQL engine"
           delayDuration={200}
         >
-          <a href="https://TODO.com" target="_blank" rel="noreferrer">
+          <a
+            href="http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database"
+            target="_blank"
+            rel="noreferrer"
+          >
             <CircleHelpIcon
               size={13}
               className="text-[var(--sky-11)] opacity-60 hover:opacity-100"

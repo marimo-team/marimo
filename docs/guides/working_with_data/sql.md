@@ -131,23 +131,32 @@ To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
 SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 ```
 
-## Bringing your SQL connection engine
+## Connecting to a custom database
 
-marimo also supports connecting to your database via a connection engine created with a library like SQLAlchemy, SQLModel, or a custom DuckDB connection. First, you need to define the engine as a Python variable in a cell.
-marimo will auto-discover the engine and let you select it in a dropdown in the SQL cell.
+marimo supports bringing your own database via a **connection engine** created with a library like [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage), [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine), or a [custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options). By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+
+First, you need to define the engine as a Python variable in a cell.
+marimo will auto-discover the engine and let you select it in a dropdown in the SQL cell. 
 
 ```python
-from sqlalchemy import text
+import sqlalchemy
+import sqlmodel
+import duckdb
 
-# Create an in-memory SQLite database
-sqlite_engine = sa.create_engine("sqlite:///:memory:")
-# Create a Postgres database
-postgres_engine = sa.create_engine("postgresql://username:password@server:port/database")
-# Snowflake database
-snowflake_engine = sa.create_engine("snowflake://username:password@server:port/database")
+# Create an in-memory SQLite database with SQLAlchemy
+sqlite_engine = sqlachemy.create_engine("sqlite:///:memory:")
+# Create a Postgres database with SQLModel
+postgres_engine = sqlmodel.create_engine("postgresql://username:password@server:port/database")
+# Create a DuckDB connection
+duckdb_conn = duckdb.connect("file.db")
 ```
 
-// TODO: Image of dropdown
+<div align="center">
+  <figure>
+    <img src="/_static/docs-sql-engine-dropdown.png"/>
+    <figcaption>Choose a custom database connection</figcaption>
+  </figure>
+</div>
 
 ## Interactive tutorial
 
