@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import os
 import subprocess
-from pathlib import Path
 from typing import Any, Dict
 
 from hatchling.builders.hooks.plugin.interface import (  # type: ignore
@@ -11,17 +11,17 @@ from hatchling.builders.hooks.plugin.interface import (  # type: ignore
 
 class FrontendBuildHook(BuildHookInterface):  # type: ignore
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
+        # Only build frontend if MARIMO_BUILD_FRONTEND variable exists
+        MARIMO_BUILD_FRONTEND = os.getenv("MARIMO_BUILD_FRONTEND")
+        if not MARIMO_BUILD_FRONTEND:
+            self.app.display_debug(
+                "MARIMO_BUILD_FRONTEND is not set, skipping frontend build"
+            )
+            return
+
         self.app.display_info(f"Build data: {str(build_data)}")
         self.app.display_info(f"Project root: {self.root}")
         self.app.display_info(f"Build dir: {self.directory}")
-
-        # Skip frontend build if _static already exists
-        static_dir = Path(self.directory) / "_static"
-        if static_dir.exists():
-            self.app.display_info(
-                "_static directory already exists, skipping frontend build"
-            )
-            return
 
         self.app.display_info(
             "Starting frontend build process. This may take a minute..."
