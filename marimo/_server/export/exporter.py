@@ -316,7 +316,10 @@ class Exporter:
                     # the AST gives us more flexibility.
                     query = None
                     valid_sql = True
-                    for maybe_query, def_vars in cell._cell.variable_data.items():
+                    for (
+                        maybe_query,
+                        def_vars,
+                    ) in cell._cell.variable_data.items():
                         if query:
                             # query has already been set, hence this breaks
                             # the expected format.

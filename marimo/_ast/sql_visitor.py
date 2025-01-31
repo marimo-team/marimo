@@ -4,9 +4,8 @@ from __future__ import annotations
 import ast
 import re
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
-
 from textwrap import dedent
+from typing import Any, List, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
