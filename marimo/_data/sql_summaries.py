@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnSummary, DataType
-from marimo._sql.sql import wrapped_sql
+from marimo._sql.utils import wrapped_sql
 
 
 def get_sql_summary(

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.types import SQLEngine
+from marimo._sql.utils import wrapped_sql
 
 if TYPE_CHECKING:
     import duckdb
@@ -36,12 +37,7 @@ class DuckDBEngine(SQLEngine):
         return "duckdb"
 
     def execute(self, query: str) -> Any:
-        import duckdb
-
-        if self._connection is None:
-            relation = duckdb.sql(query)
-        else:
-            relation = self._connection.sql(query)
+        relation = wrapped_sql(query, self._connection)
 
         # Invalid / empty query
         if relation is None:
