@@ -66,7 +66,9 @@ def get_sql_summary(
         FROM {table_name}
         """  # noqa: E501
 
-    stats_result: Tuple[int, ...] | None = wrapped_sql(stats_query).fetchone()
+    stats_result: Tuple[int, ...] | None = wrapped_sql(
+        stats_query, connection=None
+    ).fetchone()
     if stats_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"
@@ -142,7 +144,7 @@ def get_column_type(table_name: str, column_name: str) -> DataType:
     """
 
     column_info_result: Tuple[str] | None = wrapped_sql(
-        column_info_query
+        column_info_query, connection=None
     ).fetchone()
     if column_info_result is None:
         raise ValueError(
