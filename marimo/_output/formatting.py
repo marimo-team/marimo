@@ -174,9 +174,15 @@ class FormattedOutput:
     traceback: Optional[str] = None
     exception: BaseException | None = None
 
+    @staticmethod
+    def empty() -> FormattedOutput:
+        return FormattedOutput(mimetype="text/plain", data="")
+
 
 def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
-    obj = "" if obj is None else obj
+    if obj is None:
+        return FormattedOutput.empty()
+
     if (
         formatter := get_formatter(
             obj, include_opinionated=include_opinionated
@@ -204,31 +210,24 @@ def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
     else:
         glbls = ctx.globals
 
-    tb = None
     try:
         # convert the object to a string using the kernel globals;
         # some libraries like duckdb introspect globals() ...
-        data = eval("str(obj)", glbls, {"obj": obj})
+        data: str = eval("repr(obj)", glbls, {"obj": obj})
     except Exception:
-        tb = traceback.format_exc()
         return FormattedOutput(
             mimetype="text/plain",
             data="",
-            traceback=tb,
+            traceback=traceback.format_exc(),
         )
     else:
         return (
             FormattedOutput(
                 mimetype="text/html",
                 data=plain_text(escape(data)).text,
-                traceback=tb,
             )
             if data
-            else FormattedOutput(
-                mimetype="text/plain",
-                data="",
-                traceback=tb,
-            )
+            else FormattedOutput.empty()
         )
 
 

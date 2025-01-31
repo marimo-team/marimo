@@ -77,16 +77,27 @@ def is_html(output: FormattedOutput) -> bool:
 
 
 def test_primitives():
-    # 1 and "1" are printed the same
+    # 1 and "1" are different
     assert try_format(1).data == "<pre style='font-size: 12px'>1</pre>"
-    assert try_format("1").data == "<pre style='font-size: 12px'>1</pre>"
     assert (
-        try_format("hello").data == "<pre style='font-size: 12px'>hello</pre>"
+        try_format("1").data
+        == "<pre style='font-size: 12px'>&#x27;1&#x27;</pre>"
+    )
+    assert (
+        try_format("hello").data
+        == "<pre style='font-size: 12px'>&#x27;hello&#x27;</pre>"
+    )
+    assert (
+        try_format("").data
+        == "<pre style='font-size: 12px'>&#x27;&#x27;</pre>"
     )
     assert try_format(None).data == ""
-    # True and 'True' are printed the same
+    # True and 'True' are different
     assert try_format(True).data == "<pre style='font-size: 12px'>True</pre>"
-    assert try_format("True").data == "<pre style='font-size: 12px'>True</pre>"
+    assert (
+        try_format("True").data
+        == "<pre style='font-size: 12px'>&#x27;True&#x27;</pre>"
+    )
     assert try_format(False).data == "<pre style='font-size: 12px'>False</pre>"
     assert try_format(1.0).data == "<pre style='font-size: 12px'>1.0</pre>"
     assert (
@@ -169,7 +180,7 @@ def test_opinionated_formatter():
     assert "test" in result.data.lower()
 
 
-def test_fallback_string_representation():
+def test_does_not_use_only_str_repr():
     """Test fallback to string representation for objects without formatters."""
 
     class NoFormatter:
@@ -179,21 +190,8 @@ def test_fallback_string_representation():
     obj = NoFormatter()
     result = try_format(obj)
     assert is_html(result)
-    assert "no formatter" in result.data.lower()
-
-
-def test_string_eval_error():
-    """Test handling of string evaluation errors."""
-
-    class BadString:
-        def __str__(self):
-            raise ValueError("Bad string")
-
-    obj = BadString()
-    result = try_format(obj)
-    assert result.mimetype == "text/plain"
-    assert result.data == ""
-    assert result.traceback is not None
+    assert result.data.startswith("<pre style='font-size: 12px'>")
+    assert "test_does_not_use_only_str_repr" in result.data.lower()
 
 
 def test_str_vs_repr():
@@ -209,8 +207,8 @@ def test_str_vs_repr():
     obj = StrReprTest()
     result = try_format(obj)
     assert is_html(result)
-    assert "str_value" in result.data.lower()
-    assert "repr_value" not in result.data.lower()
+    assert "str_value" not in result.data.lower()
+    assert "repr_value" in result.data.lower()
 
 
 def test_repr_fallback():
@@ -226,8 +224,8 @@ def test_repr_fallback():
     assert "repr_value" in result.data.lower()
 
 
-def test_str_error_repr_fallback():
-    """Test that repr is used when str raises error."""
+def test_repr_is_used_over_str():
+    """Test that repr is used over str when both are available."""
 
     class StrErrorTest:
         def __str__(self):
@@ -238,9 +236,8 @@ def test_str_error_repr_fallback():
 
     obj = StrErrorTest()
     result = try_format(obj)
-    assert result.mimetype == "text/plain"
-    assert result.data == ""
-    assert result.traceback is not None
+    assert is_html(result)
+    assert result.data == "<pre style='font-size: 12px'>repr_value</pre>"
 
 
 @pytest.mark.skipif(
@@ -253,4 +250,4 @@ def test_numpy_array():
     obj = np.array([1, 2, 3])
     result = try_format(obj)
     assert is_html(result)
-    assert result.data == "<pre style='font-size: 12px'>[1 2 3]</pre>"
+    assert result.data == "<pre style='font-size: 12px'>array([1, 2, 3])</pre>"
