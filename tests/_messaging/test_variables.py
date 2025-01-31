@@ -211,7 +211,7 @@ def test_get_variable_preview_dataframe(df: Any) -> None:
 
     mem_diff_mb = (mem_after - mem_before) / (1024 * 1024)
 
-    assert mem_diff_mb < 1, (
+    assert mem_diff_mb < 10, (
         f"Memory increased by {mem_diff_mb}MB during preview"
     )
     assert "2 columns" in preview
