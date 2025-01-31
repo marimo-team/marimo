@@ -26,9 +26,11 @@ from marimo._messaging.ops import (
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
+from marimo._server.model import SessionMode
 from marimo._tracer import kernel_tracer
 from marimo._utils.flatten import contains_instance
 
@@ -88,6 +90,10 @@ def _broadcast_variables(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
+    # Skip if not in edit mode
+    if not _is_edit_mode():
+        return
+
     del run_result
     values = [
         VariableValue(
@@ -108,6 +114,10 @@ def _broadcast_datasets(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
+    # Skip if not in edit mode
+    if not _is_edit_mode():
+        return
+
     del run_result
     tables = get_datasets_from_variables(
         [
@@ -127,6 +137,10 @@ def _broadcast_duckdb_tables(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
+    # Skip if not in edit mode
+    if not _is_edit_mode():
+        return
+
     del run_result
     del runner
     if not DependencyManager.duckdb.has():
@@ -299,6 +313,14 @@ def _reset_matplotlib_context(
     if get_global_context().mpl_installed:
         # ensures that every cell gets a fresh axis.
         exec("__marimo__._output.mpl.close_figures()", runner.glbls)
+
+
+def _is_edit_mode() -> bool:
+    ctx = get_context()
+    return (
+        isinstance(ctx, KernelRuntimeContext)
+        and ctx.session_mode == SessionMode.EDIT
+    )
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [

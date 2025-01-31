@@ -419,6 +419,7 @@ class Kernel:
 
     def __init__(
         self,
+        *,
         cell_configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
