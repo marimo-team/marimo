@@ -41,11 +41,11 @@ from marimo._messaging.errors import (
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import OUTPUT_MAX_BYTES
 from marimo._messaging.types import Stream
+from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.context import get_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
@@ -533,15 +533,9 @@ class VariableValue:
 
     def _stringify(self, value: object) -> str:
         try:
-            # HACK: We pretty-print tables to avoid str(ibis_table)
-            # which can be very slow when `ibis.options.interactive = True`
-            table_manager = get_table_manager_or_none(value)
-            if table_manager is not None:
-                return str(table_manager)
-            else:
-                return str(value)[:50]
-
-            return str(value)[:50]
+            # str(value) can be slow for large objects
+            # or lead to large memory spikes
+            return get_variable_preview(value)
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise
             # BaseExceptions, which shouldn't crash the kernel
