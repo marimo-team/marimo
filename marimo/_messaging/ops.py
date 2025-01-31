@@ -539,9 +539,9 @@ class VariableValue:
             if table_manager is not None:
                 return str(table_manager)
             else:
+                # TODO(akshayka): str(value) can be extremely expensive
+                # for some objects; find a better solution.
                 return str(value)[:50]
-
-            return str(value)[:50]
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise
             # BaseExceptions, which shouldn't crash the kernel

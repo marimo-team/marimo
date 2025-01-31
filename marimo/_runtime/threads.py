@@ -14,6 +14,7 @@ from marimo._runtime.context.types import (
     get_context,
     initialize_context,
     runtime_context_installed,
+    teardown_context,
 )
 
 # Set of thread ids for running mo.Threads
@@ -94,3 +95,4 @@ class Thread(threading.Thread):
         THREADS.add(thread_id)
         super().run()
         THREADS.remove(thread_id)
+        teardown_context()
