@@ -19,7 +19,7 @@ class SQLVisitor(ast.NodeVisitor):
     This should be inside a function called `.execute` or `.sql`.
     """
 
-    def __init__(self, raw=False) -> None:
+    def __init__(self, raw: bool = False) -> None:
         super().__init__()
         self._sqls: list[str] = []
         self._raw = raw

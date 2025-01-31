@@ -209,7 +209,7 @@ class CellImpl:
     def run_result_status(self) -> Optional[RunResultStatusType]:
         return self._run_result_status.state
 
-    def _get_sqls(self, raw=False) -> list[str]:
+    def _get_sqls(self, raw: bool = False) -> list[str]:
         try:
             visitor = SQLVisitor(raw=raw)
             visitor.visit(ast.parse(self.code))

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union, cast
 
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
@@ -486,7 +486,7 @@ def convert_from_md_to_app(text: str) -> App:
     if not text.strip():
         app = App()
     else:
-        app: App = MarimoParser(output_format="marimo-app").convert(text)  # type: ignore[arg-type, return-value]
+        app = cast(App, MarimoParser(output_format="marimo-app").convert(text))
 
     app._cell_manager.ensure_one_cell()
     return app
