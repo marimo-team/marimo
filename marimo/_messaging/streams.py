@@ -91,7 +91,7 @@ class ThreadSafeStream(Stream):
 
         # Console outputs are buffered
         self.console_msg_cv = threading.Condition(threading.Lock())
-        self.console_msg_queue: deque[ConsoleMsg] = deque()
+        self.console_msg_queue: deque[ConsoleMsg | None] = deque()
         self.buffered_console_thread = threading.Thread(
             target=buffered_writer,
             args=(self.console_msg_queue, self, self.console_msg_cv),
@@ -109,6 +109,16 @@ class ThreadSafeStream(Stream):
                 # Most likely a BrokenPipeError, caused by the
                 # server process shutting down
                 LOGGER.debug("Error when writing (op: %s) to pipe: %s", op, e)
+
+    def stop(self) -> None:
+        """Teardown resources created by the stream."""
+        # Sending `None` through the queue signals the console thread to exit.
+        # We don't join the thread in case its processing outputs still; don't
+        # want to block the entire program.
+        self.console_msg_queue.append(None)
+        with self.console_msg_cv:
+            self.console_msg_cv.notify()
+
 
 
 def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:

@@ -84,6 +84,7 @@ from marimo._runtime.context.kernel_context import (
     KernelRuntimeContext,
     initialize_kernel_context,
 )
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -2251,7 +2252,7 @@ def launch_kernel(
 
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
-    async def control_loop() -> None:
+    async def control_loop(kernel: Kernel) -> None:
         while True:
             try:
                 request: ControlRequest | None = control_queue.get()
@@ -2272,14 +2273,22 @@ def launch_kernel(
     # top-level await; nothing else is awaited. Don't introduce async
     # primitives anywhere else in the runtime unless there is a *very* good
     # reason; prefer using threads (for performance and clarity).
-    asyncio.run(control_loop())
+    asyncio.run(control_loop(kernel))
 
     if stdout is not None:
         stdout._watcher.stop()
     if stderr is not None:
         stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()
+    stream.stop()
 
     if profiler is not None and profile_path is not None:
         profiler.disable()
         profiler.dump_stats(profile_path)
+
+    # TODO(akshayka): There's a memory leak in run mode, with memory
+    # usage increasing with each session creation. Somehow the kernel
+    # appears to leak, even though the thread exits. As a hack we manually
+    # clear various data structures.
+    teardown_context()
+    kernel._module.__dict__.clear()
