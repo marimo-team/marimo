@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
-import { DEFAULT_ENGINE, SQLLanguageAdapter } from "./sql";
+import { SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -113,7 +113,7 @@ const SQLEngineSelect: React.FC<{
       >
         {/* Fallback option if an existing option is deleted, 
         let's users intentionally switch to default if needed */}
-        <option value={DEFAULT_ENGINE}>Choose an option</option>
+        <option value="None">Choose an option</option>
         {[...connectionsMap.entries()].map(([key, value]) => (
           <option key={key} value={value.name}>
             {value.display_name}
