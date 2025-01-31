@@ -532,10 +532,17 @@ class VariableValue:
             self.value = None
 
     def _stringify(self, value: object) -> str:
+        MAX_STR_LEN = 50
+
+        if isinstance(value, str):
+            if len(value) > MAX_STR_LEN:
+                return value[:MAX_STR_LEN]
+            return value
+
         try:
             # str(value) can be slow for large objects
             # or lead to large memory spikes
-            return get_variable_preview(value)
+            return get_variable_preview(value, max_str_len=MAX_STR_LEN)
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise
             # BaseExceptions, which shouldn't crash the kernel
