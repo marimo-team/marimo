@@ -120,7 +120,6 @@ class ThreadSafeStream(Stream):
             self.console_msg_cv.notify()
 
 
-
 def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:
     """Watch a file descriptor and forward it to a stream object."""
 
