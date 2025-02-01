@@ -2138,6 +2138,8 @@ def launch_kernel(
         profiler = cProfile.Profile()
         profiler.enable()
 
+    should_redirect_stdio = is_edit_mode or redirect_console_to_browser
+
     # Create communication channels
     if socket_addr is not None:
         n_tries = 0
@@ -2156,10 +2158,16 @@ def launch_kernel(
             LOGGER.debug("Failed to connect to socket.")
             return
 
-        stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+        stream = ThreadSafeStream(
+            pipe=pipe,
+            input_queue=input_queue,
+            redirect_console=should_redirect_stdio,
+        )
     elif stream_queue is not None:
         stream = ThreadSafeStream(
-            pipe=QueuePipe(stream_queue), input_queue=input_queue
+            pipe=QueuePipe(stream_queue),
+            input_queue=input_queue,
+            redirect_console=should_redirect_stdio,
         )
     else:
         raise RuntimeError(
@@ -2167,16 +2175,8 @@ def launch_kernel(
         )
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
-    stdout = (
-        ThreadSafeStdout(stream)
-        if is_edit_mode or redirect_console_to_browser
-        else None
-    )
-    stderr = (
-        ThreadSafeStderr(stream)
-        if is_edit_mode or redirect_console_to_browser
-        else None
-    )
+    stdout = ThreadSafeStdout(stream) if should_redirect_stdio else None
+    stderr = ThreadSafeStderr(stream) if should_redirect_stdio else None
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None

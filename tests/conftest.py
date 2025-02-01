@@ -50,6 +50,7 @@ class _MockStream(ThreadSafeStream):
     cell_id: int | None = None
     input_queue: None = None
     pipe: None = None
+    redirect_console: bool = False
 
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
         default_factory=list

@@ -81,22 +81,25 @@ class ThreadSafeStream(Stream):
         self,
         pipe: PipeProtocol,
         input_queue: QueueType[str],
+        redirect_console: bool,
         cell_id: Optional[CellId_t] = None,
     ):
         self.pipe = pipe
         self.cell_id = cell_id
+        self.redirect_console = redirect_console
         # A single stream is shared by the kernel and the code completion
         # worker. The lock should almost always be uncontended.
         self.stream_lock = threading.Lock()
 
-        # Console outputs are buffered
-        self.console_msg_cv = threading.Condition(threading.Lock())
-        self.console_msg_queue: deque[ConsoleMsg | None] = deque()
-        self.buffered_console_thread = threading.Thread(
-            target=buffered_writer,
-            args=(self.console_msg_queue, self, self.console_msg_cv),
-        )
-        self.buffered_console_thread.start()
+        if self.redirect_console:
+            # Console outputs are buffered
+            self.console_msg_cv = threading.Condition(threading.Lock())
+            self.console_msg_queue: deque[ConsoleMsg | None] = deque()
+            self.buffered_console_thread = threading.Thread(
+                target=buffered_writer,
+                args=(self.console_msg_queue, self, self.console_msg_cv),
+            )
+            self.buffered_console_thread.start()
 
         # stdin messages are pulled from this queue
         self.input_queue = input_queue
@@ -115,9 +118,10 @@ class ThreadSafeStream(Stream):
         # Sending `None` through the queue signals the console thread to exit.
         # We don't join the thread in case its processing outputs still; don't
         # want to block the entire program.
-        self.console_msg_queue.append(None)
-        with self.console_msg_cv:
-            self.console_msg_cv.notify()
+        if self.redirect_console:
+            self.console_msg_queue.append(None)
+            with self.console_msg_cv:
+                self.console_msg_cv.notify()
 
 
 def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:
