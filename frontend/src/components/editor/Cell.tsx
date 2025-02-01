@@ -42,7 +42,7 @@ import useEvent from "react-use-event-hook";
 import { CellEditor } from "./cell/code/cell-editor";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
-import { isConsoleOutputEmpty, isOutputEmpty } from "@/core/cells/outputs";
+import { isOutputEmpty } from "@/core/cells/outputs";
 import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
 import { useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
@@ -373,7 +373,7 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
-  const hasConsoleOutput = !isConsoleOutputEmpty(consoleOutputs);
+  const hasConsoleOutput = consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
