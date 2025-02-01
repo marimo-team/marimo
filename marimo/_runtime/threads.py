@@ -5,7 +5,6 @@ import threading
 from typing import Any
 
 from marimo._messaging.streams import ThreadSafeStream
-from marimo._pyodide.streams import PyodideStream
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.script_context import ScriptRuntimeContext
 from marimo._runtime.context.types import (
