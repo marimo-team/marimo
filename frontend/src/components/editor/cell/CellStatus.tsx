@@ -83,7 +83,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className="cell-status-icon cell-status-stale"
@@ -109,7 +109,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className="cell-status-icon cell-status-disabled"
@@ -134,7 +134,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className="cell-status-icon cell-status-stale"
@@ -162,7 +162,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className="cell-status-icon cell-status-stale"
@@ -188,7 +188,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className={"cell-status-icon elapsed-time running"}
@@ -213,7 +213,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className="cell-status-icon cell-status-queued"
@@ -257,7 +257,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
 
     return (
       <div className="cell-status-icon flex items-center gap-2">
-        <Tooltip content={title} usePortal={false}>
+        <Tooltip content={title} usePortal={true}>
           <div
             className="cell-status-stale"
             data-testid="cell-status"
@@ -274,7 +274,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
                 {lastRanTime}
               </div>
             }
-            usePortal={false}
+            usePortal={true}
           >
             <div
               className={"elapsed-time hover-action"}
@@ -304,7 +304,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
             {lastRanTime}
           </div>
         }
-        usePortal={false}
+        usePortal={true}
       >
         <div
           className={"cell-status-icon elapsed-time hover-action"}
