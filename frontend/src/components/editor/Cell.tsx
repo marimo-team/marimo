@@ -373,6 +373,7 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
+  const hasConsoleOutput = consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
@@ -588,6 +589,7 @@ const CellComponent = (
       status={status}
       getEditorView={getEditorView}
       hasOutput={hasOutput}
+      hasConsoleOutput={hasConsoleOutput}
       name={name}
     >
       <SortableCell
@@ -617,6 +619,7 @@ const CellComponent = (
                 cellConfig={cellConfig}
                 needsRun={needsRun}
                 hasOutput={hasOutput}
+                hasConsoleOutput={hasConsoleOutput}
                 cellActionDropdownRef={cellActionDropdownRef}
                 cellId={cellId}
                 name={name}
@@ -733,6 +736,7 @@ interface CellToolbarProps {
   cellConfig: CellConfig;
   needsRun: boolean;
   hasOutput: boolean;
+  hasConsoleOutput: boolean;
   cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>;
   cellId: CellId;
   name: string;
@@ -747,6 +751,7 @@ const CellToolbar = ({
   cellConfig,
   needsRun,
   hasOutput,
+  hasConsoleOutput,
   onRun,
   cellActionDropdownRef,
   cellId,
@@ -777,6 +782,7 @@ const CellToolbar = ({
         name={name}
         config={cellConfig}
         hasOutput={hasOutput}
+        hasConsoleOutput={hasConsoleOutput}
       >
         <ToolbarItem
           variant={"green"}
