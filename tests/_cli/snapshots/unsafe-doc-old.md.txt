@@ -23,7 +23,7 @@ it's an unparsable cell
 ```
 
 <!-- Actually markdown -->
-```python {.marimo} `
+```{python} `
   print("Hello, World!")
 
 <!-- Disabled code block -->
@@ -48,7 +48,7 @@ it's an unparsable cell
 
 ````python {.marimo unparsable="true"}
 """
-```python {.marimo}
+```{python}
 print("Hello, World!")
 ````
 
@@ -56,8 +56,8 @@ print("Hello, World!")
 ```
 
 <!-- Improperly nested code block -->
-```python {.marimo}
-````python {.marimo}
+```{python}
+````{python}
 print("Hello, World!")
 ````
 ```
@@ -69,7 +69,7 @@ print("Hello, World!")
 ````python {.marimo}
 mo.md("""
   This is a markdown cell with an execution block in it
-  ```python {.marimo}
+  ```{python}
   # To ambiguous to convert
   ```
   """)

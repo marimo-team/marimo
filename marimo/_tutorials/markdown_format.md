@@ -1,6 +1,6 @@
 ---
 title: Markdown
-marimo-version: 0.4.11
+marimo-version: 0.10.9
 ---
 
 # Markdown file format
@@ -12,6 +12,7 @@ work on prose-heavy marimo notebooks in your editor of choice.
 _Make sure to look at the markdown
 [source code](https://github.com/marimo-team/marimo/blob/main/marimo/_tutorials/markdown_format.md)
 of this tutorial!_
+
 ## Running markdown notebooks
 
 To edit a markdown notebook, use
@@ -35,14 +36,13 @@ by running the following command:
 $ marimo export md notebook.py > notebook.md
 ```
 <!---->
-
 ## Creating Python cells
 
 When you do need to create a Python cell in the markdown format, you can use a
 special code block:
 
 ````md
-```{.python.marimo}
+```python {.marimo}
 import matplotlib.pyplot as plt
 plt.plot([1, 2, 3, 4])
 ```
@@ -50,15 +50,16 @@ plt.plot([1, 2, 3, 4])
 
 This will create the following cell:
 
-```{.python.marimo}
+```python {.marimo}
 import matplotlib.pyplot as plt
+
 plt.plot([1, 2, 3, 4])
 plt.gca()
 ```
 
-As long as your code block contains the word `python` in a brace, like
-`{python}`, or `{.python note="Whatever you want"}`, marimo will treat it as a
-Python cell.
+As long as your code block contains the word `marimo` in a brace, like
+`{marimo}`, or `{.marimo note="Whatever you want"}`, marimo will treat it as a Python cell.
+
 ## `mo` tricks and tips
 
 You can break up markdown into multiple cells by using an empty html tag `<!---->`:
@@ -68,31 +69,32 @@ View the source of this notebook to see how this cell was created.
 You can still hide and disable code cells in markdown notebooks:
 
 ````md
-```{python hide_code="true"}
+```python {.marimo hide_code="true"}
 import pandas as pd
 pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
 ```
 ````
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 import pandas as pd
-pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+
+pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
 ```
 
 ````md
-```{python disabled="true"}
+```python {.marimo disabled="true"}
 print("This code cell is disabled, there should be no output!")
 ```
 ````
 
-```{.python.marimo disabled="true"}
+```python {.marimo disabled="true"}
 print("This code cell is disabled, there should be no output!")
 ```
 
 Additionally, marimo knows when your code has a syntax issue:
 
 ````md
-```{python}
+```python {.marimo}
 print("This code cell has a syntax error"
 ```
 ````
@@ -100,12 +102,12 @@ print("This code cell has a syntax error"
 and on notebook save, will annotate the cell for you:
 
 ````md
-```{python unparseable="true"}
+```python {.marimo unparseable="true"}
 print("This code cell has a syntax error"
 ```
 ````
 
-```{.python.marimo unparsable="true"}
+```python {.marimo unparsable="true"}
 print("This code cell has a syntax error"
 ```
 
@@ -117,8 +119,8 @@ just give you the raw string. This lets you clearly delineate what values are
 supposed to be computed, and what values are static. To interpolate Python
 values, just use a Python cell:
 
-```{.python.marimo}
-'🍃' * 7
+```python {.marimo}
+"🍃" * 7
 ```
 
 ### Limitations on conversion
@@ -126,7 +128,7 @@ values, just use a Python cell:
 Whenever you try to implement a cell block like this:
 
 ````md
-```{python}
+```python {.marimo}
 mo.md("This is a markdown cell")
 ```
 ````
@@ -134,13 +136,15 @@ mo.md("This is a markdown cell")
 The markdown format will know to automatically keep this as markdown. However,
 some ambiguous cases can't be converted to markdown like this:
 
-````{.python.marimo}
-mo.md("""
-  This is a markdown cell with an execution block in it
-  ```{python}
-  # Too ambiguous to convert
-  ```
-  """)
+````python {.marimo}
+mo.md(
+    """
+    This is a markdown cell with an execution block in it
+    ```python {.marimo}
+    # Too ambiguous to convert
+    ```
+    """
+)
 ````
 
 It's not likely that you'll run into this issue, but rest assured that marimo
@@ -154,16 +158,17 @@ markdown notebook cells like you can in a python notebook; but you can still
 give your cells a name:
 
 ````md
-```{.python.marimo name="maybe"}
+```python {.marimo name="maybe"}
 # 🎵 Hey, I just met you, and this is crazy
 ```
 ````
 
-```{.python.marimo name="maybe"}
+```python {.marimo name="maybe"}
 # But here's my `cell_id`, so call me, `maybe` 🎶
 ```
 
 ## Converting back to the Python file format
+
 The markdown format is supposed to lower the barrier for writing text heavy
 documents, it's not meant to be a full replacement for the Python notebook
 format. You can always convert back to a Python notebook if you need to:
@@ -172,11 +177,45 @@ format. You can always convert back to a Python notebook if you need to:
 $ marimo convert my_marimo.md > my_marimo.py
 ```
 
+<!---->
+
+## SQL in markdown
+
+You can also run parameterized SQL queries in markdown cells through marimo.
+
+```python {.marimo hide_code="true"}
+num = mo.ui.slider(1, 15, label="Fibonacci numbers")
+num
+```
+
+```python {.marimo}
+_df = mo.sql(
+    f"""
+    WITH RECURSIVE fibonacci AS (
+      SELECT
+        1 as n,
+        1 as fib,
+        1 as prev
+      UNION ALL
+      SELECT
+        n + 1,
+        fib + prev,
+        fib
+      FROM fibonacci
+      WHERE n < {num.value}
+    )
+    SELECT n, fib
+    FROM fibonacci
+    ORDER BY n;
+    """
+)
+```
+
 ## More on markdown
 
 Be sure to checkout the markdown.py tutorial (`marimo tutorial markdown`) for
 more information on to type-set and render markdown in marimo.
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 import marimo as mo
 ```

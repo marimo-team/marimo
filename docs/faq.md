@@ -472,7 +472,7 @@ To include a marimo notebook in a JupyterBook, you can either export your
 notebook to an `ipynb` file, or export to `HTML`:
 
 1. export to ipynb: `marimo export ipynb my_notebook.py -o my_notebook.ipynb --include-outputs`
-2. export to HTML: `marimo export ipynb my_notebook.py -o my_notebook.html`
+2. export to HTML: `marimo export html my_notebook.py -o my_notebook.html`
 
 <a name="faq-app-deploy"></a>
 

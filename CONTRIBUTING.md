@@ -186,11 +186,13 @@ hatch run test:test tests/_ast/
 ```
 
 Run tests with optional dependencies
+
 ```bash
 hatch run test-optional:test tests/_ast/
 ```
 
 Run tests with a specific Python version
+
 ```bash
 hatch run +py=3.10 test:test tests/_ast/
 # or
@@ -327,6 +329,24 @@ If you use vscode, you might find the following `settings.json` useful:
     "editor.defaultFormatter": "biomejs.biome"
   }
 }
+```
+
+## Testing a branch from GitHub
+
+This requires `uv` to be installed. This may take a bit to install frontend dependencies and build the frontend.
+
+```bash
+MARIMO_BUILD_FRONTEND=true \
+uvx --with git+https://github.com/marimo-team/marimo.git@BRANCH_NAME \
+marimo edit
+```
+
+Additionally, you can run `marimo` from the main branch:
+
+```bash
+MARIMO_BUILD_FRONTEND=true \
+uvx --with git+https://github.com/marimo-team/marimo.git \
+marimo edit
 ```
 
 ## Your first PR

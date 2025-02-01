@@ -14,11 +14,11 @@ The biggest difference between marimo and Jupyter is *reactive execution*.
 
 Try updating the value of x in the next cell, then run it.
 
-```{.python.marimo}
+```python {.marimo}
 x = 0; x
 ```
 
-```{.python.marimo}
+```python {.marimo}
 y = x + 1; y
 ```
 
@@ -48,16 +48,16 @@ This makes marimo notebooks as reproducible as regular Python scripts.
 marimo comes with a [large library of UI elements](https://docs.marimo.io/guides/interactivity.html) that are automatically
 synchronized with Python.
 
-```{.python.marimo}
+```python {.marimo}
 import marimo as mo
 ```
 
-```{.python.marimo}
+```python {.marimo}
 slider = mo.ui.slider(start=1, stop=10, label="$x$")
 slider
 ```
 
-```{.python.marimo}
+```python {.marimo}
 slider.value
 ```
 
@@ -86,11 +86,11 @@ for both Jupyter and Streamlit.
 
 In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
 
-```{.python.marimo}
+```python {.marimo}
 z.value
 ```
 
-```{.python.marimo}
+```python {.marimo}
 z = mo.ui.slider(1, 10, label="$z$"); z
 ```
 
@@ -102,15 +102,15 @@ In contrast, Jupyter notebooks implicitly assume a top-to-bottom execution order
 
 marimo disallows variable re-assignment. Here is something commonly done in Jupyter notebooks that cannot be done in marimo:
 
-```{.python.marimo}
+```python {.marimo}
 df = 0
 ```
 
-```{.python.marimo}
+```python {.marimo}
 df = 1
 ```
 
-```{.python.marimo}
+```python {.marimo}
 results = df.groupby(["my_column"]).sum()
 ```
 
@@ -126,7 +126,7 @@ If you run into this error, here are your options:
 
 marimo only has Python cells, but you can still write Markdown: `import marimo as mo` and use `mo.md` to write Markdown.
 
-```{.python.marimo}
+```python {.marimo}
 mo.md(
     f"""
     The value of {slider} is {slider.value}.

@@ -17,7 +17,8 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.4,<4",
     # add features to markdown
-    "pymdown-extensions>=10,<11",
+    # Pinned to specific version for introduction of codeblock handling.
+    "pymdown-extensions>=10.11.2,<11",
     # syntax highlighting of code in markdown
     "pygments>=2.13,<3",
     # for reading, writing configs
@@ -131,6 +132,9 @@ docs = [
 
 [tool.hatch]
 installer = "uv"
+
+[tool.hatch.build.hooks.custom]
+path = "build_hook.py"
 
 [tool.hatch.version]
 path = "marimo/__init__.py"
@@ -247,14 +251,14 @@ extra-dependencies = [
     # testing gen ai
     "openai>=1.55.3",
     "anthropic==0.34.1",
-    "google-generativeai==0.8.2",
+    "google-generativeai==0.8.4",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.2",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.0; python_version == '3.12'",
+    "scikit-bio>=0.6.3; python_version == '3.12'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]

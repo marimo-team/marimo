@@ -13,7 +13,7 @@ from marimo._sql.engines import (
     SQLAlchemyEngine,
     raise_df_import_error,
 )
-from marimo._sql.sql import _execute_query, sql
+from marimo._sql.sql import sql
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -116,7 +116,7 @@ def test_duckdb_engine_execute(
 
     # Test with explicit connection
     engine = DuckDBEngine(duckdb_connection)
-    result = _execute_query("SELECT * FROM test ORDER BY id", engine)
+    result = engine.execute("SELECT * FROM test ORDER BY id")
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
     assert len(result) == 4
 
@@ -131,7 +131,7 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
     import polars as pl
 
     engine = SQLAlchemyEngine(sqlite_engine)
-    result = _execute_query("SELECT * FROM test ORDER BY id", engine)
+    result = engine.execute("SELECT * FROM test ORDER BY id")
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
     assert len(result) == 4
 
