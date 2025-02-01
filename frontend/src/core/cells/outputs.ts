@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CellId } from "./ids";
 import type { OutputMessage } from "../kernel/messages";
+import type { WithResponse } from "./types";
 
 // This does not need to be overcomplicated. We can just store the expanded
 // state in a global map instead of Jotai since state is not shared between cells.
@@ -27,6 +28,20 @@ export function isOutputEmpty(
   }
 
   if (output.data == null || output.data === "") {
+    return true;
+  }
+
+  return false;
+}
+
+export function isConsoleOutputEmpty(
+  output: Array<WithResponse<OutputMessage>> | undefined | null,
+): boolean {
+  if (output == null) {
+    return true;
+  }
+
+  if (output.length === 0) {
     return true;
   }
 

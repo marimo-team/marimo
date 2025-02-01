@@ -62,6 +62,7 @@ export interface CellActionButtonProps
   cellId: CellId;
   status: RuntimeState;
   hasOutput: boolean;
+  hasConsoleOutput: boolean;
   getEditorView: () => EditorView | null;
 }
 
@@ -97,7 +98,15 @@ export function useCellActionButtons({ cell }: Props) {
     return [];
   }
 
-  const { cellId, config, getEditorView, name, hasOutput, status } = cell;
+  const {
+    cellId,
+    config,
+    getEditorView,
+    name,
+    hasOutput,
+    hasConsoleOutput,
+    status,
+  } = cell;
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -242,7 +251,7 @@ export function useCellActionButtons({ cell }: Props) {
       {
         icon: <XCircleIcon size={13} strokeWidth={1.5} />,
         label: "Clear output",
-        hidden: !hasOutput,
+        hidden: !(hasOutput || hasConsoleOutput),
         handle: () => {
           clearCellOutput({ cellId });
         },
