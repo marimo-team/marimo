@@ -56,13 +56,7 @@ class Thread(threading.Thread):
                     # TODO(akshayka): stdin is not threadsafe
                     input_queue=ctx.stream.input_queue,
                     cell_id=ctx.stream.cell_id,
-                )
-            elif isinstance(ctx.stream, PyodideStream):
-                self._marimo_ctx.stream = type(ctx.stream)(
-                    pipe=ctx.stream.pipe,
-                    # TODO(akshayka): stdin is not threadsafe
-                    input_queue=ctx.stream.input_queue,
-                    cell_id=ctx.stream.cell_id,
+                    redirect_console=False,
                 )
             else:
                 raise RuntimeError(
@@ -77,6 +71,7 @@ class Thread(threading.Thread):
                     pipe=ctx.stream.pipe,
                     input_queue=ctx.stream.input_queue,
                     cell_id=ctx.stream.cell_id,
+                    redirect_console=False,
                 )
             else:
                 raise RuntimeError(
