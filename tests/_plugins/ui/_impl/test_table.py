@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.data.data import from_data_uri
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
@@ -15,6 +14,7 @@ from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
+from marimo._utils.data_uri import from_data_uri
 from tests._data.mocks import create_dataframes
 
 

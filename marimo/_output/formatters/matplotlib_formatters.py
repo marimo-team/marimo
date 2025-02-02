@@ -32,7 +32,7 @@ class MatplotlibFormatter(FormatterFactory):
         from matplotlib.container import BarContainer  # type: ignore
 
         from marimo._output import formatting
-        from marimo._output.utils import build_data_url
+        from marimo._utils.data_uri import build_data_url
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
             buf = io.BytesIO()
