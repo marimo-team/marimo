@@ -271,7 +271,7 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            for _, item in self.registry.items():
+            for item in self.registry.values():
                 if sys.platform == "win32":
                     item.shm.close()
                 item.shm.unlink()

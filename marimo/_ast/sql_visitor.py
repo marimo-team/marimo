@@ -373,7 +373,7 @@ def find_sql_refs(
                 )
 
             for scope in root.traverse():  # type: ignore
-                for _alias, (_node, source) in scope.selected_sources.items():
+                for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):
                         append_refs_from_table(source)
 
