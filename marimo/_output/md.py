@@ -77,6 +77,7 @@ def get_extensions() -> list[Union[str, markdown.Extension]]:
                     "pymdownx.blocks.caption",
                     "pymdownx.blocks.tab",
                     "pymdownx.blocks.details",
+                    "pymdownx.blocks.admonition",
                 ]
                 if _has_module(module)
             ]
@@ -94,8 +95,6 @@ def get_extensions() -> list[Union[str, markdown.Extension]]:
         "toc",
         # Footnotes
         "footnotes",
-        # Admonitions
-        "admonition",
         # Sane lists, to include <ol start="n">
         "sane_lists",
         # Links
