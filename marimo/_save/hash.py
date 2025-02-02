@@ -968,7 +968,7 @@ def content_cache_attempt_from_base(
         refs, scope, ctx
     )
 
-    refs, content, tmp_stateful_refs = hasher.collect_for_content_hash(
+    refs, _content, tmp_stateful_refs = hasher.collect_for_content_hash(
         refs, scope, ctx, scoped_refs, apply_hash=True
     )
     # If the execution block covers this variable, then that's OK

@@ -75,7 +75,7 @@ class TestScriptCache:
             with persistent_cache(name="one",
                                   _loader=MockLoader(
                                     data={"X": 7, "Y": 8})
-                                  ) as cache: # noqa: E501
+                                  ) as cache:  # noqa: E501
                 Y = 9
                 X = 10
             # fmt: on
@@ -114,8 +114,8 @@ class TestScriptCache:
             # fmt: off
             b = [2]
             if True:
-              with persistent_cache("if", _loader=_loader):
-                  b = [
+              with persistent_cache("if", _loader=_loader):  # noqa: E111
+                  b = [  # noqa: E111
                       7
                   ]
             # fmt: on
@@ -222,7 +222,7 @@ class TestScriptCache:
 
             _loader = MockLoader()
             # fmt: off
-            with persistent_cache("else", _loader=_loader): call(False) # noqa: E701
+            with persistent_cache("else", _loader=_loader): call(False)  # noqa: E701
             # fmt: on
 
         with pytest.raises(BlockException):
@@ -1259,7 +1259,7 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state, set_state = mo.state(None)
+            _state, _set_state = mo.state(None)
 
             @mo.cache
             def g(state):
@@ -1283,7 +1283,7 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state, set_state = mo.state(None)
+            state, _set_state = mo.state(None)
 
             @mo.cache
             def g():
@@ -1309,11 +1309,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state0, set_state0 = mo.state(1)
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(10)
+            state0, _set_state0 = mo.state(1)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(10)
 
-            state, set_state = mo.state(100)
+            _state, _set_state = mo.state(100)
 
             @mo.cache
             def h(state):
@@ -1344,11 +1344,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state0, set_state0 = mo.state(1)
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(10)
+            state0, _set_state0 = mo.state(1)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(10)
 
-            state, set_state = mo.state(100)
+            state, _set_state = mo.state(100)
 
             # Example of a case where things start to get very tricky. There
             # comes a point where you might also have to capture frame levels
@@ -1380,11 +1380,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(2)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(2)
 
             # Here as a var for shadowing
-            state, set_state = mo.state(3)
+            _state, _set_state = mo.state(3)
 
             @mo.cache
             def g(state):
@@ -1437,16 +1437,19 @@ class TestPersistentCache:
     ) -> None:
         await k.run(
             [
-                exec_req.get("""
+                exec_req.get(
+                    """
                 import marimo as mo
                 import os
                 from pathlib import Path
                 pc = mo.persistent_cache
-                """),
+                """
+                ),
                 exec_req.get(
                     f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
                 ),
-                exec_req.get("""
+                exec_req.get(
+                    """
                 assert not os.path.exists(tmp_path_fixture / "basic")
                 with pc("basic", save_path=tmp_path_fixture) as cache:
                     _b = 1
@@ -1454,15 +1457,18 @@ class TestPersistentCache:
                 assert not cache._cache.hit
                 assert cache._cache.meta["version"] == mo._save.MARIMO_CACHE_VERSION
                 assert os.path.exists(tmp_path_fixture / "basic" / f"P_{cache._cache.hash}.pickle")
-                """),
-                exec_req.get("""
+                """
+                ),
+                exec_req.get(
+                    """
                 with pc("basic", save_path=tmp_path_fixture) as cache_2:
                     _b = 1
                 assert _b == 1
                 assert cache_2._cache.hit
                 assert cache._cache.hash == cache_2._cache.hash
                 assert os.path.exists(tmp_path_fixture / "basic" / f"P_{cache._cache.hash}.pickle")
-                """),
+                """
+                ),
             ]
         )
         assert not k.stdout.messages, k.stdout
@@ -1473,31 +1479,37 @@ class TestPersistentCache:
     ) -> None:
         await k.run(
             [
-                exec_req.get("""
+                exec_req.get(
+                    """
                 import marimo as mo
                 import os
                 from pathlib import Path
                 pc = mo.persistent_cache
-                """),
+                """
+                ),
                 exec_req.get(
                     f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
                 ),
-                exec_req.get("""
+                exec_req.get(
+                    """
                 assert not os.path.exists(tmp_path_fixture / "json")
                 with pc("json", save_path=tmp_path_fixture, method="json") as json_cache:
                     _b = 1
                 assert _b == 1
                 assert not json_cache._cache.hit
                 assert os.path.exists(tmp_path_fixture / "json" / f"P_{json_cache._cache.hash}.json")
-                """),
-                exec_req.get("""
+                """
+                ),
+                exec_req.get(
+                    """
                 with pc("json", save_path=tmp_path_fixture, method="json") as json_cache_2:
                     _b = 1
                 assert _b == 1
                 assert json_cache_2._cache.hit
                 assert json_cache._cache.hash == json_cache_2._cache.hash
                 assert os.path.exists(tmp_path_fixture / "json" / f"P_{json_cache._cache.hash}.json")
-                """),
+                """
+                ),
             ]
         )
         assert not k.stdout.messages, k.stdout

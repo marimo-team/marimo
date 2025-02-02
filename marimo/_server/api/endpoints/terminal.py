@@ -91,7 +91,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     child_pid, fd = pty.fork()
     if child_pid == 0:
         default_shell = os.environ.get("SHELL", "/bin/bash")
-        subprocess.run([default_shell], shell=True)  ## noqa: ASYNC221
+        subprocess.run([default_shell], shell=True)  # noqa: ASYNC221
         return
 
     reader_task = asyncio.create_task(_read_from_pty(fd, websocket))
@@ -118,5 +118,5 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         if writer_task and not writer_task.done():
             writer_task.cancel()
         os.kill(child_pid, signal.SIGKILL)
-        os.waitpid(child_pid, 0)  ## noqa: ASYNC222
+        os.waitpid(child_pid, 0)  # noqa: ASYNC222
     LOGGER.debug("Terminal websocket closed")

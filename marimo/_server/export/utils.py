@@ -13,7 +13,7 @@ from marimo._server.file_manager import AppFileManager
 
 def format_filename_title(filename: str) -> str:
     basename = os.path.basename(filename)
-    name, ext = os.path.splitext(basename)
+    name, _ext = os.path.splitext(basename)
     title = re.sub("[-_]", " ", name)
     return title.title()
 

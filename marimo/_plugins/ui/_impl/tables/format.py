@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Union
 
+from marimo import _loggers
 from marimo._plugins.core.web_component import JSONType
+
+LOGGER = _loggers.marimo_logger()
 
 FormatMapping = Dict[str, Union[str, Callable[..., JSONType]]]
 
@@ -38,9 +41,7 @@ def format_value(
         if callable(formatter):
             return formatter(value)
     except Exception as e:
-        import logging
-
-        logging.warning(
+        LOGGER.warning(
             f"Error formatting for value {value} in column {col}: {str(e)}"
         )
         return value
