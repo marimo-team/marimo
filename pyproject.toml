@@ -389,7 +389,7 @@ unfixable = ["F401"]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D"]
+"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841"]
 "dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
