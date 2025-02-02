@@ -536,6 +536,25 @@ class Kernel:
             patches.patch_micropip(self.globals)
         exec("import marimo as __marimo__", self.globals)
 
+    def teardown(self) -> None:
+        """Teardown resources owned by the kernel."""
+        if self.stdout is not None:
+            self.stdout.stop()
+        if self.stderr is not None:
+            self.stderr.stop()
+        if self.stdin is not None:
+            self.stdin.stop()
+        self.stream.stop()
+
+        if self.module_watcher is not None:
+            self.module_watcher.stop()
+
+        # TODO(akshayka): There's a memory leak in run mode, with memory
+        # usage increasing with each session creation. Somehow the kernel
+        # globals appear to leak, even though the thread exits. As a hack we
+        # manually clear kernel memory.
+        self._module.__dict__.clear()
+
     def lazy(self) -> bool:
         return self.reactive_execution_mode == "lazy"
 
@@ -572,9 +591,10 @@ class Kernel:
                 self._update_script_metadata(["marimo"])
 
         if (
-            autoreload_mode == "lazy" or autoreload_mode == "autorun"
+            (autoreload_mode == "lazy" or autoreload_mode == "autorun")
             # Pyodide doesn't support hot module reloading
-        ) and not is_pyodide():
+            and not is_pyodide()
+        ):
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -2141,9 +2161,9 @@ def launch_kernel(
     should_redirect_stdio = is_edit_mode or redirect_console_to_browser
 
     # Create communication channels
+    pipe: Optional[TypedConnection[KernelMessage]] = None
     if socket_addr is not None:
         n_tries = 0
-        pipe: Optional[TypedConnection[KernelMessage]] = None
         while n_tries < 100:
             try:
                 pipe = TypedConnection[KernelMessage].of(
@@ -2173,6 +2193,7 @@ def launch_kernel(
         raise RuntimeError(
             "One of queue_pipe and socket_addr must be non None"
         )
+
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
     stdout = ThreadSafeStdout(stream) if should_redirect_stdio else None
@@ -2186,10 +2207,12 @@ def launch_kernel(
         else None
     )
 
-    # In run mode, the kernel should always be in autorun
+    # In run mode, the kernel should always be in autorun, and the module
+    # autoreloader is disabled
     if not is_edit_mode:
         user_config = user_config.copy()
         user_config["runtime"]["on_cell_change"] = "autorun"
+        user_config["runtime"]["auto_reload"] = "off"
 
     def _enqueue_control_request(req: ControlRequest) -> None:
         control_queue.put_nowait(req)
@@ -2279,20 +2302,12 @@ def launch_kernel(
     # reason; prefer using threads (for performance and clarity).
     asyncio.run(control_loop(kernel))
 
-    if stdout is not None:
-        stdout._watcher.stop()
-    if stderr is not None:
-        stderr._watcher.stop()
-    get_context().virtual_file_registry.shutdown()
-    stream.stop()
-
     if profiler is not None and profile_path is not None:
         profiler.disable()
         profiler.dump_stats(profile_path)
 
-    # TODO(akshayka): There's a memory leak in run mode, with memory
-    # usage increasing with each session creation. Somehow the kernel
-    # appears to leak, even though the thread exits. As a hack we manually
-    # clear various data structures.
+    get_context().virtual_file_registry.shutdown()
     teardown_context()
-    kernel._module.__dict__.clear()
+    kernel.teardown()
+    if isinstance(pipe, connection.Connection):
+        pipe.close()
