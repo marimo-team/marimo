@@ -71,6 +71,7 @@ class RuntimeContext(abc.ABC):
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
     virtual_files_supported: bool
+    # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None
     stderr: Stderr | None

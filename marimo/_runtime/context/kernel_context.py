@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class KernelRuntimeContext(RuntimeContext):
     """Encapsulates runtime state for a session."""
 
+    # The kernel is _not_ owned by the context; don't teardown.
     _kernel: Kernel
     _session_mode: SessionMode
     # app that owns this context; None for top-level contexts
