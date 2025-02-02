@@ -24,7 +24,7 @@ async def test_virtual_file_creation(
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname, _ in get_context().virtual_file_registry.registry.items():
+    for fname in get_context().virtual_file_registry.registry.keys():
         assert fname.endswith(".pdf")
 
 
@@ -45,7 +45,7 @@ async def test_virtual_file_deletion(
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname, _ in get_context().virtual_file_registry.registry.items():
+    for fname in get_context().virtual_file_registry.registry.keys():
         assert fname.endswith(".pdf")
 
     await k.delete_cell(DeleteCellRequest(cell_id=er.cell_id))

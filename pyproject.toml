@@ -165,6 +165,7 @@ dependencies = [
 
 [tool.hatch.envs.default.scripts]
 lint = "ruff check --fix"
+lint-unsafe = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
 
 [tool.hatch.envs.typecheck]
@@ -305,8 +306,11 @@ exclude = [
 [tool.ruff.lint]
 ignore = [
     "G004",   # Logging statement uses f-string
-    "TCH001", # Move application import into a type-checking block
+    "TC001", # Move application import into a type-checking block
     "D301",   # Use r""" if any backslashes in a docstring
+    "PERF203", # try-except within a loop incurs performance overhead; not always possible
+    "PERF401", # Use {message_str} to create a transformed list; at the cost of readability
+    "PERF403", # Use a dictionary comprehension instead of a for-loop; at the cost of readability
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "E501",  # Line too long, we still trim
@@ -327,6 +331,7 @@ extend-select = [
     "ARG",
     # flake8-bugbear
     "B",
+    "PERF",
     "ANN002", # missing-type-args
     "ANN003", # missing-type-kwargs
     "ANN201", # missing-return-type-undocumented-public-function

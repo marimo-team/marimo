@@ -98,7 +98,7 @@ def test_three_node_cycle() -> None:
     graph.register_cell("2", parse_cell("z = x"))
     errors = check_for_errors(graph)
     assert set(errors.keys()) == set(["0", "1", "2"])
-    for _, t in errors.items():
+    for t in errors.values():
         assert len(t) == 1
         assert isinstance(t[0], CycleError)
         edges_with_vars = t[0].edges_with_vars
