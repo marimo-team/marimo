@@ -590,16 +590,10 @@ class Kernel:
                 # NOOP.
                 self._update_script_metadata(["marimo"])
 
-        ctx = get_context()
         if (
             (autoreload_mode == "lazy" or autoreload_mode == "autorun")
             # Pyodide doesn't support hot module reloading
             and not is_pyodide()
-            and (
-                # We disable module reloading in run mode for performance
-                isinstance(ctx, KernelRuntimeContext)
-                and not ctx.session_mode == SessionMode.RUN
-            )
         ):
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
@@ -2213,10 +2207,12 @@ def launch_kernel(
         else None
     )
 
-    # In run mode, the kernel should always be in autorun
+    # In run mode, the kernel should always be in autorun, and the module
+    # autoreloader is disabled
     if not is_edit_mode:
         user_config = user_config.copy()
         user_config["runtime"]["on_cell_change"] = "autorun"
+        user_config["runtime"]["auto_reload"] = "off"
 
     def _enqueue_control_request(req: ControlRequest) -> None:
         control_queue.put_nowait(req)
