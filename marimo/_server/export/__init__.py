@@ -93,6 +93,8 @@ def export_as_wasm(
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
+    # Inline the layout file, if it exists
+    file_manager.app.inline_layout_file()
     config = get_default_config_manager(current_path=file_manager.path)
 
     result = Exporter().export_as_wasm(
@@ -149,6 +151,9 @@ async def run_app_then_export_as_html(
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
+
+    # Inline the layout file, if it exists
+    file_manager.app.inline_layout_file()
 
     config = get_default_config_manager(current_path=file_manager.path)
     session_view, did_error = await run_app_until_completion(

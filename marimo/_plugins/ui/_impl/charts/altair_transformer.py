@@ -9,11 +9,11 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.utils import build_data_url
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
     get_table_manager_or_none,
 )
+from marimo._utils.data_uri import build_data_url
 
 Data = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
 _DataType = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]

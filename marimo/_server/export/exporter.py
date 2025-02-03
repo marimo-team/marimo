@@ -27,7 +27,6 @@ from marimo._config.utils import deep_copy
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._server.export.utils import (
@@ -44,6 +43,7 @@ from marimo._server.templates.templates import (
     wasm_notebook_template,
 )
 from marimo._server.tokens import SkewProtectionToken
+from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import import_files
 
@@ -414,7 +414,8 @@ class Exporter:
     def export_public_folder(
         self, directory: str, marimo_file: MarimoPath
     ) -> bool:
-        public_dir = marimo_file.path.parent / "public"
+        FOLDER_NAME = "public"
+        public_dir = marimo_file.path.parent / FOLDER_NAME
 
         if public_dir.exists():
             import shutil
@@ -424,10 +425,15 @@ class Exporter:
             if not dirpath.exists():
                 dirpath.mkdir(parents=True, exist_ok=True)
 
+            target_dir = dirpath / FOLDER_NAME
+            if target_dir == public_dir:
+                # Skip if source and target are the same
+                return True
+
             LOGGER.debug(f"Copying public folder to {dirpath}")
             shutil.copytree(
                 public_dir,
-                dirpath / "public",
+                target_dir,
                 dirs_exist_ok=True,
             )
             return True

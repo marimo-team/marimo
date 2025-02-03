@@ -6,8 +6,8 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.data.data import from_data_uri
 from marimo._plugins.ui._impl import data_explorer
+from marimo._utils.data_uri import from_data_uri
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
 

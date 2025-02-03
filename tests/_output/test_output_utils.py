@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-import base64
 from typing import cast
 
 import pytest
 
 from marimo._output import utils
-
-
-def test_build_data_url() -> None:
-    data = base64.b64encode(b"test")
-    url = utils.build_data_url("text/plain", data)
-    assert url == "data:text/plain;base64,dGVzdA=="
 
 
 def test_flatten_string() -> None:
