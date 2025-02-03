@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
 from typing import (
     TYPE_CHECKING,
@@ -162,14 +163,12 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
             return response
 
 
+@dataclass
 class _URLRequest:
-    def __init__(
-        self, url: str, method: str, headers: dict[str, str], data: Any
-    ):
-        self.full_url = url
-        self.method = method
-        self.headers = headers
-        self.data = data
+    full_url: str
+    method: str
+    headers: dict[str, str]
+    data: Any
 
 
 class _AsyncHTTPResponse:

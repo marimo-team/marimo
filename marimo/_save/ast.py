@@ -80,7 +80,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         super().__init__(*arg, **kwargs)
         self.target_line = line
 
-    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  #  type: ignore[override]
+    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
         pre_block = []
 
         # There are a few strange edges cases like:

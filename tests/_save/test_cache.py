@@ -75,7 +75,7 @@ class TestScriptCache:
             with persistent_cache(name="one",
                                   _loader=MockLoader(
                                     data={"X": 7, "Y": 8})
-                                  ) as cache: # noqa: E501
+                                  ) as cache:  # noqa: E501
                 Y = 9
                 X = 10
             # fmt: on
@@ -114,8 +114,8 @@ class TestScriptCache:
             # fmt: off
             b = [2]
             if True:
-              with persistent_cache("if", _loader=_loader):
-                  b = [
+              with persistent_cache("if", _loader=_loader):  # noqa: E111
+                  b = [  # noqa: E111
                       7
                   ]
             # fmt: on
@@ -222,7 +222,7 @@ class TestScriptCache:
 
             _loader = MockLoader()
             # fmt: off
-            with persistent_cache("else", _loader=_loader): call(False) # noqa: E701
+            with persistent_cache("else", _loader=_loader): call(False)  # noqa: E701
             # fmt: on
 
         with pytest.raises(BlockException):

@@ -325,14 +325,14 @@ def plain(value: Any) -> Plain:
     return Plain(value)
 
 
+@dataclass
 class Plain:
     """
     Wrapper around a value to indicate that it should be displayed
     without any opinionated formatting.
     """
 
-    def __init__(self, child: Any):
-        self.child = child
+    child: Any
 
 
 @mddoc

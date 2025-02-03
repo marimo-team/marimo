@@ -160,9 +160,7 @@ def test_plain_object():
     result = try_format(obj)
     # Should fall back to string representation since we opted out of opinionated formatter
     assert is_html(result)
-    assert result.data.startswith(
-        "<pre style='font-size: 12px'>&lt;marimo._output.formatting.Plain object"
-    )
+    assert result.data.startswith("<pre style='font-size: 12px'>Plain(")
 
 
 def test_opinionated_formatter():
