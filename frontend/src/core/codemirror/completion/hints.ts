@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { HTMLCellId } from "@/core/cells/ids";
-import { EditorView, hoverTooltip } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
 import type { EditorState, Text } from "@codemirror/state";
@@ -10,16 +10,17 @@ import { store } from "@/core/state/jotai";
 
 export function hintTooltip() {
   return [
-    hoverTooltip(
-      async (view, pos) => {
-        const result = await requestDocumentation(view, pos, ["tooltip"]);
-        if (result === null || result === "cancelled") {
-          return null;
-        }
-        return result;
-      },
-      { hideOnChange: true },
-    ),
+    // hoverTooltip(
+    //   async (view, pos) => {
+    //     const result = await requestDocumentation(view, pos, ["tooltip"]);
+    //     console.log("result", result);
+    //     if (result === null || result === "cancelled") {
+    //       return null;
+    //     }
+    //     return result;
+    //   },
+    //   { hideOnChange: true },
+    // ),
     cursorPositionDocumentation,
   ];
 }

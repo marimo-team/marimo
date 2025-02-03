@@ -80,6 +80,7 @@ function createEditor(content: string) {
     extensions: [
       python(),
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           activate_on_typing: true,
           copilot: false,

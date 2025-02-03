@@ -124,6 +124,7 @@ test("placeholder adds another extension", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "marimo-import",
@@ -132,6 +133,7 @@ test("placeholder adds another extension", () => {
     .flat();
   const withoutAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "none",
@@ -145,6 +147,7 @@ test("ai adds more extensions", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "ai",
@@ -153,6 +156,7 @@ test("ai adds more extensions", () => {
     .flat();
   const withoutAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "none",

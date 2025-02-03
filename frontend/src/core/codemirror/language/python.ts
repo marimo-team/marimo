@@ -19,46 +19,38 @@ import {
   clickablePlaceholderExtension,
 } from "../placeholder/extensions";
 import type { MovementCallbacks } from "../cells/extensions";
-import { languageServerWithTransport } from "codemirror-languageserver";
+import {
+  LanguageServerClient,
+  languageServerWithTransport,
+} from "codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
+import { CellDocumentUri } from "../lsp/types";
+import type { CellId } from "@/core/cells/ids";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
+import { once } from "@/utils/once";
 
-// @ts-expect-error Extending private class
-class MarimoLanguageServerClient extends NotebookLanguageServerClient {
-  public override request(method: string, params: any, timeout: number) {
-    console.debug("LSP request", method, params);
-    if (method === "initialize") {
-      params = {
-        ...params,
-        // startup options
-      };
-    }
-    // @ts-expect-error
-    const promise = super.request(method, params, timeout);
-    if (method === "initialize") {
-      promise.then(() =>
-        this.notify("workspace/didChangeConfiguration", {
-          settings: {
-            pylsp: {
-              plugins: {
-                jedi: {
-                  auto_import_modules: ["marimo", "numpy"],
-                },
-              },
-            },
-          },
-        }),
-      );
-    }
-    return promise;
-  }
-  private override notify(method: string, params: any) {
-    console.debug("LSP notification", method, params);
-    // @ts-expect-error
-    return super.notify(method, params);
-  }
-}
+const pylspTransport = () =>
+  new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
+
+const lspClient = once(() => {
+  const lspClientOpts = {
+    transport: pylspTransport(),
+    rootUri: "file:///",
+    languageId: "python",
+    workspaceFolders: null,
+  };
+
+  // We wrap the client in a NotebookLanguageServerClient to add some
+  // additional functionality to handle multiple cells
+  return new NotebookLanguageServerClient(
+    new LanguageServerClient({
+      ...lspClientOpts,
+      documentUri: "file:///unused.py", // Incorrect types
+      autoClose: true,
+    }),
+  ) as unknown as LanguageServerClient;
+});
 
 /**
  * Language adapter for Python.
@@ -80,42 +72,21 @@ export class PythonLanguageAdapter implements LanguageAdapter {
   }
 
   getExtension(
+    cellId: CellId,
     completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
     cellMovementCallbacks: MovementCallbacks,
   ): Extension[] {
-    const serverUri = resolveToWsUrl("/lsp/pylsp");
-    const options = {
-      transport: new WebSocketTransport(serverUri),
-      rootUri: "file:///",
-      documentUri: "file:///__marimo__.py",
-      languageId: "python",
-      workspaceFolders: null,
-    };
     return [
-      // Whether or not to require keypress to activate autocompletion (default
-      // keymap is Ctrl+Space)
-      // autocompletion({
-      //   activateOnTyping: completionConfig.activate_on_typing,
-      //   // The Cell component handles the blur event. `closeOnBlur` is too
-      //   // aggressive and doesn't let the user click into the completion info
-      //   // element (which contains the docstring/type --- users might want to
-      //   // copy paste from the docstring). The main issue is that the completion
-      //   // tooltip is not part of the editable DOM tree:
-      //   // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
-      //   closeOnBlur: false,
-      //   override: [completer],
-      // }),
-      // TODO: use one client per marimo notebook, merge cells
       languageServerWithTransport({
-        // @ts-expect-error
-        client: new MarimoLanguageServerClient({
-          ...options,
-          autoClose: true,
-        }),
+        client: lspClient(),
+        documentUri: CellDocumentUri.of(cellId),
+        transport: pylspTransport(),
+        rootUri: "file:///",
+        languageId: "python",
+        workspaceFolders: null,
         allowHTMLContent: true,
-        ...options,
       }),
       customPythonLanguageSupport(),
       placeholderType === "marimo-import"

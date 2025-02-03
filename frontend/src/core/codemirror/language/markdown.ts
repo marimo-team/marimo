@@ -5,6 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
+// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import {
   type Completion,
@@ -22,6 +23,7 @@ import {
   type MovementCallbacks,
 } from "../cells/extensions";
 import type { PlaceholderType } from "../config/extension";
+import type { CellId } from "@/core/cells/ids";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -157,6 +159,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   getExtension(
+    _cellId: CellId,
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
     _: PlaceholderType,

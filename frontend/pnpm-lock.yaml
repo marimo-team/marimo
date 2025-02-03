@@ -303,6 +303,9 @@ importers:
       lz-string:
         specifier: ^1.5.0
         version: 1.5.0
+      marked:
+        specifier: ^15.0.6
+        version: 15.0.6
       mermaid:
         specifier: ^11.4.1
         version: 11.4.1

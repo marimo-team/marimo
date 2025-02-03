@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import { adaptiveLanguageConfiguration, switchLanguage } from "../extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { MovementCallbacks } from "../../cells/extensions";
+import type { CellId } from "@/core/cells/ids";
 
 function createEditor(doc: string) {
   return new EditorView({
@@ -26,6 +27,7 @@ function createEditor(doc: string) {
           showPlaceholder: true,
           enableAI: true,
           cellMovementCallbacks: {} as MovementCallbacks,
+          cellId: "cell1" as CellId,
         }),
       ],
     }),
