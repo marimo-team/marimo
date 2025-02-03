@@ -92,7 +92,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "codemirror-extension-inline-suggestion": "^0.0.3",
-    "codemirror-languageserver": "^1.11.0",
+    "codemirror-languageserver": "^1.12.1",
     "compassql": "^0.21.2",
     "cssnano": "^7.0.5",
     "date-fns": "^3.6.0",
