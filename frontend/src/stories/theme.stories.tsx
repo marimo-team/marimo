@@ -2,11 +2,44 @@ import type { Meta, StoryObj } from "@storybook/react";
 import React, { useEffect, useRef } from "react";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { basicBundle, type CodeMirrorSetupOpts } from "../core/codemirror/cm";
+import { basicBundle, type CodeMirrorSetupOpts, type CellId } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
 import { OverridingHotkeyProvider } from "../core/hotkeys/hotkeys";
 import { darkTheme } from "../core/codemirror/theme/dark";
 import { lightTheme } from "../core/codemirror/theme/light";
+import type { MovementCallbacks } from "../core/cells/movement";
+import type { CodeCallbacks } from "../core/cells/code";
+
+// Partial config for storybook demo
+const demoConfig: Partial<CodeMirrorSetupOpts> = {
+  completionConfig: { activate_on_typing: false, copilot: false, codeium_api_key: null },
+  hotkeys: new OverridingHotkeyProvider({}),
+  cellId: "demo" as CellId,
+  showPlaceholder: false,
+  enableAI: false,
+  cellMovementCallbacks: {
+    moveToNextCell: () => {},
+    onRun: () => {},
+    deleteCell: () => {},
+    createAbove: () => {},
+    createBelow: () => {},
+    moveUp: () => {},
+    moveDown: () => {},
+    focusEditor: () => {},
+    focusNextCell: () => {},
+    focusPrevCell: () => {},
+    save: () => {},
+    undo: () => {},
+    redo: () => {},
+    toggleMarkdown: () => {},
+    toggleOutput: () => {},
+  } as MovementCallbacks,
+  cellCodeCallbacks: {
+    updateCellCode: () => {},
+    afterToggleMarkdown: () => {},
+  } as CodeCallbacks,
+  keymapConfig: { preset: "default" },
+};
 
 const meta: Meta = {
   title: "Theme",
@@ -68,9 +101,8 @@ export const ThemeComparison: Story = {
               python(),
               lightTheme,
               ...basicBundle({
-                completionConfig: { activate_on_typing: false, copilot: false, codeium_api_key: null },
+                ...demoConfig,
                 theme: "light",
-                hotkeys: new OverridingHotkeyProvider({}),
               } as CodeMirrorSetupOpts),
             ]}
           />
@@ -84,9 +116,8 @@ export const ThemeComparison: Story = {
               python(),
               darkTheme,
               ...basicBundle({
-                completionConfig: { activate_on_typing: false, copilot: false, codeium_api_key: null },
+                ...demoConfig,
                 theme: "dark",
-                hotkeys: new OverridingHotkeyProvider({}),
               } as CodeMirrorSetupOpts),
             ]}
           />
