@@ -193,7 +193,11 @@ def test_markdown_with_sql() -> None:
 
     # SQL notebook
 
-    ```sql {.marimo query="export"}
+    ```python {.marimo}
+    mem_engine = mo.create_engine("sqlite:///:memory:")
+    ```
+
+    ```sql {.marimo query="export" engine="mem_engine" hide_output="true"}
     SELECT * FROM my_table;
     ```
 
@@ -210,11 +214,18 @@ def test_markdown_with_sql() -> None:
     app = InternalApp(convert_from_md_to_app(script))
     assert app.config.app_title == "My Title"
     ids = list(app.cell_manager.cell_ids())
-    assert len(ids) == 3
-    for i in range(3):
+    assert len(ids) == 4
+    for i in range(4):
         # Unparsables are None
         assert app.cell_manager.cell_data_at(ids[i]).cell is not None
-    assert app.cell_manager.cell_data_at(ids[1]).cell.defs == {"export"}
+    assert app.cell_manager.cell_data_at(ids[2]).cell.defs == {"export"}
+    assert app.cell_manager.cell_data_at(ids[2]).cell.refs == {
+        "mem_engine",
+        "my_table",
+        "mo",
+    }
+    # hide_output=True => output=False
+    assert "False" in app.cell_manager.cell_data_at(ids[2]).cell._cell.code
 
 
 def test_markdown_empty() -> None:

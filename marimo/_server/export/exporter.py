@@ -35,6 +35,7 @@ from marimo._server.export.utils import (
     get_download_filename,
     get_filename,
     get_markdown_from_cell,
+    get_sql_options_from_cell,
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -276,14 +277,19 @@ class Exporter:
             code = cell_data.code
             # Config values are opt in, so only include if they are set.
             attributes = cell_data.config.asdict()
-            attributes = {k: "true" for k, v in attributes.items() if v}
+            # Allow for attributes like column index.
+            attributes = {
+                k: repr(v).lower() for k, v in attributes.items() if v
+            }
             if not is_internal_cell_name(cell_data.name):
                 attributes["name"] = cell_data.name
             # No "cell" typically means not parseable. However newly added
             # cells require compilation before cell is set.
             # TODO: Refactor so it doesn't occur in export (codegen
             # does this too)
-            if not cell:
+            # NB. Also need to recompile in the sql case since sql parsing is
+            # cached.
+            if not cell or cell._cell.language == "sql":
                 try:
                     cell_impl = compile_cell(
                         code, cell_id=str(cell_data.cell_id)
@@ -298,46 +304,32 @@ class Exporter:
                     pass
 
             if cell:
-                markdown = get_markdown_from_cell(cell, code)
-                # Unsanitized markdown is forced to code.
-                if markdown and is_sanitized_markdown(markdown):
-                    # Use blank HTML comment to separate markdown codeblocks
-                    if previous_was_markdown:
-                        document.append("<!---->")
-                    previous_was_markdown = True
-                    document.append(markdown)
-                    continue
+                # Markdown that starts a column is forced to code.
+                column = attributes.get("column", None)
+                if not column or column == "0":
+                    markdown = get_markdown_from_cell(cell, code)
+                    # Unsanitized markdown is forced to code.
+                    if markdown and is_sanitized_markdown(markdown):
+                        # Use blank HTML comment to separate markdown codeblocks
+                        if previous_was_markdown:
+                            document.append("<!---->")
+                        previous_was_markdown = True
+                        document.append(markdown)
+                        continue
                 attributes["language"] = cell._cell.language
                 # Definitely a code cell, but need to determine if it can be
                 # formatted as non-python.
                 if attributes["language"] == "sql":
-                    # Note frontend/src/core/codemirror/language/sql.ts
-                    # Determines sql structure by regex, but having access to
-                    # the AST gives us more flexibility.
-                    query = None
-                    valid_sql = True
-                    for (
-                        maybe_query,
-                        def_vars,
-                    ) in cell._cell.variable_data.items():
-                        if query:
-                            # query has already been set, hence this breaks
-                            # the expected format.
-                            query = None
-                            attributes.pop("language")
-                            valid_sql = False
-                            break
-                        for var in def_vars:
-                            # We are looking for the case where we assign a
-                            # query output to python.
-                            if var.language == "python":
-                                query = maybe_query
-                                break
-
-                    if valid_sql:
+                    sql_options = get_sql_options_from_cell(code)
+                    if not sql_options:
+                        # means not sql.
+                        attributes.pop("language")
+                    else:
+                        # Ignore default query value.
+                        if sql_options.get("query") == "_df":
+                            sql_options.pop("query")
+                        attributes.update(sql_options)
                         code = "\n".join(cell._cell.raw_sqls).strip()
-                        if query:
-                            attributes["query"] = query
 
             # Definitely no "cell"; as such, treat as code, as everything in
             # marimo is code.

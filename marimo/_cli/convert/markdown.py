@@ -142,18 +142,32 @@ def get_source_from_tag(tag: Element) -> str:
             return ""
         source = markdown_to_marimo(source)
     elif tag.attrib.get("language") == "sql":
-        source = sql_to_marimo(source, tag.attrib.get("query", "_df"))
+        source = sql_to_marimo(
+            source,
+            tag.attrib.get("query", "_df"),
+            str(tag.attrib.get("hide_output", "false")).lower() == "true",
+            tag.attrib.get("engine", None),
+        )
     else:
         assert tag.tag == MARIMO_CODE, f"Unknown tag: {tag.tag}"
     return source
 
 
 def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
-    boolean_attrs = {
+    # Known boolean attributes.
+    extracted_attrs: dict[str, bool | int] = {
         **defaults,
-        **{k: v == "true" for k, v in tag.attrib.items()},
+        **{
+            k: v == "true"
+            for k, v in tag.attrib.items()
+            if k in ["hide_code", "disabled"]
+        },
     }
-    return CellConfig.from_dict(boolean_attrs)
+    # "Column" is not a boolean attribute.
+    for int_attr in ["column"]:
+        if int_attr in tag.attrib:
+            extracted_attrs[int_attr] = int(tag.attrib[int_attr])
+    return CellConfig.from_dict(extracted_attrs)
 
 
 # TODO: Consider upstreaming some logic such that this isn't such a terrible
