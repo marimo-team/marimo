@@ -19,16 +19,14 @@ import {
   clickablePlaceholderExtension,
 } from "../placeholder/extensions";
 import type { MovementCallbacks } from "../cells/extensions";
-import {
-  languageServerWithTransport,
-  LanguageServerClient,
-} from "codemirror-languageserver";
+import { languageServerWithTransport } from "codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
+import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 
-// @ts-ignore
-class MarimoLanguageServerClient extends LanguageServerClient {
-  private override request(method: string, params: any, timeout: number) {
+// @ts-expect-error Extending private class
+class MarimoLanguageServerClient extends NotebookLanguageServerClient {
+  public override request(method: string, params: any, timeout: number) {
     console.debug("LSP request", method, params);
     if (method === "initialize") {
       params = {
@@ -36,7 +34,7 @@ class MarimoLanguageServerClient extends LanguageServerClient {
         // startup options
       };
     }
-    // @ts-ignore
+    // @ts-expect-error
     const promise = super.request(method, params, timeout);
     if (method === "initialize") {
       promise.then(() =>
@@ -57,7 +55,7 @@ class MarimoLanguageServerClient extends LanguageServerClient {
   }
   private override notify(method: string, params: any) {
     console.debug("LSP notification", method, params);
-    // @ts-ignore
+    // @ts-expect-error
     return super.notify(method, params);
   }
 }
@@ -111,11 +109,12 @@ export class PythonLanguageAdapter implements LanguageAdapter {
       // }),
       // TODO: use one client per marimo notebook, merge cells
       languageServerWithTransport({
-        // @ts-ignore
+        // @ts-expect-error
         client: new MarimoLanguageServerClient({
           ...options,
           autoClose: true,
         }),
+        allowHTMLContent: true,
         ...options,
       }),
       customPythonLanguageSupport(),
