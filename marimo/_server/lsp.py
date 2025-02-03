@@ -7,9 +7,11 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from marimo import _loggers
+from marimo._config.config import CompletionConfig, LanguageServersConfig
 from marimo._messaging.ops import (
     Alert,
 )
+from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import import_files
 
@@ -17,6 +19,9 @@ LOGGER = _loggers.marimo_logger()
 
 
 class LspServer(ABC):
+    port: int
+    id: str
+
     @abstractmethod
     def start(self) -> Optional[Alert]:
         pass
@@ -42,6 +47,7 @@ class BaseLspServer(LspServer):
             return None
 
         binpath = shutil.which(self.binary_name())
+        LOGGER.debug("binpath %s", binpath)
         if binpath is None:
             LOGGER.error(
                 f"{self.binary_name()} not found; cannot start LSP server."
@@ -78,7 +84,11 @@ class BaseLspServer(LspServer):
         return None
 
     def is_running(self) -> bool:
-        return self.process is not None
+        if self.process is None:
+            return False
+        # check if the process is still running
+        self.process.poll()
+        return self.process.returncode is not None
 
     def stop(self) -> None:
         if self.process is not None:
@@ -99,6 +109,8 @@ class BaseLspServer(LspServer):
 
 
 class CopilotLspServer(BaseLspServer):
+    id = "copilot"
+
     def binary_name(self) -> str:
         return "node"
 
@@ -123,6 +135,8 @@ class CopilotLspServer(BaseLspServer):
 
 
 class PyLspServer(BaseLspServer):
+    id = "pylsp"
+
     def binary_name(self) -> str:
         return "pylsp"
 
@@ -149,8 +163,28 @@ class NoopLspServer(LspServer):
 
 
 class CompositeLspServer(LspServer):
-    def __init__(self, servers: list[LspServer]) -> None:
-        self.servers = servers
+    language_servers = {"pylsp": PyLspServer, "copilot": CopilotLspServer}
+
+    def __init__(
+        self,
+        lsp_config: LanguageServersConfig,
+        completion_config: CompletionConfig,
+        min_port: int,
+    ) -> None:
+        is_enabled = {
+            "copilot": completion_config["copilot"],
+            **{
+                server_name: config["enabled"]
+                for server_name, config in lsp_config.items()
+            },
+        }
+        self.servers = [
+            constructor(find_free_port(min_port + 100 * i))
+            for i, (server_name, constructor) in enumerate(
+                self.language_servers.items()
+            )
+            if is_enabled.get(server_name, False)
+        ]
 
     def start(self) -> None:
         for server in self.servers:
