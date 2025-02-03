@@ -11,12 +11,8 @@ import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import get_default_config_manager
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
-from marimo._server.lsp import (
-    CompositeLspServer,
-    CopilotLspServer,
-    PyLspServer,
-)
-from marimo._server.main import LspPorts, create_starlette_app
+from marimo._server.lsp import CompositeLspServer
+from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
@@ -95,12 +91,6 @@ def start(
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT)
-    copilot_lsp_port = find_free_port(
-        DEFAULT_PORT + 200
-    )  # Add 200 to avoid conflicts
-    pylsp_port = find_free_port(
-        DEFAULT_PORT + 300
-    )  # Add 300 to avoid conflicts
 
     # This is the path that will be used to read the project configuration
     start_path: Optional[str] = None
@@ -113,6 +103,14 @@ def start(
 
     config_reader = get_default_config_manager(current_path=start_path)
 
+    user_config = config_reader.get_config()
+
+    lsp_composite_server = CompositeLspServer(
+        lsp_config=user_config["language_servers"],
+        completion_config=user_config["completion"],
+        min_port=DEFAULT_PORT + 200,
+    )
+
     session_manager = SessionManager(
         file_router=file_router,
         mode=mode,
@@ -120,9 +118,7 @@ def start(
         quiet=quiet,
         include_code=include_code,
         ttl_seconds=ttl_seconds,
-        lsp_server=CompositeLspServer(
-            [PyLspServer(pylsp_port), CopilotLspServer(copilot_lsp_port)]
-        ),
+        lsp_server=lsp_composite_server,
         user_config_manager=config_reader,
         cli_args=cli_args,
         auth_token=auth_token,
@@ -147,9 +143,7 @@ def start(
         ),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
-        lsp_ports=LspPorts(
-            pylsp_port=pylsp_port, copilot_lsp_port=copilot_lsp_port
-        ),
+        lsp_servers=lsp_composite_server.servers,
     )
 
     app.state.port = external_port

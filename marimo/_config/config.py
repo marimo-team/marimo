@@ -227,6 +227,25 @@ class GoogleAiConfig(TypedDict, total=False):
     api_key: str
 
 
+@dataclass
+class PythonLanguageServerConfig(TypedDict, total=False):
+    """Configuration options for Python Language Server."""
+
+    enabled: bool
+
+
+@dataclass
+class LanguageServersConfig(TypedDict, total=False):
+    """Configuration options for language servers.
+
+    **Keys.**
+
+    - `pylsp`: the pylsp config
+    """
+
+    pylsp: PythonLanguageServerConfig
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -242,6 +261,7 @@ class MarimoConfig(TypedDict):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
+    language_servers: NotRequired[LanguageServersConfig]
 
 
 @mddoc
@@ -259,6 +279,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
+    language_servers: NotRequired[LanguageServersConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -287,6 +308,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "browser": "default",
         "follow_symlink": False,
     },
+    "language_servers": {"pylsp": {"enabled": True}},
 }
 
 

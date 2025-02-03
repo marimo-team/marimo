@@ -19,8 +19,48 @@ import {
   clickablePlaceholderExtension,
 } from "../placeholder/extensions";
 import type { MovementCallbacks } from "../cells/extensions";
-import { languageServer } from "codemirror-languageserver";
+import {
+  languageServerWithTransport,
+  LanguageServerClient,
+} from "codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
+import { WebSocketTransport } from "@open-rpc/client-js";
+
+// @ts-ignore
+class MarimoLanguageServerClient extends LanguageServerClient {
+  private override request(method: string, params: any, timeout: number) {
+    console.debug("LSP request", method, params);
+    if (method === "initialize") {
+      params = {
+        ...params,
+        // startup options
+      };
+    }
+    // @ts-ignore
+    const promise = super.request(method, params, timeout);
+    if (method === "initialize") {
+      promise.then(() =>
+        this.notify("workspace/didChangeConfiguration", {
+          settings: {
+            pylsp: {
+              plugins: {
+                jedi: {
+                  auto_import_modules: ["marimo", "numpy"],
+                },
+              },
+            },
+          },
+        }),
+      );
+    }
+    return promise;
+  }
+  private override notify(method: string, params: any) {
+    console.debug("LSP notification", method, params);
+    // @ts-ignore
+    return super.notify(method, params);
+  }
+}
 
 /**
  * Language adapter for Python.
@@ -47,6 +87,14 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     placeholderType: PlaceholderType,
     cellMovementCallbacks: MovementCallbacks,
   ): Extension[] {
+    const serverUri = resolveToWsUrl("/lsp/pylsp");
+    const options = {
+      transport: new WebSocketTransport(serverUri),
+      rootUri: "file:///",
+      documentUri: "file:///__marimo__.py",
+      languageId: "python",
+      workspaceFolders: null,
+    };
     return [
       // Whether or not to require keypress to activate autocompletion (default
       // keymap is Ctrl+Space)
@@ -61,12 +109,14 @@ export class PythonLanguageAdapter implements LanguageAdapter {
       //   closeOnBlur: false,
       //   override: [completer],
       // }),
-      languageServer({
-        serverUri: resolveToWsUrl("/lsp/pylsp"),
-        rootUri: "file:///",
-        documentUri: "file:///marimo",
-        languageId: "python",
-        workspaceFolders: null,
+      // TODO: use one client per marimo notebook, merge cells
+      languageServerWithTransport({
+        // @ts-ignore
+        client: new MarimoLanguageServerClient({
+          ...options,
+          autoClose: true,
+        }),
+        ...options,
       }),
       customPythonLanguageSupport(),
       placeholderType === "marimo-import"

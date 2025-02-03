@@ -69,8 +69,21 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     user_config = state.config_manager.get_config()
     session_mgr = state.session_manager
     run = session_mgr.mode == SessionMode.RUN
-    if not run and user_config["completion"]["copilot"]:
-        LOGGER.debug("GitHub Copilot is enabled")
+
+    if not run and any(
+        [
+            user_config["completion"]["copilot"],
+            *[
+                language_server.get("enabled", False)
+                for language_server in user_config.get(
+                    "language_servers", {}
+                ).values()
+            ],
+        ]
+    ):
+        LOGGER.debug("Language Servers are enabled")
+        if user_config["completion"]["copilot"]:
+            LOGGER.debug("GitHub Copilot is enabled")
         await session_mgr.start_lsp_server()
     yield
 
