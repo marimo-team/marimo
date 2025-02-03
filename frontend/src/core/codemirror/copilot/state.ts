@@ -18,6 +18,17 @@ export const isGitHubCopilotSignedInState = atomWithStorage<boolean | null>(
   },
 );
 
+type Step =
+  | "signedIn"
+  | "signingIn"
+  | "signInFailed"
+  | "signedOut"
+  | "connecting"
+  | "connectionError"
+  | "notConnected";
+
+export const copilotSignedInState = atom<Step | null>(null);
+
 export const githubCopilotLoadingVersion = atom<number | null>(null);
 
 /**

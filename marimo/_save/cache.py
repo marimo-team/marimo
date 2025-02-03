@@ -13,6 +13,9 @@ from marimo._runtime.state import SetFunctor
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
 
+# NB. Increment on cache breaking changes.
+MARIMO_CACHE_VERSION: int = 1
+
 CacheType = Literal[
     "ContextExecutionPath",
     "ContentAddressed",
@@ -32,7 +35,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return"]
+MetaKey = Literal["return", "version"]
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -94,6 +97,7 @@ class Cache:
                 if key not in get_args(MetaKey):
                     raise CacheException(f"Unexpected meta key: {key}")
                 self.meta[key] = value
+        self.meta["version"] = MARIMO_CACHE_VERSION
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:

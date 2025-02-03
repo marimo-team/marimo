@@ -79,13 +79,24 @@ def is_data_primitive(value: Any) -> bool:
             or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)
         )
     elif hasattr(value, "dtypes"):
-        for dtype in value.dtypes:
-            # Capture pandas cases
-            if getattr(dtype, "hasobject", None):
-                return False
-            # Capture polars cases
-            if hasattr(dtype, "is_numeric") and not dtype.is_numeric:
-                return False
+        # Bit of discrepancy between objects like polars and pandas, so use
+        # narwhals to normalize the dataframe.
+        import narwhals as nw
+
+        try:
+            return bool(
+                nw.narwhalify(
+                    lambda df: all(
+                        df[col].dtype.is_numeric() for col in df.columns
+                    )
+                )(value)
+            )
+        except Exception as err:
+            raise err from ValueError(
+                "Unexpected datatype, narwhals was unable to normalize "
+                "dataframe. Please report this to "
+                "github.com/marimo-team/marimo"
+            )
     # Otherwise may be a closely related array object
     return True
 

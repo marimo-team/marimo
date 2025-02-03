@@ -142,6 +142,21 @@ test("default UserConfig - one level", () => {
   ).toEqual(UserConfigSchema.parse({}));
 });
 
+test("default UserConfig with additional information", () => {
+  const config = UserConfigSchema.parse({
+    some_new_config: {
+      is_new_config: true,
+    },
+  });
+  expect(config).toEqual(
+    expect.objectContaining({
+      some_new_config: {
+        is_new_config: true,
+      },
+    }),
+  );
+});
+
 test("resolvedMarimoConfigAtom overrides correctly and does not mutate the original array", () => {
   const initialUserConfig = {
     completion: { activate_on_typing: true, copilot: false },

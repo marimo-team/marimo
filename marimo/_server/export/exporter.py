@@ -27,7 +27,6 @@ from marimo._config.utils import deep_copy
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._server.export.utils import (
@@ -35,6 +34,7 @@ from marimo._server.export.utils import (
     get_download_filename,
     get_filename,
     get_markdown_from_cell,
+    get_sql_options_from_cell,
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -44,6 +44,7 @@ from marimo._server.templates.templates import (
     wasm_notebook_template,
 )
 from marimo._server.tokens import SkewProtectionToken
+from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import import_files
 
@@ -276,14 +277,19 @@ class Exporter:
             code = cell_data.code
             # Config values are opt in, so only include if they are set.
             attributes = cell_data.config.asdict()
-            attributes = {k: "true" for k, v in attributes.items() if v}
+            # Allow for attributes like column index.
+            attributes = {
+                k: repr(v).lower() for k, v in attributes.items() if v
+            }
             if not is_internal_cell_name(cell_data.name):
                 attributes["name"] = cell_data.name
             # No "cell" typically means not parseable. However newly added
             # cells require compilation before cell is set.
             # TODO: Refactor so it doesn't occur in export (codegen
             # does this too)
-            if not cell:
+            # NB. Also need to recompile in the sql case since sql parsing is
+            # cached.
+            if not cell or cell._cell.language == "sql":
                 try:
                     cell_impl = compile_cell(
                         code, cell_id=str(cell_data.cell_id)
@@ -297,18 +303,36 @@ class Exporter:
                 except SyntaxError:
                     pass
 
+            if cell:
+                # Markdown that starts a column is forced to code.
+                column = attributes.get("column", None)
+                if not column or column == "0":
+                    markdown = get_markdown_from_cell(cell, code)
+                    # Unsanitized markdown is forced to code.
+                    if markdown and is_sanitized_markdown(markdown):
+                        # Use blank HTML comment to separate markdown codeblocks
+                        if previous_was_markdown:
+                            document.append("<!---->")
+                        previous_was_markdown = True
+                        document.append(markdown)
+                        continue
+                attributes["language"] = cell._cell.language
+                # Definitely a code cell, but need to determine if it can be
+                # formatted as non-python.
+                if attributes["language"] == "sql":
+                    sql_options = get_sql_options_from_cell(code)
+                    if not sql_options:
+                        # means not sql.
+                        attributes.pop("language")
+                    else:
+                        # Ignore default query value.
+                        if sql_options.get("query") == "_df":
+                            sql_options.pop("query")
+                        attributes.update(sql_options)
+                        code = "\n".join(cell._cell.raw_sqls).strip()
+
             # Definitely no "cell"; as such, treat as code, as everything in
             # marimo is code.
-            if cell:
-                markdown = get_markdown_from_cell(cell, code)
-                # Unsanitized markdown is forced to code.
-                if markdown and is_sanitized_markdown(markdown):
-                    # Use blank HTML comment to separate markdown codeblocks
-                    if previous_was_markdown:
-                        document.append("<!---->")
-                    previous_was_markdown = True
-                    document.append(markdown)
-                    continue
             else:
                 attributes["unparsable"] = "true"
             # Add a blank line between markdown and code
@@ -382,7 +406,8 @@ class Exporter:
     def export_public_folder(
         self, directory: str, marimo_file: MarimoPath
     ) -> bool:
-        public_dir = marimo_file.path.parent / "public"
+        FOLDER_NAME = "public"
+        public_dir = marimo_file.path.parent / FOLDER_NAME
 
         if public_dir.exists():
             import shutil
@@ -392,10 +417,15 @@ class Exporter:
             if not dirpath.exists():
                 dirpath.mkdir(parents=True, exist_ok=True)
 
+            target_dir = dirpath / FOLDER_NAME
+            if target_dir == public_dir:
+                # Skip if source and target are the same
+                return True
+
             LOGGER.debug(f"Copying public folder to {dirpath}")
             shutil.copytree(
                 public_dir,
-                dirpath / "public",
+                target_dir,
                 dirs_exist_ok=True,
             )
             return True

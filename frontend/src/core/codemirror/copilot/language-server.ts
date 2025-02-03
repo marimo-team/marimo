@@ -50,12 +50,17 @@ export interface LSPRequestMap {
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
 
-  private _request<Method extends keyof LSPRequestMap>(
+  private async _request<Method extends keyof LSPRequestMap>(
     method: Method,
     params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (this as any).request(method, params);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (this as any).request(method, params);
+    } catch (error) {
+      Logger.error("CopilotLanguageServerClient#request: Error", error);
+      throw error;
+    }
   }
 
   private isDisabled() {
@@ -108,20 +113,44 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return this._request("signOut", {});
   }
 
-  signInInitiate() {
-    return this._request("signInInitiate", {});
+  async signInInitiate() {
+    Logger.log("Copilot#signInInitiate: Starting sign-in flow");
+    try {
+      const result = await this._request("signInInitiate", {});
+      Logger.log("Copilot#signInInitiate: Sign-in flow started successfully");
+      return result;
+    } catch (error) {
+      Logger.warn(
+        "Copilot#signInInitiate: Failed to start sign-in flow",
+        error,
+      );
+      throw error;
+    }
   }
 
-  signInConfirm(params: CopilotSignInConfirmParams) {
-    return this._request("signInConfirm", params);
+  async signInConfirm(params: CopilotSignInConfirmParams) {
+    Logger.log("Copilot#signInConfirm: Confirming sign-in");
+    try {
+      const result = await this._request("signInConfirm", params);
+      Logger.log("Copilot#signInConfirm: Sign-in confirmed successfully");
+      return result;
+    } catch (error) {
+      Logger.warn("Copilot#signInConfirm: Failed to confirm sign-in", error);
+      throw error;
+    }
   }
 
   async signedIn() {
-    const { status, user } = await this._request("checkStatus", {});
-    Logger.debug("Copilot#signedIn", status, user);
-    return (
-      status === "SignedIn" || status === "AlreadySignedIn" || status === "OK"
-    );
+    try {
+      const { status } = await this._request("checkStatus", {});
+      Logger.log("Copilot#signedIn: Status check completed", { status });
+      return (
+        status === "SignedIn" || status === "AlreadySignedIn" || status === "OK"
+      );
+    } catch (error) {
+      Logger.warn("Copilot#signedIn: Failed to check sign-in status", error);
+      throw error;
+    }
   }
 
   // COMPLETIONS

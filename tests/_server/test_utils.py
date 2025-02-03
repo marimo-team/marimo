@@ -7,9 +7,9 @@ from marimo._server.api.utils import parse_title, require_header
 def test_require_header() -> None:
     # Happy path
     header = ["Content-Type"]
-    assert (
-        require_header(header) == "Content-Type"
-    ), "The function should return the single header value"
+    assert require_header(header) == "Content-Type", (
+        "The function should return the single header value"
+    )
 
     with pytest.raises(ValueError) as e:
         require_header(None)

@@ -3,18 +3,21 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional
 
-from marimo import __version__ as current_version
+from marimo import __version__ as current_version, _loggers
 from marimo._cli.print import echo, green, orange
 from marimo._server.api.status import HTTPException
 from marimo._tracer import server_tracer
 from marimo._utils.config.config import ConfigReader
 
-FETCH_TIMEOUT = 5
+FETCH_TIMEOUT = 3
+
+LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
@@ -34,9 +37,9 @@ def print_latest_version(current_version: str, latest_version: str) -> None:
 def check_for_updates(on_update: Callable[[str, str], None]) -> None:
     try:
         _check_for_updates_internal(on_update)
-    except Exception:
-        # Errors are caught internally
-        # but as a last resort, we don't want to crash the CLI
+    except Exception as e:
+        LOGGER.warning("Failed to check for updates", exc_info=e)
+        # Don't want to crash the CLI on any errors.
         pass
 
 
@@ -70,6 +73,9 @@ def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
     config_reader.write_toml(state)
 
 
+DATE_FORMAT = "%Y-%m-%d"
+
+
 def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     """
     If we have not saved the latest version,
@@ -85,40 +91,56 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         api_url = "https://marimo.io/api/oss/latest-version"
 
     # We only update the state once a day
+    now = datetime.now()
     if state.last_checked_at:
         last_checked_date = datetime.strptime(
-            state.last_checked_at, "%Y-%m-%d"
-        ).date()
-        now = datetime.now()
-        year = last_checked_date.timetuple().tm_year
-        today_year = now.timetuple().tm_year
-        day_of_the_year = last_checked_date.timetuple().tm_yday
-        today_day_of_the_year = now.timetuple().tm_yday
-        if year == today_year and today_day_of_the_year == day_of_the_year:
+            state.last_checked_at, DATE_FORMAT
+        )
+        if _is_same_day(last_checked_date, now):
             # Same day, so do nothing
             return state
 
-    # Fetch the latest version from PyPI
     try:
+        # Fetch the latest version from PyPI
         response = _fetch_data_from_url(api_url)
         version = response["info"]["version"]
         state.latest_version = version
-        state.last_checked_at = datetime.now().strftime("%Y-%m-%d")
+        state.last_checked_at = now.strftime(DATE_FORMAT)
         return state
     except Exception:
-        # Avoid errors blocking the CLI or adding noise
+        # Set that we have checked for updates
+        # so we don't fail multiple times a day
+        state.last_checked_at = now.strftime(DATE_FORMAT)
         return state
 
 
 def _fetch_data_from_url(url: str) -> Dict[str, Any]:
-    with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as response:
-        status = response.status
-        if status == 200:
-            data = response.read()
-            encoding = response.info().get_content_charset("utf-8")
-            return json.loads(data.decode(encoding))  # type: ignore
-        else:
-            raise HTTPException(
-                status_code=status,
-                detail=f"HTTP request failed with status code {status}",
-            )
+    try:
+        with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as response:
+            status = response.status
+            if status == 200:
+                data = response.read()
+                encoding = response.info().get_content_charset("utf-8")
+                return json.loads(data.decode(encoding))  # type: ignore
+            else:
+                raise HTTPException(
+                    status_code=status,
+                    detail=f"HTTP request failed with status code {status}",
+                )
+    except urllib.error.URLError as e:
+        LOGGER.warning(
+            f"Network error while checking for version updates: {e}"
+        )
+        raise
+    except json.JSONDecodeError as e:
+        LOGGER.warning(f"Invalid JSON response from version check: {e}")
+        raise
+    except TimeoutError:
+        LOGGER.warning(
+            f"Timeout ({FETCH_TIMEOUT}s) while checking for version updates"
+        )
+        raise
+
+
+def _is_same_day(date1: datetime, date2: datetime) -> bool:
+    return date1.date() == date2.date()

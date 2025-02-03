@@ -164,24 +164,26 @@ subprocess.run(["ls", "-l"])
 
 ### Common magic commands replacements
 
-| Magic Command | Replacement |
-|--------------|-------------|
-| %cd | `os.chdir()`, see also [`mo.notebook_dir()`][marimo.notebook_dir] |
-| %clear | Right-click or toggle the cell actions |
-| %debug | Python's built-in debugger: `breakpoint()` |
-| %env | `os.environ` |
-| %load | N/A - use Python imports |
-| %load_ext | N/A |
-| %matplotlib | marimo auto-displays plots |
-| %pwd | `os.getcwd()` |
-| %who_ls | `dir()`, `globals()`, [`mo.refs()`][marimo.refs], [`mo.defs()`][marimo.defs] |
-| %system | `subprocess.run()` |
-| %%time | `time.perf_counter()` or Python's timeit module |
-| %%timeit | Python's timeit module |
-| %%writefile | `with open("file.txt", "w") as f: f.write()` |
-| %%capture | [`mo.capture_stdout()`][marimo.capture_stdout], [`mo.capture_stderr()`][marimo.capture_stderr] |
-| %%html | [`mo.Html()`][marimo.Html] or [`mo.md()`][marimo.md] |
-| %%latex | [`mo.md(r'$$...$$')`][marimo.md] |
+| Magic Command | Replacement                                                                                    |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| %cd           | `os.chdir()`, see also [`mo.notebook_dir()`][marimo.notebook_dir]                              |
+| %clear        | Right-click or toggle the cell actions                                                         |
+| %debug        | Python's built-in debugger: `breakpoint()`                                                     |
+| %env          | `os.environ`                                                                                   |
+| %load         | N/A - use Python imports                                                                       |
+| %load_ext     | N/A                                                                                            |
+| %autoreload   | marimo's [module autoreloader](../editor_features/module_autoreloading.md)                     |
+| %matplotlib   | marimo auto-displays plots                                                                     |
+| %pwd          | `os.getcwd()`                                                                                  |
+| %pip          | Use marimo's [built-in package management](../editor_features/package_management.md)           |
+| %who_ls       | `dir()`, `globals()`, [`mo.refs()`][marimo.refs], [`mo.defs()`][marimo.defs]                   |
+| %system       | `subprocess.run()`                                                                             |
+| %%time        | `time.perf_counter()` or Python's timeit module                                                |
+| %%timeit      | Python's timeit module                                                                         |
+| %%writefile   | `with open("file.txt", "w") as f: f.write()`                                                   |
+| %%capture     | [`mo.capture_stdout()`][marimo.capture_stdout], [`mo.capture_stderr()`][marimo.capture_stderr] |
+| %%html        | [`mo.Html()`][marimo.Html] or [`mo.md()`][marimo.md]                                           |
+| %%latex       | [`mo.md(r'$$...$$')`][marimo.md]                                                               |
 
 ### Installing packages with marimo's package manager
 

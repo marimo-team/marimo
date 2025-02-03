@@ -9,7 +9,6 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
-
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -32,7 +31,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Build marimo wheel
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8 # 2024-01-18
     defaults:
       run:
         shell: bash
@@ -100,10 +99,9 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 10 # 2024-01-18 avg: 2.5m max: 4.5m
     strategy:
       matrix:
-        # TODO(akshayka): consider adding 3.8, 3.9
         python-version: ['3.12']
         os: [ubuntu-latest, macos-latest, windows-latest]
 
@@ -111,16 +109,18 @@ jobs:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v5
+        # Windows is throwing an error with uv on the Post step
+        continue-on-error: ${{ matrix.os == 'windows-latest' }}
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
 
       - name: Install Python deps
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio nbformat
+          uv pip install pytest pytest-asyncio pytest-timeout nbformat
 
       - name: Download wheel
         uses: actions/download-artifact@v4
@@ -129,34 +129,30 @@ jobs:
 
       - name: Install marimo
         shell: bash
-        run: pip install marimo*whl
+        run: uv pip install marimo*whl
 
       - name: Test CLI
         shell: bash
         run: |
-          pytest -v tests/_cli/test_cli* --maxfail=2
+          uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:
     needs: [changes, build_wheel]
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests examples and smoke_tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 3 # 2024-01-18 avg: 0.3m max: 0.5m
 
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
 
       - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
         with:
-          uv-venv: marimo-venv
+          enable-cache: true
+          python-version: 3.12
 
       - name: Download wheel
         uses: actions/download-artifact@v4
@@ -166,10 +162,10 @@ jobs:
       - name: Install Python deps
         run: |
           uv pip install pytest pytest-asyncio
-          uv pip install ./marimo*whl
+          uv pip install marimo*whl
 
       - name: Test examples
         shell: bash
-        run: pytest -v -s tests/_smoke_tests/run_all.py
+        run: uv run pytest -v -s tests/_smoke_tests/run_all.py
         # TODO(msconick) remove continue-on-error when all tests pass
         continue-on-error: true

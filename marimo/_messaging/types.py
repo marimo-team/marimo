@@ -24,6 +24,10 @@ class Stream(abc.ABC):
     def write(self, op: str, data: Dict[Any, Any]) -> None:
         pass
 
+    def stop(self) -> None:
+        """Tear down resources, if any."""
+        return
+
 
 class NoopStream(Stream):
     def write(self, op: str, data: Dict[Any, Any]) -> None:
@@ -40,6 +44,10 @@ class Stdout(io.TextIOBase):
     def write(self, __s: str) -> int:
         return self._write_with_mimetype(__s, mimetype="text/plain")
 
+    def stop(self) -> None:
+        """Tear down resources, if any."""
+        pass
+
 
 class Stderr(io.TextIOBase):
     name = "stderr"
@@ -51,8 +59,14 @@ class Stderr(io.TextIOBase):
     def write(self, __s: str) -> int:
         return self._write_with_mimetype(__s, mimetype="text/plain")
 
+    def stop(self) -> None:
+        """Tear down resources, if any."""
+        pass
+
 
 class Stdin(io.TextIOBase):
     name = "stdin"
 
-    pass
+    def stop(self) -> None:
+        """Tear down resources, if any."""
+        pass

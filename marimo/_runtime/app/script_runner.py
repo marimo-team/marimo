@@ -133,7 +133,9 @@ class AppScriptRunner:
         post_execute_hooks: list[Callable[[], Any]],
     ) -> RunOutput:
         with patch_main_module_context(
-            create_main_module(file=self.filename, input_override=None)
+            create_main_module(
+                file=self.filename, input_override=None, print_override=None
+            )
         ) as module:
             glbls = module.__dict__
             outputs: dict[CellId_t, Any] = {}
@@ -150,7 +152,9 @@ class AppScriptRunner:
         post_execute_hooks: list[Callable[[], Any]],
     ) -> RunOutput:
         with patch_main_module_context(
-            create_main_module(file=self.filename, input_override=None)
+            create_main_module(
+                file=self.filename, input_override=None, print_override=None
+            )
         ) as module:
             glbls = module.__dict__
             outputs: dict[CellId_t, Any] = {}

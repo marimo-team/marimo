@@ -28,7 +28,12 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t, RuntimeStateType
-from marimo._data.models import ColumnSummary, DataTable, DataTableSource
+from marimo._data.models import (
+    ColumnSummary,
+    DataSourceConnection,
+    DataTable,
+    DataTableSource,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
@@ -41,11 +46,11 @@ from marimo._messaging.errors import (
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import OUTPUT_MAX_BYTES
 from marimo._messaging.types import Stream
+from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.context import get_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
@@ -532,16 +537,17 @@ class VariableValue:
             self.value = None
 
     def _stringify(self, value: object) -> str:
-        try:
-            # HACK: We pretty-print tables to avoid str(ibis_table)
-            # which can be very slow when `ibis.options.interactive = True`
-            table_manager = get_table_manager_or_none(value)
-            if table_manager is not None:
-                return str(table_manager)
-            else:
-                return str(value)[:50]
+        MAX_STR_LEN = 50
 
-            return str(value)[:50]
+        if isinstance(value, str):
+            if len(value) > MAX_STR_LEN:
+                return value[:MAX_STR_LEN]
+            return value
+
+        try:
+            # str(value) can be slow for large objects
+            # or lead to large memory spikes
+            return get_variable_preview(value, max_str_len=MAX_STR_LEN)
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise
             # BaseExceptions, which shouldn't crash the kernel
@@ -598,6 +604,12 @@ class DataColumnPreview(Op):
 
 
 @dataclass
+class DataSourceConnections(Op):
+    name: ClassVar[str] = "data-source-connections"
+    connections: List[DataSourceConnection]
+
+
+@dataclass
 class QueryParamsSet(Op):
     """Set query parameters."""
 
@@ -639,6 +651,9 @@ class UpdateCellCodes(Op):
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: List[CellId_t]
     codes: List[str]
+    # If true, this means the code was not run on the backend when updating
+    # the cell codes.
+    code_is_stale: bool
 
 
 @dataclass
@@ -684,6 +699,7 @@ MessageOperation = Union[
     # Datasets
     Datasets,
     DataColumnPreview,
+    DataSourceConnections,
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,

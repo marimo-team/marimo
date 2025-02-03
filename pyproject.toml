@@ -17,7 +17,8 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.4,<4",
     # add features to markdown
-    "pymdown-extensions>=10,<11",
+    # Pinned to specific version for introduction of codeblock handling.
+    "pymdown-extensions>=10.11.2,<11",
     # syntax highlighting of code in markdown
     "pygments>=2.13,<3",
     # for reading, writing configs
@@ -105,7 +106,7 @@ dev = [
     "duckdb>=1.0.0",
     "sqlglot>=23.4",
     # For linting
-    "ruff~=0.6.1",
+    "ruff~=0.9.1",
     # For AI
     "openai>=1.55.3",
 ]
@@ -115,12 +116,12 @@ docs = [
     "mkdocs-material>=9.5.49",
     "mkdocstrings[python]>=0.27.0",
     "mkdocs-material-extensions>=1.3.1",
-    "mkdocs-autorefs>=1.0.1",
-    "mkdocs-git-revision-date-localized-plugin>=1.2.4",
+    "mkdocs-autorefs>=1.2.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
     "mkdocs-minify-plugin>=0.8.0",
-    "mkdocs-glightbox>=0.3.7",
-    "mkdocs-macros-plugin>=1.3.0",
-    "mkdocs-redirects>=1.0.0",
+    "mkdocs-glightbox>=0.4.0",
+    "mkdocs-macros-plugin>=1.3.7",
+    "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
     "mike>=2.0.0",  # for versioning
     "pillow>=10.2.0",  # for social cards
@@ -131,6 +132,9 @@ docs = [
 
 [tool.hatch]
 installer = "uv"
+
+[tool.hatch.build.hooks.custom]
+path = "build_hook.py"
 
 [tool.hatch.version]
 path = "marimo/__init__.py"
@@ -161,6 +165,7 @@ dependencies = [
 
 [tool.hatch.envs.default.scripts]
 lint = "ruff check --fix"
+lint-unsafe = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
 
 [tool.hatch.envs.typecheck]
@@ -175,6 +180,8 @@ dependencies = [
     "narwhals>=1.12.0",
     "matplotlib>=3.8.0",
     "pyarrow-stubs>=17.0",
+    "sqlglot>=23.4",
+    "sqlalchemy>=2.0.0",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
@@ -192,10 +199,10 @@ extra-dependencies = [
     # For server testing
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
-    "pytest~=8.3.2",
+    "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.8",
+    "pytest-codecov~=0.6.1",
+    "pytest-asyncio~=0.25.2",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -220,19 +227,22 @@ extra-dependencies = [
     "hypothesis~=6.102.1",
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
-    "pytest~=8.3.2",
+    "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.5.1",
-    "pytest-asyncio~=0.23.8",
+    "pytest-codecov~=0.6.1",
+    "pytest-asyncio~=0.25.2",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "pyarrow",
     "pyarrow_hotfix",
     "altair>=5.4.0",
     "polars~=1.9.0",
+    "sqlglot>=23.4",
+    "sqlalchemy>=2.0.0",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
-    "geopandas~=0.14.4; python_version > '3.9'",
+    # Causes issues installing `shapely` (v2.0.7)
+    # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
     "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
     # For testing mo.image
@@ -242,14 +252,14 @@ extra-dependencies = [
     # testing gen ai
     "openai>=1.55.3",
     "anthropic==0.34.1",
-    "google-generativeai==0.8.2",
+    "google-generativeai==0.8.4",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.2",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.0; python_version == '3.12'",
+    "scikit-bio>=0.6.3; python_version == '3.12'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
@@ -294,10 +304,15 @@ exclude = [
 ]
 
 [tool.ruff.lint]
+preview = true
 ignore = [
     "G004",   # Logging statement uses f-string
-    "TCH001", # Move application import into a type-checking block
+    "TC001", # Move application import into a type-checking block
+    "TC006", # Add quotes to type expression in typing.cast()
     "D301",   # Use r""" if any backslashes in a docstring
+    "PERF203", # try-except within a loop incurs performance overhead; not always possible
+    "PERF401", # Use {message_str} to create a transformed list; at the cost of readability
+    "PERF403", # Use a dictionary comprehension instead of a for-loop; at the cost of readability
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "E501",  # Line too long, we still trim
@@ -318,6 +333,8 @@ extend-select = [
     "ARG",
     # flake8-bugbear
     "B",
+    # Performance
+    "PERF",
     "ANN002", # missing-type-args
     "ANN003", # missing-type-kwargs
     "ANN201", # missing-return-type-undocumented-public-function
@@ -372,7 +389,7 @@ unfixable = ["F401"]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D"]
+"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841"]
 "dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
@@ -395,6 +412,9 @@ banned-module-level-imports = [
     "pandas",
     "tomlkit",
     "polars",
+    "sqlglot",
+    "duckdb",
+    "sqlalchemy",
     "altair",
     "ipython",
     "anywidget",

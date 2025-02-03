@@ -52,6 +52,22 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         click.echo(self.ctx.get_help(), file=file, color=color)
 
 
+def check_app_correctness(filename: str) -> None:
+    try:
+        codegen.get_app(filename)
+    except SyntaxError:
+        import traceback
+
+        # This prints a more readable error message, without internal details
+        # e.g.
+        # Error:   File "/my/bad/file.py", line 17
+        #     x.
+        #     ^
+        # SyntaxError: invalid syntax
+        click.echo(f"Failed to parse notebook: {filename}\n", err=True)
+        raise click.ClickException(traceback.format_exc(limit=0)) from None
+
+
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
 
 
@@ -286,6 +302,14 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
+@click.option(
+    "--watch",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Watch the file for changes and reload the code when saved in another editor.",
+)
 @click.argument("name", required=False, type=click.Path())
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
@@ -300,6 +324,7 @@ def edit(
     skip_update_check: bool,
     sandbox: bool,
     profile_dir: Optional[str],
+    watch: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -342,7 +367,7 @@ def edit(
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
-            codegen.get_app(name)
+            check_app_correctness(name)
         elif not is_dir:
             # write empty file
             try:
@@ -369,7 +394,7 @@ def edit(
         headless=headless,
         mode=SessionMode.EDIT,
         include_code=True,
-        watch=False,
+        watch=watch,
         cli_args=parse_args(args),
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
@@ -540,9 +565,7 @@ Example:
     default=120,
     show_default=True,
     type=int,
-    help=(
-        "Seconds to wait before closing a session on " "websocket disconnect."
-    ),
+    help=("Seconds to wait before closing a session on websocket disconnect."),
 )
 @click.option(
     "--watch",
@@ -633,7 +656,7 @@ def run(
     name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
 
     # correctness check - don't start the server if we can't import the module
-    codegen.get_app(name)
+    check_app_correctness(name)
 
     start(
         file_router=AppFileRouter.from_filename(MarimoPath(name)),
@@ -766,19 +789,19 @@ def env() -> None:
 
 
 @main.command(
-    help="Install shell completions for marimo. Supports bash, zsh, fish, and elvish."
+    help="Install shell completions for marimo. Supports bash, zsh, and fish."
 )
 def shell_completion() -> None:
     shell = os.environ.get("SHELL", "")
     if not shell:
-        click.echo(
+        raise click.UsageError(
             "Could not determine shell. Please set $SHELL environment variable.",
-            err=True,
         )
-        return
 
-    shell_name = Path(shell).name
+    # in case we're on a windows system, use .stem to remove extension
+    shell_name = Path(shell).stem
 
+    # N.B. change the help message above when changing supported shells
     commands = {
         "bash": (
             'eval "$(_MARIMO_COMPLETE=bash_source marimo)"',
@@ -796,9 +819,8 @@ def shell_completion() -> None:
 
     if shell_name not in commands:
         supported = ", ".join(commands.keys())
-        click.echo(
-            f"Unsupported shell: {shell_name}. Supported shells: {supported}",
-            err=True,
+        raise click.UsageError(
+            f"Unsupported shell: {shell_name} (from $SHELL). Supported shells: {supported}",
         )
         return
 

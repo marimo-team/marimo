@@ -1,8 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import cache
+from importlib.util import find_spec
 from inspect import cleandoc
-from typing import Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 import markdown  # type: ignore
 import pymdownx.emoji  # type: ignore
@@ -12,7 +14,7 @@ from marimo._output.md_extensions.external_links import ExternalLinksExtension
 from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
 
-extension_configs = {
+extension_configs: dict[str, dict[str, Any]] = {
     "pymdownx.arithmatex": {
         # Use "generic" mode, no preview, since we don't use MathJax
         "preview": False,
@@ -42,6 +44,66 @@ extension_configs = {
 MarkdownSize = Literal["sm", "base", "lg", "xl", "2xl"]
 
 
+def _has_module(module_name: str) -> bool:
+    try:
+        return find_spec(module_name) is not None
+    except Exception:
+        return False
+
+
+@cache
+def get_extensions() -> list[Union[str, markdown.Extension]]:
+    return [
+        # Syntax highlighting
+        "codehilite",
+        # Markdown tables
+        "tables",
+        # LaTeX
+        "pymdownx.arithmatex",
+        # Base64 is not enabled, since app users could potentially
+        # use it to grab files they shouldn't have access to.
+        # "pymdownx.b64",
+        # Subscripts and strikethrough
+        "pymdownx.tilde",
+        # Better code blocks
+        "pymdownx.superfences",
+        # Task lists
+        "pymdownx.tasklist",
+        # Caption, Tabs, Details
+        *(
+            [
+                module
+                for module in [
+                    "pymdownx.blocks.caption",
+                    "pymdownx.blocks.tab",
+                    "pymdownx.blocks.details",
+                    "pymdownx.blocks.admonition",
+                ]
+                if _has_module(module)
+            ]
+        ),
+        # Critic - color-coded markup
+        "pymdownx.critic",
+        # Emoji - :emoji:
+        "pymdownx.emoji",
+        # Keys - <kbd> support
+        "pymdownx.keys",
+        # Magic links - auto-link URLs
+        "pymdownx.magiclink",
+        # Table of contents
+        # This adds ids to the HTML headers
+        "toc",
+        # Footnotes
+        "footnotes",
+        # Sane lists, to include <ol start="n">
+        "sane_lists",
+        # Links
+        ExternalLinksExtension(),
+        # Iconify
+        IconifyExtension(),
+    ]
+
+
 class _md(Html):
     def __init__(
         self,
@@ -66,49 +128,7 @@ class _md(Html):
         # markdown.markdown appends a newline, hence strip
         html_text = markdown.markdown(
             text,
-            extensions=[
-                # Syntax highlighting
-                "codehilite",
-                # Markdown tables
-                "tables",
-                # LaTeX
-                "pymdownx.arithmatex",
-                # Base64 is not enabled, since app users could potentially
-                # use it to grab files they shouldn't have access to.
-                # "pymdownx.b64",
-                # Subscripts and strikethrough
-                "pymdownx.tilde",
-                # Better code blocks
-                "pymdownx.superfences",
-                # Task lists
-                "pymdownx.tasklist",
-                # Require 10.12, but go as low as 10.x
-                # # Caption
-                # "pymdownx.blocks.caption",
-                # # Tabs
-                # "pymdownx.blocks.tab",
-                # Critic - color-coded markup
-                "pymdownx.critic",
-                # Emoji - :emoji:
-                "pymdownx.emoji",
-                # Keys - <kbd> support
-                "pymdownx.keys",
-                # Magic links - auto-link URLs
-                "pymdownx.magiclink",
-                # Table of contents
-                # This adds ids to the HTML headers
-                "toc",
-                # Footnotes
-                "footnotes",
-                # Admonitions
-                "admonition",
-                # Sane lists, to include <ol start="n">
-                "sane_lists",
-                # Links
-                ExternalLinksExtension(),
-                # Iconify
-                IconifyExtension(),
-            ],
+            extensions=get_extensions(),
             extension_configs=extension_configs,  # type: ignore[arg-type]
         ).strip()
         # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s

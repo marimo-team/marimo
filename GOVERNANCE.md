@@ -185,4 +185,10 @@ additional channels for specific long-term projects in marimo’s development.
 The Steering Committee hosts semiannual developer calls to discuss
 marimo-related business.
 
-The precise time of a given call is determined one month ahead of time by discussions on the “developer-calls” channel of the marimo Discord Server.
+The precise time of a given call is determined one month ahead of time by discussions on the "developer-calls" channel of the marimo Discord Server.
+
+### **Contributor License Agreement**
+
+All contributors to marimo must sign a Contributor License Agreement (CLA) before their contributions can be accepted. The CLA is a legal agreement that assigns copyright of contributions to Marimo Inc. This helps protect the project and its users by ensuring clear ownership and licensing of all contributions.
+
+The CLA can be found at <https://marimo.io/cla> and must be signed before any pull requests can be merged.

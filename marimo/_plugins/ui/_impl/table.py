@@ -38,7 +38,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
-from marimo._plugins.validators import validate_no_integer_columns
+from marimo._plugins.validators import (
+    validate_no_integer_columns,
+    validate_page_size,
+)
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
 
@@ -96,7 +99,11 @@ class SortArgs:
 
 
 @mddoc
-class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
+class table(
+    UIElement[
+        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
+    ]
+):
     """A table component with selectable rows.
 
     Get the selected rows with `table.value`. The table data can be supplied as:
@@ -186,6 +193,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
             Defaults to True when above 10 rows, False otherwise.
         selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
             or None to disable. Defaults to "multi".
+        initial_selection (List[int], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.
@@ -218,6 +226,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
+        initial_selection: Optional[List[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
@@ -254,6 +263,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
     ) -> None:
         validate_no_integer_columns(data)
+        validate_page_size(page_size)
 
         # The original data passed in
         self._data = data
@@ -289,6 +299,23 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         self._searched_manager = self._manager
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
+
+        initial_value = []
+        if initial_selection and self._manager.supports_selection():
+            if selection == "single" and len(initial_selection) > 1:
+                raise ValueError(
+                    "For single selection mode, initial_selection can only contain one row index"
+                )
+            try:
+                self._selected_manager = self._searched_manager.select_rows(
+                    initial_selection
+                )
+            except IndexError as e:
+                raise IndexError(
+                    "initial_selection contains invalid row indices"
+                ) from e
+            initial_value = initial_selection
+            self._has_any_selection = True
 
         # We will need this when calling table manager's to_data()
         self._format_mapping = format_mapping
@@ -378,7 +405,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         super().__init__(
             component_name=table._name,
             label=label,
-            initial_value=[],
+            initial_value=initial_value,
             args={
                 "data": search_result.data,
                 "total-rows": total_rows,
@@ -441,7 +468,7 @@ class table(UIElement[List[str], Union[List[JSONType], IntoDataFrame]]):
         return ""
 
     def _convert_value(
-        self, value: list[str]
+        self, value: Union[List[int] | List[str]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         indices = [int(v) for v in value]
         self._selected_manager = self._searched_manager.select_rows(indices)

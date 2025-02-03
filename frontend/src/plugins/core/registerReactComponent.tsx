@@ -414,9 +414,13 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 
       // Custom styles provided by the plugin
       if (plugin.cssStyles) {
-        const style = document.createElement("style");
-        style.textContent = plugin.cssStyles.join("\n");
-        shadowRoot.append(style);
+        const pluginSheet = new CSSStyleSheet();
+        pluginSheet.replaceSync(plugin.cssStyles.join("\n"));
+        // Add plugin styles last to take precedence
+        shadowRoot.adoptedStyleSheets = [
+          ...shadowRoot.adoptedStyleSheets,
+          pluginSheet,
+        ];
       }
     }
 
@@ -448,6 +452,13 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       });
 
       shadowRoot.append(...styleSheets);
+
+      // Custom styles provided by the plugin
+      if (plugin.cssStyles) {
+        const style = document.createElement("style");
+        style.textContent = plugin.cssStyles.join("\n");
+        shadowRoot.append(style);
+      }
     }
 
     private isAdoptedStyleSheetsSupported() {

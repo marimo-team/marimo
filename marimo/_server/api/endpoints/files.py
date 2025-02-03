@@ -104,6 +104,12 @@ async def rename_file(
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
+    if new_path:
+        # Handle rename for watch
+        app_state.session_manager.handle_file_rename_for_watch(
+            app_state.require_current_session_id(), new_path
+        )
+
     return SuccessResponse()
 
 

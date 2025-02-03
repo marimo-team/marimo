@@ -7,7 +7,8 @@ documented in the [API reference](../api/index.md).
 
 <div align="center">
 <figure>
-<img src="/_static/outputs.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/outputs.webm">
+</video>
 </figure>
 </div>
 
@@ -73,10 +74,72 @@ top right.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-markdown-toggle.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
+</video>
 <figcaption>marimo is pure Python, even when you're using markdown.</figcaption>
 </figure>
 </div>
+
+### Markdown extensions
+#### Details
+
+Create expandable details with additional context:
+
+```markdown
+/// details | Heads up
+
+Here's some additional context.
+///
+```
+
+/// marimo-embed-file
+    filepath: examples/markdown/details.py
+///
+
+
+#### Admonitions
+
+Highlight text using admonitions:
+
+```markdown
+/// attention | This is important.
+
+Pay attention to this text!
+///
+```
+
+/// marimo-embed-file
+    filepath: examples/markdown/admonitions.py
+///
+
+#### Emoji
+
+Use `:emoji:` syntax to add emojis; for example, `:rocket:` creates 🚀.
+
+### Static files
+
+marimo supports serving static files from a `public/` folder located next to your notebook. This is useful for including images or other static assets in your notebook.
+
+To use files from the public folder, create a `public` directory next to your notebook and reference files using the `public/` path prefix:
+
+```python
+mo.md(
+    '''
+    <img src="public/image.png" width="100" />
+
+    or
+
+    ![alt text](public/image.png)
+    '''
+)
+```
+
+For security reasons:
+
+- Only files within the `public` directory can be accessed
+- Symlinks are not followed
+- Path traversal attempts (e.g., `../`) are blocked
+
 
 ## Layout
 

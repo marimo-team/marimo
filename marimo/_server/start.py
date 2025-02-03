@@ -22,6 +22,7 @@ from marimo._server.utils import (
     initialize_fd_limit,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._tracer import LOGGER
 from marimo._utils.paths import import_files
 
 DEFAULT_PORT = 2718
@@ -111,6 +112,20 @@ def start(
         min_port=DEFAULT_PORT + 200,
     )
 
+    # If watch is true, disable auto-save and format-on-save,
+    # watch is enabled when they are editing in another editor
+    if watch:
+        config_reader = config_reader.with_overrides(
+            {
+                "save": {
+                    "autosave": "off",
+                    "format_on_save": False,
+                    "autosave_delay": 1000,
+                }
+            }
+        )
+        LOGGER.info("Watch mode enabled, auto-save is disabled")
+
     session_manager = SessionManager(
         file_router=file_router,
         mode=mode,
@@ -123,6 +138,7 @@ def start(
         cli_args=cli_args,
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
+        watch=watch,
     )
 
     log_level = "info" if development_mode else "error"
@@ -134,7 +150,6 @@ def start(
         lifespan=lifespans.Lifespans(
             [
                 lifespans.lsp,
-                lifespans.watcher,
                 lifespans.etc,
                 lifespans.signal_handler,
                 lifespans.logging,

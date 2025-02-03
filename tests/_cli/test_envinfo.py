@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._cli.envinfo import (
     get_system_info,
 )
@@ -34,3 +36,4 @@ def test_get_system_info() -> None:
     assert "Python Version" in system_info
     assert "Binaries" in system_info
     assert "Dependencies" in system_info
+    assert "Experimental Flags" in system_info

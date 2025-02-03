@@ -1,4 +1,13 @@
-from marimo._snippets.snippets import get_title_from_code, read_snippets
+from __future__ import annotations
+
+import pytest
+
+from marimo._snippets.snippets import (
+    get_title_from_code,
+    read_snippet_filenames,
+    read_snippets,
+)
+from marimo._utils.platform import is_windows
 
 
 async def test_snippets() -> None:
@@ -36,3 +45,26 @@ def test_get_title_from_code_with_multiple_titles() -> None:
 def test_get_title_from_code_with_non_title_hashes() -> None:
     code = "print('# This is not a title')"
     assert get_title_from_code(code) == ""
+
+
+@pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
+@pytest.mark.parametrize(
+    ("include_default_snippets", "custom_paths", "expected_snippets"),
+    [
+        (True, [], 38),
+        (False, [], 0),
+        (True, ["/notarealdirectory"], 38),
+        (False, ["/notarealdirectory"], 0),
+        (False, ["marimo/_snippets/data"], 38),
+        (False, ["marimo/_snippets/data", "/notarealdirectory"], 38),
+    ],
+)
+def test_read_snippet_filenames(
+    include_default_snippets, custom_paths, expected_snippets
+) -> None:
+    filenames = list(
+        read_snippet_filenames(include_default_snippets, custom_paths)
+    )
+    assert len(filenames) == expected_snippets
+    assert all(filename.endswith(".py") for filename in filenames)
+    assert all("_snippets/data" in filename for filename in filenames)

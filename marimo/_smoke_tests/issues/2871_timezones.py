@@ -1,28 +1,30 @@
 import marimo
 
-__generated_with = "0.9.19"
+__generated_with = "0.10.16"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import polars as pl
     from datetime import datetime, date
 
     d = datetime(2010, 10, 7, 13, 15)
 
+    # It should appear as 2010-10-07T13:15:00.000
     pl.DataFrame({"timestamp": [d], "date": [d.date()]})
     return d, date, datetime, pl
 
 
 @app.cell
-def __(d):
+def _(d):
+    # It should appear as 2010-10-07T13:15:00.000
     [d, d.date()]
     return
 
 
 @app.cell
-def __(date, pl):
+def _(date, pl):
     import altair as alt
 
     data = pl.DataFrame(

@@ -13,7 +13,7 @@ from marimo._server.file_manager import AppFileManager
 
 def format_filename_title(filename: str) -> str:
     basename = os.path.basename(filename)
-    name, ext = os.path.splitext(basename)
+    name, _ext = os.path.splitext(basename)
     title = re.sub("[-_]", " ", name)
     return title.title()
 
@@ -47,6 +47,12 @@ def _const_string(args: list[ast.stmt]) -> str:
     if hasattr(inner, "values"):
         (inner,) = inner.values
     return f"{inner.value}"  # type: ignore[attr-defined]
+
+
+def _const_or_id(args: ast.stmt) -> str:
+    if hasattr(args, "value"):
+        return f"{args.value}"  # type: ignore[attr-defined]
+    return f"{args.id}"  # type: ignore[attr-defined]
 
 
 def get_markdown_from_cell(
@@ -103,3 +109,28 @@ def get_markdown_from_cell(
           :::"""
         )
     return md
+
+
+def get_sql_options_from_cell(code: str) -> Optional[dict[str, str]]:
+    # Note frontend/src/core/codemirror/language/sql.ts
+    # also extracts options via ast. Ideally, these should be synced.
+    options = {}
+    code = code.strip()
+    try:
+        (body,) = ast.parse(code).body
+        (target,) = body.targets  # type: ignore[attr-defined]
+        options["query"] = target.id
+        if body.value.func.attr == "sql":  # type: ignore[attr-defined]
+            value = body.value  # type: ignore[attr-defined]
+        else:
+            return None
+        if value.keywords:
+            for keyword in value.keywords:  # type: ignore[attr-defined]
+                options[keyword.arg] = _const_or_id(keyword.value)  # type: ignore[attr-defined]
+        output = options.pop("output", "True").lower()
+        if output == "false":
+            options["hide_output"] = "True"
+
+        return options
+    except (AssertionError, AttributeError, ValueError):
+        return None

@@ -76,6 +76,15 @@ def test_date_range() -> None:
 
     # Test with start and stop
     dr = ui.date_range(
+        start="2024-01-01",
+        stop="2024-12-31",
+    )
+    assert dr.start == datetime.date(2024, 1, 1)
+    assert dr.stop == datetime.date(2024, 12, 31)
+    assert dr.value == (dr.start, dr.stop)
+
+    # Test with start, stop and value
+    dr = ui.date_range(
         value=("2024-03-01", "2024-03-15"),
         start="2024-01-01",
         stop="2024-12-31",

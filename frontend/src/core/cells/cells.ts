@@ -780,27 +780,65 @@ const {
       cellHandles: nextCellHandles,
     };
   },
-  setCellCodes: (state, action: { codes: string[]; ids: CellId[] }) => {
+  setCellCodes: (
+    state,
+    action: { codes: string[]; ids: CellId[]; codeIsStale: boolean },
+  ) => {
     invariant(
       action.codes.length === action.ids.length,
       "Expected codes and ids to have the same length",
     );
 
+    let nextState = { ...state };
+
+    const cellReducer = (
+      cell: CellData | undefined,
+      code: string,
+      cellId: CellId,
+    ) => {
+      if (!cell) {
+        return createCell({ id: cellId, code });
+      }
+
+      // No change
+      if (cell.code.trim() === code.trim()) {
+        return cell;
+      }
+
+      // Update codemirror if mounted
+      const cellHandle = nextState.cellHandles[cellId].current;
+      if (cellHandle?.editorView) {
+        updateEditorCodeFromPython(cellHandle.editorView, code);
+      }
+
+      // If code is stale, we don't promote it to lastCodeRun
+      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
+
+      return {
+        ...cell,
+        code: code,
+        // Mark as edited if the code has changed
+        edited: lastCodeRun
+          ? lastCodeRun.trim() !== code.trim()
+          : Boolean(code),
+        lastCodeRun,
+      };
+    };
+
     for (let i = 0; i < action.codes.length; i++) {
       const cellId = action.ids[i];
       const code = action.codes[i];
 
-      state = updateCellData(state, cellId, (cell) => {
-        return {
-          ...cell,
-          code,
-          edited: false,
-          lastCodeRun: code,
-        };
-      });
+      nextState = {
+        ...nextState,
+        cellData: {
+          ...nextState.cellData,
+          [cellId]: cellReducer(nextState.cellData[cellId], code, cellId),
+        },
+      };
     }
 
-    return state;
+    return nextState;
   },
   setStdinResponse: (
     state,

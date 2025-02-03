@@ -42,7 +42,9 @@ class AppFileManager:
 
     def reload(self) -> None:
         """Reload the app from the file."""
+        prev_cell_manager = self.app.cell_manager
         self.app = self._load_app(self.path)
+        self.app.cell_manager.sort_cell_ids_by_similarity(prev_cell_manager)
 
     def _is_same_path(self, filename: str) -> bool:
         if self.filename is None:

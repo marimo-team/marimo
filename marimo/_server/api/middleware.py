@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
 from typing import (
     TYPE_CHECKING,
@@ -162,14 +163,12 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
             return response
 
 
+@dataclass
 class _URLRequest:
-    def __init__(
-        self, url: str, method: str, headers: dict[str, str], data: Any
-    ):
-        self.full_url = url
-        self.method = method
-        self.headers = headers
-        self.data = data
+    full_url: str
+    method: str
+    headers: dict[str, str]
+    data: Any
 
 
 class _AsyncHTTPResponse:
@@ -375,7 +374,7 @@ class ProxyMiddleware:
         websocket = WebSocket(scope, receive=receive, send=send)
         original_params = websocket.query_params
         if original_params:
-            ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k,v in original_params.items())}"
+            ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
         await websocket.accept()
 
         async with connect(ws_url) as ws_client:

@@ -680,9 +680,17 @@ def test_parse_spec_geopandas() -> None:
     import altair as alt
     import geopandas as gpd
 
-    data = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
-    # take top 3 countries with largest population
-    data = data.sort_values(by="pop_est", ascending=False).head(3)
+    # Create a simple GeoDataFrame with 3 countries
+    data = gpd.GeoDataFrame(
+        {
+            "name": ["USA", "China", "India"],
+            "pop_est": [331002651, 1439323776, 1380004385],
+            "geometry": [
+                gpd.points_from_xy([x], [y])[0]
+                for x, y in [(-95, 37), (105, 35), (77, 20)]
+            ],
+        }
+    )
     chart = (
         alt.Chart(data)
         .mark_geoshape()
@@ -704,6 +712,27 @@ def test_has_geoshape() -> None:
 
     chart_without_geoshape = alt.Chart().mark_bar()
     assert _has_geoshape(chart_without_geoshape) is False
+
+    # Test nested charts
+    nested_layer = alt.layer(
+        alt.Chart().mark_bar(), alt.Chart().mark_geoshape()
+    )
+    assert _has_geoshape(nested_layer) is True
+
+    nested_vconcat = alt.vconcat(
+        alt.Chart().mark_bar(), alt.Chart().mark_geoshape()
+    )
+    assert _has_geoshape(nested_vconcat) is True
+
+    nested_hconcat = alt.hconcat(
+        alt.Chart().mark_bar(), alt.Chart().mark_geoshape()
+    )
+    assert _has_geoshape(nested_hconcat) is True
+
+    all_non_geoshape = alt.layer(
+        alt.Chart().mark_bar(), alt.Chart().mark_line()
+    )
+    assert _has_geoshape(all_non_geoshape) is False
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

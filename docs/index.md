@@ -75,7 +75,8 @@ reference its variables, eliminating the error-prone task of manually
 re-running cells. Delete a cell and marimo scrubs its variables from program
 memory, eliminating hidden state.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
+<video autoplay muted loop width="700px" align="center" src="/_static/reactive.webm">
+</video>
 
 <a name="expensive-notebooks"></a>
 
@@ -93,13 +94,15 @@ transformers](api/inputs/dataframe.md), and [chat
 interfaces](api/inputs/chat.md), and the cells that
 use them are automatically re-run with their latest values.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
+<video autoplay muted loop width="700px" align="center" src="/_static/readme-ui.webm">
+</video>
 
 **Interactive dataframes.** [Page through, search, filter, and
-sort](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+sort](./guides/working_with_data/dataframes.md)
 millions of rows blazingly fast, no code required.
 
-<img src="_static/docs-df.gif">
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.webm">
+</video>
 
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
@@ -155,7 +158,8 @@ code hidden and uneditable:
 marimo run your_notebook.py
 ```
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
+<video autoplay muted loop width="450px" align="center" src="/_static/docs-model-comparison.webm" style="border-radius: 8px">
+</video>
 
 **Execute as scripts.** Execute a notebook as a script at the
 command line:
@@ -190,7 +194,8 @@ marimo is easy to get started with, with lots of room for power users.
 For example, here's an embedding visualizer made in marimo
 ([video](https://marimo.io/videos/landing/full.mp4)):
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
+<video autoplay muted loop width="700px" align="center" src="/_static/embedding.webm">
+</video>
 
 Check out our [guides](guides/index.md), our [example
 gallery](https://marimo.io/gallery), and our
@@ -200,38 +205,42 @@ GitHub to learn more.
 <table border="0">
   <tr>
     <td>
-      <a target="_blank" href="getting_started/key_concepts.md">
-        <img src="_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
+      <a target="_blank" href="getting_started/key_concepts">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/reactive.webm">
+        </video>
       </a>
     </td>
     <td>
-      <a target="_blank" href="api/inputs/index.md">
-        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
+      <a target="_blank" href="api/inputs/">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/readme-ui.webm">
+        </video>
       </a>
     </td>
     <td>
-      <a target="_blank" href="guides/working_with_data/plotting.md">
-        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
+      <a target="_blank" href="guides/working_with_data/plotting">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/docs-intro.webm">
+        </video>
       </a>
     </td>
     <td>
-      <a target="_blank" href="api/layouts/index.md">
-        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
+      <a target="_blank" href="api/layouts/">
+        <video autoplay muted loop style="max-height: 150px; width: auto; display: block" src="/_static/outputs.webm">
+        </video>
       </a>
     </td>
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="getting_started/key_concepts.md"> Tutorial </a>
+      <a target="_blank" href="getting_started/key_concepts"> Tutorial </a>
     </td>
     <td>
-      <a target="_blank" href="api/inputs/index.md"> Inputs </a>
+      <a target="_blank" href="api/inputs/"> Inputs </a>
     </td>
     <td>
-      <a target="_blank" href="guides/working_with_data/plotting.md"> Plots </a>
+      <a target="_blank" href="guides/working_with_data/plotting"> Plots </a>
     </td>
     <td>
-      <a target="_blank" href="api/layouts/index.md"> Layout </a>
+      <a target="_blank" href="api/layouts/"> Layout </a>
     </td>
   </tr>
   <tr>

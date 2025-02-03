@@ -40,9 +40,13 @@ def print_startup(
     print_()
     print_tabbed(f"{_utf8('➜')}  {green('URL')}: {_colorized_url(url)}")
     if network:
-        print_tabbed(
-            f"{_utf8('➜')}  {green('Network')}: {_colorized_url(_get_network_url(url))}"
-        )
+        try:
+            print_tabbed(
+                f"{_utf8('➜')}  {green('Network')}: {_colorized_url(_get_network_url(url))}"
+            )
+        except Exception:
+            # If we can't get the network URL, just skip it
+            pass
     print_()
 
 
@@ -56,7 +60,11 @@ def _get_network_url(url: str) -> str:
     import socket
 
     hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
+    try:
+        local_ip = socket.gethostbyname(hostname)
+    except Exception:
+        # Fallback to hostname if we can't get network address
+        local_ip = hostname
 
     # Replace the host part of the URL with the local IP
     from urllib.parse import urlparse, urlunparse

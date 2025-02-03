@@ -1305,10 +1305,56 @@ describe("cell reducer", () => {
     actions.setCellIds({ cellIds: newIds });
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).topLevelIds).toEqual(newIds);
 
-    actions.setCellCodes({ codes: newCodes, ids: newIds });
+    // When codeIsStale is false, lastCodeRun should match code
+    actions.setCellCodes({
+      codes: newCodes,
+      ids: newIds,
+      codeIsStale: false,
+    });
     newIds.forEach((id, index) => {
       expect(state.cellData[id].code).toBe(newCodes[index]);
+      expect(state.cellData[id].lastCodeRun).toBe(newCodes[index]);
+      expect(state.cellData[id].edited).toBe(false);
     });
+
+    // When codeIsStale is true, lastCodeRun should not change
+    const staleCodes = ["stale1", "stale2", "stale3"];
+    actions.setCellCodes({
+      codes: staleCodes,
+      ids: newIds,
+      codeIsStale: true,
+    });
+    newIds.forEach((id, index) => {
+      expect(state.cellData[id].code).toBe(staleCodes[index]);
+      expect(state.cellData[id].lastCodeRun).toBe(newCodes[index]);
+      expect(state.cellData[id].edited).toBe(true);
+    });
+  });
+
+  it("can set cell codes with new cell ids, while preserving the old cell data", () => {
+    actions.setCellCodes({
+      codes: ["code1", "code2", "code3"],
+      ids: ["3", "4", "5"] as CellId[],
+      codeIsStale: false,
+    });
+    expect(state.cellData["3" as CellId].code).toBe("code1");
+    expect(state.cellData["4" as CellId].code).toBe("code2");
+    expect(state.cellData["5" as CellId].code).toBe("code3");
+
+    // Update with some new cell ids and some old cell ids
+    actions.setCellIds({ cellIds: ["1", "2", "3", "4"] as CellId[] });
+    actions.setCellCodes({
+      codes: ["new1", "new2", "code1", "code2"],
+      ids: ["1", "2", "3", "4"] as CellId[],
+      codeIsStale: false,
+    });
+    expect(state.cellData["1" as CellId].code).toBe("new1");
+    expect(state.cellData["2" as CellId].code).toBe("new2");
+    expect(state.cellData["3" as CellId].code).toBe("code1");
+    expect(state.cellData["4" as CellId].code).toBe("code2");
+    expect(state.cellIds.inOrderIds).toEqual(["1", "2", "3", "4"]);
+    // Cell 5 data is preserved (possibly used for tracing), but it's not in the cellIds
+    expect(state.cellData["5" as CellId]).not.toBeUndefined();
   });
 
   it("can fold and unfold all cells", () => {

@@ -12,7 +12,10 @@ from marimo._ast.transformers import NameTransformer
     sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_name_transformer() -> None:
-    # Test code
+    # Name transformer should naively remap all occurrences of names in an AST,
+    # without taking scoping into account.
+    #
+    # It does not transform attributes.
     code = """
 def old_function():
     old_variable = 42
@@ -47,8 +50,8 @@ old_global = "world"
     # Expected transformed code
     expected_code = """
 def new_function():
-    old_variable = 42
-    return old_variable
+    new_variable = 42
+    return new_variable
 
 class NewClass:
 

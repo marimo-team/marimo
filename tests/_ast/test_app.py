@@ -159,8 +159,9 @@ class TestApp:
         app._unparsable_cell("_ _")
         app._unparsable_cell("_ _", name="foo")
 
-        with pytest.raises(UnparsableError):
+        with pytest.raises(UnparsableError) as e:
             app.run()
+        e.match("_ _")
 
     @staticmethod
     def test_init_not_rewritten_as_local() -> None:

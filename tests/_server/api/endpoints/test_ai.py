@@ -477,9 +477,9 @@ def no_google_ai_config(config: UserConfigManager):
 
 class TestStreamResponse(unittest.TestCase):
     def simulate_stream(self, contents: List[str]) -> Any:
+        @dataclass
         class MockContent:
-            def __init__(self, content: str) -> None:
-                self.content = content
+            content: str
 
         class MockDelta:
             def __init__(self, content: str) -> None:

@@ -1,7 +1,10 @@
 .vega-embed {
   width: 100%;
-  min-width: 300px;
   flex: 1;
+
+  @media (min-width: 500px) {
+    min-width: 300px;
+  }
 }
 
 .vega-embed > .chart-wrapper {
@@ -12,7 +15,10 @@
 div:has(> marimo-ui-element > marimo-vega) {
   display: block !important;
   flex: 1;
-  min-width: 450px;
+
+  @media (min-width: 500px) {
+    min-width: 350px;
+  }
 }
 
 .vega-embed canvas {

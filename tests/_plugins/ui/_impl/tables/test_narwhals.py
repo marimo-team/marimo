@@ -673,9 +673,9 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "integers": lambda x: -100 if x is None else x * 2,
             "floats": lambda x: "---" if x is None else f"{x:.1f}",
             "booleans": lambda x: "MISSING" if x is None else str(x).upper(),
-            "dates": lambda x: "No Date"
-            if x is None
-            else x.strftime("%Y-%m-%d"),
+            "dates": lambda x: (
+                "No Date" if x is None else x.strftime("%Y-%m-%d")
+            ),
             "lists": lambda x: "Empty" if x is None else f"List({len(x)})",
         }
 
@@ -794,16 +794,101 @@ def test_sort_values_with_nulls(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]},
+        {
+            "A": [1, 2, 3, 4],  # Integer
+            "B": ["a", "b", "c", "d"],  # String
+            "C": [
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 2, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 3, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 4, tzinfo=datetime.timezone.utc),
+            ],  # Datetime with timezone
+            "D": [1.1, 2.2, 3.3, 4.4],  # Float
+            "E": [True, False, True, False],  # Boolean
+            "F": [None, "b", "c", None],  # Mixed with nulls
+            "G": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 2),
+                datetime.date(2021, 1, 3),
+                datetime.date(2021, 1, 4),
+            ],  # Date
+            "H": [10_000, -5_000, 0, 999_999],  # Large integers
+            "I": [
+                float("inf"),
+                float("-inf"),
+                float("nan"),
+                1.0,
+            ],  # Special floats
+            "J": ["", "  ", "test", "\t\n"],  # Whitespace strings
+            "K": [b"bytes1", b"bytes2", b"bytes3", b"bytes4"],  # Bytes
+        },
         exclude=["ibis", "duckdb"],
     ),
 )
 def test_get_sample_values(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
+
+    # Integer
     sample_values = manager.get_sample_values("A")
     assert sample_values == [1, 2, 3]
+
+    # String
     sample_values = manager.get_sample_values("B")
     assert sample_values == ["a", "b", "c"]
+
+    # Datetime with timezone
+    sample_values = manager.get_sample_values("C")
+    assert (
+        sample_values
+        == [
+            "2021-01-01 00:00:00",
+            "2021-01-02 00:00:00",
+            "2021-01-03 00:00:00",
+        ]
+        # Polars on windows is missing timezone info
+        or sample_values == []
+    )
+
+    # Float
+    sample_values = manager.get_sample_values("D")
+    assert sample_values == [1.1, 2.2, 3.3]
+
+    # Boolean
+    sample_values = manager.get_sample_values("E")
+    assert sample_values == [True, False, True]
+
+    # Mixed with nulls
+    sample_values = manager.get_sample_values("F")
+    assert sample_values == ["None", "b", "c"]
+
+    # Date
+    sample_values = manager.get_sample_values("G")
+    # Polars on windows is missing timezone info
+    assert sample_values == [
+        "2021-01-01",
+        "2021-01-02",
+        "2021-01-03",
+    ] or sample_values == [
+        "2021-01-01 00:00:00",
+        "2021-01-02 00:00:00",
+        "2021-01-03 00:00:00",
+    ]
+
+    # Large integers
+    sample_values = manager.get_sample_values("H")
+    assert sample_values == [10_000, -5_000, 0]
+
+    # Special floats
+    sample_values = manager.get_sample_values("I")
+    assert len(sample_values) == 3
+
+    # Whitespace strings
+    sample_values = manager.get_sample_values("J")
+    assert sample_values == ["", "  ", "test"]
+
+    # Bytes
+    sample_values = manager.get_sample_values("K")
+    assert sample_values == ["b'bytes1'", "b'bytes2'", "b'bytes3'"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -823,6 +908,65 @@ def test_get_sample_values_with_metadata_only_frame(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_sample_values_returns_primitives() -> None:
+    """Test that get_sample_values always returns primitive types."""
+    import polars as pl
+
+    def is_primitive(value: Any) -> bool:
+        return isinstance(
+            value,
+            (
+                str,
+                int,
+                float,
+                bool,
+                type(None),
+                datetime.datetime,
+                datetime.date,
+            ),
+        )
+
+    class Enum:
+        A = "a"
+        B = "b"
+        C = "c"
+
+    # Create a DataFrame with various types including categorical/enum-like columns
+    df = pl.DataFrame(
+        {
+            "category": pl.Series(["A", "B", "C"], dtype=pl.Categorical),
+            "mixed": pl.Series(["str", "123", "45.67"]),
+            "list": pl.Series([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
+            "dict": pl.Series(
+                [
+                    {"a": 1, "b": Enum.A},
+                    {"c": 3, "d": Enum.B},
+                    {"e": 5, "f": Enum.C},
+                ]
+            ),
+            "enum": pl.Series([Enum.A, Enum.B, Enum.C]),
+            "dates": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 3),
+            ],
+        },
+    )
+
+    manager: NarwhalsTableManager[Any] = NarwhalsTableManager.from_dataframe(
+        df
+    )
+
+    # Verify all values are primitives
+    for column in df.columns:
+        values = manager.get_sample_values(column)
+        for val in values:
+            assert is_primitive(val), (
+                f"Column {column} returned non-primitive or non-datetime value: {val} of type {type(val)}"
+            )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
     create_dataframes({f"col_{i}": [1, 2, 3] for i in range(2000)}),
@@ -839,6 +983,6 @@ def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
     # This can be slow if get_field_types is not optimized.
     # https://github.com/marimo-team/marimo/issues/3107
     total_ms = (end_time - start_time) * 1000
-    assert (
-        total_ms < 500
-    ), f"Total time: {total_ms}ms for {df.shape[1]} columns with {type(df)}"
+    assert total_ms < 500, (
+        f"Total time: {total_ms}ms for {df.shape[1]} columns with {type(df)}"
+    )
