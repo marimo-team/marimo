@@ -4,15 +4,6 @@ from __future__ import annotations
 import urllib.parse
 from typing import Optional, Union
 
-from marimo._messaging.mimetypes import KnownMimeType
-
-
-def build_data_url(mimetype: KnownMimeType, data: bytes) -> str:
-    assert mimetype is not None
-    # `data` must be base64 encoded
-    str_repr = data.decode("utf-8").replace("\n", "")
-    return f"data:{mimetype};base64,{str_repr}"
-
 
 def flatten_string(text: str) -> str:
     return "".join([line.strip() for line in text.split("\n")])

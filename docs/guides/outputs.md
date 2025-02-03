@@ -62,6 +62,60 @@ mo.md(
 )
 ```
 
+### Markdown editor
+
+marimo automatically renders cells that only use `mo.md("")`, without an
+`f`-string, in a markdown editor that supports common hotkeys.
+
+Because the Markdown editor doesn't support f-strings, you'll need to use
+`mo.md` directly to interpolate Python values into your Markdown. You can
+switch between the Markdown and Python editors by clicking the button in the
+top right.
+
+<div align="center">
+<figure>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
+</video>
+<figcaption>marimo is pure Python, even when you're using markdown.</figcaption>
+</figure>
+</div>
+
+### Markdown extensions
+#### Details
+
+Create expandable details with additional context:
+
+```markdown
+/// details | Heads up
+
+Here's some additional context.
+///
+```
+
+/// marimo-embed-file
+    filepath: examples/markdown/details.py
+///
+
+
+#### Admonitions
+
+Highlight text using admonitions:
+
+```markdown
+/// attention | This is important.
+
+Pay attention to this text!
+///
+```
+
+/// marimo-embed-file
+    filepath: examples/markdown/admonitions.py
+///
+
+#### Emoji
+
+Use `:emoji:` syntax to add emojis; for example, `:rocket:` creates 🚀.
+
 ### Static files
 
 marimo supports serving static files from a `public/` folder located next to your notebook. This is useful for including images or other static assets in your notebook.
@@ -86,23 +140,6 @@ For security reasons:
 - Symlinks are not followed
 - Path traversal attempts (e.g., `../`) are blocked
 
-### Markdown editor
-
-marimo automatically renders cells that only use `mo.md("")`, without an
-`f`-string, in a markdown editor that supports common hotkeys.
-
-Because the Markdown editor doesn't support f-strings, you'll need to use
-`mo.md` directly to interpolate Python values into your Markdown. You can
-switch between the Markdown and Python editors by clicking the button in the
-top right.
-
-<div align="center">
-<figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
-</video>
-<figcaption>marimo is pure Python, even when you're using markdown.</figcaption>
-</figure>
-</div>
 
 ## Layout
 

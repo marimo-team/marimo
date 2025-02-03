@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -10,12 +10,17 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CellOp
 from marimo._server.export import (
+    export_as_wasm,
     run_app_then_export_as_ipynb,
     run_app_until_completion,
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
+from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 snapshot = snapshotter(__file__)
 
@@ -340,6 +345,37 @@ async def test_export_wasm_run():
     assert filename == "notebook.wasm.html"
     assert "alert(" in content
     assert "mode='read'" in content
+
+
+async def test_export_html_with_layout(tmp_path: Path):
+    test_file = tmp_path / "test.py"
+    test_file.write_text(
+        """
+import marimo
+
+app = marimo.App(layout_file="layouts/layout.json")
+
+@app.cell()
+def __():
+    x = 1
+    return
+"""
+    )
+
+    # Create the layout file
+    layout_file = tmp_path / "layouts" / "layout.json"
+    layout_file.parent.mkdir(parents=True, exist_ok=True)
+    layout_file.write_text('{"type": "slides", "data": {}}')
+
+    # Export the app
+    result = export_as_wasm(
+        path=MarimoPath(test_file),
+        mode="edit",
+        show_code=True,
+    )
+    assert result.did_error is False
+    assert "layout.json" not in result.contents
+    assert "data:application/json" in result.contents
 
 
 def _print_messages(messages: list[CellOp]) -> str:
