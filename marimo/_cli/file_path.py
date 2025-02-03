@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import abc
 import json
-import logging
 import os
 import pathlib
 import urllib.parse
@@ -12,9 +11,12 @@ from tempfile import TemporaryDirectory
 from typing import Optional, Tuple
 from urllib.error import HTTPError
 
+from marimo import _loggers
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
+
+LOGGER = _loggers.marimo_logger()
 
 
 def is_github_src(url: str, ext: str) -> bool:
@@ -99,7 +101,7 @@ class StaticNotebookReader(FileReader):
     @staticmethod
     def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
         def download(url: str) -> tuple[bool, str]:
-            logging.info("Downloading %s", url)
+            LOGGER.info("Downloading %s", url)
             request = urllib.request.Request(
                 url,
                 # User agent to avoid 403 Forbidden some bot protection
@@ -278,11 +280,11 @@ class RemoteFileHandler(FileHandler):
     def _create_tmp_file_from_content(
         content: str, name: str, temp_dir: TemporaryDirectory[str]
     ) -> str:
-        logging.info("Creating temporary file")
+        LOGGER.info("Creating temporary file")
         path_to_app = os.path.join(temp_dir.name, name)
         with open(path_to_app, "w") as f:
             f.write(content)
-        logging.info("App saved to %s", path_to_app)
+        LOGGER.info("App saved to %s", path_to_app)
         return path_to_app
 
 

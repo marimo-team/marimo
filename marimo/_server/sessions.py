@@ -52,6 +52,7 @@ from marimo._runtime.requests import (
     CreationRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
+    HTTPRequest,
     SerializedCLIArgs,
     SerializedQueryParams,
     SetUIElementValueRequest,
@@ -670,10 +671,19 @@ class Session:
             self.heartbeat_task.cancel()
         self.kernel_manager.close_kernel()
 
-    def instantiate(self, request: InstantiateRequest) -> None:
+    def instantiate(
+        self,
+        request: InstantiateRequest,
+        *,
+        http_request: Optional[HTTPRequest],
+    ) -> None:
         """Instantiate the app."""
         execution_requests = tuple(
-            ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
+            ExecutionRequest(
+                cell_id=cell_data.cell_id,
+                code=cell_data.code,
+                request=http_request,
+            )
             for cell_data in self.app_file_manager.app.cell_manager.cell_data()
         )
 
@@ -684,8 +694,10 @@ class Session:
                     object_ids=request.object_ids,
                     values=request.values,
                     token=str(uuid4()),
+                    request=http_request,
                 ),
                 auto_run=request.auto_run,
+                request=http_request,
             ),
             from_consumer_id=None,
         )
@@ -1023,7 +1035,7 @@ class SessionManager:
         alert = self.lsp_server.start()
 
         if alert is not None:
-            for _, session in self.sessions.items():
+            for session in self.sessions.values():
                 session.write_operation(alert, from_consumer_id=None)
             return
 

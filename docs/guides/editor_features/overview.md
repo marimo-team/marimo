@@ -128,7 +128,8 @@ Get a link to share your notebook via our [online playground](../wasm.md):
 
 <div align="center">
 <figure>
-<img src="/_static/share-wasm-link.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/share-wasm-link.webm">
+</video>
 </figure>
 </div>
 

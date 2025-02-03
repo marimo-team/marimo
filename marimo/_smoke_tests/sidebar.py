@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.5.2"
-app = marimo.App()
+__generated_with = "0.10.17"
+app = marimo.App(width="full")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.sidebar(
         [
             mo.md("# marimo"),
@@ -35,12 +35,13 @@ def __(mo):
         """
             )
         ],
+        width="500px",
     )
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     [
         mo.ui.button(
             label=f"{mo.icon('lucide:home')} Home",
@@ -53,13 +54,13 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.nav_menu(
         {
             "#home": f"{mo.icon('lucide:home')} Home",
@@ -72,7 +73,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.nav_menu(
         {
             "#home": f"{mo.icon('lucide:home')} Home",

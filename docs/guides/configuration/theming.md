@@ -47,6 +47,22 @@ You can further customize your notebook by adding custom HTML in the `<head>` se
 
 See the [Custom HTML Head](html_head.md) guide for more details.
 
+## Targeting cells
+
+You can target a cell's styles from the `data-cell-name` attribute. You can also target a cell's output with the `data-cell-role="output"` attribute.
+
+```css
+/* Target the cell named "My Cell" */
+[data-cell-name="my_cell"] {
+  background-color: light-dark(navy, pink);
+}
+
+/* Target the output of the cell named "My Cell" */
+[data-cell-name="my_cell"] [data-cell-role="output"] {
+  background-color: light-dark(navy, pink);
+}
+```
+
 ## Community Themes
 
 The marimo community maintains a [library of custom themes](https://github.com/metaboulie/marimo-themes) that you can use in your notebooks. The library includes various themes like "coldme", "nord", "mininini", and "wigwam", each supporting both light and dark modes.

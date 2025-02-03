@@ -789,19 +789,19 @@ def env() -> None:
 
 
 @main.command(
-    help="Install shell completions for marimo. Supports bash, zsh, fish, and elvish."
+    help="Install shell completions for marimo. Supports bash, zsh, and fish."
 )
 def shell_completion() -> None:
     shell = os.environ.get("SHELL", "")
     if not shell:
-        click.echo(
+        raise click.UsageError(
             "Could not determine shell. Please set $SHELL environment variable.",
-            err=True,
         )
-        return
 
-    shell_name = Path(shell).name
+    # in case we're on a windows system, use .stem to remove extension
+    shell_name = Path(shell).stem
 
+    # N.B. change the help message above when changing supported shells
     commands = {
         "bash": (
             'eval "$(_MARIMO_COMPLETE=bash_source marimo)"',
@@ -819,9 +819,8 @@ def shell_completion() -> None:
 
     if shell_name not in commands:
         supported = ", ".join(commands.keys())
-        click.echo(
-            f"Unsupported shell: {shell_name}. Supported shells: {supported}",
-            err=True,
+        raise click.UsageError(
+            f"Unsupported shell: {shell_name} (from $SHELL). Supported shells: {supported}",
         )
         return
 

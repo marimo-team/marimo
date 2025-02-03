@@ -173,8 +173,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
         preventDefault: true,
       },
       {
-        key: "Alt-j",
-        mac: "Ctrl-j",
+        key: hotkeys.getHotkey("completion.moveDown").key,
         run: (cm) => {
           if (completionStatus(cm.state) !== null) {
             moveCompletionSelection(true)(cm);
@@ -185,8 +184,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
         preventDefault: true,
       },
       {
-        key: "Alt-k",
-        mac: "Ctrl-k",
+        key: hotkeys.getHotkey("completion.moveUp").key,
         run: (cm) => {
           if (completionStatus(cm.state) !== null) {
             moveCompletionSelection(false)(cm);

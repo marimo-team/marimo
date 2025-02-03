@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Union
 
+from marimo import _loggers
 from marimo._plugins.core.web_component import JSONType
+
+LOGGER = _loggers.marimo_logger()
 
 FormatMapping = Dict[str, Union[str, Callable[..., JSONType]]]
 
@@ -11,24 +14,38 @@ FormatMapping = Dict[str, Union[str, Callable[..., JSONType]]]
 def format_value(
     col: str, value: JSONType, format_mapping: FormatMapping
 ) -> JSONType:
-    # Return None if the format mapping is None
     if format_mapping is None:
         return value
 
-    if col in format_mapping:
-        formatter = format_mapping[col]
-        try:
-            if isinstance(formatter, str):
-                return formatter.format(value)
-            if callable(formatter):
-                return formatter(value)
-        except Exception as e:
-            import logging
+    if col not in format_mapping:
+        return value
 
-            logging.warning(
-                f"Error formatting for value {value} in column {col}: {str(e)}"
-            )
-            return value
+    formatter = format_mapping[col]
+
+    # If the value is None, we don't want to format it
+    # with strings for formatting, but we do want to
+    # format it with callables.
+    if value is None and isinstance(formatter, str):
+        return value
+
+    try:
+        if isinstance(formatter, str):
+            # Handle numeric formatting specially to preserve signs and separators
+            if isinstance(value, (int, float)):
+                # Keep integers as integers for 'd' format specifier
+                if isinstance(value, int) and "d" in formatter:
+                    return formatter.format(value)
+                # Convert to float for float formatting
+                return formatter.format(float(value))
+            return formatter.format(value)
+        if callable(formatter):
+            return formatter(value)
+    except Exception as e:
+        LOGGER.warning(
+            f"Error formatting for value {value} in column {col}: {str(e)}"
+        )
+        return value
+
     return value
 
 

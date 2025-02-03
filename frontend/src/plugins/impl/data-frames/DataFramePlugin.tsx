@@ -217,14 +217,14 @@ export const DataFrameComponent = memo(
             <TransformPanel
               initialValue={internalValue}
               columns={columns}
-              onChange={(v) => {
+              onChange={(newValue) => {
                 // Ignore changes that are the same
-                if (isEqual(v, internalValue)) {
+                if (isEqual(newValue, value)) {
                   return;
                 }
                 // Update the value valid changes
-                setValue(v);
-                setInternalValue(v);
+                setValue(newValue);
+                setInternalValue(newValue);
               }}
               onInvalidChange={setInternalValue}
               getColumnValues={get_column_values}

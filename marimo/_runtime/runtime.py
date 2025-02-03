@@ -31,7 +31,7 @@ from marimo._data.preview_column import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.context import run_id_context
+from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
     MarimoInterruptionError,
@@ -54,6 +54,7 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
+from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
     QueuePipe,
     ThreadSafeStderr,
@@ -79,7 +80,11 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
-from marimo._runtime.context.kernel_context import initialize_kernel_context
+from marimo._runtime.context.kernel_context import (
+    KernelRuntimeContext,
+    initialize_kernel_context,
+)
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -263,6 +268,14 @@ def app_meta() -> AppMeta:
         mo.md("# Developer Notes") if mo.app_meta().mode == "edit" else None
         ```
 
+        Get the current request headers or user info:
+
+        ```python
+        request = mo.app_meta().request
+        print(request.headers)
+        print(request.user)
+        ```
+
     Returns:
         AppMeta: An AppMeta object containing the app's metadata.
     """
@@ -349,7 +362,7 @@ def notebook_location() -> pathlib.PurePath | None:
         import polars as pl
 
         data_path = mo.notebook_location() / "public" / "data.csv"
-        df = pl.read_csv(data_path)
+        df = pl.read_csv(str(data_path))
         df.head()
         ```
 
@@ -407,6 +420,7 @@ class Kernel:
 
     def __init__(
         self,
+        *,
         cell_configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
@@ -511,8 +525,6 @@ class Kernel:
         ).get("execution_type", "relaxed")
         self._update_runtime_from_user_config(user_config)
 
-        # Set up the execution context
-        self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
         # errored cells
@@ -525,6 +537,25 @@ class Kernel:
             patches.patch_micropip(self.globals)
         exec("import marimo as __marimo__", self.globals)
 
+    def teardown(self) -> None:
+        """Teardown resources owned by the kernel."""
+        if self.stdout is not None:
+            self.stdout.stop()
+        if self.stderr is not None:
+            self.stderr.stop()
+        if self.stdin is not None:
+            self.stdin.stop()
+        self.stream.stop()
+
+        if self.module_watcher is not None:
+            self.module_watcher.stop()
+
+        # TODO(akshayka): There's a memory leak in run mode, with memory
+        # usage increasing with each session creation. Somehow the kernel
+        # globals appear to leak, even though the thread exits. As a hack we
+        # manually clear kernel memory.
+        self._module.__dict__.clear()
+
     def lazy(self) -> bool:
         return self.reactive_execution_mode == "lazy"
 
@@ -532,10 +563,13 @@ class Kernel:
         return self.enqueue_control_request(ExecuteStaleRequest())
 
     def _execute_install_missing_packages_callback(
-        self, package_manager: str
+        self, package_manager: str, packages: list[str]
     ) -> None:
+        version = {pkg: "" for pkg in packages}
         return self.enqueue_control_request(
-            InstallMissingPackagesRequest(manager=package_manager, versions={})
+            InstallMissingPackagesRequest(
+                manager=package_manager, versions=version
+            )
         )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
@@ -558,9 +592,10 @@ class Kernel:
                 self._update_script_metadata(["marimo"])
 
         if (
-            autoreload_mode == "lazy" or autoreload_mode == "autorun"
+            (autoreload_mode == "lazy" or autoreload_mode == "autorun")
             # Pyodide doesn't support hot module reloading
-        ) and not is_pyodide():
+            and not is_pyodide()
+        ):
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -638,8 +673,10 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
-        self.execution_context = ExecutionContext(
-            cell_id, setting_element_value
+        ctx = get_context()
+        assert isinstance(ctx, KernelRuntimeContext)
+        ctx.execution_context = (
+            exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
         with (
             get_context().provide_ui_ids(str(cell_id)),
@@ -659,9 +696,9 @@ class Kernel:
                     self.module_reloader.check(
                         modules=sys.modules, reload=True
                     )
-                yield self.execution_context
+                yield exec_ctx
             finally:
-                self.execution_context = None
+                ctx.execution_context = None
                 if self.module_reloader is not None and modules is not None:
                     # Note timestamps for newly loaded modules
                     new_modules = set(sys.modules) - modules
@@ -903,26 +940,20 @@ class Kernel:
             and missing_modules_after_deletion
             != missing_modules_before_deletion
         ):
-            if self.package_manager.should_auto_install():
-                self._execute_install_missing_packages_callback(
-                    self.package_manager.name
+            packages = list(
+                sorted(
+                    pkg
+                    for mod in missing_modules_after_deletion
+                    if not self.package_manager.attempted_to_install(
+                        pkg := self.package_manager.module_to_package(mod)
+                    )
                 )
-            else:
-                # Deleting a cell can make the set of missing packages smaller
-                MissingPackageAlert(
-                    packages=list(
-                        sorted(
-                            pkg
-                            for mod in missing_modules_after_deletion
-                            if not self.package_manager.attempted_to_install(
-                                pkg := self.package_manager.module_to_package(
-                                    mod
-                                )
-                            )
-                        )
-                    ),
-                    isolated=is_python_isolated(),
-                ).broadcast()
+            )
+            # Deleting a cell can make the set of missing packages smaller
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
         cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
@@ -1253,13 +1284,14 @@ class Kernel:
             ]
 
             if missing_packages:
+                packages = list(sorted(missing_packages))
                 if self.package_manager.should_auto_install():
                     self._execute_install_missing_packages_callback(
-                        self.package_manager.name
+                        self.package_manager.name, packages
                     )
                 else:
                     MissingPackageAlert(
-                        packages=list(sorted(missing_packages)),
+                        packages=packages,
                         isolated=is_python_isolated(),
                     ).broadcast()
 
@@ -1338,8 +1370,9 @@ class Kernel:
         Should be called when a state's setter is called.
         """
         # store the state and the currently executing cell
-        assert self.execution_context is not None
-        self.state_updates[state] = self.execution_context.cell_id
+        ctx = get_context()
+        assert ctx.execution_context is not None
+        self.state_updates[state] = ctx.execution_context.cell_id
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
@@ -1596,7 +1629,9 @@ class Kernel:
                         child_context.app is not None
                         and await child_context.app.set_ui_element_value(
                             SetUIElementValueRequest(
-                                object_ids=[object_id], values=[value]
+                                object_ids=[object_id],
+                                values=[value],
+                                request=request.request,
                             )
                         )
                     ):
@@ -2008,6 +2043,9 @@ class Kernel:
             elif source_type == "local":
                 dataset = self.globals[table_name]
                 column_preview = get_column_preview_dataframe(dataset, request)
+            elif source_type == "connection":
+                # TODO: Handle data-source-connection / engine display
+                pass
             else:
                 assert_never(source_type)
 
@@ -2046,13 +2084,16 @@ class Kernel:
         with self.lock_globals():
             LOGGER.debug("Handling control request: %s", request)
             if isinstance(request, CreationRequest):
-                await self.instantiate(request)
+                with http_request_context(request.request):
+                    await self.instantiate(request)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteMultipleRequest):
-                await self.run(request.execution_requests)
+                with http_request_context(request.request):
+                    await self.run(request.execution_requests)
                 CompletedRun().broadcast()
             elif isinstance(request, ExecuteScratchpadRequest):
-                await self.run_scratchpad(request.code)
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
             elif isinstance(request, ExecuteStaleRequest):
                 await self.run_stale_cells()
             elif isinstance(request, RenameRequest):
@@ -2062,7 +2103,8 @@ class Kernel:
             elif isinstance(request, SetUserConfigRequest):
                 self.set_user_config(request)
             elif isinstance(request, SetUIElementValueRequest):
-                await self.set_ui_element_value(request)
+                with http_request_context(request.request):
+                    await self.set_ui_element_value(request)
                 CompletedRun().broadcast()
             elif isinstance(request, FunctionCallRequest):
                 status, ret, _ = await self.function_call_request(request)
@@ -2118,10 +2160,12 @@ def launch_kernel(
         profiler = cProfile.Profile()
         profiler.enable()
 
+    should_redirect_stdio = is_edit_mode or redirect_console_to_browser
+
     # Create communication channels
+    pipe: Optional[TypedConnection[KernelMessage]] = None
     if socket_addr is not None:
         n_tries = 0
-        pipe: Optional[TypedConnection[KernelMessage]] = None
         while n_tries < 100:
             try:
                 pipe = TypedConnection[KernelMessage].of(
@@ -2136,27 +2180,26 @@ def launch_kernel(
             LOGGER.debug("Failed to connect to socket.")
             return
 
-        stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
+        stream = ThreadSafeStream(
+            pipe=pipe,
+            input_queue=input_queue,
+            redirect_console=should_redirect_stdio,
+        )
     elif stream_queue is not None:
         stream = ThreadSafeStream(
-            pipe=QueuePipe(stream_queue), input_queue=input_queue
+            pipe=QueuePipe(stream_queue),
+            input_queue=input_queue,
+            redirect_console=should_redirect_stdio,
         )
     else:
         raise RuntimeError(
             "One of queue_pipe and socket_addr must be non None"
         )
+
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
-    stdout = (
-        ThreadSafeStdout(stream)
-        if is_edit_mode or redirect_console_to_browser
-        else None
-    )
-    stderr = (
-        ThreadSafeStderr(stream)
-        if is_edit_mode or redirect_console_to_browser
-        else None
-    )
+    stdout = ThreadSafeStdout(stream) if should_redirect_stdio else None
+    stderr = ThreadSafeStderr(stream) if should_redirect_stdio else None
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
@@ -2166,10 +2209,12 @@ def launch_kernel(
         else None
     )
 
-    # In run mode, the kernel should always be in autorun
+    # In run mode, the kernel should always be in autorun, and the module
+    # autoreloader is disabled
     if not is_edit_mode:
         user_config = user_config.copy()
         user_config["runtime"]["on_cell_change"] = "autorun"
+        user_config["runtime"]["auto_reload"] = "off"
 
     def _enqueue_control_request(req: ControlRequest) -> None:
         control_queue.put_nowait(req)
@@ -2184,13 +2229,15 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         module=patches.patch_main_module(
-            file=app_metadata.filename, input_override=input_override
+            file=app_metadata.filename,
+            input_override=input_override,
+            print_override=print_override,
         ),
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
     )
-    initialize_kernel_context(
+    ctx = initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         stdout=stdout,
@@ -2218,9 +2265,7 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
 
-        signal.signal(
-            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
-        )
+        signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
 
         if sys.platform == "win32":
             if interrupt_queue is not None:
@@ -2236,7 +2281,7 @@ def launch_kernel(
 
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
-    async def control_loop() -> None:
+    async def control_loop(kernel: Kernel) -> None:
         while True:
             try:
                 request: ControlRequest | None = control_queue.get()
@@ -2257,14 +2302,14 @@ def launch_kernel(
     # top-level await; nothing else is awaited. Don't introduce async
     # primitives anywhere else in the runtime unless there is a *very* good
     # reason; prefer using threads (for performance and clarity).
-    asyncio.run(control_loop())
-
-    if stdout is not None:
-        stdout._watcher.stop()
-    if stderr is not None:
-        stderr._watcher.stop()
-    get_context().virtual_file_registry.shutdown()
+    asyncio.run(control_loop(kernel))
 
     if profiler is not None and profile_path is not None:
         profiler.disable()
         profiler.dump_stats(profile_path)
+
+    get_context().virtual_file_registry.shutdown()
+    teardown_context()
+    kernel.teardown()
+    if isinstance(pipe, connection.Connection):
+        pipe.close()

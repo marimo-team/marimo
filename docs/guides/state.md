@@ -42,7 +42,8 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<img src="/_static/docs-state-task-list.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.webm">
+</video>
 </figure>
 <figcaption>A proof-of-concept TODO list made using state.</figcaption>
 </div>
@@ -52,7 +53,8 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<img src="/_static/docs-state-tied.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.webm">
+</video>
 <figcaption>Use state to tie two elements together in a cycle.</figcaption>
 </figure>
 </div>
@@ -60,7 +62,7 @@ But sometimes, you might want interactions to mutate state:
 !!! warning "Use reactive execution for uni-directional flow"
     If you just want the value of a single element to update another element,
     then **you shouldn't use `mo.state`**. Instead, use marimo's built-in
-    reactive execution --- see the [interactivity guide](`../guides/interactivity.md`).
+    reactive execution --- see the [interactivity guide](../guides/interactivity.md).
 
 For cases like these, marimo provides the function [`mo.state()`](../api/state.md),
 which creates a state object and returns a getter and setter function. When you
@@ -153,7 +155,8 @@ implementation using state is simpler.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-state-counter.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-counter.webm">
+</video>
 </figure>
 </div>
 
@@ -195,7 +198,8 @@ value depends on the other. This is impossible to do without `mo.state`.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-state-tied.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-tied.webm">
+</video>
 </figure>
 </div>
 
@@ -249,7 +253,8 @@ The next few cells use state to create a todo list.
 
 <div align="center">
 <figure>
-<img src="/_static/docs-state-task-list.gif"/>
+<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-state-task-list.webm">
+</video>
 </figure>
 </div>
 

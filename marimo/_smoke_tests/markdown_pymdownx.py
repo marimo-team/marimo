@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.9.34"
+__generated_with = "0.10.15"
 app = marimo.App(width="medium")
 
 
@@ -85,6 +85,44 @@ def _(mo):
 
         /// tab | Tab 2 title
         Tab 2 content
+        ///
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        """
+        ## Details
+
+        /// details | Basic details
+        This is a basic details section
+        ///
+
+        /// details | Info details
+            type: info
+
+        This shows important information
+        ///
+
+        /// details | Warning details  
+            type: warn
+
+        This highlights something to watch out for
+        ///
+
+        /// details | Danger details
+            type: danger
+
+        This indicates a critical warning or dangerous situation
+        ///
+
+        /// details | Success details
+            type: success
+
+        This indicates a successful outcome or positive note
         ///
         """
     )

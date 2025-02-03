@@ -74,6 +74,7 @@ def _generate_schema() -> dict[str, Any]:
         data.DataTableColumn,
         data.DataTable,
         data.ColumnSummary,
+        data.DataSourceConnection,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -105,6 +106,7 @@ def _generate_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
+        ops.DataSourceConnections,
     ]
 
     # dataclass components used in requests/responses
@@ -165,7 +167,6 @@ def _generate_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.UpdateComponentValuesRequest,
         requests.CodeCompletionRequest,
-        requests.CreationRequest,
         requests.DeleteCellRequest,
         requests.ExecuteMultipleRequest,
         requests.ExecuteScratchpadRequest,
@@ -195,7 +196,8 @@ def _generate_schema() -> dict[str, Any]:
                 {"type": "boolean"},
                 {"type": "null"},
             ]
-        }
+        },
+        "HTTPRequest": {"type": "null"},
     }
     # We must override the names of some Union Types,
     # otherwise, their __name__ is "Union"

@@ -397,6 +397,15 @@ def test_data_editor_with_custom_pagination():
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
+def test_data_editor_with_too_large_pagesize():
+    data = [{"A": i} for i in range(300)]
+    with pytest.raises(ValueError):
+        _ = data_editor(data=data, page_size=201)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
 def test_data_editor_on_change_callback():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
     callback_called = False

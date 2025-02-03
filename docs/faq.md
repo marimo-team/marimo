@@ -90,7 +90,8 @@ synchronized with the Python kernel: no callbacks, no observers, no manually
 re-running cells.
 
 <p align="center">
-<img src="/_static/faq-marimo-ui.gif" width="600px" />
+<video autoplay muted loop width="600px" align="center" src="/_static/faq-marimo-ui.webm">
+</video>
 </p>
 
 ## Using marimo
@@ -471,7 +472,7 @@ To include a marimo notebook in a JupyterBook, you can either export your
 notebook to an `ipynb` file, or export to `HTML`:
 
 1. export to ipynb: `marimo export ipynb my_notebook.py -o my_notebook.ipynb --include-outputs`
-2. export to HTML: `marimo export ipynb my_notebook.py -o my_notebook.html`
+2. export to HTML: `marimo export html my_notebook.py -o my_notebook.html`
 
 <a name="faq-app-deploy"></a>
 

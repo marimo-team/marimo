@@ -41,7 +41,7 @@ import { capabilitiesAtom } from "../config/capabilities";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useRunsActions } from "../cells/runs";
-import { getFeatureFlag } from "../config/feature-flag";
+import { useDataSourceActions } from "../cells/data-source-connections";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -62,6 +62,8 @@ export function useMarimoWebSocket(opts: {
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
+  const { addDataSourceConnection, filterDataSourcesFromVariables } =
+    useDataSourceActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -119,9 +121,7 @@ export function useMarimoWebSocket(opts: {
         if (!cellData) {
           return;
         }
-        if (getFeatureFlag("tracing")) {
-          addCellOperation({ cellOperation: msg.data, code: cellData.code });
-        }
+        addCellOperation({ cellOperation: msg.data, code: cellData.code });
         return;
       }
 
@@ -134,6 +134,9 @@ export function useMarimoWebSocket(opts: {
           })),
         );
         filterDatasetsFromVariables(
+          msg.data.variables.map((v) => v.name as VariableName),
+        );
+        filterDataSourcesFromVariables(
           msg.data.variables.map((v) => v.name as VariableName),
         );
         return;
@@ -191,6 +194,9 @@ export function useMarimoWebSocket(opts: {
         return;
       case "data-column-preview":
         addColumnPreview(msg.data);
+        return;
+      case "data-source-connections":
+        addDataSourceConnection(msg.data);
         return;
 
       case "reconnected":

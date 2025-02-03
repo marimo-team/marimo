@@ -5,13 +5,16 @@ import platform
 import sys
 from typing import Any, Union, cast
 
-from marimo import __version__
+from marimo import __version__, _loggers
+from marimo._config.manager import get_default_config_manager
 from marimo._utils.health import (
     get_chrome_version,
     get_node_version,
     get_optional_modules_list,
     get_required_modules_list,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 def is_win11() -> bool:
@@ -26,7 +29,19 @@ def is_win11() -> bool:
     return False
 
 
-def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
+def get_experimental_flags() -> dict[str, bool]:
+    try:
+        config = get_default_config_manager(current_path=None).get_config()
+        if "experimental" in config:
+            return config["experimental"]
+        else:
+            return {}
+    except Exception:
+        LOGGER.error("Failed to get experimental flags")
+        return {}
+
+
+def get_system_info() -> dict[str, Union[str, dict[str, Any]]]:
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"
@@ -49,10 +64,11 @@ def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
 
     requirements = get_required_modules_list()
     optional_deps = get_optional_modules_list()
-
+    experimental = get_experimental_flags()
     return {
         **info,
         "Binaries": binaries,
         "Dependencies": requirements,
         "Optional Dependencies": optional_deps,
+        "Experimental Flags": experimental,
     }

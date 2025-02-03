@@ -8,6 +8,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
 import click
@@ -17,6 +18,7 @@ from marimo._cli.file_path import FileContentReader
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -227,10 +229,9 @@ def _normalize_sandbox_dependencies(
     # Find all marimo dependencies
     marimo_deps = [d for d in dependencies if _is_marimo_dependency(d)]
     if not marimo_deps:
-        # During development, you can comment this out to install an
-        # editable version of marimo assuming you are in the marimo directory
-        # DO NOT COMMIT THIS WHEN SUBMITTING PRs
-        # return dependencies + [f"marimo -e ."]
+        if is_editable("marimo"):
+            LOGGER.info("Using editable of marimo for sandbox")
+            return dependencies + [f"-e {get_marimo_dir()}"]
 
         return dependencies + [f"marimo=={marimo_version}"]
 
@@ -241,11 +242,19 @@ def _normalize_sandbox_dependencies(
     # Remove all marimo deps
     filtered = [d for d in dependencies if not _is_marimo_dependency(d)]
 
+    if is_editable("marimo"):
+        LOGGER.info("Using editable of marimo for sandbox")
+        return filtered + [f"-e {get_marimo_dir()}"]
+
     # Add version if not already versioned
     if not _is_versioned(chosen):
         chosen = f"{chosen}=={marimo_version}"
 
     return filtered + [chosen]
+
+
+def get_marimo_dir() -> Path:
+    return Path(__file__).parent.parent.parent
 
 
 def construct_uv_command(args: list[str], name: str | None) -> list[str]:
@@ -288,21 +297,16 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
         python_version = None
 
     # Construct base UV command
-    uv_cmd = (
-        [
-            "uv",
-            "run",
-            "--isolated",
-            # sandboxed notebook shouldn't pick up existing pyproject.toml,
-            # which may conflict with the sandbox requirements
-            "--no-project",
-            "--with-requirements",
-            temp_file_path,
-        ]
-        + ["--refresh"]
-        if uv_needs_refresh
-        else []
-    )
+    uv_cmd = [
+        "uv",
+        "run",
+        "--isolated",
+        # sandboxed notebook shouldn't pick up existing pyproject.toml,
+        # which may conflict with the sandbox requirements
+        "--no-project",
+        "--with-requirements",
+        temp_file_path,
+    ] + (["--refresh"] if uv_needs_refresh else [])
 
     # Add Python version if specified
     if python_version:

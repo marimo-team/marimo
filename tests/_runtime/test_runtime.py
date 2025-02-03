@@ -1090,7 +1090,7 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None),
+                module=create_main_module(None, None, None),
             )
             initialize_kernel_context(
                 kernel=k,
@@ -1151,7 +1151,7 @@ class TestExecution:
                     query_params={}, filename=filename, cli_args={}
                 ),
                 enqueue_control_request=lambda _: None,
-                module=create_main_module(None, None),
+                module=create_main_module(None, None, None),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
@@ -2496,6 +2496,43 @@ class TestSQL:
         # view should be dropped since it's an in-memory table;
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
+
+    async def test_sql_query_as_local_df(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code="import marimo as mo; import polars as pl",
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code="source_df = pl.DataFrame({'val': [42]})",
+                ),
+                ExecutionRequest(
+                    cell_id="2",
+                    code="df = mo.sql('SELECT * FROM source_df')",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["df"].to_dict(as_series=False) == {"val": [42]}
+
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="3",
+                    code="""
+import duckdb
+conn = duckdb.connect()""",
+                ),
+                ExecutionRequest(
+                    cell_id="4",
+                    code="df2 = mo.sql('SELECT * FROM source_df', engine=conn)",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["df2"].to_dict(as_series=False) == {"val": [42]}
 
 
 class TestStateTransitions:

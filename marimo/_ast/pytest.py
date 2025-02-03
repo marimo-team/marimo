@@ -52,7 +52,7 @@ def wrap_fn_for_pytest(
         ast.arg(arg, lineno=args[arg].lineno, col_offset=args[arg].col_offset)
         for arg in fixtures
     ]
-    (call_stub,) = call.keywords
+    (_call_stub,) = call.keywords
     call.keywords = [
         ast.keyword(
             arg=arg,

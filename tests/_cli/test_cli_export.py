@@ -7,13 +7,13 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from os import path
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
@@ -161,6 +161,52 @@ class TestExportHTML:
             not in html
         )
         assert "<marimo-wasm" in html
+
+    @pytest.mark.skipif(
+        # if hangs on watchdog, add a dependency check
+        condition=_is_win32(),
+        reason="flaky on Windows",
+    )
+    @staticmethod
+    def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                out_dir,
+                "--watch",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        watch_echo_found = False
+        for _ in range(10):  # read 10 lines
+            line = p.stdout.readline()
+            if not line:
+                break
+            line_str = line.decode()
+            if f"Watching {temp_marimo_file}" in line_str:
+                watch_echo_found = True
+                break
+            time.sleep(0.01)  # avoid flaky test
+        assert watch_echo_found is True
+
+        # Modify file
+        with open(temp_marimo_file, "a") as f:
+            f.write("\n# comment\n")
+
+        assert p.poll() is None
+        for _ in range(5):
+            line = p.stdout.readline().decode()
+            if line:
+                assert "Re-exporting" in line
+                break
+            time.sleep(0.01)
 
     @staticmethod
     def test_cli_export_async(temp_async_marimo_file: str) -> None:
@@ -422,7 +468,6 @@ class TestExportScript:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("script.txt", output)
 
     @staticmethod
@@ -469,7 +514,6 @@ class TestExportScript:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("script_with_errors.txt", output)
 
     @pytest.mark.skipif(
@@ -556,7 +600,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("markdown.txt", output)
 
     @staticmethod
@@ -567,7 +610,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("async.txt", output)
 
     @staticmethod
@@ -578,7 +620,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("broken.txt", output)
 
     @staticmethod
@@ -591,7 +632,6 @@ class TestExportMarkdown:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        output = output.replace(__version__, "0.0.0")
         snapshot("export_markdown_with_errors.txt", output)
 
     @pytest.mark.skipif(
@@ -792,7 +832,7 @@ class TestExportIpynb:
         assert p.returncode != 0, p.stderr.decode()
         assert "ZeroDivisionError" in p.stderr.decode()
         output = p.stdout.decode()
-        output = _delete_lines_with_files(output.replace(__version__, "0.0.0"))
+        output = _delete_lines_with_files(output)
         snapshot("ipynb_with_errors.txt", output)
 
     @staticmethod

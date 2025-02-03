@@ -72,7 +72,7 @@ def _add_output_to_buffer(
 
 
 def buffered_writer(
-    msg_queue: deque[ConsoleMsg],
+    msg_queue: deque[ConsoleMsg | None],
     stream: Stream,
     cv: Condition,
 ) -> None:
@@ -83,6 +83,8 @@ def buffered_writer(
     variable is used to synchronize access to `msg_queue`, and to obtain
     notifications when messages have been added. (A deque + condition variable
     was noticeably faster than the builtin queue.Queue in testing.)
+
+    A `None` passed to `msg_queue` signals the writer should terminate.
     """
 
     # only have a non-None timer when there's at least one output buffered
@@ -102,9 +104,10 @@ def buffered_writer(
                 if timer is not None or not msg_queue:
                     cv.wait(timeout=timer)
                 while msg_queue:
-                    _add_output_to_buffer(
-                        msg_queue.popleft(), outputs_buffered_per_cell
-                    )
+                    msg = msg_queue.popleft()
+                    if msg is None:
+                        return
+                    _add_output_to_buffer(msg, outputs_buffered_per_cell)
                 if outputs_buffered_per_cell and timer is None:
                     # start the timeout timer
                     timer = TIMEOUT_S

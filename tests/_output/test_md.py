@@ -69,7 +69,7 @@ def test_md_iconify() -> None:
 
     # Test multiple icons
     multiple_icons_input = "Icons: ::mdi:home:: ::fa:car:: ::lucide:settings::"
-    expected_output = '<span class="paragraph">Icons: <iconify-icon icon="mdi:home" inline=""></iconify-icon> <iconify-icon icon="fa:car" inline=""></iconify-icon> <iconify-icon icon="lucide:settings" inline=""></iconify-icon></span>'  ## noqa: E501
+    expected_output = '<span class="paragraph">Icons: <iconify-icon icon="mdi:home" inline=""></iconify-icon> <iconify-icon icon="fa:car" inline=""></iconify-icon> <iconify-icon icon="lucide:settings" inline=""></iconify-icon></span>'  # noqa: E501
     assert (
         _md(multiple_icons_input, apply_markdown_class=False).text
         == expected_output

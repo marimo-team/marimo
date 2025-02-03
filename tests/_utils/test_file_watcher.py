@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import List
+
+import pytest
 
 from marimo._utils.file_watcher import FileWatcherManager, PollingFileWatcher
 
@@ -43,6 +46,10 @@ async def test_polling_file_watcher() -> None:
     assert callback_calls[0] == tmp_path
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="File watcher tests require Python 3.10+",
+)
 async def test_file_watcher_manager() -> None:
     # Create two temporary files
     with (

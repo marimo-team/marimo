@@ -63,7 +63,7 @@ class routes(UIElement[str, str]):
     ) -> None:
         # For functions, wrap in lazy
         children: list[Html] = []
-        for _, content in routes.items():
+        for content in routes.values():
             if callable(content):
                 children.append(lazy.lazy(content))
             else:

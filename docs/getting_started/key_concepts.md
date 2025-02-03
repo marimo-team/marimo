@@ -12,7 +12,7 @@ elements in a reproducible **notebook environment**.
 
 marimo notebooks are **reactive**: they automatically react to your code
 changes and UI interactions and keep your notebook up-to-date, not unlike a
-spreadsheet. This makes your notebooks reproducibile, [eliminating hidden
+spreadsheet. This makes your notebooks reproducible, [eliminating hidden
 state](../faq.md#faq-problems); it's also what enables marimo notebooks to double as
 apps and Python scripts.
 
@@ -52,7 +52,8 @@ variables defined by that cell._ This is reactive execution.
 
 <div align="center">
 <figure>
-<img src="/_static/reactive.gif" width="600px"/>
+<video autoplay muted loop width="600px" align="center" src="/_static/reactive.webm">
+</video>
 </figure>
 </div>
 
@@ -106,7 +107,8 @@ other marimo elements to build rich composite outputs:
 
 <div align="center">
 <figure>
-<img src="/_static/outputs.gif" width="600px"/>
+<video autoplay muted loop width="600px" align="center" src="/_static/outputs.webm">
+</video>
 </figure>
 </div>
 
@@ -137,7 +139,8 @@ that can wrap other UI elements.
 
 <div align="center">
 <figure>
-<img src="/_static/readme-ui.gif" width="600px"/>
+<video autoplay muted loop width="600px" align="center" src="/_static/readme-ui.webm">
+</video>
 </figure>
 </div>
 

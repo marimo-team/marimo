@@ -44,7 +44,7 @@ a cell is run, its descendants are run automatically.
 The next four cells plot a sine wave with a given period and amplitude.
 Each cell is labeled with its refs and defs.
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 mo.accordion(
     {
         "Tip: inspecting refs and defs": f"""
@@ -59,7 +59,7 @@ mo.accordion(
 )
 ```
 
-```{.python.marimo}
+```python {.marimo}
 mo.md(
     f"""
     {mo.as_html(plot_wave(amplitude, period))}
@@ -70,7 +70,7 @@ mo.md(
 )
 ```
 
-```{.python.marimo}
+```python {.marimo}
 period = 2 * 3.14159
 
 mo.md(
@@ -81,7 +81,7 @@ mo.md(
 )
 ```
 
-```{.python.marimo}
+```python {.marimo}
 amplitude = 1
 
 mo.md(
@@ -92,7 +92,7 @@ mo.md(
 )
 ```
 
-```{.python.marimo}
+```python {.marimo}
 def plot_wave(amplitude, period):
     if not numpy_installed:
         return mo.md(
@@ -170,12 +170,12 @@ execute cells in.
 If you violate this constraint, marimo provides a helpful
 error message, like below:
 
-```{.python.marimo}
+```python {.marimo}
 planet = "Mars"
 planet
 ```
 
-```{.python.marimo}
+```python {.marimo}
 planet = "Earth"
 planet
 ```
@@ -190,11 +190,11 @@ them; these operators count as redefinitions of a name.
 **🌊 Try it!** Get rid of the following errors by merging the next two
 cells into a single cell.
 
-```{.python.marimo}
+```python {.marimo}
 count = 0
 ```
 
-```{.python.marimo}
+```python {.marimo}
 count += 1
 ```
 
@@ -207,17 +207,17 @@ made available to other cells.
 
 **Example**.
 
-```{.python.marimo}
+```python {.marimo}
 _private_variable, _ = 1, 2
 _private_variable, _
 ```
 
-```{.python.marimo}
+```python {.marimo}
 _private_variable, _ = 3, 4
 _private_variable, _
 ```
 
-```{.python.marimo}
+```python {.marimo}
 # `_private_variable` and `_` are not defined in this cell
 _private_variable, _
 ```
@@ -229,7 +229,7 @@ then runs all cells that reference them. This prevents severe bugs that
 can arise when state has been deleted from the editor but not from the
 program memory.
 
-```{.python.marimo}
+```python {.marimo}
 to_be_deleted = "variable still exists"
 
 mo.md(
@@ -241,7 +241,7 @@ mo.md(
 )
 ```
 
-```{.python.marimo}
+```python {.marimo}
 to_be_deleted
 ```
 
@@ -249,11 +249,11 @@ to_be_deleted
 
 Cycles among cells are not allowed. For example:
 
-```{.python.marimo}
+```python {.marimo}
 one = two - 1
 ```
 
-```{.python.marimo}
+```python {.marimo}
 two = one + 1
 ```
 
@@ -265,15 +265,15 @@ trigger reactive execution.
 **🌊 Example**. Change the value of `state.number` in the next cell, then
 run the cell. Notice how the subsequent cell isn't updated.
 
-```{.python.marimo}
+```python {.marimo}
 state.number = 1
 ```
 
-```{.python.marimo}
+```python {.marimo}
 state.number
 ```
 
-```{.python.marimo}
+```python {.marimo}
 class namespace:
     pass
 
@@ -281,7 +281,7 @@ state = namespace()
 state.number = 0
 ```
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 mo.accordion(
     {
         "Why not track attributes?": """
@@ -299,7 +299,7 @@ In Python, it's impossible to know whether code will
 mutate an object without running it. So: mutations (such as
 appending to a list) will not trigger reactive execution.
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 mo.accordion(
     {
         "Tip (advanced): mutable state": (
@@ -325,7 +325,7 @@ and apps, and they'll encourage you to write clean, reproducible code.
 
 Follow these tips to stay on the marimo way:
 
-```{.python.marimo}
+```python {.marimo}
 mo.accordion(tips)
 ```
 
@@ -337,7 +337,7 @@ Check out the tutorial on interactivity for a tour of UI elements:
 marimo tutorial ui
 ```
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 matplotlib_installed = False
 numpy_installed = False
 
@@ -356,7 +356,7 @@ except ModuleNotFoundError:
     pass
 ```
 
-````{.python.marimo hide_code="true"}
+````python {.marimo hide_code="true"}
 tips = {
     "Use global variables sparingly": (
         """
@@ -456,6 +456,6 @@ tips = {
 }
 ````
 
-```{.python.marimo}
+```python {.marimo}
 import marimo as mo
 ```

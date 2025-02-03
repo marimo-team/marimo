@@ -23,6 +23,19 @@ def markdown_to_marimo(source: str) -> str:
     )
 
 
+def sql_to_marimo(source: str, table: str) -> str:
+    return "\n".join(
+        [
+            f"{table} = mo.sql(",
+            # f-string: expected for sql
+            codegen.indent_text('f"""'),
+            codegen.indent_text(source),
+            codegen.indent_text('"""'),
+            ")",
+        ]
+    )
+
+
 def generate_from_sources(
     *,
     sources: list[str],

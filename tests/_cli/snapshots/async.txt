@@ -3,7 +3,7 @@ title: Notebook
 marimo-version: 0.0.0
 ---
 
-```{.python.marimo}
+```python {.marimo}
 import asyncio
 await asyncio.sleep(0.1)
 ```

@@ -59,6 +59,7 @@ import { HideCodeButton } from "./code/readonly-python-code";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { Events } from "@/utils/events";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 /**
  * Imperative interface of the cell.
@@ -130,7 +131,6 @@ export interface CellProps
   collapseCount: number;
 }
 
-// TODO(akshayka): a component for displaying/editing the cell's name.
 const CellComponent = (
   {
     theme,
@@ -374,6 +374,19 @@ const CellComponent = (
   };
 
   const hasOutput = !isOutputEmpty(output);
+  const hasConsoleOutput = consoleOutputs.length > 0;
+  const cellOutput = userConfig.display.cell_output;
+
+  const hasOutputAbove = hasOutput && cellOutput === "above";
+  const hasOutputBelow = hasOutput && cellOutput === "below";
+
+  const hideCodeButton = (className: string) => (
+    <HideCodeButton
+      tooltip="Edit markdown"
+      className={cn("z-20 relative", className)}
+      onClick={temporarilyShowCode}
+    />
+  );
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
@@ -390,6 +403,7 @@ const CellComponent = (
           canCollapse={canCollapse}
         />
       </div>
+      {isMarkdownCodeHidden && hasOutputBelow && hideCodeButton("top-3")}
       <OutputArea
         // Only allow expanding in edit mode
         allowExpand={editing}
@@ -400,13 +414,7 @@ const CellComponent = (
         cellId={cellId}
         stale={outputStale}
       />
-      {isMarkdownCodeHidden && (
-        <HideCodeButton
-          tooltip="Edit markdown"
-          className="z-20 relative -top-3"
-          onClick={temporarilyShowCode}
-        />
-      )}
+      {isMarkdownCodeHidden && hasOutputAbove && hideCodeButton("bottom-3")}
     </div>
   );
 
@@ -534,7 +542,14 @@ const CellComponent = (
       return null;
     }
     return (
-      <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+      <div
+        tabIndex={-1}
+        id={HTMLId}
+        ref={cellRef}
+        className={className}
+        data-cell-id={cellId}
+        data-cell-name={name}
+      >
         {outputArea}
       </div>
     );
@@ -568,147 +583,158 @@ const CellComponent = (
     />
   );
 
-  const cellOutput = userConfig.display.cell_output;
-
-  const hasOutputAbove = hasOutput && cellOutput === "above";
-  const hasOutputBelow = hasOutput && cellOutput === "below";
-
   return (
-    <CellActionsContextMenu
-      cellId={cellId}
-      config={cellConfig}
-      status={status}
-      getEditorView={getEditorView}
-      hasOutput={hasOutput}
-      name={name}
-    >
-      <SortableCell
-        tabIndex={-1}
-        ref={cellRef}
-        data-status={status}
-        onBlur={closeCompletionHandler}
-        onKeyDown={resumeCompletionHandler}
+    <TooltipProvider>
+      <CellActionsContextMenu
         cellId={cellId}
-        canMoveX={canMoveX}
-        title={cellTitle()}
+        config={cellConfig}
+        status={status}
+        getEditorView={getEditorView}
+        hasOutput={hasOutput}
+        hasConsoleOutput={hasConsoleOutput}
+        name={name}
       >
-        <div className={className} id={HTMLId} ref={cellContainerRef}>
-          {cellOutput === "above" && outputArea}
-          <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
-            <div className="absolute right-2 -top-4 z-10">
-              <CellToolbar
-                edited={edited}
-                appClosed={appClosed}
-                status={status}
-                cellConfig={cellConfig}
-                needsRun={needsRun}
-                hasOutput={hasOutput}
-                cellActionDropdownRef={cellActionDropdownRef}
-                cellId={cellId}
-                name={name}
-                getEditorView={getEditorView}
-                onRun={handleRun}
-              />
-            </div>
-            <div
-              className={cn(
-                "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
-                isMarkdownCodeHidden && hasOutputAbove && "-top-7",
-                isMarkdownCodeHidden && hasOutputBelow && "-bottom-8",
-                isMarkdownCodeHidden && isCellButtonsInline && "-left-[3.8rem]",
-              )}
-            >
-              <CreateCellButton
-                tooltipContent={renderShortcut("cell.createAbove")}
-                appClosed={appClosed}
-                onClick={appClosed ? undefined : createAbove}
-              />
-              <div className="flex-1" />
-              <CreateCellButton
-                tooltipContent={renderShortcut("cell.createBelow")}
-                appClosed={appClosed}
-                onClick={appClosed ? undefined : createBelow}
-              />
-            </div>
-            <CellEditor
-              theme={theme}
-              showPlaceholder={showPlaceholder}
-              allowFocus={allowFocus}
-              id={cellId}
-              code={code}
-              config={cellConfig}
-              status={status}
-              serializedEditorState={serializedEditorState}
-              runCell={handleRun}
-              updateCellCode={updateCellCode}
-              setEditorView={(ev) => {
-                editorView.current = ev;
-              }}
-              createNewCell={createNewCell}
-              deleteCell={deleteCell}
-              focusCell={focusCell}
-              moveCell={moveCell}
-              moveToNextCell={moveToNextCell}
-              updateCellConfig={updateCellConfig}
-              clearSerializedEditorState={clearSerializedEditorState}
-              userConfig={userConfig}
-              editorViewRef={editorView}
-              editorViewParentRef={editorViewParentRef}
-              hidden={!isCellCodeShown}
-              hasOutput={hasOutput}
-              temporarilyShowCode={temporarilyShowCode}
-              languageAdapter={languageAdapter}
-              setLanguageAdapter={setLanguageAdapter}
-            />
-            <div
-              className={cn(
-                "shoulder-right z-20",
-                isMarkdownCodeHidden && cellOutput === "below" && "top-14",
-              )}
-            >
-              {!isCellStatusInline && cellStatusComponent}
-              <div className="flex gap-2 items-end">
-                <CellDragHandle />
-                {isCellStatusInline && cellStatusComponent}
-              </div>
-            </div>
-            <div className="shoulder-bottom hover-action">
-              {canDelete && isCellCodeShown && (
-                <DeleteButton
+        <SortableCell
+          tabIndex={-1}
+          ref={cellRef}
+          data-status={status}
+          onBlur={closeCompletionHandler}
+          onKeyDown={resumeCompletionHandler}
+          cellId={cellId}
+          canMoveX={canMoveX}
+          title={cellTitle()}
+        >
+          <div
+            className={className}
+            id={HTMLId}
+            ref={cellContainerRef}
+            data-cell-id={cellId}
+            data-cell-name={name}
+          >
+            {cellOutput === "above" && outputArea}
+            <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
+              <div className="absolute right-2 -top-4 z-10">
+                <CellToolbar
+                  edited={edited}
                   appClosed={appClosed}
                   status={status}
-                  onClick={() => {
-                    if (!loading && !appClosed) {
-                      deleteCell({ cellId });
-                    }
-                  }}
+                  cellConfig={cellConfig}
+                  needsRun={needsRun}
+                  hasOutput={hasOutput}
+                  hasConsoleOutput={hasConsoleOutput}
+                  cellActionDropdownRef={cellActionDropdownRef}
+                  cellId={cellId}
+                  name={name}
+                  getEditorView={getEditorView}
+                  onRun={handleRun}
                 />
-              )}
+              </div>
+              <div
+                className={cn(
+                  "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+                  isMarkdownCodeHidden && hasOutputAbove && "-top-7",
+                  isMarkdownCodeHidden && hasOutputBelow && "-bottom-8",
+                  isMarkdownCodeHidden &&
+                    isCellButtonsInline &&
+                    "-left-[3.8rem]",
+                )}
+              >
+                <CreateCellButton
+                  tooltipContent={renderShortcut("cell.createAbove")}
+                  appClosed={appClosed}
+                  onClick={appClosed ? undefined : createAbove}
+                />
+                <div className="flex-1" />
+                <CreateCellButton
+                  tooltipContent={renderShortcut("cell.createBelow")}
+                  appClosed={appClosed}
+                  onClick={appClosed ? undefined : createBelow}
+                />
+              </div>
+              <CellEditor
+                theme={theme}
+                showPlaceholder={showPlaceholder}
+                allowFocus={allowFocus}
+                id={cellId}
+                code={code}
+                config={cellConfig}
+                status={status}
+                serializedEditorState={serializedEditorState}
+                runCell={handleRun}
+                updateCellCode={updateCellCode}
+                setEditorView={(ev) => {
+                  editorView.current = ev;
+                }}
+                createNewCell={createNewCell}
+                deleteCell={deleteCell}
+                focusCell={focusCell}
+                moveCell={moveCell}
+                moveToNextCell={moveToNextCell}
+                updateCellConfig={updateCellConfig}
+                clearSerializedEditorState={clearSerializedEditorState}
+                userConfig={userConfig}
+                editorViewRef={editorView}
+                editorViewParentRef={editorViewParentRef}
+                hidden={!isCellCodeShown}
+                hasOutput={hasOutput}
+                temporarilyShowCode={temporarilyShowCode}
+                languageAdapter={languageAdapter}
+                setLanguageAdapter={setLanguageAdapter}
+              />
+              <div
+                className={cn(
+                  "shoulder-right z-20",
+                  isMarkdownCodeHidden && cellOutput === "below" && "top-14",
+                )}
+              >
+                {!isCellStatusInline && cellStatusComponent}
+                <div className="flex gap-2 items-end">
+                  <CellDragHandle />
+                  {isCellStatusInline && cellStatusComponent}
+                </div>
+              </div>
+              <div className="shoulder-bottom hover-action">
+                {canDelete && isCellCodeShown && (
+                  <DeleteButton
+                    appClosed={appClosed}
+                    status={status}
+                    onClick={() => {
+                      if (!loading && !appClosed) {
+                        deleteCell({ cellId });
+                      }
+                    }}
+                  />
+                )}
+              </div>
             </div>
+            {cellOutput === "below" && outputArea}
+            <ConsoleOutput
+              consoleOutputs={consoleOutputs}
+              stale={consoleOutputStale}
+              cellName={name}
+              onRefactorWithAI={handleRefactorWithAI}
+              onSubmitDebugger={(text, index) => {
+                setStdinResponse({
+                  cellId,
+                  response: text,
+                  outputIndex: index,
+                });
+                sendStdin({ text });
+              }}
+              cellId={cellId}
+              debuggerActive={debuggerActive}
+            />
           </div>
-          {cellOutput === "below" && outputArea}
-          <ConsoleOutput
-            consoleOutputs={consoleOutputs}
-            stale={consoleOutputStale}
-            cellName={name}
-            onRefactorWithAI={handleRefactorWithAI}
-            onSubmitDebugger={(text, index) => {
-              setStdinResponse({ cellId, response: text, outputIndex: index });
-              sendStdin({ text });
-            }}
-            cellId={cellId}
-            debuggerActive={debuggerActive}
-          />
-        </div>
-        {isCollapsed && (
-          <CollapsedCellBanner
-            onClick={() => expandCell({ cellId })}
-            count={collapseCount}
-            cellId={cellId}
-          />
-        )}
-      </SortableCell>
-    </CellActionsContextMenu>
+          {isCollapsed && (
+            <CollapsedCellBanner
+              onClick={() => expandCell({ cellId })}
+              count={collapseCount}
+              cellId={cellId}
+            />
+          )}
+        </SortableCell>
+      </CellActionsContextMenu>
+    </TooltipProvider>
   );
 };
 
@@ -719,6 +745,7 @@ interface CellToolbarProps {
   cellConfig: CellConfig;
   needsRun: boolean;
   hasOutput: boolean;
+  hasConsoleOutput: boolean;
   cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>;
   cellId: CellId;
   name: string;
@@ -733,6 +760,7 @@ const CellToolbar = ({
   cellConfig,
   needsRun,
   hasOutput,
+  hasConsoleOutput,
   onRun,
   cellActionDropdownRef,
   cellId,
@@ -763,6 +791,7 @@ const CellToolbar = ({
         name={name}
         config={cellConfig}
         hasOutput={hasOutput}
+        hasConsoleOutput={hasConsoleOutput}
       >
         <ToolbarItem
           variant={"green"}

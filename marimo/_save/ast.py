@@ -8,6 +8,8 @@ from typing import Any, Callable, Sequence, cast
 
 from marimo._utils.variables import unmangle_local
 
+ARG_PREFIX: str = "*"
+
 
 class BlockException(Exception):
     pass
@@ -78,7 +80,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         super().__init__(*arg, **kwargs)
         self.target_line = line
 
-    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  #  type: ignore[override]
+    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
         pre_block = []
 
         # There are a few strange edges cases like:
@@ -91,11 +93,22 @@ class ExtractWithBlock(ast.NodeTransformer):
 
         assert isinstance(node, list), "Unexpected block structure."
         for n in node:
+            # There's a chance that the block is first evaluated somewhere in a
+            # multiline line expression, for instance:
+            # 1 >>> with cache as c:
+            # 2 >>>    a = [
+            # 3 >>>        f(x) # <<< first frame call is here, and not line 2
+            # 4 >>>    ]
+            # so check that the "target" line is in the interval
+            # (i.e. 1 <= 3 <= 4)
+            parent = None
             if n.lineno < self.target_line:
                 pre_block.append(n)
                 previous = n
-            elif n.lineno == self.target_line:
+            # the line is contained with this
+            elif n.lineno <= self.target_line <= n.end_lineno:
                 on_line.append(n)
+                parent = n
             # The target line can easily be skipped if there are comments or
             # white space or if the block is contained within another block.
             else:
@@ -106,15 +119,35 @@ class ExtractWithBlock(ast.NodeTransformer):
         # excluding by omission try, for, classes and functions.
         if len(on_line) == 0:
             if isinstance(previous, (ast.With, ast.If)):
-                try:
-                    # Recursion by referring the the containing block also
-                    # captures the case where the target line number was not
-                    # exactly hit.
-                    return ExtractWithBlock(self.target_line).generic_visit(
-                        previous.body  # type: ignore[arg-type]
-                    )
-                except BlockException:
-                    on_line.append(previous)
+                on_line.append(previous)
+                # Captures both branches of If, and the With block.
+                bodies = (
+                    [previous.body]
+                    if isinstance(previous, ast.With)
+                    else [previous.body, previous.orelse]
+                )
+                for body in bodies:
+                    try:
+                        # Recursion by referring to the containing block also
+                        # captures the case where the target line number was not
+                        # exactly hit.
+                        # for instance:
+                        # 1 >>> if True:          # Captured ast node
+                        # 2 >>>     with fn() as x:
+                        # 3 >>>         with cache as c:
+                        # 4 >>>             a = 1 # <<< frame line
+                        # will recurse through here thrice to get to the frame
+                        # line.
+                        # NB. the "extracted" With block is the one that
+                        # invoked this call
+                        return ExtractWithBlock(
+                            self.target_line
+                        ).generic_visit(
+                            body  # type: ignore[arg-type]
+                        )
+                    except BlockException:
+                        pass
+
             else:
                 raise BlockException(
                     "persistent_cache cannot be invoked within a block "
@@ -122,13 +155,42 @@ class ExtractWithBlock(ast.NodeTransformer):
                 )
         # Intentionally not elif (on_line can be added in previous block)
         if len(on_line) == 1:
-            assert isinstance(on_line[0], ast.With), "Unexpected block."
+            if parent and not isinstance(on_line[0], ast.With):
+                raise BlockException("Detected line is not a With statement.")
+            if not isinstance(on_line[0], ast.With):
+                raise BlockException(
+                    "Unconventional formatting may lead to unexpected behavior. "
+                    "Please format your code, and/or reduce nesting.\n"
+                    "For instance, the following is not supported:\n"
+                    ">>>> with cache() as c: a = 1 # all one line"
+                )
             return clean_to_modules(pre_block, on_line[0])
         # It should be possible to relate the lines with the AST,
         # but reduce potential bugs by just throwing an error.
         raise BlockException(
-            "Saving on a shared line may lead to unexpected behavior."
+            "Unable to determine structure your call. Please"
+            " report this to github:marimo-team/marimo/issues"
         )
+
+
+class MangleArguments(ast.NodeTransformer):
+    """Mangles arguments names to prevent shadowing issues in analysis."""
+
+    def __init__(
+        self,
+        args: set[str],
+        *arg: Any,
+        prefix: str = ARG_PREFIX,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*arg, **kwargs)
+        self.prefix = prefix
+        self.args = args
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        if node.id in self.args:
+            node.id = f"{self.prefix}{node.id}"
+        return node
 
 
 class DeprivateVisitor(ast.NodeTransformer):
@@ -157,6 +219,7 @@ class RemoveReturns(ast.NodeTransformer):
 
 def strip_function(fn: Callable[..., Any]) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
+    args = set(fn.__code__.co_varnames)
     function_ast = ast.parse(textwrap.dedent("".join(code)))
     body = function_ast.body.pop()
     assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (
@@ -164,5 +227,6 @@ def strip_function(fn: Callable[..., Any]) -> ast.Module:
     )
     extracted = ast.Module(body.body, type_ignores=[])
     module = RemoveReturns().visit(extracted)
+    module = MangleArguments(args).visit(module)
     assert isinstance(module, ast.Module), "Expected a module"
     return module

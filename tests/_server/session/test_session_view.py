@@ -10,6 +10,8 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    DataSourceConnection,
+    DataSourceConnections,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     VariableDeclaration,
@@ -421,6 +423,90 @@ def test_add_datasets_clear_channel() -> None:
     assert "db.table1" not in names
     assert "df1" in names
     assert "db.table2" in names
+
+
+def test_add_data_source_connections() -> None:
+    session_view = SessionView()
+
+    # Add initial connections
+    session_view.add_raw_operation(
+        serialize(
+            DataSourceConnections(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        dialect="duckdb",
+                        name="db1",
+                        display_name="duckdb (db1)",
+                    ),
+                    DataSourceConnection(
+                        source="sqlalchemy",
+                        dialect="postgresql",
+                        name="pg1",
+                        display_name="postgresql (pg1)",
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert len(session_view.data_connectors.connections) == 2
+    names = [c.name for c in session_view.data_connectors.connections]
+    assert "db1" in names
+    assert "pg1" in names
+
+    # Add new connection and update existing
+    session_view.add_raw_operation(
+        serialize(
+            DataSourceConnections(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        dialect="duckdb",
+                        name="db1",
+                        display_name="duckdb (db1_updated)",
+                    ),
+                    DataSourceConnection(
+                        source="sqlalchemy",
+                        dialect="mysql",
+                        name="mysql1",
+                        display_name="mysql (mysql1)",
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert len(session_view.data_connectors.connections) == 3
+    conns = {c.name: c for c in session_view.data_connectors.connections}
+
+    # Check updated connection
+    assert "db1" in conns
+    assert conns["db1"].display_name == "duckdb (db1_updated)"
+
+    # Check new connection replaced old one
+    assert "mysql1" in conns
+    assert conns["mysql1"].dialect == "mysql"
+    # Check existing connection
+    assert "pg1" in conns
+
+    # Check connectors in operations
+    assert session_view.data_connectors in session_view.operations
+
+    # Filter out connections from variables
+    session_view.add_raw_operation(
+        serialize(
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name="mysql1", declared_by=[cell_id], used_by=[]
+                    ),
+                ]
+            )
+        )
+    )
+    assert len(session_view.data_connectors.connections) == 1
+    assert session_view.data_connectors.connections[0].name == "mysql1"
 
 
 def test_add_cell_op() -> None:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 
 from marimo._cli.sandbox import (
@@ -244,12 +247,14 @@ def test_get_dependencies_with_nonexistent_file():
     assert get_dependencies_from_filename(None) == []  # type: ignore
 
 
-def test_normalize_marimo_dependencies():
+@patch("marimo._cli.sandbox.is_editable", return_value=False)
+def test_normalize_marimo_dependencies(mock_is_editable: Any):
     # Test adding marimo when not present
     assert _normalize_sandbox_dependencies(["numpy"], "1.0.0") == [
         "numpy",
         "marimo==1.0.0",
     ]
+    assert mock_is_editable.call_count == 1
 
     # Test preferring bracketed version
     assert _normalize_sandbox_dependencies(
@@ -289,6 +294,18 @@ def test_normalize_marimo_dependencies():
         ) == ["numpy", f"marimo{spec}"]
 
 
+def test_normalize_marimo_dependencies_editable():
+    deps = _normalize_sandbox_dependencies(["numpy"], "1.0.0")
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert "marimo" in deps[1]
+
+    deps = _normalize_sandbox_dependencies(["numpy", "marimo"], "1.0.0")
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert "marimo" in deps[1]
+
+
 def test_is_marimo_dependency():
     assert _is_marimo_dependency("marimo")
     assert _is_marimo_dependency("marimo[extras]")
@@ -320,6 +337,8 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
     # a file that doesn't yet exist
     uv_cmd = construct_uv_command(["edit", "foo_123.py"], "foo_123.py")
     assert "--refresh" in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
 
 
 def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
@@ -328,6 +347,8 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
     # a file that has no inline metadata yet
     uv_cmd = construct_uv_command(["edit", temp_marimo_file], temp_marimo_file)
     assert "--refresh" in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
 
 
 def test_construct_uv_cmd_marimo_edit_sandboxed_file(
@@ -339,3 +360,5 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         ["edit", temp_sandboxed_marimo_file], temp_sandboxed_marimo_file
     )
     assert "--refresh" not in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"

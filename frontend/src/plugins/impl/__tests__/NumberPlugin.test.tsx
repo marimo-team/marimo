@@ -85,7 +85,7 @@ describe("NumberPlugin", () => {
     };
 
     // Initial render - setValue should be called immediately with initial value
-    const { getAllByRole, rerender } = render(plugin.render(props));
+    const { getByRole, rerender } = render(plugin.render(props));
 
     // Wait for React-Aria NumberField to initialize
     act(() => {
@@ -97,10 +97,9 @@ describe("NumberPlugin", () => {
     // Clear the mock to test debounced user input
     setValue.mockClear();
 
-    const allInputs = getAllByRole("textbox", {
+    const input = getByRole("textbox", {
       name: "Number input",
-    });
-    const input = allInputs[1];
+    }) as HTMLInputElement;
     expect(input).toBeTruthy();
 
     // Simulate user typing and committing the value

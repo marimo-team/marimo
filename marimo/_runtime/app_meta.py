@@ -10,6 +10,7 @@ from marimo._runtime.context.types import (
     get_context,
 )
 from marimo._runtime.context.utils import RunMode, get_mode
+from marimo._runtime.requests import HTTPRequest
 
 
 @mddoc
@@ -75,3 +76,36 @@ class AppMeta:
             - None: The mode could not be determined
         """
         return get_mode()
+
+    @property
+    def request(self) -> Optional[HTTPRequest]:
+        """
+        The current HTTP request if any. The shape of the request object depends on the ASGI framework used,
+        but typically includes:
+
+        - `headers`: Request headers
+        - `cookies`: Request cookies
+        - `query_params`: Query parameters
+        - `path_params`: Path parameters
+        - `user`: User data added by authentication middleware
+        - `url`: URL information including path, query parameters
+
+        Examples:
+            Get the current request and print the path:
+
+            ```python
+            request = mo.app_meta().request
+            user = request.user
+            print(
+                user["is_authenticated"], user["username"], request.url["path"]
+            )
+            ```
+
+        Returns:
+            Optional[HTTPRequest]: The current request object if available, None otherwise.
+        """
+        try:
+            context = get_context()
+            return context.request
+        except ContextNotInitializedError:
+            return None

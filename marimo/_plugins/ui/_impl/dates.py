@@ -385,7 +385,10 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
             )
 
         if value is None:
-            value = (dt.date.today(), dt.date.today())
+            if start is None or stop is None:
+                value = (dt.date.today(), dt.date.today())
+            else:
+                value = (start, stop)
         elif (
             value[0] < self._start
             or value[1] > self._stop
