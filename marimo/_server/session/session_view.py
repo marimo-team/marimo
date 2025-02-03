@@ -148,7 +148,16 @@ class SessionView:
             # Remove any table values that are no longer in scope.
             next_tables: dict[str, DataTable] = {}
             for table in self.datasets.tables:
-                if table.variable_name in variable_names:
+                # If it's connected to an engine, then the engine variable must still exist
+                # If it's connected to a variable, then the variable must still exist
+                # Otherwise, we include it
+                if table.engine is not None:
+                    if table.engine in variable_names:
+                        next_tables[table.name] = table
+                elif table.variable_name is not None:
+                    if table.variable_name in variable_names:
+                        next_tables[table.name] = table
+                else:
                     next_tables[table.name] = table
             self.datasets = Datasets(tables=list(next_tables.values()))
 
