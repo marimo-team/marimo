@@ -1,6 +1,6 @@
 ---
 title: Markdown
-marimo-version: 0.10.9
+marimo-version: 0.10.19
 ---
 
 # Markdown file format
@@ -66,20 +66,39 @@ You can break up markdown into multiple cells by using an empty html tag `<!----
 <!---->
 View the source of this notebook to see how this cell was created.
 <!---->
-You can still hide and disable code cells in markdown notebooks:
+You can still hide cell code in markdown notebooks:
 
 ````md
 ```python {.marimo hide_code="true"}
-import pandas as pd
-pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+form = (
+    # ...
+    # Just something a bit more complicated
+    # you might not want to see in the editor.
+    # ...
+)
+form
 ```
 ````
 
 ```python {.marimo hide_code="true"}
-import pandas as pd
+form = (
+    mo.md('''
+    **Just how great is markdown?.**
 
-pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    {markdown_is_awesome}
+
+    {marimo_is_amazing}
+''')
+    .batch(
+        markdown_is_awesome=mo.ui.text(label="How much do you like markdown?", placeholder="It is pretty swell 🌊"),
+        marimo_is_amazing=mo.ui.slider(label="How much do you like marimo?", start=0, stop=11, value=11),
+    )
+    .form(show_clear_button=True, bordered=False)
+)
+form
 ```
+
+and disable cells too:
 
 ````md
 ```python {.marimo disabled="true"}
@@ -120,7 +139,7 @@ supposed to be computed, and what values are static. To interpolate Python
 values, just use a Python cell:
 
 ```python {.marimo}
-"🍃" * 7
+mo.md(f"""Like so: {"🍃" * 7}""")
 ```
 
 ### Limitations on conversion
@@ -151,6 +170,17 @@ It's not likely that you'll run into this issue, but rest assured that marimo
 is working behind the scenes to keep your notebooks unambiguous and clean as
 possible.
 <!---->
+### Saving multicolumn mode
+
+Multicolumn mode works, but the first cell in a column must be a python cell in
+order to specify column start and to save correctly:
+
+````md
+```python {.marimo column="1"}
+print("First cell in column 1")
+```
+````
+<!---->
 ### Naming cells
 
 Since the markdown notebook really is just markdown, you can't import from a
@@ -167,6 +197,54 @@ give your cells a name:
 # But here's my `cell_id`, so call me, `maybe` 🎶
 ```
 
+### SQL in markdown
+
+You can also run SQL queries in markdown cells through marimo, using a `sql` code block. For instance:
+
+````md
+```sql {.marimo}
+SELECT GREATEST(x, y), SQRT(z) from uniformly_random_numbers
+```
+````
+
+The resultant distribution may be surprising! 🎲[^surprise]
+
+[^surprise]: The general distributions should be the same
+
+```sql {.marimo}
+SELECT GREATEST(a, b), SQRT(c) from uniformly_random_numbers
+```
+
+In this SQL format, Python variable interpolation in SQL queries occurs automatically. Additionally, query results can be assigned to a dataframe with the `query` attribute.
+For instance, here's how to create a random uniform distribution and assign it to the dataframe `uniformly_random_numbers` used above:
+
+````md
+```sql {.marimo query="uniformly_random_numbers" hide_output="true"}
+SELECT i.range::text AS id,
+       random() AS x,
+       random() AS y,
+       random() AS z
+FROM
+    -- Note sample_count comes from the slider below!
+    range(1, {sample_count.value + 1}) i;
+```
+````
+
+You can learn more about other SQL use in the SQL tutorial (`marimo tutorial sql`)
+
+```python {.marimo hide_code="true"}
+sample_count = mo.ui.slider(1, 1000, value=1000, label="Sample Count")
+sample_count
+```
+
+```sql {.marimo query="uniformly_random_numbers" hide_output="True"}
+SELECT i.range::text AS id,
+       random() AS a,
+       random() AS b,
+       random() AS c
+FROM range(1, {sample_count.value + 1}) i;
+```
+
 ## Converting back to the Python file format
 
 The markdown format is supposed to lower the barrier for writing text heavy
@@ -176,41 +254,7 @@ format. You can always convert back to a Python notebook if you need to:
 ```bash
 $ marimo convert my_marimo.md > my_marimo.py
 ```
-
 <!---->
-
-## SQL in markdown
-
-You can also run parameterized SQL queries in markdown cells through marimo.
-
-```python {.marimo hide_code="true"}
-num = mo.ui.slider(1, 15, label="Fibonacci numbers")
-num
-```
-
-```python {.marimo}
-_df = mo.sql(
-    f"""
-    WITH RECURSIVE fibonacci AS (
-      SELECT
-        1 as n,
-        1 as fib,
-        1 as prev
-      UNION ALL
-      SELECT
-        n + 1,
-        fib + prev,
-        fib
-      FROM fibonacci
-      WHERE n < {num.value}
-    )
-    SELECT n, fib
-    FROM fibonacci
-    ORDER BY n;
-    """
-)
-```
-
 ## More on markdown
 
 Be sure to checkout the markdown.py tutorial (`marimo tutorial markdown`) for
