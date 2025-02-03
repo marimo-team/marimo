@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
 import React, { useEffect, useRef } from "react";
 import { EditorState, type Extension } from "@codemirror/state";
@@ -10,7 +11,11 @@ import { lightTheme } from "../core/codemirror/theme/light";
 
 // Partial config for storybook demo
 const demoConfig: Partial<CodeMirrorSetupOpts> = {
-  completionConfig: { activate_on_typing: false, copilot: false, codeium_api_key: null },
+  completionConfig: {
+    activate_on_typing: false,
+    copilot: false,
+    codeium_api_key: null,
+  },
   hotkeys: new OverridingHotkeyProvider({}),
   showPlaceholder: false,
   enableAI: false,
@@ -48,7 +53,8 @@ size = example.data_size
 const Editor = (opts: { extensions?: Extension[] }): React.ReactNode => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!ref.current) {
+    const element = ref.current;
+    if (!element) {
       return;
     }
 
@@ -57,11 +63,11 @@ const Editor = (opts: { extensions?: Extension[] }): React.ReactNode => {
         extensions: opts.extensions,
         doc: CONTENT,
       }),
-      parent: ref.current,
+      parent: element,
     });
 
     return () => view.destroy();
-  }, [ref.current]);
+  }, [opts.extensions]);
 
   return <div className="cm" ref={ref} />;
 };
