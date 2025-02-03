@@ -75,7 +75,10 @@ class QueuePipe:
 
 
 class ThreadSafeStream(Stream):
-    """A thread-safe wrapper around a pipe."""
+    """A thread-safe wrapper around a pipe.
+
+    Does not own the pipe or queue.
+    """
 
     def __init__(
         self,
@@ -124,7 +127,9 @@ class ThreadSafeStream(Stream):
                 self.console_msg_cv.notify()
 
 
-def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:
+def _forward_os_stream(
+    standard_stream: Stdout | Stderr, fd: int, should_exit: threading.Event
+) -> None:
     """Watch a file descriptor and forward it to a stream object."""
 
     # This coarse try/except block silences exceptions; a raised exception
@@ -135,7 +140,7 @@ def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:
     # exceptions we actually want to pay attention to; then store the exception
     # and print it to the terminal later (outside an execution context).
     try:
-        while True:
+        while not should_exit.is_set():
             data = os.read(fd, 1024)
             if not data:
                 break
@@ -153,9 +158,10 @@ class Watcher:
         self.standard_stream = standard_stream
         self.fd = self.standard_stream._original_fd
         self.read_fd, self.write_fd = os.pipe()
+        self._should_exit = threading.Event()
         self.thread = threading.Thread(
             target=_forward_os_stream,
-            args=(self.standard_stream, self.read_fd),
+            args=(self.standard_stream, self.read_fd, self._should_exit),
             daemon=True,
         )
         self.thread.start()
@@ -179,6 +185,7 @@ class Watcher:
     def stop(self) -> None:
         os.close(self.write_fd)
         os.close(self.read_fd)
+        self._should_exit.set()
 
 
 # NB: Python doesn't provide a standard out class to inherit from, so
@@ -192,6 +199,9 @@ class ThreadSafeStdout(Stdout):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
         self._watcher = Watcher(self)
+
+    def stop(self) -> None:
+        self._watcher.stop()
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -252,6 +262,9 @@ class ThreadSafeStderr(Stderr):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
         self._watcher = Watcher(self)
+
+    def stop(self) -> None:
+        self._watcher.stop()
 
     def fileno(self) -> int:
         if self._fileno is not None:

@@ -1016,7 +1016,7 @@ class SessionManager:
         alert = self.lsp_server.start()
 
         if alert is not None:
-            for _, session in self.sessions.items():
+            for session in self.sessions.values():
                 session.write_operation(alert, from_consumer_id=None)
             return
 
