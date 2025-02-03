@@ -26,11 +26,12 @@ def test_has_updates_to_datasource() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_datasets() -> None:
-    assert get_datasets_from_duckdb() == []
+    assert get_datasets_from_duckdb(connection=None) == []
 
     import duckdb
 
-    duckdb.execute("""
+    duckdb.execute(
+        """
         CREATE TABLE all_types (
             col_boolean BOOLEAN,
             col_tinyint TINYINT,
@@ -55,8 +56,9 @@ def test_get_datasets() -> None:
             col_uuid UUID,
             col_json JSON
         )
-    """)
-    assert get_datasets_from_duckdb() == [
+    """
+    )
+    assert get_datasets_from_duckdb(connection=None) == [
         DataTable(
             name="memory.main.all_types",
             source_type="duckdb",

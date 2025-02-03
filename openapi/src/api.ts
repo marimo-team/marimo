@@ -2243,6 +2243,7 @@ export interface components {
     };
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
+      engine?: string | null;
       name: string;
       num_columns?: number | null;
       num_rows?: number | null;

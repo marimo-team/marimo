@@ -2043,8 +2043,12 @@ class Kernel:
                 dataset = self.globals[table_name]
                 column_preview = get_column_preview_dataframe(dataset, request)
             elif source_type == "connection":
-                # TODO: Handle data-source-connection / engine display
-                pass
+                DataColumnPreview(
+                    error="Column preview for connection data sources is not supported",
+                    column_name=column_name,
+                    table_name=table_name,
+                ).broadcast()
+                return
             else:
                 assert_never(source_type)
 

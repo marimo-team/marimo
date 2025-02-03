@@ -1,13 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List, Optional, cast
+from typing import TYPE_CHECKING, List, Optional, cast
 
 from marimo import _loggers
 from marimo._data.models import DataTable, DataTableColumn, DataType
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    import duckdb
 
 
 def get_datasets_from_variables(
@@ -74,17 +77,21 @@ def has_updates_to_datasource(query: str) -> bool:
     )
 
 
-def get_datasets_from_duckdb() -> List[DataTable]:
+def get_datasets_from_duckdb(
+    connection: Optional[duckdb.DuckDBPyConnection],
+    engine_name: Optional[str] = None,
+) -> List[DataTable]:
     try:
-        return _get_datasets_from_duckdb_internal()
+        return _get_datasets_from_duckdb_internal(connection, engine_name)
     except Exception as e:
         LOGGER.error(e)
         return []
 
 
-def _get_datasets_from_duckdb_internal() -> List[DataTable]:
-    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-
+def _get_datasets_from_duckdb_internal(
+    connection: Optional[duckdb.DuckDBPyConnection],
+    engine_name: Optional[str] = None,
+) -> List[DataTable]:
     # Columns
     # 0:"database"
     # 1:"schema"
@@ -92,7 +99,12 @@ def _get_datasets_from_duckdb_internal() -> List[DataTable]:
     # 3:"column_names"
     # 4:"column_types"
     # 5:"temporary"
-    databases = duckdb.execute("SHOW ALL TABLES").fetchall()
+    if connection is None:
+        import duckdb
+
+        databases = duckdb.execute("SHOW ALL TABLES").fetchall()
+    else:
+        databases = connection.execute("SHOW ALL TABLES").fetchall()
     if not len(databases):
         # No tables
         return []
@@ -126,13 +138,14 @@ def _get_datasets_from_duckdb_internal() -> List[DataTable]:
 
         tables.append(
             DataTable(
-                source_type="duckdb",
+                source_type="duckdb" if engine_name is None else "connection",
                 source=database,
                 name=f"{database}.{schema}.{name}",
                 num_rows=None,
                 num_columns=len(columns),
                 variable_name=None,
                 columns=columns,
+                engine=engine_name,
             )
         )
 
