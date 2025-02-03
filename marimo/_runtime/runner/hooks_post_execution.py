@@ -164,6 +164,12 @@ def _broadcast_data_source_connection(
             ]
         ).broadcast()
 
+    for variable, engine in engines:
+        tables = engine.get_tables()
+        if tables:
+            LOGGER.debug(f"Broadcasting engine tables for {variable}")
+            Datasets(tables=tables).broadcast()
+
 
 @kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
 def _broadcast_duckdb_tables(
@@ -190,7 +196,7 @@ def _broadcast_duckdb_tables(
         if not modifies_datasources:
             return
 
-        tables = get_datasets_from_duckdb()
+        tables = get_datasets_from_duckdb(connection=None)
         if not tables:
             return
 

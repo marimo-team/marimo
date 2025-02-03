@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._data.models import DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines import (
     DuckDBEngine,
@@ -158,3 +159,70 @@ def test_raise_df_import_error() -> None:
     """Test raise_df_import_error function."""
     with pytest.raises(ImportError):
         raise_df_import_error("test_pkg")
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_get_tables(sqlite_engine: sa.Engine) -> None:
+    """Test SQLAlchemyEngine get_tables method."""
+    engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
+    tables = engine.get_tables()
+
+    assert isinstance(tables, list)
+    assert len(tables) == 1
+
+    table = tables[0]
+    assert isinstance(table, DataTable)
+    assert table.name == "test"
+    assert table.engine == "test_sqlite"
+    assert len(table.columns) == 2
+    assert table.columns[0].name == "id"
+    assert table.columns[0].type == "integer"
+    assert table.columns[1].name == "name"
+    assert table.columns[1].type == "string"
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_duckdb_engine_get_tables(
+    duckdb_connection: duckdb.DuckDBPyConnection,
+) -> None:
+    """Test DuckDBEngine get_tables method."""
+    engine = DuckDBEngine(duckdb_connection, engine_name="test_duckdb")
+    tables = engine.get_tables()
+
+    assert isinstance(tables, list)
+    assert len(tables) == 1
+
+    table = tables[0]
+    assert isinstance(table, DataTable)
+    assert table.name == "memory.main.test"
+    assert table.engine == "test_duckdb"
+    assert table.source_type == "connection"
+    assert len(table.columns) == 2
+    assert table.columns[0].name == "id"
+    assert table.columns[0].type == "integer"
+    assert table.columns[1].name == "name"
+    assert table.columns[1].type == "string"
+
+
+def test_engine_name_initialization() -> None:
+    """Test engine name initialization."""
+    import duckdb
+    import sqlalchemy as sa
+
+    duckdb_conn = duckdb.connect(":memory:")
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+
+    duck_engine = DuckDBEngine(duckdb_conn, engine_name="my_duck")
+    sql_engine = SQLAlchemyEngine(sqlite_engine, engine_name="my_sql")
+
+    assert duck_engine._engine_name == "my_duck"
+    assert sql_engine._engine_name == "my_sql"
+
+    # Test default names
+    duck_engine_default = DuckDBEngine(duckdb_conn)
+    sql_engine_default = SQLAlchemyEngine(sqlite_engine)
+
+    assert duck_engine_default._engine_name is None
+    assert sql_engine_default._engine_name is None
+
+    duckdb_conn.close()

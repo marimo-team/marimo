@@ -416,6 +416,9 @@ components:
           items:
             $ref: '#/components/schemas/DataTableColumn'
           type: array
+        engine:
+          nullable: true
+          type: string
         name:
           type: string
         num_columns:
@@ -2019,7 +2022,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.17
+  version: 0.10.19
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
