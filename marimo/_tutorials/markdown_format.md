@@ -1,7 +1,6 @@
 ---
 title: Markdown
 marimo-version: 0.10.19
-width: columns
 ---
 
 # Markdown file format

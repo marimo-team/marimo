@@ -194,7 +194,7 @@ def test_markdown_with_sql() -> None:
     # SQL notebook
 
     ```python {.marimo}
-    mem_engine = mo.create_engine("sqlite:///:memory:")
+    mem_engine = fn_that_creates_engine("sqlite:///:memory:")
     ```
 
     ```sql {.marimo query="export" engine="mem_engine" hide_output="true"}
