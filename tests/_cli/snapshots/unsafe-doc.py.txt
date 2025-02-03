@@ -4,7 +4,7 @@ __generated_with = "0.0.0"
 app = marimo.App(app_title="Casually malicious md")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -25,7 +25,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -45,12 +45,12 @@ app._unparsable_cell(
 )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
         <!-- Actually markdown -->
-        ```{python} `
+        ```python {.marimo} `
           print("Hello, World!")
 
         <!-- Disabled code block -->
@@ -65,7 +65,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -81,7 +81,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -96,7 +96,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -109,14 +109,14 @@ def _(mo):
 app._unparsable_cell(
     r"""
     \"\"\"
-    ```{python}
+    ```python {.marimo}
     print(\"Hello, World!\")
     """,
     name="_"
 )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -124,8 +124,8 @@ def _(mo):
         ```
 
         <!-- Improperly nested code block -->
-        ```{python}
-        ````{python}
+        ```python {.marimo}
+        ````python {.marimo}
         print("Hello, World!")
         ````
         ```
@@ -142,15 +142,10 @@ def _(mo):
 def _(mo):
     mo.md("""
       This is a markdown cell with an execution block in it
-      ```{python}
+      ```python {.marimo}
       # To ambiguous to convert
       ```
       """)
-    return
-
-
-@app.cell
-def _():
     return
 
 

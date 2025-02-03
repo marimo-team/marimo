@@ -1,21 +1,25 @@
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from starlette.applications import Starlette
-from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.testclient import TestClient
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from starlette.websockets import WebSocket
 
 from marimo._server.asgi import (
     ASGIAppBuilder,
     DynamicDirectoryMiddleware,
     create_asgi_app,
 )
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+    from starlette.websockets import WebSocket
 
 contents = """
 import marimo
@@ -140,6 +144,50 @@ class TestASGIAppBuilder(unittest.TestCase):
         response = client.get("/health")
         assert response.status_code == 404, response.text
         response = client.get("/app1/health")
+        assert response.status_code == 200, response.text
+
+    def test_mount_at_root(self) -> None:
+        """Test that assets are correctly served when app is mounted at the root path."""
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/app1", root=self.app1)
+        app = builder.build()
+
+        base_app = Starlette()
+        base_app.mount("/", app)
+        client = TestClient(base_app)
+
+        # Index page
+        response = client.get("/app1")
+        assert response.status_code == 200, response.text
+        # Index page with trailing slash
+        response = client.get("/app1/")
+        assert response.status_code == 200, response.text
+        # Health check
+        response = client.get("/app1/health")
+        assert response.status_code == 200, response.text
+
+    def test_mount_at_non_root(self) -> None:
+        """Test that assets are correctly served when app is mounted at a non-root path."""
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/app1", root=self.app1)
+        app = builder.build()
+
+        base_app = Starlette()
+        base_app.mount("/marimo", app)
+        client = TestClient(base_app)
+
+        # Not at the root
+        response = client.get("/app1")
+        assert response.status_code == 404, response.text
+
+        # Index page
+        response = client.get("/marimo/app1")
+        assert response.status_code == 200, response.text
+        # Index page with trailing slash
+        response = client.get("/marimo/app1/")
+        assert response.status_code == 200, response.text
+        # Health check
+        response = client.get("/marimo/app1/health")
         assert response.status_code == 200, response.text
 
     def test_app_with_middleware(self):

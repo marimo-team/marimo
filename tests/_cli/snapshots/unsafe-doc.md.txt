@@ -10,7 +10,7 @@ What happens if I just leave a \"\"\"
 <!--
 \
 
-```{.python.marimo}
+```python {.marimo}
 print("Hello, World!")
 ```
 
@@ -18,37 +18,37 @@ print("Hello, World!")
 
 ```marimo run convert document.md```
 
-```{.python.marimo unparsable="true"}
+```python {.marimo unparsable="true"}
 it's an unparsable cell
 ```
 
 <!-- Actually markdown -->
-```{python} `
+```python {.marimo} `
   print("Hello, World!")
 
 <!-- Disabled code block -->
 
-```{.python.marimo disabled="true"}
+```python {.marimo disabled="true"}
 1 + 1
 ```
 
 <!-- Hidden code block -->
 
-```{.python.marimo hide_code="true"}
+```python {.marimo hide_code="true"}
 1 + 1
 ```
 
 <!-- Empty code block -->
 
-```{.python.marimo}
+```python {.marimo}
 
 ```
 
 <!-- Improperly nested code block -->
 
-````{.python.marimo unparsable="true"}
+````python {.marimo unparsable="true"}
 """
-```{python}
+```python {.marimo}
 print("Hello, World!")
 ````
 
@@ -56,8 +56,8 @@ print("Hello, World!")
 ```
 
 <!-- Improperly nested code block -->
-```{python}
-````{python}
+```python {.marimo}
+````python {.marimo}
 print("Hello, World!")
 ````
 ```
@@ -66,15 +66,11 @@ print("Hello, World!")
 
 <!-- from the notebook, should remain unchanged -->
 
-````{.python.marimo}
+````python {.marimo}
 mo.md("""
   This is a markdown cell with an execution block in it
-  ```{python}
+  ```python {.marimo}
   # To ambiguous to convert
   ```
   """)
 ````
-
-```{.python.marimo}
-
-```

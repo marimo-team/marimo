@@ -14,8 +14,10 @@ if TYPE_CHECKING:
 class SetUIElementRequestManager:
     def __init__(
         self,
-        set_ui_element_queue: QueueType[SetUIElementValueRequest]
-        | asyncio.Queue[SetUIElementValueRequest],
+        set_ui_element_queue: (
+            QueueType[SetUIElementValueRequest]
+            | asyncio.Queue[SetUIElementValueRequest]
+        ),
     ) -> None:
         self._set_ui_element_queue = set_ui_element_queue
         self._processed_request_tokens: set[str] = set()
@@ -51,8 +53,10 @@ class SetUIElementRequestManager:
         for request in requests:
             for ui_id, value in request.ids_and_values:
                 merged[ui_id] = value
+        last_request = requests[-1]
         return SetUIElementValueRequest(
             object_ids=list(merged.keys()),
             values=list(merged.values()),
-            token="",
+            token=last_request.token,
+            request=last_request.request,
         )

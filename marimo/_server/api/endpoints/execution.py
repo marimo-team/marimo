@@ -12,6 +12,7 @@ from marimo import _loggers
 from marimo._messaging.ops import Alert
 from marimo._runtime.requests import (
     FunctionCallRequest,
+    HTTPRequest,
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
@@ -62,7 +63,10 @@ async def set_ui_element_values(
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
     app_state.require_current_session().put_control_request(
         SetUIElementValueRequest(
-            object_ids=body.object_ids, values=body.values, token=str(uuid4())
+            object_ids=body.object_ids,
+            values=body.values,
+            token=str(uuid4()),
+            request=HTTPRequest.from_request(request),
         ),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
@@ -91,7 +95,10 @@ async def instantiate(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=InstantiateRequest)
-    app_state.require_current_session().instantiate(body)
+    app_state.require_current_session().instantiate(
+        body,
+        http_request=HTTPRequest.from_request(request),
+    )
 
     return SuccessResponse()
 
@@ -168,6 +175,7 @@ async def run_cell(
     """  # noqa: E501
     app_state = AppState(request)
     body = await parse_request(request, cls=RunRequest)
+    body.request = HTTPRequest.from_request(request)
     app_state.require_current_session().put_control_request(
         body.as_execution_request(),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

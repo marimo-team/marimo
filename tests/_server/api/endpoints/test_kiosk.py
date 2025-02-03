@@ -139,6 +139,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 "data": {
                     "cell_ids": ["cell-3"],
                     "codes": ["print('Hello, cell-3')"],
+                    "code_is_stale": False,
                 },
             }
             # And a focused cell

@@ -3,7 +3,6 @@
 # dependencies = [
 #     "marimo",
 #     "groq==0.11.0",
-#     "anthropic==0.37.1",
 # ]
 # ///
 

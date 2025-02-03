@@ -37,8 +37,6 @@ import {
 } from "@codemirror/view";
 
 import { EditorState, type Extension, Prec } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
-
 import type { CompletionConfig, KeymapConfig } from "../config/config-schema";
 import type { Theme } from "../../theme/useTheme";
 
@@ -59,6 +57,7 @@ import { historyCompartment } from "./editing/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { lightTheme } from "./theme/light";
+import { darkTheme } from "./theme/dark";
 import { dndBundle } from "./misc/dnd";
 import { jupyterHelpExtension } from "./compat/jupyter";
 import { pasteBundle } from "./misc/paste";
@@ -141,7 +140,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
       parent: document.querySelector<HTMLElement>("#App") ?? undefined,
     }),
     scrollActiveLineIntoView(),
-    theme === "dark" ? oneDark : lightTheme,
+    theme === "dark" ? darkTheme : lightTheme,
 
     hintTooltip(),
     copilotBundle(completionConfig),
@@ -175,8 +174,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
         preventDefault: true,
       },
       {
-        key: "Alt-j",
-        mac: "Ctrl-j",
+        key: hotkeys.getHotkey("completion.moveDown").key,
         run: (cm) => {
           if (completionStatus(cm.state) !== null) {
             moveCompletionSelection(true)(cm);
@@ -187,8 +185,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
         preventDefault: true,
       },
       {
-        key: "Alt-k",
-        mac: "Ctrl-k",
+        key: hotkeys.getHotkey("completion.moveUp").key,
         run: (cm) => {
           if (completionStatus(cm.state) !== null) {
             moveCompletionSelection(false)(cm);

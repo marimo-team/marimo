@@ -47,7 +47,7 @@ class TestScriptTrace:
 
         result = p.stderr.decode()
         assert "ZeroDivisionError: division by zero" in result
-        assert ('script_exception_with_output.py"' ", line 11") in result
+        assert ('script_exception_with_output.py", line 11') in result
         assert "y / x" in result
 
     @staticmethod

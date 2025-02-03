@@ -12,7 +12,7 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired
 
-from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -246,6 +246,19 @@ class LanguageServersConfig(TypedDict, total=False):
     pylsp: PythonLanguageServerConfig
 
 
+@dataclass
+class SnippetsConfig(TypedDict):
+    """Configuration for snippets.
+
+    **Keys.**
+
+    - `custom_path`: the path to the custom snippets directory
+    """
+
+    custom_paths: NotRequired[List[str]]
+    include_default_snippets: NotRequired[bool]
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -262,6 +275,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
     language_servers: NotRequired[LanguageServersConfig]
+    snippets: NotRequired[SnippetsConfig]
 
 
 @mddoc
@@ -280,6 +294,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
     language_servers: NotRequired[LanguageServersConfig]
+    snippets: SnippetsConfig
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -309,6 +324,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "follow_symlink": False,
     },
     "language_servers": {"pylsp": {"enabled": True}},
+    "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": True,
+    },
 }
 
 

@@ -17,8 +17,8 @@ _Get started with Copilot_:
 2. Enable Copilot via the settings menu in the marimo editor.
 
 !!! note "Installation Requirement"
-   Copilot is not yet available in our conda distribution; please install
-   marimo using ``pip`` if you need Copilot.
+    Copilot is not yet available in our conda distribution; please install
+    marimo using ``pip`` if you need Copilot.
 
 ## Codeium Copilot
 
@@ -76,7 +76,7 @@ marimo has built-in support for generating and refactoring code with AI, with a 
 
 ### Custom AI Rules
 
-You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](https://docs.marimo.io/guides/working_with_data/plotting.html#plotting) and [working with data guide](https://docs.marimo.io/guides/working_with_data/index.html).
+You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](../working_with_data/plotting.md#plotting) and [working with data guide](../working_with_data/index.md).
 
 <div align="center">
   <figure>
@@ -207,7 +207,8 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 
 4. Visit <http://127.0.0.1:11434> to confirm that the server is running.
 
-   > **Note**: If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
+!!! note "Port already in use"
+    If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
 5. Open a new terminal and start marimo:
 
@@ -226,7 +227,29 @@ base_url = "http://127.0.0.1:11434/v1"
 
 ### Using other AI providers
 
-marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) follow this pattern.
+marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) and [DeepSeek](https://platform.deepseek.com) follow this pattern.
+
+??? tip "Using OpenAI-compatible providers (e.g., DeepSeek)"
+
+    === "Via marimo.toml"
+
+        Add the following configuration to your `marimo.toml` file:
+
+        ```toml
+        [ai.open_ai]
+        api_key = "dsk-..." # Your provider's API key
+        model = "deepseek-chat" # or "deepseek-reasoner"
+        base_url = "https://api.deepseek.com/"
+        ```
+
+    === "Via UI Settings"
+
+        1. Open marimo's Settings panel
+        2. Navigate to the AI section
+        3. Enter your provider's API key in the "OpenAI API Key" field
+        4. Under AI Assist settings:
+           - Set Base URL to your provider's endpoint (e.g., `https://api.deepseek.com`)
+           - Set Model to your chosen model (e.g., `deepseek-chat` or `deepseek-reasoner`)
 
 For a comprehensive list of compatible providers and their configurations, please refer to the [liteLLM Providers documentation](https://litellm.vercel.app/docs/providers).
 

@@ -77,3 +77,11 @@ def validate_no_integer_columns(df: Any) -> None:
             "Please use strings for column names.",
             stacklevel=3,
         )
+
+
+# issue: https://github.com/marimo-team/marimo/issues/3407
+def validate_page_size(page_size: int) -> None:
+    if page_size > 200:
+        raise ValueError(
+            "Page size limited to 200 rows. If you'd like this increased, please file an issue"
+        )

@@ -7,7 +7,7 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.6
+    rev: v1.7.7
     hooks:
       - id: actionlint
         args: [-ignore, SC]
@@ -18,7 +18,7 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.43.0
+    rev: v0.44.0
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix, --disable, MD028]
@@ -30,7 +30,7 @@ repos:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.9.3
     hooks:
       # Run the linter
       - id: ruff

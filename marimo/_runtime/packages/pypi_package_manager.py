@@ -130,6 +130,15 @@ class UvPackageManager(PypiPackageManager):
         import_namespaces_to_add: Optional[List[str]] = None,
         import_namespaces_to_remove: Optional[List[str]] = None,
     ) -> None:
+        """Update the notebook's script metadata with the packages to add/remove.
+
+        Args:
+            filepath: Path to the notebook file
+            packages_to_add: List of packages to add to the script metadata
+            packages_to_remove: List of packages to remove from the script metadata
+            import_namespaces_to_add: List of import namespaces to add
+            import_namespaces_to_remove: List of import namespaces to remove
+        """
         packages_to_add = packages_to_add or []
         packages_to_remove = packages_to_remove or []
         import_namespaces_to_add = import_namespaces_to_add or []
@@ -152,8 +161,8 @@ class UvPackageManager(PypiPackageManager):
             return without_brackets.lower() in version_map
 
         def _maybe_add_version(package: str) -> str:
-            # Skip marimo
-            if package == "marimo":
+            # Skip marimo and marimo[<mod>], but not marimo-<something-else>
+            if package == "marimo" or package.startswith("marimo["):
                 return package
             without_brackets = package.split("[")[0]
             version = version_map.get(without_brackets.lower())

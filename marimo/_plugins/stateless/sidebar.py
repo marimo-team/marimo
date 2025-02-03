@@ -48,12 +48,20 @@ class sidebar(Html):
     Args:
         item (object): The content to display in the sidebar.
         footer (object, optional): The content to display at the bottom of the sidebar.
+        width (str, optional): The width of the sidebar when open. Can be any valid CSS width
+            value (e.g. "300px", "20rem"). If not provided, defaults to the standard width.
 
     Returns:
         Html (marimo.Html): An Html object.
     """
 
-    def __init__(self, item: object, footer: Optional[object] = None) -> None:
+    def __init__(
+        self,
+        item: object,
+        footer: Optional[object] = None,
+        *,
+        width: Optional[str | int] = None,
+    ) -> None:
         # If its a string, wrap in md
         if isinstance(item, str):
             item = md.md(item)
@@ -69,10 +77,16 @@ class sidebar(Html):
                 footer = vstack(footer)
             item = vstack([item, footer], justify="space-between")
 
+        # Build props
+        props: dict[str, Any] = {}
+        if width is not None:
+            # Width must be a string for JSON serialization
+            props["width"] = str(width)
+
         super().__init__(
             build_stateless_plugin(
                 "marimo-sidebar",
-                {},
+                props,
                 as_html(item).text,
             )
         )

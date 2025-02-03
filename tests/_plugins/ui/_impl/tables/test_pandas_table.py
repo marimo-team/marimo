@@ -121,7 +121,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_csv(self) -> None:
         expected_csv = self.data.to_csv(
-            index=False, date_format="%Y-%m-%d %H:%M:%S"
+            index=False, date_format="%Y-%m-%d %H:%M:%S%z"
         ).encode("utf-8")
         assert self.manager.to_csv() == expected_csv
 
@@ -134,6 +134,16 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame(data)
         manager = PandasTableManagerFactory.create()(df)
         assert "2024-12-17 00:00:00" in manager.to_csv().decode("utf-8")
+
+    def test_to_csv_datetime_with_timezone(self) -> None:
+        D = pd.to_datetime("2024-12-17", errors="coerce").tz_localize("UTC")
+
+        data = {
+            "D timestamp": [D],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        assert "2024-12-17 00:00:00+0000" in manager.to_csv().decode("utf-8")
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()

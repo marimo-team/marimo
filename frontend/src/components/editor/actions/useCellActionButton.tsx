@@ -25,6 +25,7 @@ import {
   XCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ScissorsIcon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -54,12 +55,14 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
 import { switchLanguage } from "@/core/codemirror/language/extension";
+import { useSplitCellCallback } from "../cell/useSplitCell";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
   cellId: CellId;
   status: RuntimeState;
   hasOutput: boolean;
+  hasConsoleOutput: boolean;
   getEditorView: () => EditorView | null;
 }
 
@@ -79,6 +82,7 @@ export function useCellActionButtons({ cell }: Props) {
     addColumnBreakpoint,
     clearCellOutput,
   } = useCellActions();
+  const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const canDelete = !hasOnlyOneCell;
@@ -94,7 +98,15 @@ export function useCellActionButtons({ cell }: Props) {
     return [];
   }
 
-  const { cellId, config, getEditorView, name, hasOutput, status } = cell;
+  const {
+    cellId,
+    config,
+    getEditorView,
+    name,
+    hasOutput,
+    hasConsoleOutput,
+    status,
+  } = cell;
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -186,6 +198,12 @@ export function useCellActionButtons({ cell }: Props) {
         hotkey: "cell.aiCompletion",
       },
       {
+        icon: <ScissorsIcon size={13} strokeWidth={1.5} />,
+        label: "Split cell",
+        hotkey: "cell.splitCell",
+        handle: () => splitCell({ cellId }),
+      },
+      {
         icon: <ImageIcon size={13} strokeWidth={1.5} />,
         label: "Export output as PNG",
         hidden: !hasOutput,
@@ -233,7 +251,7 @@ export function useCellActionButtons({ cell }: Props) {
       {
         icon: <XCircleIcon size={13} strokeWidth={1.5} />,
         label: "Clear output",
-        hidden: !hasOutput,
+        hidden: !(hasOutput || hasConsoleOutput),
         handle: () => {
           clearCellOutput({ cellId });
         },

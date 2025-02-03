@@ -128,7 +128,7 @@ function registerContextMenu() {
   });
 }
 
-function sendToPanelManager(msg: VscodeMessage) {
+export function sendToPanelManager(msg: VscodeMessage) {
   window.parent?.postMessage(msg, "*");
 }
 

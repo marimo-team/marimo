@@ -36,7 +36,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
-from marimo._plugins.validators import validate_no_integer_columns
+from marimo._plugins.validators import (
+    validate_no_integer_columns,
+    validate_page_size,
+)
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
 from marimo._utils.parse_dataclass import parse_raw
@@ -141,6 +144,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
         self._page_size = page_size or 5  # Default to 5 rows (.head())
+        validate_page_size(self._page_size)
 
         super().__init__(
             component_name=dataframe._name,

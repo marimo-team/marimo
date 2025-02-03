@@ -10,7 +10,7 @@ test("can resume a session", async ({ page }) => {
   const appUrl = getAppUrl("shutdown.py");
   await page.goto(appUrl);
 
-  await expect(page.getByText("None", { exact: true })).toBeVisible();
+  await expect(page.getByText("'None'", { exact: true })).toBeVisible();
   // type in the form
   await page.locator("#output-Hbol").getByRole("textbox").fill("12345");
   // shift enter to run the form
@@ -51,7 +51,7 @@ test("restart kernel", async ({ page }) => {
   await confirmButton.waitFor({ state: "visible" });
   await confirmButton.click();
 
-  await expect(page.getByText("None", { exact: true })).toBeVisible();
+  await expect(page.getByText("'None'", { exact: true })).toBeVisible();
 });
 
 test("shutdown shows disconnected text", async ({ page }) => {

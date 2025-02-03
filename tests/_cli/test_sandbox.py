@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 
 from marimo._cli.sandbox import (
     _get_dependencies,
     _get_python_version_requirement,
+    _is_marimo_dependency,
+    _normalize_sandbox_dependencies,
     _pyproject_toml_to_requirements_txt,
     _read_pyproject,
+    construct_uv_command,
     get_dependencies_from_filename,
 )
 
@@ -239,3 +245,120 @@ def test_get_dependencies_with_nonexistent_file():
 
     # Test with None
     assert get_dependencies_from_filename(None) == []  # type: ignore
+
+
+@patch("marimo._cli.sandbox.is_editable", return_value=False)
+def test_normalize_marimo_dependencies(mock_is_editable: Any):
+    # Test adding marimo when not present
+    assert _normalize_sandbox_dependencies(["numpy"], "1.0.0") == [
+        "numpy",
+        "marimo==1.0.0",
+    ]
+    assert mock_is_editable.call_count == 1
+
+    # Test preferring bracketed version
+    assert _normalize_sandbox_dependencies(
+        ["marimo", "marimo[extras]", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]==1.0.0"]
+
+    # Test keeping existing version with brackets
+    assert _normalize_sandbox_dependencies(
+        ["marimo[extras]>=0.1.0", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]>=0.1.0"]
+
+    # Test adding version when none exists
+    assert _normalize_sandbox_dependencies(
+        ["marimo[extras]", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]==1.0.0"]
+
+    # Test keeping only one marimo dependency
+    assert _normalize_sandbox_dependencies(
+        ["marimo>=0.1.0", "marimo[extras]>=0.2.0", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]>=0.2.0"]
+    assert _normalize_sandbox_dependencies(
+        ["marimo", "marimo[extras]>=0.2.0", "numpy"], "1.0.0"
+    ) == ["numpy", "marimo[extras]>=0.2.0"]
+
+    # Test various version specifiers are preserved
+    version_specs = [
+        "==0.1.0",
+        ">=0.1.0",
+        "<=0.1.0",
+        ">0.1.0",
+        "<0.1.0",
+        "~=0.1.0",
+    ]
+    for spec in version_specs:
+        assert _normalize_sandbox_dependencies(
+            [f"marimo{spec}", "numpy"], "1.0.0"
+        ) == ["numpy", f"marimo{spec}"]
+
+
+def test_normalize_marimo_dependencies_editable():
+    deps = _normalize_sandbox_dependencies(["numpy"], "1.0.0")
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert "marimo" in deps[1]
+
+    deps = _normalize_sandbox_dependencies(["numpy", "marimo"], "1.0.0")
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert "marimo" in deps[1]
+
+
+def test_is_marimo_dependency():
+    assert _is_marimo_dependency("marimo")
+    assert _is_marimo_dependency("marimo[extras]")
+    assert not _is_marimo_dependency("marimo-extras")
+    assert not _is_marimo_dependency("marimo-ai")
+
+    # With version specifiers
+    assert _is_marimo_dependency("marimo==0.1.0")
+    assert _is_marimo_dependency("marimo[extras]>=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]==0.1.0")
+    assert _is_marimo_dependency("marimo[extras]~=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]<=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]>=0.1.0")
+    assert _is_marimo_dependency("marimo[extras]<=0.1.0")
+
+    # With other packages
+    assert not _is_marimo_dependency("numpy")
+    assert not _is_marimo_dependency("pandas")
+    assert not _is_marimo_dependency("marimo-ai")
+    assert not _is_marimo_dependency("marimo-ai==0.1.0")
+
+
+def test_construct_uv_cmd_marimo_new() -> None:
+    uv_cmd = construct_uv_command(["new"], None)
+    assert "--refresh" in uv_cmd
+
+
+def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
+    # a file that doesn't yet exist
+    uv_cmd = construct_uv_command(["edit", "foo_123.py"], "foo_123.py")
+    assert "--refresh" in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
+
+
+def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
+    temp_marimo_file: str,
+) -> None:
+    # a file that has no inline metadata yet
+    uv_cmd = construct_uv_command(["edit", temp_marimo_file], temp_marimo_file)
+    assert "--refresh" in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"
+
+
+def test_construct_uv_cmd_marimo_edit_sandboxed_file(
+    temp_sandboxed_marimo_file: str,
+) -> None:
+    # a file that has inline metadata; shouldn't refresh the cache, uv
+    # --isolated will do the right thing.
+    uv_cmd = construct_uv_command(
+        ["edit", temp_sandboxed_marimo_file], temp_sandboxed_marimo_file
+    )
+    assert "--refresh" not in uv_cmd
+    assert uv_cmd[0] == "uv"
+    assert uv_cmd[1] == "run"

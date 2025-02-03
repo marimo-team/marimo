@@ -10,18 +10,23 @@ from textwrap import dedent
 import pytest
 
 from marimo import __version__
-from marimo._cli.convert.markdown import convert_from_md
+from marimo._ast.app import InternalApp
+from marimo._cli.convert.markdown import (
+    convert_from_md,
+    convert_from_md_to_app,
+)
 from marimo._server.export import export_as_md
 from marimo._server.export.utils import format_filename_title
 
 # Just a handful of scripts to test
-from marimo._tutorials import dataflow, for_jupyter_users
+from marimo._tutorials import dataflow, for_jupyter_users, sql
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 
 modules = {
     "marimo_for_jupyter_users": for_jupyter_users,
     "dataflow": dataflow,
+    "sql": sql,
 }
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -63,9 +68,7 @@ def convert_from_py(py: str) -> str:
 )
 def test_markdown_snapshots() -> None:
     for name, mod in modules.items():
-        output = sanitized_version(
-            export_as_md(MarimoPath(mod.__file__)).contents
-        )
+        output = export_as_md(MarimoPath(mod.__file__)).contents
         snapshot(f"{name}.md.txt", output)
 
 
@@ -83,7 +86,8 @@ def test_idempotent_markdown_to_marimo() -> None:
 
 def test_markdown_frontmatter() -> None:
     script = dedent(
-        """
+        remove_empty_lines(
+            """
     ---
     title: "My Title"
     description: "My Description"
@@ -95,19 +99,61 @@ def test_markdown_frontmatter() -> None:
 
     # Notebook
 
-    ```{.python.marimo}
+    ```python {.marimo}
     print("Hello, World!")
     ```
-    """[1:]
+    """
+        )
     )
+
+    # As python file
     output = sanitized_version(convert_from_md(script))
     assert 'app_title="My Title"' in output
     snapshot("frontmatter-test.py.txt", output)
 
+    # As python object
+    app = InternalApp(convert_from_md_to_app(script))
+    assert app.config.app_title == "My Title"
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 2
+    assert app.cell_manager.cell_data_at(ids[0]).code.startswith("mo.md")
+    assert app.cell_manager.cell_data_at(ids[0]).config.hide_code is True
+    assert (
+        app.cell_manager.cell_data_at(ids[1]).code == 'print("Hello, World!")'
+    )
+    assert app.cell_manager.cell_data_at(ids[1]).config.hide_code is False
+
+
+def test_no_frontmatter() -> None:
+    script = dedent(
+        remove_empty_lines(
+            """
+    # My Notebook
+
+    ```python {.marimo}
+    print("Hello, World!")
+    ```
+
+    **Appendix**
+    - This is the end of the notebook
+    """
+        )
+    )
+    output = sanitized_version(convert_from_md(script))
+    snapshot("no-frontmatter.py.txt", output)
+
+    # As python object
+    app = InternalApp(convert_from_md_to_app(script))
+    # TODO: Ideally extract notebook title.
+    # i.e. assert app.config.app_title == "My Notebook"
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 3
+
 
 def test_markdown_just_frontmatter() -> None:
     script = dedent(
-        """
+        remove_empty_lines(
+            """
     ---
     title: "My Title"
     description: "My Description"
@@ -116,19 +162,76 @@ def test_markdown_just_frontmatter() -> None:
     - name: "filter1"
     - name: "filter2"
     ---
-    """[1:]
+
+    """
+        )
     )
     output = sanitized_version(convert_from_md(script))
     assert 'app_title="My Title"' in output
+    snapshot("frontmatter-only.py.txt", output)
+
+    # As python object
+    app = InternalApp(convert_from_md_to_app(script))
+    assert app.config.app_title == "My Title"
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 1
+    assert app.cell_manager.cell_data_at(ids[0]).code == ""
+
+
+def test_markdown_with_sql() -> None:
+    script = dedent(
+        remove_empty_lines(
+            """
+    ---
+    title: "My Title"
+    description: "My Description"
+    tags: ["tag1", "tag2"]
+    filters:
+    - name: "filter1"
+    - name: "filter2"
+    ---
+
+    # SQL notebook
+
+    ```sql {.marimo query="export"}
+    SELECT * FROM my_table;
+    ```
+
+    ```python {.marimo}
+    _df = mo.sql("SELECT * FROM export;")
+    ```
+    """
+        )
+    )
+    output = sanitized_version(convert_from_md(script))
+    snapshot("sql-notebook.py.txt", output)
+
+    # As python object
+    app = InternalApp(convert_from_md_to_app(script))
+    assert app.config.app_title == "My Title"
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 3
+    for i in range(3):
+        # Unparsables are None
+        assert app.cell_manager.cell_data_at(ids[i]).cell is not None
+    assert app.cell_manager.cell_data_at(ids[1]).cell.defs == {"export"}
 
 
 def test_markdown_empty() -> None:
     assert convert_from_md("") == ""
 
+    # As python object
+    app = InternalApp(convert_from_md_to_app(""))
+    assert app.config.app_title is None
+    ids = list(app.cell_manager.cell_ids())
+    assert len(ids) == 1
+    assert app.cell_manager.cell_data_at(ids[0]).code == ""
+
 
 def test_python_to_md_code_injection() -> None:
     unsafe_app = dedent(
-        """
+        remove_empty_lines(
+            """
         import marimo
         __generated_with = "0.0.0"
         app = marimo.App()
@@ -145,7 +248,7 @@ def test_python_to_md_code_injection() -> None:
                 print("Hello World")
                 ```
                 Execute print
-                ```{python}
+                ```python {.marimo}
                 print("Hello World")
                 ```
             \""")
@@ -154,7 +257,7 @@ def test_python_to_md_code_injection() -> None:
         def __(mo):
             mo.md(f\"""
                 with f-string too!
-                ```{{python}}
+                ```python {{.marimo}}
                 print("Hello World")
                 ```
             \""")
@@ -163,7 +266,7 @@ def test_python_to_md_code_injection() -> None:
         def __(mo):
             mo.md(f\"""
                 Not markdown
-                ```{{python}}
+                ```python {{.marimo}}
                 print("1 + 1 = {1 + 1}")
                 ```
             \""")
@@ -174,7 +277,7 @@ def test_python_to_md_code_injection() -> None:
                 Nested fence
                 ````text
                 The guards are
-                ```{python}
+                ```python {.marimo}
                 ````
             \""")
             return
@@ -207,12 +310,11 @@ def test_python_to_md_code_injection() -> None:
             return
         if __name__ == "__main__":
             app.run()
-        """[1:]
+        """
+        )
     )
     maybe_unsafe_md = convert_from_py(unsafe_app).strip()
-    maybe_unsafe_py = sanitized_version(
-        convert_from_md(maybe_unsafe_md).strip()
-    )
+    maybe_unsafe_py = convert_from_md(maybe_unsafe_md).strip()
     snapshot("unsafe-app.py.txt", maybe_unsafe_py)
     snapshot("unsafe-app.md.txt", maybe_unsafe_md)
 
@@ -227,9 +329,10 @@ def test_python_to_md_code_injection() -> None:
     )
 
 
-def test_md_to_python_code_injection() -> None:
+def test_old_md_to_python_code_injection() -> None:
     script = dedent(
-        """
+        remove_empty_lines(
+            """
     ---
     title: "Casually malicious md"
     ---
@@ -297,7 +400,95 @@ def test_md_to_python_code_injection() -> None:
       \""")
     ````
 
-    """[1:]
+    """
+        )
+    )
+
+    maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
+    maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
+
+    # Idempotent even under strange conditions.
+    assert maybe_unsafe_py == sanitized_version(
+        convert_from_md(maybe_unsafe_md).strip()
+    )
+
+    snapshot("unsafe-doc-old.py.txt", maybe_unsafe_py)
+    snapshot("unsafe-doc-old.md.txt", maybe_unsafe_md)
+
+
+def test_md_to_python_code_injection() -> None:
+    script = dedent(
+        remove_empty_lines(
+            """
+    ---
+    title: "Casually malicious md"
+    ---
+
+    What happens if I just leave a \"""
+    " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \\ /
+
+    # Notebook
+    <!--
+    \\
+    ```python {.marimo}
+    print("Hello, World!")
+    ```
+    -->
+
+    ```marimo run convert document.md```
+
+    ```python {.marimo}
+    it's an unparsable cell
+    ```
+
+    <!-- Actually markdown -->
+    ```python {.marimo} `
+      print("Hello, World!")
+
+    <!-- Disabled code block -->
+    ```python {.marimo disabled="true"}
+    1 + 1
+    ```
+
+    <!-- Hidden code block -->
+    ```python {.marimo hide_code="true"}
+    1 + 1
+    ```
+
+    <!-- Empty code block -->
+    ```python {.marimo}
+    ```
+
+    <!-- Improperly nested code block -->
+    ```python {.marimo}
+    \"""
+    ```python {.marimo}
+    print("Hello, World!")
+    ```
+    \"""
+    ```
+
+    <!-- Improperly nested code block -->
+    ```python {.marimo}
+    ````python {.marimo}
+    print("Hello, World!")
+    ````
+    ```
+
+    -->
+
+    <!-- from the notebook, should remain unchanged -->
+    ````python {.marimo}
+    mo.md(\"""
+      This is a markdown cell with an execution block in it
+      ```python {.marimo}
+      # To ambiguous to convert
+      ```
+      \""")
+    ````
+
+    """
+        )
     )
 
     maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
@@ -310,3 +501,13 @@ def test_md_to_python_code_injection() -> None:
 
     snapshot("unsafe-doc.py.txt", maybe_unsafe_py)
     snapshot("unsafe-doc.md.txt", maybe_unsafe_md)
+
+
+def remove_empty_lines(s: str) -> str:
+    "Just remove the first and last lines if they are empty"
+    lines = s.splitlines()
+    if not lines[0].strip():
+        lines = lines[1:]
+    if not lines[-1].strip():
+        lines = lines[:-1]
+    return "\n".join(lines)

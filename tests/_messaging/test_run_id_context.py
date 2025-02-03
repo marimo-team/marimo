@@ -7,9 +7,9 @@ class TestRunIDContext:
     def test_run_id_context(self):
         with run_id_context():
             run_id = RUN_ID_CTX.get()
-            assert (
-                run_id is not None
-            ), "within run_id context but unable to obtain run_id"
+            assert run_id is not None, (
+                "within run_id context but unable to obtain run_id"
+            )
 
         # out of context manager
         with pytest.raises(LookupError):

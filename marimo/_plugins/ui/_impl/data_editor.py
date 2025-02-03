@@ -25,6 +25,7 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
+from marimo._plugins.validators import validate_page_size
 
 LOGGER = _loggers.marimo_logger()
 
@@ -142,6 +143,7 @@ class data_editor(
             ]
         ] = None,
     ) -> None:
+        validate_page_size(page_size)
         table_manager = get_table_manager(data)
 
         size = table_manager.get_num_rows()

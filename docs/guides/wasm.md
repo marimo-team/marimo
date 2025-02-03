@@ -24,7 +24,7 @@ traditional client-server model. WASM notebooks:
     with code and models, doing lightweight data exploration, authoring blog
     posts, tutorials, and educational materials, and even building tools. For
     notebooks that do heavy computation, [use marimo
-    locally](http://127.0.0.1:8000/getting_started/) or on a backend.
+    locally](../getting_started/index.md) or on a backend.
 
 **Try it!** Try editing the below notebook (your browser, not a backend server, is executing it!)
 
@@ -96,7 +96,6 @@ documentation on supported packages.](https://pyodide.org/en/stable/usage/packag
 
 If you want a package to be supported, consider [filing an issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+package+request&projects=&template=package_request.md&title=).
 
-
 ## Including data
 
 **For notebooks exported to WASM HTML.**
@@ -114,7 +113,7 @@ your data:
 import polars as pl
 
 path_to_csv = mo.notebook_location() / "public" / "data.csv"
-df = pl.read_csv(path_to_csv)
+df = pl.read_csv(str(path_to_csv))
 df.head()
 ```
 

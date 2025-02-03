@@ -7,7 +7,12 @@ type Renderer<S, D, F> = (props: IPluginProps<S, D, F>) => JSX.Element;
 // If this simple builder pattern becomes unwieldy, we can switch to a more
 // complex builder pattern with individual classes.
 
-export function createPlugin<S>(tagName: string) {
+export function createPlugin<S>(
+  tagName: string,
+  opts: {
+    cssStyles?: string[];
+  } = {},
+) {
   return {
     /**
      * Data schema for the plugin.
@@ -26,6 +31,7 @@ export function createPlugin<S>(tagName: string) {
              */
             renderer(renderer: Renderer<S, D, F>): IPlugin<S, D, F> {
               return {
+                ...opts,
                 tagName,
                 validator,
                 functions,
@@ -39,6 +45,7 @@ export function createPlugin<S>(tagName: string) {
          */
         renderer(renderer: Renderer<S, D, unknown>): IPlugin<S, D> {
           return {
+            ...opts,
             tagName,
             validator,
             render: renderer,

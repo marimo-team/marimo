@@ -3,6 +3,9 @@ import { defineCustomElement } from "@/core/dom/defineCustomElement";
 import { renderHTML } from "./RenderHTML";
 import { SlotNames, slotsController } from "@/core/slots/slots";
 import { init } from "@paralleldrive/cuid2";
+import { store } from "@/core/state/jotai";
+import { sidebarAtom } from "@/components/editor/renderers/vertical-layout/sidebar/state";
+import { Logger } from "@/utils/Logger";
 
 const createId = init({ length: 6 });
 
@@ -43,6 +46,7 @@ export function initializeSidebarElement(): void {
     }
 
     private mountReactComponent() {
+      this.syncWidth();
       slotsController.mount({
         name: SlotNames.SIDEBAR,
         ref: this.uniqueId,
@@ -58,11 +62,33 @@ export function initializeSidebarElement(): void {
     }
 
     private updateReactComponent() {
+      this.syncWidth();
       slotsController.update({
         name: SlotNames.SIDEBAR,
         ref: this.uniqueId,
         children: this.getContents(),
       });
+    }
+
+    // Grab the data-width attribute from the element and set the width in the store
+    // This is used to set the width of the sidebar when it is opened
+    private syncWidth(): void {
+      try {
+        const width = this.dataset.width;
+        if (width) {
+          store.set(sidebarAtom, {
+            type: "setWidth",
+            width: JSON.parse(width) as string,
+          });
+        } else {
+          store.set(sidebarAtom, {
+            type: "setWidth",
+            width: undefined,
+          });
+        }
+      } catch (error) {
+        Logger.error(error);
+      }
     }
 
     /**

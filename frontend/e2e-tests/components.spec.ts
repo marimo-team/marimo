@@ -278,7 +278,7 @@ test("table", async ({ page }) => {
     helper.cell(3).locator(".marimo-json-output").first(),
   ).toHaveText(
     `
-[1 Items
+[1 Item
 0:{2 Items
 "first_name":"Dwight"
 "last_name":"Schrute"

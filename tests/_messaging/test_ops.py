@@ -26,4 +26,5 @@ def test_variable_value_broken_str() -> None:
 
     variable_value = VariableValue(name="o", value=Broken())
     assert variable_value.datatype == "Broken"
-    assert variable_value.value == "<UNKNOWN>"
+    assert variable_value.value is not None
+    assert variable_value.value.startswith("<Broken object at")

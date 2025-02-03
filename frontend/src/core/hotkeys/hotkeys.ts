@@ -2,6 +2,8 @@
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 
+export const NOT_SET: unique symbol = Symbol("NOT_SET");
+
 interface Hotkey {
   name: string;
   /**
@@ -11,6 +13,7 @@ interface Hotkey {
   group: HotkeyGroup | undefined;
   key:
     | string
+    | typeof NOT_SET
     | {
         main: string;
         /** macOS specific override */
@@ -116,6 +119,11 @@ const DEFAULT_HOT_KEY = {
     name: "Run and new above",
     group: "Running Cells",
     key: "Mod-Shift-Enter",
+  },
+  "global.runAll": {
+    name: "Re-run all cells",
+    group: "Running Cells",
+    key: NOT_SET,
   },
 
   // Editing Cells
@@ -336,6 +344,16 @@ const DEFAULT_HOT_KEY = {
     group: "Navigation",
     key: "F12",
   },
+  "completion.moveDown": {
+    name: "Move completion selection down",
+    group: "Editing",
+    key: "Ctrl-j",
+  },
+  "completion.moveUp": {
+    name: "Move completion selection up",
+    group: "Editing",
+    key: "Ctrl-k",
+  },
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
@@ -379,6 +397,12 @@ export class HotkeyProvider implements IHotkeyProvider {
       return {
         name,
         key: key.replace("Mod", this.mod),
+      };
+    }
+    if (key === NOT_SET) {
+      return {
+        name,
+        key: "",
       };
     }
     const platformKey = key[this.platform] || key.main;

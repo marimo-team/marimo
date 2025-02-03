@@ -1,8 +1,8 @@
 # Layouts 📽️
 
 These examples show how to use marimo's built-in features for laying out
-notebooks in interesting ways, such as presenting notebooks as slides and
-adding sidebars.
+notebooks in interesting ways, such as presenting notebooks as slides,
+adding sidebars, and arranging cells into columns while editing.
 
 > [!TIP]
 > Submit a

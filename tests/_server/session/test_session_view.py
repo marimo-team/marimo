@@ -10,6 +10,9 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
+    DataSourceConnection,
+    DataSourceConnections,
+    UpdateCellCodes,
     UpdateCellIdsRequest,
     VariableDeclaration,
     Variables,
@@ -422,6 +425,90 @@ def test_add_datasets_clear_channel() -> None:
     assert "db.table2" in names
 
 
+def test_add_data_source_connections() -> None:
+    session_view = SessionView()
+
+    # Add initial connections
+    session_view.add_raw_operation(
+        serialize(
+            DataSourceConnections(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        dialect="duckdb",
+                        name="db1",
+                        display_name="duckdb (db1)",
+                    ),
+                    DataSourceConnection(
+                        source="sqlalchemy",
+                        dialect="postgresql",
+                        name="pg1",
+                        display_name="postgresql (pg1)",
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert len(session_view.data_connectors.connections) == 2
+    names = [c.name for c in session_view.data_connectors.connections]
+    assert "db1" in names
+    assert "pg1" in names
+
+    # Add new connection and update existing
+    session_view.add_raw_operation(
+        serialize(
+            DataSourceConnections(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        dialect="duckdb",
+                        name="db1",
+                        display_name="duckdb (db1_updated)",
+                    ),
+                    DataSourceConnection(
+                        source="sqlalchemy",
+                        dialect="mysql",
+                        name="mysql1",
+                        display_name="mysql (mysql1)",
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert len(session_view.data_connectors.connections) == 3
+    conns = {c.name: c for c in session_view.data_connectors.connections}
+
+    # Check updated connection
+    assert "db1" in conns
+    assert conns["db1"].display_name == "duckdb (db1_updated)"
+
+    # Check new connection replaced old one
+    assert "mysql1" in conns
+    assert conns["mysql1"].dialect == "mysql"
+    # Check existing connection
+    assert "pg1" in conns
+
+    # Check connectors in operations
+    assert session_view.data_connectors in session_view.operations
+
+    # Filter out connections from variables
+    session_view.add_raw_operation(
+        serialize(
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name="mysql1", declared_by=[cell_id], used_by=[]
+                    ),
+                ]
+            )
+        )
+    )
+    assert len(session_view.data_connectors.connections) == 1
+    assert session_view.data_connectors.connections[0].name == "mysql1"
+
+
 def test_add_cell_op() -> None:
     session_view = SessionView()
     session_view.add_raw_operation(
@@ -652,3 +739,46 @@ def test_mark_auto_export():
     )
     assert not session_view.has_auto_exported_html
     assert not session_view.has_auto_exported_md
+
+
+def test_stale_code() -> None:
+    """Test that stale code is properly tracked and included in operations."""
+    session_view = SessionView()
+    assert session_view.stale_code is None
+
+    # Add stale code operation
+    stale_code_op = UpdateCellCodes(
+        cell_ids=["cell1"],
+        codes=["print('hello')"],
+        code_is_stale=True,
+    )
+    session_view.add_operation(stale_code_op)
+
+    # Verify stale code is tracked
+    assert session_view.stale_code == stale_code_op
+    assert session_view.stale_code in session_view.operations
+
+    # Add non-stale code operation
+    non_stale_code_op = UpdateCellCodes(
+        cell_ids=["cell2"],
+        codes=["print('world')"],
+        code_is_stale=False,
+    )
+    session_view.add_operation(non_stale_code_op)
+
+    # Verify non-stale code doesn't affect stale_code tracking
+    assert session_view.stale_code == stale_code_op
+    assert session_view.stale_code in session_view.operations
+
+    # Update stale code
+    new_stale_code_op = UpdateCellCodes(
+        cell_ids=["cell3"],
+        codes=["print('updated')"],
+        code_is_stale=True,
+    )
+    session_view.add_operation(new_stale_code_op)
+
+    # Verify stale code is updated
+    assert session_view.stale_code == new_stale_code_op
+    assert session_view.stale_code in session_view.operations
+    assert stale_code_op not in session_view.operations

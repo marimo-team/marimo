@@ -36,7 +36,7 @@ class ConfigReader:
             with open(self.filepath, "r") as file:
                 data = tomlkit.parse(file.read())
                 return parse_raw(data, cls, allow_unknown_keys=True)
-        except FileNotFoundError:
+        except (FileNotFoundError, tomlkit.exceptions.TOMLKitError):
             return fallback
 
     def write_toml(self, data: Any) -> None:

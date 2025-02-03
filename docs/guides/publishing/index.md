@@ -13,6 +13,7 @@ This guide provides an overview of the various ways to publish marimo notebooks.
 | Guide                                                 | Description                                                  |
 | ----------------------------------------------------- | ------------------------------------------------------------ |
 | [Embedding](embedding.md)                             | An overview of embedding notebooks in other sites            |
+| [From GitHub](from_github.md)                         | How to share links to executable notebooks hosted on GitHUb  |
 | [GitHub Pages](github_pages.md)                       | Publishing interactive notebooks on GitHub Pages             |
 | [Online playground](playground.md)                    | Sharing notebook links using our online playground           |
 | [Community Cloud](community_cloud/index.md)           | Save notebooks to our free Community Cloud                   |

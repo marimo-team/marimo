@@ -2214,11 +2214,6 @@ export interface components {
       destination: string;
       source: string;
     };
-    CreationRequest: {
-      autoRun: boolean;
-      executionRequests: components["schemas"]["ExecutionRequest"][];
-      setUiElementValueRequest: components["schemas"]["SetUIElementValueRequest"];
-    };
     CycleError: {
       edges_with_vars: [string, string[], string][];
       /** @enum {string} */
@@ -2235,6 +2230,17 @@ export interface components {
       summary?: components["schemas"]["ColumnSummary"];
       table_name: string;
     };
+    DataSourceConnection: {
+      dialect: string;
+      display_name: string;
+      name: string;
+      source: string;
+    };
+    DataSourceConnections: {
+      connections: components["schemas"]["DataSourceConnection"][];
+      /** @enum {string} */
+      name: "data-source-connections";
+    };
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       name: string;
@@ -2242,7 +2248,7 @@ export interface components {
       num_rows?: number | null;
       source: string;
       /** @enum {string} */
-      source_type: "local" | "duckdb";
+      source_type: "local" | "duckdb" | "connection";
       variable_name?: string | null;
     };
     DataTableColumn: {
@@ -2263,7 +2269,7 @@ export interface components {
       | "unknown";
     Datasets: {
       /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | null;
+      clear_channel?: "local" | "duckdb" | "connection" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -2292,15 +2298,18 @@ export interface components {
     ExecuteMultipleRequest: {
       cellIds: string[];
       codes: string[];
+      request?: components["schemas"]["HTTPRequest"];
       timestamp: number;
     };
     ExecuteScratchpadRequest: {
       code: string;
+      request?: components["schemas"]["HTTPRequest"];
     };
     ExecuteStaleRequest: Record<string, never>;
     ExecutionRequest: {
       cellId: string;
       code: string;
+      request?: components["schemas"]["HTTPRequest"];
       timestamp: number;
     };
     ExportAsHTMLRequest: {
@@ -2410,6 +2419,7 @@ export interface components {
       return_value?: components["schemas"]["JSONType"];
       status: components["schemas"]["HumanReadableStatus"];
     };
+    HTTPRequest: null;
     HumanReadableStatus: {
       /** @enum {string} */
       code: "ok" | "error";
@@ -2579,6 +2589,10 @@ export interface components {
         browser: "default" | string;
         follow_symlink: boolean;
       };
+      snippets?: {
+        custom_paths?: string[];
+        include_default_snippets?: boolean;
+      };
     };
     MarimoExceptionRaisedError: {
       exception_type: string;
@@ -2639,6 +2653,11 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
+      | {
+          connections: components["schemas"]["DataSourceConnection"][];
+          /** @enum {string} */
+          name: "data-source-connections";
+        }
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -2707,7 +2726,7 @@ export interface components {
       columnName: string;
       source: string;
       /** @enum {string} */
-      sourceType: "local" | "duckdb";
+      sourceType: "local" | "duckdb" | "connection";
       tableName: string;
     };
     QueryParamsAppend: {
@@ -2763,9 +2782,11 @@ export interface components {
     RunRequest: {
       cellIds: string[];
       codes: string[];
+      request?: components["schemas"]["HTTPRequest"];
     };
     RunScratchpadRequest: {
       code: string;
+      request?: components["schemas"]["HTTPRequest"];
     };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -2811,6 +2832,7 @@ export interface components {
     };
     SetUIElementValueRequest: {
       objectIds: string[];
+      request?: components["schemas"]["HTTPRequest"];
       token: string;
       values: unknown[];
     };
@@ -2846,6 +2868,7 @@ export interface components {
     };
     UpdateCellCodes: {
       cell_ids: string[];
+      code_is_stale: boolean;
       codes: string[];
       /** @enum {string} */
       name: "update-cell-codes";

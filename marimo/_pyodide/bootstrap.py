@@ -35,7 +35,11 @@ def instantiate(
 
     app = session.app_manager.app
     execution_requests = tuple(
-        ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
+        ExecutionRequest(
+            cell_id=cell_data.cell_id,
+            code=cell_data.code,
+            request=None,
+        )
         for cell_data in app.cell_manager.cell_data()
     )
 
@@ -43,7 +47,7 @@ def instantiate(
         CreationRequest(
             execution_requests=execution_requests,
             set_ui_element_value_request=SetUIElementValueRequest(
-                object_ids=[], values=[]
+                object_ids=[], values=[], request=None
             ),
             auto_run=auto_instantiate,
         )
