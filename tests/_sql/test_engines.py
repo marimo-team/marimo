@@ -204,6 +204,10 @@ def test_duckdb_engine_get_tables(
     assert table.columns[1].type == "string"
 
 
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_SQLALCHEMY,
+    reason="Duckdb and sqlalchemy not installed",
+)
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
     import duckdb
