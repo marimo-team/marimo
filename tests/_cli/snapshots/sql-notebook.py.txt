@@ -15,8 +15,8 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
-    mem_engine = mo.create_engine("sqlite:///:memory:")
+def _(fn_that_creates_engine):
+    mem_engine = fn_that_creates_engine("sqlite:///:memory:")
     return (mem_engine,)
 
 
