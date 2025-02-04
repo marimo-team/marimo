@@ -90,9 +90,11 @@ const categories = [
   },
 ] as const;
 
-type CategoryId = (typeof categories)[number]["id"];
+export type SettingCategoryId = (typeof categories)[number]["id"];
 
-export const activeUserConfigCategoryAtom = atom<CategoryId>(categories[0].id);
+export const activeUserConfigCategoryAtom = atom<SettingCategoryId>(
+  categories[0].id,
+);
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -1137,11 +1139,13 @@ export const UserConfigForm: React.FC = () => {
       >
         <Tabs
           value={activeCategory}
-          onValueChange={(value) => setActiveCategory(value as CategoryId)}
+          onValueChange={(value) =>
+            setActiveCategory(value as SettingCategoryId)
+          }
           orientation="vertical"
           className="w-1/3 pr-4 border-r h-full overflow-auto p-6"
         >
-          <TabsList className="self-start max-h-none flex flex-col gap-2 flex-shrink-0 bg-background flex-1 min-h-full">
+          <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
             {categories.map((category) => (
               <TabsTrigger
                 key={category.id}

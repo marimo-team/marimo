@@ -1,19 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, Optional, Union, cast
+from typing import Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.utils import read_toml
 
 LOGGER = _loggers.marimo_logger()
-
-
-def read_toml(file_path: Union[str, Path]) -> Dict[str, Any]:
-    """Read and parse a TOML file."""
-    import tomlkit
-
-    with open(file_path, "rb") as file:
-        return tomlkit.load(file)
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
