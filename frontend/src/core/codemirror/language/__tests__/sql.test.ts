@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it, beforeAll, afterAll, afterEach } from "vitest";
-import {
-  DEFAULT_ENGINE,
-  latestEngineSelected,
-  SQLLanguageAdapter,
-} from "../sql";
+import { SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import type { ConnectionName } from "@/core/cells/data-source-connections";
+import {
+  dataSourceConnectionsAtom,
+  DEFAULT_ENGINE,
+  type ConnectionName,
+} from "@/core/datasets/data-source-connections";
 
 const adapter = new SQLLanguageAdapter();
 
@@ -410,6 +410,25 @@ _df = mo.sql(
   describe("latestEngineSelected", () => {
     afterEach(() => {
       adapter.engine = DEFAULT_ENGINE;
+      const state = store.get(dataSourceConnectionsAtom);
+      const connections = new Map(state.connectionsMap);
+      connections
+        .set("postgres_engine" as ConnectionName, {
+          name: "postgres_engine" as ConnectionName,
+          source: "postgres",
+          display_name: "PostgreSQL",
+          dialect: "postgres",
+        })
+        .set("mysql_engine" as ConnectionName, {
+          name: "mysql_engine" as ConnectionName,
+          source: "mysql",
+          display_name: "MySQL",
+          dialect: "mysql",
+        });
+      store.set(dataSourceConnectionsAtom, {
+        ...state,
+        connectionsMap: connections,
+      });
     });
 
     it("should use default engine initially", () => {
@@ -420,7 +439,9 @@ _df = mo.sql(
       const engine = "postgres_engine" as ConnectionName;
       adapter.selectEngine(engine);
       expect(adapter.engine).toBe(engine);
-      expect(store.get(latestEngineSelected)).toBe(engine);
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        engine,
+      );
     });
 
     it("should allow switching between engines", () => {
@@ -429,18 +450,40 @@ _df = mo.sql(
 
       adapter.selectEngine(engine1);
       expect(adapter.engine).toBe(engine1);
-      expect(store.get(latestEngineSelected)).toBe(engine1);
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        engine1,
+      );
 
       adapter.selectEngine(engine2);
       expect(adapter.engine).toBe(engine2);
-      expect(store.get(latestEngineSelected)).toBe(engine2);
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        engine2,
+      );
     });
 
     it("should update engine in transformIn when specified", () => {
       const pythonCode = '_df = mo.sql("""SELECT 1""", engine=postgres_engine)';
       adapter.transformIn(pythonCode);
       expect(adapter.engine).toBe("postgres_engine");
-      expect(store.get(latestEngineSelected)).toBe("postgres_engine");
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        "postgres_engine",
+      );
+
+      // Don't update for unspecified engine
+      const pythonCode2 = '_df = mo.sql("""SELECT 1""")';
+      adapter.transformIn(pythonCode2);
+      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        "postgres_engine",
+      );
+
+      // Don't update for unknown engine
+      const pythonCode3 = '_df = mo.sql("""SELECT 1""", engine=unknown_engine)';
+      adapter.transformIn(pythonCode3);
+      expect(adapter.engine).toBe("unknown_engine");
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        "postgres_engine",
+      );
     });
 
     it("should maintain engine selection across transformIn/transformOut", () => {
@@ -473,7 +516,9 @@ _df = mo.sql(
       adapter.selectEngine(DEFAULT_ENGINE);
 
       expect(adapter.engine).toBe(DEFAULT_ENGINE);
-      expect(store.get(latestEngineSelected)).toBe(DEFAULT_ENGINE);
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        DEFAULT_ENGINE,
+      );
     });
   });
 

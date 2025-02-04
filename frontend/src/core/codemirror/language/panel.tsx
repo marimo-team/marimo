@@ -8,7 +8,7 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   type ConnectionName,
   dataConnectionsMapAtom,
-} from "@/core/cells/data-source-connections";
+} from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
 import { AlertCircle, CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
@@ -118,7 +118,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
   );
 
   const engineIsDisconnected =
-    selectedEngine && connectionsMap.get(selectedEngine.name) === undefined;
+    selectedEngine && !connectionsMap.has(selectedEngine.name);
 
   const handleSelectEngine = (value: string) => {
     const nextEngine = connectionsMap.get(value as ConnectionName);
