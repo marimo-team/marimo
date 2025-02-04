@@ -11,35 +11,36 @@
 
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.11.0"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Built-in chatbots""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## OpenAI""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.chat(
         mo.ai.llm.openai(
             "gpt-4-turbo", system_message="You are a helpful data scientist"
         ),
         show_configuration_controls=True,
+        config={"max_tokens": 20},
         prompts=[
             "Tell me a joke",
             "What is the meaning of life?",
@@ -50,13 +51,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Anthropic""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.chat(
         mo.ai.llm.anthropic("claude-3-5-sonnet-20240620"),
         show_configuration_controls=True,
@@ -70,13 +71,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Google Gemini""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.chat(
         mo.ai.llm.google("gemini-1.5-pro-001"),
         show_configuration_controls=True,
@@ -90,13 +91,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""# Custom chatbots""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     import os
 
     os_key = os.environ.get("OPENAI_API_KEY")
@@ -106,13 +107,13 @@ def __(mo):
 
 
 @app.cell
-def __(input_key, os_key):
+def _(input_key, os_key):
     openai_key = os_key or input_key.value
     return (openai_key,)
 
 
 @app.cell(hide_code=True)
-def __(mo, openai_key):
+def _(mo, openai_key):
     # Initialize a client
     mo.stop(
         not openai_key,
@@ -128,13 +129,13 @@ def __(mo, openai_key):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Simple""")
     return
 
 
 @app.cell
-def __(client, ell, mo):
+def _(client, ell, mo):
     @ell.simple("gpt-4o-mini-2024-07-18", client=client)
     def _my_model(prompt):
         """You are an annoying little brother, whatever I say, be sassy with your response"""
@@ -146,13 +147,13 @@ def __(client, ell, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## Complex""")
     return
 
 
 @app.cell
-def __():
+def _():
     # Grab a dataset for the chatbot conversation, we will use the cars dataset
 
     from vega_datasets import data
@@ -162,7 +163,7 @@ def __():
 
 
 @app.cell
-def __(cars, client, ell):
+def _(cars, client, ell):
     from pydantic import BaseModel, Field
 
 
@@ -236,7 +237,7 @@ def __(cars, client, ell):
 
 
 @app.cell
-def __(cars, get_sample_prompts, mo, my_complex_model):
+def _(cars, get_sample_prompts, mo, my_complex_model):
     prompts = get_sample_prompts(cars).parsed.prompts
     mo.ui.chat(
         my_complex_model,

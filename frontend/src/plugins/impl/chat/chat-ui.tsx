@@ -100,12 +100,12 @@ export const Chatbot: React.FC<Props> = (props) => {
             attachments: m.experimental_attachments,
           })),
           config: {
-            max_tokens: config.maxTokens,
+            max_tokens: config.max_tokens,
             temperature: config.temperature,
-            top_p: config.topP,
-            top_k: config.topK,
-            frequency_penalty: config.frequencyPenalty,
-            presence_penalty: config.presencePenalty,
+            top_p: config.top_p,
+            top_k: config.top_k,
+            frequency_penalty: config.frequency_penalty,
+            presence_penalty: config.presence_penalty,
           },
         });
         return new Response(response);
@@ -439,7 +439,7 @@ const configDescriptions: Record<
   keyof ChatConfig,
   { min: number; max: number; description: string; step?: number }
 > = {
-  maxTokens: {
+  max_tokens: {
     min: 1,
     max: 4096,
     description: "Maximum number of tokens to generate",
@@ -450,24 +450,24 @@ const configDescriptions: Record<
     step: 0.1,
     description: "Controls randomness (0: deterministic, 2: very random)",
   },
-  topP: {
+  top_p: {
     min: 0,
     max: 1,
     step: 0.1,
     description: "Nucleus sampling: probability mass to consider",
   },
-  topK: {
+  top_k: {
     min: 1,
     max: 100,
     description:
       "Top-k sampling: number of highest probability tokens to consider",
   },
-  frequencyPenalty: {
+  frequency_penalty: {
     min: -2,
     max: 2,
     description: "Penalizes frequent tokens (-2: favor, 2: avoid)",
   },
-  presencePenalty: {
+  presence_penalty: {
     min: -2,
     max: 2,
     description: "Penalizes new tokens (-2: favor, 2: avoid)",
