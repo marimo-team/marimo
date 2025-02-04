@@ -42,6 +42,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         settings: {
           pylsp: {
             plugins: {
+              marimo_plugin: {
+                enabled: true,
+              },
               jedi: {
                 auto_import_modules: ["marimo", "numpy"],
               },

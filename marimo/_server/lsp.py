@@ -4,13 +4,16 @@ import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._config.config import CompletionConfig, LanguageServersConfig
+from marimo._config.settings import GlobalSettings
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
     Alert,
 )
+from marimo._runtime.complete import _get_docstring
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import import_files
@@ -61,12 +64,23 @@ class BaseLspServer(LspServer):
             if not cmd:
                 return None
             LOGGER.debug("... running command: %s", cmd)
-            # TODO: add logging when we are in -d mode
             self.process = subprocess.Popen(
                 cmd.split(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
+                stdout=(
+                    subprocess.DEVNULL
+                    if GlobalSettings.DEVELOPMENT_MODE
+                    else None
+                ),
+                stderr=(
+                    subprocess.DEVNULL
+                    if GlobalSettings.DEVELOPMENT_MODE
+                    else None
+                ),
+                stdin=(
+                    subprocess.DEVNULL
+                    if GlobalSettings.DEVELOPMENT_MODE
+                    else None
+                ),
             )
             LOGGER.debug(
                 "... process return code (`None` means success): %s",
@@ -196,3 +210,43 @@ class CompositeLspServer(LspServer):
 
     def is_running(self) -> bool:
         return any(server.is_running() for server in self.servers)
+
+
+if DependencyManager.pylsp.has():
+    from pylsp import hookimpl
+
+    @hookimpl(tryfirst=True)
+    def pylsp_hover(
+        config: Any, document: Any, position: dict[str, int]
+    ) -> Optional[dict[str, Any]]:
+        try:
+            del config
+            LOGGER.debug("Hovering over %s", document.path)
+            import jedi
+
+            # Use Jedi to get information about the symbol under cursor
+            script = jedi.Script(document.source, path=document.path)
+
+            definitions = script.goto(
+                position["line"] + 1, position["character"]
+            )
+
+            if not definitions:
+                return None
+
+            definition = definitions[0]
+
+            docstring = _get_docstring(definition)
+
+            if not docstring:
+                return None
+
+            return {"contents": {"kind": "markdown", "value": docstring}}
+        except Exception:
+            return None
+
+    @hookimpl()
+    def pylsp_completions(
+        document: Any, position: dict[str, int]
+    ) -> Optional[list[dict[str, Any]]]:
+        return None
