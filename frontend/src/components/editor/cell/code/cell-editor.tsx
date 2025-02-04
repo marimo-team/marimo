@@ -258,6 +258,7 @@ const CellEditorInternal = ({
     sendToTop,
     sendToBottom,
     splitCell,
+    createNewCell,
     toggleHideCode,
     updateCellCode,
     handleDelete,

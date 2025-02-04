@@ -11,14 +11,54 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.10.19"
 app = marimo.App(width="medium")
+
+
+@app.cell
+def _(mo, sqlite):
+    _df = mo.sql(
+        f"""
+
+        """,
+        engine=sqlite
+    )
+    return
+
+
+@app.cell
+def _():
+    import ibis
+    import duckdb
+
+    # con = ibis.duckdb.connect()
+
+    data = {
+        "id": [1, 2, 3, 4],
+        "name": ["Alice", "Bob", "Charlie", "David"],
+        "age": [25, 30, 35, 40],
+    }
+
+    table = ibis.memtable(data)
+    return data, duckdb, ibis, table
+
+
+@app.cell
+def _():
+    import altair as alt
+    return (alt,)
 
 
 @app.cell
 def _():
     import marimo as mo
     return (mo,)
+
+
+@app.cell
+def _(mo, products_df):
+    mo.ui.table(products_df)
+    return
 
 
 @app.cell(hide_code=True)
@@ -200,6 +240,89 @@ def _(information_schema, mo, my_postgres, tables):
         """,
         engine=my_postgres
     )
+    return
+
+
+@app.cell
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        SELECT 1
+        """,
+        engine=connection
+    )
+    return
+
+
+@app.cell
+def _(mo, products, sqlite):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM products LIMIT 100
+        """,
+        engine=sqlite
+    )
+    return
+
+
+@app.cell
+def _(mo, products, sqlalchemy):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM products LIMIT 100
+        """,
+        engine=sqlalchemy
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    _df = mo.sql(
+        f"""
+        CREATE OR REPLACE TABLE foo AS
+        FROM 'hf://datasets/julien040/hacker-news-posts/story.parquet' LIMIT 500
+        """
+    )
+    return (foo,)
+
+
+@app.cell
+def _(foo, mo):
+    _df = mo.sql(
+        f"""
+        SELECT "id" FROM memory.main.foo LIMIT 100
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo, products, sqlite):
+    _df = mo.sql(
+        f"""
+        SELECT "id" FROM products LIMIT 100
+        """,
+        engine=sqlite
+    )
+    return
+
+
+@app.cell
+def _(mo, products, sqlite):
+    _df = mo.sql(
+        f"""
+        SELECT "name" FROM products LIMIT 100
+        """,
+        engine=sqlite
+    )
+    return
+
+
+@app.cell
+def _():
+
+
     return
 
 
