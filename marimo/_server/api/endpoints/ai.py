@@ -99,7 +99,7 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
     # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
     parsed_url = urlparse(base_url)
     if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
-        "openai.azure.com"
+        ".openai.azure.com"
     ):
         deployment_model = cast(str, parsed_url.path).split("/")[3]
         api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
