@@ -29,6 +29,9 @@ import { CellDocumentUri } from "../lsp/types";
 import type { CellId } from "@/core/cells/ids";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { autocompletion } from "@codemirror/autocomplete";
+import { completer } from "../completion/completer";
 
 const pylspTransport = () =>
   new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -79,15 +82,29 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     cellMovementCallbacks: MovementCallbacks,
   ): Extension[] {
     return [
-      languageServerWithTransport({
-        client: lspClient(),
-        documentUri: CellDocumentUri.of(cellId),
-        transport: pylspTransport(),
-        rootUri: "file:///",
-        languageId: "python",
-        workspaceFolders: null,
-        allowHTMLContent: true,
-      }),
+      getFeatureFlag("lsp")
+        ? languageServerWithTransport({
+            client: lspClient(),
+            documentUri: CellDocumentUri.of(cellId),
+            transport: pylspTransport(),
+            rootUri: "file:///",
+            languageId: "python",
+            workspaceFolders: null,
+            allowHTMLContent: true,
+          })
+        : // Whether or not to require keypress to activate autocompletion (default
+          // keymap is Ctrl+Space)
+          autocompletion({
+            activateOnTyping: completionConfig.activate_on_typing,
+            // The Cell component handles the blur event. `closeOnBlur` is too
+            // aggressive and doesn't let the user click into the completion info
+            // element (which contains the docstring/type --- users might want to
+            // copy paste from the docstring). The main issue is that the completion
+            // tooltip is not part of the editable DOM tree:
+            // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
+            closeOnBlur: false,
+            override: [completer],
+          }),
       customPythonLanguageSupport(),
       placeholderType === "marimo-import"
         ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))

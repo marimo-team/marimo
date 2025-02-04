@@ -1,26 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { HTMLCellId } from "@/core/cells/ids";
-import { EditorView } from "@codemirror/view";
+import { EditorView, hoverTooltip } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
 import type { EditorState, Text } from "@codemirror/state";
 import { debounce } from "lodash-es";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export function hintTooltip() {
   return [
-    // hoverTooltip(
-    //   async (view, pos) => {
-    //     const result = await requestDocumentation(view, pos, ["tooltip"]);
-    //     console.log("result", result);
-    //     if (result === null || result === "cancelled") {
-    //       return null;
-    //     }
-    //     return result;
-    //   },
-    //   { hideOnChange: true },
-    // ),
+    // Hover tooltip is already covered by LSP
+    getFeatureFlag("lsp")
+      ? null
+      : hoverTooltip(
+          async (view, pos) => {
+            const result = await requestDocumentation(view, pos, ["tooltip"]);
+            if (result === null || result === "cancelled") {
+              return null;
+            }
+            return result;
+          },
+          { hideOnChange: true },
+        ),
     cursorPositionDocumentation,
   ];
 }

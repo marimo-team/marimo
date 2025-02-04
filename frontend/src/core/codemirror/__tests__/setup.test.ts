@@ -8,10 +8,14 @@ import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { PythonLanguageAdapter } from "../language/python";
 
-vi.mock("@/core/config/config", () => ({
-  parseAppConfig: () => ({}),
-  parseUserConfig: () => ({}),
-}));
+vi.mock("@/core/config/config", async (importOriginal) => {
+  const original = await importOriginal<{}>();
+  return {
+    ...original,
+    parseAppConfig: () => ({}),
+    parseUserConfig: () => ({}),
+  };
+});
 
 function namedFunction(name: string) {
   const fn = () => false;

@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from marimo import _loggers
 from marimo._config.config import CompletionConfig, LanguageServersConfig
@@ -61,8 +61,11 @@ class BaseLspServer(LspServer):
         try:
             LOGGER.debug("Starting LSP server at port %s...", self.port)
             cmd = self.get_command()
+
+            # Empty command means the server is not enabled
             if not cmd:
                 return None
+
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(
                 cmd.split(),
@@ -177,7 +180,10 @@ class NoopLspServer(LspServer):
 
 
 class CompositeLspServer(LspServer):
-    language_servers = {"pylsp": PyLspServer, "copilot": CopilotLspServer}
+    language_servers = {
+        "pylsp": PyLspServer,
+        "copilot": CopilotLspServer,
+    }
 
     def __init__(
         self,
@@ -185,14 +191,20 @@ class CompositeLspServer(LspServer):
         completion_config: CompletionConfig,
         min_port: int,
     ) -> None:
-        is_enabled = {
-            "copilot": completion_config["copilot"],
+        is_enabled: dict[str, bool] = {
+            "copilot": (
+                completion_config["copilot"] is True
+                or completion_config["copilot"] == "github"
+            ),
             **{
-                server_name: config["enabled"]
+                server_name: cast(dict[str, bool], config)["enabled"]
                 for server_name, config in lsp_config.items()
             },
+            # While under development, only allow if it's installed and enabled
+            "pylsp": DependencyManager.pylsp.has()
+            and lsp_config.get("pylsp", {}).get("enabled", False),
         }
-        self.servers = [
+        self.servers: list[LspServer] = [
             constructor(find_free_port(min_port + 100 * i))
             for i, (server_name, constructor) in enumerate(
                 self.language_servers.items()
@@ -213,16 +225,16 @@ class CompositeLspServer(LspServer):
 
 
 if DependencyManager.pylsp.has():
-    from pylsp import hookimpl
+    from pylsp import hookimpl  # type: ignore[import-untyped]
 
-    @hookimpl(tryfirst=True)
+    @hookimpl(tryfirst=True)  # type: ignore[misc]
     def pylsp_hover(
         config: Any, document: Any, position: dict[str, int]
     ) -> Optional[dict[str, Any]]:
         try:
             del config
             LOGGER.debug("Hovering over %s", document.path)
-            import jedi
+            import jedi  # type: ignore[import-untyped]
 
             # Use Jedi to get information about the symbol under cursor
             script = jedi.Script(document.source, path=document.path)
@@ -245,8 +257,10 @@ if DependencyManager.pylsp.has():
         except Exception:
             return None
 
-    @hookimpl()
+    @hookimpl()  # type: ignore[misc]
     def pylsp_completions(
         document: Any, position: dict[str, int]
     ) -> Optional[list[dict[str, Any]]]:
+        del document
+        del position
         return None

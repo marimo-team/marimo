@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo._config.manager import get_default_config_manager
 from marimo._server.file_router import AppFileRouter
+from marimo._server.lsp import NoopLspServer
 from marimo._server.model import SessionMode
-from marimo._server.sessions import NoopLspServer, SessionManager
+from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._utils.marimo_path import MarimoPath
 
