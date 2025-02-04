@@ -90,13 +90,14 @@ sql = [
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 recommended = [
-    "duckdb>=1.0.0",            # SQL cells
-    "altair>=5.4.0",            # Plotting in datasource viewer
-    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot>=23.4",            # SQL cells parsing
-    "openai>=1.55.3",           # AI features
-    "ruff",                     # Formatting
-    "nbformat>=5.7.0",          # Export as IPYNB
+    "duckdb>=1.0.0",             # SQL cells
+    "altair>=5.4.0",             # Plotting in datasource viewer
+    "polars[pyarrow]>=1.9.0",    # SQL output back in Python
+    "sqlglot>=23.4",             # SQL cells parsing
+    "openai>=1.55.3",            # AI features
+    "ruff",                      # Formatting
+    "python-lsp-server>=1.12.0", # LSP server
+    "nbformat>=5.7.0",           # Export as IPYNB
 ]
 
 dev = [
@@ -235,7 +236,7 @@ extra-dependencies = [
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
     "pytest-asyncio~=0.25.2",
-    "python-lsp-server~=1.10.0",
+    "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "pyarrow",
