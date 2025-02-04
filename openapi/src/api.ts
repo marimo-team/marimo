@@ -1771,7 +1771,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SuccessResponse"];
+                        "application/json": components["schemas"]["MCPServerEvaluationResult"];
                     };
                 };
             };
@@ -2117,843 +2117,751 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    AddPackageRequest: {
-      package: string;
-    };
-    AiCompletionRequest: {
-      code: string;
-      context?: {
-        schema: {
-          columns: {
+    schemas: {
+        AddPackageRequest: {
+            package: string;
+        };
+        AiCompletionRequest: {
+            code: string;
+            context?: {
+                schema: {
+                    columns: {
+                        name: string;
+                        sampleValues: unknown[];
+                        type: string;
+                    }[];
+                    name: string;
+                }[];
+            } | null;
+            includeOtherCode: string;
+            /** @enum {string} */
+            language: "python" | "markdown" | "sql";
+            prompt: string;
+        };
+        Alert: {
+            description: string;
+            /** @enum {string} */
+            name: "alert";
+            title: string;
+            /** @enum {string|null} */
+            variant?: "danger" | null;
+        };
+        AppMetadata: {
+            cliArgs: {
+                [key: string]: string | boolean | number | (string | boolean | number)[];
+            };
+            filename?: string | null;
+            queryParams: {
+                [key: string]: string | string[];
+            };
+        };
+        Banner: {
+            /** @enum {string|null} */
+            action?: "restart" | null;
+            description: string;
+            /** @enum {string} */
+            name: "banner";
+            title: string;
+            /** @enum {string|null} */
+            variant?: "danger" | null;
+        };
+        BaseResponse: {
+            success: boolean;
+        };
+        /** @enum {string} */
+        CellChannel: "stdout" | "stderr" | "stdin" | "pdb" | "output" | "marimo-error" | "media";
+        CellConfig: {
+            column?: number | null;
+            disabled: boolean;
+            hide_code: boolean;
+        };
+        CellOp: {
+            cell_id: string;
+            console?: (components["schemas"]["CellOutput"] | components["schemas"]["CellOutput"][]) | null;
+            /** @enum {string} */
+            name: "cell-op";
+            output?: components["schemas"]["CellOutput"];
+            run_id?: string | null;
+            stale_inputs?: boolean | null;
+            status?: components["schemas"]["RuntimeState"];
+            timestamp: number;
+        };
+        CellOutput: {
+            channel: components["schemas"]["CellChannel"];
+            data: string | components["schemas"]["Error"][] | {
+                [key: string]: unknown;
+            };
+            mimetype: components["schemas"]["MimeType"];
+            timestamp: number;
+        };
+        CodeCompletionRequest: {
+            cellId: string;
+            document: string;
+            id: string;
+        };
+        ColumnSummary: {
+            false?: number | null;
+            max?: components["schemas"]["NonNestedLiteral"];
+            mean?: components["schemas"]["NonNestedLiteral"];
+            median?: components["schemas"]["NonNestedLiteral"];
+            min?: components["schemas"]["NonNestedLiteral"];
+            nulls?: number | null;
+            p25?: components["schemas"]["NonNestedLiteral"];
+            p5?: components["schemas"]["NonNestedLiteral"];
+            p75?: components["schemas"]["NonNestedLiteral"];
+            p95?: components["schemas"]["NonNestedLiteral"];
+            std?: components["schemas"]["NonNestedLiteral"];
+            total?: number | null;
+            true?: number | null;
+            unique?: number | null;
+        };
+        CompletedRun: {
+            /** @enum {string} */
+            name: "completed-run";
+        };
+        CompletionResult: {
+            completion_id: string;
+            /** @enum {string} */
+            name: "completion-result";
+            options: {
+                completion_info?: string | null;
+                name: string;
+                type: string;
+            }[];
+            prefix_length: number;
+        };
+        CopyNotebookRequest: {
+            destination: string;
+            source: string;
+        };
+        CycleError: {
+            edges_with_vars: [
+                string,
+                string[],
+                string
+            ][];
+            /** @enum {string} */
+            type: "cycle";
+        };
+        DataColumnPreview: {
+            chart_code?: string | null;
+            chart_max_rows_errors: boolean;
+            chart_spec?: string | null;
+            column_name: string;
+            error?: string | null;
+            /** @enum {string} */
+            name: "data-column-preview";
+            summary?: components["schemas"]["ColumnSummary"];
+            table_name: string;
+        };
+        DataSourceConnection: {
+            dialect: string;
+            display_name: string;
             name: string;
-            sampleValues: unknown[];
-            type: string;
-          }[];
-          name: string;
-        }[];
-      } | null;
-      includeOtherCode: string;
-      /** @enum {string} */
-      language: "python" | "markdown" | "sql";
-      prompt: string;
-    };
-    Alert: {
-      description: string;
-      /** @enum {string} */
-      name: "alert";
-      title: string;
-      /** @enum {string|null} */
-      variant?: "danger" | null;
-    };
-    AppMetadata: {
-      cliArgs: {
-        [key: string]:
-          | string
-          | boolean
-          | number
-          | (string | boolean | number)[];
-      };
-      filename?: string | null;
-      queryParams: {
-        [key: string]: string | string[];
-      };
-    };
-    Banner: {
-      /** @enum {string|null} */
-      action?: "restart" | null;
-      description: string;
-      /** @enum {string} */
-      name: "banner";
-      title: string;
-      /** @enum {string|null} */
-      variant?: "danger" | null;
-    };
-    BaseResponse: {
-      success: boolean;
-    };
-    /** @enum {string} */
-    CellChannel:
-      | "stdout"
-      | "stderr"
-      | "stdin"
-      | "pdb"
-      | "output"
-      | "marimo-error"
-      | "media";
-    CellConfig: {
-      column?: number | null;
-      disabled: boolean;
-      hide_code: boolean;
-    };
-    CellOp: {
-      cell_id: string;
-      console?:
-        | (
-            | components["schemas"]["CellOutput"]
-            | components["schemas"]["CellOutput"][]
-          )
-        | null;
-      /** @enum {string} */
-      name: "cell-op";
-      output?: components["schemas"]["CellOutput"];
-      run_id?: string | null;
-      stale_inputs?: boolean | null;
-      status?: components["schemas"]["RuntimeState"];
-      timestamp: number;
-    };
-    CellOutput: {
-      channel: components["schemas"]["CellChannel"];
-      data:
-        | string
-        | components["schemas"]["Error"][]
-        | {
-            [key: string]: unknown;
-          };
-      mimetype: components["schemas"]["MimeType"];
-      timestamp: number;
-    };
-    CodeCompletionRequest: {
-      cellId: string;
-      document: string;
-      id: string;
-    };
-    ColumnSummary: {
-      false?: number | null;
-      max?: components["schemas"]["NonNestedLiteral"];
-      mean?: components["schemas"]["NonNestedLiteral"];
-      median?: components["schemas"]["NonNestedLiteral"];
-      min?: components["schemas"]["NonNestedLiteral"];
-      nulls?: number | null;
-      p25?: components["schemas"]["NonNestedLiteral"];
-      p5?: components["schemas"]["NonNestedLiteral"];
-      p75?: components["schemas"]["NonNestedLiteral"];
-      p95?: components["schemas"]["NonNestedLiteral"];
-      std?: components["schemas"]["NonNestedLiteral"];
-      total?: number | null;
-      true?: number | null;
-      unique?: number | null;
-    };
-    CompletedRun: {
-      /** @enum {string} */
-      name: "completed-run";
-    };
-    CompletionResult: {
-      completion_id: string;
-      /** @enum {string} */
-      name: "completion-result";
-      options: {
-        completion_info?: string | null;
-        name: string;
-        type: string;
-      }[];
-      prefix_length: number;
-    };
-    CopyNotebookRequest: {
-      destination: string;
-      source: string;
-    };
-    CycleError: {
-      edges_with_vars: [string, string[], string][];
-      /** @enum {string} */
-      type: "cycle";
-    };
-    DataColumnPreview: {
-      chart_code?: string | null;
-      chart_max_rows_errors: boolean;
-      chart_spec?: string | null;
-      column_name: string;
-      error?: string | null;
-      /** @enum {string} */
-      name: "data-column-preview";
-      summary?: components["schemas"]["ColumnSummary"];
-      table_name: string;
-    };
-    DataSourceConnection: {
-      dialect: string;
-      display_name: string;
-      name: string;
-      source: string;
-    };
-    DataSourceConnections: {
-      connections: components["schemas"]["DataSourceConnection"][];
-      /** @enum {string} */
-      name: "data-source-connections";
-    };
-    DataTable: {
-      columns: components["schemas"]["DataTableColumn"][];
-      name: string;
-      num_columns?: number | null;
-      num_rows?: number | null;
-      source: string;
-      /** @enum {string} */
-      source_type: "local" | "duckdb" | "connection";
-      variable_name?: string | null;
-    };
-    DataTableColumn: {
-      external_type: string;
-      name: string;
-      sample_values: unknown[];
-      type: components["schemas"]["DataType"];
-    };
-    /** @enum {string} */
-    DataType:
-      | "string"
-      | "boolean"
-      | "integer"
-      | "number"
-      | "date"
-      | "datetime"
-      | "time"
-      | "unknown";
-    Datasets: {
-      /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | "connection" | null;
-      /** @enum {string} */
-      name: "datasets";
-      tables: components["schemas"]["DataTable"][];
-    };
-    DeleteCellRequest: {
-      cellId: string;
-    };
-    DeleteNonlocalError: {
-      cells: string[];
-      name: string;
-      /** @enum {string} */
-      type: "delete-nonlocal";
-    };
-    Error:
-      | components["schemas"]["CycleError"]
-      | components["schemas"]["MultipleDefinitionError"]
-      | components["schemas"]["DeleteNonlocalError"]
-      | components["schemas"]["MarimoAncestorStoppedError"]
-      | components["schemas"]["MarimoAncestorPreventedError"]
-      | components["schemas"]["MarimoExceptionRaisedError"]
-      | components["schemas"]["MarimoStrictExecutionError"]
-      | components["schemas"]["MarimoInterruptionError"]
-      | components["schemas"]["MarimoSyntaxError"]
-      | components["schemas"]["MarimoInternalError"]
-      | components["schemas"]["UnknownError"];
-    ExecuteMultipleRequest: {
-      cellIds: string[];
-      codes: string[];
-      request?: components["schemas"]["HTTPRequest"];
-      timestamp: number;
-    };
-    ExecuteScratchpadRequest: {
-      code: string;
-      request?: components["schemas"]["HTTPRequest"];
-    };
-    ExecuteStaleRequest: Record<string, never>;
-    ExecutionRequest: {
-      cellId: string;
-      code: string;
-      request?: components["schemas"]["HTTPRequest"];
-      timestamp: number;
-    };
-    ExportAsHTMLRequest: {
-      assetUrl?: string | null;
-      download: boolean;
-      files: string[];
-      includeCode: boolean;
-    };
-    ExportAsIPYNBRequest: {
-      download: boolean;
-    };
-    ExportAsMarkdownRequest: {
-      download: boolean;
-    };
-    ExportAsScriptRequest: {
-      download: boolean;
-    };
-    FileCreateRequest: {
-      contents?: string | null;
-      name: string;
-      path: string;
-      /** @enum {string} */
-      type: "file" | "directory";
-    };
-    FileCreateResponse: {
-      info?: components["schemas"]["FileInfo"];
-      message?: string | null;
-      success: boolean;
-    };
-    FileDeleteRequest: {
-      path: string;
-    };
-    FileDeleteResponse: {
-      message?: string | null;
-      success: boolean;
-    };
-    FileDetailsRequest: {
-      path: string;
-    };
-    FileDetailsResponse: {
-      contents?: string | null;
-      file: components["schemas"]["FileInfo"];
-      mimeType?: string | null;
-    };
-    FileInfo: {
-      children: components["schemas"]["FileInfo"][];
-      id: string;
-      isDirectory: boolean;
-      isMarimoFile: boolean;
-      lastModified?: number | null;
-      name: string;
-      path: string;
-    };
-    FileListRequest: {
-      path?: string | null;
-    };
-    FileListResponse: {
-      files: components["schemas"]["FileInfo"][];
-      root: string;
-    };
-    FileMoveRequest: {
-      newPath: string;
-      path: string;
-    };
-    FileMoveResponse: {
-      info?: components["schemas"]["FileInfo"];
-      message?: string | null;
-      success: boolean;
-    };
-    FileUpdateRequest: {
-      contents: string;
-      path: string;
-    };
-    FileUpdateResponse: {
-      info?: components["schemas"]["FileInfo"];
-      message?: string | null;
-      success: boolean;
-    };
-    FocusCell: {
-      cell_id: string;
-      /** @enum {string} */
-      name: "focus-cell";
-    };
-    FormatRequest: {
-      codes: {
-        [key: string]: string;
-      };
-      lineLength: number;
-    };
-    FormatResponse: {
-      codes: {
-        [key: string]: string;
-      };
-    };
-    FunctionCallRequest: {
-      args: {
-        [key: string]: unknown;
-      };
-      functionCallId: string;
-      functionName: string;
-      namespace: string;
-    };
-    FunctionCallResult: {
-      function_call_id: string;
-      /** @enum {string} */
-      name: "function-call-result";
-      return_value?: components["schemas"]["JSONType"];
-      status: components["schemas"]["HumanReadableStatus"];
-    };
-    HTTPRequest: null;
-    HumanReadableStatus: {
-      /** @enum {string} */
-      code: "ok" | "error";
-      message?: string | null;
-      title?: string | null;
-    };
-    InstallMissingPackagesRequest: {
-      manager: string;
-      versions: {
-        [key: string]: string;
-      };
-    };
-    InstallingPackageAlert: {
-      /** @enum {string} */
-      name: "installing-package-alert";
-      packages: {
-        [key: string]: "queued" | "installing" | "installed" | "failed";
-      };
-    };
-    InstantiateRequest: {
-      autoRun: boolean;
-      objectIds: string[];
-      values: unknown[];
-    };
-    Interrupted: {
-      /** @enum {string} */
-      name: "interrupted";
-    };
-    JSONType:
-      | string
-      | number
-      | Record<string, never>
-      | unknown[]
-      | boolean
-      | null;
-    KernelReady: {
-      app_config: {
-        app_title?: string | null;
-        auto_download: ("html" | "markdown")[];
-        css_file?: string | null;
-        html_head_file?: string | null;
-        layout_file?: string | null;
-        /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full";
-      };
-      capabilities: {
-        sql: boolean;
-        terminal: boolean;
-      };
-      cell_ids: string[];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      kiosk: boolean;
-      last_executed_code?: {
-        [key: string]: string;
-      } | null;
-      last_execution_time?: {
-        [key: string]: number;
-      } | null;
-      layout?: {
-        data: {
-          [key: string]: unknown;
+            source: string;
         };
-        type: string;
-      } | null;
-      /** @enum {string} */
-      name: "kernel-ready";
-      names: string[];
-      resumed: boolean;
-      ui_values?: {
-        [key: string]:
-          | (
-              | {
-                  [key: string]: components["schemas"]["JSONType"];
-                }
-              | components["schemas"]["JSONType"][]
-              | string
-              | number
-              | boolean
-              | {
-                  [key: string]: unknown;
-                }
-              | components["schemas"]["MIME"]
-            )
-          | null;
-      } | null;
-    };
-    ListPackagesResponse: {
-      packages: components["schemas"]["PackageDescription"][];
-    };
-    MIME: Record<string, never>;
-    MarimoAncestorPreventedError: {
-      blamed_cell?: string | null;
-      msg: string;
-      raising_cell: string;
-      /** @enum {string} */
-      type: "ancestor-prevented";
-    };
-    MarimoAncestorStoppedError: {
-      msg: string;
-      raising_cell: string;
-      /** @enum {string} */
-      type: "ancestor-stopped";
-    };
-    MarimoConfig: {
-      ai?: {
-        anthropic?: {
-          api_key?: string;
+        DataSourceConnections: {
+            connections: components["schemas"]["DataSourceConnection"][];
+            /** @enum {string} */
+            name: "data-source-connections";
         };
-        google?: {
-          api_key?: string;
+        DataTable: {
+            columns: components["schemas"]["DataTableColumn"][];
+            name: string;
+            num_columns?: number | null;
+            num_rows?: number | null;
+            source: string;
+            /** @enum {string} */
+            source_type: "local" | "duckdb" | "connection";
+            variable_name?: string | null;
         };
-        open_ai?: {
-          api_key?: string;
-          base_url?: string;
-          model?: string;
-        };
-        rules?: string;
-      };
-      completion: {
-        activate_on_typing: boolean;
-        codeium_api_key?: string | null;
-        copilot: boolean | ("github" | "codeium");
-      };
-      display: {
-        /** @enum {string} */
-        cell_output: "above" | "below";
-        code_editor_font_size: number;
-        /** @enum {string} */
-        dataframes: "rich" | "plain";
-        /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full";
-        /** @enum {string} */
-        theme: "light" | "dark" | "system";
-      };
-      experimental?: {
-        [key: string]: unknown;
-      };
-      formatting: {
-        line_length: number;
-      };
-      keymap: {
-        overrides?: {
-          [key: string]: string;
+        DataTableColumn: {
+            external_type: string;
+            name: string;
+            sample_values: unknown[];
+            type: components["schemas"]["DataType"];
         };
         /** @enum {string} */
-        preset: "default" | "vim";
-      };
-      package_management: {
-        /** @enum {string} */
-        manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
-      };
-      runtime: {
-        auto_instantiate: boolean;
-        /** @enum {string} */
-        auto_reload: "off" | "lazy" | "autorun";
-        /** @enum {string} */
-        on_cell_change: "lazy" | "autorun";
-      };
-      save: {
-        /** @enum {string} */
-        autosave: "off" | "after_delay";
-        autosave_delay: number;
-        format_on_save: boolean;
-      };
-      server: {
-        browser: "default" | string;
-        follow_symlink: boolean;
-      };
-      snippets?: {
-        custom_paths?: string[];
-        include_default_snippets?: boolean;
-      };
-    };
-    MarimoExceptionRaisedError: {
-      exception_type: string;
-      msg: string;
-      raising_cell?: string | null;
-      /** @enum {string} */
-      type: "exception";
-    };
-    MarimoFile: {
-      initializationId?: string | null;
-      lastModified?: number | null;
-      name: string;
-      path: string;
-      sessionId?: string | null;
-    };
-    MarimoInternalError: {
-      error_id: string;
-      msg: string;
-      /** @enum {string} */
-      type: "internal";
-    };
-    MarimoInterruptionError: {
-      /** @enum {string} */
-      type: "interruption";
-    };
-    MarimoStrictExecutionError: {
-      blamed_cell?: string | null;
-      msg: string;
-      ref: string;
-      /** @enum {string} */
-      type: "strict-exception";
-    };
-    MarimoSyntaxError: {
-      msg: string;
-      /** @enum {string} */
-      type: "syntax";
-    };
-    MessageOperation:
-      | components["schemas"]["CellOp"]
-      | components["schemas"]["FunctionCallResult"]
-      | components["schemas"]["SendUIElementMessage"]
-      | components["schemas"]["RemoveUIElements"]
-      | components["schemas"]["Reload"]
-      | components["schemas"]["Reconnected"]
-      | components["schemas"]["Interrupted"]
-      | components["schemas"]["CompletedRun"]
-      | components["schemas"]["KernelReady"]
-      | components["schemas"]["CompletionResult"]
-      | components["schemas"]["Alert"]
-      | components["schemas"]["Banner"]
-      | components["schemas"]["MissingPackageAlert"]
-      | components["schemas"]["InstallingPackageAlert"]
-      | components["schemas"]["Variables"]
-      | components["schemas"]["VariableValues"]
-      | components["schemas"]["QueryParamsSet"]
-      | components["schemas"]["QueryParamsAppend"]
-      | components["schemas"]["QueryParamsDelete"]
-      | components["schemas"]["QueryParamsClear"]
-      | components["schemas"]["Datasets"]
-      | components["schemas"]["DataColumnPreview"]
-      | {
-          connections: components["schemas"]["DataSourceConnection"][];
-          /** @enum {string} */
-          name: "data-source-connections";
-        }
-      | components["schemas"]["FocusCell"]
-      | components["schemas"]["UpdateCellCodes"]
-      | components["schemas"]["UpdateCellIdsRequest"];
-    /** @enum {string} */
-    MimeType:
-      | "application/json"
-      | "application/vnd.marimo+error"
-      | "application/vnd.marimo+traceback"
-      | "application/vnd.marimo+mimebundle"
-      | "application/vnd.vega.v5+json"
-      | "application/vnd.vegalite.v5+json"
-      | "image/png"
-      | "image/svg+xml"
-      | "image/tiff"
-      | "image/avif"
-      | "image/bmp"
-      | "image/gif"
-      | "image/jpeg"
-      | "video/mp4"
-      | "video/mpeg"
-      | "text/html"
-      | "text/plain"
-      | "text/markdown"
-      | "text/latex"
-      | "text/csv";
-    MissingPackageAlert: {
-      isolated: boolean;
-      /** @enum {string} */
-      name: "missing-package-alert";
-      packages: string[];
-    };
-    MultipleDefinitionError: {
-      cells: string[];
-      name: string;
-      /** @enum {string} */
-      type: "multiple-defs";
-    };
-    NonNestedLiteral: number | string | boolean;
-    OpenFileRequest: {
-      path: string;
-    };
-    OpenTutorialRequest: {
-      tutorialId:
-        | (
-            | "intro"
-            | "dataflow"
-            | "ui"
-            | "markdown"
-            | "plots"
-            | "sql"
-            | "layout"
-            | "fileformat"
-            | "for-jupyter-users"
-          )
-        | "markdown-format";
-    };
-    PackageDescription: {
-      name: string;
-      version: string;
-    };
-    PackageOperationResponse: {
-      error?: string | null;
-      success: boolean;
-    };
-    PreviewDatasetColumnRequest: {
-      columnName: string;
-      source: string;
-      /** @enum {string} */
-      sourceType: "local" | "duckdb" | "connection";
-      tableName: string;
-    };
-    QueryParamsAppend: {
-      key: string;
-      /** @enum {string} */
-      name: "query-params-append";
-      value: string;
-    };
-    QueryParamsClear: {
-      /** @enum {string} */
-      name: "query-params-clear";
-    };
-    QueryParamsDelete: {
-      key: string;
-      /** @enum {string} */
-      name: "query-params-delete";
-      value?: string | null;
-    };
-    QueryParamsSet: {
-      key: string;
-      /** @enum {string} */
-      name: "query-params-set";
-      value: string | string[];
-    };
-    ReadCodeResponse: {
-      contents: string;
-    };
-    RecentFilesResponse: {
-      files: components["schemas"]["MarimoFile"][];
-    };
-    Reconnected: {
-      /** @enum {string} */
-      name: "reconnected";
-    };
-    Reload: {
-      /** @enum {string} */
-      name: "reload";
-    };
-    RemovePackageRequest: {
-      package: string;
-    };
-    RemoveUIElements: {
-      cell_id: string;
-      /** @enum {string} */
-      name: "remove-ui-elements";
-    };
-    RenameFileRequest: {
-      filename: string;
-    };
-    RenameRequest: {
-      filename: string;
-    };
-    RunRequest: {
-      cellIds: string[];
-      codes: string[];
-      request?: components["schemas"]["HTTPRequest"];
-    };
-    RunScratchpadRequest: {
-      code: string;
-      request?: components["schemas"]["HTTPRequest"];
-    };
-    RunningNotebooksResponse: {
-      files: components["schemas"]["MarimoFile"][];
-    };
-    /** @enum {string} */
-    RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
-    SaveAppConfigurationRequest: {
-      config: {
-        [key: string]: unknown;
-      };
-    };
-    SaveNotebookRequest: {
-      cellIds: string[];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      filename: string;
-      layout?: {
-        [key: string]: unknown;
-      } | null;
-      names: string[];
-      persist: boolean;
-    };
-    SaveUserConfigurationRequest: {
-      config: components["schemas"]["MarimoConfig"];
-    };
-    SendUIElementMessage: {
-      buffers?: string[] | null;
-      message: {
-        [key: string]: {
-          [key: string]: unknown;
+        DataType: "string" | "boolean" | "integer" | "number" | "date" | "datetime" | "time" | "unknown";
+        Datasets: {
+            /** @enum {string|null} */
+            clear_channel?: "local" | "duckdb" | "connection" | null;
+            /** @enum {string} */
+            name: "datasets";
+            tables: components["schemas"]["DataTable"][];
         };
-      };
-      /** @enum {string} */
-      name: "send-ui-element-message";
-      ui_element: string;
-    };
-    SetCellConfigRequest: {
-      configs: {
-        [key: string]: {
-          [key: string]: unknown;
+        DeleteCellRequest: {
+            cellId: string;
         };
-      };
+        DeleteNonlocalError: {
+            cells: string[];
+            name: string;
+            /** @enum {string} */
+            type: "delete-nonlocal";
+        };
+        Error: components["schemas"]["CycleError"] | components["schemas"]["MultipleDefinitionError"] | components["schemas"]["DeleteNonlocalError"] | components["schemas"]["MarimoAncestorStoppedError"] | components["schemas"]["MarimoAncestorPreventedError"] | components["schemas"]["MarimoExceptionRaisedError"] | components["schemas"]["MarimoStrictExecutionError"] | components["schemas"]["MarimoInterruptionError"] | components["schemas"]["MarimoSyntaxError"] | components["schemas"]["MarimoInternalError"] | components["schemas"]["UnknownError"];
+        ExecuteMultipleRequest: {
+            cellIds: string[];
+            codes: string[];
+            request?: components["schemas"]["HTTPRequest"];
+            timestamp: number;
+        };
+        ExecuteScratchpadRequest: {
+            code: string;
+            request?: components["schemas"]["HTTPRequest"];
+        };
+        ExecuteStaleRequest: Record<string, never>;
+        ExecutionRequest: {
+            cellId: string;
+            code: string;
+            request?: components["schemas"]["HTTPRequest"];
+            timestamp: number;
+        };
+        ExportAsHTMLRequest: {
+            assetUrl?: string | null;
+            download: boolean;
+            files: string[];
+            includeCode: boolean;
+        };
+        ExportAsIPYNBRequest: {
+            download: boolean;
+        };
+        ExportAsMarkdownRequest: {
+            download: boolean;
+        };
+        ExportAsScriptRequest: {
+            download: boolean;
+        };
+        FileCreateRequest: {
+            contents?: string | null;
+            name: string;
+            path: string;
+            /** @enum {string} */
+            type: "file" | "directory";
+        };
+        FileCreateResponse: {
+            info?: components["schemas"]["FileInfo"];
+            message?: string | null;
+            success: boolean;
+        };
+        FileDeleteRequest: {
+            path: string;
+        };
+        FileDeleteResponse: {
+            message?: string | null;
+            success: boolean;
+        };
+        FileDetailsRequest: {
+            path: string;
+        };
+        FileDetailsResponse: {
+            contents?: string | null;
+            file: components["schemas"]["FileInfo"];
+            mimeType?: string | null;
+        };
+        FileInfo: {
+            children: components["schemas"]["FileInfo"][];
+            id: string;
+            isDirectory: boolean;
+            isMarimoFile: boolean;
+            lastModified?: number | null;
+            name: string;
+            path: string;
+        };
+        FileListRequest: {
+            path?: string | null;
+        };
+        FileListResponse: {
+            files: components["schemas"]["FileInfo"][];
+            root: string;
+        };
+        FileMoveRequest: {
+            newPath: string;
+            path: string;
+        };
+        FileMoveResponse: {
+            info?: components["schemas"]["FileInfo"];
+            message?: string | null;
+            success: boolean;
+        };
+        FileUpdateRequest: {
+            contents: string;
+            path: string;
+        };
+        FileUpdateResponse: {
+            info?: components["schemas"]["FileInfo"];
+            message?: string | null;
+            success: boolean;
+        };
+        FocusCell: {
+            cell_id: string;
+            /** @enum {string} */
+            name: "focus-cell";
+        };
+        FormatRequest: {
+            codes: {
+                [key: string]: string;
+            };
+            lineLength: number;
+        };
+        FormatResponse: {
+            codes: {
+                [key: string]: string;
+            };
+        };
+        FunctionCallRequest: {
+            args: {
+                [key: string]: unknown;
+            };
+            functionCallId: string;
+            functionName: string;
+            namespace: string;
+        };
+        FunctionCallResult: {
+            function_call_id: string;
+            /** @enum {string} */
+            name: "function-call-result";
+            return_value?: components["schemas"]["JSONType"];
+            status: components["schemas"]["HumanReadableStatus"];
+        };
+        HTTPRequest: null;
+        HumanReadableStatus: {
+            /** @enum {string} */
+            code: "ok" | "error";
+            message?: string | null;
+            title?: string | null;
+        };
+        InstallMissingPackagesRequest: {
+            manager: string;
+            versions: {
+                [key: string]: string;
+            };
+        };
+        InstallingPackageAlert: {
+            /** @enum {string} */
+            name: "installing-package-alert";
+            packages: {
+                [key: string]: "queued" | "installing" | "installed" | "failed";
+            };
+        };
+        InstantiateRequest: {
+            autoRun: boolean;
+            objectIds: string[];
+            values: unknown[];
+        };
+        Interrupted: {
+            /** @enum {string} */
+            name: "interrupted";
+        };
+        JSONType: string | number | Record<string, never> | unknown[] | boolean | null;
+        KernelReady: {
+            app_config: {
+                app_title?: string | null;
+                auto_download: ("html" | "markdown")[];
+                css_file?: string | null;
+                html_head_file?: string | null;
+                layout_file?: string | null;
+                /** @enum {string} */
+                width: "normal" | "compact" | "medium" | "full";
+            };
+            capabilities: {
+                sql: boolean;
+                terminal: boolean;
+            };
+            cell_ids: string[];
+            codes: string[];
+            configs: components["schemas"]["CellConfig"][];
+            kiosk: boolean;
+            last_executed_code?: {
+                [key: string]: string;
+            } | null;
+            last_execution_time?: {
+                [key: string]: number;
+            } | null;
+            layout?: {
+                data: {
+                    [key: string]: unknown;
+                };
+                type: string;
+            } | null;
+            /** @enum {string} */
+            name: "kernel-ready";
+            names: string[];
+            resumed: boolean;
+            ui_values?: {
+                [key: string]: ({
+                    [key: string]: components["schemas"]["JSONType"];
+                } | components["schemas"]["JSONType"][] | string | number | boolean | {
+                    [key: string]: unknown;
+                } | components["schemas"]["MIME"]) | null;
+            } | null;
+        };
+        ListPackagesResponse: {
+            packages: components["schemas"]["PackageDescription"][];
+        };
+        MCPServerEvaluationRequest: {
+            args?: {
+                [key: string]: unknown;
+            } | null;
+            mcpEvaluationId: string;
+            name: string;
+            /** @enum {string} */
+            requestType: "tool" | "resource" | "prompt";
+            serverName: string;
+        };
+        MCPServerEvaluationResult: {
+            mcp_evaluation_id: string;
+            /** @enum {string} */
+            name: "mcp-evaluation-result";
+            result: string;
+        };
+        MIME: Record<string, never>;
+        MarimoAncestorPreventedError: {
+            blamed_cell?: string | null;
+            msg: string;
+            raising_cell: string;
+            /** @enum {string} */
+            type: "ancestor-prevented";
+        };
+        MarimoAncestorStoppedError: {
+            msg: string;
+            raising_cell: string;
+            /** @enum {string} */
+            type: "ancestor-stopped";
+        };
+        MarimoConfig: {
+            ai?: {
+                anthropic?: {
+                    api_key?: string;
+                };
+                google?: {
+                    api_key?: string;
+                };
+                open_ai?: {
+                    api_key?: string;
+                    base_url?: string;
+                    model?: string;
+                };
+                rules?: string;
+            };
+            completion: {
+                activate_on_typing: boolean;
+                codeium_api_key?: string | null;
+                copilot: boolean | ("github" | "codeium");
+            };
+            display: {
+                /** @enum {string} */
+                cell_output: "above" | "below";
+                code_editor_font_size: number;
+                /** @enum {string} */
+                dataframes: "rich" | "plain";
+                /** @enum {string} */
+                default_width: "normal" | "compact" | "medium" | "full";
+                /** @enum {string} */
+                theme: "light" | "dark" | "system";
+            };
+            experimental?: {
+                [key: string]: unknown;
+            };
+            formatting: {
+                line_length: number;
+            };
+            keymap: {
+                overrides?: {
+                    [key: string]: string;
+                };
+                /** @enum {string} */
+                preset: "default" | "vim";
+            };
+            package_management: {
+                /** @enum {string} */
+                manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
+            };
+            runtime: {
+                auto_instantiate: boolean;
+                /** @enum {string} */
+                auto_reload: "off" | "lazy" | "autorun";
+                /** @enum {string} */
+                on_cell_change: "lazy" | "autorun";
+            };
+            save: {
+                /** @enum {string} */
+                autosave: "off" | "after_delay";
+                autosave_delay: number;
+                format_on_save: boolean;
+            };
+            server: {
+                browser: "default" | string;
+                follow_symlink: boolean;
+            };
+            snippets?: {
+                custom_paths?: string[];
+                include_default_snippets?: boolean;
+            };
+        };
+        MarimoExceptionRaisedError: {
+            exception_type: string;
+            msg: string;
+            raising_cell?: string | null;
+            /** @enum {string} */
+            type: "exception";
+        };
+        MarimoFile: {
+            initializationId?: string | null;
+            lastModified?: number | null;
+            name: string;
+            path: string;
+            sessionId?: string | null;
+        };
+        MarimoInternalError: {
+            error_id: string;
+            msg: string;
+            /** @enum {string} */
+            type: "internal";
+        };
+        MarimoInterruptionError: {
+            /** @enum {string} */
+            type: "interruption";
+        };
+        MarimoStrictExecutionError: {
+            blamed_cell?: string | null;
+            msg: string;
+            ref: string;
+            /** @enum {string} */
+            type: "strict-exception";
+        };
+        MarimoSyntaxError: {
+            msg: string;
+            /** @enum {string} */
+            type: "syntax";
+        };
+        MessageOperation: components["schemas"]["CellOp"] | components["schemas"]["FunctionCallResult"] | components["schemas"]["SendUIElementMessage"] | components["schemas"]["RemoveUIElements"] | components["schemas"]["Reload"] | components["schemas"]["Reconnected"] | components["schemas"]["Interrupted"] | components["schemas"]["CompletedRun"] | components["schemas"]["KernelReady"] | components["schemas"]["CompletionResult"] | components["schemas"]["MCPServerEvaluationResult"] | components["schemas"]["Alert"] | components["schemas"]["Banner"] | components["schemas"]["MissingPackageAlert"] | components["schemas"]["InstallingPackageAlert"] | components["schemas"]["Variables"] | components["schemas"]["VariableValues"] | components["schemas"]["QueryParamsSet"] | components["schemas"]["QueryParamsAppend"] | components["schemas"]["QueryParamsDelete"] | components["schemas"]["QueryParamsClear"] | components["schemas"]["Datasets"] | components["schemas"]["DataColumnPreview"] | {
+            connections: components["schemas"]["DataSourceConnection"][];
+            /** @enum {string} */
+            name: "data-source-connections";
+        } | components["schemas"]["FocusCell"] | components["schemas"]["UpdateCellCodes"] | components["schemas"]["UpdateCellIdsRequest"];
+        /** @enum {string} */
+        MimeType: "application/json" | "application/vnd.marimo+error" | "application/vnd.marimo+traceback" | "application/vnd.marimo+mimebundle" | "application/vnd.vega.v5+json" | "application/vnd.vegalite.v5+json" | "image/png" | "image/svg+xml" | "image/tiff" | "image/avif" | "image/bmp" | "image/gif" | "image/jpeg" | "video/mp4" | "video/mpeg" | "text/html" | "text/plain" | "text/markdown" | "text/latex" | "text/csv";
+        MissingPackageAlert: {
+            isolated: boolean;
+            /** @enum {string} */
+            name: "missing-package-alert";
+            packages: string[];
+        };
+        MultipleDefinitionError: {
+            cells: string[];
+            name: string;
+            /** @enum {string} */
+            type: "multiple-defs";
+        };
+        NonNestedLiteral: number | string | boolean;
+        OpenFileRequest: {
+            path: string;
+        };
+        OpenTutorialRequest: {
+            tutorialId: ("intro" | "dataflow" | "ui" | "markdown" | "plots" | "sql" | "layout" | "fileformat" | "for-jupyter-users") | "markdown-format";
+        };
+        PackageDescription: {
+            name: string;
+            version: string;
+        };
+        PackageOperationResponse: {
+            error?: string | null;
+            success: boolean;
+        };
+        PreviewDatasetColumnRequest: {
+            columnName: string;
+            source: string;
+            /** @enum {string} */
+            sourceType: "local" | "duckdb" | "connection";
+            tableName: string;
+        };
+        QueryParamsAppend: {
+            key: string;
+            /** @enum {string} */
+            name: "query-params-append";
+            value: string;
+        };
+        QueryParamsClear: {
+            /** @enum {string} */
+            name: "query-params-clear";
+        };
+        QueryParamsDelete: {
+            key: string;
+            /** @enum {string} */
+            name: "query-params-delete";
+            value?: string | null;
+        };
+        QueryParamsSet: {
+            key: string;
+            /** @enum {string} */
+            name: "query-params-set";
+            value: string | string[];
+        };
+        ReadCodeResponse: {
+            contents: string;
+        };
+        RecentFilesResponse: {
+            files: components["schemas"]["MarimoFile"][];
+        };
+        Reconnected: {
+            /** @enum {string} */
+            name: "reconnected";
+        };
+        Reload: {
+            /** @enum {string} */
+            name: "reload";
+        };
+        RemovePackageRequest: {
+            package: string;
+        };
+        RemoveUIElements: {
+            cell_id: string;
+            /** @enum {string} */
+            name: "remove-ui-elements";
+        };
+        RenameFileRequest: {
+            filename: string;
+        };
+        RenameRequest: {
+            filename: string;
+        };
+        RunRequest: {
+            cellIds: string[];
+            codes: string[];
+            request?: components["schemas"]["HTTPRequest"];
+        };
+        RunScratchpadRequest: {
+            code: string;
+            request?: components["schemas"]["HTTPRequest"];
+        };
+        RunningNotebooksResponse: {
+            files: components["schemas"]["MarimoFile"][];
+        };
+        /** @enum {string} */
+        RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
+        SaveAppConfigurationRequest: {
+            config: {
+                [key: string]: unknown;
+            };
+        };
+        SaveNotebookRequest: {
+            cellIds: string[];
+            codes: string[];
+            configs: components["schemas"]["CellConfig"][];
+            filename: string;
+            layout?: {
+                [key: string]: unknown;
+            } | null;
+            names: string[];
+            persist: boolean;
+        };
+        SaveUserConfigurationRequest: {
+            config: components["schemas"]["MarimoConfig"];
+        };
+        SendUIElementMessage: {
+            buffers?: string[] | null;
+            message: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** @enum {string} */
+            name: "send-ui-element-message";
+            ui_element: string;
+        };
+        SetCellConfigRequest: {
+            configs: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        SetUIElementValueRequest: {
+            objectIds: string[];
+            request?: components["schemas"]["HTTPRequest"];
+            token: string;
+            values: unknown[];
+        };
+        SetUserConfigRequest: {
+            config: components["schemas"]["MarimoConfig"];
+        };
+        ShutdownSessionRequest: {
+            sessionId: string;
+        };
+        Snippet: {
+            sections: components["schemas"]["SnippetSection"][];
+            title: string;
+        };
+        SnippetSection: {
+            code?: string | null;
+            html?: string | null;
+            id: string;
+        };
+        Snippets: {
+            snippets: components["schemas"]["Snippet"][];
+        };
+        StdinRequest: {
+            text: string;
+        };
+        StopRequest: Record<string, never>;
+        SuccessResponse: {
+            success: boolean;
+        };
+        UnknownError: {
+            msg: string;
+            /** @enum {string} */
+            type: "unknown";
+        };
+        UpdateCellCodes: {
+            cell_ids: string[];
+            code_is_stale: boolean;
+            codes: string[];
+            /** @enum {string} */
+            name: "update-cell-codes";
+        };
+        UpdateCellIdsRequest: {
+            cell_ids: string[];
+            /** @enum {string} */
+            name: "update-cell-ids";
+        };
+        UpdateComponentValuesRequest: {
+            objectIds: string[];
+            values: unknown[];
+        };
+        VariableDeclaration: {
+            declared_by: string[];
+            name: string;
+            used_by: string[];
+        };
+        VariableValue: {
+            datatype?: string | null;
+            name: string;
+            value?: string | null;
+        };
+        VariableValues: {
+            /** @enum {string} */
+            name: "variable-values";
+            variables: components["schemas"]["VariableValue"][];
+        };
+        Variables: {
+            /** @enum {string} */
+            name: "variables";
+            variables: components["schemas"]["VariableDeclaration"][];
+        };
+        WorkspaceFilesRequest: {
+            includeMarkdown: boolean;
+        };
+        WorkspaceFilesResponse: {
+            files: components["schemas"]["FileInfo"][];
+            root: string;
+        };
     };
-    SetUIElementValueRequest: {
-      objectIds: string[];
-      request?: components["schemas"]["HTTPRequest"];
-      token: string;
-      values: unknown[];
-    };
-    SetUserConfigRequest: {
-      config: components["schemas"]["MarimoConfig"];
-    };
-    ShutdownSessionRequest: {
-      sessionId: string;
-    };
-    Snippet: {
-      sections: components["schemas"]["SnippetSection"][];
-      title: string;
-    };
-    SnippetSection: {
-      code?: string | null;
-      html?: string | null;
-      id: string;
-    };
-    Snippets: {
-      snippets: components["schemas"]["Snippet"][];
-    };
-    StdinRequest: {
-      text: string;
-    };
-    StopRequest: Record<string, never>;
-    SuccessResponse: {
-      success: boolean;
-    };
-    UnknownError: {
-      msg: string;
-      /** @enum {string} */
-      type: "unknown";
-    };
-    UpdateCellCodes: {
-      cell_ids: string[];
-      code_is_stale: boolean;
-      codes: string[];
-      /** @enum {string} */
-      name: "update-cell-codes";
-    };
-    UpdateCellIdsRequest: {
-      cell_ids: string[];
-      /** @enum {string} */
-      name: "update-cell-ids";
-    };
-    UpdateComponentValuesRequest: {
-      objectIds: string[];
-      values: unknown[];
-    };
-    VariableDeclaration: {
-      declared_by: string[];
-      name: string;
-      used_by: string[];
-    };
-    VariableValue: {
-      datatype?: string | null;
-      name: string;
-      value?: string | null;
-    };
-    VariableValues: {
-      /** @enum {string} */
-      name: "variable-values";
-      variables: components["schemas"]["VariableValue"][];
-    };
-    Variables: {
-      /** @enum {string} */
-      name: "variables";
-      variables: components["schemas"]["VariableDeclaration"][];
-    };
-    WorkspaceFilesRequest: {
-      includeMarkdown: boolean;
-    };
-    WorkspaceFilesResponse: {
-      files: components["schemas"]["FileInfo"][];
-      root: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

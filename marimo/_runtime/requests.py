@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 UIElementId = str
 CompletionRequestId = str
+MCPRequestId = str
 FunctionCallId = str
 
 T = TypeVar("T")
@@ -289,6 +290,8 @@ class PreviewDatasetColumnRequest:
 
 @dataclass
 class MCPServerEvaluationRequest:
+    # The id of the MCP server evaluation request
+    mcp_evaluation_id: MCPRequestId
     # The name of the MCP server
     server_name: str
     # The type of the request

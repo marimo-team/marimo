@@ -1,8 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+/* TODO(mcp): 
+ * - sendMCPEvaluationRequest to get completions.
+ * - MCPServerEvaluationResult
+ */
+
 import { EditorView } from '@codemirror/view';
 import { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
 import { Logger } from '@/utils/Logger';
+
+import { MCP_REQUEST_REGISTRY } from '@/core/network/MCPRequestRegistry';
 
 interface MCPServer {
   name: string;
@@ -17,7 +24,10 @@ interface ServerResponse {
 
 export async function mcpCompletions(
   context: CompletionContext,
-  serverName: string | null
+  serverName: string | null,
+  requestType: "tool" | "resource" | "prompt",
+  name: string,
+  args: Record<string, any>
 ): Promise<CompletionResult | null> {
   if (!serverName) {
     return null;
@@ -34,7 +44,14 @@ export async function mcpCompletions(
   }
 
   try {
-    const response = await fetch('/api/mcp/servers');
+    const response = MCP_REQUEST_REGISTRY.request(
+      {
+        serverName,
+        requestType: requestType,
+        name: name,
+        args: args,
+      }
+    );
     if (!response.ok) {
       return null;
     }

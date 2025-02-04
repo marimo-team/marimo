@@ -52,7 +52,6 @@ export type MarimoFile = schemas["MarimoFile"];
 export type OpenFileRequest = schemas["OpenFileRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
-// TODO(mcp): finish backend, make the api.yaml, then return to this
 export type MCPServerEvaluationRequest =
   schemas["MCPServerEvaluationRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];

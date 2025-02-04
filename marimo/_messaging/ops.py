@@ -456,8 +456,9 @@ class CompletionResult(Op):
 class MCPServerEvaluationResult(Op):
     """MCP server evaluation result."""
 
-    name: ClassVar[str] = "mcp-server-evaluation-result"
-    request_id: str
+    name: ClassVar[str] = "mcp-evaluation-result"
+
+    mcp_evaluation_id: str
     result: str
 
 

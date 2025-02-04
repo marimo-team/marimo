@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from marimo._mcp.registry import MCPRegistry
 from marimo._mcp.server import MCPServer
 
-__all__ = ["MCPServer"]
+__all__ = ["MCPServer", "MCPRegistry"]

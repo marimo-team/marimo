@@ -25,102 +25,16 @@ import { getAICompletionBody } from "../editor/ai/completion-utils";
 import { addMessageToChat } from "@/core/ai/chat-utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { useTheme } from "@/theme/useTheme";
-import { ServerSelector } from "./server-selector";
-import { Completion } from "@codemirror/autocomplete";
-
-interface MCPResponse {
-  value: string;
-}
-
-function isMCPResponse(obj: unknown): obj is MCPResponse {
-  return typeof obj === 'object' && obj !== null && 'value' in obj && typeof (obj as MCPResponse).value === 'string';
-}
 
 export const ChatPanel = () => {
   const [chatState, setChatState] = useAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
   const [completionBody, setCompletionBody] = useState<object>({});
   const [newThreadInput, setNewThreadInput] = useState("");
-  const [selectedServer, setSelectedServer] = useState<string | null>(null);
-  const [completions, setCompletions] = useState<Completion[]>([]);
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
-
-  // Fetch completions when server changes
-  useEffect(() => {
-    const fetchCompletions = async () => {
-      if (!selectedServer) {
-        setCompletions([]);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/mcp/servers');
-        if (!response.ok) {
-          return;
-        }
-
-        const { servers }: { servers: Array<{ name: string; tools: Array<{ name: string; description: string }>; resources: Array<{ name: string; description: string }>; prompts: Array<{ name: string; description: string }> }> } = await response.json();
-        const server = servers.find((s) => s.name === selectedServer);
-        if (!server) {
-          return;
-        }
-
-        const allCompletions = [
-          ...server.tools.map((t) => ({ label: `!${t.name}()`, detail: t.description })),
-          ...server.resources.map((r) => ({ label: `@${r.name}()`, detail: r.description })),
-          ...server.prompts.map((p) => ({ label: `/${p.name}()`, detail: p.description })),
-        ];
-
-        setCompletions(allCompletions);
-      } catch (error) {
-        Logger.error('Error fetching completions:', error);
-      }
-    };
-
-    fetchCompletions();
-  }, [selectedServer]);
-
-  // Process MCP function calls in the message
-  const processMCPFunctions = async (message: string): Promise<string> => {
-    if (!selectedServer) {
-      return message;
-    }
-
-    const functionCalls = message.match(/[!/@]\w+\([^)]*\)/g) || [];
-    let processedMessage = message;
-
-    for (const call of functionCalls) {
-      try {
-        const response = await fetch(`/api/mcp/execute`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            server: selectedServer,
-            call: call,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to execute MCP function: ${call}`);
-        }
-
-        const result = await response.json();
-        if (!isMCPResponse(result)) {
-          throw new Error('Invalid response format');
-        }
-        processedMessage = processedMessage.replace(call, result.value);
-      } catch (error) {
-        Logger.error("Error executing MCP function:", error);
-      }
-    }
-
-    return processedMessage;
-  };
 
   const {
     messages,
@@ -128,6 +42,7 @@ export const ChatPanel = () => {
     setInput: setInputInternal,
     setMessages,
     append,
+    handleSubmit,
     error,
     isLoading,
     reload,
@@ -170,15 +85,14 @@ export const ChatPanel = () => {
     }
   }, [messages, isLoading, lastMessageText]);
 
-  const createNewThread = async (initialMessage: string) => {
-    const processedMessage = await processMCPFunctions(initialMessage);
+  const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
       id: generateUUID(),
-      title: `${processedMessage.slice(0, 30)}...`,
+      title: `${initialMessage.slice(0, 30)}...`,
       messages: [
         {
           role: "user",
-          content: processedMessage,
+          content: initialMessage,
           timestamp: Date.now(),
         },
       ],
@@ -191,7 +105,7 @@ export const ChatPanel = () => {
       activeChatId: newChat.id,
     }));
 
-    const nextCompletionBody = getAICompletionBody(processedMessage);
+    const nextCompletionBody = getAICompletionBody(initialMessage);
     setCompletionBody(nextCompletionBody);
 
     setMessages([]);
@@ -199,7 +113,7 @@ export const ChatPanel = () => {
     append(
       {
         role: "user",
-        content: processedMessage,
+        content: initialMessage,
       },
       {
         body: {
@@ -208,25 +122,6 @@ export const ChatPanel = () => {
         },
       },
     );
-  };
-
-  // Modified handleSubmit to process MCP functions
-  const handleSubmitWithMCP = async (e: KeyboardEvent | undefined, value: string) => {
-    if (!value.trim()) {
-      return;
-    }
-
-    const processedInput = await processMCPFunctions(value);
-    append({
-      role: "user",
-      content: processedInput,
-    });
-
-    if (chatState.activeChatId) {
-      setChatState((prev) =>
-        addMessageToChat(prev, chatState.activeChatId, "user", processedInput),
-      );
-    }
   };
 
   return (
@@ -287,25 +182,19 @@ export const ChatPanel = () => {
         </Popover>
       </div>
 
-      <ServerSelector onServerSelect={setSelectedServer} />
-
       <div className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto">
         {(!messages || messages.length === 0) && (
           <div className="flex rounded-md border px-1 bg-background">
             <PromptInput
               key="new-thread-input"
               value={newThreadInput}
-              placeholder="Ask anything, @ for resources, ! for tools, / for prompts"
+              placeholder="Ask anything, @ to include context"
               theme={theme}
               onClose={() => newThreadInputRef.current?.editor?.blur()}
               onChange={setNewThreadInput}
               onSubmit={() =>
                 newThreadInput.trim() && createNewThread(newThreadInput.trim())
               }
-              additionalCompletions={{
-                triggerCompletionRegex: /[!/@]\w+/,
-                completions,
-              }}
             />
           </div>
         )}
@@ -353,10 +242,6 @@ export const ChatPanel = () => {
                   onClose={() => {
                     // noop
                   }}
-                  additionalCompletions={{
-                    triggerCompletionRegex: /[!/@]\w+/,
-                    completions,
-                  }}
                 />
               </div>
             ) : (
@@ -403,14 +288,25 @@ export const ChatPanel = () => {
           <PromptInput
             value={input}
             onChange={setInput}
-            onSubmit={handleSubmitWithMCP}
+            onSubmit={(e, newValue) => {
+              if (!newValue.trim()) {
+                return;
+              }
+              handleSubmit(e);
+              if (chatState.activeChatId) {
+                setChatState((prev) =>
+                  addMessageToChat(
+                    prev,
+                    chatState.activeChatId,
+                    "user",
+                    newValue,
+                  ),
+                );
+              }
+            }}
             onClose={() => newMessageInputRef.current?.editor?.blur()}
             theme={theme}
             placeholder="Type your message..."
-            additionalCompletions={{
-              triggerCompletionRegex: /[!/@]\w+/,
-              completions,
-            }}
           />
         </div>
       )}

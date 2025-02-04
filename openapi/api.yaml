@@ -1059,6 +1059,8 @@ components:
           additionalProperties: {}
           nullable: true
           type: object
+        mcpEvaluationId:
+          type: string
         name:
           type: string
         requestType:
@@ -1070,22 +1072,23 @@ components:
         serverName:
           type: string
       required:
+      - mcpEvaluationId
       - serverName
       - requestType
       - name
       type: object
     MCPServerEvaluationResult:
       properties:
+        mcp_evaluation_id:
+          type: string
         name:
           enum:
-          - mcp-server-evaluation-result
-          type: string
-        request_id:
+          - mcp-evaluation-result
           type: string
         result:
           type: string
       required:
-      - request_id
+      - mcp_evaluation_id
       - result
       - name
       type: object
@@ -2056,7 +2059,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.17
+  version: 0.10.19
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2675,7 +2678,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                $ref: '#/components/schemas/MCPServerEvaluationResult'
           description: Evaluate an MCP server request
   /api/packages/add:
     post:

@@ -46,6 +46,7 @@ from marimo._messaging.ops import (
     FunctionCallResult,
     HumanReadableStatus,
     InstallingPackageAlert,
+    MCPServerEvaluationResult,
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
@@ -150,6 +151,8 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
+
+# TODO(mcp): add mcp implementation here
 
 
 @mddoc

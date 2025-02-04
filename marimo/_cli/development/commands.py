@@ -42,7 +42,6 @@ def _generate_schema() -> dict[str, Any]:
         PythonTypeToOpenAPI,
     )
 
-    # TODO(mcp): add message, request here
     # dataclass components used in websocket messages
     # these are always snake_case
     MESSAGES = [

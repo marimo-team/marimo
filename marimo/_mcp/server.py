@@ -2,59 +2,55 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, Optional, TypeVar
 
-from marimo._runtime.context import get_context
+from marimo._messaging.ops import MCPServerEvaluationResult
+from marimo._runtime.requests import MCPServerEvaluationRequest
+
+T = TypeVar("T")
 
 
 @dataclass
 class MCPFunction:
-    """A function registered with an MCP server."""
+    """A function registered with an MCP server.
+
+    Attributes:
+        name: The name of the function
+        description: A description of what the function does
+        func: The actual function to call
+        schema: Optional JSON schema for function parameters
+    """
 
     name: str
     description: str
     func: Callable
+    schema: Optional[Dict[str, Any]] = None
 
 
+@dataclass
 class MCPServer:
-    """A MCP server that manages tools, resources, and prompts."""
+    """A Marimo Control Protocol server that manages tools, resources, and prompts.
 
-    def __init__(self, name: str):
-        """Initialize an MCP server.
+    The MCP server provides a way to register and execute functions that can be called
+    from the frontend. Functions are categorized into:
+    - tools: Functions that perform actions
+    - resources: Functions that provide data
+    - prompts: Functions that generate text/prompts
+    """
 
-        Args:
-            name: The name of the server
-        """
-        self.name = name
-        self.tools: Dict[str, MCPFunction] = {}
-        self.resources: Dict[str, MCPFunction] = {}
-        self.prompts: Dict[str, MCPFunction] = {}
-
-        # Register with current context
-        # TODO(mcp): how to get the current runtime context (session view)?
-        ctx = get_context()
-        if not hasattr(ctx, "mcp_servers"):
-            ctx.mcp_servers = {}
-        ctx.mcp_servers[name] = self
-
-    def __del__(self):
-        """Unregister server when deleted."""
-        try:
-            ctx = get_context()
-            if hasattr(ctx, "mcp_servers") and self.name in ctx.mcp_servers:
-                del ctx.mcp_servers[self.name]
-        except Exception:
-            # Context may not be available during cleanup
-            pass
+    name: str
+    tools: Dict[str, MCPFunction] = field(default_factory=dict)
+    resources: Dict[str, MCPFunction] = field(default_factory=dict)
+    prompts: Dict[str, MCPFunction] = field(default_factory=dict)
 
     def _register_function(
         self,
-        func: Callable,
+        func: Callable[..., T],
         registry: Dict[str, MCPFunction],
         name: Optional[str] = None,
         description: Optional[str] = None,
-    ) -> Callable:
+    ) -> Callable[..., T]:
         """Register a function with this server.
 
         Args:
@@ -62,31 +58,50 @@ class MCPServer:
             registry: The registry to add the function to (tools, resources, or prompts)
             name: Optional name for the function (defaults to function name)
             description: Optional description (defaults to function docstring)
+
+        Returns:
+            The original function (allowing use as a decorator)
         """
         actual_name = name or func.__name__
         actual_description = description or inspect.getdoc(func) or ""
 
         registry[actual_name] = MCPFunction(
-            name=actual_name, description=actual_description, func=func
+            name=actual_name,
+            description=actual_description,
+            func=func,
         )
         return func
 
     def tool(
-        self, name: Optional[str] = None, description: Optional[str] = None
-    ):
-        """Decorator to register a tool."""
+        self,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
+        """Decorator to register a tool.
 
-        def decorator(func: Callable) -> Callable:
+        Args:
+            name: Optional name for the tool (defaults to function name)
+            description: Optional description (defaults to function docstring)
+        """
+
+        def decorator(func: Callable[..., T]) -> Callable[..., T]:
             return self._register_function(func, self.tools, name, description)
 
         return decorator
 
     def resource(
-        self, name: Optional[str] = None, description: Optional[str] = None
-    ):
-        """Decorator to register a resource."""
+        self,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
+        """Decorator to register a resource.
 
-        def decorator(func: Callable) -> Callable:
+        Args:
+            name: Optional name for the resource (defaults to function name)
+            description: Optional description (defaults to function docstring)
+        """
+
+        def decorator(func: Callable[..., T]) -> Callable[..., T]:
             return self._register_function(
                 func, self.resources, name, description
             )
@@ -94,86 +109,68 @@ class MCPServer:
         return decorator
 
     def prompt(
-        self, name: Optional[str] = None, description: Optional[str] = None
-    ):
-        """Decorator to register a prompt."""
+        self,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
+        """Decorator to register a prompt.
 
-        def decorator(func: Callable) -> Callable:
+        Args:
+            name: Optional name for the prompt (defaults to function name)
+            description: Optional description (defaults to function docstring)
+        """
+
+        def decorator(func: Callable[..., T]) -> Callable[..., T]:
             return self._register_function(
                 func, self.prompts, name, description
             )
 
         return decorator
 
-    def add_tool(
-        self,
-        func: Callable,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-    ) -> None:
-        """Add a tool directly."""
-        self._register_function(func, self.tools, name, description)
-
-    def add_resource(
-        self,
-        func: Callable,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-    ) -> None:
-        """Add a resource directly."""
-        self._register_function(func, self.resources, name, description)
-
-    def add_prompt(
-        self,
-        func: Callable,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-    ) -> None:
-        """Add a prompt directly."""
-        self._register_function(func, self.prompts, name, description)
-
-    async def call_tool(self, name: str, **kwargs) -> Any:
-        """Call a registered tool."""
-        if name not in self.tools:
-            raise ValueError(f"Tool {name} not found")
-        return await self._maybe_await(self.tools[name].func(**kwargs))
-
-    async def call_resource(self, name: str, **kwargs) -> Any:
-        """Call a registered resource."""
-        if name not in self.resources:
-            raise ValueError(f"Resource {name} not found")
-        return await self._maybe_await(self.resources[name].func(**kwargs))
-
-    async def call_prompt(self, name: str, **kwargs) -> Any:
-        """Call a registered prompt."""
-        if name not in self.prompts:
-            raise ValueError(f"Prompt {name} not found")
-        return await self._maybe_await(self.prompts[name].func(**kwargs))
-
-    async def execute_tool(self, name: str, **kwargs) -> Any:
-        """Execute a tool by name."""
-        return await self.call_tool(name, **kwargs)
-
-    async def execute_resource(self, name: str, **kwargs) -> Any:
-        """Execute a resource by name."""
-        return await self.call_resource(name, **kwargs)
-
-    async def execute_prompt(self, name: str, **kwargs) -> Any:
-        """Execute a prompt by name."""
-        return await self.call_prompt(name, **kwargs)
-
     async def evaluate_request(
-        self, request_type: str, name: str, args: Dict[str, Any]
-    ) -> Any:
-        """Evaluate a request based on its type."""
-        if request_type == "tool":
-            return await self.execute_tool(name, **args)
-        elif request_type == "resource":
-            return await self.execute_resource(name, **args)
-        elif request_type == "prompt":
-            return await self.execute_prompt(name, **args)
-        else:
-            raise ValueError(f"Unknown request type: {request_type}")
+        self,
+        request: MCPServerEvaluationRequest,
+    ) -> MCPServerEvaluationResult:
+        """Evaluate a request based on its type.
+
+        Args:
+            request: The request to evaluate
+
+        Returns:
+            MCPServerEvaluationResult containing the result or error
+
+        Raises:
+            ValueError: If request is invalid or function not found
+        """
+        try:
+            registry = {
+                "tool": self.tools,
+                "resource": self.resources,
+                "prompt": self.prompts,
+            }[request.request_type]
+        except KeyError:
+            raise ValueError(
+                f"Unknown request type: {request.request_type}"
+            ) from None
+
+        if request.name not in registry:
+            raise ValueError(
+                f"{request.request_type.capitalize()} '{request.name}' not found"
+            )
+
+        try:
+            func = registry[request.name].func
+            result = await self._maybe_await(func(**request.args))
+            return MCPServerEvaluationResult(
+                mcp_evaluation_id=request.mcp_evaluation_id,
+                result=result,
+            )
+        except Exception:
+            # TODO(mcp): Add error handling
+            return MCPServerEvaluationResult(
+                mcp_evaluation_id=request.mcp_evaluation_id,
+                result=None,
+            )
 
     @staticmethod
     async def _maybe_await(result: Any) -> Any:

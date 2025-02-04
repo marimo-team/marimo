@@ -15,6 +15,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { logNever } from "@/utils/assertNever";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import { MCP_REQUEST_REGISTRY } from "../network/MCPRequestRegistry";
 import {
   handleKernelReady,
   handleRemoveUIElements,
@@ -133,6 +134,12 @@ export async function initialize() {
 
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);
+        return;
+      case "mcp-evaluation-result":
+        MCP_REQUEST_REGISTRY.resolve(
+          msg.data.mcp_evaluation_id as RequestId,
+          msg.data,
+        );
         return;
       case "function-call-result":
         FUNCTIONS_REGISTRY.resolve(

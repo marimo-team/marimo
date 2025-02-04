@@ -69,6 +69,8 @@ from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
 
+# TODO(mcp): add mcp implementation here
+
 
 class AsyncQueueManager:
     """Manages queues for a session."""

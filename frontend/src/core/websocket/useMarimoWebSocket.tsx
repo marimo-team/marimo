@@ -6,6 +6,7 @@ import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
+import { MCP_REQUEST_REGISTRY } from "@/core/network/MCPRequestRegistry";
 import type { OperationMessage } from "@/core/kernel/messages";
 import type { CellData } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
@@ -104,6 +105,13 @@ export function useMarimoWebSocket(opts: {
 
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);
+        return;
+
+      case "mcp-evaluation-result":
+        MCP_REQUEST_REGISTRY.resolve(
+          msg.data.mcp_evaluation_id as RequestId,
+          msg.data,
+        );
         return;
 
       case "completion-result":

@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._runtime.requests import MCPServerEvaluationRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
@@ -22,7 +24,6 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-# TODO(mcp): should rewrite this function
 @router.post("/evaluate")
 @requires("edit")
 async def mcp_evaluate(request: Request) -> JSONResponse:
@@ -38,10 +39,12 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
             content:
                 application/json:
                     schema:
-                        $ref: "#/components/schemas/SuccessResponse"
+                        $ref: "#/components/schemas/MCPServerEvaluationResult"
     """
     app_state = AppState(request)
     session = app_state.get_current_session()
+    # NOTE(mcp): or should we use require_current_session()?
+    # session = app_state.require_current_session()
 
     if not session:
         raise HTTPException(
@@ -49,11 +52,11 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
             detail="No active session found",
         )
 
-    body = await parse_request(request)
-    server_name = body.get("server_name")
-    function_type = body.get("request_type")  # tool, resource, or prompt
-    function_name = body.get("name")
-    args = body.get("args", {})
+    body = await parse_request(request, cls=MCPServerEvaluationRequest)
+    server_name = body.server_name
+    function_type = body.request_type  # tool, resource, or prompt
+    function_name = body.name
+    args = body.args
 
     if not server_name or not function_type or not function_name:
         raise HTTPException(
@@ -61,29 +64,18 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
             detail="Missing required fields",
         )
 
-    server = session.session_view.mcp_servers.get(server_name)
-    if not server:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Server {server_name} not found",
-        )
+    # Create MCPServerEvaluationRequest
+    mcp_request = MCPServerEvaluationRequest(
+        mcp_evaluation_id=str(uuid4()),
+        server_name=server_name,
+        request_type=function_type,
+        name=function_name,
+        args=args,
+    )
 
-    try:
-        if function_type == "tool":
-            result = await server.call_tool(function_name, **args)
-        elif function_type == "resource":
-            result = await server.call_resource(function_name, **args)
-        elif function_type == "prompt":
-            result = await server.call_prompt(function_name, **args)
-        else:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid function type {function_type}",
-            )
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
+    # Put the request in the control queue
+    session.put_control_request(mcp_request)
 
-    return JSONResponse({"result": result})
+    # TODO(mcp): how to get the result?
+
+    return JSONResponse({"result": "Request queued successfully"})
