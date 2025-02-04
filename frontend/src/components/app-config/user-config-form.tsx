@@ -1087,27 +1087,6 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
-            <FormField
-              control={form.control}
-              name="experimental.sql_engines"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">SQL Engine</FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="sqlengine-sidebar-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Define your own engine and use it in an SQL cell.
-                  </FormDescription>
-                </div>
-              )}
-            />
             {!isWasm() && (
               <FormField
                 control={form.control}

@@ -4,7 +4,6 @@ import { languageAdapterState } from "./extension";
 import { SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   type ConnectionName,
   dataConnectionsMapAtom,
@@ -12,7 +11,6 @@ import {
 import { useAtomValue } from "jotai";
 import { AlertCircle, CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -24,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { DatabaseLogo } from "@/components/databases/icon";
 import { transformDisplayName } from "@/components/databases/display";
+import { useNonce } from "@/hooks/useNonce";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -70,12 +69,10 @@ export const LanguagePanelComponent: React.FC<{
           />
           <span {...spanProps} />
         </label>
-        {getFeatureFlag("sql_engines") && (
-          <SQLEngineSelect
-            languageAdapter={languageAdapter}
-            onChange={triggerUpdate}
-          />
-        )}
+        <SQLEngineSelect
+          languageAdapter={languageAdapter}
+          onChange={triggerUpdate}
+        />
         <label className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
@@ -111,27 +108,26 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
 }) => {
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
 
-  // use local state as languageAdapter.engine may not trigger change
-  // and we want to display the selected engine if it's disconnected
-  const [selectedEngine, setSelectedEngine] = useState(
-    connectionsMap.get(languageAdapter.engine),
-  );
+  // Use nonce to force re-render as languageAdapter.engine may not trigger change
+  // If it's disconnected, we display the engine variable.
+  const selectedEngine = languageAdapter.engine;
+  const rerender = useNonce();
 
   const engineIsDisconnected =
-    selectedEngine && !connectionsMap.has(selectedEngine.name);
+    selectedEngine && !connectionsMap.has(selectedEngine);
 
   const handleSelectEngine = (value: string) => {
     const nextEngine = connectionsMap.get(value as ConnectionName);
     if (nextEngine) {
       languageAdapter.selectEngine(nextEngine.name);
-      setSelectedEngine(nextEngine);
+      rerender();
       onChange(nextEngine.name);
     }
   };
 
   return (
     <div className="flex flex-row gap-1 items-center">
-      <Select value={selectedEngine?.name} onValueChange={handleSelectEngine}>
+      <Select value={selectedEngine} onValueChange={handleSelectEngine}>
         <SelectTrigger className="text-xs border-border !shadow-none !ring-0 h-4.5 px-1.5">
           <SelectValue placeholder="Select an engine" />
         </SelectTrigger>
@@ -139,11 +135,11 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
           <SelectGroup>
             <SelectLabel>Database connections</SelectLabel>
             {engineIsDisconnected && (
-              <SelectItem key={selectedEngine.name} value={selectedEngine.name}>
+              <SelectItem key={selectedEngine} value={selectedEngine}>
                 <div className="flex items-center gap-1 opacity-50">
                   <AlertCircle className="h-3 w-3" />
                   <span className="truncate">
-                    {transformDisplayName(selectedEngine.display_name)}
+                    {transformDisplayName(selectedEngine)}
                   </span>
                 </div>
               </SelectItem>
