@@ -16,20 +16,15 @@ import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
-  dataConnectionsMapAtom,
+  dataSourceConnectionsAtom,
+  DEFAULT_ENGINE,
+  setLatestEngineSelected,
   type ConnectionName,
-} from "@/core/cells/data-source-connections";
-import { atom } from "jotai";
+} from "@/core/datasets/data-source-connections";
 import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
 import { Logger } from "@/utils/Logger";
-
-// Default engine to use when not specified, shouldn't conflict with user_defined engines
-export const DEFAULT_ENGINE: ConnectionName =
-  "_marimo_duckdb" as ConnectionName;
-
-export const latestEngineSelected = atom<ConnectionName>(DEFAULT_ENGINE);
 
 /**
  * Language adapter for SQL.
@@ -42,11 +37,10 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
   showOutput = true;
-  engine: ConnectionName = store.get(latestEngineSelected);
+  engine = store.get(dataSourceConnectionsAtom).latestEngineSelected;
 
   getDefaultCode(): string {
-    const currConnections = store.get(dataConnectionsMapAtom);
-    if (this.engine === DEFAULT_ENGINE || !currConnections.has(this.engine)) {
+    if (this.engine === DEFAULT_ENGINE) {
       return this.defaultCode;
     }
     return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
@@ -81,7 +75,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       if (this.engine !== DEFAULT_ENGINE) {
         // User selected a new engine, set it as latest.
         // This makes new SQL statements use the new engine by default.
-        store.set(latestEngineSelected, this.engine);
+        setLatestEngineSelected(this.engine);
       }
 
       return [
@@ -134,7 +128,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
   selectEngine(connectionName: ConnectionName): void {
     this.engine = connectionName;
-    store.set(latestEngineSelected, connectionName);
+    setLatestEngineSelected(this.engine);
   }
 
   setShowOutput(showOutput: boolean): void {

@@ -41,7 +41,7 @@ import { capabilitiesAtom } from "../config/capabilities";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useRunsActions } from "../cells/runs";
-import { useDataSourceActions } from "../cells/data-source-connections";
+import { useDataSourceActions } from "../datasets/data-source-connections";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
