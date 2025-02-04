@@ -13,7 +13,7 @@ export function hintTooltip() {
   return [
     // Hover tooltip is already covered by LSP
     getFeatureFlag("lsp")
-      ? null
+      ? []
       : hoverTooltip(
           async (view, pos) => {
             const result = await requestDocumentation(view, pos, ["tooltip"]);
