@@ -153,7 +153,7 @@ duckdb_conn = duckdb.connect("file.db")
 
 <div align="center">
   <figure>
-    <img src="/_static/docs-sql-engine-dropdown.png"/>
+    <img width="750" src="/_static/docs-sql-engine-dropdown.png"/>
     <figcaption>Choose a custom database connection</figcaption>
   </figure>
 </div>
