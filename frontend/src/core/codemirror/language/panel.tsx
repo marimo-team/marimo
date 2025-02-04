@@ -132,7 +132,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
   return (
     <div className="flex flex-row gap-1 items-center">
       <Select value={selectedEngine?.name} onValueChange={handleSelectEngine}>
-        <SelectTrigger className="text-xs border-border !shadow-none !ring-0">
+        <SelectTrigger className="text-xs border-border !shadow-none !ring-0 h-4.5 px-1.5">
           <SelectValue placeholder="Select an engine" />
         </SelectTrigger>
         <SelectContent>
@@ -141,7 +141,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
             {engineIsDisconnected && (
               <SelectItem key={selectedEngine.name} value={selectedEngine.name}>
                 <div className="flex items-center gap-1 opacity-50">
-                  <AlertCircle className="h-3.5 w-3.5" />
+                  <AlertCircle className="h-3 w-3" />
                   <span className="truncate">
                     {transformDisplayName(selectedEngine.display_name)}
                   </span>
@@ -151,7 +151,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
             {[...connectionsMap.entries()].map(([key, value]) => (
               <SelectItem key={key} value={value.name}>
                 <div className="flex items-center gap-1">
-                  <DatabaseLogo className="h-3.5 w-3.5" name={value.source} />
+                  <DatabaseLogo className="h-3 w-3" name={value.source} />
                   <span className="truncate">
                     {transformDisplayName(value.display_name)}
                   </span>
@@ -169,7 +169,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
             rel="noreferrer"
           >
             <CircleHelpIcon
-              size={13}
+              size={12}
               className="text-[var(--sky-11)] opacity-60 hover:opacity-100"
             />
           </a>
