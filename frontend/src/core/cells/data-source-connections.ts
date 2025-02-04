@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
-import { DEFAULT_ENGINE } from "../codemirror/language/sql";
 import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
+import { DEFAULT_ENGINE } from "../codemirror/language/sql";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -20,8 +20,8 @@ export interface DataSourceState {
 
 function initialState(): DataSourceState {
   return {
-    connectionsMap: new Map().set(DEFAULT_ENGINE, {
-      name: DEFAULT_ENGINE,
+    connectionsMap: new Map().set("_marimo_duckdb", {
+      name: "_marimo_duckdb",
       source: "duckdb",
       dialect: "duckdb",
       display_name: "DuckDB In-Memory",

@@ -15,7 +15,10 @@ import { datasetsAtom } from "@/core/datasets/state";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
-import type { ConnectionName } from "@/core/cells/data-source-connections";
+import {
+  dataConnectionsMapAtom,
+  type ConnectionName,
+} from "@/core/cells/data-source-connections";
 import { atom } from "jotai";
 import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
@@ -42,7 +45,8 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   engine: ConnectionName = store.get(latestEngineSelected);
 
   getDefaultCode(): string {
-    if (this.engine === DEFAULT_ENGINE) {
+    const currConnections = store.get(dataConnectionsMapAtom);
+    if (this.engine === DEFAULT_ENGINE || !currConnections.has(this.engine)) {
       return this.defaultCode;
     }
     return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
