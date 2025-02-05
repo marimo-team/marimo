@@ -1,14 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 
 from __future__ import annotations
-
 import pathlib
 import subprocess
 import textwrap
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pytest
-from marimo._ast.app import App, _AppConfig
+
+from marimo._ast.app import App, AppKernelRunnerRegistry, _AppConfig
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -18,8 +18,10 @@ from marimo._ast.errors import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.requests import SetUIElementValueRequest
-from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+
+if TYPE_CHECKING:
+    from marimo._runtime.runtime import Kernel
 
 
 # don't complain for useless expressions (cell outputs)
@@ -712,3 +714,20 @@ class TestAppComposition:
 
         assert x.value == 2
         assert y.value == 3
+
+
+class TestAppKernelRunnerRegistry:
+    def test_get_runner(self, k: Kernel) -> None:
+        # `k` fixture installs a context, needed for AppKernelRunner
+        del k
+        app = App()
+        registry = AppKernelRunnerRegistry()
+        # Calling with the same app yields the same runner
+        assert registry.get_runner(app) == registry.get_runner(app)
+
+        # Calling with different app objects yields different runners
+        assert registry.get_runner(app) != registry.get_runner(other := App())
+
+        registry.remove_runner(app)
+        registry.remove_runner(other)
+        assert not registry._runners
