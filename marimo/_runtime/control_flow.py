@@ -3,15 +3,10 @@ from typing import Optional
 
 from marimo._output.rich_help import mddoc
 
-
-class MarimoInterrupt(BaseException):
-    """Raised when user stops execution of entire program with interrupt.
-
-    Inherits from `BaseException` to prevent accidental capture with
-    `except Exception` (similar to `KeyboardInterrupt`)
-    """
-
-    pass
+# We used to define a custom MarimoInterrupt BaseException to interrupt the
+# kernel; however, some third-party libraries like databricks-connect have
+# special case handling of KeyboardInterrupt.
+MarimoInterrupt = KeyboardInterrupt
 
 
 class MarimoStopError(BaseException):
