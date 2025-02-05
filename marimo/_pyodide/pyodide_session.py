@@ -29,7 +29,7 @@ from marimo._runtime.requests import (
     AppMetadata,
     CodeCompletionRequest,
     ControlRequest,
-    MCPServerEvaluationRequest,
+    MCPEvaluationRequest,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
@@ -90,7 +90,7 @@ class AsyncQueueManager:
 
         # MCP evaluation requests are sent through a separate queue
         self.mcp_evaluation_queue = asyncio.Queue[
-            requests.MCPServerEvaluationRequest
+            requests.MCPEvaluationRequest
         ]()
 
         # Input messages for the user's Python code are sent through the
@@ -150,7 +150,7 @@ class PyodideSession:
         self._queue_manager.control_queue.put_nowait(request)
         if isinstance(request, requests.SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put_nowait(request)
-        elif isinstance(request, requests.MCPServerEvaluationRequest):
+        elif isinstance(request, requests.MCPEvaluationRequest):
             # Handle MCP server evaluation request
             self._queue_manager.mcp_evaluation_queue.put_nowait(request)
 
@@ -163,7 +163,7 @@ class PyodideSession:
         self._queue_manager.input_queue.put_nowait(text)
 
     def put_mcp_evaluation_request(
-        self, request: requests.MCPServerEvaluationRequest
+        self, request: requests.MCPEvaluationRequest
     ) -> None:
         """Put an MCP evaluation request in the MCP evaluation queue."""
         self._queue_manager.mcp_evaluation_queue.put_nowait(request)
@@ -208,9 +208,7 @@ class PyodideBridge:
 
     # TODO(mcp): implement this function
     def mcp_evaluate(self, request: str) -> None:
-        parsed = parse_raw(
-            json.loads(request), requests.MCPServerEvaluationRequest
-        )
+        parsed = parse_raw(json.loads(request), requests.MCPEvaluationRequest)
         self.session.put_mcp_evaluation_request(parsed)
 
     def read_code(self) -> str:
@@ -342,7 +340,7 @@ def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],
     set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
     completion_queue: asyncio.Queue[CodeCompletionRequest],
-    mcp_evaluation_queue: asyncio.Queue[MCPServerEvaluationRequest],
+    mcp_evaluation_queue: asyncio.Queue[MCPEvaluationRequest],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
     is_edit_mode: bool,

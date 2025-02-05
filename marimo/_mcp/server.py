@@ -5,8 +5,8 @@ import inspect
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, TypeVar
 
-from marimo._messaging.ops import MCPServerEvaluationResult
-from marimo._runtime.requests import MCPServerEvaluationRequest
+from marimo._messaging.ops import MCPEvaluationResult
+from marimo._runtime.requests import MCPEvaluationRequest
 
 T = TypeVar("T")
 
@@ -129,15 +129,15 @@ class MCPServer:
 
     async def evaluate_request(
         self,
-        request: MCPServerEvaluationRequest,
-    ) -> MCPServerEvaluationResult:
+        request: MCPEvaluationRequest,
+    ) -> MCPEvaluationResult:
         """Evaluate a request based on its type.
 
         Args:
             request: The request to evaluate
 
         Returns:
-            MCPServerEvaluationResult containing the result or error
+            MCPEvaluationResult containing the result or error
 
         Raises:
             ValueError: If request is invalid or function not found
@@ -161,13 +161,13 @@ class MCPServer:
         try:
             func = registry[request.name].func
             result = await self._maybe_await(func(**request.args))
-            return MCPServerEvaluationResult(
+            return MCPEvaluationResult(
                 mcp_evaluation_id=request.mcp_evaluation_id,
                 result=result,
             )
         except Exception:
             # TODO(mcp): Add error handling
-            return MCPServerEvaluationResult(
+            return MCPEvaluationResult(
                 mcp_evaluation_id=request.mcp_evaluation_id,
                 result=None,
             )

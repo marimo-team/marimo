@@ -289,7 +289,7 @@ class PreviewDatasetColumnRequest:
 
 
 @dataclass
-class MCPServerEvaluationRequest:
+class MCPEvaluationRequest:
     # The id of the MCP server evaluation request
     mcp_evaluation_id: MCPRequestId
     # The name of the MCP server
@@ -318,5 +318,5 @@ ControlRequest = Union[
     StopRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
-    MCPServerEvaluationRequest,
+    MCPEvaluationRequest,
 ]

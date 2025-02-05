@@ -1053,7 +1053,7 @@ components:
       required:
       - packages
       type: object
-    MCPServerEvaluationRequest:
+    MCPEvaluationRequest:
       properties:
         args:
           additionalProperties: {}
@@ -1077,7 +1077,7 @@ components:
       - requestType
       - name
       type: object
-    MCPServerEvaluationResult:
+    MCPEvaluationResult:
       properties:
         mcp_evaluation_id:
           type: string
@@ -1415,7 +1415,7 @@ components:
       - $ref: '#/components/schemas/CompletedRun'
       - $ref: '#/components/schemas/KernelReady'
       - $ref: '#/components/schemas/CompletionResult'
-      - $ref: '#/components/schemas/MCPServerEvaluationResult'
+      - $ref: '#/components/schemas/MCPEvaluationResult'
       - $ref: '#/components/schemas/Alert'
       - $ref: '#/components/schemas/Banner'
       - $ref: '#/components/schemas/MissingPackageAlert'
@@ -2672,13 +2672,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MCPServerEvaluationRequest'
+              $ref: '#/components/schemas/MCPEvaluationRequest'
       responses:
         200:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MCPServerEvaluationResult'
+                $ref: '#/components/schemas/MCPEvaluationResult'
           description: Evaluate an MCP server request
   /api/packages/add:
     post:

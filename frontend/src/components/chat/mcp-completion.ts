@@ -2,7 +2,7 @@
 
 /* TODO(mcp): 
  * - sendMCPEvaluationRequest to get completions.
- * - MCPServerEvaluationResult
+ * - MCPEvaluationResult
  */
 
 import { EditorView } from '@codemirror/view';

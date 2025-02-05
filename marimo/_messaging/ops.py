@@ -452,9 +452,8 @@ class CompletionResult(Op):
     options: List[CompletionOption]
 
 
-# TODO(mcp): rename to MCPEvaluationResult
 @dataclass
-class MCPServerEvaluationResult(Op):
+class MCPEvaluationResult(Op):
     """MCP server evaluation result."""
 
     name: ClassVar[str] = "mcp-evaluation-result"
@@ -694,7 +693,7 @@ MessageOperation = Union[
     KernelReady,
     # Editor operations
     CompletionResult,
-    MCPServerEvaluationResult,
+    MCPEvaluationResult,
     # Alerts
     Alert,
     Banner,

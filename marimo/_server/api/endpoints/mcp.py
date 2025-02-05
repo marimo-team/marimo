@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._runtime.requests import MCPServerEvaluationRequest
+from marimo._runtime.requests import MCPEvaluationRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
@@ -32,14 +32,14 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/MCPServerEvaluationRequest"
+                    $ref: "#/components/schemas/MCPEvaluationRequest"
     responses:
         200:
             description: Evaluate an MCP server request
             content:
                 application/json:
                     schema:
-                        $ref: "#/components/schemas/MCPServerEvaluationResult"
+                        $ref: "#/components/schemas/MCPEvaluationResult"
     """
     app_state = AppState(request)
     session = app_state.get_current_session()
@@ -52,7 +52,7 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
             detail="No active session found",
         )
 
-    body = await parse_request(request, cls=MCPServerEvaluationRequest)
+    body = await parse_request(request, cls=MCPEvaluationRequest)
     server_name = body.server_name
     function_type = body.request_type  # tool, resource, or prompt
     function_name = body.name
@@ -64,8 +64,7 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
             detail="Missing required fields",
         )
 
-    # Create MCPServerEvaluationRequest
-    mcp_request = MCPServerEvaluationRequest(
+    mcp_request = MCPEvaluationRequest(
         mcp_evaluation_id=str(uuid4()),
         server_name=server_name,
         request_type=function_type,

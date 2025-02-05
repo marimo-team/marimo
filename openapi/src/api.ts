@@ -1761,7 +1761,7 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["MCPServerEvaluationRequest"];
+                    "application/json": components["schemas"]["MCPEvaluationRequest"];
                 };
             };
             responses: {
@@ -1771,7 +1771,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["MCPServerEvaluationResult"];
+                        "application/json": components["schemas"]["MCPEvaluationResult"];
                     };
                 };
             };
@@ -2499,7 +2499,7 @@ export interface components {
         ListPackagesResponse: {
             packages: components["schemas"]["PackageDescription"][];
         };
-        MCPServerEvaluationRequest: {
+        MCPEvaluationRequest: {
             args?: {
                 [key: string]: unknown;
             } | null;
@@ -2509,7 +2509,7 @@ export interface components {
             requestType: "tool" | "resource" | "prompt";
             serverName: string;
         };
-        MCPServerEvaluationResult: {
+        MCPEvaluationResult: {
             mcp_evaluation_id: string;
             /** @enum {string} */
             name: "mcp-evaluation-result";
@@ -2635,7 +2635,7 @@ export interface components {
             /** @enum {string} */
             type: "syntax";
         };
-        MessageOperation: components["schemas"]["CellOp"] | components["schemas"]["FunctionCallResult"] | components["schemas"]["SendUIElementMessage"] | components["schemas"]["RemoveUIElements"] | components["schemas"]["Reload"] | components["schemas"]["Reconnected"] | components["schemas"]["Interrupted"] | components["schemas"]["CompletedRun"] | components["schemas"]["KernelReady"] | components["schemas"]["CompletionResult"] | components["schemas"]["MCPServerEvaluationResult"] | components["schemas"]["Alert"] | components["schemas"]["Banner"] | components["schemas"]["MissingPackageAlert"] | components["schemas"]["InstallingPackageAlert"] | components["schemas"]["Variables"] | components["schemas"]["VariableValues"] | components["schemas"]["QueryParamsSet"] | components["schemas"]["QueryParamsAppend"] | components["schemas"]["QueryParamsDelete"] | components["schemas"]["QueryParamsClear"] | components["schemas"]["Datasets"] | components["schemas"]["DataColumnPreview"] | {
+        MessageOperation: components["schemas"]["CellOp"] | components["schemas"]["FunctionCallResult"] | components["schemas"]["SendUIElementMessage"] | components["schemas"]["RemoveUIElements"] | components["schemas"]["Reload"] | components["schemas"]["Reconnected"] | components["schemas"]["Interrupted"] | components["schemas"]["CompletedRun"] | components["schemas"]["KernelReady"] | components["schemas"]["CompletionResult"] | components["schemas"]["MCPEvaluationResult"] | components["schemas"]["Alert"] | components["schemas"]["Banner"] | components["schemas"]["MissingPackageAlert"] | components["schemas"]["InstallingPackageAlert"] | components["schemas"]["Variables"] | components["schemas"]["VariableValues"] | components["schemas"]["QueryParamsSet"] | components["schemas"]["QueryParamsAppend"] | components["schemas"]["QueryParamsDelete"] | components["schemas"]["QueryParamsClear"] | components["schemas"]["Datasets"] | components["schemas"]["DataColumnPreview"] | {
             connections: components["schemas"]["DataSourceConnection"][];
             /** @enum {string} */
             name: "data-source-connections";

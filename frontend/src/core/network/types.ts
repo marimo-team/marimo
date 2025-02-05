@@ -52,8 +52,8 @@ export type MarimoFile = schemas["MarimoFile"];
 export type OpenFileRequest = schemas["OpenFileRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
-export type MCPServerEvaluationRequest =
-  schemas["MCPServerEvaluationRequest"];
+export type MCPEvaluationRequest =
+  schemas["MCPEvaluationRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
@@ -111,9 +111,9 @@ export interface EditRequests {
   sendFormat: (request: FormatRequest) => Promise<FormatResponse>;
   sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
-  // TODO(mcp): should we use MCPServerEvaluationResponse instead of null?
+  // TODO(mcp): should we use MCPEvaluationResponse instead of null?
   sendMCPEvaluationRequest: (
-    request: MCPServerEvaluationRequest,
+    request: MCPEvaluationRequest,
   ) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;

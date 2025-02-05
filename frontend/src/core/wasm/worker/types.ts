@@ -17,7 +17,7 @@ import type {
   FileUpdateResponse,
   FormatRequest,
   FormatResponse,
-  MCPServerEvaluationRequest,
+  MCPEvaluationRequest,
   SaveAppConfigurationRequest,
   SaveNotebookRequest,
   SaveUserConfigurationRequest,
@@ -87,7 +87,7 @@ export interface RawBridge {
   set_interrupt_buffer(request: Uint8Array): Promise<string>;
   export_html(request: ExportAsHTMLRequest): Promise<string>;
   export_markdown(request: ExportAsHTMLRequest): Promise<string>;
-  mcp_evaluate(request: MCPServerEvaluationRequest): Promise<string>;
+  mcp_evaluate(request: MCPEvaluationRequest): Promise<string>;
 }
 
 export type SerializedBridge = {
