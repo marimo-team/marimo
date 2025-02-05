@@ -452,6 +452,7 @@ class CompletionResult(Op):
     options: List[CompletionOption]
 
 
+# TODO(mcp): rename to MCPEvaluationResult
 @dataclass
 class MCPServerEvaluationResult(Op):
     """MCP server evaluation result."""

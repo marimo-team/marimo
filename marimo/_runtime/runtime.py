@@ -2074,6 +2074,15 @@ class Kernel:
             ).broadcast()
         return
 
+    # TODO(mcp): Handle the message from the queue in the Kernel
+    async def mcp_request(self, request: MCPRequest) -> None:
+        """Handle a message from the client.
+
+        The message is dispatched to the appropriate method based on its type.
+        """
+        self.mcp_request_mgr.process_request(request)
+
+    # TODO(mcp): add implmentation here
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
