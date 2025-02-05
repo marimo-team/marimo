@@ -174,6 +174,7 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
+        self.last_interrupt_time: Optional[float] = None
 
         # Only used in edit mode
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
@@ -294,6 +295,27 @@ class KernelManager:
         return self.kernel_task is not None and self.kernel_task.is_alive()
 
     def interrupt_kernel(self) -> None:
+        current_time = time.time()
+        
+        # If there was a recent interrupt and execution is still ongoing
+        if (self.last_interrupt_time is not None and 
+            current_time - self.last_interrupt_time < 30.0 and  # 30 second window
+            self.kernel_task is not None and
+            self.kernel_task.is_alive()):
+            
+            if isinstance(self.kernel_task, mp.Process) and self.kernel_task.pid is not None:
+                if sys.platform == "win32":
+                    q = self.queue_manager.win32_interrupt_queue
+                    if q is not None:
+                        LOGGER.debug("Queueing KeyboardInterrupt for kernel.")
+                        q.put_nowait(KeyboardInterrupt)
+                else:
+                    LOGGER.debug("Sending SIGTERM to kernel")
+                    os.kill(self.kernel_task.pid, signal.SIGTERM)
+            return
+
+        # Regular interrupt logic
+        self.last_interrupt_time = current_time
         if (
             isinstance(self.kernel_task, mp.Process)
             and self.kernel_task.pid is not None

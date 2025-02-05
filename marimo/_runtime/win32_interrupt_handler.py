@@ -10,17 +10,21 @@ if TYPE_CHECKING:
 
 
 class Win32InterruptHandler(threading.Thread):
-    def __init__(self, interrupt_queue: "Queue[bool]") -> None:
+    def __init__(self, interrupt_queue: "Queue[bool | type[KeyboardInterrupt]]") -> None:
         super(Win32InterruptHandler, self).__init__()
         self.daemon = True
         self.interrupt_queue = interrupt_queue
 
     def run(self) -> None:
         while True:
-            self.interrupt_queue.get()
+            interrupt = self.interrupt_queue.get()
+            if interrupt is KeyboardInterrupt:
+                raise KeyboardInterrupt()
             try:
-                while self.interrupt_queue.get_nowait():
-                    pass
+                while True:
+                    interrupt = self.interrupt_queue.get_nowait()
+                    if interrupt is KeyboardInterrupt:
+                        raise KeyboardInterrupt()
             except queue.Empty:
                 pass
             if callable(signal.getsignal(signal.SIGINT)):
