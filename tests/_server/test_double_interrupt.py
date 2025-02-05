@@ -1,6 +1,4 @@
 import multiprocessing as mp
-import os
-import signal
 import sys
 import time
 from unittest.mock import patch
@@ -10,7 +8,6 @@ import pytest
 from marimo._config.manager import get_default_config_manager
 from marimo._messaging.ops import Interrupted, MessageOperation
 from marimo._messaging.types import KernelMessage
-from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.requests import AppMetadata, ExecuteMultipleRequest
 from marimo._server.file_manager import AppFileManager
 from marimo._server.ids import ConsumerId
