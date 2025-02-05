@@ -177,8 +177,15 @@ class App:
             ...
         self._app_kernel_runner: AppKernelRunner | None = None
 
-
     def clone(self) -> App:
+        """Clone an app to embed multiple copies of it.
+
+        Utility method to clone an app object; use with `embed()` to create
+        independent copies of apps.
+
+        Returns:
+            A new `app` object with the same code.
+        """
         app = App()
         app._cell_manager = CellManager(prefix=str(uuid4()))
         for cell_id, code, name, config in zip(
