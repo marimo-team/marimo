@@ -21,7 +21,7 @@ from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.requests import HTTPRequest
 
 if TYPE_CHECKING:
-    from marimo._ast.app import InternalApp
+    from marimo._ast.app import AppKernelRunnerRegistry, InternalApp
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
@@ -71,6 +71,7 @@ class RuntimeContext(abc.ABC):
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
     virtual_files_supported: bool
+    app_kernel_runner_registry: AppKernelRunnerRegistry
     # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None
@@ -154,6 +155,7 @@ class RuntimeContext(abc.ABC):
 
     def remove_child(self, runtime_context: RuntimeContext) -> None:
         self.children.remove(runtime_context)
+        runtime_context.virtual_file_registry.shutdown()
         assert runtime_context not in self.children
 
     @contextmanager

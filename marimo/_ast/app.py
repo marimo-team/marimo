@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import base64
 import inspect
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from textwrap import dedent
@@ -37,6 +38,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.app.kernel_runner import AppKernelRunner
 from marimo._runtime.app.script_runner import AppScriptRunner
 from marimo._runtime.context.types import (
+    ContextNotInitializedError,
     get_context,
     runtime_context_installed,
 )
@@ -132,6 +134,31 @@ class AppEmbedResult:
     defs: Mapping[str, object]
 
 
+class AppKernelRunnerRegistry:
+    def __init__(self) -> None:
+        # Mapping from thread to its kernel runners, so that app.embed() calls are
+        # isolated across run sessions.
+        self._runners: dict[int, dict[App, AppKernelRunner]] = {}
+
+    def get_runner(self, app: App) -> AppKernelRunner:
+        app_runners = self._runners.setdefault(threading.get_ident(), {})
+        runner = app_runners.get(app, None)
+        if runner is None:
+            runner = AppKernelRunner(InternalApp(app))
+            app_runners[app] = runner
+        return runner
+
+    def remove_runner(self, app: App) -> None:
+        app_runners = self._runners.get(tid := threading.get_ident(), {})
+        if app in app_runners:
+            del app_runners[app]
+        if tid in self._runners and not (self._runners[tid]):
+            del self._runners[tid]
+
+    def shutdown(self) -> None:
+        self._runners.clear()
+
+
 @mddoc
 class App:
     """A marimo notebook.
@@ -175,7 +202,12 @@ class App:
             self._filename = inspect.getfile(inspect.stack()[1].frame)
         except Exception:
             ...
-        self._app_kernel_runner: AppKernelRunner | None = None
+
+    def __del__(self) -> None:
+        try:
+            get_context().app_kernel_runner_registry.remove_runner(self)
+        except ContextNotInitializedError:
+            ...
 
     def clone(self) -> App:
         """Clone an app to embed multiple copies of it.
@@ -328,9 +360,7 @@ class App:
             self._initialized = True
 
     def _get_kernel_runner(self) -> AppKernelRunner:
-        if self._app_kernel_runner is None:
-            self._app_kernel_runner = AppKernelRunner(InternalApp(self))
-        return self._app_kernel_runner
+        return get_context().app_kernel_runner_registry.get_runner(self)
 
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
         return tuple(
