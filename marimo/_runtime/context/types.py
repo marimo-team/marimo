@@ -154,6 +154,7 @@ class RuntimeContext(abc.ABC):
 
     def remove_child(self, runtime_context: RuntimeContext) -> None:
         self.children.remove(runtime_context)
+        runtime_context.virtual_file_registry.shutdown()
         assert runtime_context not in self.children
 
     @contextmanager

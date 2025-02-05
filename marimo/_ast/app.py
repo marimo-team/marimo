@@ -7,6 +7,7 @@ import inspect
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from textwrap import dedent
+import threading
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -132,6 +133,11 @@ class AppEmbedResult:
     defs: Mapping[str, object]
 
 
+# Mapping from thread to its kernel runner, so that app.embed() calls
+# are isolated across run sessions.
+_APP_KERNEL_RUNNERS: dict[int, AppKernelRunner] = {}
+
+
 @mddoc
 class App:
     """A marimo notebook.
@@ -175,7 +181,6 @@ class App:
             self._filename = inspect.getfile(inspect.stack()[1].frame)
         except Exception:
             ...
-        self._app_kernel_runner: AppKernelRunner | None = None
 
     def cell(
         self,
@@ -288,9 +293,13 @@ class App:
             self._initialized = True
 
     def _get_kernel_runner(self) -> AppKernelRunner:
-        if self._app_kernel_runner is None:
-            self._app_kernel_runner = AppKernelRunner(InternalApp(self))
-        return self._app_kernel_runner
+        tid = threading.get_ident()
+        runner = _APP_KERNEL_RUNNERS.get(tid, None)
+        if runner is not None:
+            return runner
+        runner = AppKernelRunner(InternalApp(self))
+        _APP_KERNEL_RUNNERS[tid] = runner
+        return runner
 
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
         return tuple(
