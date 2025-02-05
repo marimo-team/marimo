@@ -17,7 +17,7 @@ export interface ExperimentalFeatures {
 }
 
 const defaultValues: ExperimentalFeatures = {
-  lsp: import.meta.env.DEV && !import.meta.env.TEST,
+  lsp: import.meta.env.DEV,
   markdown: true,
   wasm_layouts: false,
   scratchpad: true,

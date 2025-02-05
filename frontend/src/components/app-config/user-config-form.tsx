@@ -1090,6 +1090,34 @@ export const UserConfigForm: React.FC = () => {
             {!isWasm() && (
               <FormField
                 control={form.control}
+                name="experimental.lsp"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Language Server Protocol
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="rtc-checkbox"
+                          checked={field.value === true}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                    <FormDescription>
+                      Enable experimental LSP to allow code completion and other
+                      language server features. Requires{" "}
+                      <Kbd className="inline">python-lsp-server</Kbd> to be
+                      installed and restart the notebook to take effect.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+            )}
+            {!isWasm() && (
+              <FormField
+                control={form.control}
                 name="experimental.rtc"
                 render={({ field }) => (
                   <div className="flex flex-col gap-y-1">

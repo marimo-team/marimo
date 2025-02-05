@@ -17,7 +17,7 @@ export const CellDocumentUri = {
     return uri.startsWith(this.PREFIX);
   },
   parse(uri: string): CellId {
-    invariant(this.is(uri), "Invalid cell document URI");
+    invariant(this.is(uri), `Invalid cell document URI: ${uri}`);
     return uri.slice(this.PREFIX.length) as CellId;
   },
 };

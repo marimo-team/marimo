@@ -2,10 +2,11 @@
 import type * as LSP from "vscode-languageserver-protocol";
 import { getTopologicalCodes } from "../copilot/getCodes";
 import { createNotebookLens } from "./lens";
-import type { ILanguageServerClient } from "./types";
+import { CellDocumentUri, type ILanguageServerClient } from "./types";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
+import type { CellId } from "@/core/cells/ids";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
   private readonly documentUri = "file:///__marimo__.py";
@@ -106,12 +107,12 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    */
   public async textDocumentDidOpen(params: LSP.DidOpenTextDocumentParams) {
     Logger.debug("[lsp] textDocumentDidOpen", params);
-    const currentCell = params.textDocument.text;
-    const lens = createNotebookLens(currentCell, this.getNotebookCode());
+    const cellDocumentUri = params.textDocument.uri;
+    const { cellIds, codes } = this.getNotebookCode();
+    const lens = createNotebookLens(cellIds, codes);
 
     // Store lens keyed by document version
     const version = params.textDocument.version;
-    const cellDocumentUri = params.textDocument.uri;
     this.versionToCellNumberAndVersion.set(this.documentVersion, {
       cellDocumentUri,
       version,
@@ -147,12 +148,11 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // We know how to only handle single content changes
     // But that is all we expect to receive
     if (params.contentChanges.length === 1) {
-      const newCell = params.contentChanges[0].text;
-      const otherCells = this.getNotebookCode();
-      const lens = createNotebookLens(newCell, otherCells);
+      const cellDocumentUri = params.textDocument.uri;
+      const { cellIds, codes } = this.getNotebookCode();
+      const lens = createNotebookLens(cellIds, codes);
 
       const version = params.textDocument.version;
-      const cellDocumentUri = params.textDocument.uri;
       const globalDocumentVersion = this.documentVersion + 1;
 
       this.versionToCellNumberAndVersion.set(globalDocumentVersion, {
@@ -189,14 +189,15 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       Logger.debug("[lsp] no payload for latest version");
       return this.client.textDocumentHover(params);
     }
-    const { lens } = payload;
+    const { lens, cellDocumentUri } = payload;
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
 
     const hover = await this.client.textDocumentHover({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
-      position: lens.transformPosition(params.position),
+      position: lens.transformPosition(params.position, cellId),
     });
 
     if (!hover) {
@@ -220,7 +221,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     // Convert ranges back to cell coordinates
     if (hover.range) {
-      hover.range = lens.reverseRange(hover.range);
+      hover.range = lens.reverseRange(hover.range, cellId);
     }
     return hover;
   }
@@ -237,14 +238,15 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return this.client.textDocumentCompletion(params);
     }
 
-    const { lens } = payload;
+    const { lens, cellDocumentUri } = payload;
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
 
     return this.client.textDocumentCompletion({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
-      position: lens.transformPosition(params.position),
+      position: lens.transformPosition(params.position, cellId),
     });
   }
 
@@ -282,8 +284,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
           return previousProcessNotification(notification);
         }
 
-        // If diagnostics are empty, we can can just clear them for all cells
-        if (notification.params.diagnostics.length === 0) {
+        // Filter out ignored diagnostics
+        // Keep it if there is no code
+        const diagnostics = notification.params.diagnostics.filter(
+          (diag) => !diag.code || !IGNORED_DIAGNOSTICS.has(diag.code),
+        );
+
+        // If diagnostics are empty, we can just clear them for all cells
+        if (diagnostics.length === 0) {
           Logger.debug("[lsp] clearing diagnostics");
 
           for (const cellDocumentUri of NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS) {
@@ -298,26 +306,45 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
           return;
         }
 
-        const { lens, cellDocumentUri, version: cellVersion } = payload;
-        for (const diag of notification.params.diagnostics) {
-          diag.range = lens.reverseRange(diag.range);
+        const { lens, version: cellVersion } = payload;
+
+        // Pre-partition diagnostics by cell
+        const diagnosticsByCellId = new Map<CellId, LSP.Diagnostic[]>();
+
+        for (const diag of diagnostics) {
+          // Each diagnostic can only belong to one cell
+          for (const cellId of lens.cellIds) {
+            if (lens.isInRange(diag.range, cellId)) {
+              if (!diagnosticsByCellId.has(cellId)) {
+                diagnosticsByCellId.set(cellId, []);
+              }
+              const cellDiag = {
+                ...diag,
+                range: lens.reverseRange(diag.range, cellId),
+              };
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              diagnosticsByCellId.get(cellId)!.push(cellDiag);
+              break; // Exit inner loop once we find the matching cell
+            }
+          }
         }
 
-        // Remove diagnostics the come from other cells
-        // These are outside the size of the current cell
-        // TODO: instead of removing these diagnostics, we could
-        //       instead map it back to the correct cell and update
-        //       the URI accordingly
-        notification.params.diagnostics =
-          notification.params.diagnostics.filter((diag) =>
-            lens.isInRange(diag.range),
-          );
+        // Process each cell's diagnostics
+        for (const [cellId, cellDiagnostics] of diagnosticsByCellId.entries()) {
+          Logger.debug("[lsp] diagnostics for cell", cellId, cellDiagnostics);
 
-        // Update the URI and version to match the current cell
-        notification.params.uri = cellDocumentUri;
-        notification.params.version = cellVersion;
+          previousProcessNotification({
+            ...notification,
+            params: {
+              ...notification.params,
+              uri: CellDocumentUri.of(cellId),
+              version: cellVersion,
+              diagnostics: cellDiagnostics,
+            },
+          });
+        }
 
-        Logger.debug("[lsp] diagnostics", notification.params.diagnostics);
+        return;
       }
 
       return previousProcessNotification(notification);
@@ -326,3 +353,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     this.client.processNotification = processNotification;
   }
 }
+
+const IGNORED_DIAGNOSTICS = new Set<string | number>([
+  "E402", // Module level import not at top of file
+]);

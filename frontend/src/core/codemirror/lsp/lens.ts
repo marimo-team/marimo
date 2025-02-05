@@ -1,78 +1,85 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
+import type { CellId } from "@/core/cells/ids";
 import type * as LSP from "vscode-languageserver-protocol";
+
+export interface NotebookLens {
+  /** The ids of the cells in the notebook */
+  cellIds: CellId[];
+
+  /** The merged text of all cells in the notebook */
+  mergedText: string;
+
+  /** Transform a range from cell coordinates to notebook coordinates */
+  transformRange: (range: LSP.Range, cellId: CellId) => LSP.Range;
+  /** Transform a range from notebook coordinates back to cell coordinates */
+  reverseRange: (range: LSP.Range, cellId: CellId) => LSP.Range;
+  /** Transform a position from cell coordinates to notebook coordinates */
+  transformPosition: (position: LSP.Position, cellId: CellId) => LSP.Position;
+  /** Transform a position from notebook coordinates back to cell coordinates */
+  reversePosition: (position: LSP.Position, cellId: CellId) => LSP.Position;
+
+  /** Check if a range falls within the given cell */
+  isInRange: (range: LSP.Range, cellId: CellId) => boolean;
+}
 
 /**
  * Basic utility for "zooming" a cell into the larger notebook context
  * and then "unzooming" ranges from the merged doc back to the original cell.
  */
-export function createNotebookLens(cell: string, allCode: string[]) {
-  // Track how many lines come before the cell by finding cell index
-  const cellIndex = allCode.indexOf(cell);
-  const lineOffset = allCode
-    .slice(0, cellIndex)
-    .reduce((count, c) => count + c.split("\n").length, 0);
+export function createNotebookLens(
+  sortedCellIds: CellId[],
+  codes: Record<CellId, string>,
+): NotebookLens {
+  const cellLineOffsets = new Map<CellId, number>();
 
-  if (cellIndex === -1) {
-    Logger.warn("Cell not found in allCode", { cell, allCode });
+  // Calculate line offsets for each cell
+  let currentOffset = 0;
+  sortedCellIds.forEach((cellId) => {
+    cellLineOffsets.set(cellId, currentOffset);
+    currentOffset += codes[cellId].split("\n").length;
+  });
 
-    return {
-      mergedText: cell,
-      transformRange: (range: LSP.Range) => range,
-      reverseRange: (range: LSP.Range) => range,
-      isInRange: (range: LSP.Range) => true,
-      transformPosition: (position: LSP.Position) => position,
-      reversePosition: (position: LSP.Position) => position,
-    };
-  }
-
-  function shiftRange(range: LSP.Range, offset: number): LSP.Range {
-    return {
-      start: shiftPosition(range.start, offset),
-      end: shiftPosition(range.end, offset),
-    };
-  }
-
-  function shiftPosition(position: LSP.Position, offset: number): LSP.Position {
-    return {
-      line: position.line + offset,
-      character: position.character,
-    };
+  function getCurrentLineOffset(cellId: CellId): number {
+    return cellLineOffsets.get(cellId) || 0;
   }
 
   return {
-    mergedText: allCode.join("\n"),
+    cellIds: sortedCellIds,
 
-    /**
-     * Convert a cell-based range into the merged document. (Not currently invoked,
-     * but would be useful if you want to intercept LSP requests and shift them to
-     * the notebook-wide doc.)
-     */
-    transformRange: (range: LSP.Range) => shiftRange(range, lineOffset),
+    mergedText: Object.values(codes).join("\n"),
 
-    /**
-     * Adjust incoming LSP ranges from the merged doc back to the original cell's line offsets.
-     * This is useful for mapping e.g. hover ranges or diagnostic ranges into local cell space.
-     */
-    reverseRange: (range: LSP.Range) => shiftRange(range, -lineOffset),
+    transformRange: (range: LSP.Range, cellId: CellId) =>
+      shiftRange(range, getCurrentLineOffset(cellId)),
 
-    isInRange: (range: LSP.Range) => {
-      const cellLines = cell.split("\n").length;
-      const startLine = range.start.line;
-      const endLine = range.end.line;
+    reverseRange: (range: LSP.Range, cellId: CellId) =>
+      shiftRange(range, -getCurrentLineOffset(cellId)),
+
+    isInRange: (range: LSP.Range, cellId: CellId) => {
+      const cellLines = codes[cellId].split("\n").length;
+      const offset = cellLineOffsets.get(cellId) || 0;
+      const startLine = range.start.line - offset;
+      const endLine = range.end.line - offset;
       return startLine >= 0 && endLine < cellLines;
     },
 
-    /**
-     * Convert a cell-based position into the merged document.
-     */
-    transformPosition: (position: LSP.Position) =>
-      shiftPosition(position, lineOffset),
+    transformPosition: (position: LSP.Position, cellId: CellId) =>
+      shiftPosition(position, getCurrentLineOffset(cellId)),
 
-    /**
-     * Adjust incoming LSP position from the merged doc back to the original cell's line offset.
-     */
-    reversePosition: (position: LSP.Position) =>
-      shiftPosition(position, -lineOffset),
+    reversePosition: (position: LSP.Position, cellId: CellId) =>
+      shiftPosition(position, -getCurrentLineOffset(cellId)),
+  };
+}
+
+function shiftRange(range: LSP.Range, offset: number): LSP.Range {
+  return {
+    start: shiftPosition(range.start, offset),
+    end: shiftPosition(range.end, offset),
+  };
+}
+
+function shiftPosition(position: LSP.Position, offset: number): LSP.Position {
+  return {
+    line: position.line + offset,
+    character: position.character,
   };
 }

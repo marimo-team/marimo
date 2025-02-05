@@ -4,6 +4,7 @@ import { getEditorCodeAsPython } from "../language/utils";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { CellId } from "@/core/cells/ids";
+import { Objects } from "@/utils/objects";
 
 export function getCodes(otherCode: string) {
   const codes = getOtherCellsCode(otherCode);
@@ -96,16 +97,21 @@ export function getTopologicalCellIds() {
   return sorted;
 }
 
-export function getTopologicalCodes(): string[] {
+export function getTopologicalCodes(): {
+  cellIds: CellId[];
+  codes: Record<CellId, string>;
+} {
   const cellIds = getTopologicalCellIds();
   const notebook = store.get(notebookAtom);
-  const codes = cellIds.map((id) => {
-    const handle = notebook.cellHandles[id];
-    if (!handle?.current) {
-      return "";
-    }
-    return getEditorCodeAsPython(handle.current.editorView);
-  });
+  const codes = Objects.fromEntries(
+    cellIds.map((id) => {
+      const handle = notebook.cellHandles[id];
+      return [
+        id,
+        handle?.current ? getEditorCodeAsPython(handle.current.editorView) : "",
+      ];
+    }),
+  );
 
-  return codes;
+  return { cellIds, codes };
 }

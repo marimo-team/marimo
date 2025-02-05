@@ -66,24 +66,15 @@ class BaseLspServer(LspServer):
             if not cmd:
                 return None
 
+            file_out = (
+                None if GlobalSettings.DEVELOPMENT_MODE else subprocess.DEVNULL
+            )
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(
                 cmd.split(),
-                stdout=(
-                    subprocess.DEVNULL
-                    if GlobalSettings.DEVELOPMENT_MODE
-                    else None
-                ),
-                stderr=(
-                    subprocess.DEVNULL
-                    if GlobalSettings.DEVELOPMENT_MODE
-                    else None
-                ),
-                stdin=(
-                    subprocess.DEVNULL
-                    if GlobalSettings.DEVELOPMENT_MODE
-                    else None
-                ),
+                stdout=file_out,
+                stderr=file_out,
+                stdin=file_out,
             )
             LOGGER.debug(
                 "... process return code (`None` means success): %s",
@@ -158,7 +149,7 @@ class PyLspServer(BaseLspServer):
         return "pylsp"
 
     def get_command(self) -> str:
-        return f"pylsp --ws -v --port {self.port}"
+        return f"pylsp --ws -v --port {self.port} --check-parent-process"
 
     def missing_binary_alert(self) -> Alert:
         return Alert(
@@ -201,7 +192,7 @@ class CompositeLspServer(LspServer):
                 for server_name, config in lsp_config.items()
             },
             # While under development, only allow if it's installed and enabled
-            "pylsp": DependencyManager.pylsp.has()
+            "pylsp": DependencyManager.which("pylsp")
             and lsp_config.get("pylsp", {}).get("enabled", False),
         }
         self.servers: list[LspServer] = [
