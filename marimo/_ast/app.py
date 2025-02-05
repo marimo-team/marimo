@@ -208,7 +208,6 @@ class App:
             get_context().app_kernel_runner_registry.remove_runner(self)
         except ContextNotInitializedError:
             ...
-        ...
 
     def cell(
         self,
