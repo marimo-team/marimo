@@ -74,6 +74,7 @@ const GitHubCopilotStatus: React.FC = () => {
   const isGitHubCopilotSignedIn = useAtomValue(isGitHubCopilotSignedInState);
   const isLoading = useAtomValue(githubCopilotLoadingVersion) !== null;
   const { handleClick } = useOpenSettingsToTab();
+  const openSettings = () => handleClick("ai");
 
   const label = isGitHubCopilotSignedIn ? "Ready" : "Not connected";
   const setCopilotSignedIn = useSetAtom(isGitHubCopilotSignedInState);
@@ -117,7 +118,7 @@ const GitHubCopilotStatus: React.FC = () => {
             "Failed to connect to GitHub Copilot. Check settings and try again.",
           variant: "danger",
           action: (
-            <Button variant="link" onClick={handleClick}>
+            <Button variant="link" onClick={openSettings}>
               Settings
             </Button>
           ),
@@ -140,7 +141,7 @@ const GitHubCopilotStatus: React.FC = () => {
         </>
       }
       selected={false}
-      onClick={handleClick}
+      onClick={openSettings}
     >
       <span>
         {isLoading ? (
