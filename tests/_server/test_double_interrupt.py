@@ -8,28 +8,31 @@ from unittest.mock import patch
 import pytest
 
 from marimo._config.manager import get_default_config_manager
-from marimo._messaging.ops import Interrupted
+from marimo._messaging.ops import Interrupted, MessageOperation
+from marimo._messaging.types import KernelMessage
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.requests import AppMetadata, ExecuteMultipleRequest
 from marimo._server.file_manager import AppFileManager
+from marimo._server.ids import ConsumerId
 from marimo._server.model import ConnectionState
 from marimo._server.sessions import QueueManager, Session, SessionMode
+from typing import Callable
 
 
-class MockSessionConsumer:
-    def __init__(self):
-        self.consumer_id = "test-consumer"
+class MockSessionConsumer(SessionConsumer):
+    def __init__(self) -> None:
+        super().__init__(ConsumerId("test-consumer"))
 
-    def on_start(self):
-        return lambda: None
+    def on_start(self) -> Callable[[KernelMessage], None]:
+        return lambda _: None
 
-    def on_stop(self):
+    def on_stop(self) -> None:
         pass
 
-    def connection_state(self):
+    def connection_state(self) -> ConnectionState:
         return ConnectionState.OPEN
 
-    def write_operation(self, op, *args):
+    def write_operation(self, op: MessageOperation) -> None:
         pass
 
 
