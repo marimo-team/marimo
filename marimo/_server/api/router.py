@@ -63,7 +63,7 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
         terminal_router, prefix="/terminal", name="terminal"
     )
     app_router.include_router(
-        packages_router, prefix="/api/packages", name="terminal"
+        packages_router, prefix="/api/packages", name="packages"
     )
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")

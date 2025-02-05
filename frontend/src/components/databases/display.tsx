@@ -50,3 +50,11 @@ export function dbDisplayName(name: string) {
       return name;
   }
 }
+
+export function transformDisplayName(displayName: string): string {
+  const [dbName, engineName] = displayName.split(" ");
+  if (!engineName) {
+    return dbDisplayName(displayName);
+  }
+  return `${dbDisplayName(dbName)} ${engineName}`;
+}

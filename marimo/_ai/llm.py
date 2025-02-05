@@ -119,7 +119,7 @@ class openai(ChatModel):
         # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
         parsed_url = urlparse(self.base_url)
         if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
-            "openai.azure.com"
+            ".openai.azure.com"
         ):
             self.model = cast(str, parsed_url.path).split("/")[3]
             api_version = parse_qs(cast(str, parsed_url.query))["api-version"][

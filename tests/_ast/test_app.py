@@ -8,7 +8,7 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
-from marimo._ast.app import App, AppKernelRunnerRegistry, _AppConfig
+from marimo._ast.app import App, AppKernelRunnerRegistry, _AppConfig, InternalApp
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -527,6 +527,28 @@ class TestApp:
         assert dirpath is not None
         assert location is not None
         assert dirpath == location
+
+    def test_app_clone(self) -> None:
+        app = App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            dirpath = mo.notebook_dir()
+            location = mo.notebook_location()
+
+        # same codes and names, different cell_ids
+        clone = app.clone()
+        assert list(InternalApp(clone).cell_manager.codes()) == list(
+            InternalApp(app).cell_manager.codes()
+        )
+        assert list(InternalApp(clone).cell_manager.names()) == list(
+            InternalApp(app).cell_manager.names()
+        )
+        assert list(InternalApp(clone).cell_manager.cell_ids()) != list(
+            InternalApp(app).cell_manager.cell_ids()
+        )
 
 
 def test_app_config() -> None:

@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import React, { useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Input } from "../ui/input";
@@ -25,7 +25,7 @@ export const ShareStaticNotebookModal: React.FC<{
 }> = ({ onClose }) => {
   const [slug, setSlug] = useState("");
   // 4 character random string
-  const randomHash = useRef(Math.random().toString(36).slice(2, 6)).current;
+  const randomHash = useMemo(() => Math.random().toString(36).slice(2, 6), []);
 
   // Globally unique path
   const path = `${slug}-${randomHash}`;

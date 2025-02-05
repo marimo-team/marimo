@@ -4,9 +4,9 @@ import {
   type ConnectionName,
   type DataSourceConnection,
   type DataSourceState,
+  DEFAULT_ENGINE,
   exportedForTesting,
 } from "../data-source-connections";
-import { DEFAULT_ENGINE } from "@/core/codemirror/language/sql";
 import type { VariableName } from "@/core/variables/types";
 
 const { reducer, initialState } = exportedForTesting;

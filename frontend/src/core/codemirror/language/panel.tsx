@@ -4,15 +4,25 @@ import { languageAdapterState } from "./extension";
 import { SQLLanguageAdapter } from "./sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   type ConnectionName,
   dataConnectionsMapAtom,
-} from "@/core/cells/data-source-connections";
+} from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
-import { CircleHelpIcon } from "lucide-react";
+import { AlertCircle, CircleHelpIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatabaseLogo } from "@/components/databases/icon";
+import { transformDisplayName } from "@/components/databases/display";
+import { useNonce } from "@/hooks/useNonce";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -59,12 +69,10 @@ export const LanguagePanelComponent: React.FC<{
           />
           <span {...spanProps} />
         </label>
-        {getFeatureFlag("sql_engines") && (
-          <SQLEngineSelect
-            languageAdapter={languageAdapter}
-            onChange={triggerUpdate}
-          />
-        )}
+        <SQLEngineSelect
+          languageAdapter={languageAdapter}
+          onChange={triggerUpdate}
+        />
         <label className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
@@ -89,49 +97,75 @@ export const LanguagePanelComponent: React.FC<{
   );
 };
 
-const SQLEngineSelect: React.FC<{
+interface SelectProps {
   languageAdapter: SQLLanguageAdapter;
   onChange: (engine: ConnectionName) => void;
-}> = ({ languageAdapter, onChange }) => {
-  // use local state as languageAdapter may not trigger an update
-  const [selectedEngine, setSelectedEngine] = useState(languageAdapter.engine);
+}
+
+const SQLEngineSelect: React.FC<SelectProps> = ({
+  languageAdapter,
+  onChange,
+}) => {
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
+
+  // Use nonce to force re-render as languageAdapter.engine may not trigger change
+  // If it's disconnected, we display the engine variable.
+  const selectedEngine = languageAdapter.engine;
+  const rerender = useNonce();
+
+  const engineIsDisconnected =
+    selectedEngine && !connectionsMap.has(selectedEngine);
+
+  const handleSelectEngine = (value: string) => {
+    const nextEngine = connectionsMap.get(value as ConnectionName);
+    if (nextEngine) {
+      languageAdapter.selectEngine(nextEngine.name);
+      rerender();
+      onChange(nextEngine.name);
+    }
+  };
 
   return (
     <div className="flex flex-row gap-1 items-center">
-      <select
-        id="sql-engine"
-        name="sql-engine"
-        className="border border-border rounded px-0.5 focus-visible:outline-none focus-visible:ring-1"
-        value={selectedEngine}
-        onChange={(e) => {
-          const nextEngine = e.target.value as ConnectionName;
-          languageAdapter.selectEngine(nextEngine);
-          setSelectedEngine(nextEngine);
-          onChange(nextEngine);
-        }}
-      >
-        {/* Fallback option if an existing option is deleted, 
-        let's users intentionally switch to default if needed */}
-        <option value="None">Choose an option</option>
-        {[...connectionsMap.entries()].map(([key, value]) => (
-          <option key={key} value={value.name}>
-            {value.display_name}
-          </option>
-        ))}
-      </select>
+      <Select value={selectedEngine} onValueChange={handleSelectEngine}>
+        <SelectTrigger className="text-xs border-border !shadow-none !ring-0 h-4.5 px-1.5">
+          <SelectValue placeholder="Select an engine" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>Database connections</SelectLabel>
+            {engineIsDisconnected && (
+              <SelectItem key={selectedEngine} value={selectedEngine}>
+                <div className="flex items-center gap-1 opacity-50">
+                  <AlertCircle className="h-3 w-3" />
+                  <span className="truncate">
+                    {transformDisplayName(selectedEngine)}
+                  </span>
+                </div>
+              </SelectItem>
+            )}
+            {[...connectionsMap.entries()].map(([key, value]) => (
+              <SelectItem key={key} value={value.name}>
+                <div className="flex items-center gap-1">
+                  <DatabaseLogo className="h-3 w-3" name={value.source} />
+                  <span className="truncate">
+                    {transformDisplayName(value.display_name)}
+                  </span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
       <TooltipProvider>
-        <Tooltip
-          content="Find out how to add an SQL engine"
-          delayDuration={200}
-        >
+        <Tooltip content="How to add a database connection" delayDuration={200}>
           <a
             href="http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database"
             target="_blank"
             rel="noreferrer"
           >
             <CircleHelpIcon
-              size={13}
+              size={12}
               className="text-[var(--sky-11)] opacity-60 hover:opacity-100"
             />
           </a>
