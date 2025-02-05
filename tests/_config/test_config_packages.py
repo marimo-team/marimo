@@ -67,22 +67,33 @@ def test_infer_package_manager_from_lockfile(mock_cwd: Path):
     assert infer_package_manager_from_lockfile(mock_cwd) is None
 
 
+TEST_CASES: list[
+    tuple[dict[str, Any], dict[str, Any], dict[str, Any], str]
+] = [
+    # Test pyproject.toml with poetry
+    ({"pyproject.toml": {"tool": {"poetry": {}}}}, {}, {}, "poetry"),
+    # Test lockfile detection
+    ({"poetry.lock": ""}, {}, {}, "poetry"),
+    # Test pixi.toml
+    ({"pixi.toml": ""}, {}, {}, "pixi"),
+    # Test fallback to pip
+    ({}, {}, {}, "pip"),
+]
+
+if sys.platform != "win32":
+    TEST_CASES.extend(
+        [
+            # Test uv virtualenv
+            ({}, {"VIRTUAL_ENV": "/path/uv/env"}, {}, "uv"),
+            # Test regular virtualenv
+            ({}, {}, {"base_prefix": "/usr", "prefix": "/venv"}, "pip"),
+        ]
+    )
+
+
 @pytest.mark.parametrize(
     ("files", "env_vars", "sys_attrs", "expected"),
-    [
-        # Test pyproject.toml with poetry
-        ({"pyproject.toml": {"tool": {"poetry": {}}}}, {}, {}, "poetry"),
-        # Test lockfile detection
-        ({"poetry.lock": ""}, {}, {}, "poetry"),
-        # Test pixi.toml
-        ({"pixi.toml": ""}, {}, {}, "pixi"),
-        # Test uv virtualenv
-        ({}, {"VIRTUAL_ENV": "/path/uv/env"}, {}, "uv"),
-        # Test regular virtualenv
-        ({}, {}, {"base_prefix": "/usr", "prefix": "/venv"}, "pip"),
-        # Test fallback to pip
-        ({}, {}, {}, "pip"),
-    ],
+    TEST_CASES,
 )
 def test_infer_package_manager(
     mock_cwd: Path,
