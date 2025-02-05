@@ -88,6 +88,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     }
 
     // no match
+    this.lastQuotePrefix = "r";
     return [pythonCode, 0];
   }
 
