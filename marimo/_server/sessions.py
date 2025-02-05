@@ -296,14 +296,19 @@ class KernelManager:
 
     def interrupt_kernel(self) -> None:
         current_time = time.time()
-        
+
         # If there was a recent interrupt and execution is still ongoing
-        if (self.last_interrupt_time is not None and 
-            current_time - self.last_interrupt_time < 30.0 and  # 30 second window
-            self.kernel_task is not None and
-            self.kernel_task.is_alive()):
-            
-            if isinstance(self.kernel_task, mp.Process) and self.kernel_task.pid is not None:
+        if (
+            self.last_interrupt_time is not None
+            and current_time - self.last_interrupt_time
+            < 30.0  # 30 second window
+            and self.kernel_task is not None
+            and self.kernel_task.is_alive()
+        ):
+            if (
+                isinstance(self.kernel_task, mp.Process)
+                and self.kernel_task.pid is not None
+            ):
                 if sys.platform == "win32":
                     q = self.queue_manager.win32_interrupt_queue
                     if q is not None:
