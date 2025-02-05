@@ -15,7 +15,7 @@ from marimo._runtime.requests import AppMetadata, ExecuteMultipleRequest
 from marimo._server.file_manager import AppFileManager
 from marimo._server.ids import ConsumerId
 from marimo._server.model import ConnectionState
-from marimo._server.sessions import QueueManager, Session, SessionMode
+from marimo._server.sessions import QueueManager, Session, SessionMode, SessionConsumer
 from typing import Callable
 
 
