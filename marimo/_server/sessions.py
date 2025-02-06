@@ -107,9 +107,9 @@ class QueueManager:
         )
 
         # MCP evaluation requests are sent through a separate queue
-        self.mcp_evaluation_queue: QueueType[requests.MCPEvaluationRequest] = (
-            context.Queue() if context is not None else queue.Queue()
-        )
+        self.mcp_evaluation_queue: QueueType[
+            requests.MCPEvaluationRequest | requests.MCPMessage
+        ] = context.Queue() if context is not None else queue.Queue()
 
         self.win32_interrupt_queue: QueueType[bool] | None
         if sys.platform == "win32":
@@ -590,7 +590,7 @@ class Session:
         self._queue_manager.completion_queue.put(request)
 
     def put_mcp_evaluation_request(
-        self, request: requests.MCPEvaluationRequest
+        self, request: requests.MCPEvaluationRequest | requests.MCPMessage
     ) -> None:
         """Put an MCP evaluation request in the MCP evaluation queue."""
         self._queue_manager.mcp_evaluation_queue.put(request)

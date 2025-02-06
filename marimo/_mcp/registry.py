@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from marimo._mcp.server import MCPServer
 
@@ -45,7 +45,7 @@ class MCPRegistry:
             contains the server name and lists of its tools, resources, and prompts.
             Each function entry includes the function name and description.
         """
-        servers = []
+        servers: list[Dict[str, Any]] = []
         for server in self._servers.values():
             server_info = {
                 "name": server.name,

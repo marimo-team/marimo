@@ -1,14 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from starlette.authentication import requires
-from starlette.endpoints import WebSocketEndpoint
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
-from starlette.routing import WebSocketRoute
 from starlette.websockets import WebSocket
 
 from marimo import _loggers
@@ -17,6 +15,7 @@ from marimo._messaging.ops import MCPEvaluationResult
 from marimo._runtime.requests import MCPEvaluationRequest
 
 # from marimo._server.api.deps import AppState
+from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.router import APIRouter
@@ -31,72 +30,40 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-class MCPWebSocket(WebSocketEndpoint):
-    encoding = "json"
+@router.websocket("/ws")
+async def mcp_websocket_endpoint(websocket: WebSocket) -> None:
+    """Handle WebSocket connection and messages.
 
-    async def on_connect(self, websocket: WebSocket) -> None:
-        """Handle WebSocket connection.
+    Validates that the requested server exists and processes evaluation requests.
+    """
+    try:
+        LOGGER.info("WebSocket connection established")
+        app_state = AppState(websocket)
+        session = app_state.require_current_session()
 
-        Validates that the requested server exists and stores it in the websocket scope.
-        """
-        try:
-            server_name = websocket.path_params["server_name"]
-            server = registry.get_server(server_name)
-            if not server:
-                await websocket.close(
-                    code=4004, reason=f"Server '{server_name}' not found"
-                )
-                return
+        await websocket.accept()
 
-            # Store server before accepting connection
-            websocket.scope["server"] = server
-            await websocket.accept()
-        except Exception as e:
-            LOGGER.error(f"Error in MCP WebSocket connection: {str(e)}")
-            await websocket.close(code=4000, reason="Internal server error")
-            return
+        while True:
+            data = await websocket.receive_json()
+            LOGGER.info(f"Received message: {data}")
 
-    async def on_receive(
-        self, websocket: WebSocket, data: Dict[str, Any]
-    ) -> None:
-        """Handle incoming WebSocket messages.
+            session.put_mcp_evaluation_request(request)
 
-        Processes evaluation requests and sends back results.
-        """
-        try:
-            server = websocket.scope["server"]
-            if data.get("type") == "evaluate":
-                # Create a unique ID for this evaluation request
-                mcp_evaluation_id = str(uuid4())
-
-                # Create and process the evaluation request
-                request = MCPEvaluationRequest(
-                    server_name=server.name,
+            await websocket.send_json(
+                MCPEvaluationResult(
                     mcp_evaluation_id=mcp_evaluation_id,
-                    request_type=data.get("request_type"),
-                    name=data.get("name"),
-                    args=data.get("args", {}),
+                    result=result.result,
                 )
+            )
 
-                # Evaluate the request
-                result = await server.evaluate_request(request)
-
-                # Send the result back
-                await websocket.send_json(
-                    {
-                        "type": "evaluation_result",
-                        "mcp_evaluation_id": mcp_evaluation_id,
-                        "result": result.result
-                        if isinstance(result, MCPEvaluationResult)
-                        else result,
-                    }
-                )
-        except Exception as e:
-            LOGGER.error(f"Error in MCP WebSocket message handling: {str(e)}")
+    except Exception as e:
+        LOGGER.error(f"Error in MCP WebSocket: {str(e)}")
+        if not websocket.client_state.DISCONNECTED:
             await websocket.send_json({"type": "error", "error": str(e)})
 
 
 @router.get("/servers")
+@requires("edit")
 async def list_servers(request: Request) -> JSONResponse:  # noqa: ARG001
     """List all registered MCP servers with their capabilities.
 
@@ -180,7 +147,3 @@ async def mcp_evaluate(request: Request) -> JSONResponse:
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=str(e),
         ) from None
-
-
-# Add WebSocket route
-router.routes.append(WebSocketRoute("/ws/{server_name}", MCPWebSocket))

@@ -304,6 +304,14 @@ class MCPEvaluationRequest:
     args: Optional[Dict[str, Any]]
 
 
+@dataclass
+class MCPMessage:
+    # The name of the MCP server
+    server_name: Optional[str]
+    # The message to send to the MCP server
+    mcp_message: Dict[str, Any]
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -319,4 +327,5 @@ ControlRequest = Union[
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
     MCPEvaluationRequest,
+    MCPMessage,
 ]

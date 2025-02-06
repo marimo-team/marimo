@@ -109,6 +109,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     MCPEvaluationRequest,
+    MCPMessage,
     PreviewDatasetColumnRequest,
     RenameRequest,
     SetCellConfigRequest,
@@ -704,6 +705,17 @@ class Kernel:
             daemon=True,
         ).start()
         self._completion_worker_started = True
+
+    def start_mcp_worker(
+        self, mcp_message_queue: QueueType[MCPMessage | MCPEvaluationRequest]
+    ) -> None:
+        from marimo._runtime.mcp import mcp_worker
+
+        threading.Thread(
+            target=mcp_worker,
+            args=(mcp_message_queue,),
+            daemon=True,
+        ).start()
 
     @kernel_tracer.start_as_current_span("code_completion")
     def code_completion(
@@ -2202,7 +2214,7 @@ def launch_kernel(
     control_queue: QueueType[ControlRequest],
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
-    mcp_evaluation_queue: QueueType[MCPEvaluationRequest],
+    mcp_evaluation_queue: QueueType[MCPEvaluationRequest | MCPMessage],
     input_queue: QueueType[str],
     stream_queue: queue.Queue[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
@@ -2320,7 +2332,7 @@ def launch_kernel(
     if is_edit_mode:
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
-
+        kernel.start_mcp_worker(mcp_evaluation_queue)
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 

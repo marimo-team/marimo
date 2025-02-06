@@ -182,6 +182,14 @@ export default defineConfig({
     host: "localhost",
     port: 3000,
     proxy: {
+      "/api/mcp/ws": {
+        target: `ws://${HOST}:${SERVER_PORT}`,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
       "/api": {
         target: TARGET,
         changeOrigin: true,

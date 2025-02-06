@@ -20,9 +20,13 @@ def _(mo, random):
     def random_number():
         return random.randint(1, 100)
 
+
     @server.prompt()
     def what_are_my_tools():
         return "List the tools i have"
+
+
+    mo.mcp.registry.register_server(server)
     return random_number, server, what_are_my_tools
 
 
