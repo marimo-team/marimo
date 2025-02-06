@@ -61,6 +61,11 @@ import { dndBundle } from "./misc/dnd";
 import { jupyterHelpExtension } from "./compat/jupyter";
 import { pasteBundle } from "./misc/paste";
 
+import { requestEditCompletion } from "./ai/request";
+import { getCurrentLanguageAdapter } from "./language/commands";
+import { aiExtension } from "@marimo-team/codemirror-ai";
+import { getFeatureFlag } from "../config/feature-flag";
+
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
@@ -83,6 +88,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     cellCodeCallbacks,
     keymapConfig,
     hotkeys,
+    enableAI,
   } = opts;
 
   return [
@@ -98,6 +104,20 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
+    // AI edit inline
+    enableAI && getFeatureFlag("inline_ai_tooltip")
+      ? aiExtension({
+          prompt: (req) => {
+            return requestEditCompletion({
+              prompt: req.prompt,
+              selection: req.selection,
+              codeBefore: req.codeBefore,
+              codeAfter: req.codeAfter,
+              language: getCurrentLanguageAdapter(req.editorView),
+            });
+          },
+        })
+      : [],
   ];
 };
 
