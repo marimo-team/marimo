@@ -1,6 +1,6 @@
 # Hotkeys
 
-If you'd like to override the default hotkeys, you can do so in the hotkeys menu (`Mod-Shift-h`), or modifying your `marimo.toml`.
+If you'd like to override the default hotkeys, you can do so in the hotkeys menu (`Ctrl/Cmd-Shift-h`), or modifying your `marimo.toml`.
 
 You can find a list of available hotkeys below:
 
