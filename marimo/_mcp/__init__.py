@@ -3,6 +3,6 @@
 from __future__ import annotations
 
 from marimo._mcp.registry import registry
-from marimo._mcp.server import MCPServer
+from marimo._mcp.server import MCPServer as Server
 
-__all__ = ["MCPServer", "registry"]
+__all__ = ["Server", "registry"]
