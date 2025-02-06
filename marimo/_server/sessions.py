@@ -204,6 +204,7 @@ class KernelManager:
                     self.queue_manager.control_queue,
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
+                    self.queue_manager.mcp_evaluation_queue,
                     self.queue_manager.input_queue,
                     # stream queue unused
                     None,
@@ -249,6 +250,7 @@ class KernelManager:
                     self.queue_manager.control_queue,
                     self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
+                    self.queue_manager.mcp_evaluation_queue,
                     self.queue_manager.input_queue,
                     self.queue_manager.stream_queue,
                     # IPC not used in run mode
