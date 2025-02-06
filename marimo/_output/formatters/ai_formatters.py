@@ -14,7 +14,7 @@ class GoogleAiFormatter(FormatterFactory):
 
     def register(self) -> None:
         try:
-            import google.generativeai as genai
+            import google.generativeai as genai  # type: ignore
         except (ImportError, ModuleNotFoundError):
             return
 
