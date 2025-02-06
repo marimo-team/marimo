@@ -5,15 +5,16 @@ import time
 import modal
 
 app = modal.App(
-    image=modal.Image.debian_slim().pip_install(
-        "marimo>=0.9.32", "modal>=0.67.31"
-    ))
+    image=modal.Image.debian_slim()
+    .pip_install("marimo>=0.9.32", "modal>=0.67.31")
+    .add_local_dir("nbs", remote_path="/root/nbs")
+)
 
 TOKEN = secrets.token_urlsafe(16)
 PORT = 2718
 
 
-@app.function(concurrency_limit=1, timeout=1_500)
+@app.function(concurrency_limit=1, timeout=1_500, gpu="t4")
 def run_marimo(timeout: int):
     with modal.forward(PORT) as tunnel:
         marimo_process = subprocess.Popen(
@@ -21,10 +22,13 @@ def run_marimo(timeout: int):
                 "marimo",
                 "edit",
                 "--headless",
-                "--host", "0.0.0.0",
-                "--port", str(PORT),
-                f"--token-password", TOKEN,
-                "notebook.py",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                str(PORT),
+                f"--token-password",
+                TOKEN,
+                "nbs/notebook.py",
             ],
         )
 
@@ -34,7 +38,9 @@ def run_marimo(timeout: int):
             end_time = time.time() + timeout
             while time.time() < end_time:
                 time.sleep(5)
-            print(f"Reached end of {timeout} second timeout period. Exiting...")
+            print(
+                f"Reached end of {timeout} second timeout period. Exiting..."
+            )
         except KeyboardInterrupt:
             print("Exiting...")
         finally:
