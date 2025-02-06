@@ -23,12 +23,7 @@ class MCPRegistry:
 
         Args:
             server: The server to register.
-
-        Raises:
-            ValueError: If a server with the same name already exists.
         """
-        if server.name in self._servers:
-            raise ValueError(f"Server '{server.name}' already exists")
         self._servers[server.name] = server
 
     def get_server(self, name: str) -> MCPServer | None:
