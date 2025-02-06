@@ -5,11 +5,11 @@ import type { MCPEvaluationResult } from "../kernel/messages";
 import { sendMCPEvaluationRequest } from "./requests";
 
 export const MCP_REQUEST_REGISTRY = new DeferredRequestRegistry<
-    Omit<MCPEvaluationRequest, "mcpEvaluationId">, 
-    MCPEvaluationResult
->("mcp-evaluation-result", async (requestId, req) => { 
-    await sendMCPEvaluationRequest({
-        mcpEvaluationId: requestId,
-        ...req,
-    });
+  Omit<MCPEvaluationRequest, "mcpEvaluationId">,
+  MCPEvaluationResult
+>("mcp-evaluation-result", async (requestId, req) => {
+  await sendMCPEvaluationRequest({
+    mcpEvaluationId: requestId,
+    ...req,
+  });
 });
