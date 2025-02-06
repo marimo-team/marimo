@@ -5,6 +5,10 @@
   background-color: #d7d4f0 !important;
 }
 
+.dark .cm-selectionBackground {
+  background-color: #1177cc80 !important;
+}
+
 .cm-focused.cm-focused {
   outline: none;
 }
