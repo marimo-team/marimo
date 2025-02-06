@@ -1,9 +1,9 @@
 # Running marimo on Modal
 
-This folder contains examples of how to use run marimo notebooks on [Modal](https://modal.com/),
-making it easy to get access to cloud GPUs. To get started, first create
-a modal account and follow their onboarding. You'll also need to install the [uv
-package manager](https://docs.astral.sh/uv/).
+This folder contains examples of how to run marimo notebooks on
+[Modal](https://modal.com/), making it easy to get access to cloud GPUs. To get
+started, first create a modal account and follow their onboarding. You'll also
+need to install the [uv package manager](https://docs.astral.sh/uv/).
 
 ## Editable notebooks
 [modal_edit.py](modal_edit.py) has an example of how to spin up an editable
