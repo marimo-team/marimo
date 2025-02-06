@@ -58,7 +58,6 @@ class SessionView:
         self.last_execution_time: dict[CellId_t, float] = {}
         # Any stale code that was read from a file-watcher
         self.stale_code: Optional[UpdateCellCodes] = None
-        # Map of MCP server name to server instance
 
         # Auto-saving
         self.has_auto_exported_html = False
