@@ -416,6 +416,9 @@ components:
           items:
             $ref: '#/components/schemas/DataTableColumn'
           type: array
+        engine:
+          nullable: true
+          type: string
         name:
           type: string
         num_columns:

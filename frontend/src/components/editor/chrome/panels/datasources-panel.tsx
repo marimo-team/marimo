@@ -44,6 +44,10 @@ import { variablesAtom } from "@/core/variables/state";
 import { sortBy } from "lodash-es";
 import { logNever } from "@/utils/assertNever";
 import { Objects } from "@/utils/objects";
+import { DatabaseLogo } from "@/components/databases/icon";
+import { EngineVariable } from "@/components/databases/engine-variable";
+import type { VariableName } from "@/core/variables/types";
+import { dbDisplayName } from "@/components/databases/display";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -113,8 +117,7 @@ export const DataSourcesPanel: React.FC = () => {
         code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
         break;
       case "connection":
-        // TODO: Handle connection source
-        code = `_df = mo.sql("SELECT 1", engine=${table.source_type})`;
+        code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100", engine=${table.engine})`;
         break;
       default:
         logNever(table.source_type);
@@ -219,10 +222,12 @@ const TableList: React.FC<{
   isTableExpanded,
   isColumnExpanded,
 }) => {
+  // Tables grouped by engine (if exists) or source
+  // The engine is a more specific source, so it should be grouped first
   let groupedBySource = Object.entries(
     Objects.groupBy(
       tables,
-      (table) => table.source,
+      (table) => table.engine || table.source,
       (table) => table,
     ),
   );
@@ -290,16 +295,47 @@ const TableList: React.FC<{
       return groupedBySource[0][1].flatMap(renderTable);
     }
 
+    const renderLabel = (source: string, tables: DataTable[]) => {
+      if (source === "memory") {
+        return "In-Memory";
+      }
+
+      if (source === "duckdb") {
+        return "DuckDB";
+      }
+
+      const firstTable = tables[0];
+      if (firstTable.engine) {
+        return (
+          <>
+            <DatabaseLogo
+              className="h-4 w-4 text-muted-foreground"
+              name={firstTable.source}
+            />
+            {dbDisplayName(firstTable.source)}
+            <span className="text-xs text-muted-foreground">
+              (
+              <EngineVariable
+                variableName={firstTable.engine as VariableName}
+              />
+              )
+            </span>
+          </>
+        );
+      }
+      return source;
+    };
+
     return groupedBySource.flatMap(([source, tables], idx) => {
       return [
         <div
           className={cn(
-            "font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] border-t text-sm",
+            "font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] border-t text-sm flex items-center gap-1",
             idx > 0 && "border-t",
           )}
           key={source}
         >
-          {source === "memory" ? "In-Memory" : source}
+          {renderLabel(source, tables)}
         </div>,
         ...tables.flatMap(renderTable),
       ];
@@ -378,7 +414,6 @@ const DatasetColumnItem: React.FC<{
   table: DataTable;
   column: DataTableColumn;
   onExpandColumn: (table: DataTable, column: DataTableColumn) => void;
-  // onAddColumnChart: (code: string) => void;
   isExpanded: boolean;
 }> = ({ table, column, onExpandColumn }) => {
   const Icon = DATA_TYPE_ICON[column.type];
@@ -425,6 +460,23 @@ const DatasetColumnPreview: React.FC<{
   preview: DataColumnPreview | undefined;
 }> = ({ table, column, preview, onAddColumnChart }) => {
   const { theme } = useTheme();
+
+  if (table.source_type === "connection") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between">
+        {column.name} ({column.external_type})
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={Events.stopPropagation(() => {
+            onAddColumnChart(sqlCode(table, column));
+          })}
+        >
+          <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
+        </Button>
+      </span>
+    );
+  }
 
   if (!preview) {
     return <span className="text-xs text-muted-foreground">Loading...</span>;
@@ -498,8 +550,7 @@ const DatasetColumnPreview: React.FC<{
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
-          const code = `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
-          onAddColumnChart(code);
+          onAddColumnChart(sqlCode(table, column));
         })}
       >
         <PlusSquareIcon className="h-3 w-3" />
@@ -528,3 +579,10 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 };
+
+function sqlCode(table: DataTable, column: DataTableColumn) {
+  if (table.engine) {
+    return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100', engine=${table.engine})`;
+  }
+  return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
+}

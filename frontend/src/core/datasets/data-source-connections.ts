@@ -1,11 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
-import { DEFAULT_ENGINE } from "../codemirror/language/sql";
 import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
+import { store } from "../state/jotai";
 
 export type ConnectionName = TypedString<"ConnectionName">;
+
+export const DEFAULT_ENGINE = "_marimo_duckdb" as ConnectionName;
 
 export interface DataSourceConnection {
   name: ConnectionName;
@@ -15,11 +17,13 @@ export interface DataSourceConnection {
 }
 
 export interface DataSourceState {
+  latestEngineSelected: ConnectionName;
   connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
 }
 
 function initialState(): DataSourceState {
   return {
+    latestEngineSelected: DEFAULT_ENGINE,
     connectionsMap: new Map().set(DEFAULT_ENGINE, {
       name: DEFAULT_ENGINE,
       source: "duckdb",
@@ -43,15 +47,20 @@ const {
       return state;
     }
 
+    const { latestEngineSelected, connectionsMap } = state;
+
     // update existing connections with latest values
     // add new ones if they don't exist
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
-    const newMap = new Map(state.connectionsMap);
+    const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
       newMap.set(conn.name, conn);
     }
 
-    return { connectionsMap: newMap };
+    return {
+      latestEngineSelected,
+      connectionsMap: newMap,
+    };
   },
 
   // Keep default engine and any connections that are used by variables
@@ -59,19 +68,27 @@ const {
     state: DataSourceState,
     variableNames: VariableName[],
   ) => {
+    const { latestEngineSelected, connectionsMap } = state;
     const names = new Set(variableNames);
     const newMap = new Map(
-      [...state.connectionsMap].filter(([name]) => {
+      [...connectionsMap].filter(([name]) => {
         if (name === DEFAULT_ENGINE) {
           return true;
         }
         return names.has(name as unknown as VariableName);
       }),
     );
-    return { connectionsMap: newMap };
+    return {
+      // If the latest engine selected is not in the new map, use the default engine
+      latestEngineSelected: newMap.has(latestEngineSelected)
+        ? latestEngineSelected
+        : DEFAULT_ENGINE,
+      connectionsMap: newMap,
+    };
   },
 
   clearDataSourceConnections: (): DataSourceState => ({
+    latestEngineSelected: DEFAULT_ENGINE,
     connectionsMap: new Map(),
   }),
 
@@ -79,9 +96,16 @@ const {
     state: DataSourceState,
     connectionName: ConnectionName,
   ): DataSourceState => {
-    const newMap = new Map(state.connectionsMap);
+    const { latestEngineSelected, connectionsMap } = state;
+
+    const newMap = new Map(connectionsMap);
     newMap.delete(connectionName);
-    return { connectionsMap: newMap };
+    return {
+      latestEngineSelected: newMap.has(latestEngineSelected)
+        ? latestEngineSelected
+        : DEFAULT_ENGINE,
+      connectionsMap: newMap,
+    };
   },
 });
 
@@ -90,6 +114,17 @@ export { dataSourceConnectionsAtom, useDataSourceActions };
 export const dataConnectionsMapAtom = atom(
   (get) => get(dataSourceConnectionsAtom).connectionsMap,
 );
+
+export function setLatestEngineSelected(engine: ConnectionName) {
+  const existing = store.get(dataSourceConnectionsAtom);
+  // Don't update the map if the engine is not in the map
+  if (existing.connectionsMap.has(engine)) {
+    store.set(dataSourceConnectionsAtom, {
+      ...existing,
+      latestEngineSelected: engine,
+    });
+  }
+}
 
 export const exportedForTesting = {
   reducer,

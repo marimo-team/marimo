@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._cli.parse_args import args_from_argv
 from marimo._config.config import MarimoConfig
 from marimo._config.manager import get_default_config_manager
@@ -140,6 +141,7 @@ def initialize_script_context(
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
+        app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
         virtual_files_supported=False,
         stream=stream,

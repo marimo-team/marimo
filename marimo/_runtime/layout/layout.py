@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from marimo import _loggers
+from marimo._utils.data_uri import from_data_uri
 
 LOGGER = _loggers.marimo_logger()
 
@@ -57,6 +58,18 @@ def read_layout_config(
 
     Returns: the layout configuration
     """
+    # Handle data URI
+    if filename.startswith("data:"):
+        try:
+            # Decode base64
+            _mime, data = from_data_uri(filename)
+            # Parse as JSON
+            data_json = json.loads(data)
+            return LayoutConfig(type=data_json["type"], data=data_json["data"])
+        except Exception as e:
+            LOGGER.warning("Failed to decode data URI: %s", e)
+            return None
+
     filepath = os.path.join(directory, filename)
     if not os.path.exists(filepath):
         LOGGER.warning("Layout file %s does not exist", filepath)
@@ -66,4 +79,4 @@ def read_layout_config(
         return None
     with open(filepath) as f:
         data = json.load(f)
-    return LayoutConfig(type=data["type"], data=data["data"])
+    return LayoutConfig(type=data["type"], data=data["data"])  # type: ignore[call-overload]

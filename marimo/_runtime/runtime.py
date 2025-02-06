@@ -2095,8 +2095,12 @@ class Kernel:
                 dataset = self.globals[table_name]
                 column_preview = get_column_preview_dataframe(dataset, request)
             elif source_type == "connection":
-                # TODO: Handle data-source-connection / engine display
-                pass
+                DataColumnPreview(
+                    error="Column preview for connection data sources is not supported",
+                    column_name=column_name,
+                    table_name=table_name,
+                ).broadcast()
+                return
             else:
                 assert_never(source_type)
 
@@ -2375,7 +2379,14 @@ def launch_kernel(
         profiler.disable()
         profiler.dump_stats(profile_path)
 
+    # Defensively clear context data structures, in case a leak prevents
+    # the context from being destroyed.
+    #
+    # TODO(akshayka): define ownership semantics for contexts, so the
+    # context knows how to shut itself down. The virtual file registry
+    # is shared between the main thread and mo.Thread's right now ...
     get_context().virtual_file_registry.shutdown()
+    get_context().app_kernel_runner_registry.shutdown()
     teardown_context()
     kernel.teardown()
     if isinstance(pipe, connection.Connection):

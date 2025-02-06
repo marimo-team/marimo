@@ -14,9 +14,21 @@ def get_engines_from_variables(
     engines: list[tuple[str, SQLEngine]] = []
     for variable_name, value in variables:
         if SQLAlchemyEngine.is_compatible(value):
-            engines.append((variable_name, SQLAlchemyEngine(cast(Any, value))))
+            engines.append(
+                (
+                    variable_name,
+                    SQLAlchemyEngine(
+                        cast(Any, value), engine_name=variable_name
+                    ),
+                )
+            )
         elif DuckDBEngine.is_compatible(value):
-            engines.append((variable_name, DuckDBEngine(cast(Any, value))))
+            engines.append(
+                (
+                    variable_name,
+                    DuckDBEngine(cast(Any, value), engine_name=variable_name),
+                )
+            )
 
     return engines
 

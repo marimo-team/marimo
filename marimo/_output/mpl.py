@@ -27,7 +27,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
-from marimo._output.utils import build_data_url
+from marimo._utils.data_uri import build_data_url
 
 FigureCanvas = FigureCanvasAgg
 

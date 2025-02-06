@@ -112,6 +112,20 @@ class TestExportHTML:
         assert (out_dir / "public" / "test.txt").exists()
         assert (out_dir / "public" / "test.txt").read_text() == "test content"
 
+        # Try exporting to the same directory that contains the public folder
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                public_dir.parent,
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
         # Clean up
         shutil.rmtree(public_dir)
 

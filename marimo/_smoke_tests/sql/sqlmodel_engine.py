@@ -1,9 +1,11 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
+#     "altair==5.5.0",
+#     "duckdb==1.1.3",
 #     "marimo",
 #     "polars==1.21.0",
-#     "psycopg==3.2.4",
+#     "psycopg[binary]==3.2.4",
 #     "sqlglot==26.3.9",
 #     "sqlmodel==0.0.22",
 # ]
@@ -11,14 +13,15 @@
 
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.0"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
+    import altair as alt
     import marimo as mo
-    return (mo,)
+    return alt, mo
 
 
 @app.cell(hide_code=True)
@@ -147,14 +150,14 @@ def _(mo):
 
 @app.cell
 def _(mo, price_threshold, products, sqlite):
-    mo.sql(
+    _df = mo.sql(
         f"""
-    SELECT name, price, category
-    FROM products
-    WHERE price < {price_threshold.value}
-    ORDER BY price DESC
-    """,
-        engine=sqlite,
+        SELECT name, price, category
+        FROM products
+        WHERE price < {price_threshold.value}
+        ORDER BY price DESC
+        """,
+        engine=sqlite
     )
     return
 
@@ -183,11 +186,13 @@ def _(mo):
 def _(create_engine, mo, psql_url):
     mo.stop(not psql_url.value)
 
+    normalized_url = psql_url.value.replace(
+        "postgres://", "postgresql+psycopg://"
+    ).replace("postgresql://", "postgresql+psycopg://")
+
     # Create a PostgreSQL database
-    my_postgres = create_engine(
-        psql_url.value.replace("postgresql", "postgresql+psycopg2")
-    )
-    return (my_postgres,)
+    my_postgres = create_engine(normalized_url)
+    return my_postgres, normalized_url
 
 
 @app.cell
@@ -199,6 +204,49 @@ def _(information_schema, mo, my_postgres, tables):
         WHERE table_schema = 'public';
         """,
         engine=my_postgres
+    )
+    return
+
+
+@app.cell
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        SELECT 1
+        """,
+        engine=connection
+    )
+    return
+
+
+@app.cell
+def _(mo, products, sqlite):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM products LIMIT 100
+        """,
+        engine=sqlite
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    _df = mo.sql(
+        f"""
+        CREATE OR REPLACE TABLE foo AS
+        FROM 'hf://datasets/julien040/hacker-news-posts/story.parquet' LIMIT 500
+        """
+    )
+    return (foo,)
+
+
+@app.cell
+def _(foo, mo):
+    _df = mo.sql(
+        f"""
+        SELECT "id" FROM memory.main.foo LIMIT 100
+        """
     )
     return
 

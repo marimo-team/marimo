@@ -24,6 +24,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Markdown Title\n\nSome content here.");
       expect(offset).toBe(9);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should handle single double-quoted strings", () => {
@@ -31,6 +32,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("Some *markdown* content");
       expect(offset).toBe(7);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should handle triple single-quoted strings", () => {
@@ -38,6 +40,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Another Title\nContent");
       expect(offset).toBe(9);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should still transform if no markdown is detected", () => {
@@ -48,6 +51,7 @@ describe("MarkdownLanguageAdapter", () => {
           0,
         ]
       `);
+      expect(adapter.lastQuotePrefix).toBe("r");
     });
 
     it("should handle an empty string", () => {
@@ -55,6 +59,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("");
       expect(offset).toBe(0);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should unescape code blocks", () => {
@@ -82,6 +87,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(String.raw`Markdown with an escaped \"quote\"`);
       expect(offset).toBe('mo.md("""'.length);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should handle strings with nested markdown", () => {
@@ -92,6 +98,7 @@ describe("MarkdownLanguageAdapter", () => {
         '# Title\n\n```python\nprint("Hello, Markdown!")\n```',
       );
       expect(offset).toBe('mo.md("""'.length);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should convert to markdown anyways", () => {
@@ -99,6 +106,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(`print("No markdown here")`);
       expect(offset).toBe(0);
+      expect(adapter.lastQuotePrefix).toBe("r");
     });
 
     it("should handle multiple markdown blocks in a single string", () => {
@@ -116,6 +124,7 @@ describe("MarkdownLanguageAdapter", () => {
         `# Hello, Markdown!\nmo.md(\n    '''\n    # Hello, Markdown!\n    Use marimo's "md" function to embed rich text into your marimo\n    '''\n)`,
       );
       expect(offset).toBe(9);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("simple markdown", () => {
@@ -123,6 +132,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Title without proper delimiters");
       expect(offset).toBe(7);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should trim strings with leading and trailing whitespace", () => {
@@ -130,6 +140,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Title\nContent");
       expect(offset).toBe(9);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should handle space around the f-strings", () => {
@@ -137,6 +148,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Title\n{  Content  }");
       expect(offset).toBe(11);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should dedent indented strings", () => {
@@ -145,6 +157,7 @@ describe("MarkdownLanguageAdapter", () => {
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("- item 1\n-item 2\n-item3");
       expect(offset).toBe(11);
+      expect(adapter.lastQuotePrefix).toBe("");
     });
 
     it("should preserve escaped characters", () => {
@@ -154,6 +167,7 @@ describe("MarkdownLanguageAdapter", () => {
         String.raw`$\nu = \mathllap{}\cdot\mathllap{\alpha}$`,
       );
       expect(offset).toBe(8);
+      expect(adapter.lastQuotePrefix).toBe("r");
     });
   });
 

@@ -143,11 +143,13 @@ path = "marimo/__init__.py"
 include = ["/marimo"]
 artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
 exclude = ["marimo/_smoke_tests"]
+force-include = { "build_hook.py" = "build_hook.py" }
 
 [tool.hatch.build.targets.wheel]
 include = ["/marimo"]
 artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
 exclude = ["marimo/_smoke_tests"]
+force-include = { "build_hook.py" = "build_hook.py" }
 
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]

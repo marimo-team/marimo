@@ -34,7 +34,7 @@ def test_engine_to_data_source_connection():
         "my_postgres", sqlalchemy_engine
     )
     assert isinstance(connection, DataSourceConnection)
-    assert connection.source == "sqlalchemy"
+    assert connection.source == "postgresql"
     assert connection.dialect == "postgresql"
     assert connection.name == "my_postgres"
     assert connection.display_name == "postgresql (my_postgres)"

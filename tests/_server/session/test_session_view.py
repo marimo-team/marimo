@@ -782,3 +782,84 @@ def test_stale_code() -> None:
     assert session_view.stale_code == new_stale_code_op
     assert session_view.stale_code in session_view.operations
     assert stale_code_op not in session_view.operations
+
+
+def test_dataset_filter_by_engine_and_variable() -> None:
+    session_view = SessionView()
+
+    # Initially add three tables: one with an engine, one with a variable name, and one with neither
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source_type="connection",
+                        source="duckdb",
+                        name="table_with_engine",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        engine="some_engine",
+                        variable_name=None,
+                    ),
+                    DataTable(
+                        source_type="local",
+                        source="df",
+                        name="table_with_var",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        engine=None,
+                        variable_name="some_var",
+                    ),
+                    DataTable(
+                        source_type="local",
+                        source="df",
+                        name="table_none",
+                        columns=[],
+                        num_rows=1,
+                        num_columns=1,
+                        engine=None,
+                        variable_name=None,
+                    ),
+                ]
+            )
+        )
+    )
+    # Confirm all three are present before filtering
+    assert len(session_view.datasets.tables) == 3
+
+    # Step 1: Add operation of all variables
+    session_view.add_operation(
+        Variables(
+            variables=[
+                VariableDeclaration(
+                    name="some_engine", declared_by=[], used_by=[]
+                ),
+                VariableDeclaration(
+                    name="some_var", declared_by=[], used_by=[]
+                ),
+            ]
+        )
+    )
+    assert len(session_view.datasets.tables) == 3
+
+    # Step 2: Only "some_engine" is in scope => keep table_with_engine + table_none
+    session_view.add_operation(
+        Variables(
+            variables=[
+                VariableDeclaration(
+                    name="some_engine", declared_by=[], used_by=[]
+                )
+            ]
+        )
+    )
+    table_names = [t.name for t in session_view.datasets.tables]
+    assert "table_with_engine" in table_names
+    assert "table_with_var" not in table_names
+    assert "table_none" in table_names
+
+    # Step 3: No variables => only table with neither engine nor variable_name is kept
+    session_view.add_operation(Variables(variables=[]))
+    table_names = [t.name for t in session_view.datasets.tables]
+    assert table_names == ["table_none"]

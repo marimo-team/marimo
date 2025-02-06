@@ -39,6 +39,8 @@ class DataTableColumn:
 
 DataTableSource = Literal["local", "duckdb", "connection"]
 
+VariableName = str
+
 
 @dataclass
 class DataTable:
@@ -50,9 +52,10 @@ class DataTable:
         name (str): The name of the data table.
         num_rows (Optional[int]): The number of rows in the data table.
         num_columns (Optional[int]): The number of columns in the data table.
-        variable_name (Optional[str]): The variable name associated with
+        variable_name (Optional[VariableName]): The variable name associated with
         the data table.
         columns (List[DataTableColumn]): The list of columns in the data table.
+        engine (Optional[VariableName]): The engine associated with the data table.
     """
 
     source_type: DataTableSource
@@ -60,8 +63,9 @@ class DataTable:
     name: str
     num_rows: Optional[int]
     num_columns: Optional[int]
-    variable_name: Optional[str]
+    variable_name: Optional[VariableName]
     columns: List[DataTableColumn]
+    engine: Optional[VariableName] = None
 
 
 NumericLiteral = Union[int, float, Decimal]

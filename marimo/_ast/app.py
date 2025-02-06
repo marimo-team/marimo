@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import ast
+import base64
 import inspect
+import threading
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -19,7 +22,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellConfig, CellId_t
+from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
     CycleError,
@@ -35,6 +38,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.app.kernel_runner import AppKernelRunner
 from marimo._runtime.app.script_runner import AppScriptRunner
 from marimo._runtime.context.types import (
+    ContextNotInitializedError,
     get_context,
     runtime_context_installed,
 )
@@ -130,6 +134,31 @@ class AppEmbedResult:
     defs: Mapping[str, object]
 
 
+class AppKernelRunnerRegistry:
+    def __init__(self) -> None:
+        # Mapping from thread to its kernel runners, so that app.embed() calls are
+        # isolated across run sessions.
+        self._runners: dict[int, dict[App, AppKernelRunner]] = {}
+
+    def get_runner(self, app: App) -> AppKernelRunner:
+        app_runners = self._runners.setdefault(threading.get_ident(), {})
+        runner = app_runners.get(app, None)
+        if runner is None:
+            runner = AppKernelRunner(InternalApp(app))
+            app_runners[app] = runner
+        return runner
+
+    def remove_runner(self, app: App) -> None:
+        app_runners = self._runners.get(tid := threading.get_ident(), {})
+        if app in app_runners:
+            del app_runners[app]
+        if tid in self._runners and not (self._runners[tid]):
+            del self._runners[tid]
+
+    def shutdown(self) -> None:
+        self._runners.clear()
+
+
 @mddoc
 class App:
     """A marimo notebook.
@@ -173,7 +202,52 @@ class App:
             self._filename = inspect.getfile(inspect.stack()[1].frame)
         except Exception:
             ...
-        self._app_kernel_runner: AppKernelRunner | None = None
+
+    def __del__(self) -> None:
+        try:
+            get_context().app_kernel_runner_registry.remove_runner(self)
+        except ContextNotInitializedError:
+            ...
+
+    def clone(self) -> App:
+        """Clone an app to embed multiple copies of it.
+
+        Utility method to clone an app object; use with `embed()` to create
+        independent copies of apps.
+
+        Returns:
+            A new `app` object with the same code.
+        """
+        app = App()
+        app._cell_manager = CellManager(prefix=str(uuid4()))
+        for cell_id, code, name, config in zip(
+            self._cell_manager.cell_ids(),
+            self._cell_manager.codes(),
+            self._cell_manager.names(),
+            self._cell_manager.configs(),
+        ):
+            cell = None
+            # If the cell exists, the cell data should be set.
+            cell_data = self._cell_manager._cell_data.get(cell_id)
+            new_cell_id = app._cell_manager.create_cell_id()
+            if cell_data is not None:
+                cell = cell_data.cell
+                if cell is not None:
+                    new_cell = Cell(
+                        _name=cell.name,
+                        _cell=CellImpl(
+                            **{**cell._cell.__dict__, "cell_id": new_cell_id}
+                        ),
+                        _app=InternalApp(app),
+                    )
+                    app._cell_manager.register_cell(
+                        cell_id=new_cell_id,
+                        code=code,
+                        name=name,
+                        config=config,
+                        cell=new_cell,
+                    )
+        return app
 
     def cell(
         self,
@@ -286,9 +360,7 @@ class App:
             self._initialized = True
 
     def _get_kernel_runner(self) -> AppKernelRunner:
-        if self._app_kernel_runner is None:
-            self._app_kernel_runner = AppKernelRunner(InternalApp(self))
-        return self._app_kernel_runner
+        return get_context().app_kernel_runner_registry.get_runner(self)
 
     def _flatten_outputs(self, outputs: dict[CellId_t, Any]) -> Sequence[Any]:
         return tuple(
@@ -349,10 +421,19 @@ class App:
         The `embed` method lets you embed the output of a notebook
         into another notebook and access the values of its variables.
 
-        Returns:
-            An object `result` with two attributes: `result.output` (visual
-            output of the notebook) and `result.defs` (a dictionary mapping
-            variable names defined by the notebook to their values).
+        Running `await app.embed()` executes the notebook and results an object
+        encapsulating the notebook visual output and its definitions.
+
+        Embedded notebook outputs are interactive: when you interact with
+        UI elements in an embedded notebook's output, any cell referring
+        to the `app` object other than the one that imported it is marked for
+        execution, and its internal state is automatically updated. This lets
+        you use notebooks as building blocks or components to create
+        higher-level notebooks.
+
+        Multiple levels of nesting are supported: it's possible to embed a
+        notebook that in turn embeds another notebook, and marimo will do the
+        right thing.
 
         Example:
             ```python
@@ -375,19 +456,27 @@ class App:
             result.defs
             ```
 
-            Running `await app.embed()` executes the notebook and results an object
-            encapsulating the notebook visual output and its definitions.
+        To embed independent copies of same app object, first clone the
+        app with `app.clone()`:
 
-            Embedded notebook outputs are interactive: when you interact with
-            UI elements in an embedded notebook's output, any cell referring
-            to the `app` object other than the one that imported it is marked for
-            execution, and its internal state is automatically updated. This lets
-            you use notebooks as building blocks or components to create
-            higher-level notebooks.
+            ```python
+            from my_notebook import app
+            ```
 
-            Multiple levels of nesting are supported: it's possible to embed a
-            notebook that in turn embeds another notebook, and marimo will do the
-            right thing.
+            ```python
+            one = app.clone()
+            r1 = await one.embed()
+            ```
+
+            ```python
+            two = app.clone()
+            r2 = await two.embed()
+
+        Returns:
+            An object `result` with two attributes: `result.output` (visual
+            output of the notebook) and `result.defs` (a dictionary mapping
+            variable names defined by the notebook to their values).
+
         """
         from marimo._plugins.stateless.flex import vstack
         from marimo._runtime.context.utils import running_in_notebook
@@ -471,6 +560,19 @@ class InternalApp:
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)
+
+    def inline_layout_file(self) -> InternalApp:
+        if self.config.layout_file:
+            layout_path = Path(self.config.layout_file)
+            if self._app._filename:
+                # Resolve relative to the current working directory
+                layout_path = Path(self._app._filename).parent / layout_path
+            layout_file = layout_path.read_bytes()
+            data_uri = base64.b64encode(layout_file).decode()
+            self.update_config(
+                {"layout_file": f"data:application/json;base64,{data_uri}"}
+            )
+        return self
 
     def with_data(
         self,

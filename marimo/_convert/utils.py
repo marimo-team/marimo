@@ -23,14 +23,25 @@ def markdown_to_marimo(source: str) -> str:
     )
 
 
-def sql_to_marimo(source: str, table: str) -> str:
+def sql_to_marimo(
+    source: str,
+    table: str,
+    hide_output: bool = False,
+    engine: str | None = None,
+) -> str:
+    terminal_options = [codegen.indent_text('"""')]
+    if hide_output:
+        terminal_options.append(codegen.indent_text("output=False"))
+    if engine:
+        terminal_options.append(codegen.indent_text(f"engine={engine}"))
+
     return "\n".join(
         [
             f"{table} = mo.sql(",
             # f-string: expected for sql
             codegen.indent_text('f"""'),
             codegen.indent_text(source),
-            codegen.indent_text('"""'),
+            ",\n".join(terminal_options),
             ")",
         ]
     )

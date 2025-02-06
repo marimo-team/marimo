@@ -15,11 +15,19 @@ def _(mo):
 
 
 @app.cell
-def _(mo, my_table):
+def _(fn_that_creates_engine):
+    mem_engine = fn_that_creates_engine("sqlite:///:memory:")
+    return (mem_engine,)
+
+
+@app.cell
+def _(mem_engine, mo, my_table):
     export = mo.sql(
         f"""
         SELECT * FROM my_table;
-        """
+        """,
+        output=False,
+        engine=mem_engine
     )
     return (export,)
 
