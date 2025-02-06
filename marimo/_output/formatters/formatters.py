@@ -5,6 +5,7 @@ import sys
 from typing import Any, Callable, Sequence
 
 from marimo._config.config import Theme
+from marimo._output.formatters.ai_formatters import GoogleAiFormatter
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
 from marimo._output.formatters.arviz_formatters import ArviZFormatter
@@ -55,6 +56,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     SympyFormatter.package_name(): SympyFormatter(),
     PyechartsFormatter.package_name(): PyechartsFormatter(),
     PanelFormatter.package_name(): PanelFormatter(),
+    GoogleAiFormatter.package_name(): GoogleAiFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
