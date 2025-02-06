@@ -41,6 +41,7 @@ export const {
   sendInstantiate,
   sendDeleteCell,
   sendCodeCompletionRequest,
+  sendMCPEvaluationRequest,
   saveUserConfig,
   saveAppConfig,
   saveCellConfig,

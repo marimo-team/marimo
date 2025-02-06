@@ -10,6 +10,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Mapping,
     Optional,
     Tuple,
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
 UIElementId = str
 CompletionRequestId = str
+MCPRequestId = str
 FunctionCallId = str
 
 T = TypeVar("T")
@@ -286,6 +288,30 @@ class PreviewDatasetColumnRequest:
     column_name: str
 
 
+@dataclass
+class MCPEvaluationRequest:
+    # The id of the MCP server evaluation request
+    mcp_evaluation_id: MCPRequestId
+    # The name of the MCP server
+    server_name: str
+    # The type of the request
+    # Should be one of the following:
+    # tool, resource, prompt
+    request_type: Literal["tool", "resource", "prompt"]
+    # The name of the tool, resource, or prompt
+    name: str
+    # The arguments for the request
+    args: Optional[Dict[str, Any]]
+
+
+@dataclass
+class MCPMessage:
+    # The name of the MCP server
+    server_name: Optional[str]
+    # The message to send to the MCP server
+    mcp_message: Dict[str, Any]
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -300,4 +326,6 @@ ControlRequest = Union[
     StopRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    MCPEvaluationRequest,
+    MCPMessage,
 ]

@@ -46,6 +46,7 @@ from marimo._messaging.ops import (
     FunctionCallResult,
     HumanReadableStatus,
     InstallingPackageAlert,
+    MCPEvaluationResult,
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
@@ -107,6 +108,8 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
+    MCPEvaluationRequest,
+    MCPMessage,
     PreviewDatasetColumnRequest,
     RenameRequest,
     SetCellConfigRequest,
@@ -149,6 +152,8 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
+
+# TODO(mcp): add mcp implementation here
 
 
 @mddoc
@@ -401,6 +406,51 @@ class CellMetadata:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
 
+class MCPRequestManager:
+    """Manages MCP (Model Completion Protocol) requests.
+
+    This class handles the evaluation of MCP requests by delegating to the appropriate
+    MCP server and broadcasting the results.
+    """
+
+    def __init__(self, stream: Stream) -> None:
+        """Initialize the MCP request manager.
+
+        Args:
+            stream: The stream to use for broadcasting results.
+        """
+        self._stream = stream
+
+    async def process_request(self, request: MCPEvaluationRequest) -> None:
+        """Process an MCP evaluation request.
+
+        Args:
+            request: The MCP evaluation request to process.
+        """
+        from marimo._mcp.registry import registry
+
+        # Look up the server from the registry
+        server = registry.get_server(request.server_name)
+        if server is None:
+            # Server not found, broadcast error result
+            MCPEvaluationResult(
+                mcp_evaluation_id=request.mcp_evaluation_id,
+                result=f"Server '{request.server_name}' not found",
+            ).broadcast()
+            return
+
+        try:
+            # Evaluate the request using the server
+            result = await server.evaluate_request(request)
+            result.broadcast()
+        except Exception as e:
+            # Handle any errors during evaluation
+            MCPEvaluationResult(
+                mcp_evaluation_id=request.mcp_evaluation_id,
+                result=f"Error evaluating request: {str(e)}",
+            ).broadcast()
+
+
 class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
@@ -532,6 +582,9 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Initialize MCP request manager
+        self.mcp_request_mgr = MCPRequestManager(stream)
+
         if not is_pyodide():
             patches.patch_micropip(self.globals)
         exec("import marimo as __marimo__", self.globals)
@@ -652,6 +705,17 @@ class Kernel:
             daemon=True,
         ).start()
         self._completion_worker_started = True
+
+    def start_mcp_worker(
+        self, mcp_message_queue: QueueType[MCPMessage | MCPEvaluationRequest]
+    ) -> None:
+        from marimo._runtime.mcp import mcp_worker
+
+        threading.Thread(
+            target=mcp_worker,
+            args=(mcp_message_queue,),
+            daemon=True,
+        ).start()
 
     @kernel_tracer.start_as_current_span("code_completion")
     def code_completion(
@@ -2074,6 +2138,17 @@ class Kernel:
             ).broadcast()
         return
 
+    async def mcp_request(self, request: MCPEvaluationRequest) -> None:
+        """Handle an MCP evaluation request from the client.
+
+        The request is processed by the MCP request manager, which will look up
+        the appropriate server and evaluate the request.
+
+        Args:
+            request: The MCP evaluation request to process.
+        """
+        await self.mcp_request_mgr.process_request(request)
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
@@ -2125,6 +2200,9 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, PreviewDatasetColumnRequest):
                 await self.preview_dataset_column(request)
+            elif isinstance(request, MCPEvaluationRequest):
+                await self.mcp_request(request)
+                CompletedRun().broadcast()
             elif isinstance(request, StopRequest):
                 return None
             else:
@@ -2136,6 +2214,7 @@ def launch_kernel(
     control_queue: QueueType[ControlRequest],
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CodeCompletionRequest],
+    mcp_evaluation_queue: QueueType[MCPEvaluationRequest | MCPMessage],
     input_queue: QueueType[str],
     stream_queue: queue.Queue[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
@@ -2222,6 +2301,8 @@ def launch_kernel(
         control_queue.put_nowait(req)
         if isinstance(req, SetUIElementValueRequest):
             set_ui_element_queue.put_nowait(req)
+        elif isinstance(req, MCPEvaluationRequest):
+            mcp_evaluation_queue.put_nowait(req)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -2251,7 +2332,7 @@ def launch_kernel(
     if is_edit_mode:
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
-
+        kernel.start_mcp_worker(mcp_evaluation_queue)
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 

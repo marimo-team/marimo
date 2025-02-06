@@ -28,6 +28,7 @@ __all__ = [
     "ai",
     "ui",
     "islands",
+    "mcp",
     # Application elements
     "accordion",
     "app_meta",
@@ -86,6 +87,7 @@ __version__ = "0.11.0"
 
 import marimo._ai as ai
 import marimo._islands as islands
+import marimo._mcp as mcp
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands.island_generator import MarimoIslandGenerator

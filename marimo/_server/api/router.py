@@ -22,6 +22,7 @@ from marimo._server.api.endpoints.files import router as files_router
 from marimo._server.api.endpoints.health import router as health_router
 from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
+from marimo._server.api.endpoints.mcp import router as mcp_router
 from marimo._server.api.endpoints.packages import router as packages_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws import router as ws_router
@@ -65,6 +66,7 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
     app_router.include_router(
         packages_router, prefix="/api/packages", name="packages"
     )
+    app_router.include_router(mcp_router, prefix="/api/mcp", name="mcp")
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")

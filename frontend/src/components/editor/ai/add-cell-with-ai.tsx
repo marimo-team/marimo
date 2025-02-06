@@ -30,7 +30,8 @@ import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import { getAICompletionBody, mentions } from "./completion-utils";
+import { getAICompletionBody } from "./completion-utils";
+import { mcpExtension } from "@/core/codemirror/mcp/extension";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -294,7 +295,8 @@ export const PromptInput = ({
       : completions;
 
     return [
-      mentions(matchBeforeRegexes, allCompletions),
+      // mentions(matchBeforeRegexes, allCompletions),
+      mcpExtension(),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(

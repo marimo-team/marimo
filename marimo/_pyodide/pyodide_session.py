@@ -29,6 +29,7 @@ from marimo._runtime.requests import (
     AppMetadata,
     CodeCompletionRequest,
     ControlRequest,
+    MCPEvaluationRequest,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
@@ -84,6 +85,11 @@ class AsyncQueueManager:
 
         # Code completion requests are sent through a separate queue
         self.completion_queue = asyncio.Queue[requests.CodeCompletionRequest]()
+
+        # MCP evaluation requests are sent through a separate queue
+        self.mcp_evaluation_queue = asyncio.Queue[
+            requests.MCPEvaluationRequest
+        ]()
 
         # Input messages for the user's Python code are sent through the
         # input queue
@@ -142,6 +148,9 @@ class PyodideSession:
         self._queue_manager.control_queue.put_nowait(request)
         if isinstance(request, requests.SetUIElementValueRequest):
             self._queue_manager.set_ui_element_queue.put_nowait(request)
+        elif isinstance(request, requests.MCPEvaluationRequest):
+            # Handle MCP server evaluation request
+            self._queue_manager.mcp_evaluation_queue.put_nowait(request)
 
     def put_completion_request(
         self, request: requests.CodeCompletionRequest
@@ -150,6 +159,12 @@ class PyodideSession:
 
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put_nowait(text)
+
+    def put_mcp_evaluation_request(
+        self, request: requests.MCPEvaluationRequest
+    ) -> None:
+        """Put an MCP evaluation request in the MCP evaluation queue."""
+        self._queue_manager.mcp_evaluation_queue.put_nowait(request)
 
     def find_packages(self, code: str) -> list[str]:
         """
@@ -188,6 +203,25 @@ class PyodideBridge:
     def code_complete(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), requests.CodeCompletionRequest)
         self.session.put_completion_request(parsed)
+
+    def mcp_evaluate(self, request: str) -> None:
+        """Handle an MCP evaluation request in Pyodide.
+
+        Args:
+            request: A JSON string containing the MCP evaluation request.
+                    Expected to match the MCPEvaluationRequest schema.
+        """
+        try:
+            # Parse the JSON request into an MCPEvaluationRequest object
+            parsed = parse_raw(
+                json.loads(request), requests.MCPEvaluationRequest
+            )
+
+            # Forward the request to the session's MCP evaluation queue
+            self.session.put_mcp_evaluation_request(parsed)
+        except Exception as e:
+            LOGGER.error("Error processing MCP evaluation request: %s", str(e))
+            raise
 
     def read_code(self) -> str:
         contents: str = self.session.app_manager.read_file()
@@ -318,6 +352,7 @@ def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],
     set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
     completion_queue: asyncio.Queue[CodeCompletionRequest],
+    mcp_evaluation_queue: asyncio.Queue[MCPEvaluationRequest],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
     is_edit_mode: bool,
@@ -349,6 +384,8 @@ def _launch_pyodide_kernel(
         control_queue.put_nowait(req)
         if isinstance(req, SetUIElementValueRequest):
             set_ui_element_queue.put_nowait(req)
+        elif isinstance(req, MCPEvaluationRequest):
+            mcp_evaluation_queue.put_nowait(req)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -402,8 +439,17 @@ def _launch_pyodide_kernel(
             # too low can be not as useful
             kernel.code_completion(request, docstrings_limit=5)
 
+    async def listen_mcp() -> None:
+        """Listen for MCP evaluation requests and process them."""
+        while True:
+            request = await mcp_evaluation_queue.get()
+            LOGGER.debug("received MCP evaluation request %s", request)
+            await kernel.mcp_request(request)
+
     async def listen() -> None:
-        await asyncio.gather(listen_messages(), listen_completion())
+        await asyncio.gather(
+            listen_messages(), listen_completion(), listen_mcp()
+        )
 
     return RestartableTask(listen)
 

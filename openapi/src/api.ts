@@ -1743,6 +1743,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/mcp/evaluate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["MCPEvaluationRequest"];
+        };
+      };
+      responses: {
+        /** @description Evaluate an MCP server request */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["MCPEvaluationResult"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/add": {
     parameters: {
       query?: never;
@@ -2511,6 +2550,22 @@ export interface components {
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
+    MCPEvaluationRequest: {
+      args?: {
+        [key: string]: unknown;
+      } | null;
+      mcpEvaluationId: string;
+      name: string;
+      /** @enum {string} */
+      requestType: "tool" | "resource" | "prompt";
+      serverName: string;
+    };
+    MCPEvaluationResult: {
+      mcp_evaluation_id: string;
+      /** @enum {string} */
+      name: "mcp-evaluation-result";
+      result: string;
+    };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
       blamed_cell?: string | null;
@@ -2642,6 +2697,7 @@ export interface components {
       | components["schemas"]["CompletedRun"]
       | components["schemas"]["KernelReady"]
       | components["schemas"]["CompletionResult"]
+      | components["schemas"]["MCPEvaluationResult"]
       | components["schemas"]["Alert"]
       | components["schemas"]["Banner"]
       | components["schemas"]["MissingPackageAlert"]

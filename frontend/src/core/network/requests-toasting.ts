@@ -24,6 +24,7 @@ export function createErrorToastingRequests(
     sendFormat: "Failed to format",
     sendDeleteCell: "Failed to delete cell",
     sendCodeCompletionRequest: "Failed to complete code",
+    sendMCPEvaluationRequest: "Failed to evaluate MCP",
     saveUserConfig: "Failed to save user config",
     saveAppConfig: "Failed to save app config",
     saveCellConfig: "Failed to save cell config",
