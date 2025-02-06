@@ -1,15 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-/* TODO(mcp): 
+/* TODO(mcp):
  * - sendMCPEvaluationRequest to get completions.
  * - MCPEvaluationResult
  */
 
-import { EditorView } from '@codemirror/view';
-import { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
-import { Logger } from '@/utils/Logger';
+import type { EditorView } from "@codemirror/view";
+import type {
+  CompletionContext,
+  CompletionResult,
+  Completion,
+} from "@codemirror/autocomplete";
+import { Logger } from "@/utils/Logger";
 
-import { MCP_REQUEST_REGISTRY } from '@/core/network/MCPRequestRegistry';
+import { MCP_REQUEST_REGISTRY } from "@/core/network/MCPRequestRegistry";
 
 interface MCPServer {
   name: string;
@@ -27,7 +31,7 @@ export async function mcpCompletions(
   serverName: string | null,
   requestType: "tool" | "resource" | "prompt",
   name: string,
-  args: Record<string, any>
+  args: Record<string, any>,
 ): Promise<CompletionResult | null> {
   if (!serverName) {
     return null;
@@ -39,19 +43,17 @@ export async function mcpCompletions(
   }
 
   const trigger = word.text[0];
-  if (!['@', '!', '/'].includes(trigger)) {
+  if (!["@", "!", "/"].includes(trigger)) {
     return null;
   }
 
   try {
-    const response = MCP_REQUEST_REGISTRY.request(
-      {
-        serverName,
-        requestType: requestType,
-        name: name,
-        args: args,
-      }
-    );
+    const response = MCP_REQUEST_REGISTRY.request({
+      serverName,
+      requestType: requestType,
+      name: name,
+      args: args,
+    });
     if (!response.ok) {
       return null;
     }
@@ -66,19 +68,19 @@ export async function mcpCompletions(
     const prefix = word.text.slice(1);
 
     switch (trigger) {
-      case '@':
+      case "@":
         completions = server.resources.map((r) => ({
           label: r.name,
           detail: r.description,
         }));
         break;
-      case '!':
+      case "!":
         completions = server.tools.map((t) => ({
           label: t.name,
           detail: t.description,
         }));
         break;
-      case '/':
+      case "/":
         completions = server.prompts.map((p) => ({
           label: p.name,
           detail: p.description,
@@ -88,7 +90,7 @@ export async function mcpCompletions(
 
     if (prefix) {
       completions = completions.filter((c) =>
-        c.label.toLowerCase().includes(prefix.toLowerCase())
+        c.label.toLowerCase().includes(prefix.toLowerCase()),
       );
     }
 
@@ -97,8 +99,13 @@ export async function mcpCompletions(
       options: completions.map((c) => ({
         label: c.label,
         detail: c.detail,
-        apply: (view: EditorView, completion: Completion, from: number, to: number) => {
-          const suffix = '()';
+        apply: (
+          view: EditorView,
+          completion: Completion,
+          from: number,
+          to: number,
+        ) => {
+          const suffix = "()";
           view.dispatch({
             changes: {
               from,
@@ -111,7 +118,7 @@ export async function mcpCompletions(
       })),
     };
   } catch (error) {
-    Logger.error('Error fetching MCP completions:', error);
+    Logger.error("Error fetching MCP completions:", error);
     return null;
   }
-} 
+}
