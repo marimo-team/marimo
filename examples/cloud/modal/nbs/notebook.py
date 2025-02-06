@@ -13,7 +13,15 @@ def __(mo):
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+    return (mo,)
+
+
+@app.cell
+def __():
+    import subprocess
+
+    subprocess.run(["nvidia-smi"])
+    return subprocess
 
 
 if __name__ == "__main__":
