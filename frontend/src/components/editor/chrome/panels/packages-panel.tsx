@@ -28,6 +28,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
 import { PACKAGES_INPUT_ID } from "./constants";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
@@ -62,6 +63,7 @@ const InstallPackageForm: React.FC<{
 }> = ({ onSuccess, packageManager }) => {
   const [input, setInput] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const { handleClick: openSettings } = useOpenSettingsToTab();
 
   const handleAddPackage = async () => {
     try {
@@ -103,7 +105,12 @@ const InstallPackageForm: React.FC<{
               className="mr-2 h-4 w-4 shrink-0 opacity-50"
             />
           ) : (
-            <BoxIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <Tooltip content="Change package manager">
+              <BoxIcon
+                onClick={() => openSettings("packageManagement")}
+                className="mr-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-80 cursor-pointer"
+              />
+            </Tooltip>
           )
         }
         rootClassName="flex-1 border-none"

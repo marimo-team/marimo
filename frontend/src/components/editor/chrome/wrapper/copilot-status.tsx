@@ -12,25 +12,24 @@ import { aiEnabledAtom, resolvedMarimoConfigAtom } from "@/core/config/config";
 import { GitHubCopilotIcon } from "@/components/icons/github-copilot";
 import { SparklesIcon } from "lucide-react";
 import { FooterItem } from "./footer-item";
-import { activeUserConfigCategoryAtom } from "@/components/app-config/user-config-form";
-import { settingDialogAtom } from "@/components/app-config/app-config-button";
 import { toast } from "@/components/ui/use-toast";
 import { getCopilotClient } from "@/core/codemirror/copilot/client";
 import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";
 import { useOnMount } from "@/hooks/useLifecycle";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const model = ai?.open_ai?.model || "gpt-4-turbo";
-  const { handleClick } = useOpenAISettings();
+  const { handleClick } = useOpenSettingsToTab();
 
   if (!aiEnabled) {
     return (
       <FooterItem
         tooltip="Assist is disabled"
         selected={false}
-        onClick={handleClick}
+        onClick={() => handleClick("ai")}
       >
         <SparklesIcon className="h-4 w-4 opacity-60" />
       </FooterItem>
@@ -44,7 +43,7 @@ export const AIStatusIcon: React.FC = () => {
           <b>Assist model:</b> {model}
         </>
       }
-      onClick={handleClick}
+      onClick={() => handleClick("ai")}
       selected={false}
     >
       <SparklesIcon className="h-4 w-4" />
@@ -58,16 +57,6 @@ const copilotAtom = atom((get) => {
 const aiAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).ai;
 });
-
-export function useOpenAISettings() {
-  const setActiveCategory = useSetAtom(activeUserConfigCategoryAtom);
-  const setSettingsDialog = useSetAtom(settingDialogAtom);
-  const handleClick = () => {
-    setActiveCategory("ai");
-    setSettingsDialog(true);
-  };
-  return { handleClick };
-}
 
 export const CopilotStatusIcon: React.FC = () => {
   const copilot = useAtomValue(copilotAtom);
@@ -84,7 +73,8 @@ export const CopilotStatusIcon: React.FC = () => {
 const GitHubCopilotStatus: React.FC = () => {
   const isGitHubCopilotSignedIn = useAtomValue(isGitHubCopilotSignedInState);
   const isLoading = useAtomValue(githubCopilotLoadingVersion) !== null;
-  const { handleClick } = useOpenAISettings();
+  const { handleClick } = useOpenSettingsToTab();
+  const openSettings = () => handleClick("ai");
 
   const label = isGitHubCopilotSignedIn ? "Ready" : "Not connected";
   const setCopilotSignedIn = useSetAtom(isGitHubCopilotSignedInState);
@@ -128,7 +118,7 @@ const GitHubCopilotStatus: React.FC = () => {
             "Failed to connect to GitHub Copilot. Check settings and try again.",
           variant: "danger",
           action: (
-            <Button variant="link" onClick={handleClick}>
+            <Button variant="link" onClick={openSettings}>
               Settings
             </Button>
           ),
@@ -151,7 +141,7 @@ const GitHubCopilotStatus: React.FC = () => {
         </>
       }
       selected={false}
-      onClick={handleClick}
+      onClick={openSettings}
     >
       <span>
         {isLoading ? (
