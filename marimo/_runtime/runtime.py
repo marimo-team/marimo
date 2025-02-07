@@ -2158,9 +2158,11 @@ class Kernel:
         """
         # acquiring and releasing an RLock takes ~100ns; the overhead is
         # negligible because the lock is coarse.
-        LOGGER.debug("Acquiring globals lock to handle request %s", request)
+        LOGGER.debug(
+            "Acquiring globals lock to handle request %s", type(request)
+        )
         with self.lock_globals():
-            LOGGER.debug("Handling control request: %s", request)
+            LOGGER.debug("Handling control request: %s", type(request))
             if isinstance(request, CreationRequest):
                 with http_request_context(request.request):
                     await self.instantiate(request)
@@ -2207,7 +2209,7 @@ class Kernel:
                 return None
             else:
                 raise ValueError(f"Unknown request {request}")
-            LOGGER.debug("Handled control request: %s", request)
+            LOGGER.debug("Handled control request: %s", type(request))
 
 
 def launch_kernel(
@@ -2372,7 +2374,7 @@ def launch_kernel(
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
                 break
-            LOGGER.debug("Received control request: %s", request)
+            LOGGER.debug("Received control request: %s", type(request))
             if isinstance(request, StopRequest):
                 break
             elif isinstance(request, SetUIElementValueRequest):

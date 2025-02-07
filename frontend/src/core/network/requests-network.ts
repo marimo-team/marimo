@@ -134,7 +134,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return (
         marimoClient
           // TODO(mcp): should we use handleResponse instead?
-          .POST("/api/mcp/evaluate", {
+          .POST("/mcp/evaluate", {
             body: request,
           })
           .then(handleResponseReturnNull)

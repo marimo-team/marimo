@@ -66,7 +66,7 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
     app_router.include_router(
         packages_router, prefix="/api/packages", name="packages"
     )
-    app_router.include_router(mcp_router, prefix="/api/mcp", name="mcp")
+    app_router.include_router(mcp_router, prefix="/mcp", name="mcp")
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")
