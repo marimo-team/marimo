@@ -4,7 +4,9 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
-  let onChange: (value: Partial<{ foo: string; bar: number }>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let onChange: (value: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let sendToWidget: (req: { content?: any }) => Promise<null | undefined>;
 
   beforeEach(() => {
@@ -101,14 +103,16 @@ describe("Model", () => {
   describe("send", () => {
     it("should send message and handle callbacks", async () => {
       const callback = vi.fn();
-      await model.send({ test: true }, callback);
+      model.send({ test: true }, callback);
 
       expect(sendToWidget).toHaveBeenCalledWith({ content: { test: true } });
       expect(callback).toHaveBeenCalledWith(null);
     });
 
     it("should warn when buffers are provided", () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {
+        // noop
+      });
       model.send({ test: true }, null, [new ArrayBuffer(8)]);
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -119,10 +123,12 @@ describe("Model", () => {
 
   describe("widget_manager", () => {
     it("should throw error when accessing widget_manager", () => {
-      expect(() => model.widget_manager.foo).toThrow(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(() => (model.widget_manager as any).foo).toThrow(
         "widget_manager not supported in marimo",
       );
-      expect(() => (model.widget_manager.foo = "bar")).toThrow(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(() => ((model.widget_manager as any).foo = "bar")).toThrow(
         "widget_manager not supported in marimo",
       );
     });
@@ -139,7 +145,7 @@ describe("Model", () => {
     });
 
     it("should update and emit for deep changes", () => {
-      const modelWithObject = new Model(
+      const modelWithObject = new Model<{ foo: { nested: string } }>(
         { foo: { nested: "test" } },
         onChange,
         sendToWidget,
@@ -194,9 +200,9 @@ describe("Model", () => {
     });
 
     it("should log error for invalid messages", () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {
+        // noop
+      });
       model.receiveCustomMessage({ invalid: "message" });
 
       expect(consoleSpy).toHaveBeenCalled();
