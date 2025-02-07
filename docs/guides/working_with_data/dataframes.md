@@ -17,7 +17,7 @@ marimo lets you page through, search, sort, and filter dataframes, making it
 extremely easy to get a feel for your data.
 
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-df.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/docs-df.webm">
 </video>
 <figcaption>marimo brings dataframes to life.</figcaption>
 </figure>
@@ -86,7 +86,7 @@ notebook.
 
 <div align="center">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-dataframe-transform.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/docs-dataframe-transform.webm">
 </video>
 <figcaption>Build transformations using a GUI</figcaption>
 </figure>
@@ -201,7 +201,7 @@ dataframe_.
 
 <div align="center">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-dataframe-table.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/docs-dataframe-table.webm">
 </video>
 <figcaption>Select rows in a table, get them back as a dataframe</figcaption>
 </figure>
