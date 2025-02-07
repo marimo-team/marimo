@@ -10,10 +10,10 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # DuckDB: Parameterized & Reactive SQL Queries
+        # DuckDB: Join Operations & Multi-Table Queries
 
-        This snippet shows how to parameterize SQL queries using reactive variables 
-        in marimo, allowing queries to dynamically reflect changes in Python values.
+        This snippet demonstrates how to perform JOIN operations between 
+        two DataFrames using DuckDB's SQL engine within marimo.
         """
     )
     return
@@ -22,32 +22,28 @@ def _(mo):
 @app.cell
 def _():
     import pandas as pd
-    # Create a sample DataFrame for reactive filtering
-    data = {'id': list(range(1, 21)), 'score': [x * 5 for x in range(1, 21)]}
-    df = pd.DataFrame(data)
-    return data, df, pd
+    # Create two sample DataFrames to join
+    df1 = pd.DataFrame({
+        'id': [1, 2, 3, 4],
+        'value1': ['A', 'B', 'C', 'D']
+    })
+    df2 = pd.DataFrame({
+        'id': [3, 4, 5, 6],
+        'value2': ['X', 'Y', 'Z', 'W']
+    })
+    return df1, df2, pd
 
 
 @app.cell
-def _(mo):
-    min_score = mo.ui.number(label="Minimum Score", value=50, start=0)
-    return (min_score,)
-
-
-@app.cell
-def _(min_score):
-    min_score
-    return
-
-
-@app.cell
-def _(df, min_score, mo):
-    result = mo.sql(
+def _(df1, df2, mo):
+    join_df = mo.sql(
         f"""
-        SELECT * FROM df WHERE score >= {min_score.value}
+        SELECT a.id, a.value1, b.value2
+        FROM df1 a
+        INNER JOIN df2 b ON a.id = b.id
         """
     )
-    return (result,)
+    return (join_df,)
 
 
 @app.cell

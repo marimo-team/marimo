@@ -10,10 +10,10 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # DuckDB: Join Operations & Multi-Table Queries
+        # DuckDB: Data Export & Integration with Visualization
 
-        This snippet demonstrates how to perform JOIN operations between 
-        two DataFrames using DuckDB's SQL engine within marimo.
+        This snippet runs an aggregation query using DuckDB and then uses Altair 
+        to visualize the results as an interactive bar chart.
         """
     )
     return
@@ -22,28 +22,38 @@ def _(mo):
 @app.cell
 def _():
     import pandas as pd
-    # Create two sample DataFrames to join
-    df1 = pd.DataFrame({
-        'id': [1, 2, 3, 4],
-        'value1': ['A', 'B', 'C', 'D']
-    })
-    df2 = pd.DataFrame({
-        'id': [3, 4, 5, 6],
-        'value2': ['X', 'Y', 'Z', 'W']
-    })
-    return df1, df2, pd
+    # Create a sample DataFrame for aggregation
+    data = {
+        'category': ['A', 'B', 'A', 'B', 'C', 'C'],
+        'value': [10, 15, 20, 25, 30, 35]
+    }
+    df = pd.DataFrame(data)
+    return data, df, pd
 
 
 @app.cell
-def _(df1, df2, mo):
-    join_df = mo.sql(
+def _(df, mo):
+    agg_df = mo.sql(
         f"""
-        SELECT a.id, a.value1, b.value2
-        FROM df1 a
-        INNER JOIN df2 b ON a.id = b.id
+        SELECT category, AVG(value) as avg_value, COUNT(*) as count
+        FROM df
+        GROUP BY category
         """
     )
-    return (join_df,)
+    return (agg_df,)
+
+
+@app.cell
+def _(agg_df):
+    # Visualize the aggregated results using Altair
+    import altair as alt
+    chart = alt.Chart(agg_df).mark_bar().encode(
+        x='category:N',
+        y='avg_value:Q',
+        tooltip=['category', 'avg_value', 'count']
+    )
+    chart  # Display the chart
+    return alt, chart
 
 
 @app.cell
