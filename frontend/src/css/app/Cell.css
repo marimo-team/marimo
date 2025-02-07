@@ -202,14 +202,7 @@
 
   /* Borderless styles for Cell */
   &.borderless {
-    border-color: transparent;
-    box-shadow: none;
-
-    /* Apply the original styles */
-    &:hover {
-      border: 1px solid var(--gray-4);
-      @apply shadow-smSolid shadow-shade;
-    }
+    @apply borderless-common;
   }
 
   /* -------------------------- Shoulders/Buttons ---------------------------- */
@@ -233,8 +226,23 @@
   @apply bg-background;
 }
 
+.borderless-common {
+  border-color: transparent;
+  box-shadow: none;
+
+  /* Apply the original styles */
+  &:hover {
+    border: 1px solid var(--gray-4);
+    @apply shadow-smSolid shadow-shade;
+  }
+}
+
 .dark .Cell {
   @apply border-border;
+
+  &.borderless {
+    @apply borderless-common;
+  }
 }
 
 #App.disconnected {
