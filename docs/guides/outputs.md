@@ -7,7 +7,7 @@ documented in the [API reference](../api/index.md).
 
 <div align="center">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/outputs.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/outputs.webm">
 </video>
 </figure>
 </div>
@@ -74,7 +74,7 @@ top right.
 
 <div align="center">
 <figure>
-<video autoplay muted loop width="100%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
 </video>
 <figcaption>marimo is pure Python, even when you're using markdown.</figcaption>
 </figure>
