@@ -203,14 +203,16 @@ const LoadedSlot = ({
   return <div ref={ref} />;
 };
 
-class Model<T extends Record<string, any>> implements AnyModel<T> {
+export class Model<T extends Record<string, any>> implements AnyModel<T> {
   constructor(
     private data: T,
-    private onChange: (value: T) => void,
+    private onChange: (value: Partial<T>) => void,
     private send_to_widget: (req: { content?: any }) => Promise<
       null | undefined
     >,
   ) {}
+
+  private dirtyFields = new Set<keyof T>();
 
   off(eventName?: string | null, callback?: EventHandler | null): void {
     if (!eventName) {
@@ -257,11 +259,20 @@ class Model<T extends Record<string, any>> implements AnyModel<T> {
 
   set<K extends keyof T>(key: K, value: T[K]): void {
     this.data = { ...this.data, [key]: value };
+    this.dirtyFields.add(key);
     this.emit(`change:${key as K & string}`, value);
   }
 
   save_changes(): void {
-    this.onChange(this.data);
+    if (this.dirtyFields.size === 0) {
+      return;
+    }
+    const partialData: Partial<T> = {};
+    this.dirtyFields.forEach((key) => {
+      partialData[key] = this.data[key];
+    });
+    this.dirtyFields.clear();
+    this.onChange(partialData as T);
   }
 
   updateAndEmitDiffs(value: T): void {
