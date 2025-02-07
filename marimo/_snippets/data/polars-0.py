@@ -12,10 +12,8 @@ def _(mo):
         r"""
         # Polars: Basic Operations and Lazy Evaluation
 
-        Demonstrates Polars' key features:
-        - Lazy evaluation for optimal query planning
-        - Expression-based operations
-        - Memory efficiency
+        This snippet shows how to use Polars' `lazy()` evaluation for optimized query planning, 
+        expression-based operations, and memory-efficient data processing. See example below.
         """
     )
     return
