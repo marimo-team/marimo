@@ -47,9 +47,7 @@ export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
         onSearchChange={setSearchQuery}
         data-testid="marimo-plugin-searchable-dropdown"
       >
-        {allowSelectNone && (
-          <ComboboxItem value="--">--</ComboboxItem>
-        )}
+        {allowSelectNone && <ComboboxItem value="--">--</ComboboxItem>}
         {filteredOptions.map((option) => (
           <ComboboxItem key={option} value={option}>
             {option}
