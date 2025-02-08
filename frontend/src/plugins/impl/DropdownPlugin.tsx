@@ -5,13 +5,15 @@ import { z } from "zod";
 import type { IPlugin, IPluginProps } from "../types";
 import { NativeSelect } from "../../components/ui/native-select";
 import { Labeled } from "./common/labeled";
-import { cn } from "@/utils/cn";
+import { cn } from "../../utils/cn";
+import { SearchableSelect } from "./SearchableSelect";
 
 interface Data {
   label: string | null;
   options: string[];
   allowSelectNone: boolean;
   fullWidth: boolean;
+  searchable: boolean;
 }
 
 export class DropdownPlugin implements IPlugin<string[], Data> {
@@ -23,12 +25,14 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
     options: z.array(z.string()),
     allowSelectNone: z.boolean(),
     fullWidth: z.boolean().default(false),
+    searchable: z.boolean().default(false),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
-    return (
-      <Dropdown {...props.data} value={props.value} setValue={props.setValue} />
-    );
+    if (props.data.searchable) {
+      return <SearchableSelect {...props.data} value={props.value} setValue={props.setValue} />;
+    }
+    return <Dropdown {...props.data} value={props.value} setValue={props.setValue} />;
   }
 }
 
