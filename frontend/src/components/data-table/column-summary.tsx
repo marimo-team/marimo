@@ -9,6 +9,7 @@ import { ChartSkeleton } from "../charts/chart-skeleton";
 import { logNever } from "@/utils/assertNever";
 import { DatePopover } from "./date-popover";
 import { createBatchedLoader } from "@/plugins/impl/vega/batched";
+import { VegaSpecResolver } from "../charts/vega-data-loader";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
@@ -41,16 +42,20 @@ export const TableColumnSummary = <TData, TValue>({
         rootMargin="200px"
         fallback={<ChartSkeleton seed={columnId} width={130} height={60} />}
       >
-        <LazyVegaLite
-          spec={spec}
-          width={120}
-          height={50}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          loader={batchedLoader as any}
-          style={{ minWidth: "unset", maxHeight: "60px" }}
-          actions={false}
-          theme={theme === "dark" ? "dark" : "vox"}
-        />
+        <VegaSpecResolver spec={spec}>
+          {(resolvedSpec) => (
+            <LazyVegaLite
+              spec={resolvedSpec}
+              width={120}
+              height={50}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              loader={batchedLoader as any}
+              style={{ minWidth: "unset", maxHeight: "60px" }}
+              actions={false}
+              theme={theme === "dark" ? "dark" : "vox"}
+            />
+          )}
+        </VegaSpecResolver>
       </DelayMount>
     );
   }

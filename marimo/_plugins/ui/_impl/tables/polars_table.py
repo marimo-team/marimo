@@ -1,14 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from functools import cached_property
 from typing import Any, Optional, Tuple, Union
 
 import narwhals.stable.v1 as nw
 
+import marimo._output.data.data as mo_data
 from marimo._data.models import (
     ExternalDataType,
 )
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -52,6 +55,20 @@ class PolarsTableManagerFactory(TableManagerFactory):
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
                 return self._original_data.schema
+
+            def to_data(
+                self,
+                format_mapping: Optional[FormatMapping] = None,
+            ) -> JSONType:
+                # Prefer IPC over CSV since it's faster and more compact
+                if not format_mapping:
+                    return mo_data.arrow(self.to_ipc()).url
+                return super().to_data(format_mapping)
+
+            def to_ipc(self) -> bytes:
+                out = io.BytesIO()
+                self.collect().write_ipc(out)
+                return out.getvalue()
 
             # We override narwhals's to_csv to handle polars
             # nested data types.
