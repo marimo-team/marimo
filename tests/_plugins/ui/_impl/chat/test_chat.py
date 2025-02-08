@@ -220,6 +220,24 @@ def test_chat_with_show_configuration_controls():
     assert chat._component_args["show-configuration-controls"] is True
 
 
+async def test_chat_clear_messages():
+    def mock_model(
+        messages: List[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+    chat._chat_history = [
+        ChatMessage(role="user", content="Hello"),
+        ChatMessage(role="assistant", content="Hi there!"),
+    ]
+
+    # Simulate clearing messages
+    chat._value = []
+    assert chat.value == []
+    assert chat._chat_history == []
+
 async def test_chat_send_message_enqueues_ui_element_request(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
