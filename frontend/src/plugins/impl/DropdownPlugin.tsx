@@ -30,9 +30,17 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
     if (props.data.searchable) {
-      return <SearchableSelect {...props.data} value={props.value} setValue={props.setValue} />;
+      return (
+        <SearchableSelect
+          {...props.data}
+          value={props.value}
+          setValue={props.setValue}
+        />
+      );
     }
-    return <Dropdown {...props.data} value={props.value} setValue={props.setValue} />;
+    return (
+      <Dropdown {...props.data} value={props.value} setValue={props.setValue} />
+    );
   }
 }
 
