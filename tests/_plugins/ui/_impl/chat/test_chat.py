@@ -238,6 +238,7 @@ async def test_chat_clear_messages():
     assert chat.value == []
     assert chat._chat_history == []
 
+
 async def test_chat_send_message_enqueues_ui_element_request(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:

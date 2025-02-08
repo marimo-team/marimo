@@ -232,10 +232,14 @@ export const Chatbot: React.FC<Props> = (props) => {
       style={{ maxHeight: props.maxHeight }}
     >
       <div className="absolute top-0 right-0 flex justify-end z-10 border border-[var(--slate-6)] bg-inherit rounded-bl-lg">
-        <Button variant="text" size="icon" onClick={() => {
-          setMessages([]);
-          props.setValue([]);
-        }}>
+        <Button
+          variant="text"
+          size="icon"
+          onClick={() => {
+            setMessages([]);
+            props.setValue([]);
+          }}
+        >
           <Trash2Icon className="h-3 w-3" />
         </Button>
       </div>
