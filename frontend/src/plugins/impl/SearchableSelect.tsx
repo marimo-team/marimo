@@ -8,8 +8,8 @@ const { multiselectFilterFn } = exportedForTesting;
 
 interface SearchableSelectProps {
   options: string[];
-  value: string[];
-  setValue: (value: string[]) => void;
+  value: string;
+  setValue: (value: string) => void;
   label: string | null;
   allowSelectNone: boolean;
   fullWidth: boolean;
@@ -29,13 +29,8 @@ export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
     );
   }, [options, searchQuery]);
 
-  const handleValueChange = (newValues: string[] | null) => {
-    if (!newValues || newValues.length === 0) {
-      setValue([]);
-      return;
-    }
-    // Only take the last selected value for single selection
-    setValue([newValues[newValues.length - 1]]);
+  const handleValueChange = (newValue: string | null) => {
+    setValue(newValue ?? "");
   };
 
   return (
@@ -45,8 +40,8 @@ export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
         placeholder="Select..."
         multiple={false}
         className={cn("w-full", { "w-full": fullWidth })}
-        value={value[0] ?? null}
-        onValueChange={(val) => handleValueChange(val ? [val] : [])}
+        value={value}
+        onValueChange={handleValueChange}
         shouldFilter={false}
         search={searchQuery}
         onSearchChange={setSearchQuery}

@@ -48,33 +48,7 @@ describe("DropdownPlugin", () => {
       expect(screen.getByTestId("marimo-plugin-dropdown")).toBeInTheDocument();
     });
 
-    it("filters options based on search input", async () => {
-      const plugin = new DropdownPlugin();
-      const host = document.createElement("div");
-      const props: IPluginProps<string[], (typeof plugin)["validator"]["_type"]> = {
-        data: {
-          label: "Test Label",
-          options: ["Apple", "Banana", "Orange"],
-          allowSelectNone: false,
-          fullWidth: false,
-          searchable: true,
-          initialValue: [],
-        },
-        value: [],
-        setValue: vi.fn(),
-        host,
-        functions: {},
-      };
-      render(plugin.render(props));
-      
-      const input = screen.getByRole("combobox");
-      fireEvent.change(input, { target: { value: "app" } });
-      
-      expect(screen.getByText("Apple")).toBeInTheDocument();
-      expect(screen.queryByText("Banana")).not.toBeInTheDocument();
-    });
-
-    it("supports single selection only", async () => {
+    it("filters options based on search input and handles selection", async () => {
       const plugin = new DropdownPlugin();
       const host = document.createElement("div");
       const setValue = vi.fn();
@@ -82,7 +56,7 @@ describe("DropdownPlugin", () => {
         data: {
           label: "Test Label",
           options: ["Apple", "Banana", "Orange"],
-          allowSelectNone: false,
+          allowSelectNone: true,
           fullWidth: false,
           searchable: true,
           initialValue: [],
@@ -94,16 +68,50 @@ describe("DropdownPlugin", () => {
       };
       render(plugin.render(props));
       
+      // Initial empty state
       const input = screen.getByRole("combobox");
-      fireEvent.change(input, { target: { value: "" } });
+      expect(input).toHaveValue("");
       
-      // Select first option
+      // Search functionality
+      fireEvent.change(input, { target: { value: "app" } });
+      expect(screen.getByText("Apple")).toBeInTheDocument();
+      expect(screen.queryByText("Banana")).not.toBeInTheDocument();
+      
+      // Selection after search
       fireEvent.click(screen.getByText("Apple"));
       expect(setValue).toHaveBeenCalledWith(["Apple"]);
+    });
+
+    it("supports single selection only", async () => {
+      const plugin = new DropdownPlugin();
+      const host = document.createElement("div");
+      const setValue = vi.fn();
+      const props: IPluginProps<string[], (typeof plugin)["validator"]["_type"]> = {
+        data: {
+          label: "Test Label",
+          options: ["Apple", "Banana", "Orange"],
+          allowSelectNone: true,
+          fullWidth: false,
+          searchable: true,
+          initialValue: [],
+        },
+        value: ["Apple"],
+        setValue,
+        host,
+        functions: {},
+      };
+      render(plugin.render(props));
+      
+      // Initial value should be displayed
+      expect(screen.getByRole("combobox")).toHaveValue("Apple");
       
       // Select second option - should replace first
       fireEvent.click(screen.getByText("Banana"));
       expect(setValue).toHaveBeenCalledWith(["Banana"]);
+      
+      // Select none should clear value
+      fireEvent.click(screen.getByText("--"));
+      expect(setValue).toHaveBeenCalledWith([]);
     });
   });
 });
