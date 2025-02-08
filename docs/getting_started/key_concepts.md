@@ -52,7 +52,9 @@ variables defined by that cell._ This is reactive execution.
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline width="600px" align="center" src="/_static/reactive.webm">
+<video autoplay muted loop playsinline width="600px" align="center">
+    <source src="/_static/reactive.mp4" type="video/mp4">
+    <source src="/_static/reactive.webm" type="video/webm">
 </video>
 </figure>
 </div>
@@ -107,7 +109,9 @@ other marimo elements to build rich composite outputs:
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline width="600px" align="center" src="/_static/outputs.webm">
+<video autoplay muted loop playsinline width="600px" align="center">
+    <source src="/_static/outputs.mp4" type="video/mp4">
+    <source src="/_static/outputs.webm" type="video/webm">
 </video>
 </figure>
 </div>
