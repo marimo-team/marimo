@@ -6,7 +6,7 @@ from typing import Callable
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._data.get_datasets import (
-    get_datasets_from_duckdb,
+    get_databases_from_duckdb,
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
@@ -19,6 +19,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.ops import (
     CellOp,
+    Databases,
     Datasets,
     DataSourceConnections,
     VariableValue,
@@ -167,14 +168,16 @@ def _broadcast_data_source_connection(
         ).broadcast()
 
     for variable, engine in engines:
-        tables = engine.get_tables()
-        if tables:
-            LOGGER.debug(f"Broadcasting engine tables for {variable}")
-            Datasets(tables=tables).broadcast()
+        databases = engine.get_databases(
+            include_schemas=True, include_tables=False
+        )
+        if databases:
+            LOGGER.debug(f"Broadcasting engine databases for {variable}")
+            Databases(databases=databases).broadcast()
 
 
-@kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
-def _broadcast_duckdb_tables(
+@kernel_tracer.start_as_current_span("broadcast_duckdb_databases")
+def _broadcast_duckdb_databases(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -198,12 +201,14 @@ def _broadcast_duckdb_tables(
         if not modifies_datasources:
             return
 
-        tables = get_datasets_from_duckdb(connection=None)
-        if not tables:
+        databases = get_databases_from_duckdb(
+            connection=None, engine_name="In-Memory duckdb"
+        )
+        if not databases:
             return
 
-        LOGGER.debug("Broadcasting duckdb tables")
-        Datasets(tables=tables, clear_channel="duckdb").broadcast()
+        LOGGER.debug("Broadcasting duckdb databases")
+        Databases(databases=databases).broadcast()
     except Exception:
         return
 
@@ -373,7 +378,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _broadcast_variables,
     _broadcast_datasets,
     _broadcast_data_source_connection,
-    _broadcast_duckdb_tables,
+    _broadcast_duckdb_databases,
     _broadcast_outputs,
     _reset_matplotlib_context,
     # set status to idle after all post-processing is done, in case the

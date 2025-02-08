@@ -74,6 +74,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataTable,
         data.ColumnSummary,
         data.DataSourceConnection,
+        data.Schema,
+        data.Database,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -95,6 +97,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.Variables,
         ops.VariableValues,
         ops.Datasets,
+        ops.Databases,
         ops.DataColumnPreview,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,

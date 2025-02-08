@@ -4,8 +4,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
-from marimo._data.get_datasets import get_datasets_from_duckdb
-from marimo._data.models import DataTable, DataTableColumn, DataType
+from marimo._data.get_datasets import get_databases_from_duckdb
+from marimo._data.models import (
+    Database,
+    DataTable,
+    DataTableColumn,
+    DataType,
+    Schema,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.types import SQLEngine
 from marimo._sql.utils import wrapped_sql
@@ -16,6 +22,8 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     import duckdb
     from sqlalchemy import Engine
+    from sqlalchemy.engine.reflection import Inspector
+    from sqlalchemy.sql.type_api import TypeEngine
 
 
 def raise_df_import_error(pkg: str) -> None:
@@ -68,12 +76,16 @@ class DuckDBEngine(SQLEngine):
 
         return isinstance(var, duckdb.DuckDBPyConnection)
 
-    def get_tables(self) -> list[DataTable]:
-        return get_datasets_from_duckdb(self._connection, self._engine_name)
+    def get_databases(
+        self, include_schemas: bool, include_tables: bool
+    ) -> list[Database]:
+        return get_databases_from_duckdb(self._connection, self._engine_name)
 
 
 class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
+
+    inspector: Inspector
 
     def __init__(
         self, engine: Engine, engine_name: Optional[VariableName] = None
@@ -130,7 +142,140 @@ class SQLAlchemyEngine(SQLEngine):
         # Maybe in future we can enable this as a flag or for certain connection types.
         return False
 
-    def get_tables(self) -> list[DataTable]:
+    def get_databases(
+        self, include_schemas: bool, include_tables: bool
+    ) -> list[Database]:
+        """Fetch all databases from the engine.
+
+        Args:
+            include_schemas: Whether to include schema information
+            include_tables: Whether to include table information within schemas
+
+        Returns:
+            List of DatabaseCollection objects representing the database structure
+
+        Note: This operation can be performance intensive when fetching full metadata.
+        """
+        from sqlalchemy import inspect
+
+        # Initialize inspector once and store as instance variable, maybe move this to a func
+        if not hasattr(self, "inspector"):
+            self.inspector = inspect(self._engine)
+
+        databases: list[Database] = []
+        database_name = self._engine.url.database
+
+        # No database specified - could add multi-database support in future
+        if database_name is None:
+            return []
+
+        schemas = self.get_schemas(include_tables) if include_schemas else {}
+        databases.append(
+            Database(
+                name=database_name,
+                source=self.dialect,
+                schemas=schemas,
+                engine=self._engine_name,
+            )
+        )
+        return databases
+
+    def get_schemas(self, include_tables: bool) -> dict[str, Schema]:
+        """Get all schemas and optionally their tables. Keys are schema names."""
+        schema_names = self.inspector.get_schema_names()
+        if not include_tables:
+            return {
+                schema: Schema(name=schema, tables={})
+                for schema in schema_names
+            }
+
+        return {
+            schema: Schema(
+                name=schema,
+                tables=self.get_tables_in_schema(schema),
+            )
+            for schema in schema_names
+        }
+
+    def get_tables_in_schema(self, schema: str) -> dict[str, DataTable]:
+        """Return all tables in a schema. Keys are table names."""
+        table_names = self.inspector.get_table_names(schema=schema)
+        view_names = self.inspector.get_view_names(schema=schema)
+        tables = [("table", name) for name in table_names] + [
+            ("view", name) for name in view_names
+        ]
+
+        def get_python_type(col_type: TypeEngine) -> str | bool:
+            try:
+                col_type = col_type.python_type
+                return _sql_type_to_data_type(str(col_type))
+            except Exception:
+                # LOGGER.debug("Failed to get python type", exc_info=True)
+                return False
+
+        def get_generic_type(col_type: TypeEngine) -> str | bool:
+            try:
+                col_type = col_type.as_generic()
+                return _sql_type_to_data_type(str(col_type))
+            except Exception:
+                # LOGGER.debug("Failed to get generic type", exc_info=True)
+                return False
+
+        primary_keys: list[str] = []
+        index_list: list[str] = []
+
+        data_tables: dict[str, DataTable] = {}
+        for t_type, t_name in tables:
+            columns = self.inspector.get_columns(t_name, schema)
+            indexes = self.inspector.get_indexes(t_name, schema)
+
+            try:
+                # TODO: investigate this
+                index_list.extend(col["name"] for col in indexes)
+            except Exception:
+                pass
+
+            cols: list[DataTableColumn] = []
+            for col in columns:
+                col_type = col["type"]
+                col_type = (
+                    get_python_type(col_type)
+                    or get_generic_type(col_type)
+                    or "string"
+                )
+
+                try:
+                    if col["primary_key"]:
+                        primary_keys.append(col["name"])
+                except KeyError:
+                    pass
+
+                cols.append(
+                    DataTableColumn(
+                        name=col["name"],
+                        type=col_type,
+                        external_type=str(col["type"]),
+                        sample_values=[],
+                    )
+                )
+
+            data_tables[t_name] = DataTable(
+                source_type="connection",
+                source=self.dialect,
+                name=t_name,
+                num_rows=None,
+                num_columns=len(columns),
+                variable_name=None,
+                engine=self._engine_name,
+                columns=cols,
+                type=t_type,
+                primary_keys=primary_keys,
+                indexes=indexes,
+            )
+
+        return data_tables
+
+    def _reflect_tables(self) -> list[DataTable] | False:
         from sqlalchemy import MetaData
 
         try:
@@ -138,9 +283,7 @@ class SQLAlchemyEngine(SQLEngine):
             metadata.reflect(bind=self._engine)
         except Exception:
             LOGGER.debug("Failed to reflect tables", exc_info=True)
-            # If we fail to reflect, we don't want to crash the app.
-            # Just return an empty list.
-            return []
+            return False
 
         tables: list[DataTable] = []
         for table_name, table in metadata.tables.items():
@@ -164,6 +307,8 @@ class SQLAlchemyEngine(SQLEngine):
                             for col in table.columns
                         ]
                     ),
+                    primary_keys=[table.primary_key.columns.keys()],
+                    indexes=[],
                 )
             )
         return tables

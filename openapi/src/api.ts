@@ -2237,12 +2237,16 @@ export interface components {
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       engine?: string | null;
+      indexes?: string[][] | null;
       name: string;
       num_columns?: number | null;
       num_rows?: number | null;
+      primary_keys?: string[] | null;
       source: string;
       /** @enum {string} */
       source_type: "local" | "duckdb" | "connection";
+      /** @enum {string} */
+      type: "table" | "view";
       variable_name?: string | null;
     };
     DataTableColumn: {
@@ -2261,6 +2265,19 @@ export interface components {
       | "datetime"
       | "time"
       | "unknown";
+    Database: {
+      engine?: string | null;
+      name: string;
+      schemas: {
+        [key: string]: components["schemas"]["Schema"];
+      };
+      source: string;
+    };
+    Databases: {
+      databases: components["schemas"]["Database"][];
+      /** @enum {string} */
+      name: "databases";
+    };
     Datasets: {
       /** @enum {string|null} */
       clear_channel?: "local" | "duckdb" | "connection" | null;
@@ -2657,6 +2674,7 @@ export interface components {
           /** @enum {string} */
           name: "data-source-connections";
         }
+      | components["schemas"]["Databases"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -2807,6 +2825,12 @@ export interface components {
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    Schema: {
+      name: string;
+      tables: {
+        [key: string]: components["schemas"]["DataTable"];
+      };
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

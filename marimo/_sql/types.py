@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from marimo._data.models import DataTable
+from marimo._data.models import Database, DataTable
 
 
 class SQLEngine(ABC):
@@ -34,6 +34,8 @@ class SQLEngine(ABC):
         pass
 
     @abstractmethod
-    def get_tables(self) -> list[DataTable]:
-        """Get data tables from a variable."""
+    def get_databases(
+        self, include_schemas: bool, include_tables: bool
+    ) -> list[Database]:
+        """Get databases from the engine."""
         pass

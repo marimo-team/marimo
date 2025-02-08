@@ -419,6 +419,13 @@ components:
         engine:
           nullable: true
           type: string
+        indexes:
+          items:
+            items:
+              type: string
+            type: array
+          nullable: true
+          type: array
         name:
           type: string
         num_columns:
@@ -427,6 +434,11 @@ components:
         num_rows:
           nullable: true
           type: integer
+        primary_keys:
+          items:
+            type: string
+          nullable: true
+          type: array
         source:
           type: string
         source_type:
@@ -434,6 +446,11 @@ components:
           - local
           - duckdb
           - connection
+          type: string
+        type:
+          enum:
+          - table
+          - view
           type: string
         variable_name:
           nullable: true
@@ -443,6 +460,7 @@ components:
       - source
       - name
       - columns
+      - type
       type: object
     DataTableColumn:
       properties:
@@ -472,6 +490,38 @@ components:
       - time
       - unknown
       type: string
+    Database:
+      properties:
+        engine:
+          nullable: true
+          type: string
+        name:
+          type: string
+        schemas:
+          additionalProperties:
+            $ref: '#/components/schemas/Schema'
+          type: object
+        source:
+          type: string
+      required:
+      - name
+      - source
+      - schemas
+      type: object
+    Databases:
+      properties:
+        databases:
+          items:
+            $ref: '#/components/schemas/Database'
+          type: array
+        name:
+          enum:
+          - databases
+          type: string
+      required:
+      - databases
+      - name
+      type: object
     Datasets:
       properties:
         clear_channel:
@@ -1420,6 +1470,7 @@ components:
         - connections
         - name
         type: object
+      - $ref: '#/components/schemas/Databases'
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -1773,6 +1824,18 @@ components:
           $ref: '#/components/schemas/MarimoConfig'
       required:
       - config
+      type: object
+    Schema:
+      properties:
+        name:
+          type: string
+        tables:
+          additionalProperties:
+            $ref: '#/components/schemas/DataTable'
+          type: object
+      required:
+      - name
+      - tables
       type: object
     SendUIElementMessage:
       properties:

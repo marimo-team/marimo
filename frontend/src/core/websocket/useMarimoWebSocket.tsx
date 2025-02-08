@@ -42,6 +42,7 @@ import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useRunsActions } from "../cells/runs";
 import { useDataSourceActions } from "../datasets/data-source-connections";
+import { useDatabaseActions } from "../datasets/databases";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -64,6 +65,7 @@ export function useMarimoWebSocket(opts: {
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
   const { addDataSourceConnection, filterDataSourcesFromVariables } =
     useDataSourceActions();
+  const { addDatabase } = useDatabaseActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -197,6 +199,9 @@ export function useMarimoWebSocket(opts: {
         return;
       case "data-source-connections":
         addDataSourceConnection(msg.data);
+        return;
+      case "databases":
+        addDatabase(msg.data);
         return;
 
       case "reconnected":

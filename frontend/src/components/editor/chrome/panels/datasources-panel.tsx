@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { useState } from "react";
 import {
   ChevronRightIcon,
   DatabaseIcon,
   PlusIcon,
+  PaintRollerIcon,
   PlusSquareIcon,
   XIcon,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import {
 } from "@/core/cells/add-missing-import";
 import { autoInstantiateAtom } from "@/core/config/config";
 import type {
+  Database,
   DataColumnPreview,
   DataTable,
   DataTableColumn,
@@ -50,6 +52,8 @@ import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../../database/add-database-form";
+import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
+import { PythonIcon } from "../../cell/code/icons";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -86,6 +90,7 @@ export const DataSourcesPanel: React.FC = () => {
   const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
   const { createNewCell } = useCellActions();
   const tables = useAtomValue(sortedTablesAtom);
+  const databases = useAtomValue(databasesAtom);
 
   if (tables.length === 0) {
     return (
@@ -143,76 +148,223 @@ export const DataSourcesPanel: React.FC = () => {
   const hasSearch = !!searchValue.trim();
 
   return (
-    <div className="flex-1 overflow-hidden">
-      <Command className={cn("border-b bg-background rounded-none", "h-full")}>
-        <div className="flex items-center w-full">
-          <CommandInput
-            placeholder="Search tables..."
-            className="h-6 m-1"
-            value={searchValue}
-            onValueChange={(value) => {
-              // If searching, remove open previews
-              if (value.length > 0) {
-                closeAllColumns();
-              }
-              setSearchValue(value);
-            }}
-            rootClassName="flex-1 border-r"
-          />
-          {hasSearch && (
-            <button
-              type="button"
-              className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
-              onClick={() => setSearchValue("")}
-            >
-              <XIcon className="h-4 w-4" />
-            </button>
-          )}
-
-          <AddDatabaseDialog>
-            <button className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
-              <PlusIcon className="h-4 w-4" />
-            </button>
-          </AddDatabaseDialog>
-        </div>
-
-        <TableList
-          onAddColumnChart={handleAddColumn}
-          onAddTable={handleAddTable}
-          onExpandColumn={(table, column) => {
-            const tableColumn = `${table.name}:${column.name}` as const;
-            toggleColumn({
-              table: table.name,
-              column: column.name,
-            });
-            if (!columnsPreviews.has(tableColumn)) {
-              previewDatasetColumn({
-                source: table.source,
-                tableName: table.name,
-                columnName: column.name,
-                sourceType: table.source_type,
-              });
+    <Command className="border-b bg-background rounded-none h-full overflow-auto">
+      <div className="flex items-center w-full">
+        <CommandInput
+          placeholder="Search tables..."
+          className="h-6 m-1"
+          value={searchValue}
+          onValueChange={(value) => {
+            // If searching, remove open previews
+            if (value.length > 0) {
+              closeAllColumns();
             }
+            setSearchValue(value);
           }}
-          onExpandTable={(table) => {
-            toggleTable(table.name);
-          }}
-          columnPreviews={columnsPreviews}
-          tables={tables}
-          isSearching={hasSearch}
-          isTableExpanded={(table) => {
-            // Always show tables if there is a search value
-            if (hasSearch) {
-              return true;
-            }
-            return expandedTables.has(table.name);
-          }}
-          isColumnExpanded={(table, column) => {
-            const tableColumn = `${table.name}:${column.name}` as const;
-            return expandedColumns.has(tableColumn);
-          }}
+          rootClassName="flex-1 border-r"
         />
-      </Command>
+        {hasSearch && (
+          <button
+            type="button"
+            className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+            onClick={() => setSearchValue("")}
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      <AddDatabaseDialog>
+        <button className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
+          <PlusIcon className="h-4 w-4" />
+        </button>
+      </AddDatabaseDialog>
+
+      <EngineList databasesMap={databases.databasesMap} />
+
+      <DatasourceLabel>
+        <PythonIcon className="h-4 w-4 text-muted-foreground" />
+        <span>Python</span>
+      </DatasourceLabel>
+      <TableList
+        onAddColumnChart={handleAddColumn}
+        onAddTable={handleAddTable}
+        onExpandColumn={(table, column) => {
+          const tableColumn = `${table.name}:${column.name}` as const;
+          toggleColumn({
+            table: table.name,
+            column: column.name,
+          });
+          if (!columnsPreviews.has(tableColumn)) {
+            previewDatasetColumn({
+              source: table.source,
+              tableName: table.name,
+              columnName: column.name,
+              sourceType: table.source_type,
+            });
+          }
+        }}
+        onExpandTable={(table) => {
+          toggleTable(table.name);
+        }}
+        columnPreviews={columnsPreviews}
+        tables={tables}
+        isSearching={hasSearch}
+        isTableExpanded={(table) => {
+          // Always show tables if there is a search value
+          if (hasSearch) {
+            return true;
+          }
+          return expandedTables.has(table.name);
+        }}
+        isColumnExpanded={(table, column) => {
+          const tableColumn = `${table.name}:${column.name}` as const;
+          return expandedColumns.has(tableColumn);
+        }}
+      />
+    </Command>
+  );
+};
+
+const DatasourceLabel: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  return (
+    <div className="flex gap-1 items-center p-2 font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] text-sm">
+      {children}
+    </div>
+  );
+};
+
+const EngineList: React.FC<{
+  databasesMap: DatabaseState["databasesMap"];
+}> = ({ databasesMap }) => {
+  const groupedByEngine = Object.entries(
+    Object.groupBy(
+      [...databasesMap.values()],
+      (database) => database.engine || "default",
+    ),
+  );
+
+  return (
+    <>
+      {groupedByEngine.map(([engine, databases]) => {
+        const source = databases?.[0].source || "duckdb";
+
+        return (
+          <div key={engine}>
+            <DatasourceLabel>
+              <DatabaseLogo
+                className="h-4 w-4 text-muted-foreground"
+                name={source}
+              />
+              <span>{dbDisplayName(source)}</span>
+              <span className="text-xs text-muted-foreground">
+                (<EngineVariable variableName={engine as VariableName} />)
+              </span>
+            </DatasourceLabel>
+            {!databases || databases.length === 0 ? (
+              <span>No databases here</span>
+            ) : (
+              <DatabaseList databases={databases} />
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
+const DatabaseList: React.FC<{
+  databases: Database[];
+}> = ({ databases }) => {
+  return (
+    <>
+      {databases.map((database, idx) => {
+        return <DatabaseItem key={database.name} database={database} />;
+      })}
+    </>
+  );
+};
+
+const DatabaseItem: React.FC<{
+  database: Database;
+}> = ({ database }) => {
+  const [isDatabaseExpanded, setIsDatabaseExpanded] = useState(false);
+
+  return (
+    <>
+      <div onClick={() => setIsDatabaseExpanded(!isDatabaseExpanded)}>
+        <CommandItem
+          key={database.name}
+          className="text-sm flex flex-row gap-1 items-center border-b"
+        >
+          <ChevronRightIcon className="h-3 w-3" />
+          <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
+          {database.name}
+        </CommandItem>
+      </div>
+      {isDatabaseExpanded && <SchemaList schemas={database.schemas} />}
+    </>
+  );
+};
+
+const SchemaList: React.FC<{
+  schemas: Database["schemas"];
+}> = ({ schemas }) => {
+  return (
+    <>
+      {Object.values(schemas).map((schema) => {
+        return <SchemaItem key={schema.name} schema={schema} />;
+      })}
+    </>
+  );
+};
+
+const SchemaItem: React.FC<{
+  schema: Database["schemas"]["main"];
+}> = ({ schema }) => {
+  const [isSchemaExpanded, setIsSchemaExpanded] = useState(false);
+
+  return (
+    <>
+      <div
+        className="pl-3 text-sm"
+        onClick={() => setIsSchemaExpanded(!isSchemaExpanded)}
+      >
+        <CommandItem
+          key={schema.name}
+          className="py-1 text-sm flex flex-row gap-1 items-center border-b"
+        >
+          <ChevronRightIcon className="h-3 w-3" />
+          <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
+          {/* TODO: Fix non-unique schemas, fix very long names */}
+          {schema.name}
+        </CommandItem>
+      </div>
+      {isSchemaExpanded && (
+        <EngineTableList tables={Object.values(schema.tables)} />
+      )}
+    </>
+  );
+};
+
+const EngineTableList: React.FC<{
+  tables: DataTable[];
+}> = ({ tables }) => {
+  return (
+    <div className="pl-6">
+      <TableList
+        tables={tables}
+        isSearching={false}
+        columnPreviews={new Map()}
+        onAddColumnChart={() => {}}
+        onAddTable={() => {}}
+        onExpandTable={() => {}}
+        onExpandColumn={() => {}}
+        isTableExpanded={() => false}
+        isColumnExpanded={() => false}
+      />
     </div>
   );
 };

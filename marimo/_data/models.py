@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
 from typing import Any, List, Literal, Optional, Union
@@ -31,6 +31,8 @@ class DataTableColumn:
     Attributes:
         name (str): The name of the column.
         type (DataType): The data type of the column.
+        external_type (ExternalDataType): The raw data type of the column.
+        sample_values (List[Any]): The sample values of the column.
     """
 
     name: str
@@ -40,6 +42,7 @@ class DataTableColumn:
 
 
 DataTableSource = Literal["local", "duckdb", "connection"]
+DataTableType = Literal["table", "view"]
 
 
 @dataclass
@@ -48,14 +51,17 @@ class DataTable:
     Represents a data table.
 
     Attributes:
-        source (str): The source of the data table.
-        name (str): The name of the data table.
-        num_rows (Optional[int]): The number of rows in the data table.
-        num_columns (Optional[int]): The number of columns in the data table.
-        variable_name (Optional[VariableName]): The variable name associated with
-        the data table.
-        columns (List[DataTableColumn]): The list of columns in the data table.
-        engine (Optional[VariableName]): The engine associated with the data table.
+        source_type (DataTableSource): Type of data source ('local', 'duckdb', 'connection').
+        source (str): Source identifier or path of the data table.
+        name (str): Name of the data table.
+        num_rows (Optional[int]): Total number of rows in the table, if known.
+        num_columns (Optional[int]): Total number of columns in the table, if known.
+        variable_name (Optional[VariableName]): Variable name referencing this table in code.
+        columns (List[DataTableColumn]): List of column definitions and metadata.
+        engine (Optional[VariableName]): Database engine or connection handler, if any.
+        type (DataTableType): Table type, either 'table' or 'view'. Defaults to 'table'.
+        primary_keys (Optional[List[str]]): Column names used as primary keys, if any.
+        indexes (Optional[List[List[str]]]): Column names used as indexes, if any. Each list represents a single index, can be multi-column.
     """
 
     source_type: DataTableSource
@@ -65,6 +71,33 @@ class DataTable:
     num_columns: Optional[int]
     variable_name: Optional[VariableName]
     columns: List[DataTableColumn]
+    engine: Optional[VariableName] = None
+    type: DataTableType = "table"
+    primary_keys: Optional[List[str]] = None
+    indexes: Optional[List[List[str]]] = None
+
+
+@dataclass
+class Schema:
+    name: str
+    tables: dict[str, DataTable] = field(default_factory=dict)
+
+
+@dataclass
+class Database:
+    """
+    Represents a collection of schemas.
+
+    Attributes:
+        name (str): The name of the database
+        source (str): Source identifier or path of the database # TODO: Why?
+        engine (Optional[VariableName]): Database engine or connection handler, if any.
+        schemas (dict[str, Schema]): A dictionary of database schemas, keyed by schema name
+    """
+
+    name: str
+    source: str
+    schemas: dict[str, Schema] = field(default_factory=dict)
     engine: Optional[VariableName] = None
 
 

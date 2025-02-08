@@ -9,6 +9,7 @@ from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
+    Databases,
     Datasets,
     DataSourceConnections,
     Interrupted,
@@ -69,6 +70,8 @@ class SessionView:
         self.datasets = Datasets(tables=[])
         # The most recent data-connectors operation
         self.data_connectors = DataSourceConnections(connections=[])
+        # The most recent databases operation.
+        self.databases = Databases(databases=[])
         # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
         # Map of variable name to value.
@@ -227,6 +230,16 @@ class SessionView:
                 connections=list(connections.values())
             )
 
+        elif isinstance(operation, Databases):
+            # Update databases, dedupe by name and keep the latest
+            prev_db_collections = self.databases.databases
+            databases = {d.name: d for d in prev_db_collections}
+
+            for d in operation.databases:
+                databases[d.name] = d
+
+            self.databases = Databases(databases=list(databases.values()))
+
         elif isinstance(operation, UpdateCellIdsRequest):
             self.cell_ids = operation
 
@@ -290,6 +303,8 @@ class SessionView:
             all_ops.append(self.datasets)
         if self.data_connectors.connections:
             all_ops.append(self.data_connectors)
+        if self.databases.databases:
+            all_ops.append(self.databases)
         all_ops.extend(self.cell_operations.values())
         if self.stale_code:
             all_ops.append(self.stale_code)

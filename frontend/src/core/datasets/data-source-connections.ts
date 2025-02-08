@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
+import type { DataSourceConnection as DataSourceConnectionType } from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
 import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
@@ -9,11 +10,10 @@ export type ConnectionName = TypedString<"ConnectionName">;
 
 export const DEFAULT_ENGINE = "_marimo_duckdb" as ConnectionName;
 
-export interface DataSourceConnection {
+// Extend the backend type but override the name property with the strongly typed ConnectionName
+export interface DataSourceConnection
+  extends Omit<DataSourceConnectionType, "name"> {
   name: ConnectionName;
-  source: string;
-  display_name: string;
-  dialect: string;
 }
 
 export interface DataSourceState {

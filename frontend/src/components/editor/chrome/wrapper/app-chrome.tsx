@@ -169,7 +169,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-[var(--slate-1)] no-print print:hidden hide-on-fullscreen",
+        "dark:bg-[var(--slate-1)] no-print print:hidden hide-on-fullscreen transition-[flex-grow] duration-100",
         isSidebarOpen && "border-r border-l border-[var(--slate-7)]",
       )}
       minSize={10}
