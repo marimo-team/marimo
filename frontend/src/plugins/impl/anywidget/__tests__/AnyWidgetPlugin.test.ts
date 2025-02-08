@@ -106,6 +106,7 @@ describe("Model", () => {
       model.send({ test: true }, callback);
 
       expect(sendToWidget).toHaveBeenCalledWith({ content: { test: true } });
+      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
       expect(callback).toHaveBeenCalledWith(null);
     });
 

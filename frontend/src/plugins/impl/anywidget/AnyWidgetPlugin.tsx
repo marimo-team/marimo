@@ -272,7 +272,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
       partialData[key] = this.data[key];
     });
     this.dirtyFields.clear();
-    this.onChange(partialData as T);
+    this.onChange(partialData);
   }
 
   updateAndEmitDiffs(value: T): void {
