@@ -69,7 +69,9 @@ automatically made available as Pandas dataframes in Python._
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline width="600px" align="center" src="/_static/docs-intro.webm">
+<video autoplay muted loop playsinline width="600px" align="center">
+    <source src="/_static/docs-intro.mp4" type="video/mp4">
+    <source src="/_static/docs-intro.webm" type="video/webm">
 </video>
 </figure>
 </div>

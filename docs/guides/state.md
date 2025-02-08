@@ -42,7 +42,9 @@ But sometimes, you might want interactions to mutate state:
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
 <figure>
-<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/docs-state-task-list.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+    <source src="/_static/docs-state-task-list.mp4" type="video/mp4">
+    <source src="/_static/docs-state-task-list.webm" type="video/webm">
 </video>
 </figure>
 <figcaption>A proof-of-concept TODO list made using state.</figcaption>

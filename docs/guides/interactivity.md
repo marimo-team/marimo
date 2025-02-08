@@ -7,7 +7,9 @@ global variable automatically runs all cells that reference it.**
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/readme-ui.webm">
+<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+    <source src="/_static/readme-ui.mp4" type="video/mp4">
+    <source src="/_static/readme-ui.webm" type="video/webm">
 </video>
 </figure>
 </div>
