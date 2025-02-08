@@ -19,6 +19,7 @@ import { Logger } from "@/utils/Logger";
 
 import {
   INDEX_COLUMN_NAME,
+  type DataTableSelection,
   toFieldTypes,
   type ColumnHeaderSummary,
   type FieldTypesWithExternalType,
@@ -67,7 +68,7 @@ interface Data<T> {
   totalRows: number | "too_many";
   pagination: boolean;
   pageSize: number;
-  selection: "single" | "multi" | null;
+  selection: DataTableSelection;
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";

@@ -12,10 +12,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { PluralWord } from "@/utils/pluralize";
 import { range } from "lodash-es";
+import type { DataTableSelection } from "./types";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
-  selection?: "single" | "multi" | null;
+  selection?: DataTableSelection;
   totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
 }

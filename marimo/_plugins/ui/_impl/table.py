@@ -196,7 +196,8 @@ class table(
             - as a single column: a list of values
         pagination (bool, optional): Whether to paginate; if False, all rows will be shown.
             Defaults to True when above 10 rows, False otherwise.
-        selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
+        selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
+            'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
         initial_selection (List[int], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
@@ -230,7 +231,9 @@ class table(
             "IntoDataFrame",
         ],
         pagination: Optional[bool] = None,
-        selection: Optional[Literal["single", "multi"]] = "multi",
+        selection: Optional[
+            Literal["single", "multi", "single-cell", "multi-cell"]
+        ] = "multi",
         initial_selection: Optional[List[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[

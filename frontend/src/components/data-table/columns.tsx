@@ -11,7 +11,7 @@ import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
-import { INDEX_COLUMN_NAME, type FieldTypesWithExternalType } from "./types";
+import { INDEX_COLUMN_NAME, type DataTableSelection, FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
@@ -89,7 +89,7 @@ export function generateColumns<T>({
   showDataTypes,
 }: {
   rowHeaders: string[];
-  selection: "single" | "multi" | null;
+  selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
@@ -177,10 +177,19 @@ export function generateColumns<T>({
         const justify = textJustifyColumns?.[key];
         const wrapped = wrappedColumns?.includes(key);
 
+        const SelectCell = () => {
+          if (selection !== "single-cell") {
+            return null;
+          }
+
+          return <Checkbox />;
+        };
+
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
             <div className={getCellStyleClass(justify, wrapped)}>
+              <SelectCell />
               {column.applyColumnFormatting(value)}
             </div>
           );
@@ -190,6 +199,7 @@ export function generateColumns<T>({
           const rendered = renderValue();
           return (
             <div className={getCellStyleClass(justify, wrapped)}>
+              <SelectCell />
               {rendered == null ? (
                 ""
               ) : typeof rendered === "string" ? (
@@ -207,6 +217,7 @@ export function generateColumns<T>({
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
           return (
             <div className={getCellStyleClass(justify, wrapped)}>
+              <SelectCell />
               <DatePopover date={value} type={type}>
                 {exactDateTime(value)}
               </DatePopover>
@@ -224,6 +235,7 @@ export function generateColumns<T>({
 
         return (
           <div className={getCellStyleClass(justify, wrapped)}>
+            <SelectCell />
             {renderAny(getValue())}
           </div>
         );

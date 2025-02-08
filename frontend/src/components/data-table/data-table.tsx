@@ -29,6 +29,7 @@ import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
+import type { DataTableSelection } from "./types";
 import { INDEX_COLUMN_NAME } from "./types";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
@@ -48,7 +49,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   paginationState?: PaginationState; // controlled pagination
   setPaginationState?: OnChangeFn<PaginationState>; // controlled pagination
   // Selection
-  selection?: "single" | "multi" | null;
+  selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   // Search
