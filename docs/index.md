@@ -267,6 +267,7 @@ GitHub to learn more.
         <img src="https://marimo.io/shield.svg"/>
       </a>
     </td>
+    <td>
       <a target="_blank" href="https://marimo.app/l/0ue871">
         <img src="https://marimo.io/shield.svg"/>
       </a>
