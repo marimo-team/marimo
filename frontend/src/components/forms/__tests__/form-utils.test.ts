@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { getDefaults } from "@/plugins/impl/data-frames/forms/form-utils";
+import { getDefaults } from "@/components/forms/form-utils";
 import { z } from "zod";
 
 describe("getDefaults", () => {

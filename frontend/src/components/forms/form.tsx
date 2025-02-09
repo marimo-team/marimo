@@ -1,17 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
-import {
-  DebouncedInput,
-  DebouncedNumberInput,
-} from "../../../../components/ui/input";
-import { Checkbox } from "../../../../components/ui/checkbox";
+import { DebouncedInput, DebouncedNumberInput } from "../ui/input";
+import { Checkbox } from "../ui/checkbox";
 import {
   type FieldValues,
   FormProvider,
   type Path,
   type UseFormReturn,
-  useController,
   useFieldArray,
 } from "react-hook-form";
 import {
@@ -20,26 +16,16 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  FormMessageTooltip,
   FormDescription,
-} from "../../../../components/ui/form";
-import { Objects } from "../../../../utils/objects";
-import { Button } from "../../../../components/ui/button";
+} from "../ui/form";
+import { Objects } from "../../utils/objects";
+import { Button } from "../ui/button";
 import { getDefaults, getUnionLiteral } from "./form-utils";
 import { PlusIcon, RefreshCcw, Trash2Icon } from "lucide-react";
-import {
-  FieldOptions,
-  randomNumber,
-} from "@/plugins/impl/data-frames/forms/options";
+import { FieldOptions, randomNumber } from "@/components/forms/options";
 import { cn } from "@/utils/cn";
-import React, { useContext, useEffect } from "react";
-import {
-  ColumnFetchValuesContext,
-  ColumnInfoContext,
-  ColumnNameContext,
-} from "@/plugins/impl/data-frames/forms/context";
+import React from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import { Strings } from "@/utils/strings";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -51,38 +37,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTypeIcon } from "./datatype-icon";
-import { Events } from "@/utils/events";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { Combobox, ComboboxItem } from "@/components/ui/combobox";
+import { Events } from "@/utils/events";
 import {
-  SwitchableMultiSelect,
   TextAreaMultiSelect,
   ensureStringArray,
-} from "@/components/forms/switchable-multi-select";
-import type { ColumnId } from "../types";
+  SwitchableMultiSelect,
+} from "./switchable-multi-select";
+
+export interface FormRenderer<T extends FieldValues = any, S = any> {
+  isMatch: (schema: z.ZodType) => schema is z.ZodType<S, z.ZodTypeDef, unknown>;
+  Component: React.ComponentType<{
+    schema: z.ZodType<S, z.ZodTypeDef, unknown>;
+    form: UseFormReturn<T>;
+    path: Path<T>;
+  }>;
+}
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
   schema: z.ZodType;
   path?: Path<T>;
+  renderers?: Array<FormRenderer<T>>;
 }
 
 export const ZodForm = <T extends FieldValues>({
   schema,
   form,
   path = "" as Path<T>,
+  renderers = [],
 }: Props<T>) => {
   return (
-    <FormProvider {...form}>{renderZodSchema(schema, form, path)}</FormProvider>
+    <FormProvider {...form}>
+      {renderZodSchema(schema, form, path, renderers)}
+    </FormProvider>
   );
 };
 
-function renderZodSchema<T extends FieldValues, S>(
+export function renderZodSchema<T extends FieldValues, S>(
   schema: z.ZodType<S>,
   form: UseFormReturn<T>,
   path: Path<T>,
+  renderers: Array<FormRenderer<T>>,
 ) {
+  // Try custom renderers first
+  for (const renderer of renderers) {
+    const { isMatch, Component } = renderer;
+    if (isMatch(schema)) {
+      return <Component schema={schema} form={form} path={path} />;
+    }
+  }
+
   const {
     label,
     description,
@@ -92,22 +97,23 @@ function renderZodSchema<T extends FieldValues, S>(
 
   if (schema instanceof z.ZodDefault) {
     let inner = schema._def.innerType as z.ZodType<unknown>;
-    // pass along the description
     inner =
       !inner.description && schema.description
         ? inner.describe(schema.description)
         : inner;
-    return renderZodSchema(inner, form, path);
+    return renderZodSchema(inner, form, path, renderers);
   }
-  if (special === "column_id") {
-    return <ColumnFormField schema={schema} form={form} path={path} />;
+
+  if (schema instanceof z.ZodOptional) {
+    let inner = schema._def.innerType as z.ZodType<unknown>;
+    inner =
+      !inner.description && schema.description
+        ? inner.describe(schema.description)
+        : inner;
+    return renderZodSchema(inner, form, path, renderers);
   }
 
   if (schema instanceof z.ZodObject) {
-    if (special === "column_filter") {
-      return <FilterForm schema={schema} form={form} path={path} />;
-    }
-
     return (
       <div
         className={cn(
@@ -122,6 +128,7 @@ function renderZodSchema<T extends FieldValues, S>(
             value as z.ZodType<unknown>,
             form,
             `${path}.${key}` as Path<T>,
+            renderers,
           );
 
           if (isLiteral) {
@@ -137,10 +144,8 @@ function renderZodSchema<T extends FieldValues, S>(
       </div>
     );
   }
+
   if (schema instanceof z.ZodString) {
-    if (special === "column_values") {
-      return <ColumnValuesFormField schema={schema} form={form} path={path} />;
-    }
     if (special === "time") {
       return (
         <FormField
@@ -282,27 +287,9 @@ function renderZodSchema<T extends FieldValues, S>(
     if (special === "text_area_multiline") {
       return <MultiStringFormField schema={schema} form={form} path={path} />;
     }
-    if (special === "column_values") {
-      return (
-        <MultiColumnValuesFormField schema={schema} form={form} path={path} />
-      );
-    }
 
     // Inspect child type for a better input
     const childType = schema._def.type;
-    const childSpecial = FieldOptions.parse(childType._def.description).special;
-
-    // Show column multi-select for array with column_id
-    if (childSpecial === "column_id") {
-      return (
-        <MultiColumnFormField
-          schema={childType}
-          form={form}
-          path={path}
-          itemLabel={label}
-        />
-      );
-    }
 
     // Show multi-select for enum array
     if (childType instanceof z.ZodEnum) {
@@ -368,7 +355,8 @@ function renderZodSchema<T extends FieldValues, S>(
                   );
                 })}
               </NativeSelect>
-              {selectedOption && renderZodSchema(selectedOption, form, path)}
+              {selectedOption &&
+                renderZodSchema(selectedOption, form, path, renderers)}
             </div>
           );
         }}
@@ -388,8 +376,9 @@ function renderZodSchema<T extends FieldValues, S>(
     schema instanceof z.ZodEffects &&
     ["refinement", "transform"].includes(schema._def.effect.type)
   ) {
-    return renderZodSchema(schema._def.schema, form, path);
+    return renderZodSchema(schema._def.schema, form, path, renderers);
   }
+
   return (
     <div>
       Unknown schema type{" "}
@@ -397,17 +386,6 @@ function renderZodSchema<T extends FieldValues, S>(
     </div>
   );
 }
-
-const StyledFormMessage = ({ className }: { className?: string }) => {
-  return (
-    <FormMessageTooltip
-      className={cn(
-        "absolute -left-6 bottom-0 text-destructive text-xs w-[16px]",
-        className,
-      )}
-    />
-  );
-};
 
 /**
  * Type: T[]
@@ -448,7 +426,7 @@ const FormArray = ({
             key={field.id}
             onKeyDown={Events.onEnter((e) => e.preventDefault())}
           >
-            {renderZodSchema(schema, form, `${path}[${index}]`)}
+            {renderZodSchema(schema, form, `${path}[${index}]`, [])}
             {canRemove && (
               <Trash2Icon
                 className="w-4 h-4 ml-2 my-1 text-muted-foreground hover:text-destructive cursor-pointer absolute right-0 top-5"
@@ -480,282 +458,6 @@ const FormArray = ({
         </Button>
       </div>
     </div>
-  );
-};
-
-/**
- * Type: string | number
- * Special: column_id
- */
-const ColumnFormField = ({
-  schema,
-  form,
-  path,
-  onChange,
-}: {
-  schema: z.ZodSchema;
-  form: UseFormReturn<any>;
-  path: Path<any>;
-  onChange?: (value: ColumnId) => void;
-}) => {
-  const columns = useContext(ColumnInfoContext);
-  const { label, description } = FieldOptions.parse(schema._def.description);
-
-  return (
-    <FormField
-      control={form.control}
-      name={path}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormDescription>{description}</FormDescription>
-          <StyledFormMessage />
-          <FormControl>
-            <Select
-              data-testid="marimo-plugin-data-frames-column-select"
-              value={
-                field.value == null ? field.value : JSON.stringify(field.value)
-              }
-              onValueChange={(value) => {
-                const realValue = JSON.parse(value) as ColumnId;
-                onChange?.(realValue);
-                field.onChange(realValue);
-              }}
-            >
-              <SelectTrigger className="min-w-[180px]">
-                <SelectValue placeholder="--" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {[...columns.entries()].map(([name, dtype]) => {
-                    return (
-                      <SelectItem key={name} value={JSON.stringify(name)}>
-                        <span className="flex items-center gap-2 flex-1">
-                          <DataTypeIcon type={dtype} />
-                          <span className="flex-1">{name}</span>
-                          <span className="text-muted-foreground text-xs font-semibold">
-                            ({dtype})
-                          </span>
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                  {columns.size === 0 && (
-                    <SelectItem disabled={true} value="--">
-                      No columns
-                    </SelectItem>
-                  )}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FormControl>
-        </FormItem>
-      )}
-    />
-  );
-};
-
-/**
- * Type: (string | number)[]
- * Special: column_ids
- */
-const MultiColumnFormField = ({
-  schema,
-  form,
-  path,
-  itemLabel,
-}: {
-  schema: z.ZodSchema;
-  form: UseFormReturn<any>;
-  path: Path<any>;
-  itemLabel?: string;
-}) => {
-  const columns = useContext(ColumnInfoContext);
-  const { description } = FieldOptions.parse(schema._def.description);
-  const placeholder = itemLabel
-    ? `Select ${itemLabel.toLowerCase()}`
-    : undefined;
-  return (
-    <FormField
-      control={form.control}
-      name={path}
-      render={({ field }) => {
-        const values = ensureStringArray(field.value);
-        return (
-          <FormItem>
-            <FormLabel>{itemLabel}</FormLabel>
-            <FormDescription>{description}</FormDescription>
-            <FormControl>
-              <Combobox<ColumnId>
-                className="min-w-[180px]"
-                placeholder={placeholder}
-                displayValue={String}
-                multiple={true}
-                chips={true}
-                keepPopoverOpenOnSelect={true}
-                value={values}
-                onValueChange={(v) => {
-                  field.onChange(v);
-                }}
-              >
-                {[...columns.entries()].map(([name, dtype]) => {
-                  return (
-                    <ComboboxItem key={name} value={name}>
-                      <span className="flex items-center gap-2 flex-1">
-                        <DataTypeIcon type={dtype} />
-                        <span className="flex-1">{name}</span>
-                        <span className="text-muted-foreground text-xs font-semibold">
-                          ({dtype})
-                        </span>
-                      </span>
-                    </ComboboxItem>
-                  );
-                })}
-              </Combobox>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        );
-      }}
-    />
-  );
-};
-
-/**
- * Type: { column_id: string; operator: string; value: any }
- * Special: column_filter
- */
-const FilterForm = ({
-  path,
-  form,
-  schema,
-}: {
-  schema: z.ZodObject<{}>;
-  form: UseFormReturn<any>;
-  path: Path<any>;
-}) => {
-  const { description } = FieldOptions.parse(schema._def.description);
-  const columns = useContext(ColumnInfoContext);
-  const { field } = useController({ name: path });
-
-  const columnIdSchema = Objects.entries(schema._def.shape()).find(
-    ([key, value]) => {
-      return key === "column_id";
-    },
-  )?.[1] as unknown as z.ZodString;
-
-  // existing values
-  const { column_id: columnId, operator } = field.value ?? {};
-
-  const children = [
-    <ColumnFormField
-      key={"column_id"}
-      schema={columnIdSchema}
-      form={form}
-      path={`${path}.column_id`}
-      onChange={(value) => {
-        // Reset operator and value if the column type changes
-        const currentDtype = columns.get(columnId);
-        const nextDtype = columns.get(value);
-        if (nextDtype !== currentDtype) {
-          form.setValue(`${path}.value`, undefined);
-        }
-      }}
-    />,
-  ];
-
-  // When column ID changes, get the new dtype and reset the operator
-  useEffect(() => {
-    const dtype = columns.get(columnId);
-    const operators = getOperatorForDtype(dtype);
-
-    const currentOperator = form.getValues(`${path}.operator`);
-    if (!operators.includes(currentOperator)) {
-      form.setValue(`${path}.operator`, operators[0]);
-      form.setValue(`${path}.value`, undefined);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnId]);
-
-  if (columnId != null) {
-    const dtype = columns.get(columnId);
-    const operators = getOperatorForDtype(dtype);
-
-    if (operators.length === 0) {
-      children.push(
-        <div
-          key={"no_operator"}
-          className="text-muted-foreground text-xs font-semibold"
-        >
-          <FormLabel className="whitespace-pre"> </FormLabel>
-          <div>This column type does not support filtering.</div>
-        </div>,
-      );
-    } else {
-      children.push(
-        <FormField
-          key={"operator"}
-          control={form.control}
-          name={`${path}.operator`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="whitespace-pre"> </FormLabel>
-              <FormDescription>{description}</FormDescription>
-              <FormControl>
-                <Select
-                  data-testid="marimo-plugin-data-frames-filter-operator-select"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                >
-                  <SelectTrigger className="min-w-[140px]">
-                    <SelectValue placeholder="--" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {operators.map((value: string) => {
-                        return (
-                          <SelectItem key={value} value={value}>
-                            {Strings.startCase(value)}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />,
-      );
-    }
-  }
-
-  if (operator != null) {
-    const dtype = columns.get(columnId);
-    const operandSchemas = getSchemaForOperator(dtype, operator);
-    if (operandSchemas.length === 1) {
-      children.push(
-        <React.Fragment key={"value"}>
-          <ColumnNameContext.Provider value={columnId}>
-            {renderZodSchema(operandSchemas[0], form, `${path}.value`)}
-          </ColumnNameContext.Provider>
-        </React.Fragment>,
-      );
-    }
-  }
-
-  return (
-    <FormField
-      control={form.control}
-      name={path}
-      render={() => (
-        <div className="flex flex-col gap-2 bg-red">
-          <div className={cn("flex flex-row gap-2")}>{children}</div>
-          <FormMessage />
-        </div>
-      )}
-    />
   );
 };
 
@@ -1008,109 +710,6 @@ const MultiSelectFormField = ({
           </FormItem>
         );
       }}
-    />
-  );
-};
-
-/**
- * Type: string
- * Special: column_values
- */
-const ColumnValuesFormField = ({
-  schema,
-  form,
-  path,
-}: {
-  schema: z.ZodString;
-  form: UseFormReturn<any>;
-  path: Path<any>;
-}) => {
-  const { label, description, placeholder } = FieldOptions.parse(
-    schema._def.description,
-  );
-  const column = useContext(ColumnNameContext);
-  const fetchValues = useContext(ColumnFetchValuesContext);
-  const { data, loading } = useAsyncData(() => {
-    return fetchValues({ column });
-  }, [column]);
-
-  const options = data?.values || [];
-
-  // loaded with no options
-  if (options.length === 0 && !loading) {
-    return <StringFormField schema={schema} form={form} path={path} />;
-  }
-
-  const optionsAsStrings = options.map(String);
-  return (
-    <FormField
-      control={form.control}
-      name={path}
-      render={({ field }) => {
-        return (
-          <FormItem>
-            <FormLabel className="whitespace-pre">{label}</FormLabel>
-            <FormDescription>{description}</FormDescription>
-            <FormControl>
-              <Combobox
-                className="min-w-[180px]"
-                placeholder={placeholder}
-                multiple={false}
-                displayValue={(option: string) => option}
-                value={
-                  Array.isArray(field.value) ? field.value[0] : field.value
-                }
-                onValueChange={field.onChange}
-              >
-                {optionsAsStrings.map((option) => (
-                  <ComboboxItem key={option} value={option}>
-                    {option}
-                  </ComboboxItem>
-                ))}
-              </Combobox>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        );
-      }}
-    />
-  );
-};
-
-/**
- * Type: string[]
- * Special: column_values
- */
-const MultiColumnValuesFormField = ({
-  schema,
-  form,
-  path,
-}: {
-  schema: z.ZodString | z.ZodArray<any>;
-  form: UseFormReturn<any>;
-  path: Path<any>;
-}) => {
-  const column = useContext(ColumnNameContext);
-  const fetchValues = useContext(ColumnFetchValuesContext);
-  const { data, loading } = useAsyncData(() => {
-    return fetchValues({ column });
-  }, [column]);
-
-  const options = data?.values || [];
-
-  // loaded with no options
-  if (options.length === 0 && !loading) {
-    return <MultiStringFormField schema={schema} form={form} path={path} />;
-  }
-
-  const optionsAsStrings = options.map(String);
-  return (
-    <MultiSelectFormField
-      schema={schema}
-      form={form}
-      path={path}
-      showSwitchable={true}
-      options={optionsAsStrings}
     />
   );
 };

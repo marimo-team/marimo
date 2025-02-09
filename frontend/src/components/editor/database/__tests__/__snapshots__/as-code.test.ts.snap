@@ -1,0 +1,172 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateDatabaseCode > bigquery with SQLAlchemy 1`] = `
+"from sqlalchemy import create_engine
+import os
+import json
+credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+engine = create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)
+"
+`;
+
+exports[`generateDatabaseCode > bigquery with SQLModel 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+import json
+credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+engine = create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)
+"
+`;
+
+exports[`generateDatabaseCode > duckdb in-memory 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+engine = create_engine("duckdb::memory:", read_only=True)
+"
+`;
+
+exports[`generateDatabaseCode > duckdb with SQLAlchemy 1`] = `
+"from sqlalchemy import create_engine
+import os
+engine = create_engine("duckdb:data.duckdb", read_only=True)
+"
+`;
+
+exports[`generateDatabaseCode > duckdb with SQLModel 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+engine = create_engine("duckdb:data.duckdb", read_only=True)
+"
+`;
+
+exports[`generateDatabaseCode > mysql with SQLAlchemy 1`] = `
+"from sqlalchemy import create_engine
+import os
+password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
+engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})
+"
+`;
+
+exports[`generateDatabaseCode > mysql with SQLModel 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
+engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})
+"
+`;
+
+exports[`generateDatabaseCode > mysql without SSL 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
+engine = create_engine(DATABASE_URL)
+"
+`;
+
+exports[`generateDatabaseCode > postgres with SQLAlchemy 1`] = `
+"from sqlalchemy import create_engine
+import os
+password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
+engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})
+"
+`;
+
+exports[`generateDatabaseCode > postgres with SQLModel 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
+engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})
+"
+`;
+
+exports[`generateDatabaseCode > postgres without SSL 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
+engine = create_engine(DATABASE_URL)
+"
+`;
+
+exports[`generateDatabaseCode > snowflake with SQLAlchemy 1`] = `
+"from sqlalchemy import create_engine
+import os
+from sqlalchemy import URL
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+connection_url = URL.create(
+    "snowflake",
+    username="user",
+    password=password,
+    host="account",
+    database="db",
+    query={
+        "warehouse": "warehouse",
+        "schema": "schema",
+        "role": "role"
+    }
+)
+engine = create_engine(connection_url)
+"
+`;
+
+exports[`generateDatabaseCode > snowflake with SQLModel 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+from sqlalchemy import URL
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+connection_url = URL.create(
+    "snowflake",
+    username="user",
+    password=password,
+    host="account",
+    database="db",
+    query={
+        "warehouse": "warehouse",
+        "schema": "schema",
+        "role": "role"
+    }
+)
+engine = create_engine(connection_url)
+"
+`;
+
+exports[`generateDatabaseCode > snowflake without role 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+from sqlalchemy import URL
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+connection_url = URL.create(
+    "snowflake",
+    username="user",
+    password=password,
+    host="account",
+    database="db",
+    query={
+        "warehouse": "warehouse",
+        "schema": "schema"
+    }
+)
+engine = create_engine(connection_url)
+"
+`;
+
+exports[`generateDatabaseCode > sqlite with SQLAlchemy 1`] = `
+"from sqlalchemy import create_engine
+import os
+DATABASE_URL = "sqlite:////path/to/db.sqlite"
+engine = create_engine(DATABASE_URL)
+"
+`;
+
+exports[`generateDatabaseCode > sqlite with SQLModel 1`] = `
+"from sqlmodel import create_engine, Session
+import os
+DATABASE_URL = "sqlite:////path/to/db.sqlite"
+engine = create_engine(DATABASE_URL)
+"
+`;
