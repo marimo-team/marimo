@@ -130,6 +130,92 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_sql_table_info/{engine}/{database}/{schema}/{table_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The SQL engine to use */
+          engine: string;
+          /** @description The SQL database to use */
+          database: string;
+          /** @description The SQL schema to use */
+          schema: string;
+          /** @description The SQL table to preview */
+          table_name: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Get tables from the SQL database */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/datasources/preview_sql_tables/{engine}/{database}/{schema}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The SQL engine to use */
+          engine: string;
+          /** @description The SQL database to use */
+          database: string;
+          /** @description The SQL schema to use */
+          schema: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Get tables from the SQL database */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -2268,9 +2354,7 @@ export interface components {
     Database: {
       engine?: string | null;
       name: string;
-      schemas: {
-        [key: string]: components["schemas"]["Schema"];
-      };
+      schemas: components["schemas"]["Schema"][];
       source: string;
     };
     Databases: {
@@ -2669,6 +2753,8 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
+      | components["schemas"]["SQLTablesPreview"]
+      | components["schemas"]["SQLTableInfoPreview"]
       | {
           connections: components["schemas"]["DataSourceConnection"][];
           /** @enum {string} */
@@ -2743,6 +2829,17 @@ export interface components {
       sourceType: "local" | "duckdb" | "connection";
       tableName: string;
     };
+    PreviewSQLTableInfoRequest: {
+      database: string;
+      engine: string;
+      schema: string;
+      tableName: string;
+    };
+    PreviewSQLTablesRequest: {
+      database: string;
+      engine: string;
+      schema: string;
+    };
     QueryParamsAppend: {
       key: string;
       /** @enum {string} */
@@ -2807,6 +2904,21 @@ export interface components {
     };
     /** @enum {string} */
     RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
+    SQLTableInfoPreview: {
+      error?: string | null;
+      /** @enum {string} */
+      name: "sql-table-info-preview";
+      table: components["schemas"]["DataTable"];
+      table_name: string;
+    };
+    SQLTablesPreview: {
+      database_name: string;
+      engine_name: string;
+      error?: string | null;
+      /** @enum {string} */
+      name: "sql-tables-preview";
+      tables: components["schemas"]["DataTable"][];
+    };
     SaveAppConfigurationRequest: {
       config: {
         [key: string]: unknown;
@@ -2828,9 +2940,7 @@ export interface components {
     };
     Schema: {
       name: string;
-      tables: {
-        [key: string]: components["schemas"]["DataTable"];
-      };
+      tables: components["schemas"]["DataTable"][];
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

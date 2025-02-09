@@ -24,7 +24,10 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
-import { previewDatasetColumn } from "@/core/network/requests";
+import {
+  previewDatasetColumn,
+  previewSQLTables,
+} from "@/core/network/requests";
 import type { ColumnPreviewMap } from "@/core/datasets/types";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
@@ -39,6 +42,7 @@ import {
 import { autoInstantiateAtom } from "@/core/config/config";
 import type {
   Database,
+  DatabaseSchema,
   DataColumnPreview,
   DataTable,
   DataTableColumn,
@@ -54,6 +58,7 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../../database/add-database-form";
 import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
+import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -236,13 +241,19 @@ const DatasourceLabel: React.FC<{
   );
 };
 
-const EngineList: React.FC<{
-  databasesMap: DatabaseState["databasesMap"];
-}> = ({ databasesMap }) => {
+const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
+  <ChevronRightIcon
+    className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
+  />
+);
+
+const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
+  databasesMap,
+}) => {
   const groupedByEngine = Object.entries(
     Object.groupBy(
       [...databasesMap.values()],
-      (database) => database.engine || "default",
+      (database) => database.engine || DEFAULT_ENGINE,
     ),
   );
 
@@ -263,10 +274,14 @@ const EngineList: React.FC<{
                 (<EngineVariable variableName={engine as VariableName} />)
               </span>
             </DatasourceLabel>
-            {!databases || databases.length === 0 ? (
-              <span>No databases here</span>
+            {databases && databases.length > 0 ? (
+              databases.map((database) => (
+                <DatabaseItem key={database.name} database={database} />
+              ))
             ) : (
-              <DatabaseList databases={databases} />
+              <span className="text-sm text-muted-foreground p-2">
+                No databases available
+              </span>
             )}
           </div>
         );
@@ -275,99 +290,68 @@ const EngineList: React.FC<{
   );
 };
 
-const DatabaseList: React.FC<{
-  databases: Database[];
-}> = ({ databases }) => {
-  return (
-    <>
-      {databases.map((database, idx) => {
-        return <DatabaseItem key={database.name} database={database} />;
-      })}
-    </>
-  );
-};
-
-const DatabaseItem: React.FC<{
-  database: Database;
-}> = ({ database }) => {
-  const [isDatabaseExpanded, setIsDatabaseExpanded] = useState(false);
+const DatabaseItem: React.FC<{ database: Database }> = ({ database }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <>
-      <div onClick={() => setIsDatabaseExpanded(!isDatabaseExpanded)}>
-        <CommandItem
-          key={database.name}
-          className="text-sm flex flex-row gap-1 items-center border-b"
-        >
-          <ChevronRightIcon className="h-3 w-3" />
-          <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
-          {database.name}
-        </CommandItem>
-      </div>
-      {isDatabaseExpanded && <SchemaList schemas={database.schemas} />}
-    </>
-  );
-};
-
-const SchemaList: React.FC<{
-  schemas: Database["schemas"];
-}> = ({ schemas }) => {
-  return (
-    <>
-      {Object.values(schemas).map((schema) => {
-        return <SchemaItem key={schema.name} schema={schema} />;
-      })}
-    </>
-  );
-};
-
-const SchemaItem: React.FC<{
-  schema: Database["schemas"]["main"];
-}> = ({ schema }) => {
-  const [isSchemaExpanded, setIsSchemaExpanded] = useState(false);
-
-  return (
-    <>
-      <div
-        className="pl-3 text-sm"
-        onClick={() => setIsSchemaExpanded(!isSchemaExpanded)}
+      <CommandItem
+        key={database.name}
+        className="text-sm flex flex-row gap-1 items-center border-b cursor-pointer"
+        onSelect={() => setIsExpanded(!isExpanded)}
       >
-        <CommandItem
-          key={schema.name}
-          className="py-1 text-sm flex flex-row gap-1 items-center border-b"
-        >
-          <ChevronRightIcon className="h-3 w-3" />
-          <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
-          {/* TODO: Fix non-unique schemas, fix very long names */}
-          {schema.name}
-        </CommandItem>
-      </div>
-      {isSchemaExpanded && (
-        <EngineTableList tables={Object.values(schema.tables)} />
-      )}
+        <RotatingChevron isExpanded={isExpanded} />
+        <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
+        {database.name}
+      </CommandItem>
+      {isExpanded &&
+        Object.values(database.schemas).map((schema) => (
+          <SchemaItem key={schema.name} schema={schema} />
+        ))}
     </>
   );
 };
 
-const EngineTableList: React.FC<{
-  tables: DataTable[];
-}> = ({ tables }) => {
+const SchemaItem: React.FC<{ schema: DatabaseSchema }> = ({ schema }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  previewSQLTables({
+    database: "SNOWFLAKE_SAMPLE_DATA",
+    schema: schema.name,
+    engine: "engine",
+  });
+
   return (
-    <div className="pl-6">
-      <TableList
-        tables={tables}
-        isSearching={false}
-        columnPreviews={new Map()}
-        onAddColumnChart={() => {}}
-        onAddTable={() => {}}
-        onExpandTable={() => {}}
-        onExpandColumn={() => {}}
-        isTableExpanded={() => false}
-        isColumnExpanded={() => false}
-      />
-    </div>
+    <>
+      <CommandItem
+        key={schema.name}
+        className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
+        onSelect={() => setIsExpanded(!isExpanded)}
+      >
+        <RotatingChevron isExpanded={isExpanded} />
+        <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
+        {schema.name}
+      </CommandItem>
+      {isExpanded && <EngineTableList tables={Object.values(schema.tables)} />}
+    </>
   );
 };
+
+const EngineTableList: React.FC<{ tables: DataTable[] }> = ({ tables }) => (
+  <div className="pl-6">
+    <TableList
+      tables={tables}
+      isSearching={false}
+      columnPreviews={new Map()}
+      onAddColumnChart={() => {}}
+      onAddTable={() => {}}
+      onExpandTable={() => {}}
+      onExpandColumn={() => {}}
+      isTableExpanded={() => false}
+      isColumnExpanded={() => false}
+    />
+  </div>
+);
 
 const TableList: React.FC<{
   onAddColumnChart: (chartCode: string) => void;
@@ -548,19 +532,14 @@ const DatasetTableItem: React.FC<{
 
   return (
     <CommandItem
-      className="rounded-none py-1 group min-h-9 border-t"
+      className="rounded-none py-1 group min-h-9 border-t cursor-pointer"
       value={table.name}
       aria-selected={isExpanded}
       forceMount={true}
       onSelect={onExpand}
     >
       <div className="flex gap-1 items-center flex-1">
-        <ChevronRightIcon
-          className={cn(
-            "h-3 w-3 transition-transform",
-            isExpanded && "rotate-90",
-          )}
-        />
+        <RotatingChevron isExpanded={isExpanded} />
         <span className="text-sm">{table.name}</span>
       </div>
       {renderRowsByColumns()}
@@ -588,7 +567,7 @@ const DatasetColumnItem: React.FC<{
 
   return (
     <CommandItem
-      className="rounded-none py-1 group"
+      className="rounded-none py-1 group cursor-pointer"
       key={`${table.name}.${column.name}`}
       value={`${table.name}.${column.name}`}
       onSelect={() => onExpandColumn(table, column)}

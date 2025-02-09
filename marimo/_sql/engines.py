@@ -22,7 +22,6 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     import duckdb
     from sqlalchemy import Engine
-    from sqlalchemy.engine.reflection import Inspector
     from sqlalchemy.sql.type_api import TypeEngine
 
 
@@ -85,13 +84,14 @@ class DuckDBEngine(SQLEngine):
 class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
 
-    inspector: Inspector
-
     def __init__(
         self, engine: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
+        from sqlalchemy import inspect
+
         self._engine = engine
         self._engine_name = engine_name
+        self.inspector = inspect(self._engine)
 
     @property
     def source(self) -> str:
@@ -156,12 +156,6 @@ class SQLAlchemyEngine(SQLEngine):
 
         Note: This operation can be performance intensive when fetching full metadata.
         """
-        from sqlalchemy import inspect
-
-        # Initialize inspector once and store as instance variable, maybe move this to a func
-        if not hasattr(self, "inspector"):
-            self.inspector = inspect(self._engine)
-
         databases: list[Database] = []
         database_name = self._engine.url.database
 
@@ -169,7 +163,7 @@ class SQLAlchemyEngine(SQLEngine):
         if database_name is None:
             return []
 
-        schemas = self.get_schemas(include_tables) if include_schemas else {}
+        schemas = self.get_schemas(include_tables) if include_schemas else []
         databases.append(
             Database(
                 name=database_name,
@@ -180,100 +174,132 @@ class SQLAlchemyEngine(SQLEngine):
         )
         return databases
 
-    def get_schemas(self, include_tables: bool) -> dict[str, Schema]:
+    def get_schemas(self, include_tables: bool) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         schema_names = self.inspector.get_schema_names()
-        if not include_tables:
-            return {
-                schema: Schema(name=schema, tables={})
-                for schema in schema_names
-            }
+        schemas: list[Schema] = []
 
-        return {
-            schema: Schema(
-                name=schema,
-                tables=self.get_tables_in_schema(schema),
+        for schema in schema_names:
+            schemas.append(
+                Schema(
+                    name=schema,
+                    tables=self.get_tables_in_schema(schema)
+                    if include_tables
+                    else [],
+                )
             )
-            for schema in schema_names
-        }
 
-    def get_tables_in_schema(self, schema: str) -> dict[str, DataTable]:
-        """Return all tables in a schema. Keys are table names."""
+        return schemas
+
+    def get_tables_in_schema(
+        self, schema: str, include_table_info: bool = True
+    ) -> list[DataTable]:
+        """Return all tables in a schema."""
         table_names = self.inspector.get_table_names(schema=schema)
         view_names = self.inspector.get_view_names(schema=schema)
         tables = [("table", name) for name in table_names] + [
             ("view", name) for name in view_names
         ]
 
-        def get_python_type(col_type: TypeEngine) -> str | bool:
-            try:
-                col_type = col_type.python_type
-                return _sql_type_to_data_type(str(col_type))
-            except Exception:
-                # LOGGER.debug("Failed to get python type", exc_info=True)
-                return False
+        if not include_table_info:
+            return [
+                DataTable(name=name, type=table_type)
+                for table_type, name in tables
+            ]
 
-        def get_generic_type(col_type: TypeEngine) -> str | bool:
-            try:
-                col_type = col_type.as_generic()
-                return _sql_type_to_data_type(str(col_type))
-            except Exception:
-                # LOGGER.debug("Failed to get generic type", exc_info=True)
-                return False
+        data_tables: list[DataTable] = []
+        for t_type, t_name in tables:
+            table = self.get_table(t_name, schema)
+            if table is not None:
+                table.type = t_type
+                data_tables.append(table)
+
+        return data_tables
+
+    def get_table(
+        self, table_name: str, schema_name: str
+    ) -> Optional[DataTable]:
+        """Get a single table from the engine."""
+        try:
+            columns = self.inspector.get_columns(
+                table_name, schema=schema_name
+            )
+            indexes = self.inspector.get_indexes(
+                table_name, schema=schema_name
+            )
+        except Exception:
+            LOGGER.debug(
+                f"Failed to get table {table_name} in schema {schema_name}",
+                exc_info=True,
+            )
+            return None
 
         primary_keys: list[str] = []
         index_list: list[str] = []
 
-        data_tables: dict[str, DataTable] = {}
-        for t_type, t_name in tables:
-            columns = self.inspector.get_columns(t_name, schema)
-            indexes = self.inspector.get_indexes(t_name, schema)
+        try:
+            index_list.extend(col["name"] for col in indexes)
+        except Exception:
+            pass
 
-            try:
-                # TODO: investigate this
-                index_list.extend(col["name"] for col in indexes)
-            except Exception:
-                pass
-
-            cols: list[DataTableColumn] = []
-            for col in columns:
-                col_type = col["type"]
-                col_type = (
-                    get_python_type(col_type)
-                    or get_generic_type(col_type)
-                    or "string"
-                )
-
-                try:
-                    if col["primary_key"]:
-                        primary_keys.append(col["name"])
-                except KeyError:
-                    pass
-
-                cols.append(
-                    DataTableColumn(
-                        name=col["name"],
-                        type=col_type,
-                        external_type=str(col["type"]),
-                        sample_values=[],
-                    )
-                )
-
-            data_tables[t_name] = DataTable(
-                source_type="connection",
-                source=self.dialect,
-                name=t_name,
-                num_rows=None,
-                num_columns=len(columns),
-                variable_name=None,
-                engine=self._engine_name,
-                columns=cols,
-                type=t_type,
-                primary_keys=primary_keys,
-                indexes=indexes,
+        cols: list[DataTableColumn] = []
+        for col in columns:
+            col_type = col["type"]
+            col_type = (
+                self._get_python_type(col_type)
+                or self._get_generic_type(col_type)
+                or "string"
             )
 
-        return data_tables
+            try:
+                if col["primary_key"]:
+                    primary_keys.append(col["name"])
+            except KeyError:
+                pass
+
+            cols.append(
+                DataTableColumn(
+                    name=col["name"],
+                    type=col_type,
+                    external_type=str(col["type"]),
+                    sample_values=[],
+                )
+            )
+
+        return DataTable(
+            source_type="connection",
+            source=self.dialect,
+            name=table_name,
+            num_rows=None,
+            num_columns=len(columns),
+            variable_name=None,
+            engine=self._engine_name,
+            columns=cols,
+            primary_keys=primary_keys,
+            indexes=index_list,
+        )
+
+    def _get_python_type(self, col_type: TypeEngine) -> DataType | None:
+        try:
+            col_type = col_type.python_type
+            return _sql_type_to_data_type(str(col_type))
+        except AttributeError:
+            LOGGER.debug(f"Python type not available for {col_type}")
+            return None
+        except ValueError as e:
+            LOGGER.debug(f"Failed to convert python type: {e}")
+            return None
+
+    def _get_generic_type(self, col_type: TypeEngine) -> DataType | None:
+        try:
+            col_type = col_type.as_generic()
+            return _sql_type_to_data_type(str(col_type))
+        except NotImplementedError:
+            LOGGER.debug("Generic type not available")
+            return None
+        except ValueError as e:
+            LOGGER.debug(f"Failed to convert python type: {e}")
+            return None
 
     def _reflect_tables(self) -> list[DataTable] | False:
         from sqlalchemy import MetaData

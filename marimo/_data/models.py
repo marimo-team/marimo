@@ -80,7 +80,7 @@ class DataTable:
 @dataclass
 class Schema:
     name: str
-    tables: dict[str, DataTable] = field(default_factory=dict)
+    tables: List[DataTable] = field(default_factory=list)
 
 
 @dataclass
@@ -90,14 +90,14 @@ class Database:
 
     Attributes:
         name (str): The name of the database
-        source (str): Source identifier or path of the database # TODO: Why?
+        source (str): Source identifier or path of the database # TODO
+        schemas (List[Schema]): List of schemas in the database
         engine (Optional[VariableName]): Database engine or connection handler, if any.
-        schemas (dict[str, Schema]): A dictionary of database schemas, keyed by schema name
     """
 
     name: str
     source: str
-    schemas: dict[str, Schema] = field(default_factory=dict)
+    schemas: List[Schema] = field(default_factory=list)
     engine: Optional[VariableName] = None
 
 

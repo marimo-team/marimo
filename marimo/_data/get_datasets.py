@@ -169,12 +169,11 @@ def _get_databases_from_duckdb_internal(
     databases = []
     for database, schemas in databases_dict.items():
         for schema, tables in schemas.items():
-            tables_dict = {table.name: table for table in tables}
             databases.append(
                 Database(
                     name=database,
                     source="duckdb",
-                    schemas={schema: Schema(name=schema, tables=tables_dict)},
+                    schemas=[Schema(name=schema, tables=tables)],
                     engine=engine_name,
                 )
             )

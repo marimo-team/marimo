@@ -65,7 +65,8 @@ export function useMarimoWebSocket(opts: {
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
   const { addDataSourceConnection, filterDataSourcesFromVariables } =
     useDataSourceActions();
-  const { addDatabase } = useDatabaseActions();
+  const { addDatabase, addSQLTablesPreview, addSQLTableInfoPreview } =
+    useDatabaseActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -196,6 +197,12 @@ export function useMarimoWebSocket(opts: {
         return;
       case "data-column-preview":
         addColumnPreview(msg.data);
+        return;
+      case "sql-tables-preview":
+        addSQLTablesPreview(msg.data);
+        return;
+      case "sql-table-info-preview":
+        addSQLTableInfoPreview(msg.data);
         return;
       case "data-source-connections":
         addDataSourceConnection(msg.data);

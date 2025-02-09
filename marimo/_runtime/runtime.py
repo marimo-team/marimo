@@ -50,6 +50,8 @@ from marimo._messaging.ops import (
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
+    SQLTableInfoPreview,
+    SQLTablesPreview,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -109,6 +111,8 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    PreviewSQLTableInfoRequest,
+    PreviewSQLTablesRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -135,6 +139,9 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
+from marimo._sql.engines import SQLAlchemyEngine
+from marimo._sql.get_engines import get_engines_from_variables
+from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.assert_never import assert_never
@@ -2075,6 +2082,76 @@ class Kernel:
             ).broadcast()
         return
 
+    @kernel_tracer.start_as_current_span("preview_sql_tables")
+    async def preview_sql_tables(
+        self, request: PreviewSQLTablesRequest
+    ) -> None:
+        """Get the tables in an SQL database.
+
+        Args:
+            request (GetSQLTablesRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database_name: Name of the database
+                - schema_name: Name of the schema
+        """
+        engine_name = request.engine
+        database_name = request.database
+        schema_name = request.schema
+
+        engine_val = self.globals.get(engine_name)
+        # TODO: Can we find the existing engine
+        engine = get_engines_from_variables([(engine_name, engine_val)])[0][1]
+        if engine is None:
+            LOGGER.warning("Engine %s not found", engine_name)
+            return
+        if isinstance(engine, SQLAlchemyEngine):
+            tables = engine.get_tables_in_schema(
+                schema=schema_name, include_table_info=False
+            )
+            if len(tables) == 0:
+                return
+            SQLTablesPreview(
+                engine_name=engine_name,
+                database_name=database_name,
+                schema_name=schema_name,
+                tables=tables,
+            ).broadcast()
+        else:
+            LOGGER.warning("Engine %s is not an SQLAlchemyEngine", engine_name)
+            tables = []
+        return
+
+    @kernel_tracer.start_as_current_span("preview_sql_table_info")
+    async def preview_sql_table_info(
+        self, request: PreviewSQLTableInfoRequest
+    ) -> None:
+        """Get table information for an SQL table.
+
+        Args:
+            request (GetSQLTableInfoRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+                - schema: Name of the schema
+                - table_name: Name of the table
+        """
+        engine_name = request.engine
+        database_name = request.database
+        schema_name = request.schema
+        table_name = request.table_name
+
+        engine_val = self.globals.get(engine_name)
+        # TODO: Can we find the existing engine
+        engine = get_engines_from_variables([(engine_name, engine_val)])[0][1]
+        if engine is None:
+            LOGGER.warning("Engine %s not found", engine_name)
+            return
+        if isinstance(engine, SQLAlchemyEngine):
+            table = engine.get_table(table_name=table_name, schema=schema_name)
+            if not table:
+                LOGGER.warning("Table %s not found", table_name)
+                return
+            SQLTableInfoPreview(table_name=table_name, table=table).broadcast()
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
@@ -2126,6 +2203,10 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, PreviewDatasetColumnRequest):
                 await self.preview_dataset_column(request)
+            elif isinstance(request, PreviewSQLTablesRequest):
+                await self.preview_sql_tables(request)
+            elif isinstance(request, PreviewSQLTableInfoRequest):
+                await self.preview_sql_table_info(request)
             elif isinstance(request, StopRequest):
                 return None
             else:
