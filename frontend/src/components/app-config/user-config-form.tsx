@@ -90,9 +90,11 @@ const categories = [
   },
 ] as const;
 
-type CategoryId = (typeof categories)[number]["id"];
+export type SettingCategoryId = (typeof categories)[number]["id"];
 
-export const activeUserConfigCategoryAtom = atom<CategoryId>(categories[0].id);
+export const activeUserConfigCategoryAtom = atom<SettingCategoryId>(
+  categories[0].id,
+);
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -1087,6 +1089,30 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.inline_ai_tooltip"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      AI Edit Tooltip
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="inline-ai-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental "Edit with AI" tooltip when selecting
+                    code.
+                  </FormDescription>
+                </div>
+              )}
+            />
             {!isWasm() && (
               <FormField
                 control={form.control}
@@ -1165,11 +1191,13 @@ export const UserConfigForm: React.FC = () => {
       >
         <Tabs
           value={activeCategory}
-          onValueChange={(value) => setActiveCategory(value as CategoryId)}
+          onValueChange={(value) =>
+            setActiveCategory(value as SettingCategoryId)
+          }
           orientation="vertical"
           className="w-1/3 pr-4 border-r h-full overflow-auto p-6"
         >
-          <TabsList className="self-start max-h-none flex flex-col gap-2 flex-shrink-0 bg-background flex-1 min-h-full">
+          <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
             {categories.map((category) => (
               <TabsTrigger
                 key={category.id}

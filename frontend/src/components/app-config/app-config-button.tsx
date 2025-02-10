@@ -10,14 +10,13 @@ import { UserConfigForm } from "./user-config-form";
 import { Tooltip } from "../ui/tooltip";
 import { Dialog, DialogTrigger, DialogContent } from "../ui/dialog";
 import { AppConfigForm } from "@/components/app-config/app-config-form";
-import { atom, useAtom } from "jotai";
+import { useAtom } from "jotai";
 import { Button } from "../ui/button";
+import { settingDialogAtom } from "./state";
 
 interface Props {
   showAppConfig?: boolean;
 }
-
-export const settingDialogAtom = atom<boolean>(false);
 
 export const ConfigButton: React.FC<Props> = ({ showAppConfig = true }) => {
   const [settingDialog, setSettingDialog] = useAtom(settingDialogAtom);

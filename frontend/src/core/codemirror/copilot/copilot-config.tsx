@@ -4,19 +4,19 @@ import { copilotSignedInState, isGitHubCopilotSignedInState } from "./state";
 import { memo, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useOpenAISettings } from "@/components/editor/chrome/wrapper/copilot-status";
 import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 
 export const CopilotConfig = memo(() => {
   const [copilotSignedIn, copilotChangeSignIn] = useAtom(
     isGitHubCopilotSignedInState,
   );
   const [step, setStep] = useAtom(copilotSignedInState);
-  const { handleClick: openSettings } = useOpenAISettings();
+  const { handleClick: openSettings } = useOpenSettingsToTab();
   const [localData, setLocalData] = useState<{ url: string; code: string }>();
   const [loading, setLoading] = useState(false);
 
@@ -125,7 +125,7 @@ export const CopilotConfig = memo(() => {
                 "Lost connection during sign-in. Please check settings and try again.",
               variant: "danger",
               action: (
-                <Button variant="link" onClick={openSettings}>
+                <Button variant="link" onClick={() => openSettings("ai")}>
                   Settings
                 </Button>
               ),

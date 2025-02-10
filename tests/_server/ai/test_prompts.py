@@ -102,6 +102,28 @@ def test_user_prompts():
     snapshot("user_prompts.txt", result)
 
 
+def test_edit_inline_prompts():
+    # Nothing fancy here, just making sure
+    # that if we already give a fully formatted prompt without
+    # any code, we don't add any more instructions
+    prompt = """
+    Given the following code context, {opts.prompt}
+
+    SELECTED CODE:
+    {opts.selection}
+
+    Instructions:
+    1. Modify ONLY the selected code`;
+    """
+
+    result = Prompter(code="").get_prompt(
+        user_prompt=prompt,
+        include_other_code="",
+    )
+
+    assert result == prompt
+
+
 def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")

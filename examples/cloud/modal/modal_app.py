@@ -5,7 +5,7 @@ from modal import asgi_app
 
 import marimo
 
-server = marimo.create_asgi_app().with_app(path="", root="/marimo/home.py")
+server = marimo.create_asgi_app().with_app(path="", root="/marimo/notebook.py")
 
 app = modal.App()
 

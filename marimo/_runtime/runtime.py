@@ -2310,7 +2310,14 @@ def launch_kernel(
         profiler.disable()
         profiler.dump_stats(profile_path)
 
+    # Defensively clear context data structures, in case a leak prevents
+    # the context from being destroyed.
+    #
+    # TODO(akshayka): define ownership semantics for contexts, so the
+    # context knows how to shut itself down. The virtual file registry
+    # is shared between the main thread and mo.Thread's right now ...
     get_context().virtual_file_registry.shutdown()
+    get_context().app_kernel_runner_registry.shutdown()
     teardown_context()
     kernel.teardown()
     if isinstance(pipe, connection.Connection):

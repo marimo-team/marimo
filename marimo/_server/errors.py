@@ -44,7 +44,7 @@ async def handle_error(request: Request, response: Any) -> Any:
     if isinstance(response, MarimoHTTPException):
         # Log server errors
         if not is_client_error(response.status_code):
-            LOGGER.exception(response)
+            LOGGER.error(response)
         return JSONResponse(
             {"detail": response.detail},
             status_code=response.status_code,

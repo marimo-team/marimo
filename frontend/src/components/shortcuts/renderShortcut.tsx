@@ -196,6 +196,10 @@ const KEY_MAPPINGS: Record<string, KeyData> = {
     symbols: { mac: "↘", default: "End" },
     label: "End",
   },
+  mod: {
+    symbols: { mac: "⌘", windows: "⊞ Win", default: "Ctrl" },
+    label: "Control",
+  },
 };
 
 function capitalize(str: string) {

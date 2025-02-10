@@ -66,11 +66,11 @@ import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { isWasm } from "@/core/wasm/utils";
-import { settingDialogAtom } from "@/components/app-config/app-config-button";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { copyToClipboard } from "@/utils/copy";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
+import { settingDialogAtom } from "@/components/app-config/state";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();

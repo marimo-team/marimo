@@ -9,6 +9,7 @@ import { getResolvedMarimoConfig } from "./config";
 export interface ExperimentalFeatures {
   lsp: boolean;
   markdown: boolean;
+  inline_ai_tooltip: boolean;
   wasm_layouts: boolean;
   scratchpad: boolean;
   chat_sidebar: boolean;
@@ -19,6 +20,7 @@ export interface ExperimentalFeatures {
 const defaultValues: ExperimentalFeatures = {
   lsp: import.meta.env.DEV,
   markdown: true,
+  inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   scratchpad: true,
   chat_sidebar: import.meta.env.DEV,

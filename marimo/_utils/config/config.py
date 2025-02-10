@@ -6,6 +6,7 @@ from dataclasses import asdict
 from tempfile import TemporaryDirectory
 from typing import Any, Optional, Type, TypeVar
 
+from marimo._config.utils import read_toml
 from marimo._utils.parse_dataclass import parse_raw
 
 ROOT_DIR = ".marimo"
@@ -33,9 +34,8 @@ class ConfigReader:
         import tomlkit
 
         try:
-            with open(self.filepath, "r") as file:
-                data = tomlkit.parse(file.read())
-                return parse_raw(data, cls, allow_unknown_keys=True)
+            data = read_toml(self.filepath)
+            return parse_raw(data, cls, allow_unknown_keys=True)
         except (FileNotFoundError, tomlkit.exceptions.TOMLKitError):
             return fallback
 

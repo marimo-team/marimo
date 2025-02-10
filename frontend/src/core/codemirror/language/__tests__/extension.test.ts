@@ -143,7 +143,7 @@ describe("switchLanguage", () => {
     switchLanguage(mockEditor, "python", { keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "mo.md(
-          """
+          r"""
           print('Hello')
           print('Goodbye')
           """

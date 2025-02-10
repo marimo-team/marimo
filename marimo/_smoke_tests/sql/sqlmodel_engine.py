@@ -1,9 +1,11 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
+#     "altair==5.5.0",
+#     "duckdb==1.1.3",
 #     "marimo",
 #     "polars==1.21.0",
-#     "psycopg==3.2.4",
+#     "psycopg[binary]==3.2.4",
 #     "sqlglot==26.3.9",
 #     "sqlmodel==0.0.22",
 # ]
@@ -11,54 +13,15 @@
 
 import marimo
 
-__generated_with = "0.10.19"
+__generated_with = "0.11.0"
 app = marimo.App(width="medium")
-
-
-@app.cell
-def _(mo, sqlite):
-    _df = mo.sql(
-        f"""
-
-        """,
-        engine=sqlite
-    )
-    return
-
-
-@app.cell
-def _():
-    import ibis
-    import duckdb
-
-    # con = ibis.duckdb.connect()
-
-    data = {
-        "id": [1, 2, 3, 4],
-        "name": ["Alice", "Bob", "Charlie", "David"],
-        "age": [25, 30, 35, 40],
-    }
-
-    table = ibis.memtable(data)
-    return data, duckdb, ibis, table
 
 
 @app.cell
 def _():
     import altair as alt
-    return (alt,)
-
-
-@app.cell
-def _():
     import marimo as mo
-    return (mo,)
-
-
-@app.cell
-def _(mo, products_df):
-    mo.ui.table(products_df)
-    return
+    return alt, mo
 
 
 @app.cell(hide_code=True)
@@ -187,14 +150,14 @@ def _(mo):
 
 @app.cell
 def _(mo, price_threshold, products, sqlite):
-    mo.sql(
+    _df = mo.sql(
         f"""
-    SELECT name, price, category
-    FROM products
-    WHERE price < {price_threshold.value}
-    ORDER BY price DESC
-    """,
-        engine=sqlite,
+        SELECT name, price, category
+        FROM products
+        WHERE price < {price_threshold.value}
+        ORDER BY price DESC
+        """,
+        engine=sqlite
     )
     return
 
@@ -223,11 +186,13 @@ def _(mo):
 def _(create_engine, mo, psql_url):
     mo.stop(not psql_url.value)
 
+    normalized_url = psql_url.value.replace(
+        "postgres://", "postgresql+psycopg://"
+    ).replace("postgresql://", "postgresql+psycopg://")
+
     # Create a PostgreSQL database
-    my_postgres = create_engine(
-        psql_url.value.replace("postgresql", "postgresql+psycopg2")
-    )
-    return (my_postgres,)
+    my_postgres = create_engine(normalized_url)
+    return my_postgres, normalized_url
 
 
 @app.cell
@@ -266,17 +231,6 @@ def _(mo, products, sqlite):
 
 
 @app.cell
-def _(mo, products, sqlalchemy):
-    _df = mo.sql(
-        f"""
-        SELECT * FROM products LIMIT 100
-        """,
-        engine=sqlalchemy
-    )
-    return
-
-
-@app.cell
 def _(mo):
     _df = mo.sql(
         f"""
@@ -294,35 +248,6 @@ def _(foo, mo):
         SELECT "id" FROM memory.main.foo LIMIT 100
         """
     )
-    return
-
-
-@app.cell
-def _(mo, products, sqlite):
-    _df = mo.sql(
-        f"""
-        SELECT "id" FROM products LIMIT 100
-        """,
-        engine=sqlite
-    )
-    return
-
-
-@app.cell
-def _(mo, products, sqlite):
-    _df = mo.sql(
-        f"""
-        SELECT "name" FROM products LIMIT 100
-        """,
-        engine=sqlite
-    )
-    return
-
-
-@app.cell
-def _():
-
-
     return
 
 
