@@ -895,6 +895,14 @@ class dropdown(UIElement[List[str], Any]):
         dropdown = mo.ui.dropdown(
             options=["a", "b", "c"], value="a", label="choose one"
         )
+
+        # With search functionality
+        dropdown = mo.ui.dropdown(
+            options=["a", "b", "c"],
+            value="a",
+            label="choose one",
+            searchable=True,
+        )
         ```
 
         ```python
@@ -922,6 +930,8 @@ class dropdown(UIElement[List[str], Any]):
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
             Defaults to None.
+        searchable (bool, optional): Whether to enable search functionality.
+            Defaults to False.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Any], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
@@ -938,6 +948,7 @@ class dropdown(UIElement[List[str], Any]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
         allow_select_none: Optional[bool] = None,
+        searchable: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
@@ -980,6 +991,7 @@ class dropdown(UIElement[List[str], Any]):
             args={
                 "options": list(self.options.keys()),
                 "allow-select-none": allow_select_none,
+                "searchable": searchable,
                 "full-width": full_width,
             },
             on_change=on_change,

@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, it } from "vitest";
-import { exportedForTesting } from "../MultiselectPlugin";
+import { multiselectFilterFn } from "../multiselectFilterFn";
 
-const filterFn = exportedForTesting.multiselectFilterFn;
 function filterOptions(filter: string, items: string[]) {
-  return items.filter((option) => filterFn(option, filter));
+  return items.filter((option) => multiselectFilterFn(option, filter));
 }
 
 it("can filter to relevant words", () => {
