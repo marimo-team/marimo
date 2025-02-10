@@ -107,6 +107,7 @@ class anywidget(UIElement[T, T]):
         # Remove ignored traits
         for trait_name in ignored_traits:
             args.pop(trait_name, None)
+
         # Keep only classes that are json serialize-able
         json_args: T = {}
         for k, v in args.items():
@@ -137,9 +138,11 @@ class anywidget(UIElement[T, T]):
             js.encode("utf-8"), usedforsecurity=False
         ).hexdigest()
 
+        self._prev_state = json_args
+
         super().__init__(
             component_name="marimo-anywidget",
-            initial_value=json_args,
+            initial_value=self._prev_state,
             label="",
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
@@ -173,6 +176,11 @@ class anywidget(UIElement[T, T]):
         self.widget._handle_custom_msg(args.content, args.buffers)
 
     def _convert_value(self, value: T) -> T:
+        if isinstance(value, dict) and isinstance(self._prev_state, dict):
+            merged = {**self._prev_state, **value}
+            self._prev_state = merged
+            return merged
+        self._prev_state = value
         return value
 
     # After the widget has been initialized

@@ -237,7 +237,8 @@ x = as_marimo_element.count
     ) -> None:
         await k.run(
             [
-                exec_req.get("""
+                exec_req.get(
+                    """
     import marimo as mo
     import traitlets
     import anywidget as _anywidget
@@ -247,7 +248,8 @@ x = as_marimo_element.count
         value = traitlets.Int(0).tag(sync=True)
 
     w = mo.ui.anywidget(TestWidget())
-            """)
+            """
+                )
             ]
         )
 
@@ -331,3 +333,46 @@ x = as_marimo_element.count
             wrapped2._component_args["js-hash"]
             != wrapped._component_args["js-hash"]
         )
+
+    @staticmethod
+    def test_state_merging() -> None:
+        class StateWidget(_anywidget.AnyWidget):
+            _esm = ""
+            a = traitlets.Int(1, allow_none=True).tag(sync=True)
+            b = traitlets.Int(2).tag(sync=True)
+
+        wrapped = anywidget(StateWidget())
+        assert wrapped.value == {"a": 1, "b": 2}
+
+        # Test partial update merges with existing state
+        wrapped._update({"a": 10})
+        assert wrapped.value == {"a": 10, "b": 2}
+
+        # Test multiple updates maintain merged state
+        wrapped._update({"b": 20})
+        assert wrapped.value == {"a": 10, "b": 20}
+
+        # Test unsetting a trait
+        wrapped._update({"a": None})
+        assert wrapped.value == {"b": 20, "a": None}
+
+    @staticmethod
+    def test_state_persistence() -> None:
+        class PersistWidget(_anywidget.AnyWidget):
+            _esm = ""
+            x = traitlets.Int(0).tag(sync=True)
+            y = traitlets.Dict().tag(sync=True)
+
+        wrapped = anywidget(PersistWidget())
+        initial_state = {"x": 0, "y": {}}
+        assert wrapped.value == initial_state
+
+        # Update with partial state
+        new_state = {"x": 42}
+        wrapped._update(new_state)
+        assert wrapped.value == {"x": 42, "y": {}}
+
+        # Update nested state
+        nested_state = {"y": {"key": "value"}}
+        wrapped._update(nested_state)
+        assert wrapped.value == {"x": 42, "y": {"key": "value"}}
