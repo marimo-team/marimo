@@ -7,6 +7,7 @@ from math import isnan
 from typing import Any
 
 import pytest
+import narwhals.stable.v1 as nw
 
 from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
@@ -116,7 +117,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         import polars as pl
 
         complex_data = self.get_complex_data()
-        with pytest.raises(pl.exceptions.ComputeError):
+        with pytest.raises(nw.exceptions.NarwhalsError):
             # Polars doesn't support writing nested lists to csv
             complex_data.to_csv()
 
@@ -129,7 +130,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             schema={"a": pl.Array(pl.Int64, 5)},
         )
         manager = NarwhalsTableManager.from_dataframe(df)
-        with pytest.raises(pl.exceptions.ComputeError):
+        with pytest.raises(nw.exceptions.NarwhalsError):
             # Polars doesn't support writing nested lists to csv
             manager.to_csv()
 
