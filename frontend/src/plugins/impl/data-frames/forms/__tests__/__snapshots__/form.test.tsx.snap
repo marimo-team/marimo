@@ -148,7 +148,10 @@ exports[`renderZodSchema > should render a form 2`] = `
           Columns
         </label>
         <div
+          aria-describedby=":r3:-form-item-description"
+          aria-invalid="false"
           class="relative"
+          id=":r3:-form-item"
         >
           <div
             aria-controls="radix-:r4:"
@@ -629,7 +632,10 @@ exports[`renderZodSchema > should render a form 6`] = `
           Columns
         </label>
         <div
+          aria-describedby=":r1q:-form-item-description"
+          aria-invalid="false"
           class="relative"
+          id=":r1q:-form-item"
         >
           <div
             aria-controls="radix-:r1r:"
@@ -768,7 +774,10 @@ exports[`renderZodSchema > should render a form 7`] = `
           Columns
         </label>
         <div
+          aria-describedby=":r26:-form-item-description"
+          aria-invalid="false"
           class="relative"
+          id=":r26:-form-item"
         >
           <div
             aria-controls="radix-:r27:"
@@ -815,7 +824,10 @@ exports[`renderZodSchema > should render a form 7`] = `
           Aggregations
         </label>
         <div
+          aria-describedby=":r28:-form-item-description"
+          aria-invalid="false"
           class="relative"
+          id=":r28:-form-item"
         >
           <div
             aria-controls="radix-:r29:"
@@ -1109,7 +1121,10 @@ exports[`renderZodSchema > should render a form 10`] = `
           Columns
         </label>
         <div
+          aria-describedby=":r2o:-form-item-description"
+          aria-invalid="false"
           class="relative"
+          id=":r2o:-form-item"
         >
           <div
             aria-controls="radix-:r2p:"
