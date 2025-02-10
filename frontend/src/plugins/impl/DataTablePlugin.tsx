@@ -111,7 +111,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       totalRows: z.union([z.number(), z.literal("too_many")]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
-      selection: z.enum(["single", "multi"]).nullable().default(null),
+      selection: z
+        .enum(["single", "multi", "single-cell", "multi-cell"])
+        .nullable()
+        .default(null),
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
       showColumnSummaries: z
