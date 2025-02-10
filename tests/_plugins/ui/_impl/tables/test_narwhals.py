@@ -6,6 +6,7 @@ import unittest
 from math import isnan
 from typing import Any
 
+import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._data.models import ColumnSummary
@@ -113,10 +114,9 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
-        import polars as pl
 
         complex_data = self.get_complex_data()
-        with pytest.raises(pl.exceptions.ComputeError):
+        with pytest.raises(nw.exceptions.NarwhalsError):
             # Polars doesn't support writing nested lists to csv
             complex_data.to_csv()
 
@@ -129,7 +129,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             schema={"a": pl.Array(pl.Int64, 5)},
         )
         manager = NarwhalsTableManager.from_dataframe(df)
-        with pytest.raises(pl.exceptions.ComputeError):
+        with pytest.raises(nw.exceptions.NarwhalsError):
             # Polars doesn't support writing nested lists to csv
             manager.to_csv()
 
