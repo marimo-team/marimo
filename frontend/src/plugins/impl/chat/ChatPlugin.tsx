@@ -13,7 +13,9 @@ type PluginFunctions = {
   send_prompt: (req: SendMessageRequest) => Promise<string>;
 };
 
-export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
+export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
+  "marimo-chatbot",
+)
   .withData(
     z.object({
       prompts: z.array(z.string()).default(Arrays.EMPTY),
@@ -80,8 +82,8 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
         allowAttachments={props.data.allowAttachments}
         config={props.data.config}
         sendPrompt={props.functions.send_prompt}
-        value={props.value || Arrays.EMPTY}
-        setValue={props.setValue}
+        value={props.value?.messages || Arrays.EMPTY}
+        setValue={(messages) => props.setValue({ messages })}
       />
     </TooltipProvider>
   ));
