@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import "@testing-library/jest-dom";
 
 declare module "vitest" {

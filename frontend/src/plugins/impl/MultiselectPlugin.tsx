@@ -82,13 +82,22 @@ const Multiselect = ({
       setValue([]);
       return;
     }
-    if (maxSelections != null && newValues.length > maxSelections) {
-      return;
-    }
+
     // Remove select all and deselect all from the new values
     newValues = newValues.filter(
       (value) => value !== SELECT_ALL_KEY && value !== DESELECT_ALL_KEY,
     );
+
+    if (maxSelections === 1) {
+      // For single selection, just take the last selected value
+      setValue([newValues[newValues.length - 1]]);
+      return;
+    }
+
+    if (maxSelections != null && newValues.length > maxSelections) {
+      // When over max selections, remove oldest selections
+      newValues = newValues.slice(-maxSelections);
+    }
     setValue(newValues);
   };
 
@@ -100,32 +109,38 @@ const Multiselect = ({
     setValue([]);
   };
 
-  const shouldShowSelectAll =
-    options.length > 0 && value.length < options.length;
-  const shouldShowDeselectAll = options.length > 0 && value.length > 0;
+  const extraOptions: React.ReactNode[] = [];
+  const selectAllEnabled = options.length > 0 && value.length < options.length;
+  const deselectAllEnabled = options.length > 0 && value.length > 0;
 
   // Only show when more than 2 options
-  const extraOptions = options.length > 2 && (
-    <>
+  // Only show select all when maxSelections is not set
+  if (options.length > 2 && maxSelections == null) {
+    extraOptions.push(
       <ComboboxItem
         key={SELECT_ALL_KEY}
         value={SELECT_ALL_KEY}
         onSelect={handleSelectAll}
-        disabled={!shouldShowSelectAll}
+        disabled={!selectAllEnabled}
       >
         Select all
-      </ComboboxItem>
+      </ComboboxItem>,
+    );
+  }
+
+  if (options.length > 2) {
+    extraOptions.push(
       <ComboboxItem
         key={DESELECT_ALL_KEY}
         value={DESELECT_ALL_KEY}
         onSelect={handleDeselectAll}
-        disabled={!shouldShowDeselectAll}
+        disabled={!deselectAllEnabled}
       >
-        Deselect all
-      </ComboboxItem>
-      <CommandSeparator />
-    </>
-  );
+        {maxSelections === 1 ? "Deselect" : "Deselect all"}
+      </ComboboxItem>,
+      <CommandSeparator key="_separator" />,
+    );
+  }
 
   const renderList = () => {
     // List virtualization
