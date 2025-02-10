@@ -227,6 +227,13 @@ export function parseSQLStatement(code: string): SQLConfig | null {
       return null;
     }
 
+    // Code outside of the assignment statement is not allowed
+    const outsideCode =
+      code.slice(0, assignStmt.from) + code.slice(assignStmt.to);
+    if (outsideCode.trim().length > 0) {
+      return null;
+    }
+
     let dfName: string | null = null;
     let sqlString: string | null = null;
     let engine: string | undefined;
