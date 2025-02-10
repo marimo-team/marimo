@@ -358,6 +358,31 @@ _df = mo.sql(
       expect(adapter.isSupported(pythonCode)).toBe(false);
     });
 
+    it("should return false when there are multiple sql strings", () => {
+      const pythonCode = `
+      _df = mo.sql("""SELECT * FROM table1""")
+      _df2 = mo.sql("""SELECT * FROM table2""")
+      `;
+      expect(adapter.isSupported(pythonCode)).toBe(false);
+    });
+
+    it("should return false when there are non sql strings with sql string", () => {
+      const pythonCode = `print("Hello, World!") \n_df = mo.sql("SELECT * FROM table")`;
+      expect(adapter.isSupported(pythonCode)).toBe(false);
+
+      const pythonCode2 = `_df = mo.sql("""SELECT * FROM table""") \n print("Hello, World!")`;
+      expect(adapter.isSupported(pythonCode2)).toBe(false);
+    });
+
+    it("should return true for sql strings with whitespace before or after", () => {
+      expect(
+        adapter.isSupported(' df = mo.sql("""SELECT * FROM table""")'),
+      ).toBe(true);
+      expect(
+        adapter.isSupported('df = mo.sql("""SELECT * FROM table""") '),
+      ).toBe(true);
+    });
+
     it("should support SQL strings with output flag", () => {
       expect(
         adapter.isSupported(
