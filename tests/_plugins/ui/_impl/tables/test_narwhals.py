@@ -114,7 +114,6 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
-        import polars as pl
 
         complex_data = self.get_complex_data()
         with pytest.raises(nw.exceptions.NarwhalsError):
