@@ -271,6 +271,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             column = col(str(condition.column_id))
             dtype = df.schema[str(condition.column_id)]
             value = condition.value
+            value_str = str(value)
 
             # If columns type is a Datetime, we need to convert the value to a datetime
             if dtype == pl.Datetime and isinstance(value, str):
@@ -279,6 +280,10 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
                 value = datetime.date.fromisoformat(value)
             elif dtype == pl.Time and isinstance(value, str):
                 value = datetime.time.fromisoformat(value)
+
+            # If columns type is a Categorical, we need to cast the value to a string
+            if dtype == pl.Categorical:
+                column = column.cast(pl.String)
 
             # Build the expression based on the operator
             if condition.operator == "==":
@@ -306,15 +311,13 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             elif condition.operator == "does_not_equal":
                 condition_expr = column != value
             elif condition.operator == "contains":
-                condition_expr = column.str.contains(value or "", literal=True)
+                condition_expr = column.str.contains(value_str, literal=True)
             elif condition.operator == "regex":
-                condition_expr = column.str.contains(
-                    value or "", literal=False
-                )
+                condition_expr = column.str.contains(value_str, literal=False)
             elif condition.operator == "starts_with":
-                condition_expr = column.str.starts_with(value or "")
+                condition_expr = column.str.starts_with(value_str)
             elif condition.operator == "ends_with":
-                condition_expr = column.str.ends_with(value or "")
+                condition_expr = column.str.ends_with(value_str)
             elif condition.operator == "in":
                 condition_expr = column.is_in(value or [])
             else:
