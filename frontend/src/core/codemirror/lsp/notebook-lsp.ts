@@ -55,6 +55,27 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       });
     });
   }
+  textDocumentDefinition(
+    params: LSP.DefinitionParams,
+  ): Promise<LSP.Definition | LSP.LocationLink[]> {
+    return this.client.textDocumentDefinition(params);
+  }
+
+  textDocumentCodeAction(
+    params: LSP.CodeActionParams,
+  ): Promise<Array<LSP.Command | LSP.CodeAction>> {
+    return this.client.textDocumentCodeAction(params);
+  }
+
+  textDocumentRename(params: LSP.RenameParams): Promise<LSP.WorkspaceEdit> {
+    return this.client.textDocumentRename(params);
+  }
+
+  textDocumentPrepareRename(
+    params: LSP.PrepareRenameParams,
+  ): Promise<LSP.PrepareRenameResult> {
+    return this.client.textDocumentPrepareRename(params);
+  }
 
   get ready(): boolean {
     return this.client.ready;
@@ -64,7 +85,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     this.client.ready = value;
   }
 
-  get capabilities(): LSP.ServerCapabilities {
+  get capabilities(): LSP.ServerCapabilities | null {
     return this.client.capabilities;
   }
 

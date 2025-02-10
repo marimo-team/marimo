@@ -90,6 +90,9 @@ importers:
       '@lezer/python':
         specifier: ^1.1.15
         version: 1.1.15
+      '@marimo-team/codemirror-languageserver':
+        specifier: ^1.13.1
+        version: 1.13.1
       '@marimo-team/marimo-api':
         specifier: file:../openapi
         version: file:../openapi
@@ -1680,6 +1683,9 @@ packages:
 
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
+
+  '@marimo-team/codemirror-languageserver@1.13.1':
+    resolution: {integrity: sha512-kOvCT6tOJu8Jp6FM9lbWZ/E9zGGcZOwwG9JisaUTZBrjuTM33XguAC9hqCklFLtFSpX675Xn/zSvRNF3HXCGMg==}
 
   '@marimo-team/marimo-api@file:../openapi':
     resolution: {directory: ../openapi, type: directory}
@@ -10398,6 +10404,20 @@ snapshots:
       tinyqueue: 3.0.0
 
   '@marijn/find-cluster-break@1.0.2': {}
+
+  '@marimo-team/codemirror-languageserver@1.13.1':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.4
+      '@codemirror/lint': 6.8.4
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.36.2
+      '@open-rpc/client-js': 1.8.1
+      marked: 15.0.6
+      vscode-languageserver-protocol: 3.17.5
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
 
   '@marimo-team/marimo-api@file:../openapi':
     dependencies:

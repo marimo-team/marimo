@@ -22,7 +22,7 @@ import type { MovementCallbacks } from "../cells/extensions";
 import {
   LanguageServerClient,
   languageServerWithTransport,
-} from "codemirror-languageserver";
+} from "@marimo-team/codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { CellDocumentUri } from "../lsp/types";
@@ -41,7 +41,7 @@ const lspClient = once(() => {
     transport: pylspTransport(),
     rootUri: "file:///",
     languageId: "python",
-    workspaceFolders: null,
+    workspaceFolders: [],
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
@@ -89,7 +89,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             transport: pylspTransport(),
             rootUri: "file:///",
             languageId: "python",
-            workspaceFolders: null,
+            workspaceFolders: [],
             allowHTMLContent: true,
           })
         : // Whether or not to require keypress to activate autocompletion (default

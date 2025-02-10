@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId } from "@/core/cells/ids";
 import { invariant } from "@/utils/invariant";
-import type { LanguageServerClient } from "codemirror-languageserver";
+import type { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type { DocumentUri } from "vscode-languageserver-protocol";
 
 export type ILanguageServerClient = {
