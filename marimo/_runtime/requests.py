@@ -310,6 +310,7 @@ class PreviewDatasetColumnRequest:
 class PreviewSQLTablesRequest:
     """Preview tables in an SQL database"""
 
+    request_id: str
     engine: str
     database: str
     schema: str
@@ -319,6 +320,7 @@ class PreviewSQLTablesRequest:
 class PreviewSQLTableInfoRequest:
     """Preview tables in an SQL database"""
 
+    request_id: str
     engine: str
     database: str
     schema: str

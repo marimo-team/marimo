@@ -14,7 +14,10 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import {
+  FUNCTIONS_REGISTRY,
+  SQLFunctions,
+} from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
@@ -199,7 +202,7 @@ export function useMarimoWebSocket(opts: {
         addColumnPreview(msg.data);
         return;
       case "sql-tables-preview":
-        addSQLTablesPreview(msg.data);
+        SQLFunctions.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "sql-table-info-preview":
         addSQLTableInfoPreview(msg.data);

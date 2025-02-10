@@ -169,6 +169,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
                 database: request.database,
                 schema: request.schema,
               },
+              query: {
+                request_id: request.requestId,
+              },
             },
           },
         )
@@ -185,6 +188,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
                 database: request.database,
                 schema: request.schema,
                 table_name: request.tableName,
+              },
+              query: {
+                request_id: request.requestId,
               },
             },
           },

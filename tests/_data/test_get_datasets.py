@@ -5,11 +5,11 @@ from typing import Any
 import pytest
 
 from marimo._data.get_datasets import (
-    get_datasets_from_duckdb,
+    get_databases_from_duckdb,
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
-from marimo._data.models import DataTable, DataTableColumn
+from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from tests._data.mocks import create_dataframes
 
@@ -25,8 +25,8 @@ def test_has_updates_to_datasource() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_get_datasets() -> None:
-    assert get_datasets_from_duckdb(connection=None) == []
+def test_get_databases() -> None:
+    assert get_databases_from_duckdb(connection=None) == []
 
     import duckdb
 
@@ -58,9 +58,10 @@ def test_get_datasets() -> None:
         )
     """
     )
-    assert get_datasets_from_duckdb(connection=None) == [
+
+    expected_tables = [
         DataTable(
-            name="memory.main.all_types",
+            name="all_types",
             source_type="duckdb",
             source="memory",
             num_rows=None,
@@ -200,6 +201,125 @@ def test_get_datasets() -> None:
                     sample_values=[],
                 ),
             ],
+        )
+    ]
+
+    assert get_databases_from_duckdb(connection=None) == [
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=expected_tables)],
+            engine=None,
+        )
+    ]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_connection() -> None:
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(
+        """
+        CREATE TABLE cars (
+            id INTEGER
+        );
+
+        CREATE SCHEMA s1;
+        CREATE SCHEMA s2;
+
+        CREATE TABLE s1.t (id INTEGER PRIMARY KEY, other_id INTEGER);
+        CREATE TABLE s2.t (id INTEGER PRIMARY KEY, j VARCHAR);
+    """
+    )
+
+    assert get_databases_from_duckdb(
+        connection=connection, engine_name="engine"
+    ) == [
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[
+                Schema(
+                    name="main",
+                    tables=[
+                        DataTable(
+                            name="cars",
+                            source_type="connection",
+                            source="memory",
+                            num_rows=None,
+                            num_columns=1,
+                            variable_name=None,
+                            columns=[
+                                DataTableColumn(
+                                    name="id",
+                                    type="integer",
+                                    external_type="INTEGER",
+                                    sample_values=[],
+                                )
+                            ],
+                            engine="engine",
+                        )
+                    ],
+                ),
+                Schema(
+                    name="s1",
+                    tables=[
+                        DataTable(
+                            name="t",
+                            source_type="connection",
+                            source="memory",
+                            num_rows=None,
+                            num_columns=2,
+                            variable_name=None,
+                            columns=[
+                                DataTableColumn(
+                                    name="id",
+                                    type="integer",
+                                    external_type="INTEGER",
+                                    sample_values=[],
+                                ),
+                                DataTableColumn(
+                                    name="other_id",
+                                    type="integer",
+                                    external_type="INTEGER",
+                                    sample_values=[],
+                                ),
+                            ],
+                            engine="engine",
+                        )
+                    ],
+                ),
+                Schema(
+                    name="s2",
+                    tables=[
+                        DataTable(
+                            name="t",
+                            source_type="connection",
+                            source="memory",
+                            num_rows=None,
+                            num_columns=2,
+                            variable_name=None,
+                            columns=[
+                                DataTableColumn(
+                                    name="id",
+                                    type="integer",
+                                    external_type="INTEGER",
+                                    sample_values=[],
+                                ),
+                                DataTableColumn(
+                                    name="j",
+                                    type="string",
+                                    external_type="VARCHAR",
+                                    sample_values=[],
+                                ),
+                            ],
+                            engine="engine",
+                        )
+                    ],
+                ),
+            ],
+            engine="engine",
         )
     ]
 

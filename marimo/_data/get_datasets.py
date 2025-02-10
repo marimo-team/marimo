@@ -120,6 +120,7 @@ def _get_databases_from_duckdb_internal(
         return []
 
     # Group tables by database and schema
+    # databases_dict[database][schema] = [table1, table2, ...]
     databases_dict: dict[str, dict[str, list[DataTable]]] = {}
 
     for (
@@ -167,16 +168,18 @@ def _get_databases_from_duckdb_internal(
 
     # Convert grouped data into Database objects
     databases = []
-    for database, schemas in databases_dict.items():
-        for schema, tables in schemas.items():
-            databases.append(
-                Database(
-                    name=database,
-                    source="duckdb",
-                    schemas=[Schema(name=schema, tables=tables)],
-                    engine=engine_name,
-                )
+    for database, schemas_dict in databases_dict.items():
+        schema_list = []
+        for schema_name, tables in schemas_dict.items():
+            schema_list.append(Schema(name=schema_name, tables=tables))
+        databases.append(
+            Database(
+                name=database,
+                dialect="duckdb",
+                schemas=schema_list,
+                engine=engine_name,
             )
+        )
     return databases
 
 

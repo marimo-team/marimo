@@ -76,7 +76,9 @@ class DuckDBEngine(SQLEngine):
         return isinstance(var, duckdb.DuckDBPyConnection)
 
     def get_databases(
-        self, include_schemas: bool, include_tables: bool
+        self,
+        _include_schemas: bool,
+        _include_tables: bool,
     ) -> list[Database]:
         return get_databases_from_duckdb(self._connection, self._engine_name)
 
@@ -167,7 +169,7 @@ class SQLAlchemyEngine(SQLEngine):
         databases.append(
             Database(
                 name=database_name,
-                source=self.dialect,
+                dialect=self.dialect,
                 schemas=schemas,
                 engine=self._engine_name,
             )
@@ -203,7 +205,19 @@ class SQLAlchemyEngine(SQLEngine):
 
         if not include_table_info:
             return [
-                DataTable(name=name, type=table_type)
+                DataTable(
+                    source_type="connection",
+                    source=self.dialect,
+                    name=name,
+                    num_rows=None,
+                    num_columns=None,
+                    variable_name=None,
+                    engine=self._engine_name,
+                    type=table_type,
+                    columns=[],
+                    primary_keys=[],
+                    indexes=[],
+                )
                 for table_type, name in tables
             ]
 

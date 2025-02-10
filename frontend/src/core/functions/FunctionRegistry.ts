@@ -1,9 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { sendFunctionRequest } from "@/core/network/requests";
-import type { FunctionCallResultMessage } from "../kernel/messages";
+import { previewSQLTables, sendFunctionRequest } from "@/core/network/requests";
+import type {
+  FunctionCallResultMessage,
+  SQLTablesPreview,
+} from "../kernel/messages";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
-import type { FunctionCallRequest } from "../network/types";
+import type {
+  PreviewSQLTablesRequest,
+  FunctionCallRequest,
+} from "../network/types";
 
 export const FUNCTIONS_REGISTRY = new DeferredRequestRegistry<
   Omit<FunctionCallRequest, "functionCallId">,
@@ -12,6 +18,16 @@ export const FUNCTIONS_REGISTRY = new DeferredRequestRegistry<
   // RPC counts as a kernel invocation
   await sendFunctionRequest({
     functionCallId: requestId,
+    ...req,
+  });
+});
+
+export const SQLFunctions = new DeferredRequestRegistry<
+  Omit<PreviewSQLTablesRequest, "requestId">,
+  SQLTablesPreview
+>("sql-tables-preview", async (requestId, req) => {
+  await previewSQLTables({
+    requestId: requestId,
     ...req,
   });
 });

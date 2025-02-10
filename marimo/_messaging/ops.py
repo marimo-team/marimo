@@ -604,8 +604,7 @@ class SQLTablesPreview(Op):
     """Preview of tables in a database. Does not include columns."""
 
     name: ClassVar[str] = "sql-tables-preview"
-    database_name: str
-    engine_name: str
+    request_id: str
     tables: List[DataTable]
     error: Optional[str] = None
 
@@ -615,7 +614,7 @@ class SQLTableInfoPreview(Op):
     """Preview of a table in a dataset."""
 
     name: ClassVar[str] = "sql-table-info-preview"
-    table_name: str
+    request_id: str
     table: DataTable
     error: Optional[str] = None
 

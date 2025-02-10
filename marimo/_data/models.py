@@ -90,13 +90,13 @@ class Database:
 
     Attributes:
         name (str): The name of the database
-        source (str): Source identifier or path of the database # TODO
+        dialect (str): The dialect of the database
         schemas (List[Schema]): List of schemas in the database
         engine (Optional[VariableName]): Database engine or connection handler, if any.
     """
 
     name: str
-    source: str
+    dialect: str
     schemas: List[Schema] = field(default_factory=list)
     engine: Optional[VariableName] = None
 

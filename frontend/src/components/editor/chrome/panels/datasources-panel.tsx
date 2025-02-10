@@ -24,10 +24,7 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
-import {
-  previewDatasetColumn,
-  previewSQLTables,
-} from "@/core/network/requests";
+import { previewDatasetColumn } from "@/core/network/requests";
 import type { ColumnPreviewMap } from "@/core/datasets/types";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
@@ -314,13 +311,6 @@ const DatabaseItem: React.FC<{ database: Database }> = ({ database }) => {
 
 const SchemaItem: React.FC<{ schema: DatabaseSchema }> = ({ schema }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  previewSQLTables({
-    database: "SNOWFLAKE_SAMPLE_DATA",
-    schema: schema.name,
-    engine: "engine",
-  });
-
   return (
     <>
       <CommandItem
@@ -337,21 +327,46 @@ const SchemaItem: React.FC<{ schema: DatabaseSchema }> = ({ schema }) => {
   );
 };
 
-const EngineTableList: React.FC<{ tables: DataTable[] }> = ({ tables }) => (
-  <div className="pl-6">
-    <TableList
-      tables={tables}
-      isSearching={false}
-      columnPreviews={new Map()}
-      onAddColumnChart={() => {}}
-      onAddTable={() => {}}
-      onExpandTable={() => {}}
-      onExpandColumn={() => {}}
-      isTableExpanded={() => false}
-      isColumnExpanded={() => false}
-    />
-  </div>
-);
+const EngineTableList: React.FC<{ tables: DataTable[] }> = ({ tables }) => {
+  // const [data, setData] = React.useState<any>([]);
+
+  // React.useEffect(() => {
+  //   const fetchData = async () => {
+  //     const tablesPreview = await SQLFunctions.request({
+  //       schema: "information_schema",
+  //       engine: "engine",
+  //       database: "snowflake",
+  //     });
+  //     if (tablesPreview.error) {
+  //       throw new Error(tablesPreview.error);
+  //     }
+  //     if (!tablesPreview.tables) {
+  //       throw new Error("No tables found");
+  //     }
+  //     setData(tablesPreview.tables);
+  //   };
+  //   fetchData()
+  //     .then((res) => console.log(res))
+  //     .catch((error) => console.error(error));
+  // }, []);
+
+  // console.log("data", data);
+  return (
+    <div className="pl-6">
+      <TableList
+        tables={tables}
+        isSearching={false}
+        columnPreviews={new Map()}
+        onAddColumnChart={() => {}}
+        onAddTable={() => {}}
+        onExpandTable={() => {}}
+        onExpandColumn={() => {}}
+        isTableExpanded={() => false}
+        isColumnExpanded={() => false}
+      />
+    </div>
+  );
+};
 
 const TableList: React.FC<{
   onAddColumnChart: (chartCode: string) => void;

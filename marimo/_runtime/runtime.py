@@ -2111,10 +2111,7 @@ class Kernel:
             if len(tables) == 0:
                 return
             SQLTablesPreview(
-                engine_name=engine_name,
-                database_name=database_name,
-                schema_name=schema_name,
-                tables=tables,
+                request_id=request.request_id, tables=tables
             ).broadcast()
         else:
             LOGGER.warning("Engine %s is not an SQLAlchemyEngine", engine_name)
@@ -2150,7 +2147,9 @@ class Kernel:
             if not table:
                 LOGGER.warning("Table %s not found", table_name)
                 return
-            SQLTableInfoPreview(table_name=table_name, table=table).broadcast()
+            SQLTableInfoPreview(
+                request_id=request.request_id, table=table
+            ).broadcast()
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.

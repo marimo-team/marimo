@@ -1616,11 +1616,14 @@ components:
           type: string
         engine:
           type: string
+        requestId:
+          type: string
         schema:
           type: string
         tableName:
           type: string
       required:
+      - requestId
       - engine
       - database
       - schema
@@ -1632,9 +1635,12 @@ components:
           type: string
         engine:
           type: string
+        requestId:
+          type: string
         schema:
           type: string
       required:
+      - requestId
       - engine
       - database
       - schema
@@ -1816,21 +1822,17 @@ components:
           enum:
           - sql-table-info-preview
           type: string
+        request_id:
+          type: string
         table:
           $ref: '#/components/schemas/DataTable'
-        table_name:
-          type: string
       required:
-      - table_name
+      - request_id
       - table
       - name
       type: object
     SQLTablesPreview:
       properties:
-        database_name:
-          type: string
-        engine_name:
-          type: string
         error:
           nullable: true
           type: string
@@ -1838,13 +1840,14 @@ components:
           enum:
           - sql-tables-preview
           type: string
+        request_id:
+          type: string
         tables:
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
       required:
-      - database_name
-      - engine_name
+      - request_id
       - tables
       - name
       type: object
@@ -2225,26 +2228,32 @@ paths:
         in: path
         name: engine
         required: true
-        schema:
-          type: string
+        schema: null
+        type: string
       - description: The SQL database to use
         in: path
         name: database
         required: true
-        schema:
-          type: string
+        schema: null
+        type: string
       - description: The SQL schema to use
         in: path
         name: schema
         required: true
-        schema:
-          type: string
+        schema: null
+        type: string
       - description: The SQL table to preview
         in: path
         name: table_name
         required: true
-        schema:
-          type: string
+        schema: null
+        type: string
+      - description: Request ID for the preview so that the response can be matched
+        in: query
+        name: request_id
+        required: true
+        schema: null
+        type: string
       responses:
         200:
           content:
@@ -2270,6 +2279,12 @@ paths:
       - description: The SQL schema to use
         in: path
         name: schema
+        required: true
+        schema:
+          type: string
+      - description: Request ID for the preview so that the response can be matched
+        in: query
+        name: request_id
         required: true
         schema:
           type: string

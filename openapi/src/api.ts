@@ -139,7 +139,10 @@ export interface paths {
     };
     get: {
       parameters: {
-        query?: never;
+        query: {
+          /** @description Request ID for the preview so that the response can be matched */
+          request_id: string;
+        };
         header?: never;
         path: {
           /** @description The SQL engine to use */
@@ -183,7 +186,10 @@ export interface paths {
     };
     get: {
       parameters: {
-        query?: never;
+        query: {
+          /** @description Request ID for the preview so that the response can be matched */
+          request_id: string;
+        };
         header?: never;
         path: {
           /** @description The SQL engine to use */
@@ -2832,12 +2838,14 @@ export interface components {
     PreviewSQLTableInfoRequest: {
       database: string;
       engine: string;
+      requestId: string;
       schema: string;
       tableName: string;
     };
     PreviewSQLTablesRequest: {
       database: string;
       engine: string;
+      requestId: string;
       schema: string;
     };
     QueryParamsAppend: {
@@ -2908,15 +2916,14 @@ export interface components {
       error?: string | null;
       /** @enum {string} */
       name: "sql-table-info-preview";
+      request_id: string;
       table: components["schemas"]["DataTable"];
-      table_name: string;
     };
     SQLTablesPreview: {
-      database_name: string;
-      engine_name: string;
       error?: string | null;
       /** @enum {string} */
       name: "sql-tables-preview";
+      request_id: string;
       tables: components["schemas"]["DataTable"][];
     };
     SaveAppConfigurationRequest: {
