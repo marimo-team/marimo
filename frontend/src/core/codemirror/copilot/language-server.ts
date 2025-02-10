@@ -10,7 +10,7 @@ import type {
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 
-import { LanguageServerClient } from "codemirror-languageserver";
+import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type {
   CopilotStatus,
   CopilotSignInInitiateParams,

@@ -71,6 +71,12 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.textDocumentRename(params);
   }
 
+  completionItemResolve(
+    params: LSP.CompletionItem,
+  ): Promise<LSP.CompletionItem> {
+    return this.client.completionItemResolve(params);
+  }
+
   textDocumentPrepareRename(
     params: LSP.PrepareRenameParams,
   ): Promise<LSP.PrepareRenameResult> {

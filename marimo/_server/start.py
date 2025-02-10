@@ -113,7 +113,7 @@ def start(
             else {}
         ),
         completion_config=user_config["completion"],
-        min_port=DEFAULT_PORT + 200,
+        min_port=DEFAULT_PORT + 400,
     )
 
     # If watch is true, disable auto-save and format-on-save,

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
-import { languageServerWithTransport } from "codemirror-languageserver";
+import { languageServerWithTransport } from "@marimo-team/codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
