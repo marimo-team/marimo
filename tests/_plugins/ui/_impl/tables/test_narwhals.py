@@ -6,8 +6,8 @@ import unittest
 from math import isnan
 from typing import Any
 
-import pytest
 import narwhals.stable.v1 as nw
+import pytest
 
 from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
