@@ -317,7 +317,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
             "op": "update-cell-codes",
             "data": {
                 "cell_ids": ["MJUe", "Hbol"],
-                "code_is_stale": True,
+                "code_is_stale": False,
                 "codes": ["x=10; x", "import marimo as mo"],
             },
         }
