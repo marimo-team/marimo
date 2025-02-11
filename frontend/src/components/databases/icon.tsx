@@ -7,7 +7,7 @@ import MySQLIcon from "./icons/mysql.svg";
 import SnowflakeIcon from "./icons/snowflake.svg";
 import DatabricksIcon from "./icons/databricks.svg";
 import ClickhouseIcon from "./icons/clickhouse.svg";
-
+import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
 import { cn } from "@/utils/cn";
 
 /**
@@ -31,6 +31,7 @@ export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
     snowflake: SnowflakeIcon,
     databricks: DatabricksIcon,
     clickhouse: ClickhouseIcon,
+    googlebigquery: GoogleBigQueryIcon,
   };
 
   const url = URLS[lowerName];
@@ -43,7 +44,7 @@ export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
     <img
       src={url}
       alt={name}
-      className={cn(className, "invert-[.5] dark:invert-[.7]")}
+      className={cn("invert-[.5] dark:invert-[.7]", className)}
     />
   );
 };

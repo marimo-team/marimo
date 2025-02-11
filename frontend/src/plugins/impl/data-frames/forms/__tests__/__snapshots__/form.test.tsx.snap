@@ -6,9 +6,9 @@ exports[`renderZodSchema > should render a form 1`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="filter_rows"
     />
     <div
       class="flex flex-row align-start"
@@ -35,7 +35,7 @@ exports[`renderZodSchema > should render a form 1`] = `
               class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
               data-radix-collection-item=""
               data-state="unchecked"
-              id=".operation-keep_rows"
+              id="operation-keep_rows"
               role="radio"
               tabindex="-1"
               type="button"
@@ -43,7 +43,7 @@ exports[`renderZodSchema > should render a form 1`] = `
             />
             <label
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
-              for=".operation-keep_rows"
+              for="operation-keep_rows"
             >
               Keep Rows
             </label>
@@ -56,7 +56,7 @@ exports[`renderZodSchema > should render a form 1`] = `
               class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
               data-radix-collection-item=""
               data-state="unchecked"
-              id=".operation-remove_rows"
+              id="operation-remove_rows"
               role="radio"
               tabindex="-1"
               type="button"
@@ -64,7 +64,7 @@ exports[`renderZodSchema > should render a form 1`] = `
             />
             <label
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
-              for=".operation-remove_rows"
+              for="operation-remove_rows"
             >
               Remove Rows
             </label>
@@ -131,9 +131,9 @@ exports[`renderZodSchema > should render a form 2`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="select_columns"
     />
     <div
       class="flex flex-row align-start"
@@ -195,9 +195,9 @@ exports[`renderZodSchema > should render a form 3`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="rename_column"
     />
     <div
       class="flex flex-row align-start"
@@ -261,7 +261,7 @@ exports[`renderZodSchema > should render a form 3`] = `
             aria-invalid="false"
             class="shadow-xsSolid hover:shadow-smSolid disabled:shadow-xsSolid focus-visible:shadow-mdSolid flex h-6 w-full rounded-sm border border-input bg-background px-1.5 py-1 text-sm font-code ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 my-0"
             id=":r7:-form-item"
-            name=".new_column_id"
+            name="new_column_id"
             value=""
           />
         </div>
@@ -277,9 +277,9 @@ exports[`renderZodSchema > should render a form 4`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="column_conversion"
     />
     <div
       class="flex flex-row align-start"
@@ -408,7 +408,7 @@ exports[`renderZodSchema > should render a form 4`] = `
               class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
               data-radix-collection-item=""
               data-state="unchecked"
-              id=".errors-ignore"
+              id="errors-ignore"
               role="radio"
               tabindex="-1"
               type="button"
@@ -416,7 +416,7 @@ exports[`renderZodSchema > should render a form 4`] = `
             />
             <label
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
-              for=".errors-ignore"
+              for="errors-ignore"
             >
               Ignore
             </label>
@@ -429,7 +429,7 @@ exports[`renderZodSchema > should render a form 4`] = `
               class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
               data-radix-collection-item=""
               data-state="unchecked"
-              id=".errors-raise"
+              id="errors-raise"
               role="radio"
               tabindex="-1"
               type="button"
@@ -437,7 +437,7 @@ exports[`renderZodSchema > should render a form 4`] = `
             />
             <label
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
-              for=".errors-raise"
+              for="errors-raise"
             >
               Raise
             </label>
@@ -455,9 +455,9 @@ exports[`renderZodSchema > should render a form 5`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="sort_column"
     />
     <div
       class="flex flex-row align-start"
@@ -568,7 +568,7 @@ exports[`renderZodSchema > should render a form 5`] = `
               class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
               data-radix-collection-item=""
               data-state="unchecked"
-              id=".na_position-first"
+              id="na_position-first"
               role="radio"
               tabindex="-1"
               type="button"
@@ -576,7 +576,7 @@ exports[`renderZodSchema > should render a form 5`] = `
             />
             <label
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
-              for=".na_position-first"
+              for="na_position-first"
             >
               First
             </label>
@@ -589,7 +589,7 @@ exports[`renderZodSchema > should render a form 5`] = `
               class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
               data-radix-collection-item=""
               data-state="unchecked"
-              id=".na_position-last"
+              id="na_position-last"
               role="radio"
               tabindex="-1"
               type="button"
@@ -597,7 +597,7 @@ exports[`renderZodSchema > should render a form 5`] = `
             />
             <label
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
-              for=".na_position-last"
+              for="na_position-last"
             >
               Last
             </label>
@@ -615,9 +615,9 @@ exports[`renderZodSchema > should render a form 6`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="group_by"
     />
     <div
       class="flex flex-row align-start"
@@ -757,9 +757,9 @@ exports[`renderZodSchema > should render a form 7`] = `
     class="flex flex-row gap-6 items-start"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="aggregate"
     />
     <div
       class="flex flex-row align-start"
@@ -871,9 +871,9 @@ exports[`renderZodSchema > should render a form 8`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="sample_rows"
     />
     <div
       class="flex flex-row align-start"
@@ -974,7 +974,7 @@ exports[`renderZodSchema > should render a form 8`] = `
           </div>
         </div>
         <input
-          name=".n"
+          name="n"
           type="hidden"
           value=""
         />
@@ -1055,9 +1055,9 @@ exports[`renderZodSchema > should render a form 9`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="shuffle_rows"
     />
     <div
       class="flex flex-row align-start"
@@ -1104,9 +1104,9 @@ exports[`renderZodSchema > should render a form 10`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="explode_columns"
     />
     <div
       class="flex flex-row align-start"
@@ -1168,9 +1168,9 @@ exports[`renderZodSchema > should render a form 11`] = `
     class="flex flex-col gap-6"
   >
     <input
-      name=".type"
+      name="type"
       type="hidden"
-      value=""
+      value="expand_dict"
     />
     <div
       class="flex flex-row align-start"

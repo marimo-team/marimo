@@ -4,10 +4,7 @@ import {
   type ColumnId,
   NUMPY_DTYPES,
 } from "@/plugins/impl/data-frames/types";
-import {
-  FieldOptions,
-  randomNumber,
-} from "@/plugins/impl/data-frames/forms/options";
+import { FieldOptions, randomNumber } from "@/components/forms/options";
 import { z } from "zod";
 import {
   ALL_OPERATORS,

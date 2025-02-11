@@ -3,6 +3,7 @@ import React from "react";
 import {
   ChevronRightIcon,
   DatabaseIcon,
+  PlusIcon,
   PlusSquareIcon,
   XIcon,
 } from "lucide-react";
@@ -48,6 +49,7 @@ import { DatabaseLogo } from "@/components/databases/icon";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
+import { AddDatabaseDialog } from "../../database/add-database-form";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -90,6 +92,14 @@ export const DataSourcesPanel: React.FC = () => {
       <PanelEmptyState
         title="No tables found"
         description="Any datasets/dataframes in the global scope will be shown here."
+        action={
+          <AddDatabaseDialog>
+            <Button variant="outline" size="sm">
+              Add database
+              <PlusIcon className="h-4 w-4 ml-2" />
+            </Button>
+          </AddDatabaseDialog>
+        }
         icon={<DatabaseIcon />}
       />
     );
@@ -158,6 +168,12 @@ export const DataSourcesPanel: React.FC = () => {
               <XIcon className="h-4 w-4" />
             </button>
           )}
+
+          <AddDatabaseDialog>
+            <button className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
+              <PlusIcon className="h-4 w-4" />
+            </button>
+          </AddDatabaseDialog>
         </div>
 
         <TableList

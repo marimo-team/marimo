@@ -30,6 +30,7 @@ import {
   XCircleIcon,
   FilePlus2Icon,
   FastForwardIcon,
+  DatabaseIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -71,6 +72,7 @@ import { copyToClipboard } from "@/utils/copy";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
+import { AddDatabaseDialogContent } from "../database/add-database-form";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -374,6 +376,13 @@ export function useNotebookActions() {
       hidden: !canUndoDeletes || kioskMode,
       handle: () => {
         undoDeleteCell();
+      },
+    },
+    {
+      icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
+      label: "Add database connection",
+      handle: () => {
+        openModal(<AddDatabaseDialogContent onClose={closeModal} />);
       },
     },
 

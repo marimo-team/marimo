@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { ZodForm } from "../form";
+import { ZodForm } from "../../../../../components/forms/form";
 import { TransformTypeSchema } from "../../schema";
 import { render } from "@testing-library/react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import type { ColumnId } from "../../types";
 import { ColumnInfoContext } from "../context";
+import { DATAFRAME_FORM_RENDERERS } from "../renderers";
 
 const ColumnTypes = new Map([
   [0 as ColumnId, "str"],
@@ -25,7 +26,11 @@ const Subject = (props: { schema: z.ZodType }) => {
   });
   return (
     <ColumnInfoContext.Provider value={ColumnTypes}>
-      <ZodForm form={form} schema={props.schema} />
+      <ZodForm
+        form={form}
+        schema={props.schema}
+        renderers={DATAFRAME_FORM_RENDERERS}
+      />
     </ColumnInfoContext.Provider>
   );
 };
