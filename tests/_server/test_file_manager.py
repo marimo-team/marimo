@@ -304,13 +304,13 @@ if __name__ == "__main__":
         f.write(modified_content)
 
     # Reload the file
-    manager.reload()
+    changed_cell_ids = manager.reload()
 
     # The cell IDs should be reordered to match the original code
     reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
     assert len(reloaded_cell_ids) == len(original_cell_ids)
     assert reloaded_cell_ids == ["MJUe", "Hbol"]
-
+    assert changed_cell_ids == set()
     # Clean up
     os.remove(temp_file.name)
 
@@ -358,13 +358,13 @@ if __name__ == "__main__":
         f.write(modified_content)
 
     # Reload the file
-    manager.reload()
+    changed_cell_ids = manager.reload()
 
     # Check that the code was updated
     reloaded_code = list(manager.app.cell_manager.codes())[0]
     assert "x = 42" in reloaded_code
     assert "x = 1" not in reloaded_code
-
+    assert changed_cell_ids == {"Hbol"}
     # Clean up
     os.remove(temp_file.name)
 
@@ -417,7 +417,7 @@ if __name__ == "__main__":
         f.write(modified_content)
 
     # Reload the file
-    manager.reload()
+    changed_cell_ids = manager.reload()
 
     # Check that the new cell was added
     codes = list(manager.app.cell_manager.codes())
@@ -426,6 +426,6 @@ if __name__ == "__main__":
     assert "x = 1" in codes[1]
     next_cell_ids = list(manager.app.cell_manager.cell_ids())
     assert next_cell_ids == ["MJUe", "Hbol"]
-
+    assert changed_cell_ids == {"MJUe"}
     # Clean up
     os.remove(temp_file.name)
