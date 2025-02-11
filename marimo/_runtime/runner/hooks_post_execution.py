@@ -33,6 +33,7 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
+from marimo._sql.engines import DuckDBEngine, SQLAlchemyEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -168,9 +169,14 @@ def _broadcast_data_source_connection(
         ).broadcast()
 
     for variable, engine in engines:
-        databases = engine.get_databases(
-            include_schemas=True, include_tables=False
-        )
+        if isinstance(engine, SQLAlchemyEngine):
+            databases = engine.get_databases(
+                include_schemas=True,
+                include_tables=True,
+                include_table_details=False,
+            )
+        elif isinstance(engine, DuckDBEngine):
+            databases = engine.get_databases()
         if databases:
             LOGGER.debug(f"Broadcasting engine databases for {variable}")
             Databases(databases=databases).broadcast()

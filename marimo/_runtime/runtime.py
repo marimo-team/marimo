@@ -2099,22 +2099,37 @@ class Kernel:
 
         engine_val = self.globals.get(engine_name)
         # TODO: Can we find the existing engine
-        engine = get_engines_from_variables([(engine_name, engine_val)])[0][1]
-        if engine is None:
-            LOGGER.warning("Engine %s not found", engine_name)
+        try:
+            engines = get_engines_from_variables([(engine_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                LOGGER.warning("Engine %s not found", engine_name)
+                SQLTablesPreview(
+                    request_id=request.request_id,
+                    tables=[],
+                    error="Engine not found",
+                ).broadcast()
+            engine = engines[0][1]
+        except Exception as e:
+            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+            SQLTablesPreview(
+                request_id=request.request_id, tables=[], error=str(e)
+            ).broadcast()
             return
+
         if isinstance(engine, SQLAlchemyEngine):
             tables = engine.get_tables_in_schema(
-                schema=schema_name, include_table_info=False
+                schema=schema_name, include_table_details=False
             )
-            if len(tables) == 0:
-                return
             SQLTablesPreview(
                 request_id=request.request_id, tables=tables
             ).broadcast()
         else:
-            LOGGER.warning("Engine %s is not an SQLAlchemyEngine", engine_name)
-            tables = []
+            LOGGER.info("Engine %s is not an SQLAlchemyEngine", engine_name)
+            SQLTablesPreview(
+                request_id=request.request_id,
+                tables=[],
+                error="Not an SQLAlchemyEngine",
+            ).broadcast()
         return
 
     @kernel_tracer.start_as_current_span("preview_sql_table_info")

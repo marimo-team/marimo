@@ -92,7 +92,9 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine with an empty engine."""
     engine = SQLAlchemyEngine(empty_sqlite_engine, engine_name="sqlite")
 
-    databases = engine.get_databases(include_schemas=True, include_tables=True)
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=True
+    )
     assert databases == [
         Database(
             name=":memory:",
@@ -151,7 +153,7 @@ def test_sqlalchemy_sql_types() -> None:
     )
 
     engine = SQLAlchemyEngine(sqlite_engine, engine_name="sqlite")
-    tables = engine.get_tables_in_schema("main")
+    tables = engine.get_tables_in_schema("main", include_table_details=True)
 
     assert len(tables) == 1
     table = tables[0]
@@ -187,17 +189,19 @@ def test_sqlalchemy_sql_types() -> None:
     assert columns[5].external_type == "JSON"
 
 
-def get_expected_table(table_name: str) -> DataTable:
+def get_expected_table(
+    table_name: str, include_table_details: bool = True
+) -> DataTable:
     "This test can be reused for sqlite_engine"
     return DataTable(
         source_type="connection",
         source="sqlite",
         name=table_name,
         num_rows=None,
-        num_columns=2,
+        num_columns=2 if include_table_details else None,
         variable_name=None,
         engine="test_sqlite",
-        primary_keys=["id"],
+        primary_keys=["id"] if include_table_details else [],
         indexes=[],
         columns=[
             DataTableColumn(
@@ -212,7 +216,9 @@ def get_expected_table(table_name: str) -> DataTable:
                 external_type="TEXT",
                 sample_values=[],
             ),
-        ],
+        ]
+        if include_table_details
+        else [],
     )
 
 
@@ -247,14 +253,14 @@ def test_sqlalchemy_engine_get_tables_in_schema(
 ) -> None:
     """Test SQLAlchemyEngine get_tables method."""
     engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
-    tables = engine.get_tables_in_schema("main")  # main is the default schema
+    tables = engine.get_tables_in_schema("main", True)
 
     assert isinstance(tables, list)
     assert len(tables) == 1
     assert tables[0] == get_expected_table("test")
 
     # Test with other schema
-    tables = engine.get_tables_in_schema("my_schema")
+    tables = engine.get_tables_in_schema("my_schema", True)
     assert isinstance(tables, list)
     assert len(tables) == 1
     assert tables[0] == get_expected_table("test2")
@@ -262,15 +268,11 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     # Test with non-existent schema
     assert engine.get_tables_in_schema("non_existent") == []
 
-    # Test with include_table_info false
-    tables = engine.get_tables_in_schema("main", include_table_info=False)
+    # Test with include_table_details false
+    tables = engine.get_tables_in_schema("main", include_table_details=False)
     assert isinstance(tables, list)
     assert len(tables) == 1
-    expected_table = get_expected_table("test")
-    expected_table.columns = []
-    expected_table.num_columns = None
-    expected_table.primary_keys = []
-    expected_table.indexes = []
+    expected_table = get_expected_table("test", False)
     assert tables[0] == expected_table
 
 
@@ -278,7 +280,9 @@ def test_sqlalchemy_engine_get_tables_in_schema(
 def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_schemas method."""
     engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
-    schemas = engine.get_schemas(include_tables=True)
+    schemas = engine.get_schemas(
+        include_tables=True, include_table_details=True
+    )
 
     assert isinstance(schemas, list)
     assert len(schemas) == 2
@@ -288,6 +292,20 @@ def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
 
     schema = schemas[1]
     assert schema == get_expected_schema("my_schema", "test2")
+
+    # Test with include_table_details false
+    schemas = engine.get_schemas(
+        include_tables=True, include_table_details=False
+    )
+    assert isinstance(schemas, list)
+    assert len(schemas) == 2
+
+    schema = schemas[0]
+    assert schema.name == "main"
+    assert len(schema.tables) == 1
+
+    expected_table = get_expected_table("test", include_table_details=False)
+    assert schema.tables[0] == expected_table
 
     # Test with include_tables false
     schemas = engine.get_schemas(include_tables=False)
@@ -307,7 +325,9 @@ def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_databases method."""
     engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
-    databases = engine.get_databases(include_schemas=True, include_tables=True)
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=True
+    )
 
     assert databases == [
         Database(
@@ -321,9 +341,28 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
         )
     ]
 
+    # Test with include_table_details false
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=False
+    )
+    tables_main = get_expected_table("test", include_table_details=False)
+    tables_my_schema = get_expected_table("test2", include_table_details=False)
+
+    assert databases == [
+        Database(
+            name=":memory:",
+            dialect="sqlite",
+            schemas=[
+                Schema(name="main", tables=[tables_main]),
+                Schema(name="my_schema", tables=[tables_my_schema]),
+            ],
+            engine="test_sqlite",
+        )
+    ]
+
     # Test with include_tables false
     databases = engine.get_databases(
-        include_schemas=True, include_tables=False
+        include_schemas=True, include_tables=False, include_table_details=True
     )
     assert databases == [
         Database(
@@ -339,7 +378,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
 
     # Test with include_schemas false
     databases = engine.get_databases(
-        include_schemas=False, include_tables=True
+        include_schemas=False, include_tables=True, include_table_details=True
     )
     assert databases == [
         Database(
@@ -352,7 +391,7 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
 
     # Test with include_schemas and include_tables false
     databases = engine.get_databases(
-        include_schemas=False, include_tables=False
+        include_schemas=False, include_tables=False, include_table_details=True
     )
     assert databases == [
         Database(

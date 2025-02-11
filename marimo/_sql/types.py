@@ -4,8 +4,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from marimo._data.models import Database
-
 
 class SQLEngine(ABC):
     """Protocol for SQL engines that can execute queries."""
@@ -31,11 +29,4 @@ class SQLEngine(ABC):
     @abstractmethod
     def is_compatible(var: Any) -> bool:
         """Check if a variable is a compatible engine."""
-        pass
-
-    @abstractmethod
-    def get_databases(
-        self, include_schemas: bool, include_tables: bool
-    ) -> list[Database]:
-        """Get databases from the engine."""
         pass

@@ -75,11 +75,7 @@ class DuckDBEngine(SQLEngine):
 
         return isinstance(var, duckdb.DuckDBPyConnection)
 
-    def get_databases(
-        self,
-        _include_schemas: bool,
-        _include_tables: bool,
-    ) -> list[Database]:
+    def get_databases(self) -> list[Database]:
         """Fetch all databases from the engine. At the moment, will fetch everything."""
         return get_databases_from_duckdb(self._connection, self._engine_name)
 
@@ -146,16 +142,20 @@ class SQLAlchemyEngine(SQLEngine):
         return False
 
     def get_databases(
-        self, include_schemas: bool, include_tables: bool
+        self,
+        include_schemas: bool = False,
+        include_tables: bool = False,
+        include_table_details: bool = False,
     ) -> list[Database]:
-        """Fetch all databases from the engine.
+        """Get all databases from the engine.
 
         Args:
-            include_schemas: Whether to include schema information
-            include_tables: Whether to include table information within schemas
+            include_schemas: Whether to include schema information. If False, databases will have empty schemas.
+            include_tables: Whether to include table information within schemas. If False, schemas will have empty tables.
+            include_table_details: Whether to include each table's detailed information. If False, tables will have empty columns, PK, indexes.
 
         Returns:
-            List of DatabaseCollection objects representing the database structure
+            List of Database objects representing the database structure.
 
         Note: This operation can be performance intensive when fetching full metadata.
         """
@@ -166,7 +166,11 @@ class SQLAlchemyEngine(SQLEngine):
         if database_name is None:
             return []
 
-        schemas = self.get_schemas(include_tables) if include_schemas else []
+        schemas = (
+            self.get_schemas(include_tables, include_table_details)
+            if include_schemas
+            else []
+        )
         databases.append(
             Database(
                 name=database_name,
@@ -177,7 +181,9 @@ class SQLAlchemyEngine(SQLEngine):
         )
         return databases
 
-    def get_schemas(self, include_tables: bool = False) -> list[Schema]:
+    def get_schemas(
+        self, include_tables: bool = False, include_table_details: bool = False
+    ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
         from sqlalchemy.exc import SQLAlchemyError
 
@@ -192,7 +198,9 @@ class SQLAlchemyEngine(SQLEngine):
             schemas.append(
                 Schema(
                     name=schema,
-                    tables=self.get_tables_in_schema(schema)
+                    tables=self.get_tables_in_schema(
+                        schema, include_table_details
+                    )
                     if include_tables
                     else [],
                 )
@@ -201,7 +209,7 @@ class SQLAlchemyEngine(SQLEngine):
         return schemas
 
     def get_tables_in_schema(
-        self, schema: str, include_table_info: bool = True
+        self, schema: str, include_table_details: bool = False
     ) -> list[DataTable]:
         """Return all tables in a schema."""
         from sqlalchemy.exc import SQLAlchemyError
@@ -216,7 +224,7 @@ class SQLAlchemyEngine(SQLEngine):
             ("view", name) for name in view_names
         ]
 
-        if not include_table_info:
+        if not include_table_details:
             return [
                 DataTable(
                     source_type="connection",
@@ -311,7 +319,6 @@ class SQLAlchemyEngine(SQLEngine):
             col_type = col_type.python_type
             return _sql_type_to_data_type(str(col_type))
         except NotImplementedError:
-            LOGGER.debug(f"Python type not defined for {col_type}")
             return None
         except Exception:
             LOGGER.debug("Failed to get python type", exc_info=True)
@@ -321,6 +328,8 @@ class SQLAlchemyEngine(SQLEngine):
         try:
             col_type = col_type.as_generic()
             return _sql_type_to_data_type(str(col_type))
+        except NotImplementedError:
+            return None
         except Exception:
             LOGGER.debug("Failed to get generic type", exc_info=True)
             return None

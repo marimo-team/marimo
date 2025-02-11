@@ -119,7 +119,7 @@ def test_duckdb_engine_get_databases(
     """Test DuckDBEngine get_databases method."""
 
     engine = DuckDBEngine(duckdb_connection, engine_name="test_duckdb")
-    databases = engine.get_databases(True, True)
+    databases = engine.get_databases()
 
     assert databases == expected_databases_with_conn
 
@@ -128,7 +128,7 @@ def test_duckdb_engine_get_databases(
 def test_duckdb_engine_get_databases_no_conn() -> None:
     """Test DuckDBEngine get_databases method."""
     engine = DuckDBEngine()
-    initial_databases = engine.get_databases(True, True)
+    initial_databases = engine.get_databases()
     assert initial_databases == []
 
     engine.execute(
@@ -142,7 +142,7 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
         (3, 'Charlie');
         """
     )
-    databases = engine.get_databases(True, True)
+    databases = engine.get_databases()
 
     expected_databases = deepcopy(expected_databases_with_conn)
     expected_databases[0].engine = None

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useState } from "react";
+import React from "react";
 import {
   ChevronRightIcon,
   DatabaseIcon,
@@ -7,6 +7,7 @@ import {
   PaintRollerIcon,
   PlusSquareIcon,
   XIcon,
+  LoaderCircle,
 } from "lucide-react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
@@ -56,6 +57,7 @@ import { AddDatabaseDialog } from "../../database/add-database-form";
 import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
 import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
+import { PreviewSQLTables } from "@/core/functions/FunctionRegistry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -276,7 +278,11 @@ const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
             </DatasourceLabel>
             {databases && databases.length > 0 ? (
               databases.map((database) => (
-                <DatabaseItem key={database.name} database={database} />
+                <DatabaseItem
+                  key={database.name}
+                  database={database}
+                  engineName={engine}
+                />
               ))
             ) : (
               <span className="text-sm text-muted-foreground p-2">
@@ -290,8 +296,11 @@ const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
   );
 };
 
-const DatabaseItem: React.FC<{ database: Database }> = ({ database }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const DatabaseItem: React.FC<{ database: Database; engineName: string }> = ({
+  database,
+  engineName,
+}) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   return (
     <>
@@ -306,58 +315,136 @@ const DatabaseItem: React.FC<{ database: Database }> = ({ database }) => {
       </CommandItem>
       {isExpanded &&
         Object.values(database.schemas).map((schema) => (
-          <SchemaItem key={schema.name} schema={schema} />
+          <SchemaItem
+            key={schema.name}
+            schema={schema}
+            engineName={engineName}
+            databaseName={database.name}
+          />
         ))}
     </>
   );
 };
 
-const SchemaItem: React.FC<{ schema: DatabaseSchema }> = ({ schema }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const SchemaItem: React.FC<{
+  schema: DatabaseSchema;
+  engineName: string;
+  databaseName: string;
+}> = ({ schema, engineName, databaseName }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
   return (
     <>
       <CommandItem
         key={schema.name}
-        className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
+        className="py-1 text-sm flex flex-row gap-1 items-center border-b ml-5 cursor-pointer"
         onSelect={() => setIsExpanded(!isExpanded)}
       >
         <RotatingChevron isExpanded={isExpanded} />
         <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
         {schema.name}
       </CommandItem>
-      {isExpanded && <EngineTableList tables={Object.values(schema.tables)} />}
+      {isExpanded && (
+        <EngineTableList
+          tables={Object.values(schema.tables)}
+          engineName={engineName}
+          databaseName={databaseName}
+          schemaName={schema.name}
+        />
+      )}
     </>
   );
 };
 
-const EngineTableList: React.FC<{ tables: DataTable[] }> = ({ tables }) => {
-  // const [data, setData] = React.useState<any>([]);
+interface EngineTableListProps {
+  engineName: string;
+  databaseName: string;
+  schemaName: string;
+  tables: DataTable[];
+}
 
-  // React.useEffect(() => {
-  //   const fetchData = async () => {
-  //     const tablesPreview = await SQLFunctions.request({
-  //       schema: "information_schema",
-  //       engine: "engine",
-  //       database: "snowflake",
-  //     });
-  //     if (tablesPreview.error) {
-  //       throw new Error(tablesPreview.error);
-  //     }
-  //     if (!tablesPreview.tables) {
-  //       throw new Error("No tables found");
-  //     }
-  //     setData(tablesPreview.tables);
-  //   };
-  //   fetchData()
-  //     .then((res) => console.log(res))
-  //     .catch((error) => console.error(error));
-  // }, []);
+const EngineTableList: React.FC<EngineTableListProps> = ({
+  engineName,
+  databaseName,
+  schemaName,
+  tables,
+}) => {
+  const [data, setData] = React.useState<DataTable[]>(tables);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // console.log("data", data);
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const tablesPreview = await PreviewSQLTables.request({
+          schema: schemaName,
+          engine: engineName,
+          database: databaseName,
+        });
+        if (tablesPreview.error) {
+          throw new Error(tablesPreview.error);
+        }
+        if (isMounted) {
+          setData(tablesPreview.tables);
+        }
+      } catch (error) {
+        if (isMounted) {
+          if (error instanceof Error) {
+            setError(error.message);
+          } else {
+            setError(String(error));
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Only fetch when no tables are passed in
+    if (tables.length === 0) {
+      fetchData();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [databaseName, engineName, schemaName, tables.length]);
+
+  if (error) {
+    return (
+      <div className="ml-8 text-sm text-red-600 bg-red-100 flex items-center gap-2 p-2 h-7 overflow-auto">
+        <XIcon className="h-4 w-4" />
+        Internal error: {error}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="ml-8 text-sm bg-blue-50 text-blue-600 flex items-center gap-2 p-2 h-7">
+        <LoaderCircle className="h-4 w-4 animate-spin" />
+        Loading...
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="ml-8 text-sm text-muted-foreground p-2">
+        No tables found
+      </div>
+    );
+  }
+
   return (
-    <div className="pl-6">
+    <div className="ml-8">
       <TableList
-        tables={tables}
+        tables={data}
         isSearching={false}
         columnPreviews={new Map()}
         onAddColumnChart={() => {}}
@@ -550,7 +637,7 @@ const DatasetTableItem: React.FC<{
 
   return (
     <CommandItem
-      className="rounded-none py-1 group min-h-9 border-t cursor-pointer"
+      className="rounded-none py-1 group h-7 border-t cursor-pointer"
       value={table.name}
       aria-selected={isExpanded}
       forceMount={true}

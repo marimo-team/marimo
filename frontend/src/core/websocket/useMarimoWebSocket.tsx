@@ -16,7 +16,7 @@ import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   FUNCTIONS_REGISTRY,
-  SQLFunctions,
+  PreviewSQLTables,
 } from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
@@ -68,8 +68,7 @@ export function useMarimoWebSocket(opts: {
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
   const { addDataSourceConnection, filterDataSourcesFromVariables } =
     useDataSourceActions();
-  const { addDatabase, addSQLTablesPreview, addSQLTableInfoPreview } =
-    useDatabaseActions();
+  const { addDatabase } = useDatabaseActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -202,10 +201,10 @@ export function useMarimoWebSocket(opts: {
         addColumnPreview(msg.data);
         return;
       case "sql-tables-preview":
-        SQLFunctions.resolve(msg.data.request_id as RequestId, msg.data);
+        PreviewSQLTables.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "sql-table-info-preview":
-        addSQLTableInfoPreview(msg.data);
+        // addSQLTableInfoPreview(msg.data);
         return;
       case "data-source-connections":
         addDataSourceConnection(msg.data);
