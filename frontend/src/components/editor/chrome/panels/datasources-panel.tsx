@@ -174,13 +174,16 @@ export const DataSourcesPanel: React.FC = () => {
             <XIcon className="h-4 w-4" />
           </button>
         )}
-      </div>
 
-      <AddDatabaseDialog>
-        <button className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
-          <PlusIcon className="h-4 w-4" />
-        </button>
-      </AddDatabaseDialog>
+        <AddDatabaseDialog>
+          <button
+            type="button"
+            className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+          >
+            <PlusIcon className="h-4 w-4" />
+          </button>
+        </AddDatabaseDialog>
+      </div>
 
       <EngineList databasesMap={databases.databasesMap} />
 
