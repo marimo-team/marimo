@@ -9,7 +9,7 @@ import { ChartSkeleton } from "../charts/chart-skeleton";
 import { logNever } from "@/utils/assertNever";
 import { DatePopover } from "./date-popover";
 import { createBatchedLoader } from "@/plugins/impl/vega/batched";
-import { VegaSpecResolver } from "../charts/vega-data-loader";
+import { VegaSpecResolver } from "../charts/vega-spec-resolver";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>

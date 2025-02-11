@@ -43,7 +43,7 @@ export class ColumnChartSpecModel<T> {
         this.dataSpec = {
           url: asURL(this.data).href,
         };
-        this.sourceName = "source_0";
+        this.sourceName = "data_0"; // This is data_0 because the data gets loaded before passing to Vega
       } else if (this.data.startsWith("data:text/csv;base64,")) {
         const decoded = atob(this.data.split(",")[1]);
         this.dataSpec = {
@@ -75,7 +75,7 @@ export class ColumnChartSpecModel<T> {
     };
   }
 
-  private getVegaSpec<T>(column: string): TopLevelFacetedUnitSpec | null {
+  private getVegaSpec<_T>(column: string): TopLevelFacetedUnitSpec | null {
     if (!this.data) {
       return null;
     }

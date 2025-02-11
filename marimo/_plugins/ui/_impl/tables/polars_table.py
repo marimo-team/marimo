@@ -60,9 +60,13 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: Optional[FormatMapping] = None,
             ) -> JSONType:
-                # Prefer IPC over CSV since it's faster and more compact
+                # Prefer IPC over CSV since it avoids the overhead of
+                # CSV serialization/deserialization
                 if not format_mapping:
-                    return mo_data.arrow(self.to_ipc()).url
+                    try:
+                        return mo_data.arrow(self.to_ipc()).url
+                    except Exception:
+                        return mo_data.csv(self.to_csv()).url
                 return super().to_data(format_mapping)
 
             def to_ipc(self) -> bytes:

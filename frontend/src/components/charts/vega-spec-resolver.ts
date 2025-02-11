@@ -9,6 +9,9 @@ interface VegaSpecResolverProps {
   children: (spec: VegaLiteSpec) => React.ReactNode;
 }
 
+/**
+ * Higher-order component that resolves the remote URLs in a Vega spec.
+ */
 export const VegaSpecResolver: React.FC<VegaSpecResolverProps> = ({
   spec,
   children,

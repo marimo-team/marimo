@@ -60,9 +60,6 @@ class TableManager(abc.ABC, Generic[T]):
     def supports_altair(self) -> bool:
         return True
 
-    def to_ipc(self) -> bytes:
-        raise NotImplementedError
-
     @abc.abstractmethod
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
