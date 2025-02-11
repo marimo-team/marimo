@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Matplotlib: Statistical Visualizations
+        # Matplotlib: Distribution Plots with Histograms and Box Plots
 
         Create statistical plots using `hist()`, `boxplot()`, and `violinplot()`. 
         Common for data distribution analysis with customizable bins and orientations.
