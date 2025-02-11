@@ -408,7 +408,7 @@ class WebsocketHandler(SessionConsumer):
         )
 
         for op in operations:
-            LOGGER.debug("Replaying operation %s", serialize(op))
+            LOGGER.debug("Replaying operation %s", op)
             self.write_operation(op)
 
     def _connect_kiosk(self, session: Session) -> None:

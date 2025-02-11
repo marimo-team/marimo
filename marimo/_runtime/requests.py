@@ -74,6 +74,9 @@ class HTTPRequest(Mapping[str, Any]):
         except TypeError:
             return self.__dict__
 
+    def __repr__(self) -> str:
+        return f"HTTPRequest(path={self.url['path']}, params={len(self.query_params)})"
+
     @staticmethod
     def from_request(request: HTTPConnection) -> "HTTPRequest":
         def _url_to_dict(url: URL) -> dict[str, Any]:
@@ -126,6 +129,10 @@ class ExecutionRequest:
     request: Optional[HTTPRequest] = None
     timestamp: float = field(default_factory=time.time)
 
+    def __repr__(self) -> str:
+        preview = self.code[:10].replace("\n", " ")
+        return f"ExecutionRequest(cell={self.cell_id}, code_preview={preview})"
+
 
 @dataclass
 class ExecuteStaleRequest: ...
@@ -141,6 +148,9 @@ class ExecuteMultipleRequest:
     request: Optional[HTTPRequest] = None
     # time at which the request was received
     timestamp: float = field(default_factory=time.time)
+
+    def __repr__(self) -> str:
+        return f"ExecuteMultipleRequest(cells={len(self.cell_ids)})"
 
     @property
     def execution_requests(self) -> List[ExecutionRequest]:
@@ -181,6 +191,9 @@ class SetUIElementValueRequest:
     # uniquely identifies the request
     token: str = field(default_factory=lambda: str(uuid4()))
 
+    def __repr__(self) -> str:
+        return f"SetUIElementValueRequest(n_elements={len(self.object_ids)}, token={self.token})"
+
     def __post_init__(self) -> None:
         assert len(self.object_ids) == len(self.values), (
             "Mismatched object_ids and values"
@@ -213,6 +226,9 @@ class FunctionCallRequest:
     namespace: str
     function_name: str
     args: Dict[str, Any]
+
+    def __repr__(self) -> str:
+        return f"FunctionCallRequest(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"
 
 
 @dataclass
@@ -260,6 +276,9 @@ class CodeCompletionRequest:
     id: CompletionRequestId
     document: str
     cell_id: CellId_t
+
+    def __repr__(self) -> str:
+        return f"CodeCompletionRequest(id={self.id}, cell={self.cell_id})"
 
 
 @dataclass
