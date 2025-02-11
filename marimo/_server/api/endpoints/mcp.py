@@ -5,28 +5,6 @@ import asyncio
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-# server.py
-from mcp.server import Server
-from mcp.server.websocket import websocket_server
-
-# Create an MCP server
-mcp = Server("Demo")
-
-
-# Add an addition tool
-@mcp.call_tool()
-async def add(a: int, b: int) -> int:
-    """Add two numbers"""
-    return a + b
-
-
-# Add a dynamic greeting resource
-@mcp.read_resource("greeting://{name}")
-async def get_greeting(name: str) -> str:
-    """Get a personalized greeting"""
-    return f"Hello, {name}!"
-
-
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
@@ -46,6 +24,44 @@ from marimo._server.router import APIRouter
 if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.websockets import WebSocket
+# server.py
+from mcp import types
+from mcp.server import Server
+
+# from mcp.server.type import MCPEvaluationRequest, MCPEvaluationResult
+from mcp.server.websocket import websocket_server
+from pydantic.networks import AnyUrl
+
+# Create an MCP server
+mcp = Server("Demo")
+
+
+# Add an addition tool
+@mcp.call_tool()
+async def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+
+
+"""
+TODO:
+- create an MCP using the session_view (this lives in the server)
+- MCPEvaluate lives in the kernel
+"""
+
+
+@mcp.list_resources()
+async def list_resources() -> list[types.Resource]:
+    return [
+        types.Resource(
+            uri=AnyUrl(f"file:///{name}.txt"),
+            name=name,
+            description=f"A sample text resource named {name}",
+            mimeType="text/plain",
+        )
+        for name in ["greeting"]
+    ]
+
 
 LOGGER = _loggers.marimo_logger()
 
@@ -62,6 +78,16 @@ async def mcp_websocket_endpoint(websocket: WebSocket) -> None:
     try:
         LOGGER.info("WebSocket connection established")
         app_state = AppState(websocket)
+        LOGGER.warning("Starting MCP websocket server")
+        async with websocket_server(
+            scope=websocket.scope,
+            receive=websocket.receive,
+            send=websocket.send,
+        ) as streams:
+            await mcp.run(
+                streams[0], streams[1], mcp.create_initialization_options()
+            )
+
         session_id = app_state.query_params("session_id")
         assert session_id is not None, "session_id is required"
         session = app_state.session_manager.get_session(session_id)
@@ -70,8 +96,6 @@ async def mcp_websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
 
         await asyncio.sleep(1)
-
-        # Maybe use websocket_server, or pull from
 
         while True:
             try:
@@ -104,90 +128,3 @@ async def mcp_websocket_endpoint(websocket: WebSocket) -> None:
         LOGGER.exception(e)
         if not websocket.client_state.DISCONNECTED:
             await websocket.send_json({"type": "error", "error": str(e)})
-
-
-# @router.get("/servers")
-# @requires("edit")
-# async def list_servers(request: Request) -> JSONResponse:  # noqa: ARG001
-#     """List all registered MCP servers with their capabilities.
-
-#     Returns a JSON response containing:
-#     - List of servers with their names
-#     - Each server's available tools, resources, and prompts
-#     """
-#     servers = registry.list_servers()
-#     return JSONResponse({"servers": servers})
-
-
-# @router.post("/evaluate")
-# @requires("edit")
-# async def mcp_evaluate(request: Request) -> JSONResponse:
-#     """
-#     requestBody:
-#         content:
-#             application/json:
-#                 schema:
-#                     $ref: "#/components/schemas/MCPEvaluationRequest"
-#     responses:
-#         200:
-#             description: Evaluate an MCP server request
-#             content:
-#                 application/json:
-#                     schema:
-#                         $ref: "#/components/schemas/MCPEvaluationResult"
-#     """
-#     # app_state = AppState(request)
-#     # session = app_state.require_current_session()
-
-#     body = await parse_request(request, cls=MCPEvaluationRequest)
-#     server_name = body.server_name
-#     function_type = body.request_type  # tool, resource, or prompt
-#     function_name = body.name
-#     args = body.args
-
-#     if not server_name or not function_type or not function_name:
-#         raise HTTPException(
-#             status_code=HTTPStatus.BAD_REQUEST,
-#             detail="Missing required fields",
-#         )
-
-#     # Look up the server directly from the registry
-#     server = registry.get_server(server_name)
-#     if not server:
-#         raise HTTPException(
-#             status_code=HTTPStatus.NOT_FOUND,
-#             detail=f"Server '{server_name}' not found",
-#         )
-
-#     # Create the evaluation request with a unique ID
-#     mcp_request = MCPEvaluationRequest(
-#         mcp_evaluation_id=str(uuid4()),
-#         server_name=server_name,
-#         request_type=function_type,
-#         name=function_name,
-#         args=args,
-#     )
-
-#     try:
-#         # Evaluate the request directly using the server
-#         result = await server.evaluate_request(mcp_request)
-
-#         # Extract the result value
-#         result_value = (
-#             result.result
-#             if isinstance(result, MCPEvaluationResult)
-#             else result
-#         )
-
-#         return JSONResponse(
-#             {
-#                 "mcp_evaluation_id": mcp_request.mcp_evaluation_id,
-#                 "result": result_value,
-#             }
-#         )
-
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-#             detail=str(e),
-#         ) from None

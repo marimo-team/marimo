@@ -11,26 +11,7 @@ import {
 
 export function mcpExtension(): Extension {
   const wsUrl = resolveToWsUrl(`/mcp/ws?session_id=${getSessionId()}`);
-  // const ws = new WebSocket(wsUrl);
-  // ws.onmessage = (event) => {
-  //   console.log("[mcp] onmessage", event);
-  // };
-  // ws.onerror = (event) => {
-  //   console.log("[mcp] onerror", event);
-  // };
-  // ws.onclose = (event) => {
-  //   console.log("[mcp] onclose", event);
-  // };
   const transport = new WebSocketClientTransport(new URL(wsUrl));
-  // transport.onmessage = (event) => {
-  //   console.log("[mcp] onmessage", event);
-  // };
-  // transport.onerror = (event) => {
-  //   console.log("[mcp] onerror", event);
-  // };
-  // transport.onclose = (event) => {
-  //   console.log("[mcp] onclose", event);
-  // };
   return mcpExtensionInternal({
     // Required options
     transport: transport,
