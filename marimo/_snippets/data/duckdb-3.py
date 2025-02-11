@@ -21,21 +21,25 @@ def _(mo):
 
 @app.cell
 def _():
-    import pandas as pd
+    import polars as pl
     # Create sample DataFrame
     data = {
         'group': ['A', 'A', 'B', 'B', 'C', 'C'],
         'value': [10, 15, 20, 25, 30, 35]
     }
-    df = pd.DataFrame(data)
-    return data, df, pd
+    df = pl.DataFrame(data)
+    return data, df, pl
 
 
 @app.cell
 def _(df, mo):
     agg_df = mo.sql(
         f"""
-        SELECT "group", AVG(value) as avg_value FROM df GROUP BY "group"
+        SELECT 
+            "group", 
+            CAST(AVG(value) AS FLOAT) as avg_value 
+        FROM df 
+        GROUP BY "group"
         """
     )
     return (agg_df,)
@@ -45,8 +49,9 @@ def _(df, mo):
 def _(df, mo):
     window_df = mo.sql(
         f"""
-        SELECT *,
-               SUM(value) OVER (PARTITION BY "group" ORDER BY value) as cumulative_sum
+        SELECT 
+            *,
+            CAST(SUM(value) OVER (PARTITION BY "group" ORDER BY value) AS FLOAT) as cumulative_sum
         FROM df
         """
     )
