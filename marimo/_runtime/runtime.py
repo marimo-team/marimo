@@ -50,8 +50,7 @@ from marimo._messaging.ops import (
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
-    SQLTableInfoPreview,
-    SQLTablesPreview,
+    SQLTablePreview,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -111,8 +110,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
-    PreviewSQLTableInfoRequest,
-    PreviewSQLTablesRequest,
+    PreviewSQLTableRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -2081,65 +2079,12 @@ class Kernel:
             ).broadcast()
         return
 
-    @kernel_tracer.start_as_current_span("preview_sql_tables")
-    async def preview_sql_tables(
-        self, request: PreviewSQLTablesRequest
-    ) -> None:
-        """Get the tables in an SQL database.
+    @kernel_tracer.start_as_current_span("preview_sql_table")
+    async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
+        """Get table details for an SQL table.
 
         Args:
-            request (GetSQLTablesRequest): The request containing:
-                - engine: Name of the SQL engine / connection
-                - database_name: Name of the database
-                - schema_name: Name of the schema
-        """
-        engine_name = request.engine
-        _database_name = request.database
-        schema_name = request.schema
-
-        engine_val = self.globals.get(engine_name)
-        # TODO: Can we find the existing engine
-        try:
-            engines = get_engines_from_variables([(engine_name, engine_val)])
-            if engines is None or len(engines) == 0:
-                LOGGER.warning("Engine %s not found", engine_name)
-                SQLTablesPreview(
-                    request_id=request.request_id,
-                    tables=[],
-                    error="Engine not found",
-                ).broadcast()
-            engine = engines[0][1]
-        except Exception as e:
-            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
-            SQLTablesPreview(
-                request_id=request.request_id, tables=[], error=str(e)
-            ).broadcast()
-            return
-
-        if isinstance(engine, SQLAlchemyEngine):
-            tables = engine.get_tables_in_schema(
-                schema=schema_name, include_table_details=False
-            )
-            SQLTablesPreview(
-                request_id=request.request_id, tables=tables
-            ).broadcast()
-        else:
-            LOGGER.info("Engine %s is not an SQLAlchemyEngine", engine_name)
-            SQLTablesPreview(
-                request_id=request.request_id,
-                tables=[],
-                error="Not an SQLAlchemyEngine",
-            ).broadcast()
-        return
-
-    @kernel_tracer.start_as_current_span("preview_sql_table_info")
-    async def preview_sql_table_info(
-        self, request: PreviewSQLTableInfoRequest
-    ) -> None:
-        """Get table information for an SQL table.
-
-        Args:
-            request (GetSQLTableInfoRequest): The request containing:
+            request (PreviewSQLTableRequest): The request containing:
                 - engine: Name of the SQL engine / connection
                 - database: Name of the database
                 - schema: Name of the schema
@@ -2150,21 +2095,37 @@ class Kernel:
         schema_name = request.schema
         table_name = request.table_name
 
-        engine_val = self.globals.get(engine_name)
         # TODO: Can we find the existing engine
-        engine = get_engines_from_variables([(engine_name, engine_val)])[0][1]
-        if engine is None:
-            LOGGER.warning("Engine %s not found", engine_name)
+        engine_val = self.globals.get(engine_name)
+        try:
+            engines = get_engines_from_variables([(engine_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                LOGGER.warning("Engine %s not found", engine_name)
+                SQLTablePreview(
+                    request_id=request.request_id,
+                    table=None,
+                    error="Engine not found",
+                ).broadcast()
+            engine = engines[0][1]
+        except Exception as e:
+            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+            SQLTablePreview(
+                request_id=request.request_id, table=None, error=str(e)
+            ).broadcast()
             return
+
         if isinstance(engine, SQLAlchemyEngine):
-            table = engine.get_table_info(
-                table_name=table_name, schema=schema_name
-            )
-            if not table:
+            table = engine.get_table_details(table_name, schema_name)
+            if table is None:
                 LOGGER.warning("Table %s not found", table_name)
-                return
-            SQLTableInfoPreview(
+            SQLTablePreview(
                 request_id=request.request_id, table=table
+            ).broadcast()
+        else:
+            SQLTablePreview(
+                request_id=request.request_id,
+                table=None,
+                error="Not an SQLAlchemyEngine",
             ).broadcast()
 
     async def handle_message(self, request: ControlRequest) -> None:
@@ -2218,10 +2179,8 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, PreviewDatasetColumnRequest):
                 await self.preview_dataset_column(request)
-            elif isinstance(request, PreviewSQLTablesRequest):
-                await self.preview_sql_tables(request)
-            elif isinstance(request, PreviewSQLTableInfoRequest):
-                await self.preview_sql_table_info(request)
+            elif isinstance(request, PreviewSQLTableRequest):
+                await self.preview_sql_table(request)
             elif isinstance(request, StopRequest):
                 return None
             else:

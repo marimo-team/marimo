@@ -421,9 +421,7 @@ components:
           type: string
         indexes:
           items:
-            items:
-              type: string
-            type: array
+            type: string
           nullable: true
           type: array
         name:
@@ -1457,8 +1455,26 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
-      - $ref: '#/components/schemas/SQLTablesPreview'
-      - $ref: '#/components/schemas/SQLTableInfoPreview'
+      - properties:
+          error:
+            nullable: true
+            type: string
+          name:
+            enum:
+            - sql-tables-preview
+            type: string
+          request_id:
+            type: string
+          tables:
+            items:
+              $ref: '#/components/schemas/DataTable'
+            type: array
+        required:
+        - request_id
+        - tables
+        - name
+        type: object
+      - $ref: '#/components/schemas/SQLTablePreview'
       - properties:
           connections:
             items:
@@ -1610,7 +1626,7 @@ components:
       - tableName
       - columnName
       type: object
-    PreviewSQLTableInfoRequest:
+    PreviewSQLTableRequest:
       properties:
         database:
           type: string
@@ -1628,22 +1644,6 @@ components:
       - database
       - schema
       - tableName
-      type: object
-    PreviewSQLTablesRequest:
-      properties:
-        database:
-          type: string
-        engine:
-          type: string
-        requestId:
-          type: string
-        schema:
-          type: string
-      required:
-      - requestId
-      - engine
-      - database
-      - schema
       type: object
     QueryParamsAppend:
       properties:
@@ -1813,42 +1813,22 @@ components:
       - running
       - disabled-transitively
       type: string
-    SQLTableInfoPreview:
+    SQLTablePreview:
       properties:
         error:
           nullable: true
           type: string
         name:
           enum:
-          - sql-table-info-preview
+          - sql-table-preview
           type: string
         request_id:
           type: string
         table:
           $ref: '#/components/schemas/DataTable'
-      required:
-      - request_id
-      - table
-      - name
-      type: object
-    SQLTablesPreview:
-      properties:
-        error:
           nullable: true
-          type: string
-        name:
-          enum:
-          - sql-tables-preview
-          type: string
-        request_id:
-          type: string
-        tables:
-          items:
-            $ref: '#/components/schemas/DataTable'
-          type: array
       required:
       - request_id
-      - tables
       - name
       type: object
     SaveAppConfigurationRequest:
@@ -2221,7 +2201,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
-  /api/datasources/preview_sql_table_info/{engine}/{database}/{schema}/{table_name}:
+  /api/datasources/preview_sql_table/{engine}/{database}/{schema}/{table_name}:
     get:
       parameters:
       - description: The SQL engine to use
@@ -2260,41 +2240,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-          description: Get tables from the SQL database
-  /api/datasources/preview_sql_tables/{engine}/{database}/{schema}:
-    get:
-      parameters:
-      - description: The SQL engine to use
-        in: path
-        name: engine
-        required: true
-        schema:
-          type: string
-      - description: The SQL database to use
-        in: path
-        name: database
-        required: true
-        schema:
-          type: string
-      - description: The SQL schema to use
-        in: path
-        name: schema
-        required: true
-        schema:
-          type: string
-      - description: Request ID for the preview so that the response can be matched
-        in: query
-        name: request_id
-        required: true
-        schema:
-          type: string
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Get tables from the SQL database
+          description: Get table details from the SQL database
   /api/documentation/snippets:
     get:
       responses:

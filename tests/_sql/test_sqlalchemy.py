@@ -107,7 +107,7 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
     tables = engine.get_tables_in_schema("main")
     assert tables == []
 
-    table_info = engine.get_table_info("test", "main")
+    table_info = engine.get_table_details("test", "main")
     assert table_info is None
 
 
@@ -233,18 +233,18 @@ def get_expected_schema(schema_name: str, table_name: str) -> Schema:
 def test_sqlalchemy_engine_get_table_info(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_table method."""
     engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
-    table = engine.get_table_info("test", "main")
+    table = engine.get_table_details("test", "main")
     assert table == get_expected_table("test")
 
     # different schema
-    table = engine.get_table_info("test2", "my_schema")
+    table = engine.get_table_details("test2", "my_schema")
     assert table == get_expected_table("test2")
 
     # non-existent table
-    assert engine.get_table_info("non_existent", "main") is None
+    assert engine.get_table_details("non_existent", "main") is None
 
     # non-existent schema
-    assert engine.get_table_info("test", "non_existent") is None
+    assert engine.get_table_details("test", "non_existent") is None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

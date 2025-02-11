@@ -130,7 +130,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/datasources/preview_sql_table_info/{engine}/{database}/{schema}/{table_name}": {
+  "/api/datasources/preview_sql_table/{engine}/{database}/{schema}/{table_name}": {
     parameters: {
       query?: never;
       header?: never;
@@ -158,52 +158,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Get tables from the SQL database */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/datasources/preview_sql_tables/{engine}/{database}/{schema}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query: {
-          /** @description Request ID for the preview so that the response can be matched */
-          request_id: string;
-        };
-        header?: never;
-        path: {
-          /** @description The SQL engine to use */
-          engine: string;
-          /** @description The SQL database to use */
-          database: string;
-          /** @description The SQL schema to use */
-          schema: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Get tables from the SQL database */
+        /** @description Get table details from the SQL database */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2329,7 +2284,7 @@ export interface components {
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       engine?: string | null;
-      indexes?: string[][] | null;
+      indexes?: string[] | null;
       name: string;
       num_columns?: number | null;
       num_rows?: number | null;
@@ -2759,8 +2714,14 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
-      | components["schemas"]["SQLTablesPreview"]
-      | components["schemas"]["SQLTableInfoPreview"]
+      | {
+          error?: string | null;
+          /** @enum {string} */
+          name: "sql-tables-preview";
+          request_id: string;
+          tables: components["schemas"]["DataTable"][];
+        }
+      | components["schemas"]["SQLTablePreview"]
       | {
           connections: components["schemas"]["DataSourceConnection"][];
           /** @enum {string} */
@@ -2835,18 +2796,12 @@ export interface components {
       sourceType: "local" | "duckdb" | "connection";
       tableName: string;
     };
-    PreviewSQLTableInfoRequest: {
+    PreviewSQLTableRequest: {
       database: string;
       engine: string;
       requestId: string;
       schema: string;
       tableName: string;
-    };
-    PreviewSQLTablesRequest: {
-      database: string;
-      engine: string;
-      requestId: string;
-      schema: string;
     };
     QueryParamsAppend: {
       key: string;
@@ -2912,19 +2867,12 @@ export interface components {
     };
     /** @enum {string} */
     RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
-    SQLTableInfoPreview: {
+    SQLTablePreview: {
       error?: string | null;
       /** @enum {string} */
-      name: "sql-table-info-preview";
+      name: "sql-table-preview";
       request_id: string;
-      table: components["schemas"]["DataTable"];
-    };
-    SQLTablesPreview: {
-      error?: string | null;
-      /** @enum {string} */
-      name: "sql-tables-preview";
-      request_id: string;
-      tables: components["schemas"]["DataTable"][];
+      table?: components["schemas"]["DataTable"];
     };
     SaveAppConfigurationRequest: {
       config: {

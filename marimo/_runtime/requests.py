@@ -307,18 +307,8 @@ class PreviewDatasetColumnRequest:
 
 
 @dataclass
-class PreviewSQLTablesRequest:
-    """Preview tables in an SQL database"""
-
-    request_id: str
-    engine: str
-    database: str
-    schema: str
-
-
-@dataclass
-class PreviewSQLTableInfoRequest:
-    """Preview tables in an SQL database"""
+class PreviewSQLTableRequest:
+    """Preview table details in an SQL database"""
 
     request_id: str
     engine: str
@@ -341,6 +331,5 @@ ControlRequest = Union[
     StopRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
-    PreviewSQLTablesRequest,
-    PreviewSQLTableInfoRequest,
+    PreviewSQLTableRequest,
 ]

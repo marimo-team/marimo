@@ -61,7 +61,7 @@ class DataTable:
         engine (Optional[VariableName]): Database engine or connection handler, if any.
         type (DataTableType): Table type, either 'table' or 'view'. Defaults to 'table'.
         primary_keys (Optional[List[str]]): Column names used as primary keys, if any.
-        indexes (Optional[List[List[str]]]): Column names used as indexes, if any. Each list represents a single index, can be multi-column.
+        indexes (Optional[List[str]]): Column names used as indexes, if any.
     """
 
     source_type: DataTableSource
@@ -74,7 +74,7 @@ class DataTable:
     engine: Optional[VariableName] = None
     type: DataTableType = "table"
     primary_keys: Optional[List[str]] = None
-    indexes: Optional[List[List[str]]] = None
+    indexes: Optional[List[str]] = None
 
 
 @dataclass

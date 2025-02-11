@@ -244,22 +244,19 @@ class SQLAlchemyEngine(SQLEngine):
 
         data_tables: list[DataTable] = []
         for t_type, t_name in tables:
-            table = self.get_table_info(t_name, schema)
+            table = self.get_table_details(t_name, schema)
             if table is not None:
                 table.type = t_type
                 data_tables.append(table)
 
         return data_tables
 
-    def get_table_info(
+    def get_table_details(
         self, table_name: str, schema_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
         try:
             columns = self.inspector.get_columns(
-                table_name, schema=schema_name
-            )
-            indexes = self.inspector.get_indexes(
                 table_name, schema=schema_name
             )
         except Exception:
@@ -273,7 +270,19 @@ class SQLAlchemyEngine(SQLEngine):
         index_list: list[str] = []
 
         try:
-            index_list.extend(col["name"] for col in indexes)
+            primary_keys = self.inspector.get_pk_constraint(
+                table_name, schema=schema_name
+            )["constrained_columns"]
+        except Exception:
+            pass
+
+        # TODO: How about multi-index / multi-PK
+        try:
+            indexes = self.inspector.get_indexes(
+                table_name, schema=schema_name
+            )
+            for index in indexes:
+                index_list.append(index["column_names"])
         except Exception:
             pass
 
@@ -285,12 +294,6 @@ class SQLAlchemyEngine(SQLEngine):
                 or self._get_generic_type(col_type)
                 or "string"
             )
-
-            try:
-                if col["primary_key"]:
-                    primary_keys.append(col["name"])
-            except KeyError:
-                pass
 
             cols.append(
                 DataTableColumn(

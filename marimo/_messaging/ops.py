@@ -610,12 +610,12 @@ class SQLTablesPreview(Op):
 
 
 @dataclass
-class SQLTableInfoPreview(Op):
+class SQLTablePreview(Op):
     """Preview of a table in a dataset."""
 
-    name: ClassVar[str] = "sql-table-info-preview"
+    name: ClassVar[str] = "sql-table-preview"
     request_id: str
-    table: DataTable
+    table: Optional[DataTable]
     error: Optional[str] = None
 
 
@@ -730,7 +730,7 @@ MessageOperation = Union[
     Datasets,
     DataColumnPreview,
     SQLTablesPreview,
-    SQLTableInfoPreview,
+    SQLTablePreview,
     DataSourceConnections,
     Databases,
     # Kiosk specific

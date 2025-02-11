@@ -30,9 +30,7 @@ export type FunctionCallResultMessage =
 export type PackageInstallationStatus =
   schemas["InstallingPackageAlert"]["packages"];
 export type DataColumnPreview = OperationMessageData<"data-column-preview">;
-export type SQLTablesPreview = OperationMessageData<"sql-tables-preview">;
-export type SQLTableInfoPreview =
-  OperationMessageData<"sql-table-info-preview">;
+export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
 
 export type OperationMessageType = schemas["MessageOperation"]["name"];
 export type OperationMessage = {

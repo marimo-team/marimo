@@ -16,7 +16,7 @@ import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   FUNCTIONS_REGISTRY,
-  PreviewSQLTables,
+  PreviewSQLTable,
 } from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
@@ -200,11 +200,8 @@ export function useMarimoWebSocket(opts: {
       case "data-column-preview":
         addColumnPreview(msg.data);
         return;
-      case "sql-tables-preview":
-        PreviewSQLTables.resolve(msg.data.request_id as RequestId, msg.data);
-        return;
-      case "sql-table-info-preview":
-        // addSQLTableInfoPreview(msg.data);
+      case "sql-table-preview":
+        PreviewSQLTable.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "data-source-connections":
         addDataSourceConnection(msg.data);

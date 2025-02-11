@@ -57,7 +57,7 @@ import { AddDatabaseDialog } from "../../database/add-database-form";
 import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
 import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
-import { PreviewSQLTables } from "@/core/functions/FunctionRegistry";
+import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -368,10 +368,11 @@ const EngineTableList: React.FC<EngineTableListProps> = ({
   schemaName,
   tables,
 }) => {
-  const [data, setData] = React.useState<DataTable[]>(tables);
+  const [data, setData] = React.useState<DataTable | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // TODO: Move all of this to table list view, not here.
   React.useEffect(() => {
     let isMounted = true;
 
@@ -379,16 +380,17 @@ const EngineTableList: React.FC<EngineTableListProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const tablesPreview = await PreviewSQLTables.request({
+        const tablePreview = await PreviewSQLTable.request({
           schema: schemaName,
           engine: engineName,
           database: databaseName,
+          tableName: "lineitem",
         });
-        if (tablesPreview.error) {
-          throw new Error(tablesPreview.error);
+        if (tablePreview.error) {
+          throw new Error(tablePreview.error);
         }
         if (isMounted) {
-          setData(tablesPreview.tables);
+          setData(tablePreview.table ?? null);
         }
       } catch (error) {
         if (isMounted) {
@@ -406,14 +408,14 @@ const EngineTableList: React.FC<EngineTableListProps> = ({
     };
 
     // Only fetch when no tables are passed in
-    if (tables.length === 0) {
-      fetchData();
-    }
+    fetchData();
 
     return () => {
       isMounted = false;
     };
   }, [databaseName, engineName, schemaName, tables.length]);
+
+  console.log("data", data);
 
   if (error) {
     return (
@@ -433,7 +435,7 @@ const EngineTableList: React.FC<EngineTableListProps> = ({
     );
   }
 
-  if (data.length === 0) {
+  if (!data) {
     return (
       <div className="ml-8 text-sm text-muted-foreground p-2">
         No tables found
@@ -444,7 +446,7 @@ const EngineTableList: React.FC<EngineTableListProps> = ({
   return (
     <div className="ml-8">
       <TableList
-        tables={data}
+        tables={tables}
         isSearching={false}
         columnPreviews={new Map()}
         onAddColumnChart={() => {}}

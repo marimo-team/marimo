@@ -158,29 +158,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    previewSQLTables: (request) => {
+    previewSQLTable: (request) => {
       return marimoClient
         .GET(
-          "/api/datasources/preview_sql_tables/{engine}/{database}/{schema}",
-          {
-            params: {
-              path: {
-                engine: request.engine,
-                database: request.database,
-                schema: request.schema,
-              },
-              query: {
-                request_id: request.requestId,
-              },
-            },
-          },
-        )
-        .then(handleResponseReturnNull);
-    },
-    previewSQLTableInfo: (request) => {
-      return marimoClient
-        .GET(
-          "/api/datasources/preview_sql_table_info/{engine}/{database}/{schema}/{table_name}",
+          "/api/datasources/preview_sql_table/{engine}/{database}/{schema}/{table_name}",
           {
             params: {
               path: {
