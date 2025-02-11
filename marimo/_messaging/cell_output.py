@@ -35,6 +35,9 @@ class CellOutput:
     data: Union[str, Sequence[Error], Dict[str, Any]]
     timestamp: float = field(default_factory=lambda: time.time())
 
+    def __repr__(self) -> str:
+        return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
+
     def asdict(self) -> dict[str, Any]:
         return asdict(self)
 
