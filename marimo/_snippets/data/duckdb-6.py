@@ -10,10 +10,12 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # DuckDB: Data Export & Integration with Visualization
+        # DuckDB: Transaction & Error Handling in DML Operations
 
-        This snippet runs an aggregation query using DuckDB and then uses Altair 
-        to visualize the results as an interactive bar chart.
+        This snippet demonstrates transaction management in DuckDB
+        using SQLAlchemy. A transaction is used for multiple DML operations,
+        and errors are caught and reported. The final result is printed in a
+        separate cell.
         """
     )
     return
@@ -21,39 +23,26 @@ def _(mo):
 
 @app.cell
 def _():
-    import pandas as pd
-    # Create a sample DataFrame for aggregation
-    data = {
-        'category': ['A', 'B', 'A', 'B', 'C', 'C'],
-        'value': [10, 15, 20, 25, 30, 35]
-    }
-    df = pd.DataFrame(data)
-    return data, df, pd
+    from sqlalchemy import create_engine
+    # Create an in-memory DuckDB engine using SQLAlchemy
+    engine = create_engine("duckdb:///:memory:")
+    return create_engine, engine
 
 
 @app.cell
-def _(df, mo):
-    agg_df = mo.sql(
-        f"""
-        SELECT category, AVG(value) as avg_value, COUNT(*) as count
-        FROM df
-        GROUP BY category
-        """
-    )
-    return (agg_df,)
-
-
-@app.cell
-def _(agg_df):
-    # Visualize the aggregated results using Altair
-    import altair as alt
-    chart = alt.Chart(agg_df).mark_bar().encode(
-        x='category:N',
-        y='avg_value:Q',
-        tooltip=['category', 'avg_value', 'count']
-    )
-    chart  # Display the chart
-    return alt, chart
+def _(engine, mo):
+    try:
+        # Begin a transaction and execute DML operations
+        with engine.begin() as conn:
+            conn.execute("CREATE OR REPLACE TABLE transaction_table (id INTEGER, name VARCHAR)")
+            conn.execute("INSERT INTO transaction_table VALUES (1, 'Alice'), (2, 'Bob')")
+            conn.execute("UPDATE transaction_table SET name = 'Charlie' WHERE id = 2")
+            result = conn.execute("SELECT * FROM transaction_table").fetchall()
+        print("Transaction successful; changes committed.")
+    except Exception as e:
+        mo.md(f"Transaction error: {e}")
+        result = []
+    return conn, result
 
 
 @app.cell

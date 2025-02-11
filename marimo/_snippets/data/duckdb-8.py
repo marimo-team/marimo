@@ -10,9 +10,9 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # DuckDB: JSON File Ingestion
+        # DuckDB: Parquet File Ingestion
 
-        This snippet demonstrates how to query JSON files directly using DuckDB.
+        This snippet demonstrates how to query Parquet files directly using DuckDB.
         """
     )
     return
@@ -20,15 +20,15 @@ def _(mo):
 
 @app.cell
 def _():
-    json_path = 'sample-file.json'
-    return (json_path,)
+    parquet_path = 'sample-file.parquet'
+    return (parquet_path,)
 
 
 @app.cell
-def _(json_path, mo):
+def _(mo, parquet_path):
     query = mo.sql(
         f"""
-        SELECT * FROM read_json_auto('{json_path}')
+        SELECT * FROM read_parquet('{parquet_path}')
         LIMIT 10
         """
     )
