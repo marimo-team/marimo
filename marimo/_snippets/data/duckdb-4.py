@@ -21,11 +21,11 @@ def _(mo):
 
 @app.cell
 def _():
-    import pandas as pd
+    import polars as pl
     # Create a sample DataFrame for reactive filtering
     data = {'id': list(range(1, 21)), 'score': [x * 5 for x in range(1, 21)]}
-    df = pd.DataFrame(data)
-    return data, df, pd
+    df = pl.DataFrame(data)
+    return data, df, pl
 
 
 @app.cell

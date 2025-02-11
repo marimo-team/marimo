@@ -22,19 +22,19 @@ def _(mo):
 
 @app.cell
 def _():
-    import pandas as pd
+    import polars as pl
     # Create a sample DataFrame
     data = {
         'id': list(range(1, 11)),
         'value': [x * 10 for x in range(1, 11)]
     }
-    df = pd.DataFrame(data)
-    return data, df, pd
+    df = pl.DataFrame(data)
+    return data, df, pl
 
 
 @app.cell
 def _():
-    max_rows = 10
+    max_rows = 5
     return (max_rows,)
 
 

@@ -21,17 +21,17 @@ def _(mo):
 
 @app.cell
 def _():
-    import pandas as pd
+    import polars as pl
     # Create two sample DataFrames to join
-    df1 = pd.DataFrame({
+    df1 = pl.DataFrame({
         'id': [1, 2, 3, 4],
         'value1': ['A', 'B', 'C', 'D']
     })
-    df2 = pd.DataFrame({
+    df2 = pl.DataFrame({
         'id': [3, 4, 5, 6],
         'value2': ['X', 'Y', 'Z', 'W']
     })
-    return df1, df2, pd
+    return df1, df2, pl
 
 
 @app.cell
