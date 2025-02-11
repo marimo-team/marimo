@@ -5,7 +5,17 @@ export interface FieldOptions {
   placeholder?: string;
   disabled?: boolean;
   hidden?: boolean;
-  direction?: "row" | "column";
+  direction?: "row" | "column" | "two-columns";
+  /**
+   * Only valid for string fields
+   */
+  inputType?:
+    | "password"
+    | "text"
+    | "number"
+    | "checkbox"
+    | "select"
+    | "textarea";
   special?:
     | "column_id"
     | "random_number_button"

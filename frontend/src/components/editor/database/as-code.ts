@@ -2,24 +2,23 @@
 import { assertNever } from "@/utils/assertNever";
 import type { DatabaseConnection } from "./schemas";
 
-type ConnectionLibrary = "sqlmodel" | "sqlalchemy";
-
-const SUPPORTED_LIBRARIES = new Set<ConnectionLibrary>([
-  "sqlmodel",
-  "sqlalchemy",
-]);
+export type ConnectionLibrary = "sqlmodel" | "sqlalchemy";
+export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
+  sqlmodel: "SQLModel",
+  sqlalchemy: "SQLAlchemy",
+};
 
 export function generateDatabaseCode(
   connection: DatabaseConnection,
-  orm: ConnectionLibrary = "sqlmodel",
+  orm: ConnectionLibrary,
 ): string {
-  if (!SUPPORTED_LIBRARIES.has(orm)) {
+  if (!(orm in ConnectionDisplayNames)) {
     throw new Error(`Unsupported library: ${orm}`);
   }
 
   const imports =
     orm === "sqlmodel"
-      ? ["from sqlmodel import create_engine, Session", "import os"]
+      ? ["from sqlmodel import create_engine", "import os"]
       : ["from sqlalchemy import create_engine", "import os"];
 
   let code = "";
@@ -84,5 +83,5 @@ engine = create_engine("duckdb:${connection.database || ":memory:"}"${connection
       assertNever(connection);
   }
 
-  return `${imports.join("\n")}\n${code.trim()}\n`;
+  return `${imports.join("\n")}\n${code.trim()}`;
 }

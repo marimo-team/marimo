@@ -67,7 +67,7 @@ describe("generateDatabaseCode", () => {
 
   test("postgres without SSL", () => {
     expect(
-      generateDatabaseCode({ ...postgresConnection, ssl: false }),
+      generateDatabaseCode({ ...postgresConnection, ssl: false }, "sqlmodel"),
     ).toMatchSnapshot();
   });
 
@@ -83,7 +83,7 @@ describe("generateDatabaseCode", () => {
 
   test("mysql without SSL", () => {
     expect(
-      generateDatabaseCode({ ...mysqlConnection, ssl: false }),
+      generateDatabaseCode({ ...mysqlConnection, ssl: false }, "sqlmodel"),
     ).toMatchSnapshot();
   });
 
@@ -113,7 +113,11 @@ describe("generateDatabaseCode", () => {
 
   test("duckdb in-memory", () => {
     expect(
-      generateDatabaseCode({ ...duckdbConnection, database: undefined }),
+      generateDatabaseCode(
+        // @ts-expect-error - for tests
+        { ...duckdbConnection, database: undefined },
+        "sqlmodel",
+      ),
     ).toMatchSnapshot();
   });
 
@@ -131,7 +135,7 @@ describe("generateDatabaseCode", () => {
 
   test("snowflake without role", () => {
     const { role, ...rest } = snowflakeConnection;
-    expect(generateDatabaseCode(rest)).toMatchSnapshot();
+    expect(generateDatabaseCode(rest, "sqlmodel")).toMatchSnapshot();
   });
 
   test("bigquery with SQLModel", () => {

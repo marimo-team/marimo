@@ -44,7 +44,7 @@ import {
   ensureStringArray,
   SwitchableMultiSelect,
 } from "./switchable-multi-select";
-
+import { Textarea } from "../ui/textarea";
 export interface FormRenderer<T extends FieldValues = any, S = any> {
   isMatch: (schema: z.ZodType) => schema is z.ZodType<S, z.ZodTypeDef, unknown>;
   Component: React.ComponentType<{
@@ -59,6 +59,7 @@ interface Props<T extends FieldValues> {
   schema: z.ZodType;
   path?: Path<T>;
   renderers?: Array<FormRenderer<T>>;
+  children?: React.ReactNode;
 }
 
 export const ZodForm = <T extends FieldValues>({
@@ -66,9 +67,11 @@ export const ZodForm = <T extends FieldValues>({
   form,
   path = "" as Path<T>,
   renderers = [],
+  children,
 }: Props<T>) => {
   return (
     <FormProvider {...form}>
+      {children}
       {renderZodSchema(schema, form, path, renderers)}
     </FormProvider>
   );
@@ -118,7 +121,11 @@ export function renderZodSchema<T extends FieldValues, S>(
       <div
         className={cn(
           "flex",
-          direction === "row" ? "flex-row gap-6 items-start" : "flex-col gap-6",
+          direction === "row"
+            ? "flex-row gap-6 items-start"
+            : direction === "two-columns"
+              ? "grid grid-cols-2 gap-y-6"
+              : "flex-col gap-6",
         )}
       >
         <FormLabel>{label}</FormLabel>
@@ -127,7 +134,7 @@ export function renderZodSchema<T extends FieldValues, S>(
           const childForm = renderZodSchema(
             value as z.ZodType<unknown>,
             form,
-            `${path}.${key}` as Path<T>,
+            joinPath(path, key),
             renderers,
           );
 
@@ -368,7 +375,9 @@ export function renderZodSchema<T extends FieldValues, S>(
       <FormField
         control={form.control}
         name={path}
-        render={({ field }) => <input {...field} type="hidden" />}
+        render={({ field }) => (
+          <input {...field} type="hidden" value={schema._def.value} />
+        )}
       />
     );
   }
@@ -473,9 +482,34 @@ const StringFormField = ({
   form: UseFormReturn<any>;
   path: Path<any>;
 }) => {
-  const { label, description, placeholder, disabled } = FieldOptions.parse(
-    schema._def.description,
-  );
+  const { label, description, placeholder, disabled, inputType } =
+    FieldOptions.parse(schema._def.description);
+
+  if (inputType === "textarea") {
+    return (
+      <FormField
+        control={form.control}
+        name={path}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
+            <FormControl>
+              <Textarea
+                {...field}
+                value={field.value}
+                onChange={field.onChange}
+                className="my-0"
+                placeholder={placeholder}
+                disabled={disabled}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    );
+  }
 
   return (
     <FormField
@@ -488,6 +522,7 @@ const StringFormField = ({
           <FormControl>
             <DebouncedInput
               {...field}
+              type={inputType}
               value={field.value}
               onValueChange={field.onChange}
               className="my-0"
@@ -713,3 +748,7 @@ const MultiSelectFormField = ({
     />
   );
 };
+
+function joinPath<T>(...parts: Array<string | number>): Path<T> {
+  return parts.filter((part) => part !== "").join(".") as Path<T>;
+}
