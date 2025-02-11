@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # DuckDB: Parameterized & Reactive SQL Queries
 
-        This snippet shows how to parameterize SQL queries using reactive variables 
+        This snippet shows how to parameterize SQL queries with Python variables
         in marimo, allowing queries to dynamically reflect changes in Python values.
         """
     )
