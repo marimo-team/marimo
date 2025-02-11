@@ -2,9 +2,11 @@
 import ast
 import copy
 import inspect
-from typing import Any, Callable, cast
+from typing import Any, Callable, cast, TypeVar, TYPE_CHECKING
 
 from marimo._ast.cell import Cell
+
+Fn = TypeVar("Fn", bound=Callable[..., Any])
 
 
 # Python definition used as the ast bones for constructing a pytest function.
@@ -15,9 +17,7 @@ def _pytest_scaffold(stub: Any) -> Any:
 PYTEST_BASE = ast.parse(inspect.getsource(_pytest_scaffold))
 
 
-def wrap_fn_for_pytest(
-    func: Callable[..., Any], cell: Cell
-) -> Callable[..., Any]:
+def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
     # We modify the signature of the cell function such that pytest
     # does not attempt to use the arguments as fixtures.
 

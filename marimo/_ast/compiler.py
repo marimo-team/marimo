@@ -229,6 +229,73 @@ def compile_cell(
     )
 
 
+def get_source_position(
+    f: Callable[..., Any], lineno: int, col_offset: int
+) -> Optional[SourcePosition]:
+    # Fallback won't capture embedded scripts
+    is_script = f.__globals__["__name__"] == "__main__"
+    # TODO: spec is None for markdown notebooks, which is fine for now
+    if module := inspect.getmodule(f):
+        spec = module.__spec__
+        is_script = spec is None or spec.name != "marimo_app"
+
+    if not is_script:
+        return None
+
+    return SourcePosition(
+        filename=f.__code__.co_filename,
+        lineno=lineno,
+        col_offset=col_offset,
+    )
+
+
+def toplevel_cell_factory(
+    f: Callable[..., Any],
+    cell_id: CellId_t,
+    anonymous_file: bool = False,
+    test_rewrite: bool = False,
+) -> Cell:
+    """Creates a cell containing a function.
+
+    NB: Unlike cell_factory, this utilizes the function itself as the cell
+    definition. As such, signature and return type are important.
+    """
+    code, lnum = inspect.getsourcelines(f)
+    function_code = textwrap.dedent("".join(code))
+
+    # We need to scrub through the initial decorator. Since we don't care about
+    # indentation etc, easiest just to use AST.
+
+    tree = ast.parse(function_code, type_comments=True)
+    try:
+        decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
+        # NB. We don't unparse from the AST because it strips comments.
+        cell_code = textwrap.dedent(
+            "".join(code[decorator.end_lineno :])
+        ).strip()
+    except (IndexError, AttributeError) as e:
+        raise ValueError(
+            "Unexpected usage (expected decorated function)"
+        ) from e
+
+    source_position = None
+    if not anonymous_file:
+        source_position = get_source_position(
+            f,
+            lnum + decorator.end_lineno - 1,  # Scrub the decorator
+            0,
+        )
+    return Cell(
+        _name=f.__name__,
+        _cell=compile_cell(
+            cell_code,
+            cell_id=cell_id,
+            source_position=source_position,
+            test_rewrite=test_rewrite,
+        ),
+    )
+
+
 def cell_factory(
     f: Callable[..., Any],
     cell_id: CellId_t,
@@ -338,24 +405,11 @@ def cell_factory(
             cell_code += "\n" + lines[end_line][:return_offset]
 
     # anonymous file is required for deterministic testing.
+    source_position = None
     if not anonymous_file:
-        # Fallback won't capture embedded scripts
-        is_script = f.__globals__["__name__"] == "__main__"
-        # TODO: spec is None for markdown notebooks, which is fine for now
-        if module := inspect.getmodule(f):
-            spec = module.__spec__
-            is_script = spec is None or spec.name != "marimo_app"
-    else:
-        is_script = False
-    source_position = (
-        SourcePosition(
-            filename=f.__code__.co_filename,
-            lineno=lnum + start_line - 1,
-            col_offset=col_offset,
+        source_position = get_source_position(
+            f, lnum + start_line - 1, col_offset
         )
-        if is_script
-        else None
-    )
 
     return Cell(
         _name=f.__name__,

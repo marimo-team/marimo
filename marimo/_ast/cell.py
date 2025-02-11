@@ -289,6 +289,45 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
+    @property
+    def is_toplevel_acceptable(self) -> bool:
+        # Check no defs aside from the single function
+        if len(self.defs) != 1:
+            return False
+
+        # Must be parsable
+        try:
+            tree = ast.parse(self.code)
+        except SyntaxError:
+            return False
+
+        # Must be a bare function.
+        if not (
+            len(tree.body) == 1
+            and isinstance(
+                tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)
+            )
+        ):
+            return False
+
+        # Check that def matches the single definition
+        name = tree.body[0].name
+        if not (name == list(self.defs)[0] and name in self.variable_data):
+            return False
+
+        # No required_refs are allowed for now
+        # TODO: Allow imports and other toplevel functions
+        refs = set().union(
+            *[v.required_refs for v in self.variable_data[name]]
+        )
+        refs -= set(globals()["__builtins__"].keys())
+        # Allow recursion
+        refs -= {name}
+        if refs:
+            return False
+
+        return True
+
     def set_runtime_state(
         self, status: RuntimeStateType, stream: Stream | None = None
     ) -> None:

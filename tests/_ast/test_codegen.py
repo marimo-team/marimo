@@ -7,7 +7,7 @@ import tempfile
 from functools import partial
 from inspect import cleandoc
 from textwrap import dedent
-from typing import Optional
+from typing import Any, Optional
 
 import codegen_data.test_main as mod
 import pytest
@@ -48,7 +48,7 @@ def wrap_generate_filecontents(
     codes: list[str],
     names: list[str],
     cell_configs: Optional[list[CellConfig]] = None,
-    config: Optional[_AppConfig] = None,
+    **kwargs: Any,
 ) -> str:
     """
     Wraps codegen.generate_filecontents to make the
@@ -58,7 +58,7 @@ def wrap_generate_filecontents(
     else:
         resolved_configs = cell_configs
     return codegen.generate_filecontents(
-        codes, names, cell_configs=resolved_configs, config=config
+        codes, names, cell_configs=resolved_configs, **kwargs
     )
 
 
@@ -563,6 +563,22 @@ class TestToFunctionDef:
                 "    return (x,)",
             ]
         )
+        assert fndef == expected
+
+    def test_fn_with_empty_config(self) -> None:
+        code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig())
+        fndef = codegen.to_top_functiondef(cell)
+        expected = "@app.fn\n" + code
+        assert fndef == expected
+
+    def test_fn_with_all_config(self) -> None:
+        code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        fndef = codegen.to_top_functiondef(cell)
+        expected = "@app.fn(disabled=True, hide_code=True)\n" + code
         assert fndef == expected
 
 

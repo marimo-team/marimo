@@ -6,7 +6,7 @@ import builtins
 import importlib.util
 import json
 import os
-from typing import TYPE_CHECKING, Any, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
@@ -35,9 +35,11 @@ def _multiline_tuple(elems: Sequence[str]) -> str:
         return "()"
 
 
-def _to_decorator(config: Optional[CellConfig]) -> str:
+def _to_decorator(
+    config: Optional[CellConfig], fn: Literal["cell", "fn"] = "cell"
+) -> str:
     if config is None:
-        return "@app.cell"
+        return f"@app.{fn}"
 
     # Removed defaults. If the cell's config is the default config,
     # don't include it in the decorator.
@@ -49,10 +51,10 @@ def _to_decorator(config: Optional[CellConfig]) -> str:
         del config.column
 
     if config == CellConfig():
-        return "@app.cell"
+        return f"@app.{fn}"
     else:
         return (
-            "@app.cell("
+            f"@app.{fn}("
             + ", ".join(
                 f"{key}={value}" for key, value in config.__dict__.items()
             )
@@ -99,6 +101,16 @@ def to_functiondef(
     else:
         fndef += INDENT + "return"
     return fndef
+
+
+def to_top_functiondef(cell: CellImpl) -> str:
+    # For the top-level function criteria to be satisfied,
+    # the cell, it must pass basic checks in the cell impl.
+    assert cell.is_toplevel_acceptable, "Cell is not a top-level function"
+    if cell.code:
+        decorator = _to_decorator(cell.config, fn="fn")
+        return "\n".join([decorator, cell.code.strip()])
+    return ""
 
 
 def generate_unparsable_cell(
@@ -158,6 +170,10 @@ def generate_filecontents(
     header_comments: Optional[str] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
+    # Until an appropriate means of controlling top-level functions exists,
+    # Let's keep it disabled by default.
+    toplevel_fn = config is not None and config._toplevel_fn
+
     cell_data: list[Union[CellImpl, tuple[str, CellConfig]]] = []
     defs: set[Name] = set()
 
@@ -183,7 +199,10 @@ def generate_filecontents(
 
     for data, name in zip(cell_data, names):
         if isinstance(data, CellImpl):
-            fndefs.append(to_functiondef(data, name, unshadowed_builtins))
+            if toplevel_fn and data.is_toplevel_acceptable:
+                fndefs.append(to_top_functiondef(data))
+            else:
+                fndefs.append(to_functiondef(data, name, unshadowed_builtins))
         else:
             fndefs.append(
                 generate_unparsable_cell(

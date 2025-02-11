@@ -27,6 +27,21 @@ async def test_async_cell():
     assert True
 
 
+@app.fn
+def test_top_level_fn():
+    assert True
+
+
+@pytest.mark.xfail(
+    reason=("To ensure this doesn't just eval as a cell defining a function."),
+    raises=AssertionError,
+    strict=True,
+)
+@app.fn
+def test_top_level_fn_fails():
+    raise AssertionError("Function called")
+
+
 @app.cell
 def test_cell_has_builtin_refs():
     assert len([print, sum, list]) == 3
