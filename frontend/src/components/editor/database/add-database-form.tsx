@@ -47,7 +47,8 @@ const KEY = "marimo:preferred-connection";
 
 const preferredConnectionAtom = atomWithStorage<ConnectionLibrary>(
   KEY,
-  "sqlmodel",
+  // default to sqlalchemy because it has fewer dependencies
+  "sqlalchemy",
 );
 
 interface Props {

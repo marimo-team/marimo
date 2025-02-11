@@ -5,7 +5,7 @@ import { FieldOptions } from "@/components/forms/options";
 function passwordField() {
   return z
     .string()
-    .nonempty()
+    .optional()
     .describe(
       FieldOptions.of({
         label: "Password",
@@ -25,7 +25,6 @@ function hostField() {
 function databaseField() {
   return z
     .string()
-    .nonempty()
     .describe(FieldOptions.of({ label: "Database", placeholder: "db name" }));
 }
 
@@ -37,7 +36,7 @@ function usernameField() {
 }
 
 function portField(defaultPort: number) {
-  return z
+  return z.coerce
     .string()
     .default(defaultPort.toString())
     .describe(
@@ -47,7 +46,10 @@ function portField(defaultPort: number) {
         placeholder: defaultPort.toString(),
       }),
     )
-    .transform(Number);
+    .transform(Number)
+    .refine((n) => n >= 0 && n <= 65_535, {
+      message: "Port must be between 0 and 65535",
+    });
 }
 
 export const PostgresConnectionSchema = z
@@ -111,12 +113,12 @@ export const SnowflakeConnectionSchema = z
       .describe(FieldOptions.of({ label: "Account" })),
     warehouse: z
       .string()
-      .nonempty()
+      .optional()
       .describe(FieldOptions.of({ label: "Warehouse" })),
     database: databaseField(),
     schema: z
       .string()
-      .nonempty()
+      .optional()
       .describe(FieldOptions.of({ label: "Schema" })),
     username: usernameField(),
     password: passwordField(),

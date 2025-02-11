@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { assertNever } from "@/utils/assertNever";
-import type { DatabaseConnection } from "./schemas";
+import { DatabaseConnectionSchema, type DatabaseConnection } from "./schemas";
 
 export type ConnectionLibrary = "sqlmodel" | "sqlalchemy";
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
@@ -15,6 +15,9 @@ export function generateDatabaseCode(
   if (!(orm in ConnectionDisplayNames)) {
     throw new Error(`Unsupported library: ${orm}`);
   }
+
+  // Parse the connection to ensure it's valid
+  DatabaseConnectionSchema.parse(connection);
 
   const imports =
     orm === "sqlmodel"
@@ -46,24 +49,35 @@ engine = create_engine(DATABASE_URL)
 `;
       break;
 
-    case "snowflake":
-      imports.push("from sqlalchemy import URL");
+    case "snowflake": {
+      imports.push("from snowflake.sqlalchemy import URL");
+      imports.push("import sqlalchemy as sa");
+
+      const params = {
+        account: connection.account,
+        user: connection.username,
+        password: `os.environ.get("SNOWFLAKE_PASSWORD", "${connection.password}")`,
+        database: connection.database,
+        warehouse: connection.warehouse,
+        schema: connection.schema,
+        role: connection.role,
+      };
+
+      const urlParams = Object.entries(params)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `        ${k}=${v}`)
+        .join(",\n");
+
       code = `
 password = os.environ.get("SNOWFLAKE_PASSWORD", "${connection.password}")
-connection_url = URL.create(
-    "snowflake",
-    username="${connection.username}",
-    password=password,
-    host="${connection.account}",
-    database="${connection.database}",
-    query={
-        "warehouse": "${connection.warehouse}",
-        "schema": "${connection.schema}"${connection.role ? `,\n        "role": "${connection.role}"` : ""}
-    }
+engine = sa.create_engine(
+    URL(
+${urlParams}
+    )
 )
-engine = create_engine(connection_url)
 `;
       break;
+    }
 
     case "bigquery":
       imports.push("import json");
