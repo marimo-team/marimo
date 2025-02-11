@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Polars: Performance Optimization
+        # Polars: Memory Optimization with Data Types
 
         This snippet demonstrates memory optimization in Polars using `Categorical` types for strings, 
         smaller numeric types like `Float32`, and lazy evaluation. 

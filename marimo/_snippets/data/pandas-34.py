@@ -8,7 +8,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Pandas: Data Type Operations and Memory Usage""")
+    mo.md(r"""# Pandas: Memory Optimization and Type Management""")
     return
 
 

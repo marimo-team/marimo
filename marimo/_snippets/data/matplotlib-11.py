@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Matplotlib: Advanced Legend
+        # Matplotlib: Legend Customization and Styling
 
         Customize legend placement, styling, and handles. 
         Shows common legend patterns in data visualization.

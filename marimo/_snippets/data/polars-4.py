@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Polars: Time Series Operations
+        # Polars: Dynamic Time Windows and Aggregations
 
         This snippet shows time series operations in Polars using `dt` expressions for 
         parsing and formatting, dynamic time windows with `group_by_dynamic()`, 

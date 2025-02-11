@@ -10,7 +10,7 @@ app = marimo.App()
 def __(mo):
     mo.md(
         r"""
-        # Polars: Advanced Expressions and Column Operations
+        # Polars: Rolling Averages and Z-Score Calculations
         
         This snippet shows advanced column operations in Polars using `rolling_mean()`, `over()` aggregations, 
         and type casting with the expression API.

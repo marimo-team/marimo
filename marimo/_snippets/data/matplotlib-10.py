@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Matplotlib: Twin Axes
+        # Matplotlib: Dual Y-Axis Visualization
 
         Create plots with two different y-scales using `twinx()`. 
         Common for comparing different metrics on same x-axis.

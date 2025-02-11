@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Matplotlib: Annotations and Text
+        # Matplotlib: Data Point Labels and Explanatory Notes
 
         Add annotations using `annotate()` and text using `text()`. 
         Common for highlighting specific data points and adding explanations.

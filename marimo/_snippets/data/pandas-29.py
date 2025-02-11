@@ -8,7 +8,7 @@ app = marimo.App()
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Pandas: Efficient Window Operations""")
+    mo.md(r"""# Pandas: Rolling and Expanding Window Statistics""")
     return
 
 

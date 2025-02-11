@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Polars: Statistical Operations
+        # Polars: Data Standardization and Group Comparisons
 
         This snippet demonstrates statistical operations in Polars including summary statistics, 
         correlations, standardization, and group comparisons.

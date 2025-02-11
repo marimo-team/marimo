@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Polars: Streaming Operations
+        # Polars: Lazy Evaluation and Parquet Streaming
 
         Demonstrates Polars' streaming capabilities for large datasets using lazy evaluation.
         Shows how to efficiently process data without loading entire dataset into memory.
