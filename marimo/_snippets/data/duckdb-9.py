@@ -10,9 +10,9 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # DuckDB: CSV File Ingestion
+        # DuckDB: Parquet File Ingestion
 
-        This snippet demonstrates how to query CSV files directly using DuckDB.
+        This snippet demonstrates how to query Parquet files directly using DuckDB.
         """
     )
     return
@@ -20,15 +20,15 @@ def _(mo):
 
 @app.cell
 def _():
-    csv_path = 'sample-file.csv'
-    return (csv_path,)
+    parquet_path = 'sample-file.parquet'
+    return (parquet_path,)
 
 
 @app.cell
-def _(csv_path, mo):
+def _(mo, parquet_path):
     query = mo.sql(
         f"""
-        SELECT * FROM read_csv('{csv_path}', AUTO_DETECT=TRUE) 
+        SELECT * FROM read_parquet('{parquet_path}')
         LIMIT 10
         """
     )
