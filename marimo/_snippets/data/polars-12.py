@@ -10,13 +10,12 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Polars: CSV Operations
+        # Polars: Streaming Operations
 
-        Demonstrates Polars' CSV capabilities using `scan_csv()` for 
-        streaming large CSV datasets. Shows memory-efficient filtering 
-        and aggregation with lazy evaluation.
+        Demonstrates Polars' streaming capabilities for large datasets using lazy evaluation.
+        Shows how to efficiently process data without loading entire dataset into memory.
 
-        Example: `pl.scan_csv("data.csv").filter(pl.col("value") > 500).collect()`
+        Example: `pl.scan_parquet("data.parquet").filter(pl.col("date").dt.year() == 2024).collect()`
         """
     )
     return
@@ -36,25 +35,25 @@ def _():
         'value': range(1000)
     })
 
-    # Create temporary directory and save CSV
+    # Create temporary directory and save files
     temp_dir = Path(tempfile.mkdtemp())
-    csv_path = temp_dir / 'data.csv'
-    df.write_csv(csv_path)
+    parquet_path = temp_dir / 'data.parquet'
+    df.write_parquet(parquet_path)
 
-    # Demonstrate filtered CSV read
-    csv_filtered = (
-        pl.scan_csv(csv_path)
-        .filter(pl.col('category') == 'A')
+    # Demonstrate streaming with lazy evaluation
+    streamed = (
+        pl.scan_parquet(parquet_path)
+        .filter(pl.col('date').dt.year() == 2024)
         .collect()
     )
-    csv_filtered
+    streamed
     return (
         Path,
-        csv_filtered,
-        csv_path,
         datetime,
         df,
+        parquet_path,
         pl,
+        streamed,
         temp_dir,
         tempfile,
     )
