@@ -23,30 +23,38 @@ def _(mo):
 def _():
     import matplotlib.pyplot as plt
     import numpy as np
+    return np, plt
 
-    # Generate sample data
-    x = np.linspace(0, 10, 100)
-    y1 = np.sin(x) * 10  # Large scale
-    y2 = np.cos(x) * 0.1  # Small scale
 
-    # Create figure and axis
-    fig, ax1 = plt.subplots(figsize=(8, 5))
+@app.cell
+def _(np, plt):
+    def create_twin_axes():
+        # Generate sample data
+        x = np.linspace(0, 10, 100)
+        y1 = np.sin(x) * 10  # Large scale
+        y2 = np.cos(x) * 0.1  # Small scale
 
-    # Plot on primary y-axis
-    color = 'tab:blue'
-    ax1.set_xlabel('Time')
-    ax1.set_ylabel('Large Scale', color=color)
-    ax1.plot(x, y1, color=color)
-    ax1.tick_params(axis='y', labelcolor=color)
+        # Create figure and axis
+        fig, ax1 = plt.subplots(figsize=(8, 5))
 
-    # Create twin axis
-    ax2 = ax1.twinx()
-    color = 'tab:red'
-    ax2.set_ylabel('Small Scale', color=color)
-    ax2.plot(x, y2, color=color)
-    ax2.tick_params(axis='y', labelcolor=color)
-    plt.gca()
-    return ax1, ax2, color, fig, np, plt, x, y1, y2
+        # Plot on primary y-axis
+        color = 'tab:blue'
+        ax1.set_xlabel('Time')
+        ax1.set_ylabel('Large Scale', color=color)
+        ax1.plot(x, y1, color=color)
+        ax1.tick_params(axis='y', labelcolor=color)
+
+        # Create twin axis
+        ax2 = ax1.twinx()
+        color = 'tab:red'
+        ax2.set_ylabel('Small Scale', color=color)
+        ax2.plot(x, y2, color=color)
+        ax2.tick_params(axis='y', labelcolor=color)
+
+        return ax1, ax2
+
+    create_twin_axes()
+    return (create_twin_axes,)
 
 
 @app.cell

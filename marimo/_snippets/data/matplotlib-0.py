@@ -23,33 +23,41 @@ def _(mo):
 def _():
     import matplotlib.pyplot as plt
     import numpy as np
-    
-    # Generate sample data
-    x = np.linspace(0, 10, 100)
-    y1 = np.sin(x)
-    y2 = np.cos(x)
-    
-    # Create figure and axis
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Plot multiple lines with different styles
-    ax.plot(x, y1, 'b-', label='sin(x)', linewidth=2)
-    ax.scatter(x[::10], y2[::10], c='r', label='cos(x)', s=50)
-    
-    # Customize the plot
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_title('Basic Line and Scatter Plot')
-    ax.grid(True, linestyle='--', alpha=0.7)
-    ax.legend()
-    
-    return fig, plt, np, x, y1, y2
+    return np, plt
+
+
+@app.cell
+def _(np, plt):
+    def create_line_scatter_plot():
+        # Generate sample data
+        x = np.linspace(0, 10, 100)
+        y1 = np.sin(x)
+        y2 = np.cos(x)
+
+        # Create figure and axis
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Plot multiple lines with different styles
+        ax.plot(x, y1, 'b-', label='sin(x)', linewidth=2)
+        ax.scatter(x[::10], y2[::10], c='r', label='cos(x)', s=50)
+
+        # Customize the plot
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_title('Basic Line and Scatter Plot')
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend()
+
+        return ax
+
+    create_line_scatter_plot()
+    return (create_line_scatter_plot,)
 
 
 @app.cell
 def _():
     import marimo as mo
-    return mo
+    return (mo,)
 
 
 if __name__ == "__main__":

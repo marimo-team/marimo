@@ -24,22 +24,30 @@ def _():
     import matplotlib.pyplot as plt
     import numpy as np
     from mpl_toolkits.mplot3d import Axes3D
+    return Axes3D, np, plt
 
-    # Create data for 3D plot
-    x = np.linspace(-2, 2, 30)
-    y = np.linspace(-2, 2, 30)
-    X, Y = np.meshgrid(x, y)
-    Z = np.sin(np.sqrt(X**2 + Y**2))
 
-    # Create 3D plot
-    fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, projection='3d')
-    surf = ax.plot_surface(X, Y, Z, cmap='viridis')
+@app.cell
+def _(np, plt):
+    def create_3d_surface():
+        # Create data for 3D plot
+        x = np.linspace(-2, 2, 30)
+        y = np.linspace(-2, 2, 30)
+        X, Y = np.meshgrid(x, y)
+        Z = np.sin(np.sqrt(X**2 + Y**2))
 
-    # Add colorbar
-    fig.colorbar(surf)
-    plt.gca()
-    return Axes3D, X, Y, Z, ax, fig, np, plt, surf, x, y
+        # Create 3D plot
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111, projection='3d')
+        surf = ax.plot_surface(X, Y, Z, cmap='viridis')
+
+        # Add colorbar
+        fig.colorbar(surf)
+
+        return ax
+
+    create_3d_surface()
+    return (create_3d_surface,)
 
 
 @app.cell

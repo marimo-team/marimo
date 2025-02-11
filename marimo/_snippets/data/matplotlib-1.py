@@ -23,34 +23,41 @@ def _(mo):
 def _():
     import matplotlib.pyplot as plt
     import numpy as np
+    return np, plt
 
-    # Generate sample data
-    x = np.linspace(0, 10, 100)
-    y1 = np.sin(x)
-    y2 = np.exp(-x/3)
 
-    # Create figure with 2x2 subplots
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 8))
+@app.cell
+def _(np, plt):
+    def create_multi_subplot():
+        # Generate sample data
+        x = np.linspace(0, 10, 100)
+        y1 = np.sin(x)
+        y2 = np.exp(-x/3)
 
-    # Plot different visualizations
-    ax1.plot(x, y1, 'b-', label='Sine')
-    ax1.set_title('Line Plot')
-    ax1.legend()
+        # Create figure with 2x2 subplots
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 8))
 
-    ax2.scatter(x[::5], y2[::5], c='r', s=50, alpha=0.5)
-    ax2.set_title('Scatter Plot')
+        # Plot different visualizations
+        ax1.plot(x, y1, 'b-', label='Sine')
+        ax1.set_title('Line Plot')
+        ax1.legend()
 
-    ax3.fill_between(x, y1, alpha=0.3)
-    ax3.set_title('Area Plot')
+        ax2.scatter(x[::5], y2[::5], c='r', s=50, alpha=0.5)
+        ax2.set_title('Scatter Plot')
 
-    ax4.hist(y2, bins=20, alpha=0.7)
-    ax4.set_title('Histogram')
+        ax3.fill_between(x, y1, alpha=0.3)
+        ax3.set_title('Area Plot')
 
-    # Adjust layout
-    plt.tight_layout()
+        ax4.hist(y2, bins=20, alpha=0.7)
+        ax4.set_title('Histogram')
 
-    plt.gca()
-    return ax1, ax2, ax3, ax4, fig, np, plt, x, y1, y2
+        # Adjust layout
+        plt.tight_layout()
+
+        return ax1, ax2, ax3, ax4
+
+    create_multi_subplot()
+    return (create_multi_subplot,)
 
 
 @app.cell
