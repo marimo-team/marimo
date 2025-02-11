@@ -24,39 +24,56 @@ def _(mo):
 def _():
     from vega_datasets import data
     import altair as alt
+    return alt, data
 
-    # Load the dataset
-    source = data.cars()
 
-    # Create the base chart for the box plot
-    box_plot = alt.Chart(source).mark_boxplot().encode(
-        x='Origin:N',
-        y=alt.Y('Horsepower:Q', title='Horsepower'),
-        color='Origin:N'
-    )
+@app.cell
+def _(alt, data):
+    def create_box_violin_plot():
+        # Load the dataset
+        source = data.cars()
 
-    # Create the violin layer
-    violin = alt.Chart(source).transform_density(
-        'Horsepower',
-        as_=['Horsepower', 'density'],
-        groupby=['Origin']
-    ).mark_area(
-        opacity=0.3
-    ).encode(
-        x='Origin:N',
-        y='Horsepower:Q',
-        color='Origin:N',
-        fill='Origin:N'
-    )
+        # Create the base chart for the box plot
+        box_plot = alt.Chart(source).mark_boxplot(size=50).encode(  # Increased box size
+            x=alt.X('Origin:N', axis=alt.Axis(labelFontSize=12, titleFontSize=14)),  # Larger font
+            y=alt.Y('Horsepower:Q', 
+                    title='Horsepower',
+                    scale=alt.Scale(zero=False),
+                    axis=alt.Axis(labelFontSize=12, titleFontSize=14)),  # Larger font
+            color=alt.Color('Origin:N', legend=alt.Legend(labelFontSize=12, titleFontSize=14))  # Larger legend
+        )
 
-    # Combine the layers
-    chart = (violin + box_plot).properties(
-        width=300,
-        height=300,
-        title='Horsepower Distribution by Origin'
-    ).interactive()
-    chart
-    return alt, box_plot, chart, data, source, violin
+        # Create the violin layer
+        violin = alt.Chart(source).transform_density(
+            'Horsepower',
+            as_=['Horsepower', 'density'],
+            groupby=['Origin']
+        ).mark_area(
+            opacity=0.3
+        ).encode(
+            x='Origin:N',
+            y='Horsepower:Q',
+            color='Origin:N',
+            fill='Origin:N'
+        )
+
+        # Combine the layers
+        chart = (violin + box_plot).properties(
+            width=600,  # Much larger width
+            height=500,  # Much larger height
+            title={
+                'text': 'Horsepower Distribution by Origin',
+                'fontSize': 16  # Larger title
+            }
+        ).configure_axis(
+            labelFontSize=12,
+            titleFontSize=14
+        ).interactive()
+        
+        return chart
+
+    create_box_violin_plot()
+    return (create_box_violin_plot,)
 
 
 @app.cell

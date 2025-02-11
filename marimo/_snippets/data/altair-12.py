@@ -24,28 +24,36 @@ def _(mo):
 def _():
     from vega_datasets import data
     import altair as alt
+    return alt, data
 
-    # Load the dataset
-    source = data.stocks()
 
-    # Create area chart with gradient
-    chart = alt.Chart(source).transform_filter(
-        alt.datum.symbol != 'IBM'  # Remove one symbol to avoid overcrowding
-    ).mark_area(
-        opacity=0.7,
-        interpolate='monotone'
-    ).encode(
-        x='date:T',
-        y=alt.Y('price:Q', stack=True),
-        color=alt.Color('symbol:N', legend=alt.Legend(title='Company')),
-        tooltip=['date', 'price', 'symbol']
-    ).properties(
-        width=600,
-        height=300,
-        title='Stock Prices Over Time'
-    ).interactive()
-    chart
-    return alt, chart, data, source
+@app.cell
+def _(alt, data):
+    def create_area_chart():
+        # Load the dataset
+        source = data.stocks()
+
+        # Create area chart with gradient
+        chart = alt.Chart(source).transform_filter(
+            alt.datum.symbol != 'IBM'  # Remove one symbol to avoid overcrowding
+        ).mark_area(
+            opacity=0.7,
+            interpolate='monotone'
+        ).encode(
+            x='date:T',
+            y=alt.Y('price:Q', stack=True),
+            color=alt.Color('symbol:N', legend=alt.Legend(title='Company')),
+            tooltip=['date', 'price', 'symbol']
+        ).properties(
+            width=600,
+            height=300,
+            title='Stock Prices Over Time'
+        ).interactive()
+        
+        return chart
+
+    create_area_chart()
+    return (create_area_chart,)
 
 
 @app.cell

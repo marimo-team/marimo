@@ -23,33 +23,41 @@ def _(mo):
 def _():
     from vega_datasets import data
     import altair as alt
+    return alt, data
 
-    # Load the dataset
-    source = data.cars()
 
-    # Create interactive base scatter plot
-    base = alt.Chart(source).mark_point().encode(
-        x='Horsepower:Q',
-        y='Miles_per_Gallon:Q',
-        color='Origin:N',
-        tooltip=['Name', 'Origin', 'Horsepower', 'Miles_per_Gallon']
-    ).properties(
-        width=180,
-        height=180
-    ).interactive()  # Make base chart interactive
+@app.cell
+def _(alt, data):
+    def create_faceted_chart():
+        # Load the dataset
+        source = data.cars()
 
-    # Create faceted chart
-    chart = base.facet(
-        column='Cylinders:O',
-        title='Miles per Gallon vs. Horsepower by # Cylinders'
-    ).configure_header(
-        labelFontSize=12,
-        titleFontSize=14
-    ).configure_title(
-        fontSize=16
-    )
-    chart
-    return alt, base, chart, data, source
+        # Create interactive base scatter plot
+        base = alt.Chart(source).mark_point().encode(
+            x='Horsepower:Q',
+            y='Miles_per_Gallon:Q',
+            color='Origin:N',
+            tooltip=['Name', 'Origin', 'Horsepower', 'Miles_per_Gallon']
+        ).properties(
+            width=180,
+            height=180
+        ).interactive()  # Make base chart interactive
+
+        # Create faceted chart
+        chart = base.facet(
+            column='Cylinders:O',
+            title='Miles per Gallon vs. Horsepower by # Cylinders'
+        ).configure_header(
+            labelFontSize=12,
+            titleFontSize=14
+        ).configure_title(
+            fontSize=16
+        )
+        
+        return chart
+
+    create_faceted_chart()
+    return (create_faceted_chart,)
 
 
 @app.cell
