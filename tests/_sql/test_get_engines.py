@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,7 +16,7 @@ HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
-def test_engine_to_data_source_connection():
+def test_engine_to_data_source_connection() -> None:
     # Test with DuckDB engine
     duckdb_engine = DuckDBEngine(None)
     connection = engine_to_data_source_connection("my_duckdb", duckdb_engine)
@@ -29,7 +29,10 @@ def test_engine_to_data_source_connection():
     # Test with SQLAlchemy engine
     mock_sqlalchemy_engine = MagicMock()
     mock_sqlalchemy_engine.dialect.name = "postgresql"
-    sqlalchemy_engine = SQLAlchemyEngine(mock_sqlalchemy_engine)
+
+    with patch("sqlalchemy.inspect", return_value=MagicMock()):
+        sqlalchemy_engine = SQLAlchemyEngine(mock_sqlalchemy_engine)
+
     connection = engine_to_data_source_connection(
         "my_postgres", sqlalchemy_engine
     )
@@ -55,15 +58,18 @@ def test_get_engines_from_variables_duckdb():
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_engines_from_variables_sqlalchemy():
+def test_get_engines_from_variables_sqlalchemy() -> None:
     import sqlalchemy as sa
 
     mock_sqlalchemy_engine = MagicMock(spec=sa.Engine)
+
     variables: list[tuple[str, object]] = [
         ("sa_engine", mock_sqlalchemy_engine)
     ]
 
-    engines = get_engines_from_variables(variables)
+    with patch("sqlalchemy.inspect", return_value=MagicMock()):
+        engines = get_engines_from_variables(variables)
+
     assert len(engines) == 1
     var_name, engine = engines[0]
     assert var_name == "sa_engine"
@@ -88,8 +94,8 @@ def test_get_engines_from_variables_multiple():
     import duckdb
     import sqlalchemy as sa
 
-    mock_sqlalchemy_engine = MagicMock(spec=sa.Engine)
     mock_duckdb_conn = MagicMock(spec=duckdb.DuckDBPyConnection)
+    mock_sqlalchemy_engine = MagicMock(spec=sa.Engine)
 
     variables: list[tuple[str, object]] = [
         ("sa_engine", mock_sqlalchemy_engine),
@@ -97,7 +103,9 @@ def test_get_engines_from_variables_multiple():
         ("not_an_engine", "some string"),
     ]
 
-    engines = get_engines_from_variables(variables)
+    with patch("sqlalchemy.inspect", return_value=MagicMock()):
+        engines = get_engines_from_variables(variables)
+
     assert len(engines) == 2
 
     # Check SQLAlchemy engine

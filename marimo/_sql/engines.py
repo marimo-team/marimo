@@ -38,7 +38,7 @@ class DuckDBEngine(SQLEngine):
 
     def __init__(
         self,
-        connection: Optional[duckdb.DuckDBPyConnection],
+        connection: Optional[duckdb.DuckDBPyConnection] = None,
         engine_name: Optional[VariableName] = None,
     ) -> None:
         self._connection = connection
@@ -80,6 +80,7 @@ class DuckDBEngine(SQLEngine):
         _include_schemas: bool,
         _include_tables: bool,
     ) -> list[Database]:
+        """Fetch all databases from the engine. At the moment, will fetch everything."""
         return get_databases_from_duckdb(self._connection, self._engine_name)
 
 
@@ -176,9 +177,15 @@ class SQLAlchemyEngine(SQLEngine):
         )
         return databases
 
-    def get_schemas(self, include_tables: bool) -> list[Schema]:
+    def get_schemas(self, include_tables: bool = False) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        schema_names = self.inspector.get_schema_names()
+        from sqlalchemy.exc import SQLAlchemyError
+
+        try:
+            schema_names = self.inspector.get_schema_names()
+        except SQLAlchemyError:
+            LOGGER.warning("Failed to get schema names", exc_info=True)
+            return []
         schemas: list[Schema] = []
 
         for schema in schema_names:
@@ -197,8 +204,14 @@ class SQLAlchemyEngine(SQLEngine):
         self, schema: str, include_table_info: bool = True
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        table_names = self.inspector.get_table_names(schema=schema)
-        view_names = self.inspector.get_view_names(schema=schema)
+        from sqlalchemy.exc import SQLAlchemyError
+
+        try:
+            table_names = self.inspector.get_table_names(schema=schema)
+            view_names = self.inspector.get_view_names(schema=schema)
+        except SQLAlchemyError:
+            LOGGER.warning("Failed to get tables in schema", exc_info=True)
+            return []
         tables = [("table", name) for name in table_names] + [
             ("view", name) for name in view_names
         ]
@@ -223,14 +236,14 @@ class SQLAlchemyEngine(SQLEngine):
 
         data_tables: list[DataTable] = []
         for t_type, t_name in tables:
-            table = self.get_table(t_name, schema)
+            table = self.get_table_info(t_name, schema)
             if table is not None:
                 table.type = t_type
                 data_tables.append(table)
 
         return data_tables
 
-    def get_table(
+    def get_table_info(
         self, table_name: str, schema_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
@@ -242,7 +255,7 @@ class SQLAlchemyEngine(SQLEngine):
                 table_name, schema=schema_name
             )
         except Exception:
-            LOGGER.debug(
+            LOGGER.warning(
                 f"Failed to get table {table_name} in schema {schema_name}",
                 exc_info=True,
             )
@@ -297,22 +310,19 @@ class SQLAlchemyEngine(SQLEngine):
         try:
             col_type = col_type.python_type
             return _sql_type_to_data_type(str(col_type))
-        except AttributeError:
-            LOGGER.debug(f"Python type not available for {col_type}")
+        except NotImplementedError:
+            LOGGER.debug(f"Python type not defined for {col_type}")
             return None
-        except ValueError as e:
-            LOGGER.debug(f"Failed to convert python type: {e}")
+        except Exception:
+            LOGGER.debug("Failed to get python type", exc_info=True)
             return None
 
     def _get_generic_type(self, col_type: TypeEngine) -> DataType | None:
         try:
             col_type = col_type.as_generic()
             return _sql_type_to_data_type(str(col_type))
-        except NotImplementedError:
-            LOGGER.debug("Generic type not available")
-            return None
-        except ValueError as e:
-            LOGGER.debug(f"Failed to convert python type: {e}")
+        except Exception:
+            LOGGER.debug("Failed to get generic type", exc_info=True)
             return None
 
     def _reflect_tables(self) -> list[DataTable] | False:
@@ -357,17 +367,27 @@ class SQLAlchemyEngine(SQLEngine):
 def _sql_type_to_data_type(type_str: str) -> DataType:
     """Convert SQL type string to DataType"""
     type_str = type_str.lower()
-    if any(x in type_str for x in ("int", "serial")):
+    if any(
+        x in type_str
+        for x in ("int", "serial", "bigint", "smallint", "tinyint")
+    ):
         return "integer"
-    elif any(x in type_str for x in ("float", "double", "decimal", "numeric")):
+    elif any(
+        x in type_str
+        for x in ("float", "double", "decimal", "numeric", "real")
+    ):
         return "number"
-    elif any(x in type_str for x in ("timestamp", "datetime")):
+    elif any(x in type_str for x in ("timestamp", "datetime", "timestamptz")):
         return "datetime"
     elif "date" in type_str:
         return "date"
-    elif "bool" in type_str:
+    elif "time" in type_str:
+        return "time"
+    elif "bool" in type_str or "bit" in type_str:
         return "boolean"
-    elif any(x in type_str for x in ("char", "text")):
+    elif any(
+        x in type_str for x in ("char", "text", "varchar", "string", "uuid")
+    ):
         return "string"
     else:
         return "string"

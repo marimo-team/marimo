@@ -141,7 +141,6 @@ from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._sql.engines import SQLAlchemyEngine
 from marimo._sql.get_engines import get_engines_from_variables
-from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.assert_never import assert_never
@@ -2095,7 +2094,7 @@ class Kernel:
                 - schema_name: Name of the schema
         """
         engine_name = request.engine
-        database_name = request.database
+        _database_name = request.database
         schema_name = request.schema
 
         engine_val = self.globals.get(engine_name)
@@ -2132,7 +2131,7 @@ class Kernel:
                 - table_name: Name of the table
         """
         engine_name = request.engine
-        database_name = request.database
+        _database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
 
@@ -2143,7 +2142,9 @@ class Kernel:
             LOGGER.warning("Engine %s not found", engine_name)
             return
         if isinstance(engine, SQLAlchemyEngine):
-            table = engine.get_table(table_name=table_name, schema=schema_name)
+            table = engine.get_table_info(
+                table_name=table_name, schema=schema_name
+            )
             if not table:
                 LOGGER.warning("Table %s not found", table_name)
                 return

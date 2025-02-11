@@ -257,7 +257,7 @@ const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
   return (
     <>
       {groupedByEngine.map(([engine, databases]) => {
-        const source = databases?.[0].source || "duckdb";
+        const source = databases?.[0].dialect || "duckdb";
 
         return (
           <div key={engine}>

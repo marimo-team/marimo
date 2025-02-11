@@ -2358,10 +2358,10 @@ export interface components {
       | "time"
       | "unknown";
     Database: {
+      dialect: string;
       engine?: string | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
-      source: string;
     };
     Databases: {
       databases: components["schemas"]["Database"][];

@@ -52,7 +52,7 @@ class DataTable:
 
     Attributes:
         source_type (DataTableSource): Type of data source ('local', 'duckdb', 'connection').
-        source (str): Source identifier or path of the data table.
+        source (str): Can be dialect, or source db name.
         name (str): Name of the data table.
         num_rows (Optional[int]): Total number of rows in the table, if known.
         num_columns (Optional[int]): Total number of columns in the table, if known.

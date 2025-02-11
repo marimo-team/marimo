@@ -253,6 +253,12 @@ s2_tables = [
     )
 ]
 
+cleanup_query = """
+DROP TABLE all_types;
+DROP SCHEMA s1 CASCADE;
+DROP SCHEMA s2 CASCADE;
+"""
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_databases() -> None:
@@ -274,6 +280,8 @@ def test_get_databases() -> None:
             engine=None,
         )
     ]
+
+    duckdb.execute(cleanup_query)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -312,6 +320,8 @@ def test_get_databases_with_connection() -> None:
             engine="engine",
         )
     ]
+
+    connection.execute(cleanup_query)
 
 
 @pytest.mark.parametrize(

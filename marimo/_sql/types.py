@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from marimo._data.models import Database, DataTable
+from marimo._data.models import Database
 
 
 class SQLEngine(ABC):

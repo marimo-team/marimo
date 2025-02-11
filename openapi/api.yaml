@@ -492,6 +492,8 @@ components:
       type: string
     Database:
       properties:
+        dialect:
+          type: string
         engine:
           nullable: true
           type: string
@@ -501,11 +503,9 @@ components:
           items:
             $ref: '#/components/schemas/Schema'
           type: array
-        source:
-          type: string
       required:
       - name
-      - source
+      - dialect
       - schemas
       type: object
     Databases:
