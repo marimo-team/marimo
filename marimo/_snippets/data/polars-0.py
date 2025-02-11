@@ -10,7 +10,7 @@ app = marimo.App()
 def _(mo):
     mo.md(
         r"""
-        # Polars: Basic Operations and Lazy Evaluation
+        # Polars: Lazy Evaluation
 
         This snippet shows how to use Polars' `lazy()` evaluation for optimized query planning, 
         expression-based operations, and memory-efficient data processing. See example below.
