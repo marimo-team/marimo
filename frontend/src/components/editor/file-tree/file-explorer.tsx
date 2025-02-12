@@ -437,7 +437,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             }}
           >
             <ExternalLinkIcon {...iconProps} />
-            Open file in Editor
+            Open file in external editor
           </DropdownMenuItem>
         )}
         {node.data.isDirectory && (
