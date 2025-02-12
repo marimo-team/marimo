@@ -212,6 +212,7 @@ marimoは簡単に始められ、パワーユーザーのための機能も豊�
 コミュニティ
 
 私たちはコミュニティを構築しています。ぜひ一緒に交流しましょう！
+
 - 🌟 [GitHubでスターを付ける](https://github.com/marimo-team/marimo)
 - 💬 [Discordでチャットする](https://github.com/marimo-team/marimo)
 - 📧 [ニュースレターを購読する](https://marimo.io/discord?ref=readme)
@@ -219,6 +220,7 @@ marimoは簡単に始められ、パワーユーザーのための機能も豊�
 - ✏️ [GitHubディスカッションを開始する](https://marimo.io/cloud)
 - 🦋 [Blueskyでフォローする](https://github.com/marimo-team/marimo/discussions)
 - 🐦 [Twitterでフォローする](https://twitter.com/marimo_io)
+- 🎥 [YouTubeでフォローする](https://www.youtube.com/@marimo-team)
 - 🕴️ [LinkedInでフォローする](https://www.linkedin.com/company/marimo-io)
 
 ## インスピレーション ✨
