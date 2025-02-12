@@ -8,7 +8,7 @@ app = marimo.App(_toplevel_fn=True)
 def _(mo):
     mo.md(
         r"""
-        # @app.fn smoke test
+        # @app.function smoke test
 
         See [2293 for discussion](https://github.com/marimo-team/marimo/issues/2293)[^2293]
 
@@ -18,7 +18,7 @@ def _(mo):
     return
 
 
-@app.fn
+@app.function
 def self_ref_fib(n: int) -> int:
     if n == 0:
         return 0
@@ -27,23 +27,23 @@ def self_ref_fib(n: int) -> int:
     return self_ref_fib(n - 1) + self_ref_fib(n - 2)
 
 
-@app.fn(disabled=True, hide_code=True)
+@app.function(disabled=True, hide_code=True)
 def divide(x, y):
     return y / x
 
 
-@app.fn
+@app.function
 def subtraction(a: "int", b: "int") -> "int":
     return a - b
 
 
-@app.fn
+@app.function
 # Comments inbetween
 def multiply(a, b) -> "int":
     return a * b
 
 
-@app.fn
+@app.function
 def addition(a: int, b: int) -> int:
     # int is considered no good, re-eval
     return a + b

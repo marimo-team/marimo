@@ -13,7 +13,7 @@ from marimo._runtime.runtime import Kernel
 
 class TestScriptTrace:
     @staticmethod
-    def test_fn_script_trace() -> None:
+    def test_function_script_trace() -> None:
         p = subprocess.run(
             [sys.executable, "tests/_runtime/script_data/fn_exception.py"],
             capture_output=True,

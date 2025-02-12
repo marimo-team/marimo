@@ -36,7 +36,7 @@ def _multiline_tuple(elems: Sequence[str]) -> str:
 
 
 def _to_decorator(
-    config: Optional[CellConfig], fn: Literal["cell", "fn"] = "cell"
+    config: Optional[CellConfig], fn: Literal["cell", "function"] = "cell"
 ) -> str:
     if config is None:
         return f"@app.{fn}"
@@ -108,7 +108,7 @@ def to_top_functiondef(cell: CellImpl) -> str:
     # the cell, it must pass basic checks in the cell impl.
     assert cell.is_toplevel_acceptable, "Cell is not a top-level function"
     if cell.code:
-        decorator = _to_decorator(cell.config, fn="fn")
+        decorator = _to_decorator(cell.config, fn="function")
         return "\n".join([decorator, cell.code.strip()])
     return ""
 

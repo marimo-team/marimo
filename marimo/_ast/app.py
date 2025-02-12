@@ -300,7 +300,7 @@ class App:
             ),
         )
 
-    def fn(
+    def function(
         self,
         func: Fn | None = None,
         *,
@@ -315,17 +315,17 @@ class App:
         following is valid:
 
         ```
-        @app.fn
+        @app.function
         def add(a: int, b: int) -> int:
             return a + b
 
 
-        @app.fn()
+        @app.function()
         def subtract(a: int, b: int):
             return a - b
 
 
-        @app.fn(disabled=True)
+        @app.function(disabled=True)
         def multiply(a: int, b: int) -> int:
             return a * b
         ```

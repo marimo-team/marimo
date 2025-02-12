@@ -4,7 +4,7 @@ __generated_with = "0.11.1"
 app = marimo.App()
 
 
-@app.fn(
+@app.function(
     # Filler Lines
     # Filler Lines
 )
@@ -16,7 +16,7 @@ def bad_divide(x, y):
 
 
 # Also a check for no call
-@app.fn
+@app.function
 # Technically legal, but messy
 def bad_divide_curry(x):
     # Filler line

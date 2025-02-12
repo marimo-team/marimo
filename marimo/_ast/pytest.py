@@ -2,7 +2,7 @@
 import ast
 import copy
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 from marimo._ast.cell import Cell
 

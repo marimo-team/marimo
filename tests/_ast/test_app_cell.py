@@ -89,10 +89,10 @@ async def test_decorator_async() -> None:
     assert await result == (None, {"z": 6})
 
 
-def test_fn_decorator_called() -> None:
+def test_function_decorator_called() -> None:
     app = App()
 
-    @app.fn()
+    @app.function()
     def mock_func(x) -> tuple[int]:
         return x + x
 
@@ -108,10 +108,10 @@ def test_fn_decorator_called() -> None:
     )
 
 
-def test_fn_decorator_uncalled() -> None:
+def test_function_decorator_uncalled() -> None:
     app = App()
 
-    @app.fn
+    @app.function
     def mock_func(x) -> tuple[int]:
         return x + x
 
@@ -127,10 +127,10 @@ def test_fn_decorator_uncalled() -> None:
     )
 
 
-def test_fn_decorator_with_args() -> None:
+def test_function_decorator_with_args() -> None:
     app = App()
 
-    @app.fn(disabled=True)
+    @app.function(disabled=True)
     def mock_func(x: int) -> int:
         y = x + 2
         return y

@@ -570,7 +570,7 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         cell = cell.configure(CellConfig())
         fndef = codegen.to_top_functiondef(cell)
-        expected = "@app.fn\n" + code
+        expected = "@app.function\n" + code
         assert fndef == expected
 
     def test_fn_with_all_config(self) -> None:
@@ -578,7 +578,7 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=True, hide_code=True))
         fndef = codegen.to_top_functiondef(cell)
-        expected = "@app.fn(disabled=True, hide_code=True)\n" + code
+        expected = "@app.function(disabled=True, hide_code=True)\n" + code
         assert fndef == expected
 
 

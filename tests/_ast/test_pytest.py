@@ -27,8 +27,8 @@ async def test_async_cell():
     assert True
 
 
-@app.fn
-def test_top_level_fn():
+@app.function
+def test_top_level_function():
     assert True
 
 
@@ -37,8 +37,8 @@ def test_top_level_fn():
     raises=AssertionError,
     strict=True,
 )
-@app.fn
-def test_top_level_fn_fails():
+@app.function
+def test_top_level_function_fails():
     raise AssertionError("Function called")
 
 
