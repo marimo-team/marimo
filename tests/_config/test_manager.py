@@ -113,6 +113,7 @@ def test_get_config_with_override() -> None:
                     "on_cell_change": "autorun",
                     "auto_instantiate": True,
                     "auto_reload": "lazy",
+                    "watcher_on_save": "lazy",
                 }
             }
         ),
@@ -125,6 +126,7 @@ def test_get_config_with_override() -> None:
                 "on_cell_change": "autorun",
                 "auto_instantiate": True,
                 "auto_reload": "lazy",
+                "watcher_on_save": "lazy",
             }
         }
     )

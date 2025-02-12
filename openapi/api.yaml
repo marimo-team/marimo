@@ -1222,10 +1222,16 @@ components:
               - lazy
               - autorun
               type: string
+            watcher_on_save:
+              enum:
+              - lazy
+              - autorun
+              type: string
           required:
           - auto_instantiate
           - auto_reload
           - on_cell_change
+          - watcher_on_save
           type: object
         save:
           properties:
@@ -2022,7 +2028,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.19
+  version: 0.11.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

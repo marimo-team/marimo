@@ -708,6 +708,7 @@ class SessionManager:
 
     def __init__(
         self,
+        *,
         file_router: AppFileRouter,
         mode: SessionMode,
         development_mode: bool,
@@ -825,7 +826,7 @@ class SessionManager:
 
             # Reload the file manager to get the latest code
             try:
-                session.app_file_manager.reload()
+                changed_cell_ids = session.app_file_manager.reload()
             except Exception as e:
                 # If there are syntax errors, we just skip
                 # and don't send the changes
@@ -846,17 +847,42 @@ class SessionManager:
                 UpdateCellIdsRequest(cell_ids=cell_ids),
                 from_consumer_id=None,
             )
+
+            # Check if we should auto-run cells based on config
+            should_autorun = (
+                self.user_config_manager.get_config()["runtime"][
+                    "watcher_on_save"
+                ]
+                == "autorun"
+            )
             session.write_operation(
                 UpdateCellCodes(
                     cell_ids=cell_ids,
                     codes=codes,
-                    # The code is considered stale
-                    # because it has not been run yet.
-                    # In the future, we may add auto-run here.
-                    code_is_stale=True,
+                    code_is_stale=not should_autorun,
                 ),
                 from_consumer_id=None,
             )
+
+            # Auto-run cells if configured
+            if should_autorun:
+                changed_cell_ids_list = list(changed_cell_ids)
+                cell_ids_to_idx = {
+                    cell_id: idx for idx, cell_id in enumerate(cell_ids)
+                }
+                changed_codes = [
+                    codes[cell_ids_to_idx[cell_id]]
+                    for cell_id in changed_cell_ids_list
+                ]
+
+                session.put_control_request(
+                    ExecuteMultipleRequest(
+                        cell_ids=changed_cell_ids_list,
+                        codes=changed_codes,
+                        request=None,
+                    ),
+                    from_consumer_id=None,
+                )
 
         session._unsubscribe_file_watcher_ = on_file_changed  # type: ignore
 
