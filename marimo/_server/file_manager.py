@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp, _AppConfig
-from marimo._ast.cell import CellConfig
+from marimo._ast.cell import CellConfig, CellId_t
 from marimo._config.config import WidthType
 from marimo._runtime.layout.layout import (
     LayoutConfig,
@@ -40,11 +40,27 @@ class AppFileManager:
         manager.app = app
         return manager
 
-    def reload(self) -> None:
-        """Reload the app from the file."""
+    def reload(self) -> set[CellId_t]:
+        """
+        Reload the app from the file.
+
+        Return any new cell IDs that were added or code that was changed.
+        """
         prev_cell_manager = self.app.cell_manager
         self.app = self._load_app(self.path)
         self.app.cell_manager.sort_cell_ids_by_similarity(prev_cell_manager)
+
+        # Return the changes cell IDs
+        prev_cell_ids = set(prev_cell_manager.cell_ids())
+        changed_cell_ids: set[CellId_t] = set()
+        for cell_id in self.app.cell_manager.cell_ids():
+            if cell_id not in prev_cell_ids:
+                changed_cell_ids.add(cell_id)
+            new_code = self.app.cell_manager.get_cell_code(cell_id)
+            prev_code = prev_cell_manager.get_cell_code(cell_id)
+            if new_code != prev_code:
+                changed_cell_ids.add(cell_id)
+        return changed_cell_ids
 
     def _is_same_path(self, filename: str) -> bool:
         if self.filename is None:

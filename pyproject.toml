@@ -495,3 +495,6 @@ chat_sidebar = true
 
 [tool.marimo.display]
 dataframes = "rich"
+
+[tool.marimo.runtime]
+watcher_on_save = "autorun"

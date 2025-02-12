@@ -94,11 +94,14 @@ class RuntimeConfig(TypedDict):
     - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
       if `strict` marimo will clone cell declarations by default, avoiding
       hidden potential state build up.
+    - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
+        affected cells as stale, `"autorun"` automatically runs affected cells.
     """
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
     on_cell_change: OnCellChangeType
+    watcher_on_save: Literal["lazy", "autorun"]
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -291,6 +294,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "auto_instantiate": True,
         "auto_reload": "off",
         "on_cell_change": "autorun",
+        "watcher_on_save": "lazy",
     },
     "save": {
         "autosave": "after_delay",

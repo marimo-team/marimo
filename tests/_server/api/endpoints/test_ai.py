@@ -584,6 +584,7 @@ class TestStreamResponse(unittest.TestCase):
                         "model": "gpt-4-turbo",
                         "variables": [],
                         "include_other_code": "",
+                        "id": "123",
                     },
                 )
                 assert response.status_code == 200, response.text
@@ -624,6 +625,7 @@ class TestStreamResponse(unittest.TestCase):
                         "model": "gpt-4-turbo",
                         "variables": [],
                         "include_other_code": "import pandas as pd",
+                        "id": "123",
                     },
                 )
                 assert response.status_code == 200, response.text

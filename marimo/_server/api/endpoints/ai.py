@@ -163,9 +163,9 @@ def get_model(config: MarimoConfig) -> str:
 
 
 def get_content(
-    response: RawMessageStreamEvent
-    | ChatCompletionChunk
-    | GenerateContentResponse,
+    response: (
+        RawMessageStreamEvent | ChatCompletionChunk | GenerateContentResponse
+    ),
 ) -> str | None:
     if hasattr(response, "choices") and response.choices:
         return response.choices[0].delta.content  # type: ignore
@@ -186,9 +186,11 @@ def get_content(
 
 
 def make_stream_response(
-    response: OpenAiStream[ChatCompletionChunk]
-    | AnthropicStream[RawMessageStreamEvent]
-    | GenerateContentResponse,
+    response: (
+        OpenAiStream[ChatCompletionChunk]
+        | AnthropicStream[RawMessageStreamEvent]
+        | GenerateContentResponse
+    ),
 ) -> Generator[str, None, None]:
     original_content = ""
     buffer = ""
@@ -242,9 +244,11 @@ def make_stream_response(
 
 
 def as_stream_response(
-    response: OpenAiStream[ChatCompletionChunk]
-    | AnthropicStream[RawMessageStreamEvent]
-    | GenerateContentResponse,
+    response: (
+        OpenAiStream[ChatCompletionChunk]
+        | AnthropicStream[RawMessageStreamEvent]
+        | GenerateContentResponse
+    ),
 ) -> Generator[str, None, None]:
     original_content = ""
     buffer = ""
@@ -330,7 +334,9 @@ async def ai_completion(
     app_state = AppState(request)
     app_state.require_current_session()
     config = app_state.config_manager.get_config(hide_secrets=False)
-    body = await parse_request(request, cls=AiCompletionRequest)
+    body = await parse_request(
+        request, cls=AiCompletionRequest, allow_unknown_keys=True
+    )
     custom_rules = config.get("ai", {}).get("rules", None)
 
     prompter = Prompter(code=body.code)
@@ -414,7 +420,9 @@ async def ai_chat(
     app_state = AppState(request)
     app_state.require_current_session()
     config = app_state.config_manager.get_config(hide_secrets=False)
-    body = await parse_request(request, cls=ChatRequest)
+    body = await parse_request(
+        request, cls=ChatRequest, allow_unknown_keys=True
+    )
 
     # Get the model from request or fallback to config
     model = body.model or get_model(config)

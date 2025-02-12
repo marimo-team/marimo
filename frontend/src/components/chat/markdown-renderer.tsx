@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { EditorView } from "@codemirror/view";
 import Markdown, { type Components } from "react-markdown";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo, useMemo } from "react";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { copyToClipboard } from "@/utils/copy";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
@@ -14,6 +14,7 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useAtomValue } from "jotai";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { marked } from "marked";
 
 const extensions = [EditorView.lineWrapping];
 
@@ -147,13 +148,39 @@ const COMPONENTS: Components = {
   },
 };
 
-export const MarkdownRenderer = ({ content }: { content: string }) => {
+function parseMarkdownIntoBlocks(markdown: string): string[] {
+  const tokens = marked.lexer(markdown);
+  return tokens.map((token) => token.raw);
+}
+
+const MemoizedMarkdownBlock = memo(
+  ({ content }: { content: string }) => {
+    return (
+      <Markdown
+        components={COMPONENTS}
+        className="prose dark:prose-invert max-w-none prose-pre:pl-0"
+      >
+        {content}
+      </Markdown>
+    );
+  },
+  (prevProps, nextProps) => prevProps.content === nextProps.content,
+);
+
+MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
+
+export const MarkdownRenderer = memo(({ content }: { content: string }) => {
+  const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
+
   return (
-    <Markdown
-      components={COMPONENTS}
-      className="prose dark:prose-invert max-w-none prose-pre:pl-0"
-    >
-      {content}
-    </Markdown>
+    <>
+      {blocks.map((block, index) => (
+        <MemoizedMarkdownBlock
+          content={block}
+          key={`markdown-block-${index}`}
+        />
+      ))}
+    </>
   );
-};
+});
+MarkdownRenderer.displayName = "MarkdownRenderer";
