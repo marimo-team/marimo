@@ -12,12 +12,14 @@ import type { MovementCallbacks } from "../../cells/extensions";
 import { store } from "@/core/state/jotai";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { EditorView } from "@codemirror/view";
+import type { CellId } from "@/core/cells/ids";
 
 function createState(content: string, selection?: { anchor: number }) {
   const state = EditorState.create({
     doc: content,
     extensions: [
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           copilot: false,
           activate_on_typing: true,

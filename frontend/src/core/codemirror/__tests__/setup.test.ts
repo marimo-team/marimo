@@ -8,10 +8,14 @@ import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { PythonLanguageAdapter } from "../language/python";
 
-vi.mock("@/core/config/config", () => ({
-  parseAppConfig: () => ({}),
-  parseUserConfig: () => ({}),
-}));
+vi.mock("@/core/config/config", async (importOriginal) => {
+  const original = await importOriginal<{}>();
+  return {
+    ...original,
+    parseAppConfig: () => ({}),
+    parseUserConfig: () => ({}),
+  };
+});
 
 function namedFunction(name: string) {
   const fn = () => false;
@@ -124,6 +128,7 @@ test("placeholder adds another extension", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "marimo-import",
@@ -132,6 +137,7 @@ test("placeholder adds another extension", () => {
     .flat();
   const withoutAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "none",
@@ -145,6 +151,7 @@ test("ai adds more extensions", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "ai",
@@ -153,6 +160,7 @@ test("ai adds more extensions", () => {
     .flat();
   const withoutAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "none",

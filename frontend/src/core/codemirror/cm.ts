@@ -13,6 +13,7 @@ import {
   indentWithTab,
   indentMore,
 } from "@codemirror/commands";
+import { lintGutter } from "@codemirror/lint";
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -104,6 +105,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
+    lintGutter(),
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({

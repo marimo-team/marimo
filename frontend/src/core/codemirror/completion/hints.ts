@@ -7,19 +7,23 @@ import type { EditorState, Text } from "@codemirror/state";
 import { debounce } from "lodash-es";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export function hintTooltip() {
   return [
-    hoverTooltip(
-      async (view, pos) => {
-        const result = await requestDocumentation(view, pos, ["tooltip"]);
-        if (result === null || result === "cancelled") {
-          return null;
-        }
-        return result;
-      },
-      { hideOnChange: true },
-    ),
+    // Hover tooltip is already covered by LSP
+    getFeatureFlag("lsp")
+      ? []
+      : hoverTooltip(
+          async (view, pos) => {
+            const result = await requestDocumentation(view, pos, ["tooltip"]);
+            if (result === null || result === "cancelled") {
+              return null;
+            }
+            return result;
+          },
+          { hideOnChange: true },
+        ),
     cursorPositionDocumentation,
   ];
 }

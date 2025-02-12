@@ -4,6 +4,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { Extension } from "@codemirror/state";
 import type { PlaceholderType } from "../config/extension";
 import type { MovementCallbacks } from "../cells/extensions";
+import type { CellId } from "@/core/cells/ids";
 
 /**
  * A language adapter is a class that can transform code from one language to
@@ -17,6 +18,7 @@ export interface LanguageAdapter {
   transformOut(code: string): [string, number];
   isSupported(code: string): boolean;
   getExtension(
+    cellId: CellId,
     completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,

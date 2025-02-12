@@ -231,6 +231,25 @@ class GoogleAiConfig(TypedDict, total=False):
 
 
 @dataclass
+class PythonLanguageServerConfig(TypedDict, total=False):
+    """Configuration options for Python Language Server."""
+
+    enabled: bool
+
+
+@dataclass
+class LanguageServersConfig(TypedDict, total=False):
+    """Configuration options for language servers.
+
+    **Keys.**
+
+    - `pylsp`: the pylsp config
+    """
+
+    pylsp: PythonLanguageServerConfig
+
+
+@dataclass
 class SnippetsConfig(TypedDict):
     """Configuration for snippets.
 
@@ -258,6 +277,7 @@ class MarimoConfig(TypedDict):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
+    language_servers: NotRequired[LanguageServersConfig]
     snippets: NotRequired[SnippetsConfig]
 
 
@@ -276,6 +296,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     experimental: NotRequired[Dict[str, Any]]
+    language_servers: NotRequired[LanguageServersConfig]
     snippets: SnippetsConfig
 
 
@@ -306,6 +327,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "browser": "default",
         "follow_symlink": False,
     },
+    "language_servers": {"pylsp": {"enabled": True}},
     "snippets": {
         "custom_paths": [],
         "include_default_snippets": True,

@@ -3,6 +3,7 @@ import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { Facet } from "@codemirror/state";
 import type { MovementCallbacks } from "../cells/extensions";
+import type { CellId } from "@/core/cells/ids";
 
 export const completionConfigState = Facet.define<
   CompletionConfig,
@@ -27,5 +28,9 @@ export const movementCallbacksState = Facet.define<
   MovementCallbacks,
   MovementCallbacks
 >({
+  combine: (values) => values[0],
+});
+
+export const cellIdState = Facet.define<CellId, CellId>({
   combine: (values) => values[0],
 });

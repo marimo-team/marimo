@@ -2,6 +2,7 @@
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
 import { sql, StandardSQL, schemaCompletionSource } from "@codemirror/lang-sql";
+// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -25,6 +26,7 @@ import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
 import { Logger } from "@/utils/Logger";
+import type { CellId } from "@/core/cells/ids";
 
 /**
  * Language adapter for SQL.
@@ -140,6 +142,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 
   getExtension(
+    _cellId: CellId,
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
   ): Extension[] {

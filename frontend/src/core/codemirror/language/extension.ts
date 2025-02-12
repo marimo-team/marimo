@@ -15,6 +15,7 @@ import {
 import { clamp } from "@/utils/math";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import {
+  cellIdState,
   completionConfigState,
   hotkeysProviderState,
   movementCallbacksState,
@@ -117,6 +118,7 @@ function updateLanguageAdapterAndCode(
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
   const placeholderType = view.state.facet(placeholderState);
   const movementCallbacks = view.state.facet(movementCallbacksState);
+  const cellId = view.state.facet(cellIdState);
   let cursor = view.state.selection.main.head;
 
   // If keepCodeAsIs is true, we just keep the original code
@@ -143,6 +145,7 @@ function updateLanguageAdapterAndCode(
       setLanguageAdapter.of(nextLanguage),
       languageCompartment.reconfigure(
         nextLanguage.getExtension(
+          cellId,
           completionConfig,
           hotkeysProvider,
           placeholderType,
@@ -183,6 +186,7 @@ export function adaptiveLanguageConfiguration(
     | "showPlaceholder"
     | "enableAI"
     | "cellMovementCallbacks"
+    | "cellId"
   >,
 ) {
   const {
@@ -191,6 +195,7 @@ export function adaptiveLanguageConfiguration(
     completionConfig,
     hotkeys,
     cellMovementCallbacks,
+    cellId,
   } = opts;
 
   const placeholderType = showPlaceholder
@@ -205,10 +210,12 @@ export function adaptiveLanguageConfiguration(
     hotkeysProviderState.of(hotkeys),
     placeholderState.of(placeholderType),
     movementCallbacksState.of(cellMovementCallbacks),
+    cellIdState.of(cellId),
     // Language adapter
     languageToggle(),
     languageCompartment.of(
       LanguageAdapters.python().getExtension(
+        cellId,
         completionConfig,
         hotkeys,
         placeholderType,
@@ -274,8 +281,10 @@ export function reconfigureLanguageEffect(
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
   const movementCallbacks = view.state.facet(movementCallbacksState);
+  const cellId = view.state.facet(cellIdState);
   return languageCompartment.reconfigure(
     language.getExtension(
+      cellId,
       completionConfig,
       hotkeysProvider,
       placeholderType,
