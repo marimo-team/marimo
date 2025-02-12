@@ -191,7 +191,8 @@ class OSFileSystem(FileSystem):
             if platform.system() == "Darwin":  # macOS
                 subprocess.call(("open", path))
             elif platform.system() == "Windows":  # Windows
-                os.startfile(path)
+                # startfile only exists on Windows
+                os.startfile(path)  # type: ignore[attr-defined]
             else:  # Linux variants
                 subprocess.call(("xdg-open", path))
             return True
