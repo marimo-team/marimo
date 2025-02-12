@@ -66,7 +66,9 @@ export const AddCellWithAI: React.FC<{
   } = useCompletion({
     api: asURL("api/ai/completion").toString(),
     headers: API.headers(),
-    streamMode: "text",
+    streamProtocol: "text",
+    // Throttle the messages and data updates to 100ms
+    experimental_throttle: 100,
     body: {
       ...completionBody,
       language: language,

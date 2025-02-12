@@ -80,7 +80,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
     api: asURL("api/ai/completion").toString(),
     headers: API.headers(),
     initialInput: initialPrompt,
-    streamMode: "text",
+    streamProtocol: "text",
+    // Throttle the messages and data updates to 100ms
+    experimental_throttle: 100,
     body: {
       ...completionBody,
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
