@@ -58,6 +58,7 @@ import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
 import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
+import { useAsyncData } from "@/hooks/useAsyncData";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -368,60 +369,32 @@ const EngineTableList: React.FC<EngineTableListProps> = ({
   schemaName,
   tables,
 }) => {
-  const [data, setData] = React.useState<DataTable | null>(null);
-  const [loading, setLoading] = React.useState<boolean>(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const { data, loading, error } = useAsyncData<DataTable>(async () => {
+    // Do not fetch if tables are already passed in
+    if (tables.length > 0) {
+      return tables[0];
+    }
 
-  // TODO: Move all of this to table list view, not here.
-  React.useEffect(() => {
-    let isMounted = true;
+    const tablePreview = await PreviewSQLTable.request({
+      schema: schemaName,
+      engine: engineName,
+      database: databaseName,
+      tableName: "lineitem",
+    });
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const tablePreview = await PreviewSQLTable.request({
-          schema: schemaName,
-          engine: engineName,
-          database: databaseName,
-          tableName: "lineitem",
-        });
-        if (tablePreview.error) {
-          throw new Error(tablePreview.error);
-        }
-        if (isMounted) {
-          setData(tablePreview.table ?? null);
-        }
-      } catch (error) {
-        if (isMounted) {
-          if (error instanceof Error) {
-            setError(error.message);
-          } else {
-            setError(String(error));
-          }
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
+    const table = tablePreview.table;
+    if (!table) {
+      throw new Error(tablePreview.error ?? "Unknown error");
+    }
 
-    // Only fetch when no tables are passed in
-    fetchData();
-
-    return () => {
-      isMounted = false;
-    };
+    return table;
   }, [databaseName, engineName, schemaName, tables.length]);
-
-  console.log("data", data);
 
   if (error) {
     return (
       <div className="ml-8 text-sm text-red-600 bg-red-100 flex items-center gap-2 p-2 h-7 overflow-auto">
         <XIcon className="h-4 w-4" />
-        Internal error: {error}
+        Internal error: {error.message}
       </div>
     );
   }

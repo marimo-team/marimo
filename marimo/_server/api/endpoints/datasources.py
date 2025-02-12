@@ -53,67 +53,27 @@ async def preview_column(
     return SuccessResponse()
 
 
-@router.get(
-    "/preview_sql_table/{engine:path}/{database:path}/{schema:path}/{table_name:path}"
-)
+@router.post("/preview_sql_table")
 @requires("edit")
 async def preview_sql_table(request: Request) -> BaseResponse:
     """
-    parameters:
-      - name: engine
-        in: path
-        required: true
-        schema:
-        type: string
-        description: The SQL engine to use
-      - name: database
-        in: path
-        required: true
-        schema:
-        type: string
-        description: The SQL database to use
-      - name: schema
-        in: path
-        required: true
-        schema:
-        type: string
-        description: The SQL schema to use
-      - name: table_name
-        in: path
-        required: true
-        schema:
-        type: string
-        description: The SQL table to preview
-      - name: request_id
-        in: query
-        required: true
-        schema:
-        type: string
-        description: Request ID for the preview so that the response can be matched
-    responses:
-      200:
-        description: Get table details from the SQL database
+    requestBody:
         content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SuccessResponse"
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PreviewSQLTableRequest"
+    responses:
+        200:
+            description: Preview a SQL table
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    engine, database, schema, table_name = (
-        request.path_params["engine"],
-        request.path_params["database"],
-        request.path_params["schema"],
-        request.path_params["table_name"],
-    )
-    request_id = request.query_params.get("request_id")
+    body = await parse_request(request, PreviewSQLTableRequest)
     app_state.require_current_session().put_control_request(
-        PreviewSQLTableRequest(
-            engine=engine,
-            database=database,
-            schema=schema,
-            table_name=table_name,
-            request_id=request_id,
-        ),
+        body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
     return SuccessResponse()

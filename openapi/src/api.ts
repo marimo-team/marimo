@@ -130,35 +130,29 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/datasources/preview_sql_table/{engine}/{database}/{schema}/{table_name}": {
+  "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: {
+    get?: never;
+    put?: never;
+    post: {
       parameters: {
-        query: {
-          /** @description Request ID for the preview so that the response can be matched */
-          request_id: string;
-        };
+        query?: never;
         header?: never;
-        path: {
-          /** @description The SQL engine to use */
-          engine: string;
-          /** @description The SQL database to use */
-          database: string;
-          /** @description The SQL schema to use */
-          schema: string;
-          /** @description The SQL table to preview */
-          table_name: string;
-        };
+        path?: never;
         cookie?: never;
       };
-      requestBody?: never;
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewSQLTableRequest"];
+        };
+      };
       responses: {
-        /** @description Get table details from the SQL database */
+        /** @description Preview a SQL table */
         200: {
           headers: {
             [name: string]: unknown;
@@ -169,8 +163,6 @@ export interface paths {
         };
       };
     };
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;

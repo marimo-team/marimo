@@ -2201,46 +2201,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
-  /api/datasources/preview_sql_table/{engine}/{database}/{schema}/{table_name}:
-    get:
-      parameters:
-      - description: The SQL engine to use
-        in: path
-        name: engine
-        required: true
-        schema: null
-        type: string
-      - description: The SQL database to use
-        in: path
-        name: database
-        required: true
-        schema: null
-        type: string
-      - description: The SQL schema to use
-        in: path
-        name: schema
-        required: true
-        schema: null
-        type: string
-      - description: The SQL table to preview
-        in: path
-        name: table_name
-        required: true
-        schema: null
-        type: string
-      - description: Request ID for the preview so that the response can be matched
-        in: query
-        name: request_id
-        required: true
-        schema: null
-        type: string
+  /api/datasources/preview_sql_table:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableRequest'
       responses:
         200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-          description: Get table details from the SQL database
+          description: Preview a SQL table
   /api/documentation/snippets:
     get:
       responses:

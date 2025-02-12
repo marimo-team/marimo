@@ -160,22 +160,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     previewSQLTable: (request) => {
       return marimoClient
-        .GET(
-          "/api/datasources/preview_sql_table/{engine}/{database}/{schema}/{table_name}",
-          {
-            params: {
-              path: {
-                engine: request.engine,
-                database: request.database,
-                schema: request.schema,
-                table_name: request.tableName,
-              },
-              query: {
-                request_id: request.requestId,
-              },
-            },
-          },
-        )
+        .POST("/api/datasources/preview_sql_table", {
+          body: request,
+        })
         .then(handleResponseReturnNull);
     },
     openFile: async (request) => {

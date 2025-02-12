@@ -88,6 +88,19 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_invalid_engine() -> None:
+    """Test SQLAlchemyEngine with an invalid engine and inspector does not raise errors."""
+
+    engine = SQLAlchemyEngine(None)
+    assert engine.inspector is None
+
+    # TODO: Should these return None or raise an error?
+    # assert engine.get_databases() is None
+    # assert engine.get_schemas() is None
+    # assert engine.get_tables_in_schema("main") is None
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine with an empty engine."""
     engine = SQLAlchemyEngine(empty_sqlite_engine, engine_name="sqlite")

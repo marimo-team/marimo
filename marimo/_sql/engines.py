@@ -90,7 +90,11 @@ class SQLAlchemyEngine(SQLEngine):
 
         self._engine = engine
         self._engine_name = engine_name
-        self.inspector = inspect(self._engine)
+        try:
+            self.inspector = inspect(self._engine)
+        except Exception:
+            LOGGER.warning("Failed to create inspector", exc_info=True)
+            self.inspector = None
 
     @property
     def source(self) -> str:
@@ -185,11 +189,9 @@ class SQLAlchemyEngine(SQLEngine):
         self, include_tables: bool = False, include_table_details: bool = False
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
-        from sqlalchemy.exc import SQLAlchemyError
-
         try:
             schema_names = self.inspector.get_schema_names()
-        except SQLAlchemyError:
+        except Exception:
             LOGGER.warning("Failed to get schema names", exc_info=True)
             return []
         schemas: list[Schema] = []
@@ -212,12 +214,10 @@ class SQLAlchemyEngine(SQLEngine):
         self, schema: str, include_table_details: bool = False
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        from sqlalchemy.exc import SQLAlchemyError
-
         try:
             table_names = self.inspector.get_table_names(schema=schema)
             view_names = self.inspector.get_view_names(schema=schema)
-        except SQLAlchemyError:
+        except Exception:
             LOGGER.warning("Failed to get tables in schema", exc_info=True)
             return []
         tables = [("table", name) for name in table_names] + [
