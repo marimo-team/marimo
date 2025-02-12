@@ -2,9 +2,7 @@
 
 Marimo provides built-in functionality for securely managing secrets in your notebooks.
 
-## Usage
-
-```python
+## Usage```python
 import marimo as mo
 
 app = mo.App()
@@ -21,10 +19,10 @@ app.delete_secret("api_key")
 
 ## Security
 
-Secrets are stored securely using the system's native keyring service:
-- macOS: Keychain
-- Windows: Credential Locker
-- Linux: Secret Service API/libsecret
+Secrets are stored securely using the operating system's environment variables via os.environ:
+- Stored in memory during notebook execution
+- Not persisted between sessions
+- Isolated to the current process
 
 ## Best Practices
 
@@ -32,3 +30,4 @@ Secrets are stored securely using the system's native keyring service:
 2. Delete secrets when they're no longer needed
 3. Use environment variables for development/testing
 4. Rotate secrets regularly 
+
