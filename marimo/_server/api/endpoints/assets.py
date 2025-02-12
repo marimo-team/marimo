@@ -120,6 +120,9 @@ async def index(request: Request) -> HTMLResponse:
                     .then(registration => {{
                         registration.active.postMessage({{ notebookId }});
                     }});
+                navigator.serviceWorker.ready.then(registration => {{
+                    registration.update();
+                }});
             }}
             """,
         )
@@ -199,21 +202,23 @@ async def public_files_service_worker(request: Request) -> Response:
     del request
     return Response(
         content="""
-        let currentNotebookId = null;
-
-        self.addEventListener('message', (event) => {
-            if (event.data.notebookId) {
-                currentNotebookId = event.data.notebookId;
-            }
+        let notebookIdPromise = new Promise((resolve) => {
+            self.addEventListener('message', (event) => {
+                if (event.data.notebookId) {
+                    resolve(event.data.notebookId);
+                }
+            });
         });
 
         self.addEventListener('fetch', function(event) {
             if (event.request.url.includes('/public/')) {
                 event.respondWith(
-                    fetch(event.request.url, {
-                        headers: {
-                            'X-Notebook-Id': currentNotebookId
-                        }
+                    notebookIdPromise.then(notebookId => {
+                        return fetch(event.request.url, {
+                            headers: {
+                                'X-Notebook-Id': notebookId
+                            }
+                        });
                     })
                 );
             }
