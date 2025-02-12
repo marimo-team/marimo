@@ -23,14 +23,16 @@ LOGGER = _loggers.marimo_logger()
 
 
 def get_default_config_manager(
-    *, current_path: Optional[str]
+    *, current_path: Optional[str], allow_secrets: bool = True
 ) -> MarimoConfigManager:
     # Current path should be the notebook file
     # If it's not known, use the current working directory
     if current_path is None:
         current_path = os.getcwd()
     return MarimoConfigManager(
-        UserConfigManager(), ProjectConfigManager(current_path)
+        UserConfigManager(), 
+        ProjectConfigManager(current_path),
+        allow_secrets=allow_secrets
     )
 
 
@@ -47,9 +49,11 @@ class MarimoConfigManager(MarimoConfigReader):
         self,
         user_config_mgr: UserConfigManager,
         *partials: PartialMarimoConfigReader,
+        allow_secrets: bool = True,
     ) -> None:
         self.user_config_mgr = user_config_mgr
         self.partials = partials
+        self.allow_secrets = allow_secrets
 
     def get_user_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the user configuration"""
@@ -91,6 +95,7 @@ class MarimoConfigManager(MarimoConfigReader):
             self.user_config_mgr,
             *self.partials,
             MarimoConfigReaderWithOverrides(overrides),
+            allow_secrets=self.allow_secrets,
         )
 
 

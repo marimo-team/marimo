@@ -46,6 +46,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
+from marimo._runtime.secrets import SecretManager
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -140,6 +141,10 @@ class AppKernelRunnerRegistry:
         # isolated across run sessions.
         self._runners: dict[int, dict[App, AppKernelRunner]] = {}
 
+    @property
+    def size(self) -> int:
+        return len(self._runners)
+
     def get_runner(self, app: App) -> AppKernelRunner:
         app_runners = self._runners.setdefault(threading.get_ident(), {})
         runner = app_runners.get(app, None)
@@ -167,7 +172,7 @@ class App:
     function.
     """
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, allow_secrets: bool = True, **kwargs: Any) -> None:
         # Take `AppConfig` as kwargs for forward/backward compatibility;
         # unrecognized settings will just be dropped, instead of raising
         # a TypeError.
@@ -202,6 +207,10 @@ class App:
             self._filename = inspect.getfile(inspect.stack()[1].frame)
         except Exception:
             ...
+
+        # Generate a unique ID for this app instance if not in a notebook
+        self.app_id = str(uuid4())
+        self._secret_manager = SecretManager(self.app_id, allow_secrets=allow_secrets)
 
     def __del__(self) -> None:
         try:
@@ -513,6 +522,46 @@ class App:
                 output=vstack([o for o in flat_outputs if o is not None]),
                 defs=defs,
             )
+
+    def set_secret(self, key: str, value: str = None) -> None:
+        """Store a secret securely.
+        
+        Args:
+            key: The name of the secret
+            value: The secret value to store
+            
+        Raises:
+            ValueError: If key or value is empty
+            RuntimeError: If secret storage fails
+        """
+        self._secret_manager.set_secret(key, value)
+    
+    def get_secret(self, key: str) -> Optional[str]:
+        """Retrieve a secret.
+        
+        This will prompt the user for confirmation before revealing the secret.
+        
+        Args:
+            key: The name of the secret to retrieve
+            
+        Returns:
+            The secret value if found and confirmed, None otherwise
+            
+        Raises:
+            ValueError: If key is empty
+        """
+        return self._secret_manager.get_secret(key)
+    
+    def delete_secret(self, key: str) -> None:
+        """Delete a secret.
+        
+        Args:
+            key: The name of the secret to delete
+            
+        Raises:
+            ValueError: If key is empty
+        """
+        self._secret_manager.delete_secret(key)
 
 
 class InternalApp:
