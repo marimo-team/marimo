@@ -78,8 +78,9 @@ class CellManager:
         column: Optional[int],
         disabled: bool,
         hide_code: bool,
-        top_level: bool = False,
         app: InternalApp | None = None,
+        *,
+        top_level: bool = False,
     ) -> Cell | Fn | Callable[[Fn], Cell | Fn]:
         """Create a cell decorator for marimo notebook cells."""
         cell_config = CellConfig(
