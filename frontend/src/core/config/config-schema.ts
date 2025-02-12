@@ -78,6 +78,7 @@ export const UserConfigSchema = z
         auto_instantiate: z.boolean().default(true),
         on_cell_change: z.enum(["lazy", "autorun"]).default("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
+        watcher_on_save: z.enum(["lazy", "autorun"]).default("lazy"),
       })
       .default({}),
     display: z

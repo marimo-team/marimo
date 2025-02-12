@@ -262,6 +262,7 @@ async def run_app_until_completion(
                 "on_cell_change": "autorun",
                 "auto_instantiate": True,
                 "auto_reload": "off",
+                "watcher_on_save": "lazy",
             }
         }
     )

@@ -376,11 +376,17 @@ def cell_factory(
     # last statement of the function body, so we use the ast, which lets us
     # easily find the last statement of the function body;
     tree = ast.parse(function_code)
-    return_node = (
-        tree.body[0].body[-1]  # type: ignore
-        if isinstance(tree.body[0].body[-1], ast.Return)  # type: ignore
-        else None
-    )
+    return_node: Optional[ast.Return]
+    first_stmt = tree.body[0]
+    # Handle case where first statement does not have a body
+    if not hasattr(first_stmt, "body"):
+        return_node = None
+    else:
+        return_node = (
+            first_stmt.body[-1]  # type: ignore
+            if isinstance(first_stmt.body[-1], ast.Return)  # type: ignore
+            else None
+        )
 
     end_line, return_offset = (
         (return_node.lineno - 1, return_node.col_offset)

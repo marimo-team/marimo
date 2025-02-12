@@ -53,6 +53,7 @@ describe("Cell data attributes", () => {
           auto_instantiate: false,
           auto_reload: "off",
           on_cell_change: "lazy",
+          watcher_on_save: "lazy",
         },
         server: {
           browser: "default",

@@ -338,6 +338,11 @@ class CellManager:
         """
         return self._cell_data[cell_id]
 
+    def get_cell_code(self, cell_id: CellId_t) -> Optional[str]:
+        if cell_id not in self._cell_data:
+            return None
+        return self._cell_data[cell_id].code
+
     def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
         """Find a cell ID by its code content.
 

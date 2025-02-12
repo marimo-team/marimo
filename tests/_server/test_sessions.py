@@ -20,6 +20,7 @@ from marimo._messaging.ops import UpdateCellCodes
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
+    ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
 )
@@ -405,7 +406,8 @@ async def test_session_manager_file_watching() -> None:
 
 @mo.cell
 def __():
-    return 1
+    1
+    return ()
 """
         )
 
@@ -451,7 +453,8 @@ def __():
 
 @mo.cell
 def __():
-    return 2
+    2
+    return ()
 """
             )
 
@@ -490,7 +493,8 @@ def __():
 
 @mo.cell
 def __():
-    return 3
+    3
+    return ()
 """
             )
 
@@ -520,7 +524,8 @@ def __():
 
 @mo.cell
 def __():
-    return 4
+    4
+    return ()
 """
             )
 
@@ -615,6 +620,142 @@ def test_watch_mode_config_override() -> None:
 
 
 @save_and_restore_main
+async def test_watch_mode_with_watcher_on_save_config() -> None:
+    """Test that watch mode works correctly with watcher_on_save config."""
+    # Create a temporary file
+    with NamedTemporaryFile(delete=False, suffix=".py") as tmp_file:
+        tmp_path = Path(tmp_file.name)
+        # Write initial notebook content
+        tmp_file.write(
+            b"""import marimo as mo
+
+@mo.cell
+def __():
+    1
+    return ()
+"""
+        )
+
+    try:
+        # Create a config with watcher_on_save set to autorun
+        config_reader = get_default_config_manager(current_path=None)
+        config_reader_autorun = config_reader.with_overrides(
+            {
+                "runtime": {
+                    "watcher_on_save": "autorun",
+                }
+            }
+        )
+
+        # Create a session manager with file watching enabled
+        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path)))
+        session_manager = SessionManager(
+            file_router=file_router,
+            mode=SessionMode.EDIT,
+            development_mode=False,
+            quiet=True,
+            include_code=True,
+            lsp_server=MagicMock(),
+            user_config_manager=config_reader_autorun,
+            cli_args={},
+            auth_token=None,
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            watch=True,
+        )
+
+        # Create a mock session consumer
+        session_consumer = MagicMock()
+        session_consumer.connection_state.return_value = ConnectionState.OPEN
+        operations: list[Any] = []
+        session_consumer.write_operation = (
+            lambda op, *_args: operations.append(op)
+        )
+
+        # Create a session
+        session_manager.create_session(
+            session_id="test",
+            session_consumer=session_consumer,
+            query_params={},
+            file_key=str(tmp_path),
+        )
+
+        # Wait a bit and then modify the file
+        await asyncio.sleep(0.2)
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    2
+    return ()
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        await asyncio.sleep(0.2)
+
+        # Check that UpdateCellCodes was sent with code_is_stale=False (autorun)
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert "2" in update_ops[0].codes[0]
+        assert update_ops[0].code_is_stale is False
+
+        # Verify that cells were queued for execution
+        assert session_consumer.put_control_request.called
+        last_call = session_consumer.put_control_request.call_args[0][0]
+        assert isinstance(last_call, ExecuteMultipleRequest)
+
+        # Now change config to lazy mode
+        config_reader_lazy = config_reader.with_overrides(
+            {
+                "runtime": {
+                    "watcher_on_save": "lazy",
+                }
+            }
+        )
+        session_manager.user_config_manager = config_reader_lazy
+
+        # Reset the mock
+        session_consumer.put_control_request.reset_mock()
+
+        # Modify the file again
+        operations.clear()
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo as mo
+
+@mo.cell
+def __():
+    3
+    return ()
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        await asyncio.sleep(0.2)
+
+        # Check that UpdateCellCodes was sent with code_is_stale=True (lazy)
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert "3" in update_ops[0].codes[0]
+        assert update_ops[0].code_is_stale is True
+
+        # Verify that no execution was queued
+        assert not session_consumer.put_control_request.called
+
+    finally:
+        # Cleanup
+        session_manager.shutdown()
+        os.remove(tmp_path)
+
+
+@save_and_restore_main
 async def test_session_manager_file_rename() -> None:
     """Test that file renaming works correctly with file watching."""
     # Create two temporary files
@@ -630,7 +771,8 @@ async def test_session_manager_file_rename() -> None:
 
 @mo.cell
 def __():
-    return 1
+    1
+    return ()
 """
         )
         tmp_file2.write(b"import marimo as mo")
@@ -700,7 +842,8 @@ def __():
 
 @mo.cell
 def __():
-    return 2
+    2
+    return ()
 """
             )
 
@@ -722,7 +865,8 @@ def __():
 
 @mo.cell
 def __():
-    return 3
+    3
+    return ()
 """
             )
 

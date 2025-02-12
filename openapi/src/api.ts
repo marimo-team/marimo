@@ -2579,6 +2579,8 @@ export interface components {
         auto_reload: "off" | "lazy" | "autorun";
         /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
+        /** @enum {string} */
+        watcher_on_save: "lazy" | "autorun";
       };
       save: {
         /** @enum {string} */
