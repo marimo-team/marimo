@@ -19,6 +19,7 @@ from typing import (
     Mapping,
     Optional,
     TypeVar,
+    Union,
     cast,
 )
 from uuid import uuid4
@@ -294,7 +295,7 @@ class App:
         del kwargs
 
         return cast(
-            Cell | Callable[[Fn], Cell],
+            Union[Cell, Callable[[Fn], Cell]],
             self._cell_manager.cell_decorator(
                 func, column, disabled, hide_code, app=InternalApp(self)
             ),
@@ -340,7 +341,7 @@ class App:
         del kwargs
 
         return cast(
-            Fn | Callable[[Fn], Fn],
+            Union[Fn, Callable[[Fn], Fn]],
             self._cell_manager.cell_decorator(
                 func,
                 column,
