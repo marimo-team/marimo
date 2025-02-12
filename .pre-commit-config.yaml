@@ -25,7 +25,7 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: typos-dict-v0.12.4
+    rev: v1.29.5
     hooks:
       - id: typos
 
@@ -39,7 +39,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v0.6.1
+    rev: v1.9.4
     hooks:
       - id: biome-check
         args: [--config-path, biome.json, --diagnostic-level, warn]
