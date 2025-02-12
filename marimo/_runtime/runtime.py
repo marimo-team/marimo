@@ -324,11 +324,14 @@ def notebook_dir() -> pathlib.Path | None:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return None
+        # If we are not running in a notebook (e.g. exported to Jupyter),
+        # return the current working directory
+        return pathlib.Path().absolute()
 
     filename = ctx.filename
     if filename is not None:
         return pathlib.Path(filename).parent.absolute()
+
     return None
 
 
@@ -380,10 +383,7 @@ def notebook_location() -> pathlib.PurePath | None:
         return URLPath(str(path_location))
 
     else:
-        nb_dir = notebook_dir()
-        if nb_dir is not None:
-            return nb_dir
-        return None
+        return notebook_dir()
 
 
 @dataclasses.dataclass
