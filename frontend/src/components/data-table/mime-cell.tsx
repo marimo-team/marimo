@@ -4,18 +4,15 @@ import { OutputRenderer } from "../editor/Output";
 import type { OutputMessage } from "@/core/kernel/messages";
 
 interface MimeCellProps {
-  value: unknown;
+  value: MimeValue;
+}
+
+interface MimeValue {
+  mimetype: string;
+  data: string;
 }
 
 export const MimeCell = ({ value }: MimeCellProps) => {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-
-  if (!("mimetype" in value && "data" in value)) {
-    return null;
-  }
-
   const message = {
     channel: "output",
     data: value.data,
@@ -29,3 +26,12 @@ export const MimeCell = ({ value }: MimeCellProps) => {
     </div>
   );
 };
+
+export function isMimeValue(value: unknown): value is MimeValue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "mimetype" in value &&
+    "data" in value
+  );
+}
