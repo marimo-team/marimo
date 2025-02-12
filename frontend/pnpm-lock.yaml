@@ -265,8 +265,8 @@ importers:
         specifier: ^7.0.6
         version: 7.0.6(postcss@8.5.1)
       date-fns:
-        specifier: ^3.6.0
-        version: 3.6.0
+        specifier: ^4.1.0
+        version: 4.1.0
       dequal:
         specifier: ^2.0.3
         version: 2.0.3
@@ -4962,8 +4962,8 @@ packages:
   datalib@1.7.3:
     resolution: {integrity: sha512-nA2t1SrVwZMfVFSdpqTRtymIaoadd7nWUNBcS499sUHlQXI0fP1g9zl/eYWM4dhJw4idUyjCt9+ZbLHbtbfviw==}
 
-  date-fns@3.6.0:
-    resolution: {integrity: sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww==}
+  date-fns@4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
   dayjs@1.11.10:
     resolution: {integrity: sha512-vjAczensTgRcqDERK0SR2XMwsF/tSvnvlv6VcF2GIhg6Sx4yOIt/irsr1RDJsKiIyBzJDpCoXiWWq28MqH2cnQ==}
@@ -14529,7 +14529,7 @@ snapshots:
       sync-request: 2.2.0
       topojson: 1.6.27
 
-  date-fns@3.6.0: {}
+  date-fns@4.1.0: {}
 
   dayjs@1.11.10: {}
 
