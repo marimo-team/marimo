@@ -6,8 +6,6 @@ import sys
 import tempfile
 from typing import Generator
 
-from marimo._utils.platform import is_windows
-
 import pytest
 
 from marimo import __version__
@@ -15,6 +13,7 @@ from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveNotebookRequest
+from marimo._utils.platform import is_windows
 
 save_request = SaveNotebookRequest(
     cell_ids=["1"],
@@ -435,8 +434,7 @@ if __name__ == "__main__":
 
 
 @pytest.mark.skipif(
-    not is_windows(),
-    reason="Test Windows-specific path handling"
+    not is_windows(), reason="Test Windows-specific path handling"
 )
 def test_rename_with_special_chars(app_file_manager: AppFileManager) -> None:
     """Test that renaming files with special characters works on Windows."""
@@ -447,7 +445,7 @@ def test_rename_with_special_chars(app_file_manager: AppFileManager) -> None:
         with open(initial_path, "w") as f:
             f.write("import marimo")
         app_file_manager.filename = initial_path
-        
+
         # Try to rename to path with special characters
         new_path = os.path.join(temp_dir, "test & space.py")
         app_file_manager.rename(new_path)
