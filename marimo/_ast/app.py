@@ -140,6 +140,10 @@ class AppKernelRunnerRegistry:
         # isolated across run sessions.
         self._runners: dict[int, dict[App, AppKernelRunner]] = {}
 
+    @property
+    def size(self) -> int:
+        return len(self._runners)
+
     def get_runner(self, app: App) -> AppKernelRunner:
         app_runners = self._runners.setdefault(threading.get_ident(), {})
         runner = app_runners.get(app, None)

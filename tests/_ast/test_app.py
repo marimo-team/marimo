@@ -8,7 +8,12 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
-from marimo._ast.app import App, AppKernelRunnerRegistry, _AppConfig, InternalApp
+from marimo._ast.app import (
+    App,
+    AppKernelRunnerRegistry,
+    _AppConfig,
+    InternalApp,
+)
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -17,6 +22,7 @@ from marimo._ast.errors import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
+from marimo._runtime.context.types import get_context
 from marimo._runtime.requests import SetUIElementValueRequest
 from tests.conftest import ExecReqProvider
 
@@ -699,6 +705,9 @@ class TestAppComposition:
     async def test_app_comp_multiple_ui_elements(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
+        ctx = get_context()
+
+        assert ctx.app_kernel_runner_registry.size == 0
         await k.run(
             [
                 exec_req.get(
@@ -714,19 +723,27 @@ class TestAppComposition:
             ]
         )
         assert not k.errors
+        assert ctx.app_kernel_runner_registry.size == 1
 
         result = k.globals["result"]
+        app = k.globals["app"]
+        app_kernel_runner = app._get_kernel_runner()
         # two number inputs: x and y
         x = result.defs["x"]
         y = result.defs["y"]
         assert x.value == 1
         assert y.value == 1
 
+        assert app_kernel_runner == app._get_kernel_runner()
+        assert ctx.app_kernel_runner_registry.size == 1
         # testing that only descendants of the updated UI elements run,
         # and that the other UI element is not reset
         await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values([(x._id, 2)])
         )
+
+        assert app_kernel_runner == app._get_kernel_runner()
+        assert ctx.app_kernel_runner_registry.size == 1
         assert x.value == 2
         assert y.value == 1
 
