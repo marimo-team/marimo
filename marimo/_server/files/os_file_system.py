@@ -4,12 +4,17 @@ from __future__ import annotations
 import base64
 import mimetypes
 import os
+import platform
 import re
 import shutil
+import subprocess
 from typing import List, Literal, Optional, Union
 
+from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
+
+LOGGER = _loggers.marimo_logger()
 
 IGNORE_LIST = [
     ".",
@@ -164,6 +169,30 @@ class OSFileSystem(FileSystem):
         with open(path, "w") as file:
             file.write(contents)
         return self.get_details(path).file
+
+    def open_in_editor(self, path: str) -> bool:
+        try:
+            # First try to get editor from environment variable
+            editor = os.environ.get("EDITOR")
+
+            if editor:
+                try:
+                    subprocess.run([editor, path])
+                    return True
+                except Exception:
+                    pass
+
+            # Use system default if no editor specified
+            if platform.system() == "Darwin":  # macOS
+                subprocess.call(("open", path))
+            elif platform.system() == "Windows":  # Windows
+                os.startfile(path)
+            else:  # Linux variants
+                subprocess.call(("xdg-open", path))
+            return True
+        except Exception as e:
+            LOGGER.error(f"Error opening file: {e}")
+            return False
 
 
 def natural_sort_file(file: FileInfo) -> List[Union[int, str]]:

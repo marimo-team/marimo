@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { reloadSafe } from "@/utils/reload-safe";
 import { API, marimoClient } from "./api";
 import type { RunRequests, EditRequests } from "./types";
 
@@ -161,14 +160,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     openFile: async (request) => {
       await marimoClient
-        .POST("/api/kernel/open", {
+        .POST("/api/files/open", {
           body: request,
         })
         .then(handleResponseReturnNull);
-      await marimoClient
-        .POST("/api/kernel/restart_session")
-        .then(handleResponseReturnNull);
-      reloadSafe();
       return null;
     },
     getUsageStats: () => {
