@@ -7,7 +7,7 @@ import {
   DataTableColumnHeaderWithSummary,
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
-import { MimeCell } from "./mime-cell";
+import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
@@ -207,9 +207,17 @@ export function generateColumns<T>({
           );
         }
 
+        if (isMimeValue(value)) {
+          return (
+            <div className={getCellStyleClass(justify, wrapped)}>
+              <MimeCell value={value} />
+            </div>
+          );
+        }
+
         return (
           <div className={getCellStyleClass(justify, wrapped)}>
-            <MimeCell value={value} />
+            {renderAny(getValue())}
           </div>
         );
       },
@@ -300,4 +308,16 @@ function getCellStyleClass(
     justify === "right" && "text-right",
     wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
   );
+}
+
+function renderAny(value: unknown): React.ReactNode {
+  if (value == null) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
