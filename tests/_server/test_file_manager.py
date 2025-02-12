@@ -433,11 +433,8 @@ if __name__ == "__main__":
     os.remove(temp_file.name)
 
 
-@pytest.mark.skipif(
-    not is_windows(), reason="Test Windows-specific path handling"
-)
 def test_rename_with_special_chars(app_file_manager: AppFileManager) -> None:
-    """Test that renaming files with special characters works on Windows."""
+    """Test that renaming files with special characters works."""
     # Create a temporary file
     temp_dir = tempfile.mkdtemp()
     try:
