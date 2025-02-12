@@ -23,6 +23,11 @@ def uri_encode_component(code: str) -> str:
     return urllib.parse.quote(code, safe="~()*!.'")
 
 
+def uri_decode_component(code: str) -> str:
+    """Equivalent to `decodeURIComponent` in JavaScript."""
+    return urllib.parse.unquote(code)
+
+
 def normalize_dimension(value: Union[int, float, str, None]) -> Optional[str]:
     """Normalize dimension value to CSS string.
 
