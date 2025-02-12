@@ -11,16 +11,19 @@ from typing import (
     Callable,
     Iterable,
     Optional,
+    TypeVar,
 )
 
 from marimo._ast.cell import Cell, CellConfig, CellId_t
-from marimo._ast.compiler import cell_factory
+from marimo._ast.compiler import cell_factory, toplevel_cell_factory
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.pytest import wrap_fn_for_pytest
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
+
+    Fn = TypeVar("Fn", bound=Callable[..., Any])
 
 
 class CellManager:
@@ -71,25 +74,28 @@ class CellManager:
     # TODO: maybe remove this, it is leaky
     def cell_decorator(
         self,
-        func: Callable[..., Any] | None,
+        func: Fn | None,
         column: Optional[int],
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
-    ) -> Cell | Callable[..., Cell]:
+        *,
+        top_level: bool = False,
+    ) -> Cell | Fn | Callable[[Fn], Cell | Fn]:
         """Create a cell decorator for marimo notebook cells."""
         cell_config = CellConfig(
             column=column, disabled=disabled, hide_code=hide_code
         )
 
-        def _register(func: Callable[..., Any]) -> Cell:
+        def _register(func: Fn) -> Cell | Fn:
             # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
             # order to allow execution during test collection.
             is_top_level_pytest = (
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
             )
-            cell = cell_factory(
+            factory = toplevel_cell_factory if top_level else cell_factory
+            cell = factory(
                 func,
                 cell_id=self.create_cell_id(),
                 anonymous_file=app._app._anonymous_file if app else False,
@@ -98,9 +104,14 @@ class CellManager:
             )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
+
+            # Top level functions are exposed as the function itself.
+            if top_level:
+                return func
+
             # Manually set the signature for pytest.
             if is_top_level_pytest:
-                func = wrap_fn_for_pytest(func, cell)
+                func = wrap_fn_for_pytest(func, cell)  # type: ignore
             # NB. in place metadata update.
             functools.wraps(func)(cell)
             return cell
@@ -109,7 +120,7 @@ class CellManager:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
             # argument
-            def decorator(func: Callable[..., Any]) -> Cell:
+            def decorator(func: Fn) -> Cell | Fn:
                 return _register(func)
 
             return decorator

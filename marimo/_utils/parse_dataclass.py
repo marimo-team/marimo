@@ -111,7 +111,9 @@ class DataclassParser:
 
         types = get_type_hints(cls)
 
-        snake_cased_values = {to_snake(k): v for k, v in values.items()}
+        snake_cased_values = {
+            to_snake(k): v for k, v in values.items() if not k.startswith("_")
+        }
         if (
             not self.allow_unknown_keys
             and not snake_cased_values.keys() <= types.keys()

@@ -18,6 +18,9 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    TypeVar,
+    Union,
+    cast,
 )
 from uuid import uuid4
 
@@ -54,6 +57,8 @@ if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
+
+Fn = TypeVar("Fn", bound=Callable[..., Any])
 LOGGER = _loggers.marimo_logger()
 
 
@@ -82,6 +87,9 @@ class _AppConfig:
         default_factory=list
     )
 
+    # Experimental top-level cell support
+    _toplevel_fn: bool = False
+
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
         config = _AppConfig()
@@ -95,7 +103,10 @@ class _AppConfig:
         return config
 
     def asdict(self) -> dict[str, Any]:
-        return asdict(self)
+        # Used for experimental hooks which start with _
+        return {
+            k: v for (k, v) in asdict(self).items() if not k.startswith("_")
+        }
 
     def update(self, updates: dict[str, Any]) -> _AppConfig:
         config_dict = asdict(self)
@@ -255,13 +266,13 @@ class App:
 
     def cell(
         self,
-        func: Callable[..., Any] | None = None,
+        func: Fn | None = None,
         *,
         column: Optional[int] = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
-    ) -> Cell | Callable[[Callable[..., Any]], Cell]:
+    ) -> Cell | Callable[[Fn], Cell]:
         """A decorator to add a cell to the app.
 
         This decorator can be called with or without parentheses. Each of the
@@ -290,8 +301,62 @@ class App:
         """
         del kwargs
 
-        return self._cell_manager.cell_decorator(
-            func, column, disabled, hide_code, app=InternalApp(self)
+        return cast(
+            Union[Cell, Callable[[Fn], Cell]],
+            self._cell_manager.cell_decorator(
+                func, column, disabled, hide_code, app=InternalApp(self)
+            ),
+        )
+
+    def function(
+        self,
+        func: Fn | None = None,
+        *,
+        column: Optional[int] = None,
+        disabled: bool = False,
+        hide_code: bool = False,
+        **kwargs: Any,
+    ) -> Fn | Callable[[Fn], Fn]:
+        """A decorator to wrap a callable function into a cell in the app.
+
+        This decorator can be called with or without parentheses. Each of the
+        following is valid:
+
+        ```
+        @app.function
+        def add(a: int, b: int) -> int:
+            return a + b
+
+
+        @app.function()
+        def subtract(a: int, b: int):
+            return a - b
+
+
+        @app.function(disabled=True)
+        def multiply(a: int, b: int) -> int:
+            return a * b
+        ```
+
+        Args:
+            func: The decorated function.
+            column: The column number to place this cell in.
+            disabled: Whether to disable the cell.
+            hide_code: Whether to hide the cell's code.
+            **kwargs: For forward-compatibility with future arguments.
+        """
+        del kwargs
+
+        return cast(
+            Union[Fn, Callable[[Fn], Fn]],
+            self._cell_manager.cell_decorator(
+                func,
+                column,
+                disabled,
+                hide_code,
+                app=InternalApp(self),
+                top_level=True,
+            ),
         )
 
     def _unparsable_cell(
