@@ -210,7 +210,9 @@ class App:
 
         # Generate a unique ID for this app instance if not in a notebook
         self.app_id = str(uuid4())
-        self._secret_manager = SecretManager(self.app_id, allow_secrets=allow_secrets)
+        self._secret_manager = SecretManager(
+            self.app_id, allow_secrets=allow_secrets
+        )
 
     def __del__(self) -> None:
         try:
@@ -525,39 +527,39 @@ class App:
 
     def set_secret(self, key: str, value: str = None) -> None:
         """Store a secret securely.
-        
+
         Args:
             key: The name of the secret
             value: The secret value to store
-            
+
         Raises:
             ValueError: If key or value is empty
             RuntimeError: If secret storage fails
         """
         self._secret_manager.set_secret(key, value)
-    
+
     def get_secret(self, key: str) -> Optional[str]:
         """Retrieve a secret.
-        
+
         This will prompt the user for confirmation before revealing the secret.
-        
+
         Args:
             key: The name of the secret to retrieve
-            
+
         Returns:
             The secret value if found and confirmed, None otherwise
-            
+
         Raises:
             ValueError: If key is empty
         """
         return self._secret_manager.get_secret(key)
-    
+
     def delete_secret(self, key: str) -> None:
         """Delete a secret.
-        
+
         Args:
             key: The name of the secret to delete
-            
+
         Raises:
             ValueError: If key is empty
         """

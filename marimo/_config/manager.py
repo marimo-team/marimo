@@ -30,9 +30,9 @@ def get_default_config_manager(
     if current_path is None:
         current_path = os.getcwd()
     return MarimoConfigManager(
-        UserConfigManager(), 
+        UserConfigManager(),
         ProjectConfigManager(current_path),
-        allow_secrets=allow_secrets
+        allow_secrets=allow_secrets,
     )
 
 
