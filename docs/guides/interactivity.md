@@ -46,7 +46,7 @@ in [markdown][marimo.md] using Python f-strings, like so:
 
 ```python3
 slider = mo.ui.slider(1, 10)
-mo.md(f"Choose a value: {slider})")
+mo.md(f"Choose a value: {slider}")
 ```
 
 ## Composite elements
