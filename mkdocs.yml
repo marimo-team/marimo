@@ -22,6 +22,8 @@ extra:
       link: https://www.linkedin.com/company/marimo-io
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/marimo/
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/@marimo-team
 extra_css:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.9.0/katex.min.css
   - stylesheets/extra.css
