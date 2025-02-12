@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pathlib
 import sys
 import textwrap
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 import pytest
 
@@ -37,14 +38,11 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
 )
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
@@ -2802,6 +2800,11 @@ class TestErrorHandling:
             assert len(errors) == 1
             assert errors[0].type == "internal"
             assert errors[0].msg.startswith("An internal error occurred: ")
+
+
+def test_notebook_dir_in_non_notebook_mode() -> None:
+    assert notebook_dir() == pathlib.Path().absolute()
+    assert notebook_location() == pathlib.Path().absolute()
 
 
 def _parse_error_output(cell_op: CellOp) -> list[Error]:
