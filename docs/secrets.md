@@ -15,7 +15,6 @@ api_key = app.get_secret("api_key")
 
 # Delete a secret when no longer needed
 app.delete_secret("api_key")
-```
 
 ## Security
 

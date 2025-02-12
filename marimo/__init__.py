@@ -81,6 +81,7 @@ __all__ = [
     "tree",
     "video",
     "vstack",
+    "secret_manager",
 ]
 __version__ = "0.11.2"
 
@@ -140,3 +141,4 @@ from marimo._runtime.threads import Thread
 from marimo._save.save import cache, lru_cache, persistent_cache
 from marimo._server.asgi import create_asgi_app
 from marimo._sql.sql import sql
+from marimo._runtime.secrets import SecretManager as secret_manager

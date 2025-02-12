@@ -12,7 +12,7 @@ LOGGER = _loggers.marimo_logger()
 class SecretManager:
     """Manages secrets for Marimo notebooks."""
     
-    def __init__(self, app_id: str, allow_secrets: bool = False):
+    def __init__(self, app_id: str = 'default', allow_secrets: bool = True):
         self.app_id = app_id
         self._prefix = f"MARIMO_{app_id}_"
         self.allow_secrets = allow_secrets
