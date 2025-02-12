@@ -175,11 +175,16 @@ class OSFileSystem(FileSystem):
             # First try to get editor from environment variable
             editor = os.environ.get("EDITOR")
 
-            if editor:
+            # If editor is a terminal-based editor, we just call `open`, because
+            # otherwise it silently opens the terminal in the same window that is
+            # running marimo.
+            if editor and not _is_terminal_editor(editor):
                 try:
+                    # For GUI editors
                     subprocess.run([editor, path])
                     return True
-                except Exception:
+                except Exception as e:
+                    LOGGER.error(f"Error opening with EDITOR: {e}")
                     pass
 
             # Use system default if no editor specified
@@ -207,3 +212,19 @@ def natural_sort(filename: str) -> List[Union[int, str]]:
         return [convert(c) for c in re.split("([0-9]+)", key)]
 
     return alphanum_key(filename)
+
+
+def _is_terminal_editor(editor: str) -> bool:
+    return any(
+        ed in editor.lower()
+        for ed in [
+            "vim",
+            "vi",
+            "emacs",
+            "nano",
+            "nvim",
+            "neovim",
+            "pico",
+            "micro",
+        ]
+    )
