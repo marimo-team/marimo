@@ -755,6 +755,13 @@ components:
       required:
       - success
       type: object
+    FileOpenRequest:
+      properties:
+        path:
+          type: string
+      required:
+      - path
+      type: object
     FileUpdateRequest:
       properties:
         contents:
@@ -1489,13 +1496,6 @@ components:
       - type: boolean
       - format: byte
         type: string
-    OpenFileRequest:
-      properties:
-        path:
-          type: string
-      required:
-      - path
-      type: object
     OpenTutorialRequest:
       properties:
         tutorialId:
@@ -2258,6 +2258,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileMoveResponse'
           description: Move a file or directory
+  /api/files/open:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileOpenRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Open a file in the system editor
   /api/files/update:
     post:
       requestBody:
@@ -2439,22 +2453,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
-  /api/kernel/open:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OpenFileRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Open a file
-        400:
-          description: File does not exist
   /api/kernel/read_code:
     post:
       responses:

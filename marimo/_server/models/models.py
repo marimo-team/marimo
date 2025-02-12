@@ -50,6 +50,12 @@ class SuccessResponse(BaseResponse):
 
 
 @dataclass
+class ErrorResponse(BaseResponse):
+    success: bool = False
+    message: Optional[str] = None
+
+
+@dataclass
 class FormatRequest:
     codes: Dict[CellId_t, str]
     line_length: int
@@ -71,11 +77,6 @@ class RenameFileRequest:
 
     def as_execution_request(self) -> RenameRequest:
         return RenameRequest(filename=os.path.abspath(self.filename))
-
-
-@dataclass
-class OpenFileRequest:
-    path: str
 
 
 @dataclass

@@ -636,6 +636,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/files/open": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FileOpenRequest"];
+        };
+      };
+      responses: {
+        /** @description Open a file in the system editor */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/update": {
     parameters: {
       query?: never;
@@ -1161,52 +1200,6 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/open": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["OpenFileRequest"];
-        };
-      };
-      responses: {
-        /** @description Open a file */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-        /** @description File does not exist */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
         };
       };
     };
@@ -2380,6 +2373,9 @@ export interface components {
       message?: string | null;
       success: boolean;
     };
+    FileOpenRequest: {
+      path: string;
+    };
     FileUpdateRequest: {
       contents: string;
       path: string;
@@ -2699,9 +2695,6 @@ export interface components {
       type: "multiple-defs";
     };
     NonNestedLiteral: number | string | boolean;
-    OpenFileRequest: {
-      path: string;
-    };
     OpenTutorialRequest: {
       tutorialId:
         | (

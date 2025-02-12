@@ -49,7 +49,6 @@ export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
-export type OpenFileRequest = schemas["OpenFileRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
