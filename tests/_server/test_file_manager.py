@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
 from typing import Generator
@@ -429,3 +430,22 @@ if __name__ == "__main__":
     assert changed_cell_ids == {"MJUe"}
     # Clean up
     os.remove(temp_file.name)
+
+
+def test_rename_with_special_chars(app_file_manager: AppFileManager) -> None:
+    """Test that renaming files with special characters works."""
+    # Create a temporary file
+    temp_dir = tempfile.mkdtemp()
+    try:
+        initial_path = os.path.join(temp_dir, "test.py")
+        with open(initial_path, "w") as f:
+            f.write("import marimo")
+        app_file_manager.filename = initial_path
+
+        # Try to rename to path with special characters
+        new_path = os.path.join(temp_dir, "test & space.py")
+        app_file_manager.rename(new_path)
+        assert app_file_manager.filename == new_path
+        assert os.path.exists(new_path)
+    finally:
+        shutil.rmtree(temp_dir)
