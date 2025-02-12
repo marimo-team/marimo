@@ -14,7 +14,7 @@ print(txt)
 
 # Test overriding a secret
 app.set_secret("test_key", "overridden_value")
-secret = app.get_secret("test_key") 
+secret = app.get_secret("test_key")
 txt = f"Overridden secret: {secret}"
 mo.md(txt)
 print(txt)
