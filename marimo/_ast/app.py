@@ -103,7 +103,10 @@ class _AppConfig:
         return config
 
     def asdict(self) -> dict[str, Any]:
-        return asdict(self)
+        # Used for experimental hooks which start with _
+        return {
+            k: v for (k, v) in asdict(self).items() if not k.startswith("_")
+        }
 
     def update(self, updates: dict[str, Any]) -> _AppConfig:
         config_dict = asdict(self)

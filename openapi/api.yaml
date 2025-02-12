@@ -931,6 +931,8 @@ components:
       properties:
         app_config:
           properties:
+            _toplevel_fn:
+              type: boolean
             app_title:
               nullable: true
               type: string
@@ -960,6 +962,7 @@ components:
           required:
           - width
           - auto_download
+          - _toplevel_fn
           type: object
         capabilities:
           properties:
