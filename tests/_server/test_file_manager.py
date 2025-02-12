@@ -13,8 +13,6 @@ from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveNotebookRequest
-from marimo._utils.platform import is_windows
-
 save_request = SaveNotebookRequest(
     cell_ids=["1"],
     filename="save_existing.py",
