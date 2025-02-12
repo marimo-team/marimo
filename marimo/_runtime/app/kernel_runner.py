@@ -92,9 +92,10 @@ class AppKernelRunner:
             parent=ctx,
         )
         ctx.add_child(self._runtime_context)
-        weakref.finalize(
+        finalizer = weakref.finalize(
             self, ctx.remove_child, self._runtime_context
-        ).atexit = False
+        )
+        finalizer.atexit = False
 
         # Register cells through the kernel runner, so that compilation only
         # occurs once.
