@@ -2,7 +2,6 @@ import pytest
 
 import marimo
 
-
 __generated_with = "0.11.2"
 app = marimo.App(_toplevel_fn=True)
 
