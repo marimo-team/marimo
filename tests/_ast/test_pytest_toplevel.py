@@ -9,7 +9,6 @@ import marimo  # noqa: I001
 # Invert the order intentionally.
 import pytest
 
-
 __generated_with = "0.11.2"
 app = marimo.App(_toplevel_fn=True)
 
