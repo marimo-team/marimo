@@ -21,9 +21,9 @@ class BokehFormatter(FormatterFactory):
 
         from marimo._output import formatting
 
-        @formatting.formatter(bokeh.models.Model)
+        @formatting.formatter(bokeh.models.Plot)
         def _show_plot(
-            plot: bokeh.models.Model,
+            plot: bokeh.models.Plot,
         ) -> tuple[KnownMimeType, str]:
             import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
             import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
