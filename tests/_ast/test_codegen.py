@@ -17,10 +17,13 @@ from marimo._ast import codegen, compiler
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
+from tests.mocks import snapshotter
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
+snapshot = snapshotter(__file__)
 
 
 def get_expected_filecontents(name: str) -> str:
@@ -44,6 +47,10 @@ def get_filepath(name: str) -> str:
     return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
 
 
+def sanitized_version(output: str) -> str:
+    return output.replace(__version__, "0.0.0")
+
+
 def wrap_generate_filecontents(
     codes: list[str],
     names: list[str],
@@ -60,6 +67,25 @@ def wrap_generate_filecontents(
     return codegen.generate_filecontents(
         codes, names, cell_configs=resolved_configs, **kwargs
     )
+
+
+def get_idempotent_marimo_source(name: str) -> str:
+    path = get_filepath(name)
+    app = codegen.get_app(path)
+    header_comments = codegen.get_header_comments(path)
+    generated_contents = codegen.generate_filecontents(
+        list(app._cell_manager.codes()),
+        list(app._cell_manager.names()),
+        list(app._cell_manager.configs()),
+        app._config,
+        header_comments,
+    )
+    generated_contents = sanitized_version(generated_contents)
+
+    with open(path) as f:
+        python_source = sanitized_version(f.read())
+    assert python_source == generated_contents
+    return generated_contents
 
 
 class TestGeneration:
@@ -274,6 +300,23 @@ class TestGeneration:
         assert "is_named" in contents
         assert "def _" in contents
         assert "def __" not in contents
+
+    @staticmethod
+    def test_generate_filecontents_toplevel() -> None:
+        source = get_idempotent_marimo_source(
+            "test_generate_filecontents_toplevel"
+        )
+        assert "import marimo" in source
+        split = source.split("import marimo")
+        # The default one, the as mo in top level, in as mo in cell
+        assert len(split) == 4
+
+    @staticmethod
+    def test_generate_filecontents_toplevel_pytest() -> None:
+        source = get_idempotent_marimo_source(
+            "test_generate_filecontents_toplevel_pytest"
+        )
+        assert "import marimo" in source
 
 
 class TestGetCodes:
