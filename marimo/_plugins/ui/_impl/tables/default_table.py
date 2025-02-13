@@ -274,10 +274,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 )
             # Apply sorted indices to each column while maintaining column orientation
             return DefaultTableManager(
-                {
-                    col: [cast(List[Any], values)[i] for i in sorted_indices]
-                    for col, values in self.data.items()
-                }
+                cast(
+                    JsonTableData,
+                    {
+                        col: [
+                            cast(List[Any], values)[i] for i in sorted_indices
+                        ]
+                        for col, values in self.data.items()
+                    },
+                )
             )
 
         # For row-major data, continue with existing logic
