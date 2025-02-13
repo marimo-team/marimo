@@ -292,13 +292,10 @@ def generate_filecontents(
                 # maybe a bug, but import_workspace.imported_defs does not
                 # contain the information we need.
                 toplevel_imports |= cell.defs
-                if toplevel_fn:
-                    # TODO: Consider fn="imports" for @app.imports?
-                    # Distinguish that something is special about the block
-                    # Also remove the "return" in this case.
-                    definitions[idx] = to_general_functiondef(cell, names[idx])
-                else:
-                    definitions[idx] = to_functiondef(cell, names[idx])
+                # TODO: Consider fn="imports" for @app.imports?
+                # Somehow distinguish that something is special about the
+                # block?
+                definitions[idx] = to_functiondef(cell, names[idx])
                 import_blocks.append(code.strip())
             else:
                 definition_stubs[idx] = cell

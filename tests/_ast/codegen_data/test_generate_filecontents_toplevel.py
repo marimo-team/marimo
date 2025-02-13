@@ -19,7 +19,7 @@ from pathlib import Path
 import marimo
 
 
-__generated_with = "0.11.2"
+__generated_with = "0.0.0"
 app = marimo.App(_toplevel_fn=True)
 
 
