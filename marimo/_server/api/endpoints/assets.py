@@ -126,7 +126,7 @@ def _inject_service_worker(html: str, file_key: str) -> str:
         f"""
             if ('serviceWorker' in navigator) {{
                 const notebookId = '{uri_encode_component(file_key)}';
-                navigator.serviceWorker.register('./public-files-sw.js')
+                navigator.serviceWorker.register('./public-files-sw.js?v=2')
                     .then(registration => {{
                         registration.active.postMessage({{ notebookId }});
                     }})
