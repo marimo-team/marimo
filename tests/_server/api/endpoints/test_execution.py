@@ -189,6 +189,7 @@ class TestExecutionRoutes_EditMode:
             "cookies",
             "headers",
             "user",
+            "meta",
             "path_params",
             "query_params",
             "url",
