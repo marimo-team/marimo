@@ -295,6 +295,7 @@ export const PromptInput = ({
       : completions;
 
     return [
+      // Uncaught Error: Config merge conflict for field override
       // mentions(matchBeforeRegexes, allCompletions),
       mcpExtension(),
       EditorView.lineWrapping,

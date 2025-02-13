@@ -6,6 +6,7 @@ import type { Extension } from "@codemirror/state";
 import { getSessionId } from "@/core/kernel/session";
 import {
   type JSONRPCMessage,
+  type Resource,
   JSONRPCMessageSchema,
 } from "@modelcontextprotocol/sdk/types";
 
@@ -22,10 +23,9 @@ export function mcpExtension(): Extension {
       name: "marimo-editor",
       version: "1.0.0",
     },
-    onResourceClick: (resource) => {
+    onResourceClick: (resource: Resource) => {
       Logger.log("onResourceClick", resource);
-      // Open resource
-      // e.g. open in a tab, etc.
+      // TODO(mcp): Open resource, e.g. open in a tab, etc.
     },
   });
 }
@@ -51,11 +51,11 @@ export class WebSocketClientTransport {
 
     return new Promise((resolve, reject) => {
       this._socket = new WebSocket(this._url);
-      // this._socket = new WebSocket(this._url, "mcp");
 
       this._socket.onerror = (event) => {
-        const error =
-          "error" in event
+        const error = event instanceof Error
+          ? event
+          : "error" in event && event.error instanceof Error
             ? event.error
             : new Error(`WebSocket error: ${JSON.stringify(event)}`);
         reject(error);
@@ -75,7 +75,8 @@ export class WebSocketClientTransport {
         try {
           message = JSONRPCMessageSchema.parse(JSON.parse(event.data));
         } catch (error) {
-          this.onerror?.call(this, error);
+          const typedError = error instanceof Error ? error : new Error(String(error));
+          this.onerror?.call(this, typedError);
           return;
         }
         this.onmessage?.call(this, message);
