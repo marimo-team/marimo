@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.3"
 app = marimo.App(width="medium")
 
 
@@ -21,7 +21,7 @@ def _(mo):
 def _(mo, refresh):
     refresh
     user = mo.app_meta().request.user
-    [user, user.is_authenticated, user.display_name]
+    [user]
     return (user,)
 
 

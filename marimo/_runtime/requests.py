@@ -51,6 +51,7 @@ class HTTPRequest(Mapping[str, Any]):
     query_params: dict[str, list[str]]  # Raw query params
     path_params: dict[str, Any]
     cookies: dict[str, str]
+    meta: dict[str, Any]
     user: Any
 
     # We don't include session or auth because they may contain
@@ -114,6 +115,7 @@ class HTTPRequest(Mapping[str, Any]):
             path_params=request.path_params,
             cookies=request.cookies,
             user=request["user"] if "user" in request else {},
+            meta=request["meta"] if "meta" in request else {},
             # Left out for now. This may contain information that the app author
             # does not want to expose.
             # session=request.session if "session" in request else {},

@@ -54,8 +54,6 @@ class AuthBackend(AuthenticationBackend):
     async def authenticate(
         self, conn: HTTPConnection
     ) -> Optional[tuple["AuthCredentials", "BaseUser"]]:
-        mode = AppStateBase(conn.app.state).session_manager.mode
-
         # We may not need to authenticate. This can be disabled
         # because the user is running in a trusted environment
         # or authentication is handled by a layer above us
@@ -66,6 +64,8 @@ class AuthBackend(AuthenticationBackend):
             valid = validate_auth(conn)
             if not valid:
                 return None
+
+        mode = AppStateBase(conn.app.state).session_manager.mode
 
         # User's get Read access in Run mode
         if mode == SessionMode.RUN:

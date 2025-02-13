@@ -54,6 +54,7 @@ class TestHTTPRequestContext:
             user={"is_authenticated": True},
             headers={},
             query_params={},
+            meta={},
         )
 
     def test_http_request_context(self, mock_request: HTTPRequest):
@@ -69,6 +70,7 @@ class TestHTTPRequestContext:
             user={"is_authenticated": True},
             headers={},
             query_params={},
+            meta={},
         )
 
         with http_request_context(mock_request):
