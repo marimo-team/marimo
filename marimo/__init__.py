@@ -48,6 +48,7 @@ __all__ = [
     "icon",
     "iframe",
     "image",
+    "latex",
     "lazy",
     "left",
     "lru_cache",
@@ -93,7 +94,7 @@ from marimo._output.doc import doc
 from marimo._output.formatting import as_html, iframe, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
-from marimo._output.md import md
+from marimo._output.md import latex, md
 from marimo._output.show_code import show_code
 from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
