@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import os
+from pathlib import Path
 from typing import Any, Optional, Union
 
 import marimo._output.data.data as mo_data
@@ -13,7 +14,7 @@ from marimo._output.rich_help import mddoc
 from marimo._output.utils import create_style, normalize_dimension
 from marimo._plugins.core.media import io_to_data_url
 
-Image = Union[str, bytes, io.BytesIO, io.BufferedReader]
+Image = Union[str, bytes, io.BytesIO, io.BufferedReader, Path]
 # Union[list, torch.Tensor, jax.numpy.ndarray,
 #             np.ndarray, scipy.sparse.spmatrix]
 Tensor = Any
@@ -74,7 +75,7 @@ def _normalize_image(src: ImageLike) -> Image:
         img.save(normalized_src, format="PNG")
         return normalized_src
     # Verify that this is a image object
-    if not isinstance(src, (str, bytes, io.BytesIO, io.BufferedReader)):
+    if not isinstance(src, (str, bytes, io.BytesIO, io.BufferedReader, Path)):
         raise ValueError(
             f"Expected an image object, but got {type(src)} instead."
         )
@@ -135,13 +136,13 @@ def image(
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):
         resolved_src = mo_data.image(src).url
+    elif isinstance(src, Path):
+        resolved_src = mo_data.image(src.read_bytes(), ext=src.suffix).url
     elif isinstance(src, str) and os.path.isfile(
         expanded_path := os.path.expanduser(src)
     ):
-        with open(expanded_path, "rb") as f:
-            resolved_src = mo_data.image(
-                f.read(), ext=os.path.splitext(expanded_path)[1]
-            ).url
+        src = Path(expanded_path)
+        resolved_src = mo_data.image(src.read_bytes(), ext=src.suffix).url
     else:
         resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
 
