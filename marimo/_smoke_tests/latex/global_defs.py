@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.2"
+__generated_with = "0.11.3"
 app = marimo.App(width="medium")
 
 
@@ -9,7 +9,7 @@ def _():
     import marimo as mo
 
     # Register globals
-    mo.md(f"$$\n{(mo.notebook_dir() / 'macros.tex').read_text().strip()}\n$$")
+    mo.latex(filename=mo.notebook_dir() / "macros.tex")
     return (mo,)
 
 
