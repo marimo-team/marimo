@@ -11,10 +11,9 @@ from starlette.exceptions import HTTPException
 from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
-from docs.blocks import uri_encode_component
 from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
-from marimo._output.utils import uri_decode_component
+from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
