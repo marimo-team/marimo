@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
+from docs.blocks import uri_encode_component
 from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component
@@ -112,13 +113,19 @@ async def index(request: Request) -> HTMLResponse:
         )
 
         # Inject service worker registration with the notebook ID
-        html = inject_script(
-            html,
-            # Register service worker with the notebook ID
-            # Potentially update the service worker and send the notebook ID again.
-            f"""
+        html = _inject_service_worker(html, file_key)
+
+    return HTMLResponse(html)
+
+
+def _inject_service_worker(html: str, file_key: str) -> str:
+    return inject_script(
+        html,
+        # Register service worker with the notebook ID
+        # Potentially update the service worker and send the notebook ID again.
+        f"""
             if ('serviceWorker' in navigator) {{
-                const notebookId = '{file_key}';
+                const notebookId = '{uri_encode_component(file_key)}';
                 navigator.serviceWorker.register('./public-files-sw.js')
                     .then(registration => {{
                         registration.active.postMessage({{ notebookId }});
@@ -135,9 +142,7 @@ async def index(request: Request) -> HTMLResponse:
                     }});
             }}
             """,
-        )
-
-    return HTMLResponse(html)
+    )
 
 
 STATIC_FILES = [
@@ -226,7 +231,7 @@ async def public_files_service_worker(request: Request) -> Response:
                     notebookIdPromise.then(notebookId => {
                         return fetch(event.request.url, {
                             headers: {
-                                'X-Notebook-Id': encodeURIComponent(notebookId)
+                                'X-Notebook-Id': notebookId
                             }
                         });
                     })
