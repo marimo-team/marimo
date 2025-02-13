@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 import os
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Any, Optional, Union
 
 import marimo._output.data.data as mo_data
@@ -75,9 +75,7 @@ def _normalize_image(src: ImageLike) -> Image:
         img.save(normalized_src, format="PNG")
         return normalized_src
     # Verify that this is a image object
-    if not isinstance(
-        src, (str, bytes, io.BytesIO, io.BufferedReader, PurePath)
-    ):
+    if not isinstance(src, (str, bytes, io.BytesIO, io.BufferedReader, Path)):
         raise ValueError(
             f"Expected an image object, but got {type(src)} instead."
         )
@@ -138,7 +136,7 @@ def image(
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):
         resolved_src = mo_data.image(src).url
-    elif isinstance(src, PurePath) and src.is_file():
+    elif isinstance(src, Path):
         resolved_src = mo_data.image(src.read_bytes(), ext=src.suffix).url
     elif isinstance(src, str) and os.path.isfile(
         expanded_path := os.path.expanduser(src)
