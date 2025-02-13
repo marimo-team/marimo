@@ -31,6 +31,7 @@ import {
   FilePlus2Icon,
   FastForwardIcon,
   DatabaseIcon,
+  EyeOffIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -73,6 +74,7 @@ import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
+import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -86,6 +88,7 @@ export function useNotebookActions() {
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
+  const hideAllMarkdownCode = useHideAllMarkdownCode();
 
   const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
     useCellActions();
@@ -354,6 +357,11 @@ export function useNotebookActions() {
           updateCellConfig({ cellId, config: { disabled: true } });
         }
       },
+    },
+    {
+      icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
+      label: "Hide all markdown code",
+      handle: hideAllMarkdownCode,
     },
     {
       icon: <XCircleIcon size={14} strokeWidth={1.5} />,
