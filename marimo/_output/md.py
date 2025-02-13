@@ -234,7 +234,7 @@ def latex(*, filename: Union[str, Path]) -> None:
     ```python
     import marimo as mo
 
-    mo.latex(url="https://example.com/macros.tex")
+    mo.latex(filename="https://example.com/macros.tex")
     ```
 
     **Args**:
