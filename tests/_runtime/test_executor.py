@@ -22,7 +22,7 @@ async def test_semicolon_output_suppression(
         [
             exec_req.get(
                 """
-                1 + 2;
+                3;
                 """
             )
         ]
@@ -34,24 +34,24 @@ async def test_semicolon_output_suppression(
         [
             exec_req.get(
                 """
-                2 + 3
+                4
                 """
             )
         ]
     )
-    assert _has_output(mocked_kernel.stream.messages, "5")
+    assert _has_output(mocked_kernel.stream.messages, "4")
 
     # Test that comments after semicolon still suppress output
     await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
-                4 + 5; # comment
+                5; # comment
                 """
             )
         ]
     )
-    assert not _has_output(mocked_kernel.stream.messages, "9")
+    assert not _has_output(mocked_kernel.stream.messages, "5")
 
     # Test that assignments don't show output regardless of semicolon
     await mocked_kernel.k.run(
