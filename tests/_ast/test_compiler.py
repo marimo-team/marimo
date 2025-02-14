@@ -347,3 +347,54 @@ def test_cell_id_from_filename() -> None:
     )
 
     assert compiler.cell_id_from_filename("random_file.py") is None
+
+
+def test_ends_with_semicolon() -> None:
+    """Test the ends_with_semicolon function."""
+    assert compiler.ends_with_semicolon("1;")
+    assert compiler.ends_with_semicolon("1; # comment")
+    assert not compiler.ends_with_semicolon("1 # comment;")
+    assert not compiler.ends_with_semicolon("1")
+    assert not compiler.ends_with_semicolon("1 # Has a comment")
+    assert compiler.ends_with_semicolon("mo.md('# splits on # are less than ideal');")
+    assert not compiler.ends_with_semicolon("mo.md('# splits on # are less than ideal') # comment;")
+    assert compiler.ends_with_semicolon("1;2;3;4;")
+    assert not compiler.ends_with_semicolon("1;2;3;4")
+
+
+def test_semicolon_output_suppression() -> None:
+    """Test that semicolon at end of cell suppresses output."""
+    # Basic expression with semicolon
+    cell = compile_cell("1;")
+    assert cell.last_expr.body.value is None  # type: ignore
+
+    # Expression without semicolon
+    cell = compile_cell("1")
+    assert cell.last_expr.body.value == 1  # type: ignore
+
+    # Expression with comment after semicolon
+    cell = compile_cell("1; # comment")
+    assert cell.last_expr.body.value is None  # type: ignore
+
+    # Comment with semicolon in it
+    cell = compile_cell("1 # Has a comment;")
+    assert cell.last_expr.body.value == 1  # type: ignore
+
+    # Multiple expressions with semicolon at end
+    cell = compile_cell("1;2;3;4;")
+    assert cell.last_expr.body.value is None  # type: ignore
+
+    # Multiple expressions without semicolon at end
+    cell = compile_cell("1;2;3;4")
+    assert cell.last_expr.body.value == 4  # type: ignore
+
+    # Complex string with # that shouldn't be treated as comment
+    cell = compile_cell(
+        'mo.md("# splits on # are less than ideal"); # comment'
+    )
+    assert cell.last_expr.body.value is None  # type: ignore
+
+    cell = compile_cell(
+        'mo.md("# splits on # are less than ideal") # comment;'
+    )
+    assert isinstance(cell.last_expr.body.value, str)  # type: ignore
