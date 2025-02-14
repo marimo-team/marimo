@@ -76,7 +76,9 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def fix_source_position(node: ast.AST, source_position: SourcePosition) -> ast.AST:
+def fix_source_position(
+    node: ast.AST, source_position: SourcePosition
+) -> ast.AST:
     # NOTE: This function closely mirrors python's native ast.increment_lineno
     # however, utilized here to also increment the col_offset of the node.
     # See https://docs.python.org/3/library/ast.html#ast.increment_lineno
@@ -92,23 +94,23 @@ def fix_source_position(node: ast.AST, source_position: SourcePosition) -> ast.A
             continue
 
         if "lineno" in child._attributes:
-            child.lineno = getattr(child, "lineno", 0) + line_offset
+            setattr(child, "lineno", getattr(child, "lineno", 0) + line_offset)
 
         if "col_offset" in child._attributes:
-            child.col_offset = getattr(child, "col_offset", 0) + col_offset
+            setattr(child, "col_offset", getattr(child, "col_offset", 0) + col_offset)
 
         if (
             "end_lineno" in child._attributes
             and (end_lineno := getattr(child, "end_lineno", 0)) is not None
         ):
-            child.end_lineno = end_lineno + line_offset
+            setattr(child, "end_lineno", end_lineno + line_offset)
 
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0))
             is not None
         ):
-            child.end_col_offset = end_col_offset + col_offset
+            setattr(child, "end_col_offset", end_col_offset + col_offset)
     return node
 
 
@@ -159,17 +161,17 @@ def compile_cell(
     final_expr = module.body[-1]
     if isinstance(final_expr, ast.Expr):
         expr = ast.Expression(module.body.pop().value)
-        expr.lineno = final_expr.lineno
+        setattr(expr, "lineno", final_expr.lineno)
     else:
         const = ast.Constant(value=None)
-        const.col_offset = final_expr.end_col_offset
-        const.end_col_offset = final_expr.end_col_offset
-        const.lineno = len(code.splitlines()) + 1
+        setattr(const, "col_offset", final_expr.end_col_offset)
+        setattr(const, "end_col_offset", final_expr.end_col_offset)
+        setattr(const, "lineno", len(code.splitlines()) + 1)
         expr = ast.Expression(const)
         # Creating an expression clears source info, so it needs to be set back
-        expr.lineno = getattr(const, "lineno", 0)
-        expr.col_offset = final_expr.end_col_offset
-        expr.end_col_offset = final_expr.end_col_offset
+        setattr(expr, "lineno", getattr(const, "lineno", 0))
+        setattr(expr, "col_offset", final_expr.end_col_offset)
+        setattr(expr, "end_col_offset", final_expr.end_col_offset)
 
     filename: str
     if source_position:
