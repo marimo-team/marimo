@@ -354,13 +354,17 @@ class TestColumnarDefaultTable(unittest.TestCase):
 
     def test_sort(self) -> None:
         sorted_data = self.manager.sort_values(by="name", descending=True).data
-        expected_data = [
-            {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
-            {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
-            {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
-            {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
-            {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
-        ]
+        expected_data = {
+            "name": ["Eve", "Dave", "Charlie", "Bob", "Alice"],
+            "age": [22, 28, 35, 25, 30],
+            "birth_year": [
+                date(2002, 1, 30),
+                date(1996, 3, 5),
+                date(1989, 12, 1),
+                date(1999, 7, 14),
+                date(1994, 5, 24),
+            ],
+        }
         assert sorted_data == expected_data
 
     @pytest.mark.skipif(

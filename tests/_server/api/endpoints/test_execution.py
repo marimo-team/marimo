@@ -189,6 +189,7 @@ class TestExecutionRoutes_EditMode:
             "cookies",
             "headers",
             "user",
+            "meta",
             "path_params",
             "query_params",
             "url",
@@ -198,8 +199,8 @@ class TestExecutionRoutes_EditMode:
             "marimo" not in header
             for header in app_meta_response["headers"].keys()
         )
-        # Check user is True
-        assert app_meta_response["user"] is True
+        # Check user is False
+        assert app_meta_response["user"] is False
 
 
 class TestExecutionRoutes_RunMode:

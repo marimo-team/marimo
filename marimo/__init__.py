@@ -49,6 +49,7 @@ __all__ = [
     "iframe",
     "image",
     "import_guard",
+    "latex",
     "lazy",
     "left",
     "lru_cache",
@@ -83,7 +84,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.11.2"
+__version__ = "0.11.4"
 
 import marimo._ai as ai
 import marimo._islands as islands
@@ -94,7 +95,7 @@ from marimo._output.doc import doc
 from marimo._output.formatting import as_html, iframe, plain
 from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
-from marimo._output.md import md
+from marimo._output.md import latex, md
 from marimo._output.show_code import show_code
 from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status

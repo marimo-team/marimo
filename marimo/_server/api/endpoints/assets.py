@@ -13,7 +13,7 @@ from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
-from marimo._output.utils import uri_decode_component
+from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
@@ -112,14 +112,20 @@ async def index(request: Request) -> HTMLResponse:
         )
 
         # Inject service worker registration with the notebook ID
-        html = inject_script(
-            html,
-            # Register service worker with the notebook ID
-            # Potentially update the service worker and send the notebook ID again.
-            f"""
+        html = _inject_service_worker(html, file_key)
+
+    return HTMLResponse(html)
+
+
+def _inject_service_worker(html: str, file_key: str) -> str:
+    return inject_script(
+        html,
+        # Register service worker with the notebook ID
+        # Potentially update the service worker and send the notebook ID again.
+        f"""
             if ('serviceWorker' in navigator) {{
-                const notebookId = '{file_key}';
-                navigator.serviceWorker.register('./public-files-sw.js')
+                const notebookId = '{uri_encode_component(file_key)}';
+                navigator.serviceWorker.register('./public-files-sw.js?v=2')
                     .then(registration => {{
                         registration.active.postMessage({{ notebookId }});
                     }})
@@ -135,9 +141,7 @@ async def index(request: Request) -> HTMLResponse:
                     }});
             }}
             """,
-        )
-
-    return HTMLResponse(html)
+    )
 
 
 STATIC_FILES = [
@@ -226,7 +230,7 @@ async def public_files_service_worker(request: Request) -> Response:
                     notebookIdPromise.then(notebookId => {
                         return fetch(event.request.url, {
                             headers: {
-                                'X-Notebook-Id': encodeURIComponent(notebookId)
+                                'X-Notebook-Id': notebookId
                             }
                         });
                     })

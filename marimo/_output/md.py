@@ -4,7 +4,9 @@ from __future__ import annotations
 from functools import cache
 from importlib.util import find_spec
 from inspect import cleandoc
+from pathlib import Path
 from typing import Any, Literal, Optional, Union
+from urllib.request import urlopen
 
 import markdown  # type: ignore
 import pymdownx.emoji  # type: ignore
@@ -13,6 +15,7 @@ from marimo._output.hypertext import Html
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
 from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
+from marimo._utils.url import is_url
 
 extension_configs: dict[str, dict[str, Any]] = {
     "pymdownx.arithmatex": {
@@ -164,7 +167,7 @@ def md(text: str) -> Html:
     using f-strings. Html objects and UI elements can be directly interpolated.
     For example:
 
-    ```python3
+    ```python
     text_input = mo.ui.text()
     md(f"Enter some text: {text_input}")
     ```
@@ -172,7 +175,7 @@ def md(text: str) -> Html:
     For other objects, like plots, use marimo's `as_html` method to embed
     them in markdown:
 
-    ```python3
+    ```python
     import matplotlib.pyplot as plt
 
     plt.plot([1, 2])
@@ -186,7 +189,7 @@ def md(text: str) -> Html:
     display math or square brackets for display math. (Use raw strings,
     prefixed with an "r", to use single backslashes.) For example:
 
-    ```python3
+    ```python
     mo.md(
         r'''
         The exponential function $f(x) = e^x$ can be represented as
@@ -215,3 +218,45 @@ def md(text: str) -> Html:
     - An `Html` object.
     """
     return _md(text)
+
+
+def latex(*, filename: Union[str, Path]) -> None:
+    """Load LaTeX from a file or URL.
+
+    ```python
+    import marimo as mo
+
+    mo.latex(filename="macros.tex")
+    ```
+
+    or
+
+    ```python
+    import marimo as mo
+
+    mo.latex(filename="https://example.com/macros.tex")
+    ```
+
+    **Args**:
+    - `filename`: Path to a LaTeX file
+
+    **Returns**:
+    - An `Html` object
+    """
+
+    if isinstance(filename, Path):
+        text = filename.read_text()
+    elif is_url(filename):
+        with urlopen(filename) as response:
+            text = response.read().decode("utf-8")
+    elif (file := Path(filename)).exists():
+        text = file.read_text()
+    else:
+        raise ValueError(f"Invalid filename: {filename}")
+
+    from marimo._runtime import output
+
+    # Append the LaTeX to the output, in case this
+    # is not the last expression of the cell
+    output.append(_md(f"$$\n{text.strip()}\n$$"))
+    return
