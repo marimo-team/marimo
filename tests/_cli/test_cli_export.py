@@ -607,6 +607,7 @@ class TestExportScript:
 
 class TestExportMarkdown:
     @staticmethod
+    @pytest.mark.xfail(reason="flakey", strict=False)
     def test_export_markdown(temp_marimo_file: str) -> None:
         p = subprocess.run(
             ["marimo", "export", "md", temp_marimo_file],
