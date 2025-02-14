@@ -20,8 +20,13 @@ def _():
 
 @app.cell
 def _():
-    from bokeh.plotting import figure, show
-    return figure, show
+    from bokeh.plotting import figure, show, output_notebook
+    from bokeh.io.state import curstate
+
+    print(curstate().notebook_type)
+    output_notebook()
+    print(curstate().notebook_type)
+    return curstate, figure, output_notebook, show
 
 
 @app.cell
