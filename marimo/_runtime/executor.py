@@ -165,14 +165,14 @@ class StrictExecutor(Executor):
                 glbls, CLONE_PRIMITIVES
             ),
         )
-        backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
+        backup = StrictExecutor.sanitize_inputs.__func__(cell, refs, glbls)
         try:
-            response = await DefaultExecutor.execute_cell_async(
+            response = await DefaultExecutor.execute_cell_async.__func__(
                 cell, glbls, graph
             )
         finally:
             # Restore globals from backup and backfill outputs
-            StrictExecutor.update_outputs(cell, glbls, backup)
+            StrictExecutor.update_outputs.__func__(cell, glbls, backup)
         return response
 
     @staticmethod
@@ -185,11 +185,11 @@ class StrictExecutor(Executor):
                 glbls, CLONE_PRIMITIVES
             ),
         )
-        backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
+        backup = StrictExecutor.sanitize_inputs.__func__(cell, refs, glbls)
         try:
-            response = DefaultExecutor.execute_cell(cell, glbls, graph)
+            response = DefaultExecutor.execute_cell.__func__(cell, glbls, graph)
         finally:
-            StrictExecutor.update_outputs(cell, glbls, backup)
+            StrictExecutor.update_outputs.__func__(cell, glbls, backup)
         return response
 
     @staticmethod
