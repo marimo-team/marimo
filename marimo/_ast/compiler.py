@@ -76,7 +76,7 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
+def fix_source_position(node: ast.AST, source_position: SourcePosition) -> ast.AST:
     # NOTE: This function closely mirrors python's native ast.increment_lineno
     # however, utilized here to also increment the col_offset of the node.
     # See https://docs.python.org/3/library/ast.html#ast.increment_lineno
@@ -164,13 +164,12 @@ def compile_cell(
         const = ast.Constant(value=None)
         const.col_offset = final_expr.end_col_offset
         const.end_col_offset = final_expr.end_col_offset
-        expr = ast.Expression(const)
-        # use code over body since lineno corresponds to source
         const.lineno = len(code.splitlines()) + 1
-        expr.lineno = const.lineno
-    # Creating an expression clears source info, so it needs to be set back
-    expr.col_offset = final_expr.end_col_offset
-    expr.end_col_offset = final_expr.end_col_offset
+        expr = ast.Expression(const)
+        # Creating an expression clears source info, so it needs to be set back
+        expr.lineno = getattr(const, "lineno", 0)
+        expr.col_offset = final_expr.end_col_offset
+        expr.end_col_offset = final_expr.end_col_offset
 
     filename: str
     if source_position:
