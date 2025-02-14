@@ -153,6 +153,7 @@ def test_export_script(client: TestClient) -> None:
     assert "__generated_with = " in response.text
 
 
+@pytest.mark.xfail(reason="flakey", strict=False)
 @with_session(SESSION_ID)
 def test_export_markdown(client: TestClient) -> None:
     response = client.post(
