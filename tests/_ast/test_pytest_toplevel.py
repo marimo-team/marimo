@@ -40,6 +40,7 @@ def _():
 
     # Comments are stripped.
     import marimo  # noqa: I001
+
     return marimo, pytest
 
 
