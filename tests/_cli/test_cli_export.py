@@ -200,6 +200,8 @@ class TestExportHTML:
 
         watch_echo_found = False
         for _ in range(10):  # read 10 lines
+            if p.stdout is None:
+                break
             line = p.stdout.readline()
             if not line:
                 break
@@ -216,9 +218,12 @@ class TestExportHTML:
 
         assert p.poll() is None
         for _ in range(5):
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert "Re-exporting" in line
+                line_str = line.decode()
+                assert "Re-exporting" in line_str
                 break
             time.sleep(0.01)
 
@@ -306,9 +311,12 @@ class TestExportHTML:
         # Wait for rebuild
         # TODO: This hangs when watchdog is installed.
         while True:
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert "Re-exporting" in line
+                line_str = line.decode()
+                assert "Re-exporting" in line_str
                 break
 
     @pytest.mark.skipif(
@@ -330,8 +338,11 @@ class TestExportHTML:
 
         # Should return an error
         while True:
-            line = p.stderr.readline().decode()
+            if p.stderr is None:
+                break
+            line = p.stderr.readline()
             if line:
+                line_str = line.decode()
                 assert (
                     "Cannot use --watch without providing "
                     + "an output file with --output."
@@ -566,9 +577,12 @@ class TestExportScript:
         assert p.poll() is None
         # Wait for rebuild
         while True:
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert "Re-exporting" in line
+                line_str = line.decode()
+                assert "Re-exporting" in line_str
                 break
 
         await asyncio.sleep(0.1)
@@ -595,8 +609,11 @@ class TestExportScript:
 
         # Should return an error
         while True:
-            line = p.stderr.readline().decode()
+            if p.stderr is None:
+                break
+            line = p.stderr.readline()
             if line:
+                line_str = line.decode()
                 assert (
                     "Cannot use --watch without providing "
                     + "an output file with --output."
@@ -684,9 +701,12 @@ class TestExportMarkdown:
         assert p.poll() is None
         # Wait for rebuild
         while True:
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert "Re-exporting" in line
+                line_str = line.decode()
+                assert "Re-exporting" in line_str
                 break
 
         await asyncio.sleep(0.1)
@@ -713,8 +733,11 @@ class TestExportMarkdown:
 
         # Should return an error
         while True:
-            line = p.stderr.readline().decode()
+            if p.stderr is None:
+                break
+            line = p.stderr.readline()
             if line:
+                line_str = line.decode()
                 assert (
                     "Cannot use --watch without providing "
                     + "an output file with --output."
