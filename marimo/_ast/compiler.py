@@ -43,12 +43,11 @@ def ends_with_semicolon(code: str) -> bool:
     Returns:
         bool: True if the last non-comment line ends with a semicolon
     """
-    # Remove trailing whitespace and comments
-    lines = code.strip().split("\n")
-    for line in reversed(lines):
-        line = line.split("#")[0].strip()
-        if line:
-            return line.endswith(";")
+    tokens = tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
+    for token in reversed(list(tokens)):
+        if token.type in (token_types.ENDMARKER, token_types.NEWLINE, token_types.COMMENT):
+            continue
+        return token.string == ";"
     return False
 
 
