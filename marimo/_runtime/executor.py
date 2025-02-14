@@ -117,8 +117,26 @@ class Executor(ABC):
         pass
 
 
+
+
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
+    @staticmethod
+    def sanitize_inputs(
+        cell: CellImpl,
+        refs: set[str],
+        glbls: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {}
+
+    @staticmethod
+    def update_outputs(
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        backup: dict[str, Any],
+    ) -> None:
+        pass
+
     @staticmethod
     async def execute_cell_async(
         cell: CellImpl,
@@ -136,7 +154,8 @@ class DefaultExecutor(Executor):
 
             if _is_coroutine(cell.last_expr):
                 return await eval(cell.last_expr, glbls)
-            return eval(cell.last_expr, glbls)
+            else:
+                return eval(cell.last_expr, glbls)
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
