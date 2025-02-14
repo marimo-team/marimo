@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { Database } from "../kernel/messages";
+import type { Database, DataTable } from "../kernel/messages";
 
 export interface DatabaseState {
   databasesMap: ReadonlyMap<string, Database>;
-  expandedSchemas: ReadonlySet<string>;
+  tablePreviews: ReadonlyMap<string, DataTable>;
 }
 
 function initialState(): DatabaseState {
   return {
     databasesMap: new Map(),
-    expandedSchemas: new Set(),
+    tablePreviews: new Map(),
   };
   //   return {
   //     databasesMap: new Map().set(DEFAULT_ENGINE, {
@@ -46,6 +46,15 @@ const {
     return {
       ...state,
       databasesMap: newDatabaseMap,
+    };
+  },
+
+  addTablePreview: (state, opts: { table: DataTable }): DatabaseState => {
+    const newTablePreviews = new Map(state.tablePreviews);
+    newTablePreviews.set(opts.table.name, opts.table);
+    return {
+      ...state,
+      tablePreviews: newTablePreviews,
     };
   },
 });

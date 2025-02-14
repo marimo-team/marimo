@@ -8,25 +8,26 @@ import {
   PlusSquareIcon,
   XIcon,
   LoaderCircle,
+  Table2Icon,
+  EyeIcon,
 } from "lucide-react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
 
 import { cn } from "@/utils/cn";
 import {
+  closeAllColumnsAtom,
   datasetTablesAtom,
   useDatasets,
-  useDatasetsActions,
 } from "@/core/datasets/state";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtomValue } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
-import type { ColumnPreviewMap } from "@/core/datasets/types";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -48,7 +49,6 @@ import type {
 import { variablesAtom } from "@/core/variables/state";
 import { sortBy } from "lodash-es";
 import { logNever } from "@/utils/assertNever";
-import { Objects } from "@/utils/objects";
 import { DatabaseLogo } from "@/components/databases/icon";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
@@ -56,9 +56,9 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../../database/add-database-form";
 import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
-import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -91,13 +91,12 @@ export const DataSourcesPanel: React.FC = () => {
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { expandedColumns, expandedTables, columnsPreviews } = useDatasets();
-  const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
+  const closeAllColumns = useSetAtom(closeAllColumnsAtom);
   const { createNewCell } = useCellActions();
   const tables = useAtomValue(sortedTablesAtom);
   const databases = useAtomValue(databasesAtom);
 
-  if (tables.length === 0) {
+  if (tables.length === 0 && databases.databasesMap.size === 0) {
     return (
       <PanelEmptyState
         title="No tables found"
@@ -115,16 +114,12 @@ export const DataSourcesPanel: React.FC = () => {
     );
   }
 
-  const handleAddColumn = (chartCode: string) => {
-    if (chartCode.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    }
-    createNewCell({
-      code: chartCode,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
-  };
+  const dbGroupedByEngine = Object.entries(
+    Object.groupBy(
+      [...databases.databasesMap.values()],
+      (database) => database.engine || DEFAULT_ENGINE,
+    ),
+  );
 
   const handleAddTable = (table: DataTable) => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
@@ -162,7 +157,7 @@ export const DataSourcesPanel: React.FC = () => {
           onValueChange={(value) => {
             // If searching, remove open previews
             if (value.length > 0) {
-              closeAllColumns();
+              closeAllColumns(true);
             }
             setSearchValue(value);
           }}
@@ -188,71 +183,129 @@ export const DataSourcesPanel: React.FC = () => {
         </AddDatabaseDialog>
       </div>
 
-      <EngineList databasesMap={databases.databasesMap} />
+      {dbGroupedByEngine.map(([engineName, dbs]) => {
+        const databaseSource = dbs?.[0]?.dialect || "duckdb";
+        return (
+          <Engine
+            key={engineName}
+            name={engineName}
+            databaseSource={databaseSource}
+          >
+            {dbs?.map((database) => (
+              <DatabaseComponent
+                key={database.name}
+                database={database}
+                engineName={engineName}
+              >
+                {database.schemas.map((schema) => (
+                  <SchemaComponent
+                    key={schema.name}
+                    schema={schema}
+                    engineName={engineName}
+                    databaseName={database.name}
+                  >
+                    <TableList
+                      tables={Object.values(schema.tables)}
+                      onAddTable={handleAddTable}
+                      isSearching={hasSearch}
+                      sqlTableContext={{
+                        engine: engineName,
+                        database: database.name,
+                        schema: schema.name,
+                      }}
+                    />
+                  </SchemaComponent>
+                ))}
+              </DatabaseComponent>
+            ))}
+          </Engine>
+        );
+      })}
 
       <DatasourceLabel>
         <PythonIcon className="h-4 w-4 text-muted-foreground" />
         <span>Python</span>
       </DatasourceLabel>
       <TableList
-        onAddColumnChart={handleAddColumn}
         onAddTable={handleAddTable}
-        onExpandColumn={(table, column) => {
-          const tableColumn = `${table.name}:${column.name}` as const;
-          toggleColumn({
-            table: table.name,
-            column: column.name,
-          });
-          if (!columnsPreviews.has(tableColumn)) {
-            previewDatasetColumn({
-              source: table.source,
-              tableName: table.name,
-              columnName: column.name,
-              sourceType: table.source_type,
-            });
-          }
-        }}
-        onExpandTable={(table) => {
-          toggleTable(table.name);
-        }}
-        columnPreviews={columnsPreviews}
         tables={tables}
         isSearching={hasSearch}
-        isTableExpanded={(table) => {
-          // Always show tables if there is a search value
-          if (hasSearch) {
-            return true;
-          }
-          return expandedTables.has(table.name);
-        }}
-        isColumnExpanded={(table, column) => {
-          const tableColumn = `${table.name}:${column.name}` as const;
-          return expandedColumns.has(tableColumn);
-        }}
       />
     </Command>
   );
 };
 
-const DatasourceLabel: React.FC<{
+export const Engine: React.FC<{
+  name: string;
+  databaseSource: string;
   children: React.ReactNode;
-}> = ({ children }) => {
+}> = ({ name, databaseSource, children }) => {
   return (
-    <div className="flex gap-1 items-center p-2 font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] text-sm">
+    <>
+      <DatasourceLabel>
+        <DatabaseLogo
+          className="h-4 w-4 text-muted-foreground"
+          name={databaseSource}
+        />
+        <span>{dbDisplayName(databaseSource)}</span>
+        <span className="text-xs text-muted-foreground">
+          (<EngineVariable variableName={name as VariableName} />)
+        </span>
+      </DatasourceLabel>
       {children}
-    </div>
+    </>
   );
 };
 
-const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
-  <ChevronRightIcon
-    className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
-  />
-);
+const DatabaseComponent: React.FC<{
+  database: Database;
+  engineName: string;
+  children: React.ReactNode;
+}> = ({ database, engineName, children }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
-const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
-  databasesMap,
-}) => {
+  return (
+    <>
+      <CommandItem
+        className="text-sm flex flex-row gap-1 items-center border-b cursor-pointer"
+        onSelect={() => setIsExpanded(!isExpanded)}
+      >
+        <RotatingChevron isExpanded={isExpanded} />
+        <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
+        {database.name}
+      </CommandItem>
+      {isExpanded && children}
+    </>
+  );
+};
+
+const SchemaComponent: React.FC<{
+  schema: DatabaseSchema;
+  engineName: string;
+  databaseName: string;
+  children: React.ReactNode;
+}> = ({ schema, engineName, databaseName, children }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  return (
+    <>
+      <CommandItem
+        className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
+        onSelect={() => setIsExpanded(!isExpanded)}
+      >
+        <RotatingChevron isExpanded={isExpanded} />
+        <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
+        {schema.name}
+      </CommandItem>
+      {isExpanded && <div className="pl-5">{children}</div>}
+    </>
+  );
+};
+
+const Engines: React.FC<{
+  databasesMap: DatabaseState["databasesMap"];
+  handleAddTable: (table: DataTable) => void;
+}> = ({ databasesMap, handleAddTable }) => {
   const groupedByEngine = Object.entries(
     Object.groupBy(
       [...databasesMap.values()],
@@ -283,6 +336,7 @@ const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
                   key={database.name}
                   database={database}
                   engineName={engine}
+                  handleAddTable={handleAddTable}
                 />
               ))
             ) : (
@@ -297,10 +351,11 @@ const EngineList: React.FC<{ databasesMap: DatabaseState["databasesMap"] }> = ({
   );
 };
 
-const DatabaseItem: React.FC<{ database: Database; engineName: string }> = ({
-  database,
-  engineName,
-}) => {
+const DatabaseItem: React.FC<{
+  database: Database;
+  engineName: string;
+  handleAddTable: (table: DataTable) => void;
+}> = ({ database, engineName, handleAddTable }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   return (
@@ -315,13 +370,20 @@ const DatabaseItem: React.FC<{ database: Database; engineName: string }> = ({
         {database.name}
       </CommandItem>
       {isExpanded &&
-        Object.values(database.schemas).map((schema) => (
-          <SchemaItem
-            key={schema.name}
-            schema={schema}
-            engineName={engineName}
-            databaseName={database.name}
-          />
+        (database.schemas.length > 0 ? (
+          Object.values(database.schemas).map((schema) => (
+            <SchemaItem
+              key={schema.name}
+              schema={schema}
+              engineName={engineName}
+              databaseName={database.name}
+              handleAddTable={handleAddTable}
+            />
+          ))
+        ) : (
+          <span className="text-sm text-muted-foreground p-2">
+            No schemas available
+          </span>
         ))}
     </>
   );
@@ -331,13 +393,14 @@ const SchemaItem: React.FC<{
   schema: DatabaseSchema;
   engineName: string;
   databaseName: string;
+  handleAddTable: (table: DataTable) => void;
 }> = ({ schema, engineName, databaseName }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   return (
     <>
       <CommandItem
         key={schema.name}
-        className="py-1 text-sm flex flex-row gap-1 items-center border-b ml-5 cursor-pointer"
+        className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
         onSelect={() => setIsExpanded(!isExpanded)}
       >
         <RotatingChevron isExpanded={isExpanded} />
@@ -345,249 +408,83 @@ const SchemaItem: React.FC<{
         {schema.name}
       </CommandItem>
       {isExpanded && (
-        <EngineTableList
-          tables={Object.values(schema.tables)}
-          engineName={engineName}
-          databaseName={databaseName}
-          schemaName={schema.name}
-        />
+        <div className="pl-5">
+          <TableList
+            tables={Object.values(schema.tables)}
+            isSearching={false}
+            onAddTable={handleAddTable}
+            sqlTableContext={{
+              engine: engineName,
+              database: databaseName,
+              schema: schema.name,
+            }}
+          />
+        </div>
       )}
     </>
   );
 };
 
-interface EngineTableListProps {
-  engineName: string;
-  databaseName: string;
-  schemaName: string;
-  tables: DataTable[];
+interface SQLTableContext {
+  engine: string;
+  database: string;
+  schema: string;
 }
 
-const EngineTableList: React.FC<EngineTableListProps> = ({
-  engineName,
-  databaseName,
-  schemaName,
-  tables,
-}) => {
-  const { data, loading, error } = useAsyncData<DataTable>(async () => {
-    // Do not fetch if tables are already passed in
-    if (tables.length > 0) {
-      return tables[0];
-    }
-
-    const tablePreview = await PreviewSQLTable.request({
-      schema: schemaName,
-      engine: engineName,
-      database: databaseName,
-      tableName: "lineitem",
-    });
-
-    const table = tablePreview.table;
-    if (!table) {
-      throw new Error(tablePreview.error ?? "Unknown error");
-    }
-
-    return table;
-  }, [databaseName, engineName, schemaName, tables.length]);
-
-  if (error) {
-    return (
-      <div className="ml-8 text-sm text-red-600 bg-red-100 flex items-center gap-2 p-2 h-7 overflow-auto">
-        <XIcon className="h-4 w-4" />
-        Internal error: {error.message}
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="ml-8 text-sm bg-blue-50 text-blue-600 flex items-center gap-2 p-2 h-7">
-        <LoaderCircle className="h-4 w-4 animate-spin" />
-        Loading...
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="ml-8 text-sm text-muted-foreground p-2">
-        No tables found
-      </div>
-    );
-  }
-
-  return (
-    <div className="ml-8">
-      <TableList
-        tables={tables}
-        isSearching={false}
-        columnPreviews={new Map()}
-        onAddColumnChart={() => {}}
-        onAddTable={() => {}}
-        onExpandTable={() => {}}
-        onExpandColumn={() => {}}
-        isTableExpanded={() => false}
-        isColumnExpanded={() => false}
-      />
-    </div>
-  );
-};
-
 const TableList: React.FC<{
-  onAddColumnChart: (chartCode: string) => void;
   onAddTable: (table: DataTable) => void;
-  onExpandTable: (table: DataTable) => void;
-  onExpandColumn: (table: DataTable, column: DataTableColumn) => void;
-  isTableExpanded: (table: DataTable) => boolean;
-  isColumnExpanded: (table: DataTable, column: DataTableColumn) => boolean;
-  columnPreviews: ColumnPreviewMap;
   isSearching: boolean;
   tables: DataTable[];
-}> = ({
-  tables,
-  isSearching,
-  columnPreviews,
-  onAddColumnChart,
-  onAddTable,
-  onExpandTable,
-  onExpandColumn,
-  isTableExpanded,
-  isColumnExpanded,
-}) => {
-  // Tables grouped by engine (if exists) or source
-  // The engine is a more specific source, so it should be grouped first
-  let groupedBySource = Object.entries(
-    Objects.groupBy(
-      tables,
-      (table) => table.engine || table.source,
-      (table) => table,
-    ),
-  );
-  // Sort by `memory` first, then by alphabet
-  groupedBySource = sortBy(groupedBySource, ([source]) => {
-    if (source === "memory") {
-      return 0;
-    }
-    return 1;
-  });
-
-  const renderTable = (table: DataTable): React.ReactNode => {
-    const expanded = isTableExpanded(table);
-    const items = [
-      <DatasetTableItem
-        key={table.name}
-        table={table}
-        forceMount={isSearching}
-        onExpand={() => onExpandTable(table)}
-        onAddTable={() => onAddTable(table)}
-        isExpanded={expanded}
-      />,
-    ];
-
-    if (expanded) {
-      items.push(
-        ...table.columns.map((column) => {
-          return (
-            <React.Fragment key={`${table.name}.${column.name}`}>
-              <DatasetColumnItem
-                key={`${table.name}.${column.name}`}
-                table={table}
-                column={column}
-                onExpandColumn={onExpandColumn}
-                isExpanded={isColumnExpanded(table, column)}
-              />
-              {isColumnExpanded(table, column) && (
-                <div className="pl-10 pr-2 py-2 bg-[var(--slate-1)] shadow-inner border-b">
-                  <ErrorBoundary>
-                    <DatasetColumnPreview
-                      table={table}
-                      column={column}
-                      onAddColumnChart={onAddColumnChart}
-                      preview={columnPreviews.get(
-                        `${table.name}:${column.name}`,
-                      )}
-                    />
-                  </ErrorBoundary>
-                </div>
-              )}
-            </React.Fragment>
-          );
-        }),
-      );
-    }
-
-    return items;
-  };
-
-  const renderTableWithHeaders = () => {
-    if (groupedBySource.length === 0) {
-      return null;
-    }
-    if (groupedBySource.length === 1) {
-      return groupedBySource[0][1].flatMap(renderTable);
-    }
-
-    const renderLabel = (source: string, tables: DataTable[]) => {
-      if (source === "memory") {
-        return "In-Memory";
-      }
-
-      if (source === "duckdb") {
-        return "DuckDB";
-      }
-
-      const firstTable = tables[0];
-      if (firstTable.engine) {
-        return (
-          <>
-            <DatabaseLogo
-              className="h-4 w-4 text-muted-foreground"
-              name={firstTable.source}
-            />
-            {dbDisplayName(firstTable.source)}
-            <span className="text-xs text-muted-foreground">
-              (
-              <EngineVariable
-                variableName={firstTable.engine as VariableName}
-              />
-              )
-            </span>
-          </>
-        );
-      }
-      return source;
-    };
-
-    return groupedBySource.flatMap(([source, tables], idx) => {
-      return [
-        <div
-          className={cn(
-            "font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] border-t text-sm flex items-center gap-1",
-            idx > 0 && "border-t",
-          )}
-          key={source}
-        >
-          {renderLabel(source, tables)}
-        </div>,
-        ...tables.flatMap(renderTable),
-      ];
-    });
-  };
-
+  sqlTableContext?: SQLTableContext;
+}> = ({ tables, isSearching, onAddTable, sqlTableContext }) => {
   return (
     <CommandList className="flex flex-col overflow-auto">
-      {renderTableWithHeaders()}
+      {tables.length === 0 ? (
+        <div className="text-sm text-muted-foreground px-2 py-1">
+          No tables found
+        </div>
+      ) : (
+        tables.map((table) => (
+          <DatasetTableItem
+            key={table.name}
+            table={table}
+            forceMount={isSearching}
+            onAddTable={() => onAddTable(table)}
+            sqlTableContext={sqlTableContext}
+          />
+        ))
+      )}
     </CommandList>
   );
 };
 
 const DatasetTableItem: React.FC<{
   table: DataTable;
-  onExpand: () => void;
   forceMount?: boolean;
   onAddTable: (table: DataTable) => void;
-  isExpanded: boolean;
-}> = ({ table, onExpand, onAddTable, isExpanded }) => {
+  sqlTableContext?: SQLTableContext;
+}> = ({ table, onAddTable, sqlTableContext }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const tableDetailsExist = table.columns.length > 0;
+
+  const { data, loading, error } = useAsyncData(async () => {
+    if (isExpanded && !tableDetailsExist && sqlTableContext) {
+      const previewTable = await PreviewSQLTable.request({
+        engine: sqlTableContext.engine,
+        database: sqlTableContext.database,
+        schema: sqlTableContext.schema,
+        tableName: table.name,
+      });
+
+      const sqlTable = previewTable?.table;
+      if (!sqlTable) {
+        throw new Error("No table found");
+      }
+
+      return sqlTable;
+    }
+  }, [isExpanded, table.columns.length]);
+
   const renderRowsByColumns = () => {
     const label: string[] = [];
     if (table.num_rows != null) {
@@ -610,69 +507,164 @@ const DatasetTableItem: React.FC<{
     );
   };
 
+  const renderColumns = () => {
+    if (loading) {
+      return (
+        <div className="pl-5 text-sm bg-blue-50 text-blue-600 flex items-center gap-2 p-2 h-7">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          Loading columns...
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="pl-5 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-7">
+          <XIcon className="h-4 w-4" />
+          {error.message}
+        </div>
+      );
+    }
+
+    const columns = tableDetailsExist ? table.columns : data?.columns || [];
+    return columns.map((column) => (
+      <DatasetColumnItem
+        key={`${table.name}.${column.name}`}
+        table={table}
+        column={column}
+      />
+    ));
+  };
+
+  const renderTableType = () => {
+    if (table.source_type === "local") {
+      return;
+    }
+
+    if (table.type === "table") {
+      return (
+        <Tooltip content="Table" delayDuration={100}>
+          <Table2Icon className="h-3 w-3" />
+        </Tooltip>
+      );
+    }
+
+    if (table.type === "view") {
+      return (
+        <Tooltip content="View" delayDuration={100}>
+          <EyeIcon className="h-3 w-3" />
+        </Tooltip>
+      );
+    }
+  };
+
   return (
-    <CommandItem
-      className="rounded-none py-1 group h-7 border-t cursor-pointer"
-      value={table.name}
-      aria-selected={isExpanded}
-      forceMount={true}
-      onSelect={onExpand}
-    >
-      <div className="flex gap-1 items-center flex-1">
-        <RotatingChevron isExpanded={isExpanded} />
-        <span className="text-sm">{table.name}</span>
-      </div>
-      {renderRowsByColumns()}
-      <Tooltip content="Add table to notebook" delayDuration={400}>
-        <Button
-          className="group-hover:inline-flex hidden"
-          variant="text"
-          size="icon"
-          onClick={Events.stopPropagation(() => onAddTable(table))}
-        >
-          <PlusSquareIcon className="h-3 w-3" />
-        </Button>
-      </Tooltip>
-    </CommandItem>
+    <>
+      <CommandItem
+        className={cn(
+          "rounded-none py-1 group h-7 border-t cursor-pointer",
+          table.source_type !== "local" && "pl-5",
+        )}
+        value={table.name}
+        aria-selected={isExpanded}
+        forceMount={true}
+        onSelect={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex gap-2 items-center flex-1">
+          {renderTableType()}
+          <span className="text-sm">{table.name}</span>
+        </div>
+        {renderRowsByColumns()}
+        <Tooltip content="Add table to notebook" delayDuration={400}>
+          <Button
+            className="group-hover:inline-flex hidden"
+            variant="text"
+            size="icon"
+            onClick={Events.stopPropagation(() => onAddTable(table))}
+          >
+            <PlusSquareIcon className="h-3 w-3" />
+          </Button>
+        </Tooltip>
+      </CommandItem>
+      {isExpanded && renderColumns()}
+    </>
   );
 };
 
 const DatasetColumnItem: React.FC<{
   table: DataTable;
   column: DataTableColumn;
-  onExpandColumn: (table: DataTable, column: DataTableColumn) => void;
-  isExpanded: boolean;
-}> = ({ table, column, onExpandColumn }) => {
+}> = ({ table, column }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const closeAllColumns = useAtomValue(closeAllColumnsAtom);
+
+  React.useEffect(() => {
+    if (closeAllColumns) {
+      setIsExpanded(false);
+    }
+  }, [closeAllColumns]);
+
   const Icon = DATA_TYPE_ICON[column.type];
 
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const lastFocusedCellId = useLastFocusedCellId();
+  const { createNewCell } = useCellActions();
+
+  const { columnsPreviews } = useDatasets();
+
+  const handleAddColumn = (chartCode: string) => {
+    if (chartCode.includes("alt")) {
+      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    }
+    createNewCell({
+      code: chartCode,
+      before: false,
+      cellId: lastFocusedCellId ?? "__end__",
+    });
+  };
+
   return (
-    <CommandItem
-      className="rounded-none py-1 group cursor-pointer"
-      key={`${table.name}.${column.name}`}
-      value={`${table.name}.${column.name}`}
-      onSelect={() => onExpandColumn(table, column)}
-    >
-      <div className="flex flex-row gap-2 items-center pl-6 flex-1">
-        <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
-        <span>{column.name}</span>
-      </div>
-      <Tooltip content="Copy column name" delayDuration={400}>
-        <Button
-          variant="text"
-          size="icon"
-          className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-        >
-          <CopyClipboardIcon
-            tooltip={false}
-            value={column.name}
-            className="h-3 w-3"
-          />
-        </Button>
-      </Tooltip>
-      <span className="text-xs text-muted-foreground">
-        {column.external_type}
-      </span>
-    </CommandItem>
+    <>
+      <CommandItem
+        className="rounded-none py-1 group cursor-pointer"
+        key={`${table.name}.${column.name}`}
+        value={`${table.name}.${column.name}`}
+        onSelect={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex flex-row gap-2 items-center pl-6 flex-1">
+          <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
+          <span>{column.name}</span>
+        </div>
+        <Tooltip content="Copy column name" delayDuration={400}>
+          <Button
+            variant="text"
+            size="icon"
+            className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
+            <CopyClipboardIcon
+              tooltip={false}
+              value={column.name}
+              className="h-3 w-3"
+            />
+          </Button>
+        </Tooltip>
+        <span className="text-xs text-muted-foreground">
+          {column.external_type}
+        </span>
+      </CommandItem>
+      {isExpanded && (
+        <div className="pl-10 pr-2 py-2 bg-[var(--slate-1)] shadow-inner border-b">
+          <ErrorBoundary>
+            <DatasetColumnPreview
+              table={table}
+              column={column}
+              onAddColumnChart={handleAddColumn}
+              preview={columnsPreviews.get(`${table.name}:${column.name}`)}
+            />
+          </ErrorBoundary>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -703,6 +695,15 @@ const DatasetColumnPreview: React.FC<{
         </Button>
       </span>
     );
+  }
+
+  if (!preview) {
+    previewDatasetColumn({
+      source: table.source,
+      tableName: table.name,
+      columnName: column.name,
+      sourceType: table.source_type,
+    });
   }
 
   if (!preview) {
@@ -804,6 +805,35 @@ const DatasetColumnPreview: React.FC<{
       {chart}
       {summary}
     </div>
+  );
+};
+
+const DatasourceLabel: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  return (
+    <div className="flex gap-1 items-center p-2 font-bold px-2 py-1 text-muted-foreground bg-[var(--slate-2)] text-sm">
+      {children}
+    </div>
+  );
+};
+
+const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
+  <ChevronRightIcon
+    className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
+  />
+);
+
+interface VerticalLineProps {
+  depth: number;
+}
+
+export const VerticalLine: React.FC<VerticalLineProps> = ({ depth }) => {
+  return (
+    <div
+      className="absolute left-0 top-0 bottom-0 border-l border-muted-foreground/20"
+      style={{ left: `${depth * 20 + 12}px` }}
+    />
   );
 };
 

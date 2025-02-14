@@ -2706,13 +2706,6 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
-      | {
-          error?: string | null;
-          /** @enum {string} */
-          name: "sql-tables-preview";
-          request_id: string;
-          tables: components["schemas"]["DataTable"][];
-        }
       | components["schemas"]["SQLTablePreview"]
       | {
           connections: components["schemas"]["DataSourceConnection"][];

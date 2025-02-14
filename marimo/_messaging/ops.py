@@ -600,16 +600,6 @@ class Databases(Op):
 
 
 @dataclass
-class SQLTablesPreview(Op):
-    """Preview of tables in a database. Does not include columns."""
-
-    name: ClassVar[str] = "sql-tables-preview"
-    request_id: str
-    tables: List[DataTable]
-    error: Optional[str] = None
-
-
-@dataclass
 class SQLTablePreview(Op):
     """Preview of a table in a dataset."""
 
@@ -729,7 +719,6 @@ MessageOperation = Union[
     # Datasets
     Datasets,
     DataColumnPreview,
-    SQLTablesPreview,
     SQLTablePreview,
     DataSourceConnections,
     Databases,
