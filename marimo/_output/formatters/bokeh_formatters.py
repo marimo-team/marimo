@@ -25,6 +25,9 @@ class BokehFormatter(FormatterFactory):
         from marimo._runtime.output import _output
 
         old_show = bokeh.plotting.show
+        # bokeh always starts with output_notebook() in Jupyter, but this
+        # brings in a dependency on IPython, which we don't need.
+        old_output_notebook = bokeh.plotting.output_notebook
 
         @functools.wraps(old_show)
         def show(*args: Any, **kwargs: Any) -> None:
@@ -37,10 +40,19 @@ class BokehFormatter(FormatterFactory):
             if obj is not None:
                 _output.append(obj)
 
+        @functools.wraps(old_output_notebook)
+        def output_notebook(*args: Any, **kwargs: Any) -> None:
+            # Noop
+            del args
+            del kwargs
+            pass
+
         bokeh.plotting.show = show
+        bokeh.plotting.output_notebook = output_notebook
 
         def unpatch() -> None:
             bokeh.plotting.show = old_show
+            bokeh.plotting.output_notebook = old_output_notebook
 
         @formatting.formatter(bokeh.models.Plot)
         def _show_plot(

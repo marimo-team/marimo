@@ -20,8 +20,10 @@ def _():
 
 @app.cell
 def _():
-    from bokeh.plotting import figure, show
-    return figure, show
+    from bokeh.plotting import figure, show, output_notebook
+    # NOOP in marimo
+    output_notebook()
+    return figure, output_notebook, show
 
 
 @app.cell
