@@ -65,9 +65,8 @@ async def execute_cell_async(
     graph: DirectedGraph,
     execution_type: str = "relaxed",
 ) -> Any:
-    return await EXECUTION_TYPES[execution_type].execute_cell_async(
-        cell, glbls, graph
-    )
+    executor = EXECUTION_TYPES[execution_type]()
+    return await executor.execute_cell_async(cell, glbls, graph)
 
 
 def execute_cell(
@@ -76,7 +75,8 @@ def execute_cell(
     graph: DirectedGraph,
     execution_type: str = "relaxed",
 ) -> Any:
-    return EXECUTION_TYPES[execution_type].execute_cell(cell, glbls, graph)
+    executor = EXECUTION_TYPES[execution_type]()
+    return executor.execute_cell(cell, glbls, graph)
 
 
 class Executor(ABC):
