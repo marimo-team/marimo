@@ -59,7 +59,7 @@ describe("CellProviderManager", () => {
   });
 
   it("should create new provider if none exists", async () => {
-    const { provider, ytext } = await manager.getOrCreateProvider(
+    const { provider, ytext } = manager.getOrCreateProvider(
       CELL_ID,
       "initial code",
     );
@@ -79,8 +79,8 @@ describe("CellProviderManager", () => {
   });
 
   it("should return existing provider if one exists", async () => {
-    await manager.getOrCreateProvider(CELL_ID, "initial code");
-    const { provider: provider2 } = await manager.getOrCreateProvider(
+    manager.getOrCreateProvider(CELL_ID, "initial code");
+    const { provider: provider2 } = manager.getOrCreateProvider(
       CELL_ID,
       "different code",
     );
@@ -99,7 +99,7 @@ describe("CellProviderManager", () => {
       search: "?file=/path/to/file.py",
     };
 
-    await manager.getOrCreateProvider(CELL_ID, "initial code");
+    manager.getOrCreateProvider(CELL_ID, "initial code");
 
     expect(WebsocketProvider).toHaveBeenCalledWith(
       "ws",
@@ -122,8 +122,8 @@ describe("CellProviderManager", () => {
   });
 
   it("should disconnect all providers", async () => {
-    await manager.getOrCreateProvider(CELL_ID, "code");
-    await manager.getOrCreateProvider("cell2" as CellId, "code");
+    manager.getOrCreateProvider(CELL_ID, "code");
+    manager.getOrCreateProvider("cell2" as CellId, "code");
     manager.disconnectAll();
 
     expect(mockProvider.destroy).toHaveBeenCalledTimes(2);
