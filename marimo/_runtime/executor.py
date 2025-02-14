@@ -80,29 +80,47 @@ def execute_cell(
 
 
 class Executor(ABC):
-    @staticmethod
     @abstractmethod
     def execute_cell(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
         pass
 
-    @staticmethod
     @abstractmethod
     async def execute_cell_async(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
+        pass
+
+    @abstractmethod
+    def sanitize_inputs(
+        self,
+        cell: CellImpl,
+        refs: set[str],
+        glbls: dict[str, Any],
+    ) -> dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def update_outputs(
+        self,
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        backup: dict[str, Any],
+    ) -> None:
         pass
 
 
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
-    @staticmethod
     async def execute_cell_async(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
@@ -130,8 +148,8 @@ class DefaultExecutor(Executor):
             # to execution
             raise MarimoRuntimeException from e
 
-    @staticmethod
     def execute_cell(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
@@ -196,9 +214,8 @@ class StrictExecutor(Executor):
             executor.update_outputs(cell, glbls, backup)
         return response
 
-    @staticmethod
     def sanitize_inputs(
-        cell: CellImpl, refs: set[str], glbls: dict[str, Any]
+        self, cell: CellImpl, refs: set[str], glbls: dict[str, Any]
     ) -> dict[str, Any]:
         # Some attributes should remain global
         lcls = {
@@ -264,9 +281,8 @@ class StrictExecutor(Executor):
         glbls.update(lcls)
         return backup
 
-    @staticmethod
     def update_outputs(
-        cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
+        self, cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
     ) -> None:
         # NOTE: After execution, restore global state and update outputs.
         lcls = {**glbls}
