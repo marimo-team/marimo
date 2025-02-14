@@ -134,9 +134,12 @@ class DefaultExecutor(Executor):
             else:
                 exec(cell.body, glbls)
 
-            if _is_coroutine(cell.last_expr):
-                return await eval(cell.last_expr, glbls)
-            return eval(cell.last_expr, glbls)
+            result = (
+                await eval(cell.last_expr, glbls)
+                if _is_coroutine(cell.last_expr)
+                else eval(cell.last_expr, glbls)
+            )
+            return result
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
