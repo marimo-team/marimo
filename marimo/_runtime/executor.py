@@ -119,6 +119,16 @@ class Executor(ABC):
 
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
+    def sanitize_inputs(
+        self, cell: CellImpl, refs: set[str], glbls: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {**glbls}
+
+    def update_outputs(
+        self, cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
+    ) -> None:
+        pass
+
     async def execute_cell_async(
         self,
         cell: CellImpl,
