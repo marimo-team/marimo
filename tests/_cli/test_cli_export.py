@@ -296,9 +296,12 @@ class TestExportHTML:
 
         # Wait for the message
         while True:
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert f"Watching {temp_marimo_file}" in line
+                line_str = line.decode()
+                assert f"Watching {temp_marimo_file}" in line_str
                 break
 
         assert not path.exists(temp_out_file)
@@ -346,7 +349,7 @@ class TestExportHTML:
                 assert (
                     "Cannot use --watch without providing "
                     + "an output file with --output."
-                    in line
+                    in line_str
                 )
                 break
 
@@ -563,9 +566,12 @@ class TestExportScript:
 
         # Wait for the message
         while True:
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert f"Watching {temp_marimo_file}" in line
+                line_str = line.decode()
+                assert f"Watching {temp_marimo_file}" in line_str
                 break
 
         assert not path.exists(temp_out_file)
@@ -617,7 +623,7 @@ class TestExportScript:
                 assert (
                     "Cannot use --watch without providing "
                     + "an output file with --output."
-                    in line
+                    in line_str
                 )
                 break
 
@@ -687,9 +693,12 @@ class TestExportMarkdown:
 
         # Wait for the message
         while True:
-            line = p.stdout.readline().decode()
+            if p.stdout is None:
+                break
+            line = p.stdout.readline()
             if line:
-                assert f"Watching {temp_marimo_file}" in line
+                line_str = line.decode()
+                assert f"Watching {temp_marimo_file}" in line_str
                 break
 
         assert not path.exists(temp_out_file)
@@ -741,7 +750,7 @@ class TestExportMarkdown:
                 assert (
                     "Cannot use --watch without providing "
                     + "an output file with --output."
-                    in line
+                    in line_str
                 )
                 break
 
