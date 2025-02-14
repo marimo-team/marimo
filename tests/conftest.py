@@ -635,5 +635,7 @@ def pytest_make_collect_report(collector):
         if invalid:
             tests = ", ".join([f"'{test}'" for test in collected])
             report.outcome = "failed"
-            report.longrepr = f"Cannot collect test(s) {', '.join(invalid)} from {tests} {type(list(collected.values())[0])}"
+            report.longrepr = (
+                f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+            )
     return report
