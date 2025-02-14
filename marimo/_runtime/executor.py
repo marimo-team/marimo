@@ -156,7 +156,8 @@ class DefaultExecutor(Executor):
             assert cell.last_expr is not None
 
             exec(cell.body, glbls)
-            return eval(cell.last_expr, glbls)
+            result = eval(cell.last_expr, glbls)
+            return result
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
