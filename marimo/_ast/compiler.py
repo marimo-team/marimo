@@ -163,15 +163,15 @@ def compile_cell(
         expr = ast.Expression(module.body.pop().value)
         setattr(expr, "lineno", final_expr.lineno)
     else:
-        const = ast.Constant(value=None)
-        setattr(const, "col_offset", final_expr.end_col_offset)
-        setattr(const, "end_col_offset", final_expr.end_col_offset)
-        setattr(const, "lineno", len(code.splitlines()) + 1)
-        expr = ast.Expression(const)
-        # Creating an expression clears source info, so it needs to be set back
-        setattr(expr, "lineno", getattr(const, "lineno", 0))
-        setattr(expr, "col_offset", final_expr.end_col_offset)
-        setattr(expr, "end_col_offset", final_expr.end_col_offset)
+    const = ast.Constant(value=None)
+    setattr(const, "col_offset", final_expr.end_col_offset)
+    setattr(const, "end_col_offset", final_expr.end_col_offset)
+    setattr(const, "lineno", len(code.splitlines()) + 1)
+    expr = ast.Expression(const)
+    # Creating an expression clears source info, so it needs to be set back
+    setattr(expr, "lineno", getattr(const, "lineno", 0))
+    setattr(expr, "col_offset", final_expr.end_col_offset)
+    setattr(expr, "end_col_offset", final_expr.end_col_offset)
 
     filename: str
     if source_position:
