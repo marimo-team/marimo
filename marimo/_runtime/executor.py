@@ -117,9 +117,12 @@ class DefaultExecutor(Executor):
                 exec(cell.body, glbls)
 
             if _is_coroutine(cell.last_expr):
-                return await eval(cell.last_expr, glbls)
+                result = await eval(cell.last_expr, glbls)
             else:
-                return eval(cell.last_expr, glbls)
+                result = eval(cell.last_expr, glbls)
+            if cell.suppress_output:
+                return None
+            return result if result is not None else None
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
@@ -139,7 +142,10 @@ class DefaultExecutor(Executor):
             assert cell.last_expr is not None
 
             exec(cell.body, glbls)
-            return eval(cell.last_expr, glbls)
+            result = eval(cell.last_expr, glbls)
+            if cell.suppress_output:
+                return None
+            return result
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:

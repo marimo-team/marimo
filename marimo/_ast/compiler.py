@@ -34,6 +34,24 @@ def code_key(code: str) -> int:
     return hash(code)
 
 
+def ends_with_semicolon(code: str) -> bool:
+    """Returns True if the cell's code ends with a semicolon, ignoring whitespace and comments.
+
+    Args:
+        code: The cell's source code
+
+    Returns:
+        bool: True if the last non-comment line ends with a semicolon
+    """
+    # Remove trailing whitespace and comments
+    lines = code.strip().split('\n')
+    for line in reversed(lines):
+        line = line.split('#')[0].strip()
+        if line:
+            return line.endswith(';')
+    return False
+
+
 def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
     """Parse cell id from filename."""
     matches = re.findall(r"__marimo__cell_(.*?)_", filename)
@@ -226,6 +244,7 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        suppress_output=ends_with_semicolon(code),
     )
 
 
