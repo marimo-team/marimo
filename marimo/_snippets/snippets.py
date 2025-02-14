@@ -77,26 +77,26 @@ def should_ignore_code(code: str) -> bool:
 
 
 def get_title_from_code(code: str) -> str:
+    # We intentionally avoid AST parsing here to avoid the overhead
     if not code:
         return ""
     code = code.strip()
-    if not code.startswith("mo.md") and not code.startswith("#"):
+    if not (code.startswith("mo.md") or code.startswith("#")):
         return ""
-    if "# " in code:
-        # title is the start of # and end of \n or end quote
-        start = code.find("#")
-        if "\n" in code[start:]:
-            end = code[start:].find("\n")
-            return code[start : end + start].replace("#", "", 1).strip()
-        # No newline, find end quote
-        if '"' in code[start:]:
-            end = code[start:].find('"')
-            return code[start : end + start].replace("#", "", 1).strip()
-        if "'" in code[start:]:
-            end = code[start:].find("'")
-            return code[start : end + start].replace("#", "", 1).strip()
-        return code[start:].replace("#", "", 1).strip()
-    return ""
+
+    start = code.find("#")
+    if start == -1:
+        return ""
+
+    # Skip the # character
+    start += 1
+
+    # Find end of title
+    for end_char in ("\n", '"', "'"):
+        if (end := code.find(end_char, start)) != -1:
+            return code[start:end].strip()
+
+    return code[start:].strip()
 
 
 def is_markdown(code: str) -> bool:

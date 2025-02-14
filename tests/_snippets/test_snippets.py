@@ -57,16 +57,23 @@ def test_get_title_from_code_with_mo_md() -> None:
     assert get_title_from_code(code) == "This is a title"
 
 
+total_snippets = len(list(read_snippet_filenames(True, [])))
+
+
 @pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
 @pytest.mark.parametrize(
     ("include_default_snippets", "custom_paths", "expected_snippets"),
     [
-        (True, [], 89),
+        (True, [], total_snippets),
         (False, [], 0),
-        (True, ["/notarealdirectory"], 89),
+        (True, ["/notarealdirectory"], total_snippets),
         (False, ["/notarealdirectory"], 0),
-        (False, ["marimo/_snippets/data"], 89),
-        (False, ["marimo/_snippets/data", "/notarealdirectory"], 89),
+        (False, ["marimo/_snippets/data"], total_snippets),
+        (
+            False,
+            ["marimo/_snippets/data", "/notarealdirectory"],
+            total_snippets,
+        ),
     ],
 )
 def test_read_snippet_filenames(
@@ -77,6 +84,7 @@ def test_read_snippet_filenames(
     filenames = list(
         read_snippet_filenames(include_default_snippets, custom_paths)
     )
+    assert total_snippets > 0
     assert len(filenames) == expected_snippets
     assert all(filename.endswith(".py") for filename in filenames)
     assert all("_snippets/data" in filename for filename in filenames)
