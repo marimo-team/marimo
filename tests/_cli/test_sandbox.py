@@ -11,10 +11,10 @@ from marimo._cli.sandbox import (
     _is_marimo_dependency,
     _normalize_sandbox_dependencies,
     _pyproject_toml_to_requirements_txt,
-    _read_pyproject,
     construct_uv_command,
     get_dependencies_from_filename,
 )
+from marimo._utils.scripts import read_pyproject_from_script
 
 
 def test_get_dependencies():
@@ -222,7 +222,7 @@ import marimo
 """
     assert _get_dependencies(SCRIPT) == ["polars"]
 
-    pyproject = _read_pyproject(SCRIPT)
+    pyproject = read_pyproject_from_script(SCRIPT)
     assert pyproject is not None
     assert _get_python_version_requirement(pyproject) == ">=3.11"
 
@@ -233,7 +233,7 @@ import marimo
 
 import marimo
 """
-    pyproject_no_python = _read_pyproject(SCRIPT_NO_PYTHON)
+    pyproject_no_python = read_pyproject_from_script(SCRIPT_NO_PYTHON)
     assert pyproject_no_python is not None
     assert _get_python_version_requirement(pyproject_no_python) is None
     assert _get_dependencies(SCRIPT_NO_PYTHON) == ["polars"]

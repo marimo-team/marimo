@@ -18,19 +18,16 @@ from marimo._cli.file_path import FileContentReader
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.scripts import read_pyproject_from_script
 from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
-
-REGEX = (
-    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$"
-)
 
 
 def _get_dependencies(script: str) -> List[str] | None:
     """Get dependencies from string representation of script."""
     try:
-        pyproject = _read_pyproject(script) or {}
+        pyproject = read_pyproject_from_script(script) or {}
         return _pyproject_toml_to_requirements_txt(pyproject)
     except Exception as e:
         LOGGER.warning(f"Failed to parse dependencies: {e}")
@@ -119,32 +116,6 @@ def get_dependencies_from_filename(name: str) -> List[str]:
     except Exception:
         LOGGER.warning(f"Failed to read dependencies from {name}")
         return []
-
-
-def _read_pyproject(script: str) -> Dict[str, Any] | None:
-    """
-    Read the pyproject.toml file from the script.
-
-    Adapted from https://peps.python.org/pep-0723/#reference-implementation
-    """
-    name = "script"
-    matches = list(
-        filter(lambda m: m.group("type") == name, re.finditer(REGEX, script))
-    )
-    if len(matches) > 1:
-        raise ValueError(f"Multiple {name} blocks found")
-    elif len(matches) == 1:
-        content = "".join(
-            line[2:] if line.startswith("# ") else line[1:]
-            for line in matches[0].group("content").splitlines(keepends=True)
-        )
-        import tomlkit
-
-        pyproject = tomlkit.parse(content)
-
-        return pyproject
-    else:
-        return None
 
 
 def _get_python_version_requirement(
@@ -287,7 +258,7 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     # Get Python version requirement if available
     if name is not None and os.path.exists(name):
         contents, _ = FileContentReader().read_file(name)
-        pyproject = _read_pyproject(contents)
+        pyproject = read_pyproject_from_script(contents)
         python_version = (
             _get_python_version_requirement(pyproject)
             if pyproject is not None
