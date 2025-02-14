@@ -65,8 +65,9 @@ async def execute_cell_async(
     graph: DirectedGraph,
     execution_type: str = "relaxed",
 ) -> Any:
-    executor = EXECUTION_TYPES[execution_type]()
-    return await executor.execute_cell_async(cell, glbls, graph)
+    return await EXECUTION_TYPES[execution_type].execute_cell_async(
+        cell, glbls, graph
+    )
 
 
 def execute_cell(
@@ -75,41 +76,40 @@ def execute_cell(
     graph: DirectedGraph,
     execution_type: str = "relaxed",
 ) -> Any:
-    executor = EXECUTION_TYPES[execution_type]()
-    return executor.execute_cell(cell, glbls, graph)
+    return EXECUTION_TYPES[execution_type].execute_cell(cell, glbls, graph)
 
 
 class Executor(ABC):
+    @staticmethod
     @abstractmethod
     def execute_cell(
-        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
         pass
 
+    @staticmethod
     @abstractmethod
     async def execute_cell_async(
-        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
         pass
 
+    @staticmethod
     @abstractmethod
     def sanitize_inputs(
-        self,
         cell: CellImpl,
         refs: set[str],
         glbls: dict[str, Any],
     ) -> dict[str, Any]:
         pass
 
+    @staticmethod
     @abstractmethod
     def update_outputs(
-        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         backup: dict[str, Any],
@@ -119,18 +119,8 @@ class Executor(ABC):
 
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
-    def sanitize_inputs(
-        self, _cell: CellImpl, _refs: set[str], glbls: dict[str, Any]
-    ) -> dict[str, Any]:
-        return {**glbls}
-
-    def update_outputs(
-        self, _cell: CellImpl, glbls: dict[str, Any], _backup: dict[str, Any]
-    ) -> None:
-        pass
-
+    @staticmethod
     async def execute_cell_async(
-        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
@@ -144,13 +134,11 @@ class DefaultExecutor(Executor):
             else:
                 exec(cell.body, glbls)
 
-            if _is_coroutine(cell.last_expr):
-                result = await eval(cell.last_expr, glbls)
-            else:
-                result = eval(cell.last_expr, glbls)
-            if cell.suppress_output:
-                return None
-            return result if result is not None else None
+            return (
+                await eval(cell.last_expr, glbls)
+                if _is_coroutine(cell.last_expr)
+                else eval(cell.last_expr, glbls)
+            )
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
@@ -158,8 +146,8 @@ class DefaultExecutor(Executor):
             # to execution
             raise MarimoRuntimeException from e
 
+    @staticmethod
     def execute_cell(
-        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
@@ -170,10 +158,7 @@ class DefaultExecutor(Executor):
             assert cell.last_expr is not None
 
             exec(cell.body, glbls)
-            result = eval(cell.last_expr, glbls)
-            if cell.suppress_output:
-                return None
-            return result
+            return eval(cell.last_expr, glbls)
         except NameError as e:
             raise_name_error(graph, e)
         except (BaseException, Exception) as e:
@@ -193,16 +178,14 @@ class StrictExecutor(Executor):
                 glbls, CLONE_PRIMITIVES
             ),
         )
-        executor = StrictExecutor()
-        backup = executor.sanitize_inputs(cell, refs, glbls)
+        backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
-            default_executor = DefaultExecutor()
-            response = await default_executor.execute_cell_async(
+            response = await DefaultExecutor.execute_cell_async(
                 cell, glbls, graph
             )
         finally:
             # Restore globals from backup and backfill outputs
-            executor.update_outputs(cell, glbls, backup)
+            StrictExecutor.update_outputs(cell, glbls, backup)
         return response
 
     @staticmethod
@@ -215,17 +198,16 @@ class StrictExecutor(Executor):
                 glbls, CLONE_PRIMITIVES
             ),
         )
-        executor = StrictExecutor()
-        backup = executor.sanitize_inputs(cell, refs, glbls)
+        backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
-            default_executor = DefaultExecutor()
-            response = default_executor.execute_cell(cell, glbls, graph)
+            response = DefaultExecutor.execute_cell(cell, glbls, graph)
         finally:
-            executor.update_outputs(cell, glbls, backup)
+            StrictExecutor.update_outputs(cell, glbls, backup)
         return response
 
+    @staticmethod
     def sanitize_inputs(
-        self, cell: CellImpl, refs: set[str], glbls: dict[str, Any]
+        cell: CellImpl, refs: set[str], glbls: dict[str, Any]
     ) -> dict[str, Any]:
         # Some attributes should remain global
         lcls = {
@@ -291,8 +273,9 @@ class StrictExecutor(Executor):
         glbls.update(lcls)
         return backup
 
+    @staticmethod
     def update_outputs(
-        self, cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
+        cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
     ) -> None:
         # NOTE: After execution, restore global state and update outputs.
         lcls = {**glbls}

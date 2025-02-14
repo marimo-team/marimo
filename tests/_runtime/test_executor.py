@@ -17,41 +17,64 @@ def _has_output(messages: list[tuple[str, dict]], pattern: str) -> bool:
 async def test_semicolon_output_suppression(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    # Test that semicolon suppresses output
+    # Test that semicolon suppresses output for expressions
     await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
-                x = 1;
+                1 + 2;
                 """
             )
         ]
     )
-    assert not _has_output(mocked_kernel.stream.messages, "1")
+    assert not _has_output(mocked_kernel.stream.messages, "3")
 
-    # Test that no semicolon shows output
+    # Test that no semicolon shows output for expressions
     await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
-                2
+                2 + 3
                 """
             )
         ]
     )
-    assert _has_output(mocked_kernel.stream.messages, "2")
+    assert _has_output(mocked_kernel.stream.messages, "5")
 
     # Test that comments after semicolon still suppress output
     await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
-                x = 3; # comment
+                4 + 5; # comment
                 """
             )
         ]
     )
-    assert not _has_output(mocked_kernel.stream.messages, "3")
+    assert not _has_output(mocked_kernel.stream.messages, "9")
+
+    # Test that assignments don't show output regardless of semicolon
+    await mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                x = 1
+                """
+            )
+        ]
+    )
+    assert not _has_output(mocked_kernel.stream.messages, "1")
+
+    await mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                y = 2;
+                """
+            )
+        ]
+    )
+    assert not _has_output(mocked_kernel.stream.messages, "2")
 
     # Test that async cells respect semicolon suppression
     await mocked_kernel.k.run(

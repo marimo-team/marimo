@@ -157,8 +157,6 @@ class CellImpl:
     language: Language
     # unique id
     cell_id: CellId_t
-    # Whether to suppress output for this cell
-    suppress_output: bool = False
 
     # Mutable fields
     # explicit configuration of cell

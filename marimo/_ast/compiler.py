@@ -97,7 +97,11 @@ def fix_source_position(
             setattr(child, "lineno", getattr(child, "lineno", 0) + line_offset)
 
         if "col_offset" in child._attributes:
-            setattr(child, "col_offset", getattr(child, "col_offset", 0) + col_offset)
+            setattr(
+                child,
+                "col_offset",
+                getattr(child, "col_offset", 0) + col_offset,
+            )
 
         if (
             "end_lineno" in child._attributes
@@ -163,6 +167,18 @@ def compile_cell(
         expr = ast.Expression(module.body.pop().value)
         setattr(expr, "lineno", final_expr.lineno)
     else:
+        const = ast.Constant(value=None)
+        setattr(const, "col_offset", final_expr.end_col_offset)
+        setattr(const, "end_col_offset", final_expr.end_col_offset)
+        setattr(const, "lineno", len(code.splitlines()) + 1)
+        expr = ast.Expression(const)
+        # Creating an expression clears source info, so it needs to be set back
+        setattr(expr, "lineno", getattr(const, "lineno", 0))
+        setattr(expr, "col_offset", final_expr.end_col_offset)
+        setattr(expr, "end_col_offset", final_expr.end_col_offset)
+
+    # If code ends with semicolon, set last_expr to None to suppress output
+    if ends_with_semicolon(code):
         const = ast.Constant(value=None)
         setattr(const, "col_offset", final_expr.end_col_offset)
         setattr(const, "end_col_offset", final_expr.end_col_offset)
@@ -245,7 +261,6 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
-        suppress_output=ends_with_semicolon(code),
     )
 
 
