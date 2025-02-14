@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
+import functools
+from typing import Any, Callable, Optional
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
@@ -16,10 +17,30 @@ class BokehFormatter(FormatterFactory):
     def package_name() -> str:
         return "bokeh"
 
-    def register(self) -> None:
+    def register(self) -> Callable[[], None]:
         import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting
+        from marimo._runtime.output import _output
+
+        old_show = bokeh.plotting.show
+
+        @functools.wraps(old_show)
+        def show(*args: Any, **kwargs: Any) -> None:
+            # Imperatively display the Bokeh object in the marimo output
+            # area.
+            if args:
+                obj = args[0]
+            else:
+                obj = kwargs.get("obj", None)
+            if obj is not None:
+                _output.append(obj)
+
+        bokeh.plotting.show = show
+
+        def unpatch() -> None:
+            bokeh.plotting.show = old_show
 
         @formatting.formatter(bokeh.models.Plot)
         def _show_plot(
@@ -68,6 +89,8 @@ class BokehFormatter(FormatterFactory):
                     )
                 ),
             )
+
+        return unpatch
 
     def apply_theme(self, theme: Theme) -> None:
         from bokeh.io import curdoc  # type: ignore
