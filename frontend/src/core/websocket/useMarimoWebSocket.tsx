@@ -14,10 +14,7 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import {
-  FUNCTIONS_REGISTRY,
-  PreviewSQLTable,
-} from "../functions/FunctionRegistry";
+import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
@@ -68,7 +65,7 @@ export function useMarimoWebSocket(opts: {
   const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
   const { addDataSourceConnection, filterDataSourcesFromVariables } =
     useDataSourceActions();
-  const { addDatabase } = useDatabaseActions();
+  const { addDatabase, addTablePreview } = useDatabaseActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -201,7 +198,7 @@ export function useMarimoWebSocket(opts: {
         addColumnPreview(msg.data);
         return;
       case "sql-table-preview":
-        PreviewSQLTable.resolve(msg.data.request_id as RequestId, msg.data);
+        addTablePreview(msg.data);
         return;
       case "data-source-connections":
         addDataSourceConnection(msg.data);

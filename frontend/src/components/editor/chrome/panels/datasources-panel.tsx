@@ -54,10 +54,9 @@ import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../../database/add-database-form";
-import { databasesAtom, type DatabaseState } from "@/core/datasets/databases";
+import { databasesAtom, dbTablePreviewsAtom } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
 
 const sortedTablesAtom = atom((get) => {
@@ -190,20 +189,12 @@ export const DataSourcesPanel: React.FC = () => {
             key={engineName}
             name={engineName}
             databaseSource={databaseSource}
+            hasChildren={dbs && dbs.length > 0}
           >
             {dbs?.map((database) => (
-              <DatabaseComponent
-                key={database.name}
-                database={database}
-                engineName={engineName}
-              >
+              <DatabaseItem key={database.name} database={database}>
                 {database.schemas.map((schema) => (
-                  <SchemaComponent
-                    key={schema.name}
-                    schema={schema}
-                    engineName={engineName}
-                    databaseName={database.name}
-                  >
+                  <SchemaItem key={schema.name} schema={schema}>
                     <TableList
                       tables={Object.values(schema.tables)}
                       onAddTable={handleAddTable}
@@ -214,9 +205,9 @@ export const DataSourcesPanel: React.FC = () => {
                         schema: schema.name,
                       }}
                     />
-                  </SchemaComponent>
+                  </SchemaItem>
                 ))}
-              </DatabaseComponent>
+              </DatabaseItem>
             ))}
           </Engine>
         );
@@ -235,11 +226,12 @@ export const DataSourcesPanel: React.FC = () => {
   );
 };
 
-export const Engine: React.FC<{
+const Engine: React.FC<{
   name: string;
   databaseSource: string;
   children: React.ReactNode;
-}> = ({ name, databaseSource, children }) => {
+  hasChildren?: boolean;
+}> = ({ name, databaseSource, children, hasChildren }) => {
   return (
     <>
       <DatasourceLabel>
@@ -252,17 +244,32 @@ export const Engine: React.FC<{
           (<EngineVariable variableName={name as VariableName} />)
         </span>
       </DatasourceLabel>
-      {children}
+      {hasChildren ? (
+        children
+      ) : (
+        <EmptyState content="No databases available" className="pl-2" />
+      )}
     </>
   );
 };
 
-const DatabaseComponent: React.FC<{
+const DatabaseItem: React.FC<{
   database: Database;
-  engineName: string;
   children: React.ReactNode;
-}> = ({ database, engineName, children }) => {
+}> = ({ database, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const renderChildren = () => {
+    if (!isExpanded) {
+      return;
+    }
+
+    if (database.schemas.length === 0) {
+      return <EmptyState content="No schemas available" className="pl-6" />;
+    }
+
+    return children;
+  };
 
   return (
     <>
@@ -274,17 +281,15 @@ const DatabaseComponent: React.FC<{
         <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
         {database.name}
       </CommandItem>
-      {isExpanded && children}
+      {renderChildren()}
     </>
   );
 };
 
-const SchemaComponent: React.FC<{
+const SchemaItem: React.FC<{
   schema: DatabaseSchema;
-  engineName: string;
-  databaseName: string;
   children: React.ReactNode;
-}> = ({ schema, engineName, databaseName, children }) => {
+}> = ({ schema, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   return (
@@ -298,129 +303,6 @@ const SchemaComponent: React.FC<{
         {schema.name}
       </CommandItem>
       {isExpanded && <div className="pl-5">{children}</div>}
-    </>
-  );
-};
-
-const Engines: React.FC<{
-  databasesMap: DatabaseState["databasesMap"];
-  handleAddTable: (table: DataTable) => void;
-}> = ({ databasesMap, handleAddTable }) => {
-  const groupedByEngine = Object.entries(
-    Object.groupBy(
-      [...databasesMap.values()],
-      (database) => database.engine || DEFAULT_ENGINE,
-    ),
-  );
-
-  return (
-    <>
-      {groupedByEngine.map(([engine, databases]) => {
-        const source = databases?.[0].dialect || "duckdb";
-
-        return (
-          <div key={engine}>
-            <DatasourceLabel>
-              <DatabaseLogo
-                className="h-4 w-4 text-muted-foreground"
-                name={source}
-              />
-              <span>{dbDisplayName(source)}</span>
-              <span className="text-xs text-muted-foreground">
-                (<EngineVariable variableName={engine as VariableName} />)
-              </span>
-            </DatasourceLabel>
-            {databases && databases.length > 0 ? (
-              databases.map((database) => (
-                <DatabaseItem
-                  key={database.name}
-                  database={database}
-                  engineName={engine}
-                  handleAddTable={handleAddTable}
-                />
-              ))
-            ) : (
-              <span className="text-sm text-muted-foreground p-2">
-                No databases available
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </>
-  );
-};
-
-const DatabaseItem: React.FC<{
-  database: Database;
-  engineName: string;
-  handleAddTable: (table: DataTable) => void;
-}> = ({ database, engineName, handleAddTable }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
-
-  return (
-    <>
-      <CommandItem
-        key={database.name}
-        className="text-sm flex flex-row gap-1 items-center border-b cursor-pointer"
-        onSelect={() => setIsExpanded(!isExpanded)}
-      >
-        <RotatingChevron isExpanded={isExpanded} />
-        <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
-        {database.name}
-      </CommandItem>
-      {isExpanded &&
-        (database.schemas.length > 0 ? (
-          Object.values(database.schemas).map((schema) => (
-            <SchemaItem
-              key={schema.name}
-              schema={schema}
-              engineName={engineName}
-              databaseName={database.name}
-              handleAddTable={handleAddTable}
-            />
-          ))
-        ) : (
-          <span className="text-sm text-muted-foreground p-2">
-            No schemas available
-          </span>
-        ))}
-    </>
-  );
-};
-
-const SchemaItem: React.FC<{
-  schema: DatabaseSchema;
-  engineName: string;
-  databaseName: string;
-  handleAddTable: (table: DataTable) => void;
-}> = ({ schema, engineName, databaseName }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  return (
-    <>
-      <CommandItem
-        key={schema.name}
-        className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
-        onSelect={() => setIsExpanded(!isExpanded)}
-      >
-        <RotatingChevron isExpanded={isExpanded} />
-        <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
-        {schema.name}
-      </CommandItem>
-      {isExpanded && (
-        <div className="pl-5">
-          <TableList
-            tables={Object.values(schema.tables)}
-            isSearching={false}
-            onAddTable={handleAddTable}
-            sqlTableContext={{
-              engine: engineName,
-              database: databaseName,
-              schema: schema.name,
-            }}
-          />
-        </div>
-      )}
     </>
   );
 };
@@ -440,9 +322,7 @@ const TableList: React.FC<{
   return (
     <CommandList className="flex flex-col overflow-auto">
       {tables.length === 0 ? (
-        <div className="text-sm text-muted-foreground px-2 py-1">
-          No tables found
-        </div>
+        <EmptyState content="No tables found" className="pl-5" />
       ) : (
         tables.map((table) => (
           <DatasetTableItem
@@ -465,25 +345,18 @@ const DatasetTableItem: React.FC<{
   sqlTableContext?: SQLTableContext;
 }> = ({ table, onAddTable, sqlTableContext }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const tablePreview = useAtomValue(dbTablePreviewsAtom).get(table.name);
   const tableDetailsExist = table.columns.length > 0;
 
-  const { data, loading, error } = useAsyncData(async () => {
-    if (isExpanded && !tableDetailsExist && sqlTableContext) {
-      const previewTable = await PreviewSQLTable.request({
-        engine: sqlTableContext.engine,
-        database: sqlTableContext.database,
-        schema: sqlTableContext.schema,
-        tableName: table.name,
-      });
-
-      const sqlTable = previewTable?.table;
-      if (!sqlTable) {
-        throw new Error("No table found");
-      }
-
-      return sqlTable;
-    }
-  }, [isExpanded, table.columns.length]);
+  // Fetch table details if expanded and not passed in
+  if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+    PreviewSQLTable.request({
+      engine: sqlTableContext.engine,
+      database: sqlTableContext.database,
+      schema: sqlTableContext.schema,
+      tableName: table.name,
+    });
+  }
 
   const renderRowsByColumns = () => {
     const label: string[] = [];
@@ -508,29 +381,29 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (loading) {
+    if (!tablePreview && !tableDetailsExist) {
       return (
-        <div className="pl-5 text-sm bg-blue-50 text-blue-600 flex items-center gap-2 p-2 h-7">
+        <div className="pl-5 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-7">
           <LoaderCircle className="h-4 w-4 animate-spin" />
           Loading columns...
         </div>
       );
     }
 
-    if (error) {
+    if (tablePreview?.error) {
       return (
         <div className="pl-5 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-7">
           <XIcon className="h-4 w-4" />
-          {error.message}
+          {tablePreview.error}
         </div>
       );
     }
 
-    const columns = tableDetailsExist ? table.columns : data?.columns || [];
+    const columns = tablePreview?.table?.columns ?? table.columns;
     return columns.map((column) => (
       <DatasetColumnItem
-        key={`${table.name}.${column.name}`}
-        table={table}
+        key={column.name}
+        table={tablePreview?.table ?? table}
         column={column}
       />
     ));
@@ -680,6 +553,7 @@ const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart }) => {
   const { theme } = useTheme();
 
+  // Only fetch previews for local or duckdb tables
   if (table.source_type === "connection") {
     return (
       <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between">
@@ -824,16 +698,14 @@ const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => (
   />
 );
 
-interface VerticalLineProps {
-  depth: number;
-}
-
-export const VerticalLine: React.FC<VerticalLineProps> = ({ depth }) => {
+export const EmptyState: React.FC<{ content: string; className?: string }> = ({
+  content,
+  className,
+}) => {
   return (
-    <div
-      className="absolute left-0 top-0 bottom-0 border-l border-muted-foreground/20"
-      style={{ left: `${depth * 20 + 12}px` }}
-    />
+    <div className={cn("text-sm text-muted-foreground py-1", className)}>
+      {content}
+    </div>
   );
 };
 

@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { Database, DataTable } from "../kernel/messages";
+import type { Database, SQLTablePreview } from "../kernel/messages";
+import { atom } from "jotai";
 
 export interface DatabaseState {
   databasesMap: ReadonlyMap<string, Database>;
-  tablePreviews: ReadonlyMap<string, DataTable>;
+  tablePreviews: ReadonlyMap<string, SQLTablePreview>;
 }
 
 function initialState(): DatabaseState {
@@ -12,16 +13,6 @@ function initialState(): DatabaseState {
     databasesMap: new Map(),
     tablePreviews: new Map(),
   };
-  //   return {
-  //     databasesMap: new Map().set(DEFAULT_ENGINE, {
-  //       name: "memory",
-  //       engine: DEFAULT_ENGINE,
-  //       source: "duckdb",
-  //       schemas: {
-  //         main: { name: "main", tables: {} },
-  //       },
-  //     }),
-  //   };
 }
 
 const {
@@ -49,9 +40,12 @@ const {
     };
   },
 
-  addTablePreview: (state, opts: { table: DataTable }): DatabaseState => {
+  addTablePreview: (state, preview: SQLTablePreview): DatabaseState => {
     const newTablePreviews = new Map(state.tablePreviews);
-    newTablePreviews.set(opts.table.name, opts.table);
+    if (preview.table?.name) {
+      newTablePreviews.set(preview.table.name, preview);
+    }
+
     return {
       ...state,
       tablePreviews: newTablePreviews,
@@ -60,3 +54,7 @@ const {
 });
 
 export { reducer, createActions, databasesAtom, useDatabaseActions };
+
+export const dbTablePreviewsAtom = atom(
+  (get) => get(databasesAtom).tablePreviews,
+);

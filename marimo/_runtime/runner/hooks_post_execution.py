@@ -208,9 +208,7 @@ def _broadcast_duckdb_databases(
         if not modifies_datasources:
             return
 
-        databases = get_databases_from_duckdb(
-            connection=None, engine_name="In-Memory duckdb"
-        )
+        databases = get_databases_from_duckdb(connection=None)
         if not databases:
             return
 
