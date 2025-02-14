@@ -14,7 +14,8 @@ async def test_snippets() -> None:
     snippets = await read_snippets()
     assert len(snippets.snippets) > 0
     # All have titles
-    assert all(s.title for s in snippets.snippets)
+    for s in snippets.snippets:
+        assert s.title
     # All have more than one section
     assert all(len(s.sections) > 1 for s in snippets.snippets)
     # All have a code section
@@ -47,20 +48,31 @@ def test_get_title_from_code_with_non_title_hashes() -> None:
     assert get_title_from_code(code) == ""
 
 
+def test_get_title_from_code_with_mo_md() -> None:
+    code = "mo.md('# This is a title')"
+    assert get_title_from_code(code) == "This is a title"
+    code = 'mo.md("# This is a title")'
+    assert get_title_from_code(code) == "This is a title"
+    code = 'mo.md(r"""# This is a title""")'
+    assert get_title_from_code(code) == "This is a title"
+
+
 @pytest.mark.xfail(condition=is_windows(), reason="flaky on Windows")
 @pytest.mark.parametrize(
     ("include_default_snippets", "custom_paths", "expected_snippets"),
     [
-        (True, [], 38),
+        (True, [], 89),
         (False, [], 0),
-        (True, ["/notarealdirectory"], 38),
+        (True, ["/notarealdirectory"], 89),
         (False, ["/notarealdirectory"], 0),
-        (False, ["marimo/_snippets/data"], 38),
-        (False, ["marimo/_snippets/data", "/notarealdirectory"], 38),
+        (False, ["marimo/_snippets/data"], 89),
+        (False, ["marimo/_snippets/data", "/notarealdirectory"], 89),
     ],
 )
 def test_read_snippet_filenames(
-    include_default_snippets, custom_paths, expected_snippets
+    include_default_snippets: bool,
+    custom_paths: list[str],
+    expected_snippets: int,
 ) -> None:
     filenames = list(
         read_snippet_filenames(include_default_snippets, custom_paths)
