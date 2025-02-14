@@ -31,6 +31,7 @@ import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import type { DataTableSelection } from "./types";
 import { INDEX_COLUMN_NAME } from "./types";
+import { CellSelectionFeature } from "./cell-selection/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -101,7 +102,12 @@ const DataTableInternal = <TData,>({
   );
 
   const table = useReactTable<TData>({
-    _features: [ColumnPinning, ColumnWrappingFeature, ColumnFormattingFeature],
+    _features: [
+      ColumnPinning,
+      ColumnWrappingFeature,
+      ColumnFormattingFeature,
+      CellSelectionFeature,
+    ],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),

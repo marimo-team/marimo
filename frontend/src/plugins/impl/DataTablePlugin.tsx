@@ -47,6 +47,7 @@ import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
+import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -529,6 +530,16 @@ const DataTableComponent = ({
     },
   );
 
+  const handleCellSelectionChange: OnChangeFn<CellSelectionState> = useEvent(
+    (updater) => {
+      if (selection === "single-cell") {
+        const nextValue = Functions.asUpdater(updater)([]);
+        // TODO: I'm no longer sure what S should be in this case
+        setValue(nextValue.slice(0, 1).map((c) => c.row));
+      }
+    },
+  );
+
   return (
     <>
       {/* // HACK: We assume "too_many" is coming from a SQL table */}
@@ -579,6 +590,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
+            handleCellSelectionChange={handleCellSelectionChange}
           />
         </Labeled>
       </ColumnChartContext.Provider>
