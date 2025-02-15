@@ -18,13 +18,14 @@ import { cn } from "@/utils/cn";
 import {
   closeAllColumnsAtom,
   datasetTablesAtom,
+  expandedColumnsAtom,
   useDatasets,
 } from "@/core/datasets/state";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
@@ -54,10 +55,10 @@ import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../../database/add-database-form";
-import { databasesAtom, dbTablePreviewsAtom } from "@/core/datasets/databases";
+import { enginesAtom, tablePreviewsAtom } from "@/core/datasets/databases";
 import { PythonIcon } from "../../cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
-import { DEFAULT_ENGINE } from "@/core/datasets/data-source-connections";
+import { useAsyncData } from "@/hooks/useAsyncData";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -93,9 +94,9 @@ export const DataSourcesPanel: React.FC = () => {
   const closeAllColumns = useSetAtom(closeAllColumnsAtom);
   const { createNewCell } = useCellActions();
   const tables = useAtomValue(sortedTablesAtom);
-  const databases = useAtomValue(databasesAtom);
+  const engines = useAtomValue(enginesAtom);
 
-  if (tables.length === 0 && databases.databasesMap.size === 0) {
+  if (tables.length === 0 && engines.enginesMap.size === 0) {
     return (
       <PanelEmptyState
         title="No tables found"
@@ -112,13 +113,6 @@ export const DataSourcesPanel: React.FC = () => {
       />
     );
   }
-
-  const dbGroupedByEngine = Object.entries(
-    Object.groupBy(
-      [...databases.databasesMap.values()],
-      (database) => database.engine || DEFAULT_ENGINE,
-    ),
-  );
 
   const handleAddTable = (table: DataTable) => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
@@ -182,16 +176,16 @@ export const DataSourcesPanel: React.FC = () => {
         </AddDatabaseDialog>
       </div>
 
-      {dbGroupedByEngine.map(([engineName, dbs]) => {
-        const databaseSource = dbs?.[0]?.dialect || "duckdb";
+      {[...engines.enginesMap].map(([engineName, databaseMap]) => {
+        const dialect = databaseMap.values().next().value?.dialect || "duckdb";
         return (
           <Engine
             key={engineName}
             name={engineName}
-            databaseSource={databaseSource}
-            hasChildren={dbs && dbs.length > 0}
+            dialect={dialect}
+            hasChildren={databaseMap.size > 0}
           >
-            {dbs?.map((database) => (
+            {[...databaseMap.values()].map((database) => (
               <DatabaseItem key={database.name} database={database}>
                 {database.schemas.map((schema) => (
                   <SchemaItem key={schema.name} schema={schema}>
@@ -228,18 +222,18 @@ export const DataSourcesPanel: React.FC = () => {
 
 const Engine: React.FC<{
   name: string;
-  databaseSource: string;
+  dialect: string;
   children: React.ReactNode;
   hasChildren?: boolean;
-}> = ({ name, databaseSource, children, hasChildren }) => {
+}> = ({ name, dialect, children, hasChildren }) => {
   return (
     <>
       <DatasourceLabel>
         <DatabaseLogo
           className="h-4 w-4 text-muted-foreground"
-          name={databaseSource}
+          name={dialect}
         />
-        <span>{dbDisplayName(databaseSource)}</span>
+        <span>{dbDisplayName(dialect)}</span>
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={name as VariableName} />)
         </span>
@@ -345,18 +339,28 @@ const DatasetTableItem: React.FC<{
   sqlTableContext?: SQLTableContext;
 }> = ({ table, onAddTable, sqlTableContext }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const tablePreview = useAtomValue(dbTablePreviewsAtom).get(table.name);
+
+  const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
+  const tablePreview = tablePreviews.get(table.name);
   const tableDetailsExist = table.columns.length > 0;
 
-  // Fetch table details if expanded and not passed in
-  if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
-    PreviewSQLTable.request({
-      engine: sqlTableContext.engine,
-      database: sqlTableContext.database,
-      schema: sqlTableContext.schema,
-      tableName: table.name,
-    });
-  }
+  const { loading, error } = useAsyncData(async () => {
+    // Only fetch table preview when the data is not passed in and doesn't exist in the atom
+    if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+      const previewTable = await PreviewSQLTable.request({
+        engine: sqlTableContext.engine,
+        database: sqlTableContext.database,
+        schema: sqlTableContext.schema,
+        tableName: table.name,
+      });
+
+      if (!previewTable?.table) {
+        throw new Error("No table found");
+      }
+
+      setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
+    }
+  }, [isExpanded, tableDetailsExist]);
 
   const renderRowsByColumns = () => {
     const label: string[] = [];
@@ -381,7 +385,7 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (!tablePreview && !tableDetailsExist) {
+    if (loading) {
       return (
         <div className="pl-5 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-7">
           <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -390,16 +394,18 @@ const DatasetTableItem: React.FC<{
       );
     }
 
-    if (tablePreview?.error) {
+    if (error) {
       return (
         <div className="pl-5 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-7">
           <XIcon className="h-4 w-4" />
-          {tablePreview.error}
+          {error.message}
         </div>
       );
     }
 
-    const columns = tablePreview?.table?.columns ?? table.columns;
+    const columns = tableDetailsExist
+      ? table.columns
+      : tablePreview?.table?.columns || [];
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
@@ -469,6 +475,8 @@ const DatasetColumnItem: React.FC<{
   column: DataTableColumn;
 }> = ({ table, column }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const setExpandedColumns = useSetAtom(expandedColumnsAtom);
   const closeAllColumns = useAtomValue(closeAllColumnsAtom);
 
   React.useEffect(() => {
@@ -476,6 +484,17 @@ const DatasetColumnItem: React.FC<{
       setIsExpanded(false);
     }
   }, [closeAllColumns]);
+
+  if (isExpanded) {
+    setExpandedColumns(
+      (prev) => new Set([...prev, `${table.name}:${column.name}`]),
+    );
+  } else {
+    setExpandedColumns((prev) => {
+      prev.delete(`${table.name}:${column.name}`);
+      return new Set(prev);
+    });
+  }
 
   const Icon = DATA_TYPE_ICON[column.type];
 

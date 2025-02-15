@@ -2,59 +2,72 @@
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { Database, SQLTablePreview } from "../kernel/messages";
 import { atom } from "jotai";
+import type { VariableName } from "../variables/types";
+import { DEFAULT_ENGINE } from "./data-source-connections";
 
-export interface DatabaseState {
-  databasesMap: ReadonlyMap<string, Database>;
-  tablePreviews: ReadonlyMap<string, SQLTablePreview>;
+export interface EnginesState {
+  // Engine names are unique. Within an engine, database names are unique
+  enginesMap: ReadonlyMap<string, ReadonlyMap<string, Database>>;
 }
 
-function initialState(): DatabaseState {
+export function initialState(): EnginesState {
   return {
-    databasesMap: new Map(),
-    tablePreviews: new Map(),
+    enginesMap: new Map(),
   };
 }
 
 const {
   reducer,
   createActions,
-  valueAtom: databasesAtom,
+  valueAtom: enginesAtom,
   useActions: useDatabaseActions,
 } = createReducerAndAtoms(initialState, {
   addDatabase: (
-    state: DatabaseState,
+    state: EnginesState,
     opts: { databases: Database[] },
-  ): DatabaseState => {
+  ): EnginesState => {
     if (opts.databases.length === 0) {
       return state;
     }
-    const databases = opts.databases;
-    const newDatabaseMap = new Map(state.databasesMap);
-    for (const db of databases) {
-      newDatabaseMap.set(db.name, db);
+
+    const newEnginesMap = new Map(state.enginesMap);
+    for (const db of opts.databases) {
+      const engine = db.engine || DEFAULT_ENGINE;
+      const newDatabasesMap = new Map(newEnginesMap.get(engine) || new Map());
+      newDatabasesMap.set(db.name, db);
+      newEnginesMap.set(engine, newDatabasesMap);
     }
 
     return {
       ...state,
-      databasesMap: newDatabaseMap,
+      enginesMap: newEnginesMap,
     };
   },
 
-  addTablePreview: (state, preview: SQLTablePreview): DatabaseState => {
-    const newTablePreviews = new Map(state.tablePreviews);
-    if (preview.table?.name) {
-      newTablePreviews.set(preview.table.name, preview);
-    }
+  filterEnginesFromVariables: (
+    state: EnginesState,
+    variableNames: VariableName[],
+  ) => {
+    // VariableNames contain engine names
+    const names = new Set(variableNames);
+
+    const newEnginesMap = new Map(
+      [...state.enginesMap].filter(([name]) => {
+        if (name === DEFAULT_ENGINE) {
+          return true;
+        }
+        return names.has(name as unknown as VariableName);
+      }),
+    );
 
     return {
       ...state,
-      tablePreviews: newTablePreviews,
+      enginesMap: newEnginesMap,
     };
   },
 });
 
-export { reducer, createActions, databasesAtom, useDatabaseActions };
+export { reducer, createActions, enginesAtom, useDatabaseActions };
 
-export const dbTablePreviewsAtom = atom(
-  (get) => get(databasesAtom).tablePreviews,
-);
+// Hook to get & persist SQL table previews
+export const tablePreviewsAtom = atom(new Map<string, SQLTablePreview>());

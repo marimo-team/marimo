@@ -86,28 +86,6 @@ const {
     });
     return { ...state, tables };
   },
-  toggleTable: (state, tableName: string) => {
-    const expandedTables = new Set(state.expandedTables);
-    if (expandedTables.has(tableName)) {
-      expandedTables.delete(tableName);
-    } else {
-      expandedTables.add(tableName);
-    }
-    return { ...state, expandedTables };
-  },
-  toggleColumn: (state, opts: { table: string; column: string }) => {
-    const tableColumn = `${opts.table}:${opts.column}` as const;
-    const expandedColumns = new Set(state.expandedColumns);
-    if (expandedColumns.has(tableColumn)) {
-      expandedColumns.delete(tableColumn);
-    } else {
-      expandedColumns.add(tableColumn);
-    }
-    return { ...state, expandedColumns };
-  },
-  closeAllColumns: (state) => {
-    return { ...state, expandedColumns: new Set() };
-  },
   addColumnPreview: (state, preview: DataColumnPreview) => {
     const tableColumn = `${preview.table_name}:${preview.column_name}` as const;
     const columnsPreviews = new Map(state.columnsPreviews);
@@ -122,6 +100,8 @@ const {
 export const useDatasets = () => useAtomValue(datasetsAtom);
 
 export const datasetTablesAtom = atom((get) => get(datasetsAtom).tables);
+
+export const expandedColumnsAtom = atom(new Set<string>());
 export const closeAllColumnsAtom = atom(false);
 
 /**
