@@ -89,10 +89,7 @@ const sortedTablesAtom = atom((get) => {
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const lastFocusedCellId = useLastFocusedCellId();
   const closeAllColumns = useSetAtom(closeAllColumnsAtom);
-  const { createNewCell } = useCellActions();
   const tables = useAtomValue(sortedTablesAtom);
   const engines = useAtomValue(enginesAtom);
 
@@ -113,30 +110,6 @@ export const DataSourcesPanel: React.FC = () => {
       />
     );
   }
-
-  const handleAddTable = (table: DataTable) => {
-    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    let code = "";
-    switch (table.source_type) {
-      case "local":
-        code = `mo.ui.table(${table.name})`;
-        break;
-      case "duckdb":
-        code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
-        break;
-      case "connection":
-        code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100", engine=${table.engine})`;
-        break;
-      default:
-        logNever(table.source_type);
-        break;
-    }
-    createNewCell({
-      code: code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
-  };
 
   const hasSearch = !!searchValue.trim();
 
@@ -176,7 +149,7 @@ export const DataSourcesPanel: React.FC = () => {
         </AddDatabaseDialog>
       </div>
 
-      {[...engines.enginesMap].map(([engineName, databaseMap]) => {
+      {Array.from(engines.enginesMap, ([engineName, databaseMap]) => {
         const dialect = databaseMap.values().next().value?.dialect || "duckdb";
         return (
           <Engine
@@ -185,13 +158,12 @@ export const DataSourcesPanel: React.FC = () => {
             dialect={dialect}
             hasChildren={databaseMap.size > 0}
           >
-            {[...databaseMap.values()].map((database) => (
+            {Array.from(databaseMap.values(), (database) => (
               <DatabaseItem key={database.name} database={database}>
                 {database.schemas.map((schema) => (
                   <SchemaItem key={schema.name} schema={schema}>
                     <TableList
-                      tables={Object.values(schema.tables)}
-                      onAddTable={handleAddTable}
+                      tables={schema.tables}
                       isSearching={hasSearch}
                       sqlTableContext={{
                         engine: engineName,
@@ -211,11 +183,7 @@ export const DataSourcesPanel: React.FC = () => {
         <PythonIcon className="h-4 w-4 text-muted-foreground" />
         <span>Python</span>
       </DatasourceLabel>
-      <TableList
-        onAddTable={handleAddTable}
-        tables={tables}
-        isSearching={hasSearch}
-      />
+      <TableList tables={tables} isSearching={hasSearch} />
     </Command>
   );
 };
@@ -308,11 +276,10 @@ interface SQLTableContext {
 }
 
 const TableList: React.FC<{
-  onAddTable: (table: DataTable) => void;
   isSearching: boolean;
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
-}> = ({ tables, isSearching, onAddTable, sqlTableContext }) => {
+}> = ({ tables, isSearching, sqlTableContext }) => {
   return (
     <CommandList className="flex flex-col">
       {tables.length === 0 ? (
@@ -323,7 +290,6 @@ const TableList: React.FC<{
             key={table.name}
             table={table}
             forceMount={isSearching}
-            onAddTable={() => onAddTable(table)}
             sqlTableContext={sqlTableContext}
           />
         ))
@@ -335,9 +301,8 @@ const TableList: React.FC<{
 const DatasetTableItem: React.FC<{
   table: DataTable;
   forceMount?: boolean;
-  onAddTable: (table: DataTable) => void;
   sqlTableContext?: SQLTableContext;
-}> = ({ table, onAddTable, sqlTableContext }) => {
+}> = ({ table, sqlTableContext, forceMount }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
@@ -347,10 +312,11 @@ const DatasetTableItem: React.FC<{
   const { loading, error } = useAsyncData(async () => {
     // Only fetch table preview when the data is not passed in and doesn't exist in the atom
     if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+      const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
-        engine: sqlTableContext.engine,
-        database: sqlTableContext.database,
-        schema: sqlTableContext.schema,
+        engine: engine,
+        database: database,
+        schema: schema,
         tableName: table.name,
       });
 
@@ -361,6 +327,42 @@ const DatasetTableItem: React.FC<{
       setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
     }
   }, [isExpanded, tableDetailsExist]);
+
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const lastFocusedCellId = useLastFocusedCellId();
+  const { createNewCell } = useCellActions();
+
+  const handleAddTable = () => {
+    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    let code = "";
+
+    // TODO: Check if this works when schema is defined in engine creation
+    if (sqlTableContext) {
+      const { engine, schema } = sqlTableContext;
+      code = `_df = mo.sql(f"SELECT * FROM ${schema}.${table.name} LIMIT 100", engine=${engine})`;
+    } else {
+      switch (table.source_type) {
+        case "local":
+          code = `mo.ui.table(${table.name})`;
+          break;
+        case "duckdb":
+          code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
+          break;
+        case "connection":
+          code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100", engine=${table.engine})`;
+          break;
+        default:
+          logNever(table.source_type);
+          break;
+      }
+    }
+
+    createNewCell({
+      code,
+      before: false,
+      cellId: lastFocusedCellId ?? "__end__",
+    });
+  };
 
   const renderRowsByColumns = () => {
     const label: string[] = [];
@@ -411,6 +413,7 @@ const DatasetTableItem: React.FC<{
         key={column.name}
         table={tablePreview?.table ?? table}
         column={column}
+        sqlTableContext={sqlTableContext}
       />
     ));
   };
@@ -446,7 +449,7 @@ const DatasetTableItem: React.FC<{
             className="group-hover:inline-flex hidden"
             variant="text"
             size="icon"
-            onClick={Events.stopPropagation(() => onAddTable(table))}
+            onClick={Events.stopPropagation(() => handleAddTable())}
           >
             <PlusSquareIcon className="h-3 w-3" />
           </Button>
@@ -460,17 +463,11 @@ const DatasetTableItem: React.FC<{
 const DatasetColumnItem: React.FC<{
   table: DataTable;
   column: DataTableColumn;
-}> = ({ table, column }) => {
+  sqlTableContext?: SQLTableContext;
+}> = ({ table, column, sqlTableContext }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const setExpandedColumns = useSetAtom(expandedColumnsAtom);
-  const closeAllColumns = useAtomValue(closeAllColumnsAtom);
-
-  React.useEffect(() => {
-    if (closeAllColumns) {
-      setIsExpanded(false);
-    }
-  }, [closeAllColumns]);
 
   if (isExpanded) {
     setExpandedColumns(
@@ -517,16 +514,16 @@ const DatasetColumnItem: React.FC<{
           <span>{column.name}</span>
           {isPrimaryKey && (
             <Tooltip content="Primary Key" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
+              <code className="text-xs text-black bg-gray-200 rounded px-1">
                 PK
-              </span>
+              </code>
             </Tooltip>
           )}
           {isIndexed && (
             <Tooltip content="Indexed" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
+              <code className="text-xs text-black bg-gray-200 rounded px-1">
                 IDX
-              </span>
+              </code>
             </Tooltip>
           )}
         </div>
@@ -555,6 +552,7 @@ const DatasetColumnItem: React.FC<{
               column={column}
               onAddColumnChart={handleAddColumn}
               preview={columnsPreviews.get(`${table.name}:${column.name}`)}
+              sqlTableContext={sqlTableContext}
             />
           </ErrorBoundary>
         </div>
@@ -572,7 +570,8 @@ const DatasetColumnPreview: React.FC<{
   column: DataTableColumn;
   onAddColumnChart: (code: string) => void;
   preview: DataColumnPreview | undefined;
-}> = ({ table, column, preview, onAddColumnChart }) => {
+  sqlTableContext?: SQLTableContext;
+}> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
 
   // Only fetch previews for local or duckdb tables
@@ -584,7 +583,7 @@ const DatasetColumnPreview: React.FC<{
           variant="outline"
           size="xs"
           onClick={Events.stopPropagation(() => {
-            onAddColumnChart(sqlCode(table, column));
+            onAddColumnChart(sqlCode(table, column, sqlTableContext));
           })}
         >
           <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
@@ -674,7 +673,7 @@ const DatasetColumnPreview: React.FC<{
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
-          onAddColumnChart(sqlCode(table, column));
+          onAddColumnChart(sqlCode(table, column, sqlTableContext));
         })}
       >
         <PlusSquareIcon className="h-3 w-3" />
@@ -731,9 +730,15 @@ export const EmptyState: React.FC<{ content: string; className?: string }> = ({
   );
 };
 
-function sqlCode(table: DataTable, column: DataTableColumn) {
-  if (table.engine) {
-    return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100', engine=${table.engine})`;
+function sqlCode(
+  table: DataTable,
+  column: DataTableColumn,
+  sqlTableContext?: SQLTableContext,
+) {
+  // Schema doesn't need to be specified all the time
+  if (sqlTableContext) {
+    const { engine, schema } = sqlTableContext;
+    return `_df = mo.sql(f'SELECT ${column.name} FROM ${schema}.${table.name} LIMIT 100', engine=${engine})`;
   }
   return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
 }
