@@ -46,6 +46,7 @@ def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
     )
     sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=conn)
     yield conn
+    conn.execute("DROP TABLE test")
     conn.close()
 
 
@@ -151,3 +152,5 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
     expected_databases[0].schemas[0].tables[0].source = "memory"
 
     assert databases == expected_databases
+
+    engine.execute("DROP TABLE test")

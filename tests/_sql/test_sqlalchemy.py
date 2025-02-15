@@ -238,7 +238,7 @@ def get_expected_schema(schema_name: str, table_name: str) -> Schema:
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_sqlalchemy_engine_get_table_info(sqlite_engine: sa.Engine) -> None:
+def test_sqlalchemy_engine_get_table_details(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_table method."""
     engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
     table = engine.get_table_details("test", "main")

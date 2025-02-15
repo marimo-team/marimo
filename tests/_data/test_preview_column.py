@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Generator
 
 import pytest
 
@@ -19,6 +20,21 @@ HAS_DF_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 HAS_SQL_DEPS = DependencyManager.duckdb.has()
 
 snapshot = snapshotter(__file__)
+
+
+# Run cleanup after all tests are done
+@pytest.fixture(scope="module", autouse=True)
+def cleanup() -> Generator[None, None, None]:
+    import duckdb
+
+    yield
+    duckdb.execute("""
+        DROP TABLE IF EXISTS tbl;
+        DROP TABLE IF EXISTS date_tbl;
+        DROP TABLE IF EXISTS datetime_tbl;
+        DROP TABLE IF EXISTS time_tbl;
+        DROP TABLE IF EXISTS bool_tbl;
+    """)
 
 
 @pytest.mark.skipif(
