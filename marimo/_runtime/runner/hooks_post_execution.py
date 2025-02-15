@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -10,6 +10,7 @@ from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
+from marimo._data.models import Database
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
@@ -169,7 +170,7 @@ def _broadcast_data_source_connection(
         ).broadcast()
 
     for variable, engine in engines:
-        databases: Optional[Databases] = None
+        databases: list[Database] = []
         if isinstance(engine, SQLAlchemyEngine):
             databases = engine.get_databases(
                 include_schemas=True,
@@ -178,7 +179,7 @@ def _broadcast_data_source_connection(
             )
         elif isinstance(engine, DuckDBEngine):
             databases = engine.get_databases()
-        if databases is not None:
+        if len(databases) > 0:
             LOGGER.debug(f"Broadcasting engine databases for {variable}")
             Databases(databases=databases).broadcast()
 

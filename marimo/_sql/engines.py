@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
@@ -9,6 +9,7 @@ from marimo._data.models import (
     Database,
     DataTable,
     DataTableColumn,
+    DataTableType,
     DataType,
     Schema,
 )
@@ -86,10 +87,11 @@ class SQLAlchemyEngine(SQLEngine):
     def __init__(
         self, engine: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
-        from sqlalchemy import inspect
+        from sqlalchemy import Inspector, inspect
 
         self._engine = engine
         self._engine_name = engine_name
+        self.inspector: Optional[Inspector] = None
         try:
             self.inspector = inspect(self._engine)
         except Exception:
@@ -189,6 +191,9 @@ class SQLAlchemyEngine(SQLEngine):
         self, include_tables: bool = False, include_table_details: bool = False
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
+
+        if self.inspector is None:
+            return []
         try:
             schema_names = self.inspector.get_schema_names()
         except Exception:
@@ -214,15 +219,18 @@ class SQLAlchemyEngine(SQLEngine):
         self, schema: str, include_table_details: bool = False
     ) -> list[DataTable]:
         """Return all tables in a schema."""
+
+        if self.inspector is None:
+            return []
         try:
             table_names = self.inspector.get_table_names(schema=schema)
             view_names = self.inspector.get_view_names(schema=schema)
         except Exception:
             LOGGER.warning("Failed to get tables in schema", exc_info=True)
             return []
-        tables = [("table", name) for name in table_names] + [
-            ("view", name) for name in view_names
-        ]
+        tables: list[tuple[DataTableType, str]] = [
+            ("table", name) for name in table_names
+        ] + [("view", name) for name in view_names]
 
         if not include_table_details:
             return [
@@ -255,6 +263,9 @@ class SQLAlchemyEngine(SQLEngine):
         self, table_name: str, schema_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
+
+        if self.inspector is None:
+            return None
         try:
             columns = self.inspector.get_columns(
                 table_name, schema=schema_name
@@ -276,22 +287,26 @@ class SQLAlchemyEngine(SQLEngine):
         except Exception:
             pass
 
-        # TODO: How about multi-index / multi-PK
+        # TODO: Handle multi column PK and indexes
         try:
             indexes = self.inspector.get_indexes(
                 table_name, schema=schema_name
             )
             for index in indexes:
-                index_list.append(index["column_names"])
+                if index_cols := index["column_names"]:
+                    index_list.extend(
+                        col for col in index_cols if col is not None
+                    )
         except Exception:
+            LOGGER.warning("Failed to get indexes", exc_info=True)
             pass
 
         cols: list[DataTableColumn] = []
         for col in columns:
-            col_type = col["type"]
-            col_type = (
-                self._get_python_type(col_type)
-                or self._get_generic_type(col_type)
+            engine_type = col["type"]
+            col_type: DataType = (
+                self._get_python_type(engine_type)
+                or self._get_generic_type(engine_type)
                 or "string"
             )
 
@@ -299,7 +314,7 @@ class SQLAlchemyEngine(SQLEngine):
                 DataTableColumn(
                     name=col["name"],
                     type=col_type,
-                    external_type=str(col["type"]),
+                    external_type=str(engine_type),
                     sample_values=[],
                 )
             )
@@ -317,9 +332,11 @@ class SQLAlchemyEngine(SQLEngine):
             indexes=index_list,
         )
 
-    def _get_python_type(self, col_type: TypeEngine) -> DataType | None:
+    def _get_python_type(
+        self, engine_type: TypeEngine[Any]
+    ) -> DataType | None:
         try:
-            col_type = col_type.python_type
+            col_type = engine_type.python_type
             return _sql_type_to_data_type(str(col_type))
         except NotImplementedError:
             return None
@@ -327,9 +344,11 @@ class SQLAlchemyEngine(SQLEngine):
             LOGGER.debug("Failed to get python type", exc_info=True)
             return None
 
-    def _get_generic_type(self, col_type: TypeEngine) -> DataType | None:
+    def _get_generic_type(
+        self, engine_type: TypeEngine[Any]
+    ) -> DataType | None:
         try:
-            col_type = col_type.as_generic()
+            col_type = engine_type.as_generic()
             return _sql_type_to_data_type(str(col_type))
         except NotImplementedError:
             return None
@@ -337,7 +356,7 @@ class SQLAlchemyEngine(SQLEngine):
             LOGGER.debug("Failed to get generic type", exc_info=True)
             return None
 
-    def _reflect_tables(self) -> list[DataTable] | False:
+    def _reflect_tables(self) -> list[DataTable] | Literal[False]:
         from sqlalchemy import MetaData
 
         try:
