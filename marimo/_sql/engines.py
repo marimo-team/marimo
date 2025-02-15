@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
@@ -355,44 +355,6 @@ class SQLAlchemyEngine(SQLEngine):
         except Exception:
             LOGGER.debug("Failed to get generic type", exc_info=True)
             return None
-
-    def _reflect_tables(self) -> list[DataTable] | Literal[False]:
-        from sqlalchemy import MetaData
-
-        try:
-            metadata = MetaData()
-            metadata.reflect(bind=self._engine)
-        except Exception:
-            LOGGER.debug("Failed to reflect tables", exc_info=True)
-            return False
-
-        tables: list[DataTable] = []
-        for table_name, table in metadata.tables.items():
-            tables.append(
-                DataTable(
-                    source_type="connection",
-                    source=self.dialect,
-                    name=table_name,
-                    num_rows=None,
-                    num_columns=len(table.columns),
-                    variable_name=None,
-                    engine=self._engine_name,
-                    columns=(
-                        [
-                            DataTableColumn(
-                                name=col.name,
-                                type=_sql_type_to_data_type(str(col.type)),
-                                external_type=str(col.type),
-                                sample_values=[],
-                            )
-                            for col in table.columns
-                        ]
-                    ),
-                    primary_keys=[table.primary_key.columns.keys()],
-                    indexes=[],
-                )
-            )
-        return tables
 
 
 def _sql_type_to_data_type(type_str: str) -> DataType:
