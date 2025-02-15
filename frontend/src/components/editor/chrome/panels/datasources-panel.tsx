@@ -141,7 +141,7 @@ export const DataSourcesPanel: React.FC = () => {
   const hasSearch = !!searchValue.trim();
 
   return (
-    <Command className="border-b bg-background rounded-none h-full overflow-auto">
+    <Command className="border-b bg-background rounded-none h-full pb-10 overflow-auto">
       <div className="flex items-center w-full">
         <CommandInput
           placeholder="Search tables..."
@@ -314,7 +314,7 @@ const TableList: React.FC<{
   sqlTableContext?: SQLTableContext;
 }> = ({ tables, isSearching, onAddTable, sqlTableContext }) => {
   return (
-    <CommandList className="flex flex-col overflow-auto">
+    <CommandList className="flex flex-col">
       {tables.length === 0 ? (
         <EmptyState content="No tables found" className="pl-5" />
       ) : (
@@ -420,21 +420,8 @@ const DatasetTableItem: React.FC<{
       return;
     }
 
-    if (table.type === "table") {
-      return (
-        <Tooltip content="Table" delayDuration={100}>
-          <Table2Icon className="h-3 w-3" />
-        </Tooltip>
-      );
-    }
-
-    if (table.type === "view") {
-      return (
-        <Tooltip content="View" delayDuration={100}>
-          <EyeIcon className="h-3 w-3" />
-        </Tooltip>
-      );
-    }
+    const TableTypeIcon = table.type === "table" ? Table2Icon : EyeIcon;
+    return <TableTypeIcon className="h-3 w-3" />;
   };
 
   return (
@@ -503,6 +490,8 @@ const DatasetColumnItem: React.FC<{
   const { createNewCell } = useCellActions();
 
   const { columnsPreviews } = useDatasets();
+  const isPrimaryKey = table.primary_keys?.includes(column.name) || false;
+  const isIndexed = table.indexes?.includes(column.name) || false;
 
   const handleAddColumn = (chartCode: string) => {
     if (chartCode.includes("alt")) {
@@ -526,6 +515,20 @@ const DatasetColumnItem: React.FC<{
         <div className="flex flex-row gap-2 items-center pl-6 flex-1">
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
           <span>{column.name}</span>
+          {isPrimaryKey && (
+            <Tooltip content="Primary Key" delayDuration={100}>
+              <span className="text-xs text-black bg-gray-200 rounded px-1">
+                PK
+              </span>
+            </Tooltip>
+          )}
+          {isIndexed && (
+            <Tooltip content="Indexed" delayDuration={100}>
+              <span className="text-xs text-black bg-gray-200 rounded px-1">
+                IDX
+              </span>
+            </Tooltip>
+          )}
         </div>
         <Tooltip content="Copy column name" delayDuration={400}>
           <Button

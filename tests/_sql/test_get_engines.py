@@ -16,7 +16,10 @@ HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_engine_to_data_source_connection() -> None:
+    import sqlalchemy  # noqa: F401, needed for patching sqlalchemy.inspect
+
     # Test with DuckDB engine
     duckdb_engine = DuckDBEngine(None)
     connection = engine_to_data_source_connection("my_duckdb", duckdb_engine)
