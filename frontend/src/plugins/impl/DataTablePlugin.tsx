@@ -482,26 +482,27 @@ const DataTableComponent = ({
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
   const shownColumns = fieldTypesOrInferred.length;
 
+  const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
+  const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
+  const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
+  const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const columns = useMemo(
     () =>
       generateColumns({
-        rowHeaders: rowHeaders,
-        selection,
-        fieldTypes: fieldTypesOrInferred,
-        textJustifyColumns,
-        wrappedColumns,
+        rowHeaders: memoizedRowHeaders,
+        selection: selection,
+        fieldTypes: memoizedFieldTypes,
+        textJustifyColumns: memoizedTextJustifyColumns,
+        wrappedColumns: memoizedWrappedColumns,
         // Only show data types if they are explicitly set
-        showDataTypes: Boolean(fieldTypes),
+        showDataTypes: Boolean(memoizedFieldTypes),
       }),
-    /* eslint-disable react-hooks/exhaustive-deps */
     [
-      useDeepCompareMemoize([
-        selection,
-        fieldTypesOrInferred,
-        rowHeaders,
-        textJustifyColumns,
-        wrappedColumns,
-      ]),
+      selection,
+      memoizedRowHeaders,
+      memoizedFieldTypes,
+      memoizedTextJustifyColumns,
+      memoizedWrappedColumns,
     ],
   );
 
@@ -512,16 +513,13 @@ const DataTableComponent = ({
 
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
-      console.log("handleRowSelectionChange");
       if (selection === "single") {
         const nextValue = Functions.asUpdater(updater)({});
         setValue(Object.keys(nextValue).slice(0, 1));
       }
 
       if (selection === "multi") {
-        console.log("multi");
         const nextValue = Functions.asUpdater(updater)(rowSelection);
-        console.log(nextValue);
         setValue(Object.keys(nextValue));
       }
     },
