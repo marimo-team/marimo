@@ -5,7 +5,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
-from marimo._data.models import DataSourceConnection, DataTable
+from marimo._ast.cell import CellId_t
+from marimo._data.models import Database, DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
@@ -194,6 +195,18 @@ class SessionView:
             self.data_connectors = DataSourceConnections(
                 connections=list(next_connections.values())
             )
+
+            # Remove any databases that are no longer in scope.
+            # Variable names contain the engine names.
+            # If the engine exists, the database is still in scope.
+            next_databases: dict[str, Database] = {}
+            for database in self.databases.databases:
+                if (
+                    database.engine is not None
+                    and database.engine in variable_names
+                ):
+                    next_databases[database.name] = database
+            self.databases = Databases(databases=list(next_databases.values()))
 
         elif isinstance(operation, VariableValues):
             for value in operation.variables:

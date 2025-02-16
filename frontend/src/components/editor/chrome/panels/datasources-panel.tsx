@@ -302,7 +302,7 @@ const DatasetTableItem: React.FC<{
   table: DataTable;
   forceMount?: boolean;
   sqlTableContext?: SQLTableContext;
-}> = ({ table, sqlTableContext, forceMount }) => {
+}> = ({ table, sqlTableContext }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
@@ -335,8 +335,6 @@ const DatasetTableItem: React.FC<{
   const handleAddTable = () => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
     let code = "";
-
-    // TODO: Check if this works when schema is defined in engine creation
     if (sqlTableContext) {
       const { engine, schema } = sqlTableContext;
       code = `_df = mo.sql(f"SELECT * FROM ${schema}.${table.name} LIMIT 100", engine=${engine})`;
@@ -514,16 +512,16 @@ const DatasetColumnItem: React.FC<{
           <span>{column.name}</span>
           {isPrimaryKey && (
             <Tooltip content="Primary Key" delayDuration={100}>
-              <code className="text-xs text-black bg-gray-200 rounded px-1">
+              <span className="text-xs text-black bg-gray-200 rounded px-1">
                 PK
-              </code>
+              </span>
             </Tooltip>
           )}
           {isIndexed && (
             <Tooltip content="Indexed" delayDuration={100}>
-              <code className="text-xs text-black bg-gray-200 rounded px-1">
+              <span className="text-xs text-black bg-gray-200 rounded px-1">
                 IDX
-              </code>
+              </span>
             </Tooltip>
           )}
         </div>
@@ -735,7 +733,6 @@ function sqlCode(
   column: DataTableColumn,
   sqlTableContext?: SQLTableContext,
 ) {
-  // Schema doesn't need to be specified all the time
   if (sqlTableContext) {
     const { engine, schema } = sqlTableContext;
     return `_df = mo.sql(f'SELECT ${column.name} FROM ${schema}.${table.name} LIMIT 100', engine=${engine})`;

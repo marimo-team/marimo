@@ -70,4 +70,6 @@ const {
 export { reducer, createActions, enginesAtom, useDatabaseActions };
 
 // Hook to get & persist SQL table previews
-export const tablePreviewsAtom = atom(new Map<string, SQLTablePreview>());
+export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
+  new Map<string, SQLTablePreview>(),
+);
