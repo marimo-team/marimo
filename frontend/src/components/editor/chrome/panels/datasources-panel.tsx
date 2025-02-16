@@ -59,6 +59,7 @@ import { AddDatabaseDialog } from "../../database/add-database-form";
 import {
   tablePreviewsAtom,
   dataConnectionsMapAtom,
+  DEFAULT_ENGINE,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../../cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
@@ -90,12 +91,22 @@ const sortedTablesAtom = atom((get) => {
   });
 });
 
+const connectionsAtom = atom((get) => {
+  const dataConnections = new Map(get(dataConnectionsMapAtom));
+  // Filter out the internal duckdb engine if it has no databases
+  const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
+  if (defaultEngine && defaultEngine.databases.length === 0) {
+    dataConnections.delete(DEFAULT_ENGINE);
+  }
+  return dataConnections;
+});
+
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
   const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
   const tables = useAtomValue(sortedTablesAtom);
-  const dataConnections = useAtomValue(dataConnectionsMapAtom);
+  const dataConnections = useAtomValue(connectionsAtom);
 
   if (tables.length === 0 && dataConnections.size === 0) {
     return (
@@ -185,11 +196,15 @@ export const DataSourcesPanel: React.FC = () => {
         );
       })}
 
-      <DatasourceLabel>
-        <PythonIcon className="h-4 w-4 text-muted-foreground" />
-        <span>Python</span>
-      </DatasourceLabel>
-      <TableList tables={tables} isSearching={hasSearch} />
+      {dataConnections.size > 0 && tables.length > 0 && (
+        <DatasourceLabel>
+          <PythonIcon className="h-4 w-4 text-muted-foreground" />
+          <span>Python</span>
+        </DatasourceLabel>
+      )}
+      {tables.length > 0 && (
+        <TableList tables={tables} isSearching={hasSearch} />
+      )}
     </Command>
   );
 };
@@ -247,12 +262,19 @@ const DatabaseItem: React.FC<{
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center border-b cursor-pointer"
+        className="text-sm flex flex-row gap-1 items-center cursor-pointer"
         onSelect={() => setIsExpanded(!isExpanded)}
       >
         <RotatingChevron isExpanded={isExpanded} />
-        <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
-        {database.name}
+        <DatabaseIcon
+          className={cn(
+            "h-4 w-4",
+            isExpanded ? "text-foreground" : "text-muted-foreground",
+          )}
+        />
+        <span className={cn(isExpanded && "font-semibold")}>
+          {database.name}
+        </span>
       </CommandItem>
       {renderChildren()}
     </>
@@ -270,13 +292,18 @@ const SchemaItem: React.FC<{
   return (
     <>
       <CommandItem
-        className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
+        className="text-sm flex flex-row gap-1 items-center pl-5 cursor-pointer"
         onSelect={() => setIsExpanded(!isExpanded)}
         value={uniqueValue}
       >
         <RotatingChevron isExpanded={isExpanded} />
-        <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
-        {schema.name}
+        <PaintRollerIcon
+          className={cn(
+            "h-4 w-4 text-muted-foreground",
+            isExpanded && "text-foreground",
+          )}
+        />
+        <span className={cn(isExpanded && "font-semibold")}>{schema.name}</span>
       </CommandItem>
       {isExpanded && <div className="pl-5">{children}</div>}
     </>
@@ -297,7 +324,10 @@ const TableList: React.FC<{
   return (
     <CommandList className="flex flex-col">
       {tables.length === 0 ? (
-        <EmptyState content="No tables found" className="pl-5" />
+        <EmptyState
+          content="No tables found"
+          className={cn(sqlTableContext ? "pl-5" : "pl-2")}
+        />
       ) : (
         tables.map((table) => (
           <DatasetTableItem
@@ -401,7 +431,7 @@ const DatasetTableItem: React.FC<{
   const renderColumns = () => {
     if (loading) {
       return (
-        <div className="pl-5 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-7">
+        <div className="pl-6 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-8">
           <LoaderCircle className="h-4 w-4 animate-spin" />
           Loading columns...
         </div>
@@ -410,7 +440,7 @@ const DatasetTableItem: React.FC<{
 
     if (error) {
       return (
-        <div className="pl-5 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-7">
+        <div className="pl-6 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-8">
           <XIcon className="h-4 w-4" />
           {error.message}
         </div>
@@ -436,7 +466,12 @@ const DatasetTableItem: React.FC<{
     }
 
     const TableTypeIcon = table.type === "table" ? Table2Icon : EyeIcon;
-    return <TableTypeIcon className="h-3 w-3" />;
+    return (
+      <TableTypeIcon
+        className="h-3 w-3"
+        strokeWidth={isExpanded ? 2.5 : undefined}
+      />
+    );
   };
 
   const uniqueId = sqlTableContext
@@ -447,8 +482,9 @@ const DatasetTableItem: React.FC<{
     <>
       <CommandItem
         className={cn(
-          "rounded-none py-1 group h-7 border-t cursor-pointer",
-          table.source_type !== "local" && "pl-5",
+          "rounded-none group h-8 cursor-pointer",
+          table.source_type !== "local" && "pl-6",
+          isExpanded && "font-semibold",
         )}
         value={uniqueId}
         aria-selected={isExpanded}
@@ -525,7 +561,12 @@ const DatasetColumnItem: React.FC<{
         value={`${table.name}.${column.name}`}
         onSelect={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex flex-row gap-2 items-center pl-6 flex-1">
+        <div
+          className={cn(
+            "flex flex-row gap-2 items-center flex-1",
+            table.source_type === "local" ? "pl-6" : "pl-7",
+          )}
+        >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
           <span>{column.name}</span>
           {isPrimaryKey && (

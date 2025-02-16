@@ -4,6 +4,7 @@ import {
   type ConnectionName,
   type DataSourceConnection,
   type DataSourceState,
+  DEFAULT_ENGINE,
   exportedForTesting,
 } from "../data-source-connections";
 import type { VariableName } from "@/core/variables/types";
@@ -30,8 +31,9 @@ describe("data source connections", () => {
     state = initialState();
   });
 
-  it("starts with empty connections map", () => {
-    expect(initialState().connectionsMap.size).toBe(0);
+  it("starts with default connections map", () => {
+    expect(initialState().connectionsMap.size).toBe(1);
+    expect(initialState().connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 
   it("can add new connections", () => {
@@ -46,7 +48,7 @@ describe("data source connections", () => {
     ];
 
     const newState = addConnection(newConnections, state);
-    expect(newState.connectionsMap.size).toBe(1);
+    expect(newState.connectionsMap.size).toBe(2);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       newConnections[0],
     );
@@ -69,7 +71,7 @@ describe("data source connections", () => {
     let newState = addConnection([connection], state);
     newState = addConnection([updatedConnection], state);
 
-    expect(newState.connectionsMap.size).toBe(1);
+    expect(newState.connectionsMap.size).toBe(2);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       updatedConnection,
     );
@@ -94,13 +96,13 @@ describe("data source connections", () => {
     ];
 
     let newState = addConnection(connections, state);
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(3);
 
     newState = reducer(newState, {
       type: "removeDataSourceConnection",
       payload: "conn1" as ConnectionName,
     });
-    expect(newState.connectionsMap.size).toBe(1);
+    expect(newState.connectionsMap.size).toBe(2);
     expect(newState.connectionsMap.has("conn2" as ConnectionName)).toBe(true);
   });
 
@@ -123,7 +125,7 @@ describe("data source connections", () => {
     ];
 
     let newState = addConnection(connections, state);
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(3);
 
     newState = reducer(newState, {
       type: "clearDataSourceConnections",
@@ -163,25 +165,27 @@ describe("filtering data sources", () => {
 
   beforeEach(() => {
     baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(2);
+    expect(baseState.connectionsMap.size).toBe(3); // 2 + 1 (default) connections
   });
 
-  it("clear engines when none are in variables", () => {
+  it("keeps only DEFAULT_ENGINE when no variables", () => {
     const filtered = filterDataSources([]);
-    expect(filtered.connectionsMap.size).toBe(0);
+    expect(filtered.connectionsMap.size).toBe(1);
+    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 
-  it("keeps matching variables", () => {
+  it("keeps matching variables and DEFAULT_ENGINE", () => {
     const filtered = filterDataSources(["conn1" as unknown as VariableName]);
-    expect(filtered.connectionsMap.size).toBe(1);
+    expect(filtered.connectionsMap.size).toBe(2);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
+    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 
   it("filters out non-matching variables", () => {
     const filtered = filterDataSources([
       "non_existent" as unknown as VariableName,
     ]);
-    expect(filtered.connectionsMap.size).toBe(0);
+    expect(filtered.connectionsMap.size).toBe(1);
   });
 
   it("handles mix of matching and non-matching variables", () => {
@@ -189,7 +193,8 @@ describe("filtering data sources", () => {
       "conn1" as unknown as VariableName,
       "non_existent" as unknown as VariableName,
     ]);
-    expect(filtered.connectionsMap.size).toBe(1);
+    expect(filtered.connectionsMap.size).toBe(2);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
+    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 });

@@ -27,7 +27,13 @@ export interface DataSourceState {
 function initialState(): DataSourceState {
   return {
     latestEngineSelected: DEFAULT_ENGINE,
-    connectionsMap: new Map(),
+    connectionsMap: new Map().set(DEFAULT_ENGINE, {
+      name: DEFAULT_ENGINE,
+      dialect: "duckdb",
+      source: "duckdb",
+      display_name: "DuckDB In-Memory",
+      databases: [],
+    }),
   };
 }
 
