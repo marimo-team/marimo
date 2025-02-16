@@ -229,4 +229,16 @@ describe("generateColumns", () => {
     });
     expect(cell?.props.className).toContain("center");
   });
+
+  it("should not include index column if it exists", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes: [...fieldTypes, ["_marimo_row_id", ["string", "text"]]],
+    });
+
+    expect(columns).toHaveLength(2);
+    expect(columns[0].id).toBe("name");
+    expect(columns[1].id).toBe("age");
+  });
 });

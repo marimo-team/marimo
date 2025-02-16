@@ -57,7 +57,7 @@ export const TableActions = <TData,>({
               ? (value: boolean) => {
                   if (value) {
                     const allKeys = Array.from(
-                      { length: table.getRowModel().rows.length },
+                      { length: table.getRowCount() },
                       (_, i) => [i, true] as const,
                     );
                     onRowSelectionChange(Object.fromEntries(allKeys));

@@ -11,7 +11,7 @@ import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
-import type { FieldTypesWithExternalType } from "./types";
+import { INDEX_COLUMN_NAME, type FieldTypesWithExternalType } from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
@@ -121,6 +121,13 @@ export function generateColumns<T>({
     ...rowHeaders,
     ...fieldTypes.map(([columnName]) => columnName),
   ];
+
+  // Remove the index column if it exists
+  const indexColumnIdx = columnKeys.indexOf(INDEX_COLUMN_NAME);
+  if (indexColumnIdx !== -1) {
+    columnKeys.splice(indexColumnIdx, 1);
+  }
+
   const columns = columnKeys.map(
     (key, idx): ColumnDef<T> => ({
       id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,

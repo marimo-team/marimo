@@ -72,6 +72,11 @@ class IbisTableManagerFactory(TableManagerFactory):
             ) -> TableManager[ibis.Table]:
                 return IbisTableManager(self.data.select(columns))
 
+            def drop_columns(
+                self, columns: list[str]
+            ) -> TableManager[ibis.Table]:
+                return IbisTableManager(self.data.drop(columns))
+
             def get_row_headers(
                 self,
             ) -> list[str]:

@@ -29,6 +29,7 @@ import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
+import { INDEX_COLUMN_NAME } from "./types";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -108,10 +109,16 @@ const DataTableInternal = <TData,>({
     ...(setPaginationState
       ? {
           onPaginationChange: setPaginationState,
-          getRowId: (_row, idx) => {
+          getRowId: (row, idx) => {
+            // Prefer stable row ID if it exists
+            if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
+              return String(row[INDEX_COLUMN_NAME]);
+            }
+
             if (!paginationState) {
               return String(idx);
             }
+
             // Add offset if manualPagination is enabled
             const offset = manualPagination
               ? paginationState.pageIndex * paginationState.pageSize

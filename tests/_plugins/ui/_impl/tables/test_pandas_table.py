@@ -182,6 +182,12 @@ class TestPandasTableManager(unittest.TestCase):
         expected_data = self.data[columns]
         assert_frame_equal(selected_manager.data, expected_data)
 
+    def test_drop_columns(self) -> None:
+        columns = ["C"]
+        dropped_manager = self.manager.drop_columns(columns)
+        expected_data = self.data.drop(columns, axis=1)
+        assert_frame_equal(dropped_manager.data, expected_data)
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
