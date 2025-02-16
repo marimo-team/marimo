@@ -32,6 +32,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterRowsTransform,
     TransformType,
 )
+from marimo._plugins.ui._impl.tables.selection import (
+    INDEX_COLUMN_NAME,
+    add_selection_column,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     TableManager,
@@ -265,6 +269,9 @@ class table(
         validate_no_integer_columns(data)
         validate_page_size(page_size)
 
+        if selection is not None:
+            data = add_selection_column(data)
+
         # The original data passed in
         self._data = data
         # Holds the original data
@@ -468,7 +475,7 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[List[int] | List[str]]
+        self, value: Union[List[int], List[str]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         indices = [int(v) for v in value]
         self._selected_manager = self._searched_manager.select_rows(indices)
@@ -496,6 +503,9 @@ class table(
             if self._selected_manager and self._has_any_selection
             else self._searched_manager
         )
+
+        # Remove the selection column before downloading
+        manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
         ext = args.format
         if ext == "csv":

@@ -951,3 +951,95 @@ def test_dataframe_with_int_column_names():
     # Check that the table handles integer column names correctly
     assert table._manager.get_column_names() == [0, 1, 2]
     assert table._component_args["total-columns"] == 3
+
+
+def test_selection_with_index_column(dtm: DefaultTableManager) -> None:
+    # Test selection with index column
+    data = [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+        {"_marimo_row_id": 1, "name": "Bob", "age": 25},
+        {"_marimo_row_id": 2, "name": "Charlie", "age": 35},
+    ]
+    dtm.data = data
+    selected = dtm.select_rows([0, 2])
+    assert selected.data == [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+        {"_marimo_row_id": 2, "name": "Charlie", "age": 35},
+    ]
+
+
+def test_selection_with_index_column_and_sort(
+    dtm: DefaultTableManager,
+) -> None:
+    # Test selection with index column after sorting
+    data = [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+        {"_marimo_row_id": 1, "name": "Bob", "age": 25},
+        {"_marimo_row_id": 2, "name": "Charlie", "age": 35},
+    ]
+    dtm.data = data
+    sorted_data = dtm.sort_values(by="age", descending=True)
+    selected = sorted_data.select_rows([0, 2])
+    assert selected.data == [
+        {"_marimo_row_id": 2, "name": "Charlie", "age": 35},
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+    ]
+
+
+def test_selection_with_index_column_and_search(
+    dtm: DefaultTableManager,
+) -> None:
+    # Test selection with index column after search
+    data = [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+        {"_marimo_row_id": 1, "name": "Bob", "age": 25},
+        {"_marimo_row_id": 2, "name": "Charlie", "age": 35},
+    ]
+    dtm.data = data
+    searched = dtm.search("ali")
+    selected = searched.select_rows([0])
+    assert selected.data == [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+    ]
+
+
+def test_selection_with_index_column_columnar(
+    dtm: DefaultTableManager,
+) -> None:
+    # Test selection with index column in columnar format
+    data = {
+        "_marimo_row_id": [0, 1, 2],
+        "name": ["Alice", "Bob", "Charlie"],
+        "age": [30, 25, 35],
+    }
+    dtm.data = data
+    selected = dtm.select_rows([0, 2])
+    assert selected.data == {
+        "_marimo_row_id": [0, 2],
+        "name": ["Alice", "Charlie"],
+        "age": [30, 35],
+    }
+
+
+def test_selection_with_index_column_empty(dtm: DefaultTableManager) -> None:
+    # Test empty selection with index column
+    data = [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+        {"_marimo_row_id": 1, "name": "Bob", "age": 25},
+    ]
+    dtm.data = data
+    selected = dtm.select_rows([])
+    assert selected.data == []
+
+
+def test_selection_with_index_column_out_of_bounds(
+    dtm: DefaultTableManager,
+) -> None:
+    # Test selection with out of bounds indices
+    data = [
+        {"_marimo_row_id": 0, "name": "Alice", "age": 30},
+        {"_marimo_row_id": 1, "name": "Bob", "age": 25},
+    ]
+    dtm.data = data
+    with pytest.raises(IndexError):
+        dtm.select_rows([5])

@@ -122,20 +122,26 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return DefaultTableManager([self.data[i] for i in indices])
 
     def select_columns(self, columns: List[str]) -> DefaultTableManager:
+        column_set = set(columns)
         # Column major data
         if isinstance(self.data, dict):
             new_data: Dict[str, Any] = {
                 key: value
                 for key, value in self.data.items()
-                if key in columns
+                if key in column_set
             }
             return DefaultTableManager(new_data)
         # Row major data
         return DefaultTableManager(
             [
-                {key: row[key] for key in columns}
+                {key: row[key] for key in column_set}
                 for row in self._normalize_data(self.data)
             ]
+        )
+
+    def drop_columns(self, columns: list[str]) -> DefaultTableManager:
+        return self.select_columns(
+            list(set(self.get_column_names()) - set(columns))
         )
 
     def take(self, count: int, offset: int) -> DefaultTableManager:

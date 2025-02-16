@@ -13,6 +13,7 @@ from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
+from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
@@ -88,10 +89,19 @@ class NarwhalsTableManager(
 
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
         df = self.as_frame()
+        # Prefer the index column for selections
+        if INDEX_COLUMN_NAME in df.columns:
+            # Drop the index column before returning
+            return self.with_new_data(
+                df.filter(nw.col(INDEX_COLUMN_NAME).is_in(indices))
+            )
         return self.with_new_data(df[indices])
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.select(columns))
+
+    def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        return self.with_new_data(self.data.drop(columns, strict=False))
 
     def get_row_headers(
         self,
@@ -138,6 +148,8 @@ class NarwhalsTableManager(
 
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
+            if column == INDEX_COLUMN_NAME:
+                continue
             if dtype == nw.String:
                 expressions.append(nw.col(column).str.contains(f"(?i){query}"))
             elif dtype == nw.List(nw.String):

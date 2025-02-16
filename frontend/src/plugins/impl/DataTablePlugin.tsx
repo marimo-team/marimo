@@ -18,6 +18,7 @@ import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 
 import {
+  INDEX_COLUMN_NAME,
   toFieldTypes,
   type ColumnHeaderSummary,
   type FieldTypesWithExternalType,
@@ -44,7 +45,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
-import { useEffectSkipFirstRender } from "../../hooks/useEffectSkipFirstRender";
+import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -234,12 +235,16 @@ export const LoadingDataTableComponent = memo(
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
 
     // We need to clear the selection when sort, query, or filters change
-    // Currently, our selection is index-based,
-    // so we can't rely on the data to be the same when these change
-    // We can remove this when we have a stable key for each row
+    // if we don't have a stable ID for each row, which is determined by
+    // _marimo_row_id.
+    const hasStableRowId = props.fieldTypes?.some(
+      (fieldType) => fieldType[0] === INDEX_COLUMN_NAME,
+    );
     useEffectSkipFirstRender(() => {
-      setValue([]);
-    }, [setValue, filters, searchQuery, sorting]);
+      if (!hasStableRowId) {
+        setValue([]);
+      }
+    }, [setValue, filters, searchQuery, sorting, hasStableRowId]);
 
     // If pageSize changes, reset pagination state
     useEffect(() => {
@@ -507,13 +512,16 @@ const DataTableComponent = ({
 
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
+      console.log("handleRowSelectionChange");
       if (selection === "single") {
         const nextValue = Functions.asUpdater(updater)({});
         setValue(Object.keys(nextValue).slice(0, 1));
       }
 
       if (selection === "multi") {
+        console.log("multi");
         const nextValue = Functions.asUpdater(updater)(rowSelection);
+        console.log(nextValue);
         setValue(Object.keys(nextValue));
       }
     },
