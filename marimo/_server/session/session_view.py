@@ -6,11 +6,10 @@ from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
 from marimo._ast.cell import CellId_t
-from marimo._data.models import Database, DataSourceConnection, DataTable
+from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
-    Databases,
     Datasets,
     DataSourceConnections,
     Interrupted,
@@ -28,7 +27,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._types.ids import CellId_t
+from marimo._sql.engines import DEFAULT_ENGINE_NAME
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -71,8 +70,6 @@ class SessionView:
         self.datasets = Datasets(tables=[])
         # The most recent data-connectors operation
         self.data_connectors = DataSourceConnections(connections=[])
-        # The most recent databases operation.
-        self.databases = Databases(databases=[])
         # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
         # Map of variable name to value.
@@ -188,25 +185,17 @@ class SessionView:
             self.datasets = Datasets(tables=list(next_tables.values()))
 
             # Remove any data source connections that are no longer in scope.
+            # Keep the default duckdb connection if it exists
             next_connections: dict[str, DataSourceConnection] = {}
             for connection in self.data_connectors.connections:
-                if connection.name in variable_names:
+                if (
+                    connection.name in variable_names
+                    or connection.name == DEFAULT_ENGINE_NAME
+                ):
                     next_connections[connection.name] = connection
             self.data_connectors = DataSourceConnections(
                 connections=list(next_connections.values())
             )
-
-            # Remove any databases that are no longer in scope.
-            # Variable names contain the engine names.
-            # If the engine exists, the database is still in scope.
-            next_databases: dict[str, Database] = {}
-            for database in self.databases.databases:
-                if (
-                    database.engine is not None
-                    and database.engine in variable_names
-                ):
-                    next_databases[database.name] = database
-            self.databases = Databases(databases=list(next_databases.values()))
 
         elif isinstance(operation, VariableValues):
             for value in operation.variables:
@@ -242,16 +231,6 @@ class SessionView:
             self.data_connectors = DataSourceConnections(
                 connections=list(connections.values())
             )
-
-        elif isinstance(operation, Databases):
-            # Update databases, dedupe by name and keep the latest
-            prev_db_collections = self.databases.databases
-            databases = {d.name: d for d in prev_db_collections}
-
-            for d in operation.databases:
-                databases[d.name] = d
-
-            self.databases = Databases(databases=list(databases.values()))
 
         elif isinstance(operation, UpdateCellIdsRequest):
             self.cell_ids = operation
@@ -316,8 +295,6 @@ class SessionView:
             all_ops.append(self.datasets)
         if self.data_connectors.connections:
             all_ops.append(self.data_connectors)
-        if self.databases.databases:
-            all_ops.append(self.databases)
         all_ops.extend(self.cell_operations.values())
         if self.stale_code:
             all_ops.append(self.stale_code)

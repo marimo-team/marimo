@@ -140,9 +140,11 @@ class DataSourceConnection:
         dialect (str): The dialect of the data source connection. E.g 'postgresql'.
         name (str): The name of the data source connection. E.g 'engine'.
         display_name (str): The display name of the data source connection. E.g 'PostgresQL (engine)'.
+        databases (List[Database]): The databases in the data source connection.
     """
 
     source: str
     dialect: str
     name: str
     display_name: str
+    databases: List[Database] = field(default_factory=list)

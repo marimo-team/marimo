@@ -2263,6 +2263,15 @@ export interface components {
       table_name: string;
     };
     DataSourceConnection: {
+      databases: {
+        dialect: string;
+        engine?: string | null;
+        name: string;
+        schemas: {
+          name: string;
+          tables: components["schemas"]["DataTable"][];
+        }[];
+      }[];
       dialect: string;
       display_name: string;
       name: string;
@@ -2309,11 +2318,6 @@ export interface components {
       engine?: string | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
-    };
-    Databases: {
-      databases: components["schemas"]["Database"][];
-      /** @enum {string} */
-      name: "databases";
     };
     Datasets: {
       /** @enum {string|null} */
@@ -2712,7 +2716,6 @@ export interface components {
           /** @enum {string} */
           name: "data-source-connections";
         }
-      | components["schemas"]["Databases"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];

@@ -16,10 +16,10 @@ import { CommandList } from "cmdk";
 
 import { cn } from "@/utils/cn";
 import {
-  closeAllColumnsAtom,
   datasetTablesAtom,
   expandedColumnsAtom,
   useDatasets,
+  useDatasetsActions,
 } from "@/core/datasets/state";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ import type {
   Database,
   DatabaseSchema,
   DataColumnPreview,
+  DataSourceConnection,
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
@@ -55,7 +56,10 @@ import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../../database/add-database-form";
-import { enginesAtom, tablePreviewsAtom } from "@/core/datasets/databases";
+import {
+  tablePreviewsAtom,
+  dataConnectionsMapAtom,
+} from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../../cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -89,11 +93,11 @@ const sortedTablesAtom = atom((get) => {
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
-  const closeAllColumns = useSetAtom(closeAllColumnsAtom);
+  const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
   const tables = useAtomValue(sortedTablesAtom);
-  const engines = useAtomValue(enginesAtom);
+  const dataConnections = useAtomValue(dataConnectionsMapAtom);
 
-  if (tables.length === 0 && engines.enginesMap.size === 0) {
+  if (tables.length === 0 && dataConnections.size === 0) {
     return (
       <PanelEmptyState
         title="No tables found"
@@ -123,7 +127,7 @@ export const DataSourcesPanel: React.FC = () => {
           onValueChange={(value) => {
             // If searching, remove open previews
             if (value.length > 0) {
-              closeAllColumns(true);
+              closeAllColumns();
             }
             setSearchValue(value);
           }}
@@ -149,16 +153,14 @@ export const DataSourcesPanel: React.FC = () => {
         </AddDatabaseDialog>
       </div>
 
-      {Array.from(engines.enginesMap, ([engineName, databaseMap]) => {
-        const dialect = databaseMap.values().next().value?.dialect || "duckdb";
+      {Array.from(dataConnections.values(), (connection) => {
         return (
           <Engine
-            key={engineName}
-            name={engineName}
-            dialect={dialect}
-            hasChildren={databaseMap.size > 0}
+            key={connection.name}
+            connection={connection}
+            hasChildren={connection.databases.length > 0}
           >
-            {Array.from(databaseMap.values(), (database) => (
+            {Array.from(connection.databases.values(), (database) => (
               <DatabaseItem key={database.name} database={database}>
                 {database.schemas.map((schema) => (
                   <SchemaItem key={schema.name} schema={schema}>
@@ -166,7 +168,7 @@ export const DataSourcesPanel: React.FC = () => {
                       tables={schema.tables}
                       isSearching={hasSearch}
                       sqlTableContext={{
-                        engine: engineName,
+                        engine: connection.name,
                         database: database.name,
                         schema: schema.name,
                       }}
@@ -189,21 +191,25 @@ export const DataSourcesPanel: React.FC = () => {
 };
 
 const Engine: React.FC<{
-  name: string;
-  dialect: string;
+  connection: DataSourceConnection;
   children: React.ReactNode;
   hasChildren?: boolean;
-}> = ({ name, dialect, children, hasChildren }) => {
+}> = ({ connection, children, hasChildren }) => {
+  const hasEngine = connection.databases.length > 0;
+  const engineName = hasEngine
+    ? connection.databases[0]?.engine || "In-Memory"
+    : connection.name;
+
   return (
     <>
       <DatasourceLabel>
         <DatabaseLogo
           className="h-4 w-4 text-muted-foreground"
-          name={dialect}
+          name={connection.dialect}
         />
-        <span>{dbDisplayName(dialect)}</span>
+        <span>{dbDisplayName(connection.dialect)}</span>
         <span className="text-xs text-muted-foreground">
-          (<EngineVariable variableName={name as VariableName} />)
+          (<EngineVariable variableName={engineName as VariableName} />)
         </span>
       </DatasourceLabel>
       {hasChildren ? (

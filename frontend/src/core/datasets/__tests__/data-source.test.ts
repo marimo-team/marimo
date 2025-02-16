@@ -4,7 +4,6 @@ import {
   type ConnectionName,
   type DataSourceConnection,
   type DataSourceState,
-  DEFAULT_ENGINE,
   exportedForTesting,
 } from "../data-source-connections";
 import type { VariableName } from "@/core/variables/types";
@@ -32,7 +31,7 @@ describe("data source connections", () => {
   });
 
   it("starts with empty connections map", () => {
-    expect(initialState().connectionsMap.size).toBe(1);
+    expect(initialState().connectionsMap.size).toBe(0);
   });
 
   it("can add new connections", () => {
@@ -42,11 +41,12 @@ describe("data source connections", () => {
         source: "sqlite",
         display_name: "SQLite DB",
         dialect: "sqlite",
+        databases: [],
       },
     ];
 
     const newState = addConnection(newConnections, state);
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(1);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       newConnections[0],
     );
@@ -58,6 +58,7 @@ describe("data source connections", () => {
       source: "sqlite",
       display_name: "SQLite DB",
       dialect: "sqlite",
+      databases: [],
     };
 
     const updatedConnection = {
@@ -68,7 +69,7 @@ describe("data source connections", () => {
     let newState = addConnection([connection], state);
     newState = addConnection([updatedConnection], state);
 
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(1);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       updatedConnection,
     );
@@ -81,23 +82,25 @@ describe("data source connections", () => {
         source: "sqlite",
         display_name: "SQLite DB",
         dialect: "sqlite",
+        databases: [],
       },
       {
         name: "conn2" as ConnectionName,
         source: "postgres",
         dialect: "postgres",
         display_name: "Postgres DB",
+        databases: [],
       },
     ];
 
     let newState = addConnection(connections, state);
-    expect(newState.connectionsMap.size).toBe(3);
+    expect(newState.connectionsMap.size).toBe(2);
 
     newState = reducer(newState, {
       type: "removeDataSourceConnection",
       payload: "conn1" as ConnectionName,
     });
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(1);
     expect(newState.connectionsMap.has("conn2" as ConnectionName)).toBe(true);
   });
 
@@ -108,17 +111,19 @@ describe("data source connections", () => {
         source: "sqlite",
         display_name: "SQLite DB",
         dialect: "sqlite",
+        databases: [],
       },
       {
         name: "conn2" as ConnectionName,
         source: "postgres",
         display_name: "Postgres DB",
         dialect: "postgres",
+        databases: [],
       },
     ];
 
     let newState = addConnection(connections, state);
-    expect(newState.connectionsMap.size).toBe(3);
+    expect(newState.connectionsMap.size).toBe(2);
 
     newState = reducer(newState, {
       type: "clearDataSourceConnections",
@@ -143,12 +148,14 @@ describe("filtering data sources", () => {
       source: "sqlite",
       display_name: "SQLite DB",
       dialect: "sqlite",
+      databases: [],
     },
     {
       name: "conn2" as ConnectionName,
       source: "postgres",
       display_name: "Postgres DB",
       dialect: "postgres",
+      databases: [],
     },
   ];
 
@@ -156,28 +163,25 @@ describe("filtering data sources", () => {
 
   beforeEach(() => {
     baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(3); // 2 + 1 (default) connections
+    expect(baseState.connectionsMap.size).toBe(2);
   });
 
-  it("keeps only DEFAULT_ENGINE when no variables", () => {
+  it("clear engines when none are in variables", () => {
     const filtered = filterDataSources([]);
-    expect(filtered.connectionsMap.size).toBe(1);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+    expect(filtered.connectionsMap.size).toBe(0);
   });
 
-  it("keeps matching variables and DEFAULT_ENGINE", () => {
+  it("keeps matching variables", () => {
     const filtered = filterDataSources(["conn1" as unknown as VariableName]);
-    expect(filtered.connectionsMap.size).toBe(2);
+    expect(filtered.connectionsMap.size).toBe(1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 
   it("filters out non-matching variables", () => {
     const filtered = filterDataSources([
       "non_existent" as unknown as VariableName,
     ]);
-    expect(filtered.connectionsMap.size).toBe(1);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+    expect(filtered.connectionsMap.size).toBe(0);
   });
 
   it("handles mix of matching and non-matching variables", () => {
@@ -185,8 +189,7 @@ describe("filtering data sources", () => {
       "conn1" as unknown as VariableName,
       "non_existent" as unknown as VariableName,
     ]);
-    expect(filtered.connectionsMap.size).toBe(2);
+    expect(filtered.connectionsMap.size).toBe(1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 });

@@ -6,11 +6,9 @@ from typing import Callable
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._data.get_datasets import (
-    get_databases_from_duckdb,
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
-from marimo._data.models import Database
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
@@ -20,7 +18,6 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.ops import (
     CellOp,
-    Databases,
     Datasets,
     DataSourceConnections,
     VariableValue,
@@ -34,7 +31,7 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
-from marimo._sql.engines import DuckDBEngine, SQLAlchemyEngine
+from marimo._sql.engines import DEFAULT_ENGINE_NAME, DuckDBEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -169,23 +166,9 @@ def _broadcast_data_source_connection(
             ]
         ).broadcast()
 
-    for variable, engine in engines:
-        databases: list[Database] = []
-        if isinstance(engine, SQLAlchemyEngine):
-            databases = engine.get_databases(
-                include_schemas=True,
-                include_tables=True,
-                include_table_details=False,
-            )
-        elif isinstance(engine, DuckDBEngine):
-            databases = engine.get_databases()
-        if len(databases) > 0:
-            LOGGER.debug(f"Broadcasting engine databases for {variable}")
-            Databases(databases=databases).broadcast()
 
-
-@kernel_tracer.start_as_current_span("broadcast_duckdb_databases")
-def _broadcast_duckdb_databases(
+@kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
+def _broadcast_duckdb_datasource(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -209,12 +192,14 @@ def _broadcast_duckdb_databases(
         if not modifies_datasources:
             return
 
-        databases = get_databases_from_duckdb(connection=None)
-        if not databases:
-            return
-
-        LOGGER.debug("Broadcasting duckdb databases")
-        Databases(databases=databases).broadcast()
+        LOGGER.debug("Broadcasting internal duckdb datasource")
+        DataSourceConnections(
+            connections=[
+                engine_to_data_source_connection(
+                    DEFAULT_ENGINE_NAME, DuckDBEngine()
+                )
+            ]
+        ).broadcast()
     except Exception:
         return
 
@@ -384,7 +369,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _broadcast_variables,
     _broadcast_datasets,
     _broadcast_data_source_connection,
-    _broadcast_duckdb_databases,
+    _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
     # set status to idle after all post-processing is done, in case the

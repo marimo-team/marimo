@@ -30,7 +30,6 @@ from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._data.models import (
     ColumnSummary,
-    Database,
     DataSourceConnection,
     DataTable,
     DataTableSource,
@@ -592,14 +591,6 @@ class Datasets(Op):
 
 
 @dataclass
-class Databases(Op):
-    """List of databases."""
-
-    name: ClassVar[str] = "databases"
-    databases: List[Database]
-
-
-@dataclass
 class SQLTablePreview(Op):
     """Preview of a table in a dataset."""
 
@@ -721,7 +712,6 @@ MessageOperation = Union[
     DataColumnPreview,
     SQLTablePreview,
     DataSourceConnections,
-    Databases,
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,
