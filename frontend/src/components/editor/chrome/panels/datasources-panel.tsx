@@ -163,7 +163,11 @@ export const DataSourcesPanel: React.FC = () => {
             {Array.from(connection.databases.values(), (database) => (
               <DatabaseItem key={database.name} database={database}>
                 {database.schemas.map((schema) => (
-                  <SchemaItem key={schema.name} schema={schema}>
+                  <SchemaItem
+                    key={schema.name}
+                    dbName={database.name}
+                    schema={schema}
+                  >
                     <TableList
                       tables={schema.tables}
                       isSearching={hasSearch}
@@ -196,6 +200,7 @@ const Engine: React.FC<{
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
   const hasEngine = connection.databases.length > 0;
+  // If the connection has no engine, it's the internal duckdb engine
   const engineName = hasEngine
     ? connection.databases[0]?.engine || "In-Memory"
     : connection.name;
@@ -255,16 +260,19 @@ const DatabaseItem: React.FC<{
 };
 
 const SchemaItem: React.FC<{
+  dbName: string;
   schema: DatabaseSchema;
   children: React.ReactNode;
-}> = ({ schema, children }) => {
+}> = ({ dbName, schema, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const uniqueValue = `${dbName}:${schema.name}`;
 
   return (
     <>
       <CommandItem
         className="py-1 text-sm flex flex-row gap-1 items-center border-b pl-5 cursor-pointer"
         onSelect={() => setIsExpanded(!isExpanded)}
+        value={uniqueValue}
       >
         <RotatingChevron isExpanded={isExpanded} />
         <PaintRollerIcon className="h-4 w-4 text-muted-foreground" />
@@ -327,7 +335,7 @@ const DatasetTableItem: React.FC<{
       });
 
       if (!previewTable?.table) {
-        throw new Error("No table found");
+        throw new Error("No table details available");
       }
 
       setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
@@ -431,6 +439,10 @@ const DatasetTableItem: React.FC<{
     return <TableTypeIcon className="h-3 w-3" />;
   };
 
+  const uniqueId = sqlTableContext
+    ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
+    : table.name;
+
   return (
     <>
       <CommandItem
@@ -438,7 +450,7 @@ const DatasetTableItem: React.FC<{
           "rounded-none py-1 group h-7 border-t cursor-pointer",
           table.source_type !== "local" && "pl-5",
         )}
-        value={table.name}
+        value={uniqueId}
         aria-selected={isExpanded}
         forceMount={true}
         onSelect={() => setIsExpanded(!isExpanded)}

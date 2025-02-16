@@ -31,7 +31,7 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
-from marimo._sql.engines import DEFAULT_ENGINE_NAME, DuckDBEngine
+from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -196,7 +196,7 @@ def _broadcast_duckdb_datasource(
         DataSourceConnections(
             connections=[
                 engine_to_data_source_connection(
-                    DEFAULT_ENGINE_NAME, DuckDBEngine()
+                    INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
                 )
             ]
         ).broadcast()

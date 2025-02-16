@@ -131,6 +131,7 @@ export const exportedForTesting = {
 };
 
 // Hook to get & persist SQL table previews
+// Acts as a cache
 export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
   new Map<string, SQLTablePreview>(),
 );

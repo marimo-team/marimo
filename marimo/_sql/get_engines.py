@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from marimo._data.models import Database, DataSourceConnection
 from marimo._sql.engines import (
-    DEFAULT_ENGINE_NAME,
+    INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
     SQLAlchemyEngine,
 )
@@ -54,7 +54,7 @@ def engine_to_data_source_connection(
 
     display_name = (
         f"{engine.dialect} ({variable_name})"
-        if variable_name != DEFAULT_ENGINE_NAME
+        if variable_name != INTERNAL_DUCKDB_ENGINE
         else f"{engine.dialect} (In-Memory)"
     )
 

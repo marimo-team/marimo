@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.type_api import TypeEngine
 
 # Internal engine name for DuckDB, wwe need to ensure this is unique
-DEFAULT_ENGINE_NAME = "__marimo_duckdb"
+INTERNAL_DUCKDB_ENGINE = "__marimo_duckdb"
 
 
 def raise_df_import_error(pkg: str) -> None:

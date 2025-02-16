@@ -12,7 +12,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines import (
-    DEFAULT_ENGINE_NAME,
+    INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
     SQLAlchemyEngine,
 )
@@ -143,7 +143,7 @@ def test_get_engines_duckdb_databases() -> None:
 
     # Test display name when the name is DEFAULT_ENGINE_NAME
     connection = engine_to_data_source_connection(
-        DEFAULT_ENGINE_NAME, duckdb_engine
+        INTERNAL_DUCKDB_ENGINE, duckdb_engine
     )
     assert connection.display_name == "duckdb (In-Memory)"
 

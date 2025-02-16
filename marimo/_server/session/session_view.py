@@ -27,7 +27,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._sql.engines import DEFAULT_ENGINE_NAME
+from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -190,7 +190,7 @@ class SessionView:
             for connection in self.data_connectors.connections:
                 if (
                     connection.name in variable_names
-                    or connection.name == DEFAULT_ENGINE_NAME
+                    or connection.name == INTERNAL_DUCKDB_ENGINE
                 ):
                     next_connections[connection.name] = connection
             self.data_connectors = DataSourceConnections(
