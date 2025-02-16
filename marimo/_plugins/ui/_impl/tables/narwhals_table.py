@@ -292,10 +292,13 @@ class NarwhalsTableManager(
             return None
 
     def get_num_columns(self) -> int:
-        return len(self.nw_schema.names())
+        return len(self.get_column_names())
 
     def get_column_names(self) -> list[str]:
-        return self.nw_schema.names()
+        column_names = self.nw_schema.names()
+        if INDEX_COLUMN_NAME in column_names:
+            column_names.remove(INDEX_COLUMN_NAME)
+        return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         try:
