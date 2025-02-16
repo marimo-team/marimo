@@ -386,7 +386,8 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo() -> None: ...
+            def foo() -> None:
+                ...
 
             return (foo,)
 
@@ -661,13 +662,14 @@ class TestAppComposition:
                 exec_req.get(
                     """
                     from app_data.ui_element_dropdown import app
+                    token = [0]
                     """
                 ),
                 exec_req.get(
                     """
                     import random
 
-                    token = random.randint(0, 10000)
+                    token[0] += 1
                     result = await app.embed()
                     """
                 ),
@@ -686,13 +688,14 @@ class TestAppComposition:
         html = result.output.text
         assert "value is first" in html
         assert "value is second" not in html
+        assert token[0] == 1
 
-        await k.set_ui_element_value(
+        assert await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values(
                 [(dropdown_element._id, ["second"])]
             )
         )
-        assert token != k.globals["token"]
+        assert token[0] == 2
 
         # make sure ui element value updated
         assert dropdown_element.value == "second"
@@ -738,7 +741,7 @@ class TestAppComposition:
         assert ctx.app_kernel_runner_registry.size == 1
         # testing that only descendants of the updated UI elements run,
         # and that the other UI element is not reset
-        await k.set_ui_element_value(
+        assert await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values([(x._id, 2)])
         )
 
@@ -747,7 +750,7 @@ class TestAppComposition:
         assert x.value == 2
         assert y.value == 1
 
-        await k.set_ui_element_value(
+        assert await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values([(y._id, 3)])
         )
 
