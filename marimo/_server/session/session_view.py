@@ -63,6 +63,7 @@ class SessionView:
         self.has_auto_exported_html = False
         self.has_auto_exported_md = False
         self.has_auto_exported_ipynb = False
+        self.last_active_time = time.time()
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
@@ -283,6 +284,7 @@ class SessionView:
         self.has_auto_exported_ipynb = True
 
     def _touch(self) -> None:
+        self.last_active_time = time.time()
         self.has_auto_exported_html = False
         self.has_auto_exported_md = False
         self.has_auto_exported_ipynb = False

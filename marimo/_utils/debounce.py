@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import time
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast
@@ -6,7 +8,7 @@ from typing import Any, Callable, TypeVar, cast
 F = TypeVar("F", bound=Callable[..., None])
 
 
-def debounce(wait_time: float) -> Callable[[F], F]:
+def debounce(wait_time_seconds: float) -> Callable[[F], F]:
     """
     Decorator to prevent a function from being called more than once every
     wait_time seconds.
@@ -19,7 +21,7 @@ def debounce(wait_time: float) -> Callable[[F], F]:
         def wrapped(*args: Any, **kwargs: Any) -> None:
             nonlocal last_called
             current_time = time.time()
-            if current_time - last_called >= wait_time:
+            if current_time - last_called >= wait_time_seconds:
                 last_called = current_time
                 func(*args, **kwargs)
 

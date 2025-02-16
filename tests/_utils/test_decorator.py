@@ -1,4 +1,6 @@
 # Assuming the debounce decorator is defined in a file named debounce.py
+from __future__ import annotations
+
 import time
 
 from marimo._utils.debounce import debounce
@@ -8,7 +10,7 @@ call_count = 0
 
 
 def test_debounce_within_period() -> None:
-    @debounce(wait_time=1.5)
+    @debounce(wait_time_seconds=1.5)
     def my_function() -> None:
         global call_count
         call_count += 1
@@ -25,7 +27,7 @@ def test_debounce_within_period() -> None:
 
 
 def test_debounce_after_period() -> None:
-    @debounce(wait_time=0.1)
+    @debounce(wait_time_seconds=0.1)
     def my_function() -> None:
         global call_count
         call_count += 1
