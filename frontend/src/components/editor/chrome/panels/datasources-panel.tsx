@@ -93,12 +93,16 @@ const sortedTablesAtom = atom((get) => {
 
 const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
-  // Filter out the internal duckdb engine if it has no databases
   const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
+
+  // Filter out the internal duckdb engine if it has no databases
   if (defaultEngine && defaultEngine.databases.length === 0) {
     dataConnections.delete(DEFAULT_ENGINE);
   }
-  return dataConnections;
+
+  return sortBy([...dataConnections.values()], (connection) =>
+    connection.name === DEFAULT_ENGINE ? "" : connection.name,
+  );
 });
 
 export const DataSourcesPanel: React.FC = () => {
@@ -108,7 +112,7 @@ export const DataSourcesPanel: React.FC = () => {
   const tables = useAtomValue(sortedTablesAtom);
   const dataConnections = useAtomValue(connectionsAtom);
 
-  if (tables.length === 0 && dataConnections.size === 0) {
+  if (tables.length === 0 && dataConnections.length === 0) {
     return (
       <PanelEmptyState
         title="No tables found"
@@ -164,39 +168,37 @@ export const DataSourcesPanel: React.FC = () => {
         </AddDatabaseDialog>
       </div>
 
-      {Array.from(dataConnections.values(), (connection) => {
-        return (
-          <Engine
-            key={connection.name}
-            connection={connection}
-            hasChildren={connection.databases.length > 0}
-          >
-            {Array.from(connection.databases.values(), (database) => (
-              <DatabaseItem key={database.name} database={database}>
-                {database.schemas.map((schema) => (
-                  <SchemaItem
-                    key={schema.name}
-                    dbName={database.name}
-                    schema={schema}
-                  >
-                    <TableList
-                      tables={schema.tables}
-                      isSearching={hasSearch}
-                      sqlTableContext={{
-                        engine: connection.name,
-                        database: database.name,
-                        schema: schema.name,
-                      }}
-                    />
-                  </SchemaItem>
-                ))}
-              </DatabaseItem>
-            ))}
-          </Engine>
-        );
-      })}
+      {dataConnections.map((connection) => (
+        <Engine
+          key={connection.name}
+          connection={connection}
+          hasChildren={connection.databases.length > 0}
+        >
+          {connection.databases.map((database) => (
+            <DatabaseItem key={database.name} database={database}>
+              {database.schemas.map((schema) => (
+                <SchemaItem
+                  key={schema.name}
+                  dbName={database.name}
+                  schema={schema}
+                >
+                  <TableList
+                    tables={schema.tables}
+                    isSearching={hasSearch}
+                    sqlTableContext={{
+                      engine: connection.name,
+                      database: database.name,
+                      schema: schema.name,
+                    }}
+                  />
+                </SchemaItem>
+              ))}
+            </DatabaseItem>
+          ))}
+        </Engine>
+      ))}
 
-      {dataConnections.size > 0 && tables.length > 0 && (
+      {dataConnections.length > 0 && tables.length > 0 && (
         <DatasourceLabel>
           <PythonIcon className="h-4 w-4 text-muted-foreground" />
           <span>Python</span>
