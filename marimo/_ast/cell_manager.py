@@ -10,10 +10,11 @@ from typing import (
     Callable,
     Iterable,
     Optional,
-    ParamSpec,
     TypeAlias,
     TypeVar,
 )
+
+from typing_extensions import ParamSpec
 
 from marimo._ast.cell import Cell, CellConfig, CellId_t
 from marimo._ast.compiler import cell_factory, toplevel_cell_factory

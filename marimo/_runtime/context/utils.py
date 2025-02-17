@@ -77,6 +77,6 @@ class import_guard:
         exception: Optional[Type[BaseException]],
         instance: Optional[BaseException],
         _tracebacktype: Optional[TracebackType],
-    ) -> bool:
+    ) -> Literal[False]:
         # Whether to suppress a given exception.
         return False
