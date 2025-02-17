@@ -12,6 +12,7 @@ from typing import (
     Literal,
     Optional,
     Sequence,
+    Set,
     Union,
 )
 
@@ -357,57 +358,18 @@ class table(
             )
         )
 
-        # Validate frozen columns
-        if (
-            freeze_columns_left is not None
-            and freeze_columns_right is not None
-        ):
-            for column in freeze_columns_left:
-                if column not in freeze_columns_right:
-                    continue
-                raise ValueError(
-                    "The same column cannot be frozen on both sides."
-                )
-        else:
-            column_names = self._manager.get_column_names()
-            if freeze_columns_left is not None:
-                for column in freeze_columns_left:
-                    if column not in column_names:
-                        raise ValueError(
-                            f"Column '{column}' not found in table."
-                        )
-            if freeze_columns_right is not None:
-                for column in freeze_columns_right:
-                    if column not in column_names:
-                        raise ValueError(
-                            f"Column '{column}' not found in table."
-                        )
+        column_names_set = set(self._manager.get_column_names())
 
-        if text_justify_columns:
-            valid_justifications = {"left", "center", "right"}
-            column_names = self._manager.get_column_names()
-
-            for column, justify in text_justify_columns.items():
-                if column not in column_names:
-                    raise ValueError(f"Column '{column}' not found in table.")
-                if justify not in valid_justifications:
-                    raise ValueError(
-                        f"Invalid justification '{justify}' for column '{column}'. "
-                        f"Must be one of: {', '.join(valid_justifications)}."
-                    )
-
-        if wrapped_columns:
-            column_names = self._manager.get_column_names()
-            for column in wrapped_columns:
-                if column not in column_names:
-                    raise ValueError(f"Column '{column}' not found in table.")
+        # Validate column configurations
+        _validate_frozen_columns(
+            freeze_columns_left, freeze_columns_right, column_names_set
+        )
+        _validate_column_formatting(
+            text_justify_columns, wrapped_columns, column_names_set
+        )
 
         # Clamp field types to max columns
-        if (
-            self._max_columns is not None
-            and len(field_types) > self._max_columns
-        ):
-            field_types = field_types[: self._max_columns]
+        field_types = _get_clamped_field_types(field_types, self._max_columns)
 
         super().__init__(
             component_name=table._name,
@@ -695,3 +657,85 @@ class table(
 
     def __hash__(self) -> int:
         return id(self)
+
+
+def _get_clamped_field_types(
+    field_types: List[Any], max_columns: Optional[int]
+) -> List[Any]:
+    if max_columns is not None and len(field_types) > max_columns:
+        return field_types[:max_columns]
+    return field_types
+
+
+def _validate_frozen_columns(
+    freeze_columns_left: Optional[Sequence[str]],
+    freeze_columns_right: Optional[Sequence[str]],
+    column_names_set: Set[str],
+) -> None:
+    """Validate frozen column configurations.
+
+    Validates that:
+    1. The same column is not frozen on both sides
+    2. All frozen columns exist in the table
+    """
+
+    freeze_columns_left_set = (
+        set(freeze_columns_left) if freeze_columns_left else None
+    )
+    freeze_columns_right_set = (
+        set(freeze_columns_right) if freeze_columns_right else None
+    )
+
+    # Convert sequences to sets for O(1) lookups
+    if freeze_columns_left_set and freeze_columns_right_set:
+        if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
+            raise ValueError("The same column cannot be frozen on both sides.")
+
+    # Check all frozen columns exist
+    if freeze_columns_left_set:
+        invalid = freeze_columns_left_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+    if freeze_columns_right_set:
+        invalid = freeze_columns_right_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_column_formatting(
+    text_justify_columns: Optional[
+        Dict[str, Literal["left", "center", "right"]]
+    ],
+    wrapped_columns: Optional[List[str]],
+    column_names_set: Set[str],
+) -> None:
+    """Validate text justification and wrapped column configurations.
+
+    Validates that:
+    1. All columns specified in text_justify_columns exist in the table
+    2. All justification values are valid ('left', 'center', 'right')
+    3. All columns specified in wrapped_columns exist in the table
+    """
+    if text_justify_columns:
+        valid_justifications = {"left", "center", "right"}
+        for column, justify in text_justify_columns.items():
+            if column not in column_names_set:
+                raise ValueError(f"Column '{column}' not found in table.")
+            if justify not in valid_justifications:
+                raise ValueError(
+                    f"Invalid justification '{justify}' for column '{column}'. "
+                    f"Must be one of: {', '.join(valid_justifications)}."
+                )
+
+    if wrapped_columns:
+        wrapped_columns_set = set(wrapped_columns)
+        invalid = wrapped_columns_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )
