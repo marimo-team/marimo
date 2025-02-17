@@ -35,23 +35,34 @@ const importMhChem = once(async () => {
   await import("katex/contrib/mhchem");
 });
 
+// Required, even if empty. (see https://github.com/KaTeX/KaTeX/issues/2513)
+const macros = {};
+
 async function renderLatex(mount: HTMLElement, tex: string): Promise<void> {
   const [katex] = await Promise.all([importKatex(), importMhChem()]);
   if (tex.startsWith("||(||(") && tex.endsWith("||)||)")) {
     // when $$...$$ is used without newlines before/after the $$.
     katex.render(tex.slice(6, -6), mount, {
       displayMode: true,
+      globalGroup: true,
       throwOnError: false,
+      macros: macros,
     });
   } else if (tex.startsWith("||(") && tex.endsWith("||)")) {
+    // Inline math, via $...$
     katex.render(tex.slice(3, -3), mount, {
       displayMode: false,
+      globalGroup: true,
       throwOnError: false,
+      macros: macros,
     });
   } else if (tex.startsWith("||[") && tex.endsWith("||]")) {
+    // Display math, via $$...$$
     katex.render(tex.slice(3, -3), mount, {
       displayMode: true,
+      globalGroup: true,
       throwOnError: false,
+      macros: macros,
     });
   }
 }

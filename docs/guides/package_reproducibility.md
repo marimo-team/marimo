@@ -14,13 +14,11 @@ To opt-in to package reproducibility, use the `sandbox` flag:
     marimo edit --sandbox notebook.py
     ```
 
-
 === "run"
 
     ```bash
     marimo run --sandbox notebook.py
     ```
-
 
 === "new"
 
@@ -39,7 +37,6 @@ marimo's sandbox provides two key benefits. (1) Notebooks that carry their own
 dependencies are easy to share — just send the `.py` file. (2) Isolating a
 notebook from other installed packages prevents obscure bugs.
 
-
 !!! note "Requires uv"
 
     Sandboxed notebooks require the uv package manager
@@ -57,7 +54,6 @@ notebook from other installed packages prevents obscure bugs.
     crisis](https://leomurta.github.io/papers/pimentel2019a.pdf) due to the lack
     of package management.
 
-    
 ## Inline script metadata { #auto-tracking-inline-script-metadata }
 
 When running with `--sandbox`, marimo automatically tracks package metadata in
@@ -84,6 +80,7 @@ notebook's dependencies and Python version, and looks something like this:
     for an example of the full script metadata.
 
 ### Adding and removing packages
+
 When you import a module, if marimo detects that it is a third-party
 package, it will automatically be added to the script metadata. Removing
 an import does _not_ remove it from the script metadata (since library
@@ -103,6 +100,24 @@ metadata to look for packages elsewhere, such as on GitHub. Consult the [Python
 packaging
 documentation](https://packaging.python.org/en/latest/specifications/dependency-specifiers/#examples)
 for more information.
+
+### Local development with editable installs
+
+When developing a local package, you can install it in editable mode using the `[tool.uv.sources]` section in the script metadata. For example:
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "my-package",
+# ]
+#
+# [tool.uv.sources]
+# my-package = { path = "../", editable = true }
+# ///
+```
+
+This is particularly useful when you want to test changes to your package without reinstalling it. The package will be installed in "editable" mode, meaning changes to the source code will be reflected immediately in your notebook.
 
 ## Configuration
 

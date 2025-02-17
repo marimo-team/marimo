@@ -256,6 +256,36 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> DefaultTableManager:
+        if isinstance(self.data, dict) and self.is_column_oriented:
+            # For column-oriented data, extract the sort column and get sorted indices
+            sort_column = cast(List[Any], self.data[by])
+            try:
+                sorted_indices = sorted(
+                    range(len(sort_column)),
+                    key=lambda i: sort_column[i],
+                    reverse=descending,
+                )
+            except TypeError:
+                # Handle when values are not comparable
+                sorted_indices = sorted(
+                    range(len(sort_column)),
+                    key=lambda i: str(sort_column[i]),
+                    reverse=descending,
+                )
+            # Apply sorted indices to each column while maintaining column orientation
+            return DefaultTableManager(
+                cast(
+                    JsonTableData,
+                    {
+                        col: [
+                            cast(List[Any], values)[i] for i in sorted_indices
+                        ]
+                        for col, values in self.data.items()
+                    },
+                )
+            )
+
+        # For row-major data, continue with existing logic
         normalized = self._normalize_data(self.data)
         try:
             data = sorted(normalized, key=lambda x: x[by], reverse=descending)

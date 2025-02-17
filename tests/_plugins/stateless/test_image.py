@@ -21,6 +21,51 @@ async def test_image() -> None:
     assert result.text == "<img src='https://marimo.io/logo.png' />"
 
 
+async def test_image_filename(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                import os
+                with open("test_image.png", "wb") as f:
+                    f.write(b"hello")
+                image = mo.image("test_image.png")
+                # Delete the file
+                os.remove("test_image.png")
+                """
+            ),
+        ]
+    )
+
+    assert len(get_context().virtual_file_registry.registry) == 1
+    for fname in get_context().virtual_file_registry.registry.keys():
+        assert fname.endswith(".png")
+
+
+async def test_image_path(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                from pathlib import Path
+                import os
+                # Create the image file
+                with open("test_image.png", "wb") as f:
+                    f.write(b"hello")
+                image = mo.image(Path("test_image.png"))
+                # Delete the file
+                os.remove("test_image.png")
+                """
+            ),
+        ]
+    )
+    assert len(get_context().virtual_file_registry.registry) == 1
+    for fname in get_context().virtual_file_registry.registry.keys():
+        assert fname.endswith(".png")
+
+
 async def test_image_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
     await k.run(
         [

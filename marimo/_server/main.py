@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING, List, Optional
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
-from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from marimo import _loggers
 from marimo._server.api.auth import (
     RANDOM_SECRET,
+    CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
     on_auth_error,
 )
@@ -65,7 +65,7 @@ def create_starlette_app(
         [
             Middleware(OpenTelemetryMiddleware),
             Middleware(
-                AuthenticationMiddleware,
+                CustomAuthenticationMiddleware,
                 backend=AuthBackend(should_authenticate=enable_auth),
                 on_error=on_auth_error,
             ),

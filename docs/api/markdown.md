@@ -6,6 +6,15 @@ elements.
 
 ::: marimo.md
 
+## Loading LaTeX macros
+
+You can load LaTeX macros using `mo.latex(filename=...)`.
+
+::: marimo.latex
+
+!!! warning "Side effects"
+    The `mo.latex()` function has side effects (registering the LaTeX macros) and should be used in the same cell as `import marimo`. Otherwise, the LaTeX macros may not be loaded before the cells that use them.
+
 ## Icons
 
 We support rendering icons from [Iconify](https://icon-sets.iconify.design/).

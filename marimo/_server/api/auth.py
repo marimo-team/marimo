@@ -10,6 +10,7 @@ import starlette
 import starlette.status as status
 from starlette.datastructures import Secret
 from starlette.exceptions import HTTPException
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
@@ -215,3 +216,35 @@ class CustomSessionMiddleware(SessionMiddleware):
             )
 
         return await super().__call__(scope, receive, send)
+
+
+# Wrapper around starlette's AuthenticationMiddleware to
+# restore the 'user' key in the request object if one was
+# set by prior middleware
+class CustomAuthenticationMiddleware(AuthenticationMiddleware):
+    KEY = "_marimo_prev_user"
+
+    def __init__(self, app: ASGIApp, *args: Any, **kwargs: Any) -> None:
+        # The AuthenticationMiddleware sets the 'user' key in the scope, but
+        # we want to keep the developer-defined user in the scope so that
+        async def wrapped_app(
+            scope: Scope, receive: Receive, send: Send
+        ) -> None:
+            # Get the developer-defined that we saved earlier
+            developer_defined_user = scope.get(self.KEY)
+            # Store it back in the scope
+            scope["user"] = developer_defined_user
+            await app(scope, receive, send)
+
+        super().__init__(wrapped_app, *args, **kwargs)
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        # If a developer has defined a user, store it in scope
+        # so that the wrapped app can access it
+        developer_defined_user = scope.get("user")
+        scope[self.KEY] = developer_defined_user
+        await super().__call__(scope, receive, send)
+        # Delete the key from scope
+        del scope[self.KEY]
