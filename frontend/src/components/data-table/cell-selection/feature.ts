@@ -102,11 +102,12 @@ export const CellSelectionFeature: TableFeature = {
     };
 
     cell.toggleSelected = (value?: boolean) => {
-      console.log(`Should toggle cell ${row.id} ${cell.id} ${value}`);
+      const colIdx = column.getIndex().toString();
+      console.log(`Should toggle cell ${row.id} ${colIdx} ${value}`);
       table.setCellSelection((_) => [
         {
           row: row.id,
-          column: column.id,
+          column: colIdx,
         },
       ]);
     };

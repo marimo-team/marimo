@@ -104,7 +104,11 @@ class SortArgs:
 
 
 @mddoc
-class table(UIElement[List[dict], Union[List[JSONType], IntoDataFrame]]):
+class table(
+    UIElement[
+        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
+    ]
+):
     """A table component with selectable rows.
 
     Get the selected rows with `table.value`. The table data can be supplied as:
@@ -441,8 +445,10 @@ class table(UIElement[List[dict], Union[List[JSONType], IntoDataFrame]]):
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         if self._selection in ["single-cell", "multi-cell"]:
             if len(value) == 1 and "row" in value[0] and "column" in value[0]:
+                row = value[0]["row"]
+                column = value[0]["column"]
                 print("Select value from", value[0])
-                return self._data[value[0]["row"]][value[0]["column"]]
+                return self._data.iloc[int(row), int(column)]
 
             if type(value) is List[dict]:
                 print("got a cell")
