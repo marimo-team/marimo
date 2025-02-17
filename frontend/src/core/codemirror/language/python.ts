@@ -33,8 +33,18 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
 
-const pylspTransport = () =>
-  new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
+class AlwaysOpenWebSocketTransport extends WebSocketTransport {
+  override close() {
+    // Skip close, even when this unmounts.
+  }
+}
+
+const pylspTransport = once(() => {
+  const transport = new AlwaysOpenWebSocketTransport(
+    resolveToWsUrl("/lsp/pylsp"),
+  );
+  return transport;
+});
 
 const lspClient = once(() => {
   const lspClientOpts = {
