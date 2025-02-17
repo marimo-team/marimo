@@ -179,7 +179,8 @@ async def test_custom_auth_middleware_without_user():
 
     async def test_app(scope: Any, receive: Any, send: Any) -> None:
         del receive, send
-        assert scope["user"] is None
+        # Fallbacks to SimpleUser("user")
+        assert scope["user"].username == "user"
 
     middleware = CustomAuthenticationMiddleware(
         test_app, backend=AuthBackend(should_authenticate=False)
