@@ -233,7 +233,8 @@ class CustomAuthenticationMiddleware(AuthenticationMiddleware):
             # Get the developer-defined that we saved earlier
             developer_defined_user = scope.get(self.KEY)
             # Store it back in the scope
-            scope["user"] = developer_defined_user
+            if developer_defined_user is not None:
+                scope["user"] = developer_defined_user
             await app(scope, receive, send)
 
         super().__init__(wrapped_app, *args, **kwargs)

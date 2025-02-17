@@ -200,7 +200,7 @@ class TestExecutionRoutes_EditMode:
             for header in app_meta_response["headers"].keys()
         )
         # Check user is False
-        assert app_meta_response["user"] is False
+        assert app_meta_response["user"] is True
 
 
 class TestExecutionRoutes_RunMode:
