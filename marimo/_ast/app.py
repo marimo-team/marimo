@@ -361,7 +361,7 @@ class App:
         del kwargs
 
         return cast(
-            Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]],
+            Union[Fn[P, R], Callable[[Fn[P, R]], Fn[P, R]]],
             self._cell_manager.cell_decorator(
                 func,
                 column,
