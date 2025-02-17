@@ -67,11 +67,11 @@ class NotebookMetadata(BaseDict):
 
 
 # Main notebook structure
-class NotebookSession(BaseDict):
+class NotebookSessionV1(BaseDict):
     """Main notebook structure"""
 
     # The notebook format version
-    version: int
+    version: str
     # Metadata about the notebook
     metadata: NotebookMetadata
     # The cells in the notebook
@@ -82,4 +82,4 @@ class NotebookSession(BaseDict):
     # - datasets
 
 
-VERSION = 1
+VERSION = "1"

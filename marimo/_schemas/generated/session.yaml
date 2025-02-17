@@ -15,16 +15,14 @@ components:
         outputs:
           items:
             oneOf:
-              - $ref: '#/components/schemas/ErrorOutput'
-              - $ref: '#/components/schemas/DataOutput'
-              - additionalProperties: {}
-                type: object
+            - $ref: '#/components/schemas/ErrorOutput'
+            - $ref: '#/components/schemas/DataOutput'
           type: array
       required:
-        - id
-        - code_hash
-        - outputs
-        - console
+      - id
+      - code_hash
+      - outputs
+      - console
       type: object
     DataOutput:
       properties:
@@ -33,11 +31,11 @@ components:
           type: object
         type:
           enum:
-            - data
+          - data
           type: string
       required:
-        - type
-        - data
+      - type
+      - data
       type: object
     ErrorOutput:
       properties:
@@ -51,13 +49,13 @@ components:
           type: array
         type:
           enum:
-            - error
+          - error
           type: string
       required:
-        - type
-        - ename
-        - evalue
-        - traceback
+      - type
+      - ename
+      - evalue
+      - traceback
       type: object
     NotebookMetadata:
       properties:
@@ -65,9 +63,9 @@ components:
           nullable: true
           type: string
       required:
-        - marimo_version
+      - marimo_version
       type: object
-    NotebookSession:
+    NotebookSessionV1:
       properties:
         cells:
           items:
@@ -76,29 +74,29 @@ components:
         metadata:
           $ref: '#/components/schemas/NotebookMetadata'
         version:
-          type: integer
+          type: string
       required:
-        - version
-        - metadata
-        - cells
+      - version
+      - metadata
+      - cells
       type: object
     StreamOutput:
       properties:
         name:
           enum:
-            - stdout
-            - stderr
-          type: string
-        output_type:
-          enum:
-            - stream
+          - stdout
+          - stderr
           type: string
         text:
           type: string
+        type:
+          enum:
+          - stream
+          type: string
       required:
-        - output_type
-        - name
-        - text
+      - type
+      - name
+      - text
       type: object
     TimeMetadata:
       properties:
@@ -112,9 +110,9 @@ components:
           nullable: true
           type: string
       required:
-        - started
-        - completed
-        - duration
+      - started
+      - completed
+      - duration
       type: object
 info:
   title: marimo_session

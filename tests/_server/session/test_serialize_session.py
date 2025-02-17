@@ -9,7 +9,7 @@ from pathlib import Path
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.ops import CellOp
-from marimo._schemas.session import NotebookSession
+from marimo._schemas.session import NotebookSessionV1
 from marimo._server.session.serialize import (
     SessionCacheManager,
     SessionCacheWriter,
@@ -118,7 +118,7 @@ def test_serialize_session_with_mime_bundle():
 
 def test_deserialize_basic_session():
     """Test deserialization of a basic session"""
-    session = NotebookSession(
+    session = NotebookSessionV1(
         version=1,
         metadata={"marimo_version": "1.0.0"},
         cells=[
@@ -147,7 +147,7 @@ def test_deserialize_basic_session():
 
 def test_deserialize_session_with_error():
     """Test deserialization of a session with an error"""
-    session = NotebookSession(
+    session = NotebookSessionV1(
         version=1,
         metadata={"marimo_version": "1.0.0"},
         cells=[
@@ -180,7 +180,7 @@ def test_deserialize_session_with_error():
 
 def test_deserialize_session_with_console():
     """Test deserialization of a session with console output"""
-    session = NotebookSession(
+    session = NotebookSessionV1(
         version=1,
         metadata={"marimo_version": "1.0.0"},
         cells=[
@@ -294,7 +294,7 @@ def test_hash_code():
 
 def test_deserialize_mime_bundle():
     """Test deserialization of a session with mime bundle output"""
-    session = NotebookSession(
+    session = NotebookSessionV1(
         version=1,
         metadata={"marimo_version": "1.0.0"},
         cells=[
@@ -329,7 +329,7 @@ def test_deserialize_mime_bundle():
 
 def test_deserialize_empty_data():
     """Test deserialization of a session with empty data output"""
-    session = NotebookSession(
+    session = NotebookSessionV1(
         version=1,
         metadata={"marimo_version": "1.0.0"},
         cells=[

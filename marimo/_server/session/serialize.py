@@ -20,7 +20,7 @@ from marimo._schemas.session import (
     DataOutput,
     ErrorOutput,
     NotebookMetadata,
-    NotebookSession,
+    NotebookSessionV1,
     OutputType,
     StreamOutput,
 )
@@ -31,7 +31,7 @@ from marimo._utils.lists import as_list
 LOGGER = _loggers.marimo_logger()
 
 
-def serialize_session_view(view: SessionView) -> NotebookSession:
+def serialize_session_view(view: SessionView) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema."""
     cells: List[Cell] = []
 
@@ -86,14 +86,14 @@ def serialize_session_view(view: SessionView) -> NotebookSession:
             )
         )
 
-    return NotebookSession(
+    return NotebookSessionV1(
         version=VERSION,
         metadata=NotebookMetadata(marimo_version=__version__),
         cells=cells,
     )
 
 
-def deserialize_session(session: NotebookSession) -> SessionView:
+def deserialize_session(session: NotebookSessionV1) -> SessionView:
     """Convert a NotebookSession schema to a SessionView."""
     view = SessionView()
 
