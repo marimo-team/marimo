@@ -72,7 +72,8 @@ def red(text: str, bold: bool = False) -> str:
 
 
 def muted(text: str) -> str:
-    return "\033[90m" + text + "\033[0m" if _USE_COLOR else text
+    # Use dark gray (37 is white, 2 is dim) which is more widely supported than 90
+    return "\033[37;2m" + text + "\033[0m" if _USE_COLOR else text
 
 
 def echo(*args: Any, **kwargs: Any) -> None:
