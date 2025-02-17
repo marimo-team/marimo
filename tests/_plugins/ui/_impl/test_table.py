@@ -291,7 +291,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     )
     value = table._convert_value(["0"])
     assert not isinstance(value, nw.DataFrame)
-    assert nw.from_native(value)["a"][0] == "z"
+    assert nw.from_native(value)["a"][0] == "x"
 
     table._search(
         SearchTableArgs(
@@ -358,7 +358,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value(["0"])
+    value = table._convert_value(["1"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "bar"
 
@@ -383,6 +383,44 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     value = table._convert_value(["2"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "baz"
+
+
+def test_value_with_selection_then_sorting_dict_of_lists() -> None:
+    data = {
+        "company": [
+            "Company A",
+            "Company B",
+            "Company C",
+            "Company D",
+            "Company E",
+        ],
+        "type": ["Tech", "Finance", "Health", "Tech", "Finance"],
+        "net_worth": [1000, 2000, 1500, 1800, 1700],
+    }
+    table = ui.table(data)
+
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(["0", "2"])["company"] == [
+        "Company A",
+        "Company C",
+    ]
+
+    table._search(
+        SearchTableArgs(
+            sort=SortArgs("net_worth", descending=True),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(["0", "2"])["company"] == [
+        "Company B",
+        "Company E",
+    ]
 
 
 def test_search_sort_nonexistent_columns() -> None:
@@ -929,7 +967,8 @@ def test_column_clamping_with_polars():
     assert table._component_args["total-columns"] == 60
     csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
     headers = csv.split("\n")[0].split(",")
-    assert len(headers) == 60  # 60 columns
+
+    assert len(headers) == 61  # 60 columns + 1 selection column
     assert len(table._component_args["field-types"]) == 60
 
 

@@ -64,46 +64,50 @@ class TableManager(abc.ABC, Generic[T]):
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
     ) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def supports_filters(self) -> bool:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def to_json(self) -> bytes:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
+
+    @abc.abstractmethod
+    def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        pass
 
     @abc.abstractmethod
     def get_row_headers(self) -> list[str]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_field_type(
         self, column_name: str
     ) -> Tuple[FieldType, ExternalDataType]:
-        raise NotImplementedError
+        pass
 
     def get_field_types(self) -> FieldTypes:
         return [
@@ -113,42 +117,42 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def search(self, query: str) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     @abc.abstractmethod
     def is_type(value: Any) -> bool:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_summary(self, column: str) -> ColumnSummary:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # This can be expensive to compute,
         # so we allow optionals
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_num_columns(self) -> int:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_column_names(self) -> list[str]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_sample_values(self, column: str) -> list[Any]:
-        raise NotImplementedError
+        pass
 
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
@@ -162,9 +166,9 @@ class TableManagerFactory(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def package_name() -> str:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     @abc.abstractmethod
     def create() -> type[TableManager[Any]]:
-        raise NotImplementedError
+        pass

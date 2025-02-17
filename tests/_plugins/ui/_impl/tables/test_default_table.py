@@ -48,6 +48,18 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert selected_manager.data == expected_data
 
+    def test_drop_columns(self) -> None:
+        columns = ["name"]
+        dropped_manager = self.manager.drop_columns(columns)
+        expected_data = [
+            {"age": 30, "birth_year": date(1994, 5, 24)},
+            {"age": 25, "birth_year": date(1999, 7, 14)},
+            {"age": 35, "birth_year": date(1989, 12, 1)},
+            {"age": 28, "birth_year": date(1996, 3, 5)},
+            {"age": 22, "birth_year": date(2002, 1, 30)},
+        ]
+        assert dropped_manager.data == expected_data
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
@@ -322,6 +334,14 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert selected_manager.data == expected_data
 
+    def test_drop_columns(self) -> None:
+        columns = ["name", "birth_year"]
+        dropped_manager = self.manager.drop_columns(columns)
+        expected_data = {
+            "age": [30, 25, 35, 28, 22],
+        }
+        assert dropped_manager.data == expected_data
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
@@ -585,6 +605,10 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_select_columns(self) -> None:
         selected_manager = self.manager.select_columns(["a"])
         assert selected_manager.data == {"a": 1}
+
+    def test_drop_columns(self) -> None:
+        dropped_manager = self.manager.drop_columns(["a"])
+        assert dropped_manager.data == {"b": 2}
 
     def test_get_rows_headers(self) -> None:
         headers = self.manager.get_row_headers()

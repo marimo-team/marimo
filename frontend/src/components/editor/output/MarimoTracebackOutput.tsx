@@ -19,6 +19,7 @@ import {
   SearchIcon,
   MessageCircleIcon,
   HelpCircleIcon,
+  CopyIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
@@ -32,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
   traceback: string;
@@ -135,6 +137,18 @@ export const MarimoTracebackOutput = ({
                 Search Community Forum
                 <ExternalLinkIcon className="h-3 w-3 ml-auto" />
               </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                // Strip HTML from the traceback
+                const div = document.createElement("div");
+                div.innerHTML = traceback;
+                const textContent = div.textContent || "";
+                copyToClipboard(textContent);
+              }}
+            >
+              <CopyIcon className="h-4 w-4 mr-2" />
+              Copy to clipboard
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
