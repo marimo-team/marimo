@@ -18,7 +18,6 @@ from typing import (
     Literal,
     Mapping,
     Optional,
-    TypeAlias,
     TypeVar,
     Union,
     cast,
@@ -26,7 +25,7 @@ from typing import (
 )
 from uuid import uuid4
 
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, TypeAlias
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
