@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import ast
-from typing import Any
+from typing import Any, Optional
 
 
 class NameTransformer(ast.NodeTransformer):
@@ -72,3 +72,48 @@ class NameTransformer(ast.NodeTransformer):
                 "targets": new_targets,
             }
         )
+
+
+class RemoveImportTransformer(ast.NodeTransformer):
+    """Removes import that matches the given name.
+    e.g. given import_name = "bar":
+    ```python
+    from foo import bar  # removed
+    from foo import bar as baz
+    import foo.bar
+    import foo.bar as baz
+    import foo.baz as bar  # removed
+    ```
+    To prevent module collisions in top level definitions.
+    """
+
+    def __init__(self, import_name: str) -> None:
+        super().__init__()
+        self.import_name = import_name
+
+    def strip_imports(self, code: str) -> str:
+        tree = ast.parse(code)
+        tree = self.visit(tree)
+        return ast.unparse(tree).strip()
+
+    def visit_Import(self, node: ast.Import) -> Optional[ast.Import]:
+        name = self.import_name
+        node.names = [
+            alias
+            for alias in node.names
+            if (alias.asname and alias.asname != name)
+            or (not alias.asname and alias.name != name)
+        ]
+        return node if node.names else None
+
+    def visit_ImportFrom(
+        self, node: ast.ImportFrom
+    ) -> Optional[ast.ImportFrom]:
+        name = self.import_name
+        node.names = [
+            alias
+            for alias in node.names
+            if (alias.asname and alias.asname != name)
+            or (not alias.asname and alias.name != name)
+        ]
+        return node if node.names else None

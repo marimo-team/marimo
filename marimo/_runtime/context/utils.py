@@ -57,7 +57,3 @@ def get_mode() -> Optional[RunMode]:
         return "test"
 
     return None
-
-
-def import_guard() -> bool:
-    return True

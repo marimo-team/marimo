@@ -17,13 +17,10 @@ from marimo._ast import codegen, compiler
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
-from tests.mocks import snapshotter
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
-
-snapshot = snapshotter(__file__)
 
 
 def get_expected_filecontents(name: str) -> str:
@@ -699,3 +696,56 @@ def test_is_internal_cell_name() -> None:
     assert not is_internal_cell_name("___")
     assert not is_internal_cell_name("__1213123123")
     assert not is_internal_cell_name("foo")
+
+
+def test_format_tuple_elements() -> None:
+    kv_case = codegen.format_tuple_elements(
+        "@app.fn(...)",
+        tuple(["a", "b", "c"]),
+    )
+    assert kv_case == "@app.fn(a, b, c)"
+
+    indent_case = codegen.format_tuple_elements(
+        "def fn(...):", tuple(["a", "b", "c"]), indent=True
+    )
+    assert indent_case == "    def fn(a, b, c):"
+
+    multiline_case = codegen.format_tuple_elements(
+        "return (...)",
+        (
+            "very",
+            "long",
+            "arglist",
+            "that",
+            "exceeds",
+            "maximum",
+            "characters",
+            "for",
+            "some",
+            "reason",
+            "or",
+            "the",
+            "other",
+            "wowza",
+        ),
+        allowed_naked=True,
+    )
+    assert multiline_case == (
+        "return (\n    "
+        "very,\n    long,\n    arglist,\n    that,\n    exceeds,\n    maximum,\n"
+        "    characters,\n    for,\n    some,\n    reason,\n"
+        "    or,\n    the,\n    other,\n    wowza,\n)"
+    )
+
+    long_case = codegen.format_tuple_elements(
+        "return (...)",
+        (
+            "very_long_name_that_exceeds_76_characters_for_some_reason_or_the_other_woowee",
+        ),
+        allowed_naked=True,
+    )
+    assert long_case == (
+        "return (\n    "
+        "very_long_name_that_exceeds_76_characters_for_some_reason_or_the_other_woowee,"
+        "\n)"
+    )
