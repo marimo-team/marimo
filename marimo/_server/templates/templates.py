@@ -250,7 +250,12 @@ def wasm_notebook_template(
         body = re.sub(r'="./assets/', f'="{asset_url}/assets/', body)
 
     body = body.replace("{{ base_url }}", "")
-    body = body.replace("{{ title }}", "marimo")
+    body = body.replace(
+        "{{ title }}",
+        parse_title(filename)
+        if app_config.app_title is None
+        else app_config.app_title,
+    )
     body = body.replace("{{ user_config }}", json.dumps(user_config))
     body = body.replace(
         "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))

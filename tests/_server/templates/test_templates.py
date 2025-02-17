@@ -347,7 +347,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
                 self.user_config,
                 self.config_overrides,
                 self.server_token,
-                _AppConfig(html_head_file="head.html"),
+                _AppConfig(html_head_file="head.html", app_title="My App"),
                 self.filename,
                 "",
                 hash_code(self.code),
@@ -400,6 +400,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert json.dumps(self.user_config) in result
         assert '<marimo-wasm hidden="">' in result
         assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert "<title>notebook</title>" in result
 
     def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
         # Create css file
@@ -456,7 +457,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
                 mode=self.mode,
                 user_config=self.user_config,
                 config_overrides=self.config_overrides,
-                app_config=_AppConfig(html_head_file="head.html"),
+                app_config=_AppConfig(
+                    html_head_file="head.html", app_title="My App"
+                ),
                 code=self.code,
                 show_code=False,
             )
@@ -466,5 +469,6 @@ class TestWasmNotebookTemplate(unittest.TestCase):
             assert '<marimo-code hidden="" data-show-code="false">' in result
             assert "#save-button" in result
             assert "#filename-input" in result
+            assert "<title>My App</title>" in result
         finally:
             os.remove(head_file)
