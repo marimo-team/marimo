@@ -15,10 +15,10 @@ import { CommandList } from "cmdk";
 
 import { cn } from "@/utils/cn";
 import {
+  closeAllColumnsAtom,
   datasetTablesAtom,
   expandedColumnsAtom,
   useDatasets,
-  useDatasetsActions,
 } from "@/core/datasets/state";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,7 @@ const connectionsAtom = atom((get) => {
     dataConnections.delete(DEFAULT_ENGINE);
   }
 
+  // Sort by name, but put the default engine at the top
   return sortBy([...dataConnections.values()], (connection) =>
     connection.name === DEFAULT_ENGINE ? "" : connection.name,
   );
@@ -108,7 +109,7 @@ const connectionsAtom = atom((get) => {
 export const DataSources: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
-  const { toggleTable, toggleColumn, closeAllColumns } = useDatasetsActions();
+  const closeAllColumns = useSetAtom(closeAllColumnsAtom);
   const tables = useAtomValue(sortedTablesAtom);
   const dataConnections = useAtomValue(connectionsAtom);
 
@@ -141,9 +142,7 @@ export const DataSources: React.FC = () => {
           value={searchValue}
           onValueChange={(value) => {
             // If searching, remove open previews
-            if (value.length > 0) {
-              closeAllColumns();
-            }
+            closeAllColumns(value.length > 0);
             setSearchValue(value);
           }}
           rootClassName="flex-1 border-r"
@@ -520,8 +519,14 @@ const DatasetColumnItem: React.FC<{
   sqlTableContext?: SQLTableContext;
 }> = ({ table, column, sqlTableContext }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
-
+  const closeAllColumns = useAtomValue(closeAllColumnsAtom);
   const setExpandedColumns = useSetAtom(expandedColumnsAtom);
+
+  React.useEffect(() => {
+    if (closeAllColumns) {
+      setIsExpanded(false);
+    }
+  }, [closeAllColumns]);
 
   if (isExpanded) {
     setExpandedColumns(

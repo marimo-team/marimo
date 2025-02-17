@@ -124,6 +124,7 @@ export const useDatasets = () => useAtomValue(datasetsAtom);
 export const datasetTablesAtom = atom((get) => get(datasetsAtom).tables);
 
 export const expandedColumnsAtom = atom(new Set<string>());
+export const closeAllColumnsAtom = atom(false);
 
 /**
  * React hook to get the datasets actions.
