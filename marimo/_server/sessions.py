@@ -63,6 +63,7 @@ from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
+from marimo._server.session.serialize import deserialize_session
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
@@ -682,6 +683,20 @@ class Session:
             ),
             from_consumer_id=None,
         )
+
+    def sync_session_view_from_file(self, filename: Optional[str]) -> None:
+        """Sync the session view from a file."""
+        if filename is None:
+            return
+        import json
+
+        try:
+            with open(filename, "r") as f:
+                code = f.read()
+            self.session_view = deserialize_session(json.loads(code))
+        except Exception as e:
+            LOGGER.error(f"Error syncing session view from file: {e}")
+            raise e
 
     def __repr__(self) -> str:
         return format_repr(

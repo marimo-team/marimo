@@ -19,7 +19,7 @@ class TimeMetadata(BaseDict):
 
 # Output types
 class StreamOutput(BaseDict):
-    output_type: Literal["stream"]
+    type: Literal["stream"]
     name: Literal["stdout", "stderr"]
     text: str
 
@@ -40,7 +40,7 @@ class DataOutput(BaseDict):
 OutputType = Union[
     ErrorOutput,
     DataOutput,
-    Dict[str, Any],  # For future output types, forwards-compatible
+    # Dict[str, Any],  # For future output types, forwards-compatible
 ]
 
 
@@ -80,3 +80,6 @@ class NotebookSession(BaseDict):
     # In future, we may want to add
     # - variables
     # - datasets
+
+
+VERSION = 1

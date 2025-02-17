@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional
 
 from marimo._ast.cell import CellId_t
 from marimo._data.models import DataSourceConnection, DataTable
@@ -27,6 +27,8 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
+from marimo._server.session.serialize import deserialize_session
+from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -317,9 +319,3 @@ def merge_cell_operation(
         next_.output = previous.output
 
     return next_
-
-
-def as_list(value: Union[Any, Optional[Any], list[Any]]) -> list[Any]:
-    if value is None:
-        return []
-    return value if isinstance(value, list) else [value]
