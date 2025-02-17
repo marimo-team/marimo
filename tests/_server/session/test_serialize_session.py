@@ -246,8 +246,7 @@ async def test_session_cache_writer():
         assert data["cells"][0]["id"] == "cell1"
 
         # Stop writer and verify cleanup
-        writer.stop()
-        assert writer._task is None
+        await writer.stop()
 
 
 async def test_session_cache_writer_no_writes():
@@ -265,7 +264,7 @@ async def test_session_cache_writer_no_writes():
         await asyncio.sleep(0.2)
         assert path.exists()
 
-        writer.stop()
+        await writer.stop()
 
 
 def test_get_session_cache_file():

@@ -421,7 +421,7 @@ class Session:
     and its own websocket, for sending messages to the client.
     """
 
-    SESSION_CACHE_INTERVAL_SECONDS = 5
+    SESSION_CACHE_INTERVAL_SECONDS = 2
 
     @classmethod
     def create(

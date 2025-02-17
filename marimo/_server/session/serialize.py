@@ -25,6 +25,7 @@ from marimo._schemas.session import (
     StreamOutput,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
 
 LOGGER = _loggers.marimo_logger()
@@ -184,7 +185,7 @@ def _hash_code(code: Optional[str]) -> Optional[str]:
     return hashlib.md5(code.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
-class SessionCacheWriter:
+class SessionCacheWriter(AsyncBackgroundTask):
     """Periodically writes a SessionView to a file."""
 
     def __init__(
@@ -193,64 +194,34 @@ class SessionCacheWriter:
         path: Path,
         interval: float,
     ):
+        super().__init__()
         self.session_view = session_view
         self.path = path
         self.interval = interval
-        self._task: asyncio.Task[None] | None = None
-        self._stop_event = asyncio.Event()
 
-    async def _write_loop(self) -> None:
+    async def startup(self) -> None:
+        # Create parent directories if they don't exist
         try:
-            while not self._stop_event.is_set():
-                has_made_dirs = False
-                try:
-                    if self.session_view.needs_export("session"):
-                        LOGGER.debug("Writing session view to cache")
-                        try:
-                            data = serialize_session_view(self.session_view)
-                            # Create parent directories if they don't exist
-                            if not has_made_dirs:
-                                self.path.parent.mkdir(
-                                    parents=True, exist_ok=True
-                                )
-                                has_made_dirs = True
-                            self.path.write_text(json.dumps(data))
-                        except Exception as e:
-                            LOGGER.error(f"Write error: {e}")
-                            # If we fail to write, we should stop the writer
-                            break
-                    await asyncio.sleep(self.interval)
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    LOGGER.error(f"Write error: {e}")
-        finally:
-            self._task = None
-            self._stop_event.clear()
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            LOGGER.error(f"Failed to create parent directories: {e}")
+            raise
 
-    def start(self) -> None:
-        """Start the periodic writer"""
-        if self._task is None:
-            self._stop_event.clear()
-            self._task = asyncio.create_task(self._write_loop())
-        else:
-            LOGGER.warning("AsyncWriter already running")
-
-    def stop(self) -> None:
-        """Stop the periodic writer synchronously"""
-        if self._task is not None:
-            self._stop_event.set()
-            self._task.cancel()
+    async def run(self) -> None:
+        while self.running:
             try:
-                # Create a future to track when the task is done
-                done: asyncio.Future[bool] = asyncio.Future()
-                # Only set the callback, don't set the result first
-                self._task.add_done_callback(lambda _: done.set_result(True))
+                if self.session_view.needs_export("session"):
+                    self.session_view.mark_auto_export_session()
+                    LOGGER.debug(f"Writing session view to cache {self.path}")
+                    data = serialize_session_view(self.session_view)
+                    self.path.write_text(json.dumps(data, indent=2))
+                await asyncio.sleep(self.interval)
             except asyncio.CancelledError:
-                pass
-            self._task = None
-        else:
-            LOGGER.warning("AsyncWriter not running")
+                raise
+            except Exception as e:
+                LOGGER.error(f"Write error: {e}")
+                # If we fail to write, we should stop the writer
+                break
 
 
 class SessionCacheManager:
@@ -288,7 +259,7 @@ class SessionCacheManager:
         """Stop the session cache writer. Returns whether it was running."""
         if self.session_cache_writer is None:
             return False
-        self.session_cache_writer.stop()
+        self.session_cache_writer.stop_sync()
         self.session_cache_writer = None
         return True
 
