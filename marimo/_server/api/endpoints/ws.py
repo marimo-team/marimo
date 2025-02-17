@@ -287,6 +287,7 @@ class WebsocketHandler(SessionConsumer):
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
+        self.ws_future: asyncio.Future[tuple[None, None]] | None = None
 
         super().__init__(consumer_id=ConsumerId(session_id))
 
@@ -436,6 +437,7 @@ class WebsocketHandler(SessionConsumer):
         """Replay the previous session view."""
         operations = session.get_current_state().operations
         if len(operations) == 0:
+            LOGGER.debug("No operations to replay")
             return
         LOGGER.debug(f"Replaying {len(operations)} operations")
         for op in operations:
@@ -612,9 +614,7 @@ class WebsocketHandler(SessionConsumer):
             self.status = ConnectionState.OPEN
             # if auto-instantiate if false, replay the previous session
             if not self.auto_instantiate:
-                new_session.sync_session_view_from_file(
-                    new_session.app_file_manager.filename
-                )
+                new_session.sync_session_view_from_cache()
                 self._replay_previous_session(new_session)
             return new_session
 
@@ -689,11 +689,11 @@ class WebsocketHandler(SessionConsumer):
         )
 
         try:
-            self.future = asyncio.gather(
+            self.ws_future = asyncio.gather(
                 listen_for_messages_task,
                 listen_for_disconnect_task,
             )
-            await self.future
+            await self.ws_future
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
             pass
@@ -725,7 +725,8 @@ class WebsocketHandler(SessionConsumer):
                 )
             )
 
-        self.future.cancel()
+        if self.ws_future:
+            self.ws_future.cancel()
 
     def connection_state(self) -> ConnectionState:
         return self.status

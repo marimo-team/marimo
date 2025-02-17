@@ -63,7 +63,9 @@ from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
-from marimo._server.session.serialize import deserialize_session
+from marimo._server.session.serialize import (
+    SessionCacheManager,
+)
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
@@ -419,6 +421,8 @@ class Session:
     and its own websocket, for sending messages to the client.
     """
 
+    SESSION_CACHE_INTERVAL_SECONDS = 5
+
     @classmethod
     def create(
         cls,
@@ -478,6 +482,7 @@ class Session:
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
         self.session_view = SessionView()
+        self.session_cache_manager: SessionCacheManager | None = None
 
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
@@ -651,6 +656,8 @@ class Session:
         self.message_distributor.stop()
         if self.heartbeat_task:
             self.heartbeat_task.cancel()
+        if self.session_cache_manager:
+            self.session_cache_manager.stop()
         self.kernel_manager.close_kernel()
 
     def instantiate(
@@ -684,19 +691,20 @@ class Session:
             from_consumer_id=None,
         )
 
-    def sync_session_view_from_file(self, filename: Optional[str]) -> None:
-        """Sync the session view from a file."""
-        if filename is None:
-            return
-        import json
+    def sync_session_view_from_cache(self) -> None:
+        """Sync the session view from a file.
 
-        try:
-            with open(filename, "r") as f:
-                code = f.read()
-            self.session_view = deserialize_session(json.loads(code))
-        except Exception as e:
-            LOGGER.error(f"Error syncing session view from file: {e}")
-            raise e
+        Overwrites the existing session view.
+        Mutates the existing session.
+        """
+        LOGGER.debug("Syncing session view from cache")
+        self.session_cache_manager = SessionCacheManager(
+            session_view=self.session_view,
+            path=self.app_file_manager.path,
+            interval=self.SESSION_CACHE_INTERVAL_SECONDS,
+        )
+        self.session_view = self.session_cache_manager.read_session_view()
+        self.session_cache_manager.start()
 
     def __repr__(self) -> str:
         return format_repr(
@@ -924,6 +932,10 @@ class SessionManager:
             return False, "Session has no associated file"
 
         old_path = session.app_file_manager.path
+
+        # Handle rename for session cache
+        if session.session_cache_manager:
+            session.session_cache_manager.rename_path(new_path)
 
         try:
             # Remove the old file watcher if it exists

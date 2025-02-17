@@ -882,3 +882,106 @@ def __():
         session_manager.shutdown()
         os.remove(tmp_path1)
         os.remove(tmp_path2)
+
+
+@save_and_restore_main
+def test_sync_session_view_from_cache(tmp_path: Path) -> None:
+    """Test syncing session view from cache."""
+    # Create a temporary file
+    notebook_path = tmp_path / "test.py"
+    notebook_path.write_text(
+        """import marimo as mo
+
+@mo.cell
+def __():
+    1
+    return ()
+"""
+    )
+
+    # Create session with the temporary file
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    queue_manager = QueueManager(use_multiprocessing=False)
+    kernel_manager = KernelManager(
+        queue_manager,
+        SessionMode.RUN,
+        {},
+        app_metadata,
+        get_default_config_manager(current_path=None),
+        virtual_files_supported=True,
+        redirect_console_to_browser=False,
+    )
+
+    app_file_manager = AppFileManager(filename=str(notebook_path))
+    session = Session(
+        "test",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        ttl_seconds=None,
+    )
+
+    # Test syncing when no cache exists
+    session.sync_session_view_from_cache()
+    # Should create a new empty session view since no cache exists
+    assert session.session_view is not None
+    assert session.session_cache_manager is not None
+    assert session.session_cache_manager.path == str(notebook_path)
+    assert (
+        session.session_cache_manager.interval
+        == Session.SESSION_CACHE_INTERVAL_SECONDS
+    )
+
+    # Add some operations to the session view
+    session.write_operation(
+        UpdateCellCodes(
+            cell_ids=["1"],
+            codes=["print('hello')"],
+            code_is_stale=False,
+        ),
+        from_consumer_id=None,
+    )
+
+    # Create a new session and sync from cache
+    session2 = Session(
+        "test2",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        ttl_seconds=None,
+    )
+    session2.sync_session_view_from_cache()
+
+    # Verify the session views match
+    assert session2.session_view is not None
+    assert session2.session_cache_manager is not None
+    assert session2.session_cache_manager.path == str(notebook_path)
+    assert len(session2.session_view.operations) == len(
+        session.session_view.operations
+    )
+
+    # Test syncing with no file path
+    app_file_manager_no_path = AppFileManager.from_app(InternalApp(App()))
+    session3 = Session(
+        "test3",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager_no_path,
+        ttl_seconds=None,
+    )
+    session3.sync_session_view_from_cache()
+    # Should create a new empty session view since no path exists
+    assert session3.session_view is not None
+    assert session3.session_cache_manager is not None
+    assert session3.session_cache_manager.path is None
+
+    # Cleanup
+    session.close()
+    session2.close()
+    session3.close()
+    if kernel_manager.kernel_task:
+        kernel_manager.kernel_task.join()
