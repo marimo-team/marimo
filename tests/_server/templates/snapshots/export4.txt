@@ -69,11 +69,7 @@
     window.__MARIMO_STATIC__.assetUrl = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist";
     window.__MARIMO_STATIC__.files = {};
 </script>
-
-<style>
-    /* custom css */
-</style>
-</head>
+<style title='marimo-custom'>/* custom css */</style></head>
   <body>
     <div id="root"></div>
   <marimo-code hidden=""></marimo-code>

@@ -77,7 +77,7 @@ def notebook_page_template(
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
         if css_contents:
-            css_contents = f"<style>{css_contents}</style>"
+            css_contents = _custom_css_block(css_contents)
             # Append to head
             html = html.replace("</head>", f"{css_contents}</head>")
 
@@ -195,13 +195,7 @@ def static_notebook_template(
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filepath)
         if css_contents:
-            static_block += dedent(
-                f"""
-            <style>
-                {css_contents}
-            </style>
-            """
-            )
+            static_block += _custom_css_block(css_contents)
 
     code_block = dedent(
         f"""
@@ -297,7 +291,7 @@ def wasm_notebook_template(
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
         if css_contents:
-            css_contents = f"<style>{css_contents}</style>"
+            css_contents = _custom_css_block(css_contents)
             # Append to head
             body = body.replace("</head>", f"{css_contents}</head>")
 
@@ -352,3 +346,9 @@ def get_version() -> str:
     return (
         f"{__version__} (editable)" if is_editable("marimo") else __version__
     )
+
+
+def _custom_css_block(css_contents: str) -> str:
+    # marimo-custom is used by the frontend to identify this stylesheet
+    # comes from marimo
+    return f"<style title='marimo-custom'>{css_contents}</style>"

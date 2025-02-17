@@ -15,3 +15,8 @@
 h1 {
   color: light-dark(red, blue) !important;
 }
+
+input[inputmode="numeric"] {
+  border: 1px solid red;
+  text-align: right;
+}

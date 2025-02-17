@@ -165,6 +165,12 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
         devDoc.head.append(element);
       });
 
+      // Copy styles
+      const styles = serverDoc.querySelectorAll("style");
+      styles.forEach((style) => {
+        devDoc.head.append(style);
+      });
+
       return `<!DOCTYPE html>\n${devDoc.documentElement.outerHTML}`;
     },
   };
