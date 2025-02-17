@@ -12,9 +12,12 @@ with marimo.import_guard():
     # opposed to the following block.
     import io
     import textwrap
-    import marimo as mo
     import typing
     from pathlib import Path
+
+    import marimo as mo
+
+
 
 __generated_with = "0.0.0"
 app = marimo.App(_toplevel_fn=True)
