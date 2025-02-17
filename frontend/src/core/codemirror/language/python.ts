@@ -33,16 +33,8 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
 
-class AlwaysOpenWebSocketTransport extends WebSocketTransport {
-  override close() {
-    // Skip close, even when this unmounts.
-  }
-}
-
 const pylspTransport = once(() => {
-  const transport = new AlwaysOpenWebSocketTransport(
-    resolveToWsUrl("/lsp/pylsp"),
-  );
+  const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
   return transport;
 });
 
@@ -60,7 +52,7 @@ const lspClient = once(() => {
     new LanguageServerClient({
       ...lspClientOpts,
       documentUri: "file:///unused.py", // Incorrect types
-      autoClose: true,
+      autoClose: false,
     }),
   ) as unknown as LanguageServerClient;
 });
