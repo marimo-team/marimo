@@ -48,6 +48,7 @@ __all__ = [
     "icon",
     "iframe",
     "image",
+    "import_guard",
     "latex",
     "lazy",
     "left",
@@ -125,7 +126,7 @@ from marimo._runtime.capture import (
     redirect_stderr,
     redirect_stdout,
 )
-from marimo._runtime.context.utils import running_in_notebook
+from marimo._runtime.context.utils import import_guard, running_in_notebook
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import (
     app_meta,
