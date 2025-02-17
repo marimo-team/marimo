@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Self, final
+from typing import TYPE_CHECKING, Any, Optional, final
 
 from marimo import _loggers
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 LOGGER = _loggers.marimo_logger()
 
 
 class AsyncBackgroundTask(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         self.task: Optional[asyncio.Task[None]] = None
         self.running: bool = False
         self._startup_event: asyncio.Event = asyncio.Event()

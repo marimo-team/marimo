@@ -43,7 +43,6 @@ def serialize_session_view(view: SessionView) -> NotebookSession:
         if cell_op.output:
             if cell_op.output.channel == CellChannel.MARIMO_ERROR:
                 for error in cast(List[MarimoError], cell_op.output.data):
-                    assert isinstance(error, MarimoError)
                     outputs.append(
                         ErrorOutput(
                             type="error",
@@ -193,7 +192,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
         session_view: SessionView,
         path: Path,
         interval: float,
-    ):
+    ) -> None:
         super().__init__()
         self.session_view = session_view
         self.path = path
