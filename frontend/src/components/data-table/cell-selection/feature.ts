@@ -34,8 +34,13 @@ export const CellSelectionFeature: TableFeature = {
   }),
 
   createTable: <TData>(table: Table<TData>): void => {
-    table.setCellSelection = (updater) =>
+    table.setCellSelection = (updater) => {
+      console.log(
+        "table.setCellSelection",
+        table.options.onCellSelectionChange,
+      );
       table.options.onCellSelectionChange?.(updater);
+    };
   },
   //   getCellSelection: () => table.getState().cellSelection ?? [],
 
@@ -88,15 +93,22 @@ export const CellSelectionFeature: TableFeature = {
     column: Column<TData>,
     row: Row<TData>,
     table: Table<TData>,
-  ) => ({
-    getIsSelected: () => {
+  ) => {
+    cell.getIsSelected = () => {
       const state: CellSelectionState = table.getState().cellSelection ?? [];
       return state.some(
         (item) => item.row === cell.row.id && item.column === cell.column.id,
       );
-    },
-    toggleSelected: (value?: boolean) => {
+    };
+
+    cell.toggleSelected = (value?: boolean) => {
       console.log(`Should toggle cell ${row.id} ${cell.id} ${value}`);
-    },
-  }),
+      table.setCellSelection((_) => [
+        {
+          row: row.id,
+          column: column.id,
+        },
+      ]);
+    };
+  },
 };

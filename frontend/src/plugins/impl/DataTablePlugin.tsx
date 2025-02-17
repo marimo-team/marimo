@@ -101,7 +101,7 @@ type Functions = {
   }>;
 };
 
-type S = Array<string | number>;
+type S = Array<{ row: string; column?: string }>;
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -520,12 +520,16 @@ const DataTableComponent = ({
     (updater) => {
       if (selection === "single") {
         const nextValue = Functions.asUpdater(updater)({});
-        setValue(Object.keys(nextValue).slice(0, 1));
+        setValue(
+          Object.keys(nextValue)
+            .slice(0, 1)
+            .map((r) => ({ row: r })),
+        );
       }
 
       if (selection === "multi") {
         const nextValue = Functions.asUpdater(updater)(rowSelection);
-        setValue(Object.keys(nextValue));
+        setValue(Object.keys(nextValue).map((r) => ({ row: r })));
       }
     },
   );
@@ -534,8 +538,8 @@ const DataTableComponent = ({
     (updater) => {
       if (selection === "single-cell") {
         const nextValue = Functions.asUpdater(updater)([]);
-        // TODO: I'm no longer sure what S should be in this case
-        setValue(nextValue.slice(0, 1).map((c) => c.row));
+        // This maps to the _value in marimo/_plugins/ui/_impl/table.py I think
+        setValue(nextValue.slice(0, 1));
       }
     },
   );
@@ -590,7 +594,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
-            handleCellSelectionChange={handleCellSelectionChange}
+            onCellSelectionChange={handleCellSelectionChange}
           />
         </Labeled>
       </ColumnChartContext.Provider>

@@ -104,11 +104,7 @@ class SortArgs:
 
 
 @mddoc
-class table(
-    UIElement[
-        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
-    ]
-):
+class table(UIElement[List[dict], Union[List[JSONType], IntoDataFrame]]):
     """A table component with selectable rows.
 
     Get the selected rows with `table.value`. The table data can be supplied as:
@@ -311,6 +307,7 @@ class table(
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
 
+        self._selection = selection
         initial_value = []
         if initial_selection and self._manager.supports_selection():
             if selection == "single" and len(initial_selection) > 1:
@@ -440,12 +437,26 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[List[int], List[str]]
+        self, value: Union[List[dict]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
-        indices = [int(v) for v in value]
-        self._selected_manager = self._searched_manager.select_rows(indices)
-        self._has_any_selection = len(indices) > 0
-        return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+        if self._selection in ["single-cell", "multi-cell"]:
+            if len(value) == 1 and "row" in value[0] and "column" in value[0]:
+                print("Select value from", value[0])
+                return self._data[value[0]["row"]][value[0]["column"]]
+
+            if type(value) is List[dict]:
+                print("got a cell")
+                return None
+
+            print(value, type(value))
+            return 55
+        else:
+            indices = [int(v) for v in value["row"]]
+            self._selected_manager = self._searched_manager.select_rows(
+                indices
+            )
+            self._has_any_selection = len(indices) > 0
+            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.

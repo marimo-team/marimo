@@ -32,6 +32,7 @@ import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import type { DataTableSelection } from "./types";
 import { INDEX_COLUMN_NAME } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
+import type { CellSelectionState } from "./cell-selection/types";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -53,6 +54,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   // Search
   enableSearch?: boolean;
   searchQuery?: string;
@@ -84,6 +86,7 @@ const DataTableInternal = <TData,>({
   manualPagination = false,
   pagination = false,
   onRowSelectionChange,
+  onCellSelectionChange,
   enableSearch = false,
   searchQuery,
   onSearchQueryChange,
@@ -147,6 +150,9 @@ const DataTableInternal = <TData,>({
     onColumnFiltersChange: onFiltersChange,
     // selection
     onRowSelectionChange: onRowSelectionChange,
+    onCellSelectionChange: onCellSelectionChange,
+    enableCellSelection:
+      selection === "single-cell" || selection === "multi-cell",
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,

@@ -167,7 +167,7 @@ export function generateColumns<T>({
         );
       },
 
-      cell: ({ column, renderValue, getValue }) => {
+      cell: ({ column, renderValue, getValue, cell }) => {
         // Row headers are bold
         if (rowHeadersSet.has(key)) {
           return <b>{String(renderValue())}</b>;
@@ -177,19 +177,23 @@ export function generateColumns<T>({
         const justify = textJustifyColumns?.[key];
         const wrapped = wrappedColumns?.includes(key);
 
-        const SelectCell = () => {
-          if (selection !== "single-cell") {
-            return null;
+        const isSelected = false;
+        function selectCell() {
+          if (selection !== "single-cell" && selection !== "multi-cell") {
+            return;
           }
 
-          return <Checkbox />;
-        };
+          console.log(`Select`, value, cell);
+          cell.toggleSelected(true);
+        }
 
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
-              <SelectCell />
+            <div
+              className={getCellStyleClass(justify, wrapped)}
+              onClick={selectCell}
+            >
               {column.applyColumnFormatting(value)}
             </div>
           );
@@ -198,8 +202,10 @@ export function generateColumns<T>({
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
-              <SelectCell />
+            <div
+              className={getCellStyleClass(justify, wrapped)}
+              onClick={selectCell}
+            >
               {rendered == null ? (
                 ""
               ) : typeof rendered === "string" ? (
@@ -216,8 +222,10 @@ export function generateColumns<T>({
           const type =
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
-              <SelectCell />
+            <div
+              className={getCellStyleClass(justify, wrapped)}
+              onClick={selectCell}
+            >
               <DatePopover date={value} type={type}>
                 {exactDateTime(value)}
               </DatePopover>
@@ -234,8 +242,10 @@ export function generateColumns<T>({
         }
 
         return (
-          <div className={getCellStyleClass(justify, wrapped)}>
-            <SelectCell />
+          <div
+            className={getCellStyleClass(justify, wrapped)}
+            onClick={selectCell}
+          >
             {renderAny(getValue())}
           </div>
         );
@@ -316,11 +326,14 @@ function getFilterTypeForFieldType(
   }
 }
 
+// TODO: add a background color if the cell is selected?
+
 function getCellStyleClass(
   justify: "left" | "center" | "right" | undefined,
   wrapped: boolean | undefined,
 ): string {
   return cn(
+    "bg-blue-100",
     "w-full",
     "text-left",
     justify === "center" && "text-center",
