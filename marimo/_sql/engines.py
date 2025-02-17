@@ -363,27 +363,17 @@ class SQLAlchemyEngine(SQLEngine):
 def _sql_type_to_data_type(type_str: str) -> DataType:
     """Convert SQL type string to DataType"""
     type_str = type_str.lower()
-    if any(
-        x in type_str
-        for x in ("int", "serial", "bigint", "smallint", "tinyint")
-    ):
+    if any(x in type_str for x in ("int", "serial")):
         return "integer"
-    elif any(
-        x in type_str
-        for x in ("float", "double", "decimal", "numeric", "real")
-    ):
+    elif any(x in type_str for x in ("float", "double", "decimal", "numeric")):
         return "number"
-    elif any(x in type_str for x in ("timestamp", "datetime", "timestamptz")):
+    elif any(x in type_str for x in ("timestamp", "datetime")):
         return "datetime"
     elif "date" in type_str:
         return "date"
-    elif "time" in type_str:
-        return "time"
-    elif "bool" in type_str or "bit" in type_str:
+    elif "bool" in type_str:
         return "boolean"
-    elif any(
-        x in type_str for x in ("char", "text", "varchar", "string", "uuid")
-    ):
+    elif any(x in type_str for x in ("char", "text")):
         return "string"
     else:
         return "string"
