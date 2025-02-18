@@ -5,6 +5,7 @@ import functools
 import os
 import random
 import string
+import sys
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -13,7 +14,10 @@ from typing import (
     TypeVar,
 )
 
-from typing_extensions import ParamSpec, TypeAlias
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec, TypeAlias
+else:
+    from typing import ParamSpec, TypeAlias
 
 from marimo._ast.cell import Cell, CellConfig, CellId_t
 from marimo._ast.compiler import cell_factory, toplevel_cell_factory
