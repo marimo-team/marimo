@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 from functools import partial
 
 import pytest
@@ -347,3 +348,81 @@ def test_cell_id_from_filename() -> None:
     )
 
     assert compiler.cell_id_from_filename("random_file.py") is None
+
+
+class TestSemicolon:
+    @staticmethod
+    def test_return() -> None:
+        # fmt: off
+        def f() -> None:
+            1  # noqa: B018
+        # fmt: on
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Num(n=1)
+
+    @staticmethod
+    def test_return_supressed() -> None:
+        # fmt: off
+        def f() -> None:
+            1;  # noqa: B018 E703
+        # fmt: on
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Constant(value=None)
+
+    @staticmethod
+    def test_return_last() -> None:
+        # fmt: off
+        def f() -> None:
+            1; 2; 3  # noqa: B018 E702
+        # fmt: on
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Num(n=3)
+
+    @staticmethod
+    def test_return_last_suppressed() -> None:
+        # fmt: off
+        def f() -> None:
+            1; 2; 3;  # noqa: B018 E702 E703
+        # fmt: on
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Constant(value=None)
+
+    @staticmethod
+    def test_return_comment() -> None:
+        def f() -> None:
+            1  # noqa: B018 # Has a comment;
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Num(n=1)
+
+    @staticmethod
+    def test_return_comment_suppressed() -> None:
+        # fmt: off
+        def f() -> None:
+            1;  # noqa: B018 E703 # Has a comment
+        # fmt: on
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Constant(value=None)
+
+    @staticmethod
+    def test_return_string_semicolon() -> None:
+        def f() -> None:
+            "#; splits on ;# are less than ideal"  # noqa: B018 Contains a ;#
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body != ast.Constant(value=None)
+
+    @staticmethod
+    def test_return_string_semicolon_supressed() -> None:
+        # fmt: off
+        def f() -> None:
+            "#; splits on ;# are less than ideal";  # noqa: B018 E703 Contains a ;#
+        # fmt: on
+
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.last_expr.body == ast.Constant(value=None)
