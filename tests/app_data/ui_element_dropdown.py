@@ -10,4 +10,4 @@ def __():
 
 @app.cell
 def __(d):
-    f"value is {d.value}"
+    return f"value is {d.value}"
