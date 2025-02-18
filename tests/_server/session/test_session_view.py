@@ -715,18 +715,18 @@ def test_get_cell_console_outputs(time_mock: Any) -> None:
 
 def test_mark_auto_export():
     session_view = SessionView()
-    assert not session_view.has_auto_exported_html
-    assert not session_view.has_auto_exported_md
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
 
     session_view.mark_auto_export_html()
-    assert session_view.has_auto_exported_html
+    assert not session_view.needs_export("html")
 
     session_view.mark_auto_export_md()
-    assert session_view.has_auto_exported_md
+    assert not session_view.needs_export("md")
 
     session_view._touch()
-    assert not session_view.has_auto_exported_html
-    assert not session_view.has_auto_exported_md
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
 
     session_view.mark_auto_export_html()
     session_view.mark_auto_export_md()
@@ -737,8 +737,14 @@ def test_mark_auto_export():
             status=initial_status,
         ),
     )
-    assert not session_view.has_auto_exported_html
-    assert not session_view.has_auto_exported_md
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
+
+    session_view.mark_auto_export_session()
+    assert not session_view.needs_export("session")
+
+    session_view._touch()
+    assert session_view.needs_export("session")
 
 
 def test_stale_code() -> None:

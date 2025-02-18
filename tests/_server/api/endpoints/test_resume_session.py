@@ -318,9 +318,9 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         assert data == {
             "op": "update-cell-codes",
             "data": {
-                "cell_ids": ["MJUe", "Hbol"],
+                "cell_ids": ["MJUe"],
                 "code_is_stale": False,
-                "codes": ["x=10; x", "import marimo as mo"],
+                "codes": ["x=10; x"],
             },
         }
 

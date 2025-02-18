@@ -88,11 +88,10 @@ async def websocket_endpoint(
 
     kiosk = app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
 
-    rtc_enabled: bool = (
-        app_state.config_manager.get_config()
-        .get("experimental", {})
-        .get("rtc", False)
-    )
+    config = app_state.config_manager.get_config()
+
+    rtc_enabled: bool = config.get("experimental", {}).get("rtc", False)
+    auto_instantiate = config["runtime"]["auto_instantiate"]
 
     await WebsocketHandler(
         websocket=websocket,
@@ -102,6 +101,7 @@ async def websocket_endpoint(
         mode=app_state.mode,
         file_key=file_key,
         kiosk=kiosk,
+        auto_instantiate=auto_instantiate,
     ).start()
 
 
@@ -271,6 +271,7 @@ class WebsocketHandler(SessionConsumer):
         mode: SessionMode,
         file_key: MarimoFileKey,
         kiosk: bool,
+        auto_instantiate: bool,
     ):
         self.websocket = websocket
         self.manager = manager
@@ -280,11 +281,13 @@ class WebsocketHandler(SessionConsumer):
         self.mode = mode
         self.status: ConnectionState
         self.kiosk = kiosk
+        self.auto_instantiate = auto_instantiate
         self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
         self.heartbeat_task: Optional[asyncio.Task[None]] = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
+        self.ws_future: asyncio.Future[tuple[None, None]] | None = None
 
         super().__init__(consumer_id=ConsumerId(session_id))
 
@@ -385,12 +388,6 @@ class WebsocketHandler(SessionConsumer):
             )
             return
 
-        operations = session.get_current_state().operations
-        # Replay the current session view
-        LOGGER.debug(
-            f"Replaying {len(operations)} operations to the consumer",
-        )
-
         self._write_kernel_ready(
             session=session,
             resumed=True,
@@ -407,9 +404,7 @@ class WebsocketHandler(SessionConsumer):
             )
         )
 
-        for op in operations:
-            LOGGER.debug("Replaying operation %s", op)
-            self.write_operation(op)
+        self._replay_previous_session(session)
 
     def _connect_kiosk(self, session: Session) -> None:
         """Connect to a kiosk session.
@@ -436,14 +431,17 @@ class WebsocketHandler(SessionConsumer):
             kiosk=True,
         )
         self.status = ConnectionState.OPEN
+        self._replay_previous_session(session)
 
+    def _replay_previous_session(self, session: Session) -> None:
+        """Replay the previous session view."""
         operations = session.get_current_state().operations
-        # Replay the current session view
-        LOGGER.debug(
-            f"Replaying {len(operations)} operations to the kiosk consumer",
-        )
+        if len(operations) == 0:
+            LOGGER.debug("No operations to replay")
+            return
+        LOGGER.debug(f"Replaying {len(operations)} operations")
         for op in operations:
-            LOGGER.debug("Replaying operation %s", serialize(op))
+            LOGGER.debug("Replaying operation %s", op)
             self.write_operation(op)
 
     def _on_disconnect(
@@ -614,6 +612,10 @@ class WebsocketHandler(SessionConsumer):
                 kiosk=False,
             )
             self.status = ConnectionState.OPEN
+            # if auto-instantiate if false, replay the previous session
+            if not self.auto_instantiate:
+                new_session.sync_session_view_from_cache()
+                self._replay_previous_session(new_session)
             return new_session
 
         get_session()
@@ -687,11 +689,11 @@ class WebsocketHandler(SessionConsumer):
         )
 
         try:
-            self.future = asyncio.gather(
+            self.ws_future = asyncio.gather(
                 listen_for_messages_task,
                 listen_for_disconnect_task,
             )
-            await self.future
+            await self.ws_future
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
             pass
@@ -723,7 +725,8 @@ class WebsocketHandler(SessionConsumer):
                 )
             )
 
-        self.future.cancel()
+        if self.ws_future:
+            self.ws_future.cancel()
 
     def connection_state(self) -> ConnectionState:
         return self.status
@@ -771,10 +774,7 @@ class WebsocketHandler(SessionConsumer):
         self.status = ConnectionState.OPEN
 
         # Replay all operations
-        operations = session.get_current_state().operations
-        for op in operations:
-            LOGGER.debug("Replaying operation %s", serialize(op))
-            self.write_operation(op)
+        self._replay_previous_session(session)
 
 
 HAS_TOASTED = False
