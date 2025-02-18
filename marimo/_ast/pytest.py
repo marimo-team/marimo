@@ -14,10 +14,11 @@ def _pytest_scaffold(stub: Any) -> Any:
     return stub(stub=stub)
 
 
-PYTEST_BASE = ast.parse(inspect.getsource(_pytest_scaffold))
-
-
 def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
+    # Avoid declaring the function in the global scope, since it may cause
+    # issues with meta-analysis tools like cxfreeze (see #3828).
+    PYTEST_BASE = ast.parse(inspect.getsource(_pytest_scaffold))
+
     # We modify the signature of the cell function such that pytest
     # does not attempt to use the arguments as fixtures.
 
