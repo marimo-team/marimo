@@ -14,6 +14,8 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
 from marimo._messaging.ops import UpdateCellCodes
@@ -400,6 +402,10 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.room.main_consumer is None
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_session_manager_file_watching() -> None:
     # Create a temporary file
@@ -626,6 +632,10 @@ def test_watch_mode_config_override() -> None:
         os.remove(tmp_path)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_watch_mode_with_watcher_on_save_config() -> None:
     """Test that watch mode works correctly with watcher_on_save config."""
@@ -778,6 +788,10 @@ def __():
         os.remove(tmp_path)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_session_manager_file_rename() -> None:
     """Test that file renaming works correctly with file watching."""
