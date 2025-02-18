@@ -5,7 +5,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Final, List, Optional, Union, cast
 
-from marimo._ai.types import (
+from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
     ChatModelConfigDict,

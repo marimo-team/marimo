@@ -4,8 +4,6 @@
 This module contains a library of interactive UI elements.
 """
 
-from __future__ import annotations
-
 __all__ = [
     "altair_chart",
     "anywidget",

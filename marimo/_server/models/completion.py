@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, List, Literal, Optional
 
-from marimo._ai.types import ChatMessage
+from marimo._ai._types import ChatMessage
 
 
 @dataclass

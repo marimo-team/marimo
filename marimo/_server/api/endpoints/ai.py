@@ -8,12 +8,12 @@ from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 
 from marimo import _loggers
-from marimo._ai.convert import (
+from marimo._ai._convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_openai_messages,
 )
-from marimo._ai.types import ChatMessage
+from marimo._ai._types import ChatMessage
 from marimo._config.config import MarimoConfig
 from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState

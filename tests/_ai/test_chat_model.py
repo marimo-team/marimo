@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from marimo._ai.llm import simple
-from marimo._ai.types import ChatMessage, ChatModelConfig
+from marimo._ai._types import ChatMessage, ChatModelConfig
+from marimo._ai.llm._impl import simple
 
 
 def test_simple_model():

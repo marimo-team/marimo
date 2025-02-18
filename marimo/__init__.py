@@ -14,8 +14,6 @@ marimo is designed to be:
     5. fun
 """
 
-from __future__ import annotations
-
 __all__ = [
     # Core API
     "App",
@@ -89,7 +87,7 @@ import marimo._ai as ai
 import marimo._islands as islands
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
-from marimo._islands.island_generator import MarimoIslandGenerator
+from marimo._islands._island_generator import MarimoIslandGenerator
 from marimo._output.doc import doc
 from marimo._output.formatting import as_html, iframe, plain
 from marimo._output.hypertext import Html
