@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect } from "vitest";
-import { updateBufferPaths, base64ToDataView } from "../date-views";
+import { updateBufferPaths, base64ToDataView } from "../data-views";
 
 describe("updateBufferPaths", () => {
   it("should return the original object if bufferPaths is null", () => {
