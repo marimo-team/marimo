@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
@@ -31,7 +31,6 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState
 from marimo._server.file_router import MarimoFileKey
-from marimo._server.ids import ConsumerId
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
@@ -39,6 +38,7 @@ from marimo._server.model import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.sessions import Session, SessionManager
+from marimo._types.ids import CellId_t, ConsumerId
 
 if TYPE_CHECKING:
     from pycrdt import Doc, Text, TransactionEvent

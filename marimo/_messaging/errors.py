@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional, Union
 
-from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import EdgeWithVar
+from marimo._types.ids import CellId_t
 
 
 @dataclass

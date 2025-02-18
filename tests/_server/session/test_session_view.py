@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
-from marimo._ast.cell import CellId_t, RuntimeStateType
+from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
@@ -27,6 +27,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 cell_id: CellId_t = "cell_1"

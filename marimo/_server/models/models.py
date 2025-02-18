@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._runtime.requests import (
     ExecuteMultipleRequest,
@@ -13,8 +13,7 @@ from marimo._runtime.requests import (
     HTTPRequest,
     RenameRequest,
 )
-
-UIElementId = str
+from marimo._types.ids import CellId_t, UIElementId
 
 
 @dataclass

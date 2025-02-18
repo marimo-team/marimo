@@ -29,8 +29,8 @@ from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
-    from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
+    from marimo._types.ids import CellId_t
 
 
 @dataclass

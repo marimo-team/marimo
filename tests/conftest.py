@@ -14,7 +14,6 @@ import pytest
 from _pytest import runner
 
 from marimo._ast.app import App, CellManager
-from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
@@ -34,6 +33,7 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 from marimo._server.model import SessionMode
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:

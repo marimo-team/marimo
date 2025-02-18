@@ -9,7 +9,7 @@ import signal
 from typing import Any, Callable, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.streams import (
@@ -62,6 +62,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
+from marimo._types.ids import CellId_t
 from marimo._utils.case import deep_to_camel_case
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.parse_dataclass import parse_raw

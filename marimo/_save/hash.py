@@ -29,11 +29,12 @@ from marimo._runtime.primitives import (
 from marimo._runtime.state import SetFunctor, State
 from marimo._save.ast import DeprivateVisitor, strip_function
 from marimo._save.cache import Cache, CacheType
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from types import CodeType
 
-    from marimo._ast.cell import CellId_t, CellImpl
+    from marimo._ast.cell import CellImpl
     from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.loaders import Loader

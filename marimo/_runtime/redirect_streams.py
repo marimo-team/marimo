@@ -6,11 +6,11 @@ import os
 import sys
 from typing import Iterator
 
-from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import (
     redirect,
 )
 from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
+from marimo._types.ids import CellId_t
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:

@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
@@ -136,6 +136,7 @@ from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._tracer import kernel_tracer
+from marimo._types.ids import CellId_t
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals

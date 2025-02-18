@@ -6,6 +6,8 @@ from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
 from typing import Any, List, Literal, Optional, Union
 
+from marimo._types.ids import VariableName
+
 DataType = Literal[
     "string",
     "boolean",
@@ -38,8 +40,6 @@ class DataTableColumn:
 
 
 DataTableSource = Literal["local", "duckdb", "connection"]
-
-VariableName = str
 
 
 @dataclass

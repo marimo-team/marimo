@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from marimo import _loggers
 from marimo._ast.cell import (
     Cell,
-    CellId_t,
     CellImpl,
     ImportWorkspace,
     SourcePosition,
 )
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
 
 LOGGER = _loggers.marimo_logger()
@@ -38,7 +38,7 @@ def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
     """Parse cell id from filename."""
     matches = re.findall(r"__marimo__cell_(.*?)_", filename)
     if matches:
-        return str(matches[0])
+        return CellId_t(matches[0])
     return None
 
 

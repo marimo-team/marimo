@@ -19,7 +19,6 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws import FILE_QUERY_PARAM_KEY
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import MarimoFileKey
-from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     InstantiateRequest,
@@ -30,6 +29,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request

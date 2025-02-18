@@ -19,11 +19,12 @@ if sys.version_info < (3, 10):
 else:
     from typing import ParamSpec, TypeAlias
 
-from marimo._ast.cell import Cell, CellConfig, CellId_t
+from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import cell_factory, toplevel_cell_factory
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.pytest import wrap_fn_for_pytest
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
@@ -75,8 +76,8 @@ class CellManager:
             _id = self.prefix + "".join(
                 self.random_seed.choices(string.ascii_letters, k=4)
             )
-        self.seen_ids.add(_id)
-        return _id
+        self.seen_ids.add(CellId_t(_id))
+        return CellId_t(_id)
 
     # TODO: maybe remove this, it is leaky
     def cell_decorator(

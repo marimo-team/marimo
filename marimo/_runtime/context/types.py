@@ -22,13 +22,13 @@ from marimo._runtime.requests import HTTPRequest
 
 if TYPE_CHECKING:
     from marimo._ast.app import AppKernelRunnerRegistry, InternalApp
-    from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._types.ids import CellId_t
 
 
 class GlobalContext:

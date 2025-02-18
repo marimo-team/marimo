@@ -31,7 +31,7 @@ from typing import Any, Dict, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._cli.print import red
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -59,7 +59,6 @@ from marimo._runtime.requests import (
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
-from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
@@ -71,6 +70,7 @@ from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
 from marimo._tracer import server_tracer
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,

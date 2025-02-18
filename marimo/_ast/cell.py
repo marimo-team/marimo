@@ -11,9 +11,8 @@ from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._runtime.exceptions import MarimoRuntimeException
+from marimo._types.ids import CellId_t
 from marimo._utils.deep_merge import deep_merge
-
-CellId_t = str
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

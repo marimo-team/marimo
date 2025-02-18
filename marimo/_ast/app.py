@@ -26,13 +26,15 @@ from typing import (
 )
 from uuid import uuid4
 
+from marimo._types.ids import CellId_t
+
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec, TypeAlias
 else:
     from typing import ParamSpec, TypeAlias
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
     CycleError,

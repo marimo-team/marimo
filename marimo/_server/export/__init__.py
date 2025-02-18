@@ -23,6 +23,7 @@ from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
+from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -211,7 +212,7 @@ async def run_app_until_completion(
     class DefaultSessionConsumer(SessionConsumer):
         def __init__(self) -> None:
             self.did_error = False
-            super().__init__(consumer_id="default")
+            super().__init__(consumer_id=ConsumerId("default"))
 
         def on_start(
             self,

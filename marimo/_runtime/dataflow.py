@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
-    CellId_t,
     CellImpl,
 )
 from marimo._ast.compiler import code_key
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import execute_cell, execute_cell_async
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Collection
