@@ -34,13 +34,10 @@ class DataclassParser:
     def _build_value(self, value: Any, cls: Type[T]) -> T:
         # Handle NewType before checking containers
         if hasattr(cls, "__supertype__"):  # This is how we detect NewType
-            # CellId_t is still a plain str, so don't wrap it
-            if cls.__name__ == "CellId_t":
-                return value  # type: ignore
             # Only wrap UIElementId and SessionId
             if cls.__name__ in ("UIElementId", "SessionId"):
                 return cls(self._build_value(value, cls.__supertype__))  # type: ignore
-            # For any other NewTypes, treat as their supertype
+            # For all other NewTypes (including CellId_t), treat as their supertype
             return self._build_value(value, cls.__supertype__)  # type: ignore
 
         # origin_cls is not None if cls is a container (such as list,
