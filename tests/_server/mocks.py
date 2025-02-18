@@ -99,25 +99,26 @@ def with_session(
             auth_token = get_session_manager(client).auth_token
             headers = token_header(auth_token)
 
-            with client.websocket_connect(
-                f"/ws?session_id={session_id}", headers=headers
-            ) as websocket:
-                data = websocket.receive_text()
-                assert data
-                if "temp_marimo_file" in func.__code__.co_varnames:
-                    func(
-                        client,
-                        temp_marimo_file=temp_marimo_file,
+            try:
+                with client.websocket_connect(
+                    f"/ws?session_id={session_id}", headers=headers
+                ) as websocket:
+                    data = websocket.receive_text()
+                    assert data
+                    if "temp_marimo_file" in func.__code__.co_varnames:
+                        func(
+                            client,
+                            temp_marimo_file=temp_marimo_file,
+                        )
+                    else:
+                        func(client)
+            finally:
+                # Always shutdown, even if there's an error
+                if auto_shutdown:
+                    client.post(
+                        "/api/kernel/shutdown",
+                        headers=headers,
                     )
-                else:
-                    func(client)
-            # shutdown after websocket exits, otherwise
-            # test fails on Windows (loop closed twice)
-            if auto_shutdown:
-                client.post(
-                    "/api/kernel/shutdown",
-                    headers=headers,
-                )
 
         return wrapper
 
@@ -135,20 +136,21 @@ def with_websocket_session(
             auth_token = get_session_manager(client).auth_token
             headers = token_header(auth_token)
 
-            with client.websocket_connect(
-                f"/ws?session_id={session_id}", headers=headers
-            ) as websocket:
-                data = websocket.receive_text()
-                assert data
+            try:
+                with client.websocket_connect(
+                    f"/ws?session_id={session_id}", headers=headers
+                ) as websocket:
+                    data = websocket.receive_text()
+                    assert data
 
-                func(client, websocket)
-            # shutdown after websocket exits, otherwise
-            # test fails on Windows (loop closed twice)
-            if auto_shutdown:
-                client.post(
-                    "/api/kernel/shutdown",
-                    headers=headers,
-                )
+                    func(client, websocket)
+            finally:
+                # Always shutdown, even if there's an error
+                if auto_shutdown:
+                    client.post(
+                        "/api/kernel/shutdown",
+                        headers=headers,
+                    )
 
         return wrapper
 
@@ -165,22 +167,23 @@ def with_read_session(
             session_manager = get_session_manager(client)
             headers = token_header(session_manager.auth_token)
 
-            with client.websocket_connect(
-                f"/ws?session_id={session_id}", headers=headers
-            ) as websocket:
-                data = websocket.receive_text()
-                assert data
-                # Just change the mode here, otherwise our tests will run,
-                # in threads
-                session_manager.mode = SessionMode.RUN
-                func(client)
-                session_manager.mode = SessionMode.EDIT
-            # shutdown after websocket exits, otherwise
-            # test fails on Windows (loop closed twice)
-            client.post(
-                "/api/kernel/shutdown",
-                headers=headers,
-            )
+            try:
+                with client.websocket_connect(
+                    f"/ws?session_id={session_id}", headers=headers
+                ) as websocket:
+                    data = websocket.receive_text()
+                    assert data
+                    # Just change the mode here, otherwise our tests will run,
+                    # in threads
+                    session_manager.mode = SessionMode.RUN
+                    func(client)
+                    session_manager.mode = SessionMode.EDIT
+            finally:
+                # Always shutdown, even if there's an error
+                client.post(
+                    "/api/kernel/shutdown",
+                    headers=headers,
+                )
 
         return wrapper
 
