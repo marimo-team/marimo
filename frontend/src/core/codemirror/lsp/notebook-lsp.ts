@@ -9,7 +9,7 @@ import { LRUCache } from "@/utils/lru";
 import type { CellId } from "@/core/cells/ids";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
-  private readonly documentUri = "file:///__marimo__.py";
+  private readonly documentUri = "file:///__marimo_notebook__.py";
   private documentVersion = 0;
   private readonly client: ILanguageServerClient;
 

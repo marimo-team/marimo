@@ -7,6 +7,9 @@ settings:
 pnpmfileChecksum: eqzj7c6t3bs5v7xcjer2wfwkp4
 
 patchedDependencies:
+  codemirror-extension-inline-suggestion:
+    hash: khbxbgrsjmwb5ecklr5ujxzp5i
+    path: patches/codemirror-extension-inline-suggestion.patch
   react-plotly.js:
     hash: bpeex744nmt6722etqry6essaq
     path: patches/react-plotly.js.patch
@@ -94,8 +97,8 @@ importers:
         specifier: ^0.1.3
         version: 0.1.3(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)
       '@marimo-team/codemirror-languageserver':
-        specifier: ^1.13.4
-        version: 1.13.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)
+        specifier: ^1.13.5
+        version: 1.13.5(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)
       '@marimo-team/marimo-api':
         specifier: file:../openapi
         version: file:../openapi
@@ -257,7 +260,7 @@ importers:
         version: 1.0.4(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       codemirror-extension-inline-suggestion:
         specifier: ^0.0.3
-        version: 0.0.3(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)
+        version: 0.0.3(patch_hash=khbxbgrsjmwb5ecklr5ujxzp5i)(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)
       compassql:
         specifier: ^0.21.2
         version: 0.21.2(vega@5.30.0)
@@ -1690,8 +1693,8 @@ packages:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
 
-  '@marimo-team/codemirror-languageserver@1.13.4':
-    resolution: {integrity: sha512-FV1g56CwmaKXuSJd0S+sqWqoL+oTzXvntyS7c/N4zCSxvYHhdPkfXBZhJr1MDzMZe5Gu1BoVAjEAORIplDF5IA==}
+  '@marimo-team/codemirror-languageserver@1.13.5':
+    resolution: {integrity: sha512-rinzDRfL0dyjcdfOLHq0hh0nbzhtB8XZ3kkLx/MRekJyNnsSfGklSrGno9hXSNhegtUpcT3sIss4u4dvEwpxdg==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -10416,7 +10419,7 @@ snapshots:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.2
 
-  '@marimo-team/codemirror-languageserver@1.13.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)':
+  '@marimo-team/codemirror-languageserver@1.13.5(@codemirror/state@6.5.2)(@codemirror/view@6.36.2)':
     dependencies:
       '@codemirror/autocomplete': 6.18.4
       '@codemirror/lint': 6.8.4
@@ -13955,7 +13958,7 @@ snapshots:
 
   code-point-at@1.1.0: {}
 
-  codemirror-extension-inline-suggestion@0.0.3(@codemirror/state@6.5.2)(@codemirror/view@6.36.2):
+  codemirror-extension-inline-suggestion@0.0.3(patch_hash=khbxbgrsjmwb5ecklr5ujxzp5i)(@codemirror/state@6.5.2)(@codemirror/view@6.36.2):
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.2

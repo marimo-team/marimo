@@ -12,7 +12,7 @@ import { Logger } from "@/utils/Logger";
 import { toast } from "@/components/ui/use-toast";
 
 // Dummy file for the copilot language server
-export const COPILOT_FILENAME = "/marimo.py";
+export const COPILOT_FILENAME = "/__marimo_copilot__.py";
 export const LANGUAGE_ID = "copilot";
 const FILE_URI = `file://${COPILOT_FILENAME}`;
 

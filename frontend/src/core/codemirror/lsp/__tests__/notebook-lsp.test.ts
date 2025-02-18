@@ -261,7 +261,7 @@ describe("NotebookLanguageServerClient", () => {
       expect(result).toEqual(mockCompletionResponse);
       expect(mockClient.textDocumentCompletion).toHaveBeenCalledWith(
         expect.objectContaining({
-          textDocument: { uri: "file:///__marimo__.py" },
+          textDocument: { uri: "file:///__marimo_notebook__.py" },
         }),
       );
     });
