@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from marimo import _loggers
 from marimo._data.models import Database, DataSourceConnection
 from marimo._sql.engines import (
     INTERNAL_DUCKDB_ENGINE,
@@ -11,6 +12,8 @@ from marimo._sql.engines import (
 )
 from marimo._sql.types import SQLEngine
 from marimo._types.ids import VariableName
+
+LOGGER = _loggers.marimo_logger()
 
 
 def get_engines_from_variables(
@@ -51,6 +54,10 @@ def engine_to_data_source_connection(
         )
     elif isinstance(engine, DuckDBEngine):
         databases = engine.get_databases()
+    else:
+        LOGGER.warning(
+            f"Unsupported engine type: {type(engine)}. Unable to get databases for {variable_name}."
+        )
 
     display_name = (
         f"{engine.dialect} ({variable_name})"

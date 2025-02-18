@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
     from sqlalchemy.sql.type_api import TypeEngine
 
-# Internal engine name for DuckDB, wwe need to ensure this is unique
+# Internal engine name for DuckDB, we need to ensure this is unique
 INTERNAL_DUCKDB_ENGINE = "__marimo_duckdb"
 
 

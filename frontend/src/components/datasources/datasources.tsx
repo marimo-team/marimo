@@ -134,7 +134,10 @@ export const DataSources: React.FC = () => {
   const hasSearch = !!searchValue.trim();
 
   return (
-    <Command className="border-b bg-background rounded-none h-full pb-10 overflow-auto">
+    <Command
+      className="border-b bg-background rounded-none h-full pb-10 overflow-auto"
+      shouldFilter={false}
+    >
       <div className="flex items-center w-full">
         <CommandInput
           placeholder="Search tables..."
@@ -167,45 +170,41 @@ export const DataSources: React.FC = () => {
         </AddDatabaseDialog>
       </div>
 
-      {dataConnections.map((connection) => (
-        <Engine
-          key={connection.name}
-          connection={connection}
-          hasChildren={connection.databases.length > 0}
-        >
-          {connection.databases.map((database) => (
-            <DatabaseItem key={database.name} database={database}>
-              {database.schemas.map((schema) => (
-                <SchemaItem
-                  key={schema.name}
-                  dbName={database.name}
-                  schema={schema}
-                >
-                  <TableList
-                    tables={schema.tables}
-                    isSearching={hasSearch}
-                    sqlTableContext={{
-                      engine: connection.name,
-                      database: database.name,
-                      schema: schema.name,
-                    }}
-                  />
-                </SchemaItem>
-              ))}
-            </DatabaseItem>
-          ))}
-        </Engine>
-      ))}
+      <CommandList className="flex flex-col">
+        {dataConnections.map((connection) => (
+          <Engine
+            key={connection.name}
+            connection={connection}
+            hasChildren={connection.databases.length > 0}
+          >
+            {connection.databases.map((database) => (
+              <DatabaseItem
+                key={database.name}
+                database={database}
+                hasSearch={hasSearch}
+              >
+                <SchemaList
+                  schemas={database.schemas}
+                  engineName={connection.name}
+                  databaseName={database.name}
+                  hasSearch={hasSearch}
+                  searchValue={searchValue}
+                />
+              </DatabaseItem>
+            ))}
+          </Engine>
+        ))}
 
-      {dataConnections.length > 0 && tables.length > 0 && (
-        <DatasourceLabel>
-          <PythonIcon className="h-4 w-4 text-muted-foreground" />
-          <span>Python</span>
-        </DatasourceLabel>
-      )}
-      {tables.length > 0 && (
-        <TableList tables={tables} isSearching={hasSearch} />
-      )}
+        {dataConnections.length > 0 && tables.length > 0 && (
+          <DatasourceLabel>
+            <PythonIcon className="h-4 w-4 text-muted-foreground" />
+            <span>Python</span>
+          </DatasourceLabel>
+        )}
+        {tables.length > 0 && (
+          <TableList tables={tables} searchValue={searchValue} />
+        )}
+      </CommandList>
     </Command>
   );
 };
@@ -243,70 +242,120 @@ const Engine: React.FC<{
 };
 
 const DatabaseItem: React.FC<{
+  hasSearch: boolean;
   database: Database;
   children: React.ReactNode;
-}> = ({ database, children }) => {
+}> = ({ hasSearch, database, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isSelected, setIsSelected] = React.useState(false);
 
-  const renderChildren = () => {
-    if (!isExpanded) {
-      return;
-    }
-
-    if (database.schemas.length === 0) {
-      return <EmptyState content="No schemas available" className="pl-6" />;
-    }
-
-    return children;
-  };
+  React.useEffect(() => {
+    setIsExpanded(hasSearch);
+  }, [hasSearch]);
 
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center cursor-pointer"
-        onSelect={() => setIsExpanded(!isExpanded)}
+        className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
+        onSelect={() => {
+          setIsExpanded(!isExpanded);
+          setIsSelected(!isSelected);
+        }}
       >
         <RotatingChevron isExpanded={isExpanded} />
         <DatabaseIcon
           className={cn(
             "h-4 w-4",
-            isExpanded ? "text-foreground" : "text-muted-foreground",
+            isSelected ? "text-foreground" : "text-muted-foreground",
           )}
         />
-        <span className={cn(isExpanded && "font-semibold")}>
+        <span className={cn(isSelected && "font-semibold")}>
           {database.name}
         </span>
       </CommandItem>
-      {renderChildren()}
+      {isExpanded && children}
+    </>
+  );
+};
+
+const SchemaList: React.FC<{
+  schemas: DatabaseSchema[];
+  engineName: string;
+  databaseName: string;
+  hasSearch: boolean;
+  searchValue?: string;
+}> = ({ schemas, engineName, databaseName, hasSearch, searchValue }) => {
+  if (schemas.length === 0) {
+    return <EmptyState content="No schemas available" className="pl-6" />;
+  }
+
+  const filteredSchemas = schemas.filter((schema) => {
+    if (searchValue) {
+      return schema.tables.some((table) =>
+        table.name.toLowerCase().includes(searchValue.toLowerCase()),
+      );
+    }
+    return true;
+  });
+
+  return (
+    <>
+      {filteredSchemas.map((schema) => (
+        <SchemaItem
+          key={schema.name}
+          databaseName={databaseName}
+          schema={schema}
+          hasSearch={hasSearch}
+        >
+          <TableList
+            tables={schema.tables}
+            searchValue={searchValue}
+            sqlTableContext={{
+              engine: engineName,
+              database: databaseName,
+              schema: schema.name,
+            }}
+          />
+        </SchemaItem>
+      ))}
     </>
   );
 };
 
 const SchemaItem: React.FC<{
-  dbName: string;
+  databaseName: string;
   schema: DatabaseSchema;
   children: React.ReactNode;
-}> = ({ dbName, schema, children }) => {
+  hasSearch: boolean;
+}> = ({ databaseName, schema, children, hasSearch }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const uniqueValue = `${dbName}:${schema.name}`;
+  const [isSelected, setIsSelected] = React.useState(false);
+  const uniqueValue = `${databaseName}:${schema.name}`;
+
+  React.useEffect(() => {
+    setIsExpanded(hasSearch);
+  }, [hasSearch]);
 
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center pl-5 cursor-pointer"
-        onSelect={() => setIsExpanded(!isExpanded)}
+        className="text-sm flex flex-row gap-1 items-center pl-5 cursor-pointer rounded-none"
+        onSelect={() => {
+          setIsExpanded(!isExpanded);
+          setIsSelected(!isSelected);
+        }}
         value={uniqueValue}
       >
         <RotatingChevron isExpanded={isExpanded} />
         <PaintRollerIcon
           className={cn(
             "h-4 w-4 text-muted-foreground",
-            isExpanded && "text-foreground",
+            isSelected && "text-foreground",
           )}
         />
-        <span className={cn(isExpanded && "font-semibold")}>{schema.name}</span>
+        <span className={cn(isSelected && "font-semibold")}>{schema.name}</span>
       </CommandItem>
-      {isExpanded && <div className="pl-5">{children}</div>}
+      {isExpanded && children}
     </>
   );
 };
@@ -318,36 +367,40 @@ interface SQLTableContext {
 }
 
 const TableList: React.FC<{
-  isSearching: boolean;
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
-}> = ({ tables, isSearching, sqlTableContext }) => {
+  searchValue?: string;
+}> = ({ tables, sqlTableContext, searchValue }) => {
+  if (tables.length === 0) {
+    return <EmptyState content="No tables found" className="pl-5" />;
+  }
+
+  const filteredTables = tables.filter((table) => {
+    if (searchValue) {
+      return table.name.toLowerCase().includes(searchValue.toLowerCase());
+    }
+    return true;
+  });
+
   return (
-    <CommandList className="flex flex-col">
-      {tables.length === 0 ? (
-        <EmptyState
-          content="No tables found"
-          className={cn(sqlTableContext ? "pl-5" : "pl-2")}
+    <>
+      {filteredTables.map((table) => (
+        <DatasetTableItem
+          key={table.name}
+          table={table}
+          sqlTableContext={sqlTableContext}
+          isSearching={!!searchValue}
         />
-      ) : (
-        tables.map((table) => (
-          <DatasetTableItem
-            key={table.name}
-            table={table}
-            forceMount={isSearching}
-            sqlTableContext={sqlTableContext}
-          />
-        ))
-      )}
-    </CommandList>
+      ))}
+    </>
   );
 };
 
 const DatasetTableItem: React.FC<{
   table: DataTable;
-  forceMount?: boolean;
   sqlTableContext?: SQLTableContext;
-}> = ({ table, sqlTableContext }) => {
+  isSearching: boolean;
+}> = ({ table, sqlTableContext, isSearching }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
@@ -371,7 +424,7 @@ const DatasetTableItem: React.FC<{
 
       setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
     }
-  }, [isExpanded, tableDetailsExist]);
+  }, [isExpanded, tableDetailsExist, tablePreview]);
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
@@ -432,7 +485,7 @@ const DatasetTableItem: React.FC<{
   const renderColumns = () => {
     if (loading) {
       return (
-        <div className="pl-6 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-8">
+        <div className="pl-12 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-8">
           <LoaderCircle className="h-4 w-4 animate-spin" />
           Loading columns...
         </div>
@@ -441,7 +494,7 @@ const DatasetTableItem: React.FC<{
 
     if (error) {
       return (
-        <div className="pl-6 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-8">
+        <div className="pl-12 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-8">
           <XIcon className="h-4 w-4" />
           {error.message}
         </div>
@@ -470,7 +523,7 @@ const DatasetTableItem: React.FC<{
     return (
       <TableTypeIcon
         className="h-3 w-3"
-        strokeWidth={isExpanded ? 2.5 : undefined}
+        strokeWidth={isExpanded || isSearching ? 2.5 : undefined}
       />
     );
   };
@@ -484,8 +537,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          table.source_type !== "local" && "pl-6",
-          isExpanded && "font-semibold",
+          sqlTableContext && "pl-12",
+          (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
         aria-selected={isExpanded}
@@ -571,7 +624,7 @@ const DatasetColumnItem: React.FC<{
         <div
           className={cn(
             "flex flex-row gap-2 items-center flex-1",
-            table.source_type === "local" ? "pl-6" : "pl-7",
+            sqlTableContext ? "pl-14" : "pl-7",
           )}
         >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
@@ -638,10 +691,10 @@ const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
 
-  // Only fetch previews for local or duckdb tables
-  if (table.source_type === "connection") {
+  // Only fetch previews for local or duckdb tables, not for SQL tables
+  if (sqlTableContext) {
     return (
-      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between">
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
         {column.name} ({column.external_type})
         <Button
           variant="outline"
