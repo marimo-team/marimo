@@ -68,12 +68,14 @@ async def websocket_endpoint(
             description: Websocket endpoint
     """
     app_state = AppState(websocket)
-    session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
-    if session_id is None:
+    raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
+    if raw_session_id is None:
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
         )
         return
+
+    session_id = SessionId(raw_session_id)
 
     file_key: Optional[MarimoFileKey] = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
@@ -267,7 +269,7 @@ class WebsocketHandler(SessionConsumer):
         websocket: WebSocket,
         manager: SessionManager,
         rtc_enabled: bool,
-        session_id: str,
+        session_id: SessionId,
         mode: SessionMode,
         file_key: MarimoFileKey,
         kiosk: bool,
@@ -289,7 +291,7 @@ class WebsocketHandler(SessionConsumer):
         self.message_queue: asyncio.Queue[KernelMessage]
         self.ws_future: asyncio.Future[tuple[None, None]] | None = None
 
-        super().__init__(consumer_id=ConsumerId(session_id))
+        super().__init__(consumer_id=ConsumerId(str(session_id)))
 
     def _write_kernel_ready(
         self,
@@ -459,7 +461,7 @@ class WebsocketHandler(SessionConsumer):
         # Change the status
         self.status = ConnectionState.CLOSED
         # Disconnect the consumer
-        session = self.manager.get_session(SessionId(self.session_id))
+        session = self.manager.get_session(self.session_id)
         if session:
             session.disconnect_consumer(self)
 
@@ -476,9 +478,9 @@ class WebsocketHandler(SessionConsumer):
                     # wait until TTL is expired before calling the cleanup
                     # function
                     cleanup_fn()
-                    self.manager.close_session(SessionId(self.session_id))
+                    self.manager.close_session(self.session_id)
 
-            session = self.manager.get_session(SessionId(self.session_id))
+            session = self.manager.get_session(self.session_id)
             if session is not None:
                 cancellation_handle = asyncio.get_event_loop().call_later(
                     session.ttl_seconds, _close
@@ -528,7 +530,7 @@ class WebsocketHandler(SessionConsumer):
                     raise WebSocketDisconnect(
                         WebSocketCodes.FORBIDDEN, "MARIMO_KIOSK_NOT_ALLOWED"
                     )
-                kiosk_session = mgr.get_session(SessionId(session_id))
+                kiosk_session = mgr.get_session(session_id)
                 if kiosk_session is None:
                     LOGGER.debug(
                         "Kiosk session not found for session id %s",
@@ -553,7 +555,7 @@ class WebsocketHandler(SessionConsumer):
             # This can happen in local development when the client
             # goes to sleep and wakes later. Just replace the session's
             # socket, but keep its kernel.
-            existing_session = mgr.get_session(SessionId(session_id))
+            existing_session = mgr.get_session(session_id)
             if existing_session is not None:
                 LOGGER.debug("Reconnecting session %s", session_id)
                 # In case there is a lingering connection, close it
@@ -597,7 +599,7 @@ class WebsocketHandler(SessionConsumer):
 
             new_session = mgr.create_session(
                 query_params=query_params.to_dict(),
-                session_id=SessionId(session_id),
+                session_id=session_id,
                 session_consumer=self,
                 file_key=self.file_key,
             )
