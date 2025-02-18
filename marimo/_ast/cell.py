@@ -289,8 +289,9 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
-    @property
-    def is_toplevel_acceptable(self) -> bool:
+    def is_toplevel_acceptable(
+        self, allowed_refs: Optional[set[Name]] = None
+    ) -> bool:
         # Check no defs aside from the single function
         if len(self.defs) != 1:
             return False
@@ -316,13 +317,16 @@ class CellImpl:
             return False
 
         # No required_refs are allowed for now
-        # TODO: Allow imports and other toplevel functions
         refs = set().union(
             *[v.required_refs for v in self.variable_data[name]]
         )
-        refs -= set(globals()["__builtins__"].keys())
+        # NOTE: Builtins are allowed, but should be passed in under
+        # allowed_refs. Defers to allowed_refs because shadowed builtins
+        # are accounted for.
+        if allowed_refs is None:
+            allowed_refs = set(globals()["__builtins__"].keys())
         # Allow recursion
-        refs -= {name}
+        refs -= {name} | allowed_refs
         if refs:
             return False
 

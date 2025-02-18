@@ -619,15 +619,21 @@ def pytest_make_collect_report(collector):
     # Defined within the file does not seem to hook correctly, as such filter
     # for the test_pytest specific file here.
     if "test_pytest" in str(collector.path):
-        collected = {fn.name: fn for fn in collector.collect()}
-        from tests._ast.test_pytest import app
+        collected = {fn.originalname for fn in collector.collect()}
+        from tests._ast.test_pytest import app as app_pytest
+        from tests._ast.test_pytest_toplevel import app as app_toplevel
+
+        app = {
+            "test_pytest": app_pytest,
+            "test_pytest_toplevel": app_toplevel,
+        }[collector.path.stem]
 
         invalid = []
         for name in app._cell_manager.names():
             if name.startswith("test_") and name not in collected:
                 invalid.append(f"'{name}'")
         if invalid:
-            tests = ", ".join([f"'{test}'" for test in collected.keys()])
+            tests = ", ".join([f"'{test}'" for test in collected])
             report.outcome = "failed"
             report.longrepr = (
                 f"Cannot collect test(s) {', '.join(invalid)} from {tests}"

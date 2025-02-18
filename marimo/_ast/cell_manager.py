@@ -7,12 +7,13 @@ import random
 import string
 from typing import (
     TYPE_CHECKING,
-    Any,
     Callable,
     Iterable,
     Optional,
     TypeVar,
 )
+
+from typing_extensions import ParamSpec, TypeAlias
 
 from marimo._ast.cell import Cell, CellConfig, CellId_t
 from marimo._ast.compiler import cell_factory, toplevel_cell_factory
@@ -23,7 +24,9 @@ from marimo._ast.pytest import wrap_fn_for_pytest
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
 
-    Fn = TypeVar("Fn", bound=Callable[..., Any])
+P = ParamSpec("P")
+R = TypeVar("R")
+Fn: TypeAlias = Callable[P, R]
 
 
 class CellManager:
@@ -74,20 +77,20 @@ class CellManager:
     # TODO: maybe remove this, it is leaky
     def cell_decorator(
         self,
-        func: Fn | None,
+        func: Fn[P, R] | None,
         column: Optional[int],
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
         *,
         top_level: bool = False,
-    ) -> Cell | Fn | Callable[[Fn], Cell | Fn]:
+    ) -> Cell | Fn[P, R] | Callable[[Fn[P, R]], Cell | Fn[P, R]]:
         """Create a cell decorator for marimo notebook cells."""
         cell_config = CellConfig(
             column=column, disabled=disabled, hide_code=hide_code
         )
 
-        def _register(func: Fn) -> Cell | Fn:
+        def _register(func: Fn[P, R]) -> Cell | Fn[P, R]:
             # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
             # order to allow execution during test collection.
             is_top_level_pytest = (
@@ -111,16 +114,15 @@ class CellManager:
 
             # Manually set the signature for pytest.
             if is_top_level_pytest:
-                func = wrap_fn_for_pytest(func, cell)  # type: ignore
-            # NB. in place metadata update.
-            functools.wraps(func)(cell)
+                # NB. in place metadata update.
+                functools.wraps(wrap_fn_for_pytest(func, cell))(cell)
             return cell
 
         if func is None:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
             # argument
-            def decorator(func: Fn) -> Cell | Fn:
+            def decorator(func: Fn[P, R]) -> Cell | Fn[P, R]:
                 return _register(func)
 
             return decorator

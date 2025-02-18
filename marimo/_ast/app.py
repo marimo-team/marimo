@@ -21,8 +21,11 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from uuid import uuid4
+
+from typing_extensions import ParamSpec, TypeAlias
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
@@ -58,7 +61,9 @@ if TYPE_CHECKING:
     from marimo._runtime.context.types import ExecutionContext
 
 
-Fn = TypeVar("Fn", bound=Callable[..., Any])
+P = ParamSpec("P")
+R = TypeVar("R")
+Fn: TypeAlias = Callable[P, R]
 LOGGER = _loggers.marimo_logger()
 
 
@@ -266,13 +271,13 @@ class App:
 
     def cell(
         self,
-        func: Fn | None = None,
+        func: Fn[P, R] | None = None,
         *,
         column: Optional[int] = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
-    ) -> Cell | Callable[[Fn], Cell]:
+    ) -> Cell | Callable[[Fn[P, R]], Cell]:
         """A decorator to add a cell to the app.
 
         This decorator can be called with or without parentheses. Each of the
@@ -302,21 +307,29 @@ class App:
         del kwargs
 
         return cast(
-            Union[Cell, Callable[[Fn], Cell]],
+            Union[Cell, Callable[[Fn[P, R]], Cell]],
             self._cell_manager.cell_decorator(
                 func, column, disabled, hide_code, app=InternalApp(self)
             ),
         )
 
+    # Overloads are required to preserve the wrapped function's signature.
+    # mypy is not smart enough to carry transitive typing in this case.
+    @overload
+    def function(self, func: Fn[P, R]) -> Fn[P, R]: ...
+
+    @overload
+    def function(self, **kwargs: Any) -> Callable[[Fn[P, R]], Fn[P, R]]: ...
+
     def function(
         self,
-        func: Fn | None = None,
+        func: Fn[P, R] | None = None,
         *,
         column: Optional[int] = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
-    ) -> Fn | Callable[[Fn], Fn]:
+    ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
         """A decorator to wrap a callable function into a cell in the app.
 
         This decorator can be called with or without parentheses. Each of the
@@ -348,7 +361,7 @@ class App:
         del kwargs
 
         return cast(
-            Union[Fn, Callable[[Fn], Fn]],
+            Union[Fn[P, R], Callable[[Fn[P, R]], Fn[P, R]]],
             self._cell_manager.cell_decorator(
                 func,
                 column,

@@ -15,9 +15,43 @@ CellId_t = str
 CellCodes = Dict[CellId_t, str]
 
 
+def ruff(codes: CellCodes, *cmd: str) -> CellCodes:
+    ruff_cmd = [sys.executable, "-m", "ruff"]
+    process = subprocess.run([*ruff_cmd, "--help"], capture_output=True)
+    if process.returncode != 0:
+        LOGGER.warning(
+            "To enable code formatting, install ruff (pip install ruff)"
+        )
+        return {}
+
+    formatted_codes: CellCodes = {}
+    for key, code in codes.items():
+        try:
+            process = subprocess.run(
+                [
+                    *ruff_cmd,
+                    *cmd,
+                    "-",
+                ],
+                input=code.encode(),
+                capture_output=True,
+                check=True,
+            )
+            if process.returncode != 0:
+                raise FormatError("Failed to format code with ruff")
+
+            formatted = process.stdout.decode()
+            formatted_codes[key] = formatted.strip()
+        except Exception as e:
+            LOGGER.error("Failed to format code with ruff")
+            LOGGER.debug(e)
+            continue
+
+    return formatted_codes
+
+
 class Formatter:
     def __init__(self, line_length: int) -> None:
-        self.data = None
         self.line_length = line_length
 
     def format(self, codes: CellCodes) -> CellCodes:
@@ -44,40 +78,7 @@ class DefaultFormatter(Formatter):
 
 class RuffFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
-        ruff_cmd = [sys.executable, "-m", "ruff"]
-        process = subprocess.run([*ruff_cmd, "--help"], capture_output=True)
-        if process.returncode != 0:
-            LOGGER.warning(
-                "To enable code formatting, install ruff (pip install ruff)"
-            )
-            return {}
-
-        formatted_codes: CellCodes = {}
-        for key, code in codes.items():
-            try:
-                process = subprocess.run(
-                    [
-                        *ruff_cmd,
-                        "format",
-                        "--line-length",
-                        str(self.line_length),
-                        "-",
-                    ],
-                    input=code.encode(),
-                    capture_output=True,
-                    check=True,
-                )
-                if process.returncode != 0:
-                    raise FormatError("Failed to format code with ruff")
-
-                formatted = process.stdout.decode()
-                formatted_codes[key] = formatted.strip()
-            except Exception as e:
-                LOGGER.error("Failed to format code with ruff")
-                LOGGER.debug(e)
-                continue
-
-        return formatted_codes
+        return ruff(codes, "format", "--line-length", str(self.line_length))
 
 
 class BlackFormatter(Formatter):
