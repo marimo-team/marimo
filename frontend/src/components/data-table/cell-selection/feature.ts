@@ -12,6 +12,8 @@ import {
   type Row,
 } from "@tanstack/react-table";
 
+import { Functions } from "@/utils/functions";
+
 import type {
   CellSelectionOptions,
   CellSelectionState,
@@ -35,10 +37,10 @@ export const CellSelectionFeature: TableFeature = {
 
   createTable: <TData>(table: Table<TData>): void => {
     table.setCellSelection = (updater) => {
-      console.log(
-        "table.setCellSelection",
-        table.options.onCellSelectionChange,
-      );
+      table.setState((tableState) => ({
+        ...tableState,
+        cellSelection: Functions.asUpdater(updater)(tableState.cellSelection),
+      }));
       table.options.onCellSelectionChange?.(updater);
     };
   },
@@ -97,19 +99,53 @@ export const CellSelectionFeature: TableFeature = {
     cell.getIsSelected = () => {
       const state: CellSelectionState = table.getState().cellSelection ?? [];
       return state.some(
-        (item) => item.row === cell.row.id && item.column === cell.column.id,
+        (item) =>
+          item.row === cell.row.id &&
+          item.column === column.getIndex().toString(),
       );
     };
 
     cell.toggleSelected = (value?: boolean) => {
       const colIdx = column.getIndex().toString();
-      console.log(`Should toggle cell ${row.id} ${colIdx} ${value}`);
-      table.setCellSelection((_) => [
-        {
-          row: row.id,
-          column: colIdx,
-        },
-      ]);
+
+      const currentIsSelected = cell.getIsSelected();
+      const nextIsSelected = value !== undefined ? value : !currentIsSelected;
+      console.log(
+        `Should toggle cell: row id = ${row.id}, colIdx = ${colIdx}, value = ${value}, currently ${currentIsSelected}, next ${nextIsSelected}`,
+      );
+
+      if (nextIsSelected && !currentIsSelected) {
+        // Add cell to selection
+        if (table.options.enableMultiCellSelection) {
+          table.setCellSelection((selectedCells) => [
+            {
+              row: row.id,
+              column: colIdx,
+            },
+            ...selectedCells,
+          ]);
+        } else {
+          // This cell becomes the single selected cell
+          table.setCellSelection((_) => [
+            {
+              row: row.id,
+              column: colIdx,
+            },
+          ]);
+        }
+      } else if (currentIsSelected && !nextIsSelected) {
+        // Deselect cell from selection
+        if (table.options.enableMultiCellSelection) {
+          table.setCellSelection((selectedCells) =>
+            selectedCells.filter(
+              (c) => c.row !== row.id && c.column !== colIdx,
+            ),
+          );
+        } else {
+          // Clear the selection
+          table.setCellSelection((_) => []);
+        }
+      }
     };
   },
 };

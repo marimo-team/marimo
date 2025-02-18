@@ -177,21 +177,24 @@ export function generateColumns<T>({
         const justify = textJustifyColumns?.[key];
         const wrapped = wrappedColumns?.includes(key);
 
-        const isSelected = false;
         function selectCell() {
           if (selection !== "single-cell" && selection !== "multi-cell") {
             return;
           }
 
           console.log(`Select`, value, cell);
-          cell.toggleSelected(true);
+          cell.toggleSelected();
         }
 
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
             <div
-              className={getCellStyleClass(justify, wrapped)}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
               onClick={selectCell}
             >
               {column.applyColumnFormatting(value)}
@@ -203,7 +206,11 @@ export function generateColumns<T>({
           const rendered = renderValue();
           return (
             <div
-              className={getCellStyleClass(justify, wrapped)}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
               onClick={selectCell}
             >
               {rendered == null ? (
@@ -223,7 +230,11 @@ export function generateColumns<T>({
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
           return (
             <div
-              className={getCellStyleClass(justify, wrapped)}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
               onClick={selectCell}
             >
               <DatePopover date={value} type={type}>
@@ -243,7 +254,11 @@ export function generateColumns<T>({
 
         return (
           <div
-            className={getCellStyleClass(justify, wrapped)}
+            className={getCellStyleClass(
+              justify,
+              wrapped,
+              cell.getIsSelected(),
+            )}
             onClick={selectCell}
           >
             {renderAny(getValue())}
@@ -331,9 +346,11 @@ function getFilterTypeForFieldType(
 function getCellStyleClass(
   justify: "left" | "center" | "right" | undefined,
   wrapped: boolean | undefined,
+  isSelected: boolean,
 ): string {
   return cn(
-    "bg-blue-100",
+    "cursor-pointer", // TODO: only when select cell?
+    isSelected && "bg-blue-200",
     "w-full",
     "text-left",
     justify === "center" && "text-center",

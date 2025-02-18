@@ -101,6 +101,9 @@ type Functions = {
   }>;
 };
 
+// TODO: this was Array<number | string>
+// I don't quite get this. Does it represent the row-id?
+// Is the row-id the index property in our case?
 type S = Array<{ row: string; column?: string }>;
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")

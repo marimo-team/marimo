@@ -448,6 +448,8 @@ class table(
                 row = value[0]["row"]
                 column = value[0]["column"]
                 print("Select value from", value[0])
+                # TODO: This works because I assume _data is a Pandas dataframe
+                # How to properly deal with this?
                 return self._data.iloc[int(row), int(column)]
 
             if type(value) is List[dict]:
@@ -455,7 +457,7 @@ class table(
                 return None
 
             print(value, type(value))
-            return 55
+            return 58
         else:
             indices = [int(v) for v in value["row"]]
             self._selected_manager = self._searched_manager.select_rows(
