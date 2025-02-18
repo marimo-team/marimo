@@ -878,14 +878,6 @@ class SessionManager:
                 ]
                 == "autorun"
             )
-            session.write_operation(
-                UpdateCellCodes(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    code_is_stale=not should_autorun,
-                ),
-                from_consumer_id=None,
-            )
 
             # Auto-run cells if configured
             if should_autorun:
@@ -898,11 +890,21 @@ class SessionManager:
                     for cell_id in changed_cell_ids_list
                 ]
 
+                # This runs the request and also runs UpdateCellCodes
                 session.put_control_request(
                     ExecuteMultipleRequest(
                         cell_ids=changed_cell_ids_list,
                         codes=changed_codes,
                         request=None,
+                    ),
+                    from_consumer_id=None,
+                )
+            else:
+                session.write_operation(
+                    UpdateCellCodes(
+                        cell_ids=cell_ids,
+                        codes=codes,
+                        code_is_stale=not should_autorun,
                     ),
                     from_consumer_id=None,
                 )
@@ -914,7 +916,7 @@ class SessionManager:
         )
 
     def handle_file_rename_for_watch(
-        self, session_id: SessionId, new_path: str
+        self, session_id: SessionId, prev_path: Optional[str], new_path: str
     ) -> tuple[bool, Optional[str]]:
         """Handle renaming a file for a session.
 
@@ -931,22 +933,20 @@ class SessionManager:
         if not session.app_file_manager.path:
             return False, "Session has no associated file"
 
-        old_path = session.app_file_manager.path
-
         # Handle rename for session cache
         if session.session_cache_manager:
             session.session_cache_manager.rename_path(new_path)
 
         try:
-            # Remove the old file watcher if it exists
             if self.watch:
-                self.watcher_manager.remove_callback(
-                    Path(old_path),
-                    session._unsubscribe_file_watcher_,  # type: ignore
-                )
+                # Remove the old file watcher if it exists
+                if prev_path:
+                    self.watcher_manager.remove_callback(
+                        Path(prev_path),
+                        session._unsubscribe_file_watcher_,  # type: ignore
+                    )
 
-            # Add a watcher for the new path if needed
-            if self.watch:
+                # Add a watcher for the new path if needed
                 self._start_file_watcher_for_session(session)
 
             return True, None
