@@ -479,8 +479,8 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        for _ in range(10):  # noqa: B007
-            await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
 
@@ -523,8 +523,8 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        for _ in range(10):  # noqa: B007
-            await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
 
@@ -700,8 +700,8 @@ def __():
         session.session_view = MagicMock(SessionView)
 
         # Wait a bit and then modify the file
-        for _ in range(10):  # noqa: B007
-            await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
 
@@ -720,8 +720,8 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        for _ in range(10):  # noqa: B007
-            await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
 
@@ -766,8 +766,8 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        for _ in range(10):  # noqa: B007
-            await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
 
@@ -889,8 +889,8 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(10):  # noqa: B007
-            await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
 
