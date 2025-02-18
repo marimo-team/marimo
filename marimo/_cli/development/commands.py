@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     import psutil
 
 
-def _generate_schema() -> dict[str, Any]:
+def _generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
     import marimo._data.models as data
@@ -264,7 +264,9 @@ def openapi() -> None:
     """
     import yaml
 
-    click.echo(yaml.dump(_generate_schema(), default_flow_style=False))
+    click.echo(
+        yaml.dump(_generate_server_api_schema(), default_flow_style=False)
+    )
 
 
 @click.group(help="Various commands for the marimo processes", hidden=True)

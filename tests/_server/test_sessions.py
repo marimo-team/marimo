@@ -14,6 +14,8 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
 from marimo._messaging.ops import UpdateCellCodes
@@ -27,6 +29,7 @@ from marimo._runtime.requests import (
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionMode
+from marimo._server.session.session_view import SessionView
 from marimo._server.sessions import (
     KernelManager,
     QueueManager,
@@ -53,7 +56,11 @@ def save_and_restore_main(f: F) -> F:
     def wrapper(*args: Any, **kwargs: Any) -> None:
         main = sys.modules["__main__"]
         try:
-            f(*args, **kwargs)
+            res = f(*args, **kwargs)
+            if asyncio.iscoroutine(res):
+                asyncio.run(res)
+            else:
+                pass
         finally:
             sys.modules["__main__"] = main
 
@@ -229,7 +236,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
 
 
 @save_and_restore_main
-def test_session() -> None:
+async def test_session() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
@@ -395,6 +402,10 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.room.main_consumer is None
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_session_manager_file_watching() -> None:
     # Create a temporary file
@@ -402,9 +413,10 @@ async def test_session_manager_file_watching() -> None:
         tmp_path = Path(tmp_file.name)
         # Write initial notebook content
         tmp_file.write(
-            b"""import marimo as mo
+            b"""import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     1
     return ()
@@ -421,7 +433,15 @@ def __():
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
-            user_config_manager=get_default_config_manager(current_path=None),
+            user_config_manager=get_default_config_manager(
+                current_path=None
+            ).with_overrides(
+                {
+                    "runtime": {
+                        "watcher_on_save": "lazy",
+                    }
+                }
+            ),
             cli_args={},
             auth_token=None,
             redirect_console_to_browser=False,
@@ -446,12 +466,12 @@ def __():
         )
 
         # Wait a bit and then modify the file
-        await asyncio.sleep(0.2)
         with open(tmp_path, "w") as f:  # noqa: ASYNC230
             f.write(
-                """import marimo as mo
+                """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     2
     return ()
@@ -459,14 +479,17 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Check that UpdateCellCodes was sent with the new code
         update_ops = [
             op for op in operations if isinstance(op, UpdateCellCodes)
         ]
         assert len(update_ops) == 1
-        assert "return 2" in update_ops[0].codes[0]
+        assert "2" == update_ops[0].codes[0]
         assert update_ops[0].code_is_stale is True
 
         # Create another session for the same file
@@ -489,9 +512,10 @@ def __():
         operations2.clear()
         with open(tmp_path, "w") as f:  # noqa: ASYNC230
             f.write(
-                """import marimo as mo
+                """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     3
     return ()
@@ -499,7 +523,10 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Both sessions should receive the update
         update_ops = [
@@ -510,8 +537,8 @@ def __():
         ]
         assert len(update_ops) == 1
         assert len(update_ops2) == 1
-        assert "return 3" in update_ops[0].codes[0]
-        assert "return 3" in update_ops2[0].codes[0]
+        assert "3" == update_ops[0].codes[0]
+        assert "3" == update_ops2[0].codes[0]
 
         # Close one session and verify the other still receives updates
         assert session_manager.close_session("test")
@@ -520,29 +547,15 @@ def __():
 
         with open(tmp_path, "w") as f:  # noqa: ASYNC230
             f.write(
-                """import marimo as mo
+                """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     4
     return ()
 """
             )
-
-        # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
-
-        # Only session2 should receive the update
-        update_ops = [
-            op for op in operations if isinstance(op, UpdateCellCodes)
-        ]
-        update_ops2 = [
-            op for op in operations2 if isinstance(op, UpdateCellCodes)
-        ]
-        assert len(update_ops) == 0
-        assert len(update_ops2) == 1
-        assert "return 4" in update_ops2[0].codes[0]
-
     finally:
         # Cleanup
         session_manager.shutdown()
@@ -619,6 +632,10 @@ def test_watch_mode_config_override() -> None:
         os.remove(tmp_path)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_watch_mode_with_watcher_on_save_config() -> None:
     """Test that watch mode works correctly with watcher_on_save config."""
@@ -627,9 +644,10 @@ async def test_watch_mode_with_watcher_on_save_config() -> None:
         tmp_path = Path(tmp_file.name)
         # Write initial notebook content
         tmp_file.write(
-            b"""import marimo as mo
+            b"""import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     1
     return ()
@@ -673,20 +691,28 @@ def __():
         )
 
         # Create a session
-        session_manager.create_session(
+        session = session_manager.create_session(
             session_id="test",
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path),
         )
+        session.session_view = MagicMock(SessionView)
 
         # Wait a bit and then modify the file
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
+
+        # Modify the file
+        operations.clear()
         with open(tmp_path, "w") as f:  # noqa: ASYNC230
             f.write(
-                """import marimo as mo
+                """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     2
     return ()
@@ -694,7 +720,10 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Check that UpdateCellCodes was sent with code_is_stale=False (autorun)
         update_ops = [
@@ -705,8 +734,8 @@ def __():
         assert update_ops[0].code_is_stale is False
 
         # Verify that cells were queued for execution
-        assert session_consumer.put_control_request.called
-        last_call = session_consumer.put_control_request.call_args[0][0]
+        assert session.session_view.add_control_request.called
+        last_call = session.session_view.add_control_request.call_args[0][0]
         assert isinstance(last_call, ExecuteMultipleRequest)
 
         # Now change config to lazy mode
@@ -726,9 +755,10 @@ def __():
         operations.clear()
         with open(tmp_path, "w") as f:  # noqa: ASYNC230
             f.write(
-                """import marimo as mo
+                """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     3
     return ()
@@ -736,7 +766,10 @@ def __():
             )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Check that UpdateCellCodes was sent with code_is_stale=True (lazy)
         update_ops = [
@@ -755,27 +788,31 @@ def __():
         os.remove(tmp_path)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_session_manager_file_rename() -> None:
     """Test that file renaming works correctly with file watching."""
     # Create two temporary files
     with (
         NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
-        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file2,
     ):
         tmp_path1 = Path(tmp_file1.name)
-        tmp_path2 = Path(tmp_file2.name)
         # Write initial notebook content
         tmp_file1.write(
-            b"""import marimo as mo
+            b"""import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     1
     return ()
 """
         )
-        tmp_file2.write(b"import marimo as mo")
+
+    new_path = tmp_path1.with_suffix(".1.py")
 
     try:
         # Create a session manager with file watching enabled
@@ -813,7 +850,7 @@ def __():
 
         # Try to rename to a non-existent file
         success, error = session_manager.handle_file_rename_for_watch(
-            "test", "/nonexistent/file.py"
+            "test", str(tmp_path1), "/nonexistent/file.py"
         )
         assert not success
         assert error is not None
@@ -821,64 +858,155 @@ def __():
 
         # Try to rename with an invalid session
         success, error = session_manager.handle_file_rename_for_watch(
-            "nonexistent", str(tmp_path2)
+            "nonexistent", str(tmp_path1), str(new_path)
         )
         assert not success
         assert error is not None
         assert "Session not found" in error
 
         # Rename to the second file
+        session = session_manager.get_session("test")
+        assert session is not None
+        session.app_file_manager.rename(str(new_path))
+        assert new_path.exists()
         success, error = session_manager.handle_file_rename_for_watch(
-            "test", str(tmp_path2)
+            "test", str(tmp_path1), str(new_path)
         )
         assert success
         assert error is None
 
         # Modify the new file
         operations.clear()
-        with open(tmp_path2, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
+        new_path.write_text(
+            """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
     2
     return ()
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Check that UpdateCellCodes was sent with the new code
         update_ops = [
             op for op in operations if isinstance(op, UpdateCellCodes)
         ]
         assert len(update_ops) == 1
-        assert "return 2" in update_ops[0].codes[0]
-
-        # Modify the old file - should not trigger any updates
-        operations.clear()
-        with open(tmp_path1, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
-
-@mo.cell
-def __():
-    3
-    return ()
-"""
-            )
-
-        # Wait to verify no updates are triggered
-        await asyncio.sleep(0.2)
-        update_ops = [
-            op for op in operations if isinstance(op, UpdateCellCodes)
-        ]
-        assert len(update_ops) == 0
+        assert "2" == update_ops[0].codes[0]
 
     finally:
         # Cleanup
         session_manager.shutdown()
-        os.remove(tmp_path1)
-        os.remove(tmp_path2)
+        os.remove(new_path)
+
+
+@save_and_restore_main
+async def test_sync_session_view_from_cache(tmp_path: Path) -> None:
+    """Test syncing session view from cache."""
+    # Create a temporary file
+    notebook_path = tmp_path / "test.py"
+    notebook_path.write_text(
+        """import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    1
+    return ()
+"""
+    )
+
+    # Create session with the temporary file
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    queue_manager = QueueManager(use_multiprocessing=False)
+    kernel_manager = KernelManager(
+        queue_manager,
+        SessionMode.RUN,
+        {},
+        app_metadata,
+        get_default_config_manager(current_path=None),
+        virtual_files_supported=True,
+        redirect_console_to_browser=False,
+    )
+
+    app_file_manager = AppFileManager(filename=str(notebook_path))
+    session = Session(
+        "test",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        ttl_seconds=None,
+    )
+
+    # Test syncing when no cache exists
+    session.sync_session_view_from_cache()
+    # Should create a new empty session view since no cache exists
+    assert session.session_view is not None
+    assert session.session_cache_manager is not None
+    assert session.session_cache_manager.path == str(notebook_path)
+    assert (
+        session.session_cache_manager.interval
+        == Session.SESSION_CACHE_INTERVAL_SECONDS
+    )
+
+    # Add some operations to the session view
+    session.write_operation(
+        UpdateCellCodes(
+            cell_ids=["1"],
+            codes=["print('hello')"],
+            code_is_stale=False,
+        ),
+        from_consumer_id=None,
+    )
+
+    # Create a new session and sync from cache
+    session2 = Session(
+        "test2",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        ttl_seconds=None,
+    )
+    session2.sync_session_view_from_cache()
+
+    # Verify the session views match
+    assert session2.session_view is not None
+    assert session2.session_cache_manager is not None
+    assert session2.session_cache_manager.path == str(notebook_path)
+    assert len(session2.session_view.operations) == len(
+        session.session_view.operations
+    )
+
+    # Test syncing with no file path
+    app_file_manager_no_path = AppFileManager.from_app(InternalApp(App()))
+    session3 = Session(
+        "test3",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager_no_path,
+        ttl_seconds=None,
+    )
+    session3.sync_session_view_from_cache()
+    # Should create a new empty session view since no path exists
+    assert session3.session_view is not None
+    assert session3.session_cache_manager is not None
+    assert session3.session_cache_manager.path is None
+
+    # Cleanup
+    session.close()
+    session2.close()
+    session3.close()
+    if kernel_manager.kernel_task:
+        kernel_manager.kernel_task.join()

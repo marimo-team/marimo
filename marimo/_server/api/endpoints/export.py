@@ -109,7 +109,7 @@ async def auto_export_as_html(
     session_view = session.session_view
 
     # If we have already exported to HTML, don't do it again
-    if session_view.has_auto_exported_html:
+    if not session_view.needs_export("html"):
         LOGGER.debug("Already auto-exported to HTML")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -254,7 +254,7 @@ async def auto_export_as_markdown(
     session_view = session.session_view
 
     # If we have already exported to Markdown, don't do it again
-    if session_view.has_auto_exported_md:
+    if not session_view.needs_export("md"):
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -302,7 +302,7 @@ async def auto_export_as_ipynb(
     session_view = session.session_view
 
     # If we have already exported to IPYNB, don't do it again
-    if session_view.has_auto_exported_ipynb:
+    if not session_view.needs_export("ipynb"):
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 

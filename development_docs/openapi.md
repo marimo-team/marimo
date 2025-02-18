@@ -10,7 +10,7 @@ marimo development openapi
 
 ## Writing a new OpenAPI schema
 
-To modify the schema, add the type under `_generate_schema` in [`commands.py`](/marimo/_cli/development/commands.py) and run
+To modify the schema, add the type under `_generate_server_api_schema` in [`commands.py`](/marimo/_cli/development/commands.py) and run
 
 ```bash
 marimo development openapi > openapi/api.yaml

@@ -63,6 +63,9 @@ from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
+from marimo._server.session.serialize import (
+    SessionCacheManager,
+)
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
@@ -418,6 +421,8 @@ class Session:
     and its own websocket, for sending messages to the client.
     """
 
+    SESSION_CACHE_INTERVAL_SECONDS = 2
+
     @classmethod
     def create(
         cls,
@@ -477,6 +482,7 @@ class Session:
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
         self.session_view = SessionView()
+        self.session_cache_manager: SessionCacheManager | None = None
 
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
@@ -650,6 +656,8 @@ class Session:
         self.message_distributor.stop()
         if self.heartbeat_task:
             self.heartbeat_task.cancel()
+        if self.session_cache_manager:
+            self.session_cache_manager.stop()
         self.kernel_manager.close_kernel()
 
     def instantiate(
@@ -682,6 +690,21 @@ class Session:
             ),
             from_consumer_id=None,
         )
+
+    def sync_session_view_from_cache(self) -> None:
+        """Sync the session view from a file.
+
+        Overwrites the existing session view.
+        Mutates the existing session.
+        """
+        LOGGER.debug("Syncing session view from cache")
+        self.session_cache_manager = SessionCacheManager(
+            session_view=self.session_view,
+            path=self.app_file_manager.path,
+            interval=self.SESSION_CACHE_INTERVAL_SECONDS,
+        )
+        self.session_view = self.session_cache_manager.read_session_view()
+        self.session_cache_manager.start()
 
     def __repr__(self) -> str:
         return format_repr(
@@ -855,14 +878,6 @@ class SessionManager:
                 ]
                 == "autorun"
             )
-            session.write_operation(
-                UpdateCellCodes(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    code_is_stale=not should_autorun,
-                ),
-                from_consumer_id=None,
-            )
 
             # Auto-run cells if configured
             if should_autorun:
@@ -875,11 +890,21 @@ class SessionManager:
                     for cell_id in changed_cell_ids_list
                 ]
 
+                # This runs the request and also runs UpdateCellCodes
                 session.put_control_request(
                     ExecuteMultipleRequest(
                         cell_ids=changed_cell_ids_list,
                         codes=changed_codes,
                         request=None,
+                    ),
+                    from_consumer_id=None,
+                )
+            else:
+                session.write_operation(
+                    UpdateCellCodes(
+                        cell_ids=cell_ids,
+                        codes=codes,
+                        code_is_stale=not should_autorun,
                     ),
                     from_consumer_id=None,
                 )
@@ -891,7 +916,7 @@ class SessionManager:
         )
 
     def handle_file_rename_for_watch(
-        self, session_id: SessionId, new_path: str
+        self, session_id: SessionId, prev_path: Optional[str], new_path: str
     ) -> tuple[bool, Optional[str]]:
         """Handle renaming a file for a session.
 
@@ -908,18 +933,20 @@ class SessionManager:
         if not session.app_file_manager.path:
             return False, "Session has no associated file"
 
-        old_path = session.app_file_manager.path
+        # Handle rename for session cache
+        if session.session_cache_manager:
+            session.session_cache_manager.rename_path(new_path)
 
         try:
-            # Remove the old file watcher if it exists
             if self.watch:
-                self.watcher_manager.remove_callback(
-                    Path(old_path),
-                    session._unsubscribe_file_watcher_,  # type: ignore
-                )
+                # Remove the old file watcher if it exists
+                if prev_path:
+                    self.watcher_manager.remove_callback(
+                        Path(prev_path),
+                        session._unsubscribe_file_watcher_,  # type: ignore
+                    )
 
-            # Add a watcher for the new path if needed
-            if self.watch:
+                # Add a watcher for the new path if needed
                 self._start_file_watcher_for_session(session)
 
             return True, None
