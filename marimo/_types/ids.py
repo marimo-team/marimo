@@ -9,8 +9,7 @@ CellId_t = str
 # UIElementId = NewType("UIElementId", str)
 UIElementId = str
 
-# SessionId = NewType("SessionId", str)
-SessionId = str
+SessionId = NewType("SessionId", str)
 
 ConsumerId = NewType("ConsumerId", str)
 

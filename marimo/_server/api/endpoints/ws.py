@@ -38,7 +38,7 @@ from marimo._server.model import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.sessions import Session, SessionManager
-from marimo._types.ids import CellId_t, ConsumerId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
 if TYPE_CHECKING:
     from pycrdt import Doc, Text, TransactionEvent
@@ -68,12 +68,14 @@ async def websocket_endpoint(
             description: Websocket endpoint
     """
     app_state = AppState(websocket)
-    session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
-    if session_id is None:
+    raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
+    if raw_session_id is None:
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
         )
         return
+
+    session_id = SessionId(raw_session_id)
 
     file_key: Optional[MarimoFileKey] = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
@@ -267,7 +269,7 @@ class WebsocketHandler(SessionConsumer):
         websocket: WebSocket,
         manager: SessionManager,
         rtc_enabled: bool,
-        session_id: str,
+        session_id: SessionId,
         mode: SessionMode,
         file_key: MarimoFileKey,
         kiosk: bool,
