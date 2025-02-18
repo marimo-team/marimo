@@ -9,6 +9,7 @@ from marimo._data.models import DataTable, DataTableColumn, DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.types import SQLEngine
 from marimo._sql.utils import wrapped_sql
+from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
@@ -31,7 +32,7 @@ class DuckDBEngine(SQLEngine):
     def __init__(
         self,
         connection: Optional[duckdb.DuckDBPyConnection],
-        engine_name: Optional[str] = None,
+        engine_name: Optional[VariableName] = None,
     ) -> None:
         self._connection = connection
         self._engine_name = engine_name
@@ -75,7 +76,7 @@ class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
 
     def __init__(
-        self, engine: Engine, engine_name: Optional[str] = None
+        self, engine: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
         self._engine = engine
         self._engine_name = engine_name

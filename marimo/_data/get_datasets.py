@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, List, Optional, cast
 from marimo import _loggers
 from marimo._data.models import DataTable, DataTableColumn, DataType
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
+from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 
 def get_datasets_from_variables(
-    variables: List[tuple[str, object]],
+    variables: List[tuple[VariableName, object]],
 ) -> List[DataTable]:
     tables: List[DataTable] = []
     for variable_name, value in variables:
@@ -25,7 +26,9 @@ def get_datasets_from_variables(
     return tables
 
 
-def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
+def _get_data_table(
+    value: object, variable_name: VariableName
+) -> Optional[DataTable]:
     try:
         table = get_table_manager_or_none(value)
         if table is None:
@@ -79,7 +82,7 @@ def has_updates_to_datasource(query: str) -> bool:
 
 def get_datasets_from_duckdb(
     connection: Optional[duckdb.DuckDBPyConnection],
-    engine_name: Optional[str] = None,
+    engine_name: Optional[VariableName] = None,
 ) -> List[DataTable]:
     try:
         return _get_datasets_from_duckdb_internal(connection, engine_name)
@@ -90,7 +93,7 @@ def get_datasets_from_duckdb(
 
 def _get_datasets_from_duckdb_internal(
     connection: Optional[duckdb.DuckDBPyConnection],
-    engine_name: Optional[str] = None,
+    engine_name: Optional[VariableName] = None,
 ) -> List[DataTable]:
     # Columns
     # 0:"database"
