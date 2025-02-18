@@ -32,6 +32,10 @@ class DataclassParser:
         self.allow_unknown_keys = allow_unknown_keys
 
     def _build_value(self, value: Any, cls: Type[T]) -> T:
+        # Handle NewType before checking containers
+        if hasattr(cls, "__supertype__"):  # This is how we detect NewType
+            return cls(self._build_value(value, cls.__supertype__))  # type: ignore
+
         # origin_cls is not None if cls is a container (such as list,
         # tuple, set, ...)
         origin_cls = get_origin(cls)

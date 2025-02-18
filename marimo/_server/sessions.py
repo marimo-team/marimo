@@ -70,7 +70,7 @@ from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
 from marimo._tracer import server_tracer
-from marimo._types.ids import CellId_t, ConsumerId, SessionId, UIElementId
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,
@@ -680,7 +680,7 @@ class Session:
             CreationRequest(
                 execution_requests=execution_requests,
                 set_ui_element_value_request=SetUIElementValueRequest(
-                    object_ids=[UIElementId(element_id) for element_id in request.object_ids],
+                    object_ids=request.object_ids,
                     values=request.values,
                     token=str(uuid4()),
                     request=http_request,
