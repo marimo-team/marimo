@@ -39,7 +39,7 @@ class PyProjectReader:
     @property
     def extra_index_urls(self) -> list[str]:
         # See https://docs.astral.sh/uv/reference/settings/#pip_extra-index-url
-        return (
+        return (  # type: ignore[no-any-return]
             self.project.get("tool", {})
             .get("uv", {})
             .get("extra-index-url", [])
@@ -48,12 +48,12 @@ class PyProjectReader:
     @property
     def index_configs(self) -> list[dict[str, str]]:
         # See https://docs.astral.sh/uv/reference/settings/#index
-        return self.project.get("tool", {}).get("uv", {}).get("index", [])
+        return self.project.get("tool", {}).get("uv", {}).get("index", [])  # type: ignore[no-any-return]
 
     @property
     def index_url(self) -> str | None:
         # See https://docs.astral.sh/uv/reference/settings/#pip_index-url
-        return (
+        return (  # type: ignore[no-any-return]
             self.project.get("tool", {}).get("uv", {}).get("index-url", None)
         )
 
@@ -71,7 +71,7 @@ class PyProjectReader:
 
     @property
     def dependencies(self) -> list[str]:
-        return self.project.get("dependencies", [])
+        return self.project.get("dependencies", [])  # type: ignore[no-any-return]
 
     @property
     def requirements_txt_lines(self) -> list[str]:
