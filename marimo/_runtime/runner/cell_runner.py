@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Union
 
 from marimo._ast.cell import CellId_t, CellImpl
+from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
@@ -33,7 +34,6 @@ from marimo._runtime.executor import (
     execute_cell_async,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._utils.variables import unmangle_local
 
 LOGGER = marimo_logger()
 

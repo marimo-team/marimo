@@ -6,7 +6,7 @@ from typing import Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
-from marimo._config.utils import read_toml
+from marimo._utils.toml import read_toml
 
 LOGGER = _loggers.marimo_logger()
 

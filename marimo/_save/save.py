@@ -23,6 +23,7 @@ from typing import (
     overload,
 )
 
+from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._runtime.state import State
@@ -42,7 +43,6 @@ from marimo._save.loaders import (
     LoaderType,
     MemoryLoader,
 )
-from marimo._utils.variables import is_mangled_local, unmangle_local
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.

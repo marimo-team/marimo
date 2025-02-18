@@ -10,6 +10,11 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Callable, Iterable, NamedTuple, Optional
 
+from marimo._ast.variables import (
+    get_cell_from_local,
+    if_local_then_mangle,
+    unmangle_local,
+)
 from marimo._ast.visitor import Name, ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -24,11 +29,6 @@ from marimo._runtime.primitives import (
 from marimo._runtime.state import SetFunctor, State
 from marimo._save.ast import DeprivateVisitor, strip_function
 from marimo._save.cache import Cache, CacheType
-from marimo._utils.variables import (
-    get_cell_from_local,
-    if_local_then_mangle,
-    unmangle_local,
-)
 
 if TYPE_CHECKING:
     from types import CodeType

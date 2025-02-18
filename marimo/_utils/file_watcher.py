@@ -8,8 +8,10 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, Optional, Set
 
-from marimo._ast.app import LOGGER
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+
+LOGGER = _loggers.marimo_logger()
 
 Callback = Callable[[Path], Coroutine[None, None, None]]
 

@@ -39,7 +39,6 @@ from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode
-from marimo._server.models.base import deep_to_camel_case
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCreateRequest,
@@ -63,6 +62,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
+from marimo._utils.case import deep_to_camel_case
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.parse_dataclass import parse_raw
 

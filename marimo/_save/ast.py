@@ -6,7 +6,7 @@ import inspect
 import textwrap
 from typing import Any, Callable, Sequence, cast
 
-from marimo._utils.variables import unmangle_local
+from marimo._ast.variables import unmangle_local
 
 ARG_PREFIX: str = "*"
 

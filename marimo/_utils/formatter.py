@@ -6,10 +6,11 @@ import sys
 from typing import Dict
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
+
+CellId_t = str
 
 CellCodes = Dict[CellId_t, str]
 

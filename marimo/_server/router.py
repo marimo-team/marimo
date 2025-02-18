@@ -19,7 +19,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
-from marimo._server.models.base import deep_to_camel_case
+from marimo._utils.case import deep_to_camel_case
 
 if TYPE_CHECKING:
     from starlette.requests import Request

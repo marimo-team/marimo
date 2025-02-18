@@ -11,8 +11,8 @@ from marimo._config.reader import (
     find_nearest_pyproject_toml,
     read_marimo_config,
     read_pyproject_marimo_config,
-    read_toml,
 )
+from marimo._utils.toml import read_toml
 
 
 def test_read_toml():

@@ -8,6 +8,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Optional, Type
 
 from marimo._ast.cell import CellImpl, _is_coroutine
+from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._runtime.copy import (
     CloneError,
     ShallowCopy,
@@ -25,7 +26,6 @@ from marimo._runtime.primitives import (
     from_unclonable_module,
     is_unclonable_type,
 )
-from marimo._utils.variables import is_mangled_local, unmangle_local
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph

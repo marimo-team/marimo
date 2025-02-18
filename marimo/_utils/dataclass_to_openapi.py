@@ -22,7 +22,7 @@ from typing import (
     get_type_hints,
 )
 
-from marimo._server.models.base import to_camel_case
+from marimo._utils.case import to_camel_case
 
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
