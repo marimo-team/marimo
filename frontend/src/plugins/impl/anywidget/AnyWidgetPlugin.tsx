@@ -17,7 +17,7 @@ import {
   useEventListener,
 } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
-import { updateBufferPaths } from "@/utils/date-views";
+import { updateBufferPaths } from "@/utils/data-views";
 
 interface Data {
   jsUrl: string;

@@ -22,7 +22,6 @@ export function prettyError(error: unknown): string {
     if (details.success) {
       return details.data.detail;
     }
-    return JSON.stringify(error);
   }
   try {
     return JSON.stringify(error);
