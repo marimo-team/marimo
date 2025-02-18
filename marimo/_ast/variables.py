@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Optional
-
-if TYPE_CHECKING:
-    from marimo._ast.cell import CellId_t
-
-
 from collections import namedtuple
+from typing import Optional
+
+from marimo._types.ids import CellId_t
 
 UnmagledLocal = namedtuple("UnmagledLocal", "name cell")
+
+_EMPTY_CELL_ID = CellId_t("")
 
 
 def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
@@ -21,7 +20,9 @@ def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
     return ref
 
 
-def unmangle_local(name: str, cell_id: CellId_t = "") -> UnmagledLocal:
+def unmangle_local(
+    name: str, cell_id: CellId_t = _EMPTY_CELL_ID
+) -> UnmagledLocal:
     if not is_mangled_local(name, cell_id):
         return UnmagledLocal(name, "")
     private_prefix = r"^_cell_\w+?_"
@@ -30,7 +31,7 @@ def unmangle_local(name: str, cell_id: CellId_t = "") -> UnmagledLocal:
     return UnmagledLocal(re.sub(private_prefix, "_", name), name.split("_")[2])
 
 
-def is_mangled_local(name: str, cell_id: CellId_t = "") -> bool:
+def is_mangled_local(name: str, cell_id: CellId_t = _EMPTY_CELL_ID) -> bool:
     return name.startswith(f"_cell_{cell_id}")
 
 
@@ -39,7 +40,7 @@ def is_local(name: str) -> bool:
 
 
 def get_cell_from_local(
-    name: str, cell_id: CellId_t = ""
+    name: str, cell_id: CellId_t = _EMPTY_CELL_ID
 ) -> Optional[CellId_t]:
     local = unmangle_local(if_local_then_mangle(name, cell_id)).cell
     return local if local else None

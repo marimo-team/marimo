@@ -17,7 +17,6 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
 from marimo._messaging.mimetypes import KnownMimeType
@@ -29,6 +28,7 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._server.types import QueueType
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     import queue

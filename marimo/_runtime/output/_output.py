@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import CellOp
 from marimo._messaging.tracebacks import write_traceback
@@ -10,6 +9,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
+from marimo._types.ids import CellId_t
 
 
 def write_internal(cell_id: CellId_t, value: object) -> None:

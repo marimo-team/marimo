@@ -6,8 +6,8 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Callable, Coroutine, Generic, Type, TypeVar
 
-from marimo._ast.cell import CellId_t
 from marimo._loggers import marimo_logger
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = marimo_logger()

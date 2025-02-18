@@ -6,7 +6,6 @@ import sys
 from typing import Any, Callable, Iterable, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
@@ -18,6 +17,7 @@ from marimo._messaging.types import (
     Stdout,
     Stream,
 )
+from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 

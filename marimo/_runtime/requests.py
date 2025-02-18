@@ -18,9 +18,9 @@ from typing import (
 )
 from uuid import uuid4
 
-from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from starlette.datastructures import URL

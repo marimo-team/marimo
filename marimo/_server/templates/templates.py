@@ -9,7 +9,7 @@ from typing import Any, List, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
@@ -17,6 +17,7 @@ from marimo._server.api.utils import parse_title
 from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
+from marimo._types.ids import CellId_t
 from marimo._utils.versions import is_editable
 
 

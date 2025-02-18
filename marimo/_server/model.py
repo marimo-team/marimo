@@ -5,7 +5,7 @@ import abc
 from enum import Enum
 from typing import TYPE_CHECKING, Callable
 
-from marimo._server.ids import ConsumerId
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from marimo._messaging.ops import MessageOperation

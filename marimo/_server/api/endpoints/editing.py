@@ -14,7 +14,6 @@ from marimo._runtime.requests import (
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
-from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     FormatRequest,
@@ -23,6 +22,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._types.ids import ConsumerId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:

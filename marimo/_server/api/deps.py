@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers as loggers
 from marimo._config.manager import MarimoConfigManager
-from marimo._server.ids import SessionId
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager
 from marimo._server.tokens import SkewProtectionToken
+from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette

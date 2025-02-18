@@ -22,10 +22,10 @@ from marimo._server.model import SessionMode
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
-    from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.state import State
+    from marimo._types.ids import CellId_t
 
 
 @dataclass

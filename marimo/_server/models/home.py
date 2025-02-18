@@ -4,9 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
-from marimo._server.ids import SessionId
 from marimo._server.models.files import FileInfo
 from marimo._tutorials import Tutorial
+from marimo._types.ids import SessionId
 
 
 @dataclass

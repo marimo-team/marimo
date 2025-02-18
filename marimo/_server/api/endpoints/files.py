@@ -11,7 +11,6 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
-from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     CopyNotebookRequest,
@@ -22,6 +21,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request

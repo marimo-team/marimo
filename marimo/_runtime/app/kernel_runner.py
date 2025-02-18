@@ -4,7 +4,7 @@ from __future__ import annotations
 import weakref
 from typing import TYPE_CHECKING, Any
 
-from marimo._ast.cell import CellId_t, CellImpl
+from marimo._ast.cell import CellImpl
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.app.common import RunOutput
 from marimo._runtime.context.types import get_context
@@ -17,6 +17,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
@@ -38,7 +39,7 @@ class AppKernelRunner:
         from marimo._runtime.runtime import Kernel
 
         self.app = app
-        self._outputs: dict[str, Any] = {}
+        self._outputs: dict[CellId_t, Any] = {}
 
         ctx = get_context()
         if not isinstance(ctx, KernelRuntimeContext):

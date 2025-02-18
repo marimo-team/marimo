@@ -27,7 +27,7 @@ from uuid import uuid4
 
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig, CellId_t, RuntimeStateType
+from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._data.models import (
     ColumnSummary,
     DataSourceConnection,
@@ -54,6 +54,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._types.ids import CellId_t
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
