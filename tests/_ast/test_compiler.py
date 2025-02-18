@@ -361,7 +361,7 @@ class TestSemicolon:
         assert eval(cell._cell.last_expr) == 1
 
     @staticmethod
-    def test_return_supressed() -> None:
+    def test_return_suppressed() -> None:
         # fmt: off
         def f() -> None:
             1;  # noqa: B018 E703
@@ -419,7 +419,7 @@ class TestSemicolon:
         )
 
     @staticmethod
-    def test_return_string_semicolon_supressed() -> None:
+    def test_return_string_semicolon_suppressed() -> None:
         # fmt: off
         def f() -> None:
             "#; splits on ;# are less than ideal";  # noqa: B018 E703 Contains a ;#
