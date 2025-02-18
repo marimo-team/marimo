@@ -965,7 +965,9 @@ class SessionManager:
 
         # Search for kiosk sessions
         for session in self.sessions.values():
-            if str(session_id) in [str(cid) for cid in session.room.consumers.values()]:
+            if str(session_id) in [
+                str(cid) for cid in session.room.consumers.values()
+            ]:
                 return session
 
         return None
