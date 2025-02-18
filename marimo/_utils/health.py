@@ -113,8 +113,6 @@ def get_chrome_version() -> Optional[str]:
         stdout, stderr = process.communicate()
         if stderr:
             return None
-        if not stdout:
-            return None
         parts = stdout.strip().split()
         if parts:
             return parts[-1]
@@ -129,8 +127,6 @@ def get_chrome_version() -> Optional[str]:
         )
         stdout, stderr = process.communicate()
         if stderr:
-            return None
-        if not stdout:
             return None
         parts = stdout.strip().split()
         if parts:
