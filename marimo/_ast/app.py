@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import base64
 import inspect
+import sys
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -25,7 +26,10 @@ from typing import (
 )
 from uuid import uuid4
 
-from typing_extensions import ParamSpec, TypeAlias
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec, TypeAlias
+else:
+    from typing import ParamSpec, TypeAlias
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl

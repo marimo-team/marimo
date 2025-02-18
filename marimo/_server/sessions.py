@@ -1035,7 +1035,7 @@ class SessionManager:
             # Set new session and remove old session
             self.sessions[new_session_id] = session
             # If the ID is the same, we don't need to delete the old session
-            if new_session_id != session_id:
+            if new_session_id != session_id and session_id in self.sessions:
                 del self.sessions[session_id]
             return session
 
@@ -1088,7 +1088,8 @@ class SessionManager:
             )
 
         session.close()
-        del self.sessions[session_id]
+        if session_id in self.sessions:
+            del self.sessions[session_id]
         return True
 
     def close_all_sessions(self) -> None:
