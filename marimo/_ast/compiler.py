@@ -20,9 +20,9 @@ from marimo._ast.cell import (
     ImportWorkspace,
     SourcePosition,
 )
+from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._utils.tmpdir import get_tmpdir
-from marimo._utils.variables import is_local
 
 LOGGER = _loggers.marimo_logger()
 

@@ -27,6 +27,7 @@ from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
+from marimo._utils.toml import read_toml
 
 HAS_UV = DependencyManager.which("uv")
 
@@ -143,12 +144,9 @@ def _get_port() -> int:
 
 
 def _read_toml(filepath: str) -> Optional[dict[str, Any]]:
-    import tomlkit
-
     if not os.path.exists(filepath):
         return None
-    with open(filepath, "r") as file:
-        return tomlkit.parse(file.read())
+    return read_toml(filepath)
 
 
 @pytest.fixture

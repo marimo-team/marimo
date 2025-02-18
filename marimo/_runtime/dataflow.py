@@ -11,9 +11,9 @@ from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
+from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import execute_cell, execute_cell_async
-from marimo._utils.variables import is_mangled_local
 
 if TYPE_CHECKING:
     from collections.abc import Collection

@@ -16,8 +16,8 @@ from marimo._ast.sql_visitor import (
     find_sql_refs,
     normalize_sql_f_string,
 )
+from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils.variables import is_local
 
 LOGGER = _loggers.marimo_logger()
 

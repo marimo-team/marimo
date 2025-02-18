@@ -6,8 +6,8 @@ from dataclasses import asdict
 from tempfile import TemporaryDirectory
 from typing import Any, Optional, Type, TypeVar
 
-from marimo._config.utils import read_toml
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.toml import read_toml
 
 ROOT_DIR = ".marimo"
 

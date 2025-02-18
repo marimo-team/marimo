@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Literal, Optional
 
-from marimo._config.utils import read_toml
+from marimo._utils.toml import read_toml
 
 PackageManagerKind = Literal["pip", "rye", "uv", "poetry", "pixi"]
 

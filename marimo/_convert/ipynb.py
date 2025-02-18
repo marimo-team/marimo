@@ -11,10 +11,10 @@ from typing import Any, Callable, Dict, List, Union
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
+from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.utils import generate_from_sources, markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
-from marimo._utils.variables import is_local
 
 # Define a type for our transform functions
 Transform = Callable[[List[str]], List[str]]
