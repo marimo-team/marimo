@@ -362,7 +362,7 @@ class TestSemicolon:
         assert cell._cell.last_expr.body == ast.Num(n=1)
 
     @staticmethod
-    def test_return_supressed() -> None:
+    def test_return_suppressed() -> None:
         # fmt: off
         def f() -> None:
             1;  # noqa: B018 E703
@@ -418,7 +418,7 @@ class TestSemicolon:
         assert cell._cell.last_expr.body != ast.Constant(value=None)
 
     @staticmethod
-    def test_return_string_semicolon_supressed() -> None:
+    def test_return_string_semicolon_suppressed() -> None:
         # fmt: off
         def f() -> None:
             "#; splits on ;# are less than ideal";  # noqa: B018 E703 Contains a ;#
