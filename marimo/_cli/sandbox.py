@@ -46,6 +46,11 @@ class PyProjectReader:
         )
 
     @property
+    def index_configs(self) -> list[dict[str, str]]:
+        # See https://docs.astral.sh/uv/reference/settings/#index
+        return self.project.get("tool", {}).get("uv", {}).get("index", [])
+
+    @property
     def index_url(self) -> str | None:
         # See https://docs.astral.sh/uv/reference/settings/#pip_index-url
         return (
@@ -308,11 +313,19 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     if index_url:
         uv_cmd.extend(["--index-url", index_url])
 
-    # Add extra-index-url if specified
+    # Add extra-index-urls if specified
     extra_index_urls = pyproject.extra_index_urls
     if extra_index_urls:
         for url in extra_index_urls:
             uv_cmd.extend(["--extra-index-url", url])
+
+    # Add index configs if specified
+    index_configs = pyproject.index_configs
+    if index_configs:
+        for config in index_configs:
+            if "url" in config:
+                # Looks like: https://docs.astral.sh/uv/guides/scripts/#using-alternative-package-indexes
+                uv_cmd.extend(["--index", config["url"]])
 
     # Final command assembly: combine the uv prefix with the original marimo
     # command.

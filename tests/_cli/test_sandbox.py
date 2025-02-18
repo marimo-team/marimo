@@ -415,6 +415,28 @@ def test_construct_uv_cmd_with_index_urls() -> None:
         assert "https://extra2.pypi.org/simple" in uv_cmd
 
 
+def test_construct_uv_cmd_with_index_configs() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "name": "torch-gpu",
+                        "url": "https://download.pytorch.org/whl/cu124",
+                    }
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"], "test.py"
+        )
+        assert "--index" in uv_cmd
+        assert "https://download.pytorch.org/whl/cu124" in uv_cmd
+
+
 def test_construct_uv_cmd_with_sandbox_flag() -> None:
     # Test --sandbox flag is removed
     uv_cmd = construct_uv_command(["edit", "test.py", "--sandbox"], "test.py")
