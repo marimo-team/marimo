@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-from marimo._types.ids import VariableName
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional, cast
@@ -7,6 +6,7 @@ from typing import TYPE_CHECKING, List, Optional, cast
 from marimo import _loggers
 from marimo._data.models import DataTable, DataTableColumn, DataType
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
+from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
@@ -26,7 +26,9 @@ def get_datasets_from_variables(
     return tables
 
 
-def _get_data_table(value: object, variable_name: VariableName) -> Optional[DataTable]:
+def _get_data_table(
+    value: object, variable_name: VariableName
+) -> Optional[DataTable]:
     try:
         table = get_table_manager_or_none(value)
         if table is None:
