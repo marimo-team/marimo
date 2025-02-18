@@ -95,7 +95,10 @@ def get_chrome_version() -> Optional[str]:
         stdout, stderr = process.communicate()
         if stderr:
             return None
-        return stdout.strip().split()[-1]
+        parts = stdout.strip().split()
+        if parts:
+            return parts[-1]
+        return None
 
     def get_chrome_version_mac() -> Optional[str]:
         process = subprocess.Popen(
@@ -110,7 +113,12 @@ def get_chrome_version() -> Optional[str]:
         stdout, stderr = process.communicate()
         if stderr:
             return None
-        return stdout.strip().split()[-1]
+        if not stdout:
+            return None
+        parts = stdout.strip().split()
+        if parts:
+            return parts[-1]
+        return None
 
     def get_chrome_version_linux() -> Optional[str]:
         process = subprocess.Popen(
@@ -122,7 +130,12 @@ def get_chrome_version() -> Optional[str]:
         stdout, stderr = process.communicate()
         if stderr:
             return None
-        return stdout.strip().split()[-1]
+        if not stdout:
+            return None
+        parts = stdout.strip().split()
+        if parts:
+            return parts[-1]
+        return None
 
     try:
         if sys.platform.startswith("win32"):
