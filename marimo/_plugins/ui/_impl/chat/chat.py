@@ -16,11 +16,11 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
-from marimo._types.ids import UIElementId
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._types.ids import UIElementId
 
 
 @dataclass
