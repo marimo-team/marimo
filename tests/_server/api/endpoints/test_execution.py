@@ -179,8 +179,8 @@ class TestExecutionRoutes_EditMode:
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
 
-        # Sleep for .5 seconds
-        time.sleep(0.5)
+        # Sleep for 2 seconds to ensure output is available
+        time.sleep(2)
 
         # Check keys
         app_meta_response = get_printed_object(client, "test-1")
@@ -330,8 +330,8 @@ class TestExecutionRoutes_RunMode:
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
 
-        # Sleep for .5 seconds
-        time.sleep(0.5)
+        # Sleep for 2 seconds to ensure output is available
+        time.sleep(2)
 
         # Check keys
         app_meta_response = get_printed_object(client, "test-1")
