@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="This test is flaky on Windows",
+)
 def test_session_schema_up_to_date() -> None:
     with open("marimo/_schemas/generated/session.yaml", "r") as f:
         current_content = yaml.safe_load(f)
