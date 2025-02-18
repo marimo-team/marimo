@@ -63,7 +63,9 @@ async def set_ui_element_values(
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
     app_state.require_current_session().put_control_request(
         SetUIElementValueRequest(
-            object_ids=[UIElementId(element_id) for element_id in body.object_ids],
+            object_ids=[
+                UIElementId(element_id) for element_id in body.object_ids
+            ],
             values=body.values,
             token=str(uuid4()),
             request=HTTPRequest.from_request(request),

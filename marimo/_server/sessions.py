@@ -680,7 +680,10 @@ class Session:
             CreationRequest(
                 execution_requests=execution_requests,
                 set_ui_element_value_request=SetUIElementValueRequest(
-                    object_ids=[UIElementId(element_id) for element_id in request.object_ids],
+                    object_ids=[
+                        UIElementId(element_id)
+                        for element_id in request.object_ids
+                    ],
                     values=request.values,
                     token=str(uuid4()),
                     request=http_request,
