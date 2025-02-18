@@ -18,7 +18,6 @@ with marimo.import_guard():
     import marimo as mo
 
 
-
 __generated_with = "0.0.0"
 app = marimo.App(_toplevel_fn=True)
 

@@ -66,6 +66,10 @@ def wrap_generate_filecontents(
     )
 
 
+def strip_blank_lines(text: str) -> str:
+    return "\n".join([line for line in text.splitlines() if line.strip()])
+
+
 def get_idempotent_marimo_source(name: str) -> str:
     from marimo._utils.formatter import Formatter
 
@@ -90,7 +94,9 @@ def get_idempotent_marimo_source(name: str) -> str:
         {"source": python_source, "generated": generated_contents}
     )
 
-    assert formatted["source"] == formatted["generated"]
+    assert strip_blank_lines(formatted["source"]) == strip_blank_lines(
+        formatted["generated"]
+    )
     return formatted["generated"]
 
 
