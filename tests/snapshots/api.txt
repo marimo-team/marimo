@@ -32,6 +32,7 @@ hstack
 icon
 iframe
 image
+import_guard
 islands
   MarimoIslandGenerator
   MarimoIslandStub
