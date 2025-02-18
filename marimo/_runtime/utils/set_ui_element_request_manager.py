@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from marimo._plugins.ui._core.registry import UIElementId
+from marimo._types.ids import UIElementId
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._server.types import QueueType
 
@@ -52,8 +52,10 @@ class SetUIElementRequestManager:
         merged: dict[UIElementId, Any] = {}
         for request in requests:
             for ui_id, value in request.ids_and_values:
-                merged[ui_id] = value
+                merged[UIElementId(ui_id)] = value
         last_request = requests[-1]
+        # merged.keys() are already UIElementId since merged is dict[UIElementId, Any]
+        # Keys are already UIElementId type since merged is dict[UIElementId, Any]
         return SetUIElementValueRequest(
             object_ids=list(merged.keys()),
             values=list(merged.values()),

@@ -136,7 +136,7 @@ from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t
+from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -1614,7 +1614,7 @@ class Kernel:
         # interacting with a view triggers reactive execution through the
         # source (parent).
         ctx = get_context()
-        resolved_requests: dict[str, Any] = {}
+        resolved_requests: dict[UIElementId, Any] = {}
         referring_cells: set[CellId_t] = set()
         ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
@@ -1629,7 +1629,7 @@ class Kernel:
                         child_context.app is not None
                         and await child_context.app.set_ui_element_value(
                             SetUIElementValueRequest(
-                                object_ids=[object_id],
+                                object_ids=[UIElementId(object_id)],
                                 values=[value],
                                 request=request.request,
                             )
@@ -1654,15 +1654,16 @@ class Kernel:
                     "Could not resolve UIElement with id%s", object_id
                 )
                 continue
-            resolved_requests[resolved_id] = resolved_value
+            resolved_requests[UIElementId(resolved_id)] = resolved_value
         del request
 
         for object_id, value in resolved_requests.items():
             try:
-                component = ui_element_registry.get_object(object_id)
+                ui_id = UIElementId(object_id)
+                component = ui_element_registry.get_object(ui_id)
                 LOGGER.debug(
                     "Setting value on UIElement with id %s, value %s",
-                    object_id,
+                    ui_id,
                     value,
                 )
             except KeyError:
