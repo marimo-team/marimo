@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from marimo._ai.types import (
+from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,
     ChatMessageDict,

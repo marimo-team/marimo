@@ -4,13 +4,13 @@ from __future__ import annotations
 import os
 from typing import Callable, List, Optional, cast
 
-from marimo._ai.convert import (
+from marimo._ai._convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_groq_messages,
     convert_to_openai_messages,
 )
-from marimo._ai.types import (
+from marimo._ai._types import (
     ChatMessage,
     ChatModel,
     ChatModelConfig,

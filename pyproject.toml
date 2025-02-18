@@ -319,6 +319,7 @@ ignore = [
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
+    "FA102", # Use `from __future__ import annotations`
 ]
 extend-select = [
     # pyflakes

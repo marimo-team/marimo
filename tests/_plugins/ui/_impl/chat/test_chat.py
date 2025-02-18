@@ -6,7 +6,7 @@ from typing import AsyncIterator, Dict, List
 
 import pytest
 
-from marimo._ai.types import (
+from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
     ChatModelConfigDict,

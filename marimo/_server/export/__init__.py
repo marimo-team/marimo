@@ -184,7 +184,7 @@ async def run_app_then_export_as_reactive_html(
 ) -> ExportResult:
     import os
 
-    from marimo._islands.island_generator import MarimoIslandGenerator
+    from marimo._islands._island_generator import MarimoIslandGenerator
 
     generator = MarimoIslandGenerator.from_file(
         path.absolute_name, display_code=include_code
