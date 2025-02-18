@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from marimo._types.ids import VariableName
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._data.get_datasets import (
@@ -126,7 +127,7 @@ def _broadcast_datasets(
     del run_result
     tables = get_datasets_from_variables(
         [
-            (variable, runner.glbls[variable])
+            (VariableName(variable), runner.glbls[variable])  # type: ignore[arg-type]
             for variable in cell.defs
             if variable in runner.glbls
         ]
@@ -149,7 +150,7 @@ def _broadcast_data_source_connection(
     del run_result
     engines = get_engines_from_variables(
         [
-            (variable, runner.glbls[variable])
+            (VariableName(variable), runner.glbls[variable])  # type: ignore[arg-type]
             for variable in cell.defs
             if variable in runner.glbls
         ]

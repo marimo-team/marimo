@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
+from marimo._types.ids import VariableName
 from marimo import _loggers
 from marimo._data.get_datasets import get_datasets_from_duckdb
 from marimo._data.models import DataTable, DataTableColumn, DataType
@@ -31,7 +32,7 @@ class DuckDBEngine(SQLEngine):
     def __init__(
         self,
         connection: Optional[duckdb.DuckDBPyConnection],
-        engine_name: Optional[str] = None,
+        engine_name: Optional[VariableName] = None,
     ) -> None:
         self._connection = connection
         self._engine_name = engine_name
@@ -75,7 +76,7 @@ class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
 
     def __init__(
-        self, engine: Engine, engine_name: Optional[str] = None
+        self, engine: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
         self._engine = engine
         self._engine_name = engine_name

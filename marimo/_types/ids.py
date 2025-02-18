@@ -14,5 +14,4 @@ SessionId = str
 
 ConsumerId = NewType("ConsumerId", str)
 
-# VariableName = NewType("VariableName", str)
-VariableName = str
+VariableName = NewType("VariableName", str)

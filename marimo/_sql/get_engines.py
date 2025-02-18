@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._types.ids import VariableName
 from typing import Any, cast
 
 from marimo._data.models import DataSourceConnection
@@ -9,9 +10,9 @@ from marimo._sql.types import SQLEngine
 
 
 def get_engines_from_variables(
-    variables: list[tuple[str, object]],
-) -> list[tuple[str, SQLEngine]]:
-    engines: list[tuple[str, SQLEngine]] = []
+    variables: list[tuple[VariableName, object]],
+) -> list[tuple[VariableName, SQLEngine]]:
+    engines: list[tuple[VariableName, SQLEngine]] = []
     for variable_name, value in variables:
         if SQLAlchemyEngine.is_compatible(value):
             engines.append(
@@ -34,7 +35,7 @@ def get_engines_from_variables(
 
 
 def engine_to_data_source_connection(
-    variable_name: str,
+    variable_name: VariableName,
     engine: SQLEngine,
 ) -> DataSourceConnection:
     return DataSourceConnection(

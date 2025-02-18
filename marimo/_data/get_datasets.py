@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+from marimo._types.ids import VariableName
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional, cast
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 
 def get_datasets_from_variables(
-    variables: List[tuple[str, object]],
+    variables: List[tuple[VariableName, object]],
 ) -> List[DataTable]:
     tables: List[DataTable] = []
     for variable_name, value in variables:
@@ -25,7 +26,7 @@ def get_datasets_from_variables(
     return tables
 
 
-def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
+def _get_data_table(value: object, variable_name: VariableName) -> Optional[DataTable]:
     try:
         table = get_table_manager_or_none(value)
         if table is None:
@@ -145,7 +146,7 @@ def _get_datasets_from_duckdb_internal(
                 num_columns=len(columns),
                 variable_name=None,
                 columns=columns,
-                engine=engine_name,
+                engine=engine_name,  # type: ignore[arg-type]
             )
         )
 
