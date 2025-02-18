@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 from functools import partial
 
 import pytest
@@ -359,7 +358,7 @@ class TestSemicolon:
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Num(n=1)
+        assert eval(cell._cell.last_expr) == 1
 
     @staticmethod
     def test_return_supressed() -> None:
@@ -369,7 +368,7 @@ class TestSemicolon:
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Constant(value=None)
+        assert eval(cell._cell.last_expr) is None
 
     @staticmethod
     def test_return_last() -> None:
@@ -379,7 +378,7 @@ class TestSemicolon:
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Num(n=3)
+        assert eval(cell._cell.last_expr) == 3
 
     @staticmethod
     def test_return_last_suppressed() -> None:
@@ -389,7 +388,7 @@ class TestSemicolon:
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Constant(value=None)
+        assert eval(cell._cell.last_expr) is None
 
     @staticmethod
     def test_return_comment() -> None:
@@ -397,7 +396,7 @@ class TestSemicolon:
             1  # noqa: B018 # Has a comment;
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Num(n=1)
+        assert eval(cell._cell.last_expr) == 1
 
     @staticmethod
     def test_return_comment_suppressed() -> None:
@@ -407,7 +406,7 @@ class TestSemicolon:
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Constant(value=None)
+        assert eval(cell._cell.last_expr) is None
 
     @staticmethod
     def test_return_string_semicolon() -> None:
@@ -415,7 +414,9 @@ class TestSemicolon:
             "#; splits on ;# are less than ideal"  # noqa: B018 Contains a ;#
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body != ast.Constant(value=None)
+        assert (
+            eval(cell._cell.last_expr) == "#; splits on ;# are less than ideal"
+        )
 
     @staticmethod
     def test_return_string_semicolon_supressed() -> None:
@@ -425,4 +426,4 @@ class TestSemicolon:
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
-        assert cell._cell.last_expr.body == ast.Constant(value=None)
+        assert eval(cell._cell.last_expr) is None
