@@ -48,6 +48,28 @@ def get_filename(cell_id: CellId_t, suffix: str = "") -> str:
     return os.path.join(get_tmpdir(), basename + suffix + ".py")
 
 
+def ends_with_semicolon(code: str) -> bool:
+    """Returns True if the cell's code ends with a semicolon, ignoring whitespace and comments.
+
+    Args:
+        code: The cell's source code
+    Returns:
+        bool: True if the last non-comment line ends with a semicolon
+    """
+    # Tokenize to check for semicolon
+    tokens = tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
+    for token in reversed(list(tokens)):
+        if token.type in (
+            token_types.ENDMARKER,
+            token_types.NEWLINE,
+            token_types.NL,
+            token_types.COMMENT,
+        ):
+            continue
+        return token.string == ";"
+    return False
+
+
 def cache(filename: str, code: str) -> None:
     # Generate a cache entry in Python's linecache
     linecache.cache[filename] = (
@@ -139,7 +161,9 @@ def compile_cell(
 
     expr: ast.Expression
     final_expr = module.body[-1]
-    if isinstance(final_expr, ast.Expr):
+    # Use final expression if it exists doesn't end in a
+    # semicolon. Evaluates expression to "None" otherwise.
+    if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
         expr = ast.Expression(module.body.pop().value)
         expr.lineno = final_expr.lineno
     else:
