@@ -4,7 +4,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, cast
 
 from marimo import _loggers
-from marimo._data.models import DataTable, DataTableColumn, DataType
+from marimo._data.models import (
+    Database,
+    DataTable,
+    DataTableColumn,
+    DataType,
+    Schema,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._types.ids import VariableName
 
@@ -80,21 +86,22 @@ def has_updates_to_datasource(query: str) -> bool:
     )
 
 
-def get_datasets_from_duckdb(
+def get_databases_from_duckdb(
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName] = None,
-) -> List[DataTable]:
+) -> List[Database]:
     try:
-        return _get_datasets_from_duckdb_internal(connection, engine_name)
+        return _get_databases_from_duckdb_internal(connection, engine_name)
     except Exception as e:
         LOGGER.error(e)
         return []
 
 
-def _get_datasets_from_duckdb_internal(
+def _get_databases_from_duckdb_internal(
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName] = None,
-) -> List[DataTable]:
+) -> List[Database]:
+    """Get database information from DuckDB."""
     # Columns
     # 0:"database"
     # 1:"schema"
@@ -112,7 +119,9 @@ def _get_datasets_from_duckdb_internal(
         # No tables
         return []
 
-    tables: list[DataTable] = []
+    # Group tables by database and schema
+    # databases_dict[database][schema] = [table1, table2, ...]
+    databases_dict: dict[str, dict[str, list[DataTable]]] = {}
 
     for (
         database,
@@ -139,20 +148,39 @@ def _get_datasets_from_duckdb_internal(
             )
         ]
 
-        tables.append(
-            DataTable(
-                source_type="duckdb" if engine_name is None else "connection",
-                source=database,
-                name=f"{database}.{schema}.{name}",
-                num_rows=None,
-                num_columns=len(columns),
-                variable_name=None,
-                columns=columns,
+        table = DataTable(
+            source_type="duckdb" if engine_name is None else "connection",
+            source=database,
+            name=name,
+            num_rows=None,
+            num_columns=len(columns),
+            variable_name=None,
+            columns=columns,
+            engine=engine_name,
+        )
+
+        if database not in databases_dict:
+            databases_dict[database] = {}
+        if schema not in databases_dict[database]:
+            databases_dict[database][schema] = []
+
+        databases_dict[database][schema].append(table)
+
+    # Convert grouped data into Database objects
+    databases = []
+    for database, schemas_dict in databases_dict.items():
+        schema_list = []
+        for schema_name, tables in schemas_dict.items():
+            schema_list.append(Schema(name=schema_name, tables=tables))
+        databases.append(
+            Database(
+                name=database,
+                dialect="duckdb",
+                schemas=schema_list,
                 engine=engine_name,
             )
         )
-
-    return tables
+    return databases
 
 
 def _db_type_to_data_type(db_type: str) -> DataType:

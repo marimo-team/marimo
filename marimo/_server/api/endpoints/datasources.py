@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo import _loggers
-from marimo._runtime.requests import PreviewDatasetColumnRequest
+from marimo._runtime.requests import (
+    PreviewDatasetColumnRequest,
+    PreviewSQLTableRequest,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import BaseResponse, SuccessResponse
@@ -43,6 +46,32 @@ async def preview_column(
     """
     app_state = AppState(request)
     body = await parse_request(request, PreviewDatasetColumnRequest)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+    return SuccessResponse()
+
+
+@router.post("/preview_sql_table")
+@requires("edit")
+async def preview_sql_table(request: Request) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PreviewSQLTableRequest"
+    responses:
+        200:
+            description: Preview a SQL table
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, PreviewSQLTableRequest)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

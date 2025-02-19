@@ -123,6 +123,7 @@ def get_column_preview_for_sql(
     # Only show column previews for in-memory tables
     # otherwise we could be making requests to postgres/mysql/etc
     # that the user may not intend to do so.
+    # TODO: duckdb table names are no longer named "memory.main.<table_name>", so this does not work
     if not table_name.startswith("memory.main."):
         return DataColumnPreview(
             table_name=table_name,

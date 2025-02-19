@@ -382,6 +382,36 @@ components:
       type: object
     DataSourceConnection:
       properties:
+        databases:
+          items:
+            properties:
+              dialect:
+                type: string
+              engine:
+                nullable: true
+                type: string
+              name:
+                type: string
+              schemas:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    tables:
+                      items:
+                        $ref: '#/components/schemas/DataTable'
+                      type: array
+                  required:
+                  - name
+                  - tables
+                  type: object
+                type: array
+            required:
+            - name
+            - dialect
+            - schemas
+            type: object
+          type: array
         dialect:
           type: string
         display_name:
@@ -395,6 +425,7 @@ components:
       - dialect
       - name
       - display_name
+      - databases
       type: object
     DataSourceConnections:
       properties:
@@ -419,6 +450,11 @@ components:
         engine:
           nullable: true
           type: string
+        indexes:
+          items:
+            type: string
+          nullable: true
+          type: array
         name:
           type: string
         num_columns:
@@ -427,6 +463,11 @@ components:
         num_rows:
           nullable: true
           type: integer
+        primary_keys:
+          items:
+            type: string
+          nullable: true
+          type: array
         source:
           type: string
         source_type:
@@ -434,6 +475,11 @@ components:
           - local
           - duckdb
           - connection
+          type: string
+        type:
+          enum:
+          - table
+          - view
           type: string
         variable_name:
           nullable: true
@@ -443,6 +489,7 @@ components:
       - source
       - name
       - columns
+      - type
       type: object
     DataTableColumn:
       properties:
@@ -472,6 +519,24 @@ components:
       - time
       - unknown
       type: string
+    Database:
+      properties:
+        dialect:
+          type: string
+        engine:
+          nullable: true
+          type: string
+        name:
+          type: string
+        schemas:
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+      required:
+      - name
+      - dialect
+      - schemas
+      type: object
     Datasets:
       properties:
         clear_channel:
@@ -1407,6 +1472,7 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
+      - $ref: '#/components/schemas/SQLTablePreview'
       - properties:
           connections:
             items:
@@ -1556,6 +1622,25 @@ components:
       - source
       - tableName
       - columnName
+      type: object
+    PreviewSQLTableRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+        tableName:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
+      - tableName
       type: object
     QueryParamsAppend:
       properties:
@@ -1725,6 +1810,24 @@ components:
       - running
       - disabled-transitively
       type: string
+    SQLTablePreview:
+      properties:
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - sql-table-preview
+          type: string
+        request_id:
+          type: string
+        table:
+          $ref: '#/components/schemas/DataTable'
+          nullable: true
+      required:
+      - request_id
+      - name
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -1773,6 +1876,18 @@ components:
           $ref: '#/components/schemas/MarimoConfig'
       required:
       - config
+      type: object
+    Schema:
+      properties:
+        name:
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - name
+      - tables
       type: object
     SendUIElementMessage:
       properties:
@@ -2083,6 +2198,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
+  /api/datasources/preview_sql_table:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a SQL table
   /api/documentation/snippets:
     get:
       responses:

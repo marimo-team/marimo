@@ -27,6 +27,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -446,15 +447,22 @@ def test_add_data_source_connections() -> None:
                         name="pg1",
                         display_name="postgresql (pg1)",
                     ),
+                    DataSourceConnection(
+                        source="duckdb",
+                        dialect="default",
+                        name=INTERNAL_DUCKDB_ENGINE,
+                        display_name="duckdb internal",
+                    ),
                 ]
             )
         )
     )
 
-    assert len(session_view.data_connectors.connections) == 2
+    assert len(session_view.data_connectors.connections) == 3
     names = [c.name for c in session_view.data_connectors.connections]
     assert "db1" in names
     assert "pg1" in names
+    assert INTERNAL_DUCKDB_ENGINE in names
 
     # Add new connection and update existing
     session_view.add_raw_operation(
@@ -478,7 +486,7 @@ def test_add_data_source_connections() -> None:
         )
     )
 
-    assert len(session_view.data_connectors.connections) == 3
+    assert len(session_view.data_connectors.connections) == 4
     conns = {c.name: c for c in session_view.data_connectors.connections}
 
     # Check updated connection
@@ -490,6 +498,7 @@ def test_add_data_source_connections() -> None:
     assert conns["mysql1"].dialect == "mysql"
     # Check existing connection
     assert "pg1" in conns
+    assert INTERNAL_DUCKDB_ENGINE in names
 
     # Check connectors in operations
     assert session_view.data_connectors in session_view.operations
@@ -506,8 +515,12 @@ def test_add_data_source_connections() -> None:
             )
         )
     )
-    assert len(session_view.data_connectors.connections) == 1
-    assert session_view.data_connectors.connections[0].name == "mysql1"
+    assert len(session_view.data_connectors.connections) == 2
+    session_view_names = [
+        c.name for c in session_view.data_connectors.connections
+    ]
+    assert "mysql1" in session_view_names
+    assert INTERNAL_DUCKDB_ENGINE in session_view_names
 
 
 def test_add_cell_op() -> None:

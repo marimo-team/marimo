@@ -130,6 +130,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_sql_table": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewSQLTableRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview a SQL table */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -2224,6 +2263,15 @@ export interface components {
       table_name: string;
     };
     DataSourceConnection: {
+      databases: {
+        dialect: string;
+        engine?: string | null;
+        name: string;
+        schemas: {
+          name: string;
+          tables: components["schemas"]["DataTable"][];
+        }[];
+      }[];
       dialect: string;
       display_name: string;
       name: string;
@@ -2237,12 +2285,16 @@ export interface components {
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       engine?: string | null;
+      indexes?: string[] | null;
       name: string;
       num_columns?: number | null;
       num_rows?: number | null;
+      primary_keys?: string[] | null;
       source: string;
       /** @enum {string} */
       source_type: "local" | "duckdb" | "connection";
+      /** @enum {string} */
+      type: "table" | "view";
       variable_name?: string | null;
     };
     DataTableColumn: {
@@ -2261,6 +2313,12 @@ export interface components {
       | "datetime"
       | "time"
       | "unknown";
+    Database: {
+      dialect: string;
+      engine?: string | null;
+      name: string;
+      schemas: components["schemas"]["Schema"][];
+    };
     Datasets: {
       /** @enum {string|null} */
       clear_channel?: "local" | "duckdb" | "connection" | null;
@@ -2652,6 +2710,7 @@ export interface components {
       | components["schemas"]["QueryParamsClear"]
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
+      | components["schemas"]["SQLTablePreview"]
       | {
           connections: components["schemas"]["DataSourceConnection"][];
           /** @enum {string} */
@@ -2725,6 +2784,13 @@ export interface components {
       sourceType: "local" | "duckdb" | "connection";
       tableName: string;
     };
+    PreviewSQLTableRequest: {
+      database: string;
+      engine: string;
+      requestId: string;
+      schema: string;
+      tableName: string;
+    };
     QueryParamsAppend: {
       key: string;
       /** @enum {string} */
@@ -2789,6 +2855,13 @@ export interface components {
     };
     /** @enum {string} */
     RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
+    SQLTablePreview: {
+      error?: string | null;
+      /** @enum {string} */
+      name: "sql-table-preview";
+      request_id: string;
+      table?: components["schemas"]["DataTable"];
+    };
     SaveAppConfigurationRequest: {
       config: {
         [key: string]: unknown;
@@ -2807,6 +2880,10 @@ export interface components {
     };
     SaveUserConfigurationRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    Schema: {
+      name: string;
+      tables: components["schemas"]["DataTable"][];
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

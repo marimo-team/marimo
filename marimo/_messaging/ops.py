@@ -591,6 +591,16 @@ class Datasets(Op):
 
 
 @dataclass
+class SQLTablePreview(Op):
+    """Preview of a table in a dataset."""
+
+    name: ClassVar[str] = "sql-table-preview"
+    request_id: str
+    table: Optional[DataTable]
+    error: Optional[str] = None
+
+
+@dataclass
 class DataColumnPreview(Op):
     """Preview of a column in a dataset."""
 
@@ -700,6 +710,7 @@ MessageOperation = Union[
     # Datasets
     Datasets,
     DataColumnPreview,
+    SQLTablePreview,
     DataSourceConnections,
     # Kiosk specific
     FocusCell,
