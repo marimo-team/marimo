@@ -173,8 +173,7 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     },
     {
       "key": "Enter",
-      "run": "<no name>",
-      "shift": "<no name>",
+      "run": "run",
     },
   ],
   "Escape": [
