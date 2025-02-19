@@ -31,7 +31,7 @@ export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
     snowflake: SnowflakeIcon,
     databricks: DatabricksIcon,
     clickhouse: ClickhouseIcon,
-    googlebigquery: GoogleBigQueryIcon,
+    bigquery: GoogleBigQueryIcon,
   };
 
   const url = URLS[lowerName];
