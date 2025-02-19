@@ -50,8 +50,10 @@ engine = create_engine(DATABASE_URL)
       break;
 
     case "snowflake": {
-      imports.push("from snowflake.sqlalchemy import URL");
-      imports.push("import sqlalchemy as sa");
+      imports.push(
+        "from snowflake.sqlalchemy import URL",
+        "import sqlalchemy as sa",
+      );
 
       const params = {
         account: connection.account,
