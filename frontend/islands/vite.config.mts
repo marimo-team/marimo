@@ -75,7 +75,6 @@ export default defineConfig({
     emptyOutDir: true,
     outDir: "dist",
     assetsDir: "assets",
-    lib: false,
     rollupOptions: {
       input: path.resolve(__dirname, "../src/core/islands/main.ts"),
       output: {
@@ -84,6 +83,7 @@ export default defineConfig({
           if (assetInfo.name === "style.css") return "style.css";
           return `assets/${assetInfo.name}`;
         },
+        chunkFileNames: "assets/[name]-[hash].js",
       },
     },
   },
