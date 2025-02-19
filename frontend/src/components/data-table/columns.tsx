@@ -11,7 +11,11 @@ import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
-import { INDEX_COLUMN_NAME, type DataTableSelection, FieldTypesWithExternalType } from "./types";
+import {
+  INDEX_COLUMN_NAME,
+  type DataTableSelection,
+  type FieldTypesWithExternalType,
+} from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
@@ -246,7 +250,13 @@ export function generateColumns<T>({
 
         if (isMimeValue(value)) {
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
+            >
               <MimeCell value={value} />
             </div>
           );

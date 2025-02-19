@@ -104,7 +104,7 @@ type Functions = {
 // TODO: this was Array<number | string>
 // I don't quite get this. Does it represent the row-id?
 // Is the row-id the index property in our case?
-type S = Array<{ row: string; column?: string }>;
+type S = Array<{ rowId: string; columnName?: string }>;
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -526,13 +526,13 @@ const DataTableComponent = ({
         setValue(
           Object.keys(nextValue)
             .slice(0, 1)
-            .map((r) => ({ row: r })),
+            .map((r) => ({ rowId: r })),
         );
       }
 
       if (selection === "multi") {
         const nextValue = Functions.asUpdater(updater)(rowSelection);
-        setValue(Object.keys(nextValue).map((r) => ({ row: r })));
+        setValue(Object.keys(nextValue).map((r) => ({ rowId: r })));
       }
     },
   );

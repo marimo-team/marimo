@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { OnChangeFn, RowData, Updater } from "@tanstack/react-table";
 
 export type CellSelectionItem = { rowId: string; columnName: string };

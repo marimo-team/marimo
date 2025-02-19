@@ -463,7 +463,8 @@ class table(
             print(value, type(value))
             return 60
         else:
-            indices = [int(v) for v in value["row"]]
+            print(value)
+            indices = [int(v["rowId"]) for v in value]
             self._selected_manager = self._searched_manager.select_rows(
                 indices
             )
