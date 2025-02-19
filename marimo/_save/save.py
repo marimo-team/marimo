@@ -43,6 +43,7 @@ from marimo._save.loaders import (
     LoaderType,
     MemoryLoader,
 )
+from marimo._types.ids import CellId_t
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -131,7 +132,7 @@ class _cache_call(object):
         # defined out of the context of the block, or the cell.
         # For instance, the args of the invoked function are restricted to the
         # block.
-        cell_id = ctx.cell_id or ctx.execution_context.cell_id or ""
+        cell_id = ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
         self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
         # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(ctx.globals.keys())

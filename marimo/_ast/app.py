@@ -576,6 +576,8 @@ class App:
             # that defined the name bound to this App, if any
             app_kernel_runner = self._get_kernel_runner()
 
+            outputs: dict[CellId_t, Any]
+            glbls: dict[str, Any]
             if not app_kernel_runner.outputs:
                 outputs, glbls = await app_kernel_runner.run(
                     set(self._execution_order)

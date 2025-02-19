@@ -108,7 +108,7 @@ class AppKernelRunner:
         return self._outputs
 
     @property
-    def globals(self) -> dict[CellId_t, Any]:
+    def globals(self) -> dict[str, Any]:
         return self._kernel.globals
 
     async def run(self, cells_to_run: set[CellId_t]) -> RunOutput:

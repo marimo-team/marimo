@@ -18,6 +18,7 @@ from marimo._plugins.ui import code_editor
 from marimo._server.export import run_app_until_completion
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
+from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 
 if sys.platform == "win32":  # handling for windows
@@ -40,7 +41,7 @@ class MarimoIslandStub:
         app_id: str,
         code: str,
     ):
-        self._cell_id = cell_id
+        self._cell_id = CellId_t(cell_id)
         self._app_id = app_id
         self._code = code
         self._display_code = display_code

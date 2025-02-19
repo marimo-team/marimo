@@ -25,6 +25,7 @@ from marimo._schemas.session import (
     StreamOutput,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._types.ids import CellId_t
 from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
 
@@ -158,8 +159,10 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                 )
             )
 
-        view.cell_operations[cell["id"]] = CellOp(
-            cell_id=cell["id"],
+        cell_id = CellId_t(cell["id"])
+
+        view.cell_operations[cell_id] = CellOp(
+            cell_id=cell_id,
             status="idle",
             output=cell_outputs[0] if cell_outputs else None,
             console=console_outputs,

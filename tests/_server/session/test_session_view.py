@@ -30,7 +30,7 @@ from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
-cell_id: CellId_t = "cell_1"
+cell_id = CellId_t("cell_1")
 
 initial_output = CellOutput(
     channel=CellChannel.OUTPUT,

@@ -15,6 +15,7 @@ from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.utils import generate_from_sources, markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
+from marimo._types.ids import CellId_t
 
 # Define a type for our transform functions
 Transform = Callable[[List[str]], List[str]]
@@ -30,7 +31,7 @@ def transform_fixup_multiple_definitions(sources: List[str]) -> List[str]:
     """
     try:
         cells = [
-            compile_cell(source, cell_id=str(i))
+            compile_cell(source, cell_id=CellId_t(str(i)))
             for i, source in enumerate(sources)
         ]
     except SyntaxError:

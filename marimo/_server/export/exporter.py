@@ -292,7 +292,7 @@ class Exporter:
             if not cell or cell._cell.language == "sql":
                 try:
                     cell_impl = compile_cell(
-                        code, cell_id=str(cell_data.cell_id)
+                        code, cell_id=cell_data.cell_id
                     ).configure(cell_data.config)
                     cell = Cell(
                         _cell=cell_impl,

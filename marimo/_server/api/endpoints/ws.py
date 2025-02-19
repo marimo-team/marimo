@@ -199,7 +199,7 @@ async def ycell_provider(
         await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
         return
     await websocket.accept()
-    cell_id: str = websocket.path_params["cell_id"]
+    cell_id = CellId_t(websocket.path_params["cell_id"])
     key = CellIdAndFileKey(cell_id, file_key)
     async with ycell_lock:
         if key in ycells:

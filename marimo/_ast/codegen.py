@@ -17,6 +17,7 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.transformers import RemoveImportTransformer
 from marimo._ast.visitor import Name
+from marimo._types.ids import CellId_t
 
 INDENT = "    "
 MAX_LINE_LENGTH = 80
@@ -124,13 +125,15 @@ def build_import_section(import_blocks: list[str]) -> str:
         ]
     )
 
-    formatted = Formatter(MAX_LINE_LENGTH).format({"code": code})
+    stub_cell_id = CellId_t("sub")
+
+    formatted = Formatter(MAX_LINE_LENGTH).format({stub_cell_id: code})
     if not formatted:
         return code
     tidied = ruff(formatted, "check", "--fix-only")
     if not tidied:
-        return formatted["code"]
-    return tidied["code"] + "\n\n"
+        return formatted[stub_cell_id]
+    return tidied[stub_cell_id] + "\n\n"
 
 
 def to_functiondef(
@@ -301,7 +304,9 @@ def generate_filecontents(
     cell: Optional[CellImpl]
     for idx, (code, cell_config) in enumerate(zip(codes, cell_configs)):
         try:
-            cell = compile_cell(code, cell_id=str(idx)).configure(cell_config)
+            cell = compile_cell(code, cell_id=CellId_t(str(idx))).configure(
+                cell_config
+            )
             defs |= cell.defs
             assert isinstance(used_refs, set)
             used_refs |= cell.refs
