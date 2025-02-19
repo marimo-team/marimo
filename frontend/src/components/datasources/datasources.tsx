@@ -485,7 +485,7 @@ const DatasetTableItem: React.FC<{
   const renderColumns = () => {
     if (loading) {
       return (
-        <div className="pl-12 text-sm bg-blue-50 text-blue-500 flex items-center gap-2 p-2 h-8">
+        <div className="pl-12 text-sm bg-blue-50 dark:bg-[var(--accent)] text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8">
           <LoaderCircle className="h-4 w-4 animate-spin" />
           Loading columns...
         </div>
@@ -494,7 +494,7 @@ const DatasetTableItem: React.FC<{
 
     if (error) {
       return (
-        <div className="pl-12 text-sm bg-red-50 text-red-600 flex items-center gap-2 p-2 h-8">
+        <div className="pl-12 text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-50 flex items-center gap-2 p-2 h-8">
           <XIcon className="h-4 w-4" />
           {error.message}
         </div>

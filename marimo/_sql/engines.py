@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.type_api import TypeEngine
 
 # Internal engine name for DuckDB, we need to ensure this is unique
-INTERNAL_DUCKDB_ENGINE = "__marimo_duckdb"
+INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
 
 def raise_df_import_error(pkg: str) -> None:

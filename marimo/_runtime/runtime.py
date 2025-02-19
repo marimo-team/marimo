@@ -140,7 +140,7 @@ from marimo._server.types import QueueType
 from marimo._sql.engines import SQLAlchemyEngine
 from marimo._sql.get_engines import get_engines_from_variables
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t, UIElementId
+from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -2090,7 +2090,7 @@ class Kernel:
                 - schema: Name of the schema
                 - table_name: Name of the table
         """
-        engine_name = request.engine
+        engine_name = cast(VariableName, request.engine)
         _database_name = request.database
         schema_name = request.schema
         table_name = request.table_name

@@ -5,7 +5,6 @@ import time
 from dataclasses import dataclass
 from typing import Any, Literal, Optional
 
-from marimo._ast.cell import CellId_t
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
@@ -28,6 +27,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
+from marimo._types.ids import CellId_t
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
 
