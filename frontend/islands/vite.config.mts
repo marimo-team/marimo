@@ -29,6 +29,11 @@ const ReactCompilerConfig = {
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    conditions: [
+      "module",
+      "browser",
+      process.env.NODE_ENV === "production" ? "production" : "development",
+    ],
   },
   worker: {
     format: "es",
@@ -68,14 +73,13 @@ export default defineConfig({
   ],
   build: {
     emptyOutDir: true,
-    lib: {
-      entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
-      formats: ["es"],
-    },
+    outDir: "dist",
+    assetsDir: ".",
     rollupOptions: {
+      input: path.resolve(__dirname, "../src/core/islands/main.ts"),
       output: {
-        // Remove hash from entry file name, so it's easier to import
-        entryFileNames: "[name].js",
+        entryFileNames: "main.js",
+        assetFileNames: "style.css",
       },
     },
   },

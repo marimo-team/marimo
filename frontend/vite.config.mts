@@ -247,6 +247,11 @@ export default defineConfig({
   },
   resolve: {
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    conditions: [
+      "module",
+      "browser",
+      process.env.NODE_ENV === "production" ? "production" : "development",
+    ],
   },
   worker: {
     format: "es",
