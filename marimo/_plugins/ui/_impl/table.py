@@ -38,6 +38,7 @@ from marimo._plugins.ui._impl.tables.selection import (
     add_selection_column,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
     ColumnName,
     TableManager,
 )
@@ -444,24 +445,34 @@ class table(
         self, value: Union[List[dict]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         if self._selection in ["single-cell", "multi-cell"]:
-            if (
-                len(value) == 1
-                and "rowId" in value[0]
-                and "columnName" in value[0]
-            ):
-                row = value[0]["rowId"]
-                column = value[0]["columnName"]
-                print("Select value from", value[0])
-                # TODO: This works because I assume _data is a Pandas dataframe
-                # How to properly deal with this?
-                return self._data.at[int(row), column]
+            cells = [
+                Cell(rowId=-int(v["rowId"]), columnName=v["columnId"])
+                for v in value
+                if "rowId" in v and "columnName" in v
+            ]
+            print(cells)
 
-            if type(value) is List[dict]:
-                print("got a cell")
-                return None
+            self._selected_manager = self._searched_manager.select_cells(cells)
+            self._has_any_selection = len(cells) > 0
+            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+            # if (
+            #     len(value) == 1
+            #     and "rowId" in value[0]
+            #     and "columnName" in value[0]
+            # ):
+            #     row = value[0]["rowId"]
+            #     column = value[0]["columnName"]
+            #     print("Select value from", value[0])
+            #     # TODO: This works because I assume _data is a Pandas dataframe
+            #     # How to properly deal with this?
+            #     return self._data.at[int(row), column]
 
-            print(value, type(value))
-            return 60
+            # if type(value) is List[dict]:
+            #     print("got a cell")
+            #     return None
+
+            # print(value, type(value))
+            # return 60
         else:
             print(value)
             indices = [int(v["rowId"]) for v in value]

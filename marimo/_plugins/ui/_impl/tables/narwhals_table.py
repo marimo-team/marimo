@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.tables.format import (
 )
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
     ColumnName,
     FieldType,
     TableManager,
@@ -99,6 +100,11 @@ class NarwhalsTableManager(
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.select(columns))
+
+    def select_cells(self, cells: list[Cell]) -> TableManager[Any]:
+        df = self.as_frame()
+        # This does not work and I could use some help
+        return self.with_new_data([df.at[row, col] for row, col in cells])
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.drop(columns, strict=False))

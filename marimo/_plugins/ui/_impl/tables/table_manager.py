@@ -2,13 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import (
-    Any,
-    Generic,
-    Optional,
-    Tuple,
-    TypeVar,
-)
+from typing import Any, Generic, NamedTuple, Optional, Tuple, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
@@ -20,6 +14,11 @@ T = TypeVar("T")
 ColumnName = str
 FieldType = DataType
 FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
+
+
+class Cell(NamedTuple):
+    rowId: int
+    columnName: str
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -93,6 +92,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        pass
+
+    @abc.abstractmethod
+    def select_cells(self, cells: list[Cell]) -> TableManager[Any]:
         pass
 
     @abc.abstractmethod

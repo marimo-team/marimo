@@ -171,7 +171,7 @@ export function generateColumns<T>({
         );
       },
 
-      cell: ({ column, renderValue, getValue }) => {
+      cell: ({ column, renderValue, getValue, cell }) => {
         // Row headers are bold
         if (rowHeadersSet.has(key)) {
           return <b>{String(renderValue())}</b>;
@@ -181,10 +181,26 @@ export function generateColumns<T>({
         const justify = textJustifyColumns?.[key];
         const wrapped = wrappedColumns?.includes(key);
 
+        function selectCell() {
+          if (selection !== "single-cell" && selection !== "multi-cell") {
+            return;
+          }
+
+          console.log("Select", value, cell);
+          cell.toggleSelected();
+        }
+
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
+            >
               {column.applyColumnFormatting(value)}
             </div>
           );
@@ -193,7 +209,14 @@ export function generateColumns<T>({
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
+            >
               {rendered == null ? (
                 ""
               ) : typeof rendered === "string" ? (
@@ -210,7 +233,14 @@ export function generateColumns<T>({
           const type =
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
+            >
               <DatePopover date={value} type={type}>
                 {exactDateTime(value)}
               </DatePopover>
@@ -220,14 +250,28 @@ export function generateColumns<T>({
 
         if (isMimeValue(value)) {
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                cell.getIsSelected(),
+              )}
+            >
               <MimeCell value={value} />
             </div>
           );
         }
 
         return (
-          <div className={getCellStyleClass(justify, wrapped)}>
+          <div
+            onClick={selectCell}
+            className={getCellStyleClass(
+              justify,
+              wrapped,
+              cell.getIsSelected(),
+            )}
+          >
             {renderAny(getValue())}
           </div>
         );
@@ -311,8 +355,11 @@ function getFilterTypeForFieldType(
 function getCellStyleClass(
   justify: "left" | "center" | "right" | undefined,
   wrapped: boolean | undefined,
+  isSelected: boolean,
 ): string {
   return cn(
+    "cursor-pointer", // TODO: only when select cell?
+    isSelected && "bg-blue-200",
     "w-full",
     "text-left",
     justify === "center" && "text-center",
