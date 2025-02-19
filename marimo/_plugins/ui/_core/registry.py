@@ -15,9 +15,7 @@ else:
 from marimo._ast.app import _Namespace
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
-from marimo._types.ids import CellId_t
-
-UIElementId = str
+from marimo._types.ids import CellId_t, UIElementId
 
 T = TypeVar("T")
 

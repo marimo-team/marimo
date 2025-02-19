@@ -34,6 +34,7 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.functions import Function
+from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -214,9 +215,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         # created by each cell is deterministic; this fact is used to
         # optionally override the element's initial value.
         try:
-            self._id = get_context().take_id()
+            self._id = UIElementId(get_context().take_id())
         except (ids.NoIDProviderException, ContextNotInitializedError):
-            self._id = self._random_id
+            self._id = UIElementId(self._random_id)
 
         self._ctx: RuntimeContext | None
         try:
