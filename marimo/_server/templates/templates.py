@@ -103,7 +103,7 @@ def static_notebook_template(
     filepath: Optional[str],
     code: str,
     code_hash: str,
-    cell_ids: list[str],
+    cell_ids: list[CellId_t],
     cell_names: list[str],
     cell_codes: list[str],
     cell_configs: list[CellConfig],
