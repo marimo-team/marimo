@@ -11,3 +11,5 @@ SessionId = NewType("SessionId", str)
 ConsumerId = NewType("ConsumerId", str)
 
 VariableName = NewType("VariableName", str)
+
+RequestId = NewType("RequestId", str)

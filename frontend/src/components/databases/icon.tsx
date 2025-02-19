@@ -10,6 +10,17 @@ import ClickhouseIcon from "./icons/clickhouse.svg";
 import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
 import { cn } from "@/utils/cn";
 
+export type DBLogoName =
+  | "sqlite"
+  | "duckdb"
+  | "postgres"
+  | "postgresql"
+  | "mysql"
+  | "snowflake"
+  | "databricks"
+  | "clickhouse"
+  | "bigquery";
+
 /**
  * Icons are from https://simpleicons.org/
  */
@@ -19,22 +30,22 @@ interface DatabaseLogoProps {
   className?: string;
 }
 
+const URLS: Record<DBLogoName, string | undefined> = {
+  sqlite: SQLiteIcon,
+  duckdb: DuckDBIcon,
+  postgres: PostgresQLIcon,
+  postgresql: PostgresQLIcon,
+  mysql: MySQLIcon,
+  snowflake: SnowflakeIcon,
+  databricks: DatabricksIcon,
+  clickhouse: ClickhouseIcon,
+  bigquery: GoogleBigQueryIcon,
+};
+
 export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
   const lowerName = name.toLowerCase();
 
-  const URLS: Record<string, string | undefined> = {
-    sqlite: SQLiteIcon,
-    duckdb: DuckDBIcon,
-    postgres: PostgresQLIcon,
-    postgresql: PostgresQLIcon,
-    mysql: MySQLIcon,
-    snowflake: SnowflakeIcon,
-    databricks: DatabricksIcon,
-    clickhouse: ClickhouseIcon,
-    bigquery: GoogleBigQueryIcon,
-  };
-
-  const url = URLS[lowerName];
+  const url = URLS[lowerName as DBLogoName];
 
   if (!url) {
     return null;

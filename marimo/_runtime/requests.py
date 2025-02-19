@@ -20,14 +20,13 @@ from uuid import uuid4
 
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
-from marimo._types.ids import CellId_t, UIElementId
+from marimo._types.ids import CellId_t, RequestId, UIElementId
 
 if TYPE_CHECKING:
     from starlette.datastructures import URL
     from starlette.requests import HTTPConnection
 
 CompletionRequestId = str
-FunctionCallId = str
 
 T = TypeVar("T")
 ListOrValue = Union[T, List[T]]
@@ -223,7 +222,7 @@ class SetUIElementValueRequest:
 
 @dataclass
 class FunctionCallRequest:
-    function_call_id: FunctionCallId
+    function_call_id: RequestId
     namespace: str
     function_name: str
     args: Dict[str, Any]
@@ -310,7 +309,7 @@ class PreviewDatasetColumnRequest:
 class PreviewSQLTableRequest:
     """Preview table details in an SQL database"""
 
-    request_id: str
+    request_id: RequestId
     engine: str
     database: str
     schema: str

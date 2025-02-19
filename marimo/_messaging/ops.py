@@ -54,7 +54,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
-from marimo._types.ids import CellId_t
+from marimo._types.ids import CellId_t, RequestId
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -335,7 +335,7 @@ class FunctionCallResult(Op):
 
     name: ClassVar[str] = "function-call-result"
 
-    function_call_id: str
+    function_call_id: RequestId
     return_value: JSONType
     status: HumanReadableStatus
 
@@ -595,7 +595,7 @@ class SQLTablePreview(Op):
     """Preview of a table in a dataset."""
 
     name: ClassVar[str] = "sql-table-preview"
-    request_id: str
+    request_id: RequestId
     table: Optional[DataTable]
     error: Optional[str] = None
 
