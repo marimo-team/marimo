@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from marimo._plugins.ui._core.registry import UIElementId
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._server.types import QueueType
+from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
     import asyncio

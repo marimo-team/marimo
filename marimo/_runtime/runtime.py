@@ -136,7 +136,7 @@ from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t
+from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -1614,7 +1614,7 @@ class Kernel:
         # interacting with a view triggers reactive execution through the
         # source (parent).
         ctx = get_context()
-        resolved_requests: dict[str, Any] = {}
+        resolved_requests: dict[UIElementId, Any] = {}
         referring_cells: set[CellId_t] = set()
         ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
