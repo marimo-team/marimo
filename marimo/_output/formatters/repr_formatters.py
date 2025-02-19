@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Callable, Optional, Tuple
 
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.formatters.iframe import maybe_wrap_in_iframe
 from marimo._plugins.core.media import io_to_data_url
 from marimo._utils.methods import is_callable_method
 
@@ -90,6 +91,10 @@ def maybe_get_repr_formatter(
                     from marimo._output.md import md
 
                     return ("text/html", md(contents or "").text)
+
+                # Handle HTML with <script> tags:
+                if mime_type == "text/html":
+                    contents = maybe_wrap_in_iframe(contents)
 
                 return (mime_type, contents)
 

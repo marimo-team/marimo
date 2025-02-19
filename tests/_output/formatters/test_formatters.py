@@ -189,6 +189,22 @@ def test_repr_html():
     assert content == "<h1>Hello, World!</h1>"
 
 
+def test_repr_html_with_script_tag_without_src():
+    class ReprHTMLWithScriptTagWithoutSrc:
+        def _repr_html_(self):
+            return "<script>alert('Hello, World!')</script>"
+
+    obj = ReprHTMLWithScriptTagWithoutSrc()
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "text/html"
+    assert (
+        content
+        == "<iframe srcdoc='&lt;script&gt;alert(&#x27;Hello, World!&#x27;)&lt;/script&gt;' width='100%' height='400px' onload='__resizeIframe(this)' frameborder='0'></iframe>"
+    )
+
+
 def test_repr_png():
     png = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABaElEQVR42mNk"
 
