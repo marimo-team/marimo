@@ -135,7 +135,7 @@ export const DataSources: React.FC = () => {
 
   return (
     <Command
-      className="border-b bg-background rounded-none h-full pb-10 overflow-auto"
+      className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-none"
       shouldFilter={false}
     >
       <div className="flex items-center w-full">

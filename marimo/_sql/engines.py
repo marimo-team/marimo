@@ -121,19 +121,24 @@ class SQLAlchemyEngine(SQLEngine):
 
         with self._engine.connect() as connection:
             result = connection.execute(text(query))
-            connection.commit()
+            rows = result.fetchall() if result.returns_rows else None
 
-        if not result.returns_rows:
-            return None
+            try:
+                connection.commit()
+            except Exception:
+                LOGGER.info("Unable to commit transaction", exc_info=True)
 
-        if DependencyManager.polars.has():
-            import polars as pl
+            if rows is None:
+                return None
 
-            return pl.DataFrame(result)  # type: ignore
-        else:
-            import pandas as pd
+            if DependencyManager.polars.has():
+                import polars as pl
 
-            return pd.DataFrame(result)
+                return pl.DataFrame(rows)  # type: ignore
+            else:
+                import pandas as pd
+
+                return pd.DataFrame(rows)
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
