@@ -444,20 +444,24 @@ class table(
         self, value: Union[List[dict]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         if self._selection in ["single-cell", "multi-cell"]:
-            if len(value) == 1 and "row" in value[0] and "column" in value[0]:
-                row = value[0]["row"]
-                column = value[0]["column"]
+            if (
+                len(value) == 1
+                and "rowId" in value[0]
+                and "columnName" in value[0]
+            ):
+                row = value[0]["rowId"]
+                column = value[0]["columnName"]
                 print("Select value from", value[0])
                 # TODO: This works because I assume _data is a Pandas dataframe
                 # How to properly deal with this?
-                return self._data.iloc[int(row), int(column)]
+                return self._data.at[int(row), column]
 
             if type(value) is List[dict]:
                 print("got a cell")
                 return None
 
             print(value, type(value))
-            return 58
+            return 60
         else:
             indices = [int(v) for v in value["row"]]
             self._selected_manager = self._searched_manager.select_rows(

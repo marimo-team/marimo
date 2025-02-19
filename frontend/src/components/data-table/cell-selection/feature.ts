@@ -37,6 +37,10 @@ export const CellSelectionFeature: TableFeature = {
 
   createTable: <TData>(table: Table<TData>): void => {
     table.setCellSelection = (updater) => {
+      // TODO: can we access?
+      // table._getRowId
+      // check if pagination is active
+
       table.setState((tableState) => ({
         ...tableState,
         cellSelection: Functions.asUpdater(updater)(tableState.cellSelection),
@@ -99,19 +103,17 @@ export const CellSelectionFeature: TableFeature = {
     cell.getIsSelected = () => {
       const state: CellSelectionState = table.getState().cellSelection ?? [];
       return state.some(
-        (item) =>
-          item.row === cell.row.id &&
-          item.column === column.getIndex().toString(),
+        (item) => item.rowId === cell.row.id && item.columnName === column.id,
       );
     };
 
     cell.toggleSelected = (value?: boolean) => {
-      const colIdx = column.getIndex().toString();
+      const columnName = column.id;
 
       const currentIsSelected = cell.getIsSelected();
       const nextIsSelected = value !== undefined ? value : !currentIsSelected;
       console.log(
-        `Should toggle cell: row id = ${row.id}, colIdx = ${colIdx}, value = ${value}, currently ${currentIsSelected}, next ${nextIsSelected}`,
+        `Should toggle cell: row id = ${row.id}, columnName = ${columnName}, value = ${value}, currently ${currentIsSelected}, next ${nextIsSelected}`,
       );
 
       if (nextIsSelected && !currentIsSelected) {
@@ -119,8 +121,8 @@ export const CellSelectionFeature: TableFeature = {
         if (table.options.enableMultiCellSelection) {
           table.setCellSelection((selectedCells) => [
             {
-              row: row.id,
-              column: colIdx,
+              rowId: row.id,
+              columnName: columnName,
             },
             ...selectedCells,
           ]);
@@ -128,8 +130,8 @@ export const CellSelectionFeature: TableFeature = {
           // This cell becomes the single selected cell
           table.setCellSelection((_) => [
             {
-              row: row.id,
-              column: colIdx,
+              rowId: row.id,
+              columnName: columnName,
             },
           ]);
         }
@@ -138,7 +140,7 @@ export const CellSelectionFeature: TableFeature = {
         if (table.options.enableMultiCellSelection) {
           table.setCellSelection((selectedCells) =>
             selectedCells.filter(
-              (c) => c.row !== row.id && c.column !== colIdx,
+              (c) => c.rowId !== row.id && c.columnName !== columnName,
             ),
           );
         } else {

@@ -1,6 +1,6 @@
 import type { OnChangeFn, RowData, Updater } from "@tanstack/react-table";
 
-export type CellSelectionItem = { row: string; column: string };
+export type CellSelectionItem = { rowId: string; columnName: string };
 export type CellSelectionState = CellSelectionItem[];
 export type CellSelectionTableState = {
   cellSelection: CellSelectionState;

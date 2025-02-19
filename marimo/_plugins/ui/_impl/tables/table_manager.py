@@ -99,6 +99,10 @@ class TableManager(abc.ABC, Generic[T]):
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         pass
 
+    # named tuple?
+    # TODO: add select_cells(self, cells: list[[rowId,columnName]])
+    # implement narwhals first, see if Pandas and Polars are covered with that?
+
     @abc.abstractmethod
     def get_row_headers(self) -> list[str]:
         pass
