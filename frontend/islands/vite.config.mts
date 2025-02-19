@@ -73,14 +73,19 @@ export default defineConfig({
   ],
   build: {
     emptyOutDir: true,
+    outDir: "dist",
+    assetsDir: "assets",
     lib: {
       entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
       formats: ["es"],
+      fileName: () => "main.js",
     },
     rollupOptions: {
       output: {
-        // Remove hash from entry file name, so it's easier to import
-        entryFileNames: "[name].js",
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === "style.css") return "style.css";
+          return `assets/${assetInfo.name}`;
+        },
       },
     },
   },
