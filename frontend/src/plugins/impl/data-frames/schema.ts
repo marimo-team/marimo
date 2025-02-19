@@ -12,14 +12,14 @@ import {
   isConditionValueValid,
 } from "./utils/operators";
 
-const column_id = z
+export const column_id = z
   .string()
   .min(1, "Required")
   .or(z.number())
   .transform((v) => v as ColumnId)
   .describe(FieldOptions.of({ label: "Column", special: "column_id" }));
 
-const column_id_array = z
+export const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
   .min(1, "At least one column is required")
   .default([])

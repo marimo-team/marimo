@@ -139,7 +139,7 @@ const DatabaseForm: React.FC<{
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <ZodForm schema={schema} form={form}>
+      <ZodForm schema={schema} form={form} renderers={undefined}>
         <FormErrorsBanner />
       </ZodForm>
       <div className="flex gap-2 justify-between">
