@@ -515,7 +515,7 @@ const DataTableComponent = ({
   );
 
   const rowSelection = useMemo(
-    () => Object.fromEntries((value || []).map((v) => [v, true])),
+    () => Object.fromEntries((value || []).map((v) => [v.rowId, true])),
     [value],
   );
 

@@ -153,6 +153,7 @@ const DataTableInternal = <TData,>({
     onCellSelectionChange: onCellSelectionChange,
     enableCellSelection:
       selection === "single-cell" || selection === "multi-cell",
+    enableMultiCellSelection: selection === "multi-cell",
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
