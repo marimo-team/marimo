@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { Logger } from "@/utils/Logger";
 import { z } from "zod";
 
 /**
@@ -77,5 +78,6 @@ export function getUnionLiteral<T extends z.ZodType<unknown>>(
   if (schema instanceof z.ZodUnion) {
     return getUnionLiteral(schema._def.options[0]);
   }
-  throw new Error("Invalid schema");
+  Logger.warn(schema);
+  throw new Error(`Invalid schema: ${schema._type}`);
 }

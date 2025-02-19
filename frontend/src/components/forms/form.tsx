@@ -58,7 +58,7 @@ interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
   schema: z.ZodType;
   path?: Path<T>;
-  renderers?: Array<FormRenderer<T>>;
+  renderers: Array<FormRenderer<T>> | undefined;
   children?: React.ReactNode;
 }
 
@@ -322,6 +322,7 @@ export function renderZodSchema<T extends FieldValues, S>(
           path={path}
           key={path}
           minLength={schema._def.minLength?.value}
+          renderers={renderers}
         />
       </div>
     );
@@ -404,10 +405,12 @@ const FormArray = ({
   form,
   path,
   minLength,
+  renderers,
 }: {
   schema: z.ZodType<unknown>;
   form: UseFormReturn<any>;
   path: Path<any>;
+  renderers: FormRenderer[];
   minLength?: number;
 }) => {
   const { label, description } = FieldOptions.parse(
@@ -435,7 +438,7 @@ const FormArray = ({
             key={field.id}
             onKeyDown={Events.onEnter((e) => e.preventDefault())}
           >
-            {renderZodSchema(schema, form, `${path}[${index}]`, [])}
+            {renderZodSchema(schema, form, `${path}[${index}]`, renderers)}
             {canRemove && (
               <Trash2Icon
                 className="w-4 h-4 ml-2 my-1 text-muted-foreground hover:text-destructive cursor-pointer absolute right-0 top-5"
