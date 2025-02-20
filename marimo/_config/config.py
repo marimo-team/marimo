@@ -312,7 +312,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000)
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
         ),
         "std_stream_max_bytes": int(
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)

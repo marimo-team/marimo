@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, Union, cast
 
 from marimo._cli.print import echo
+from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
@@ -184,8 +185,6 @@ async def run_app_then_export_as_reactive_html(
     path: MarimoPath,
     include_code: bool,
 ) -> ExportResult:
-    import os
-
     from marimo._islands._island_generator import MarimoIslandGenerator
 
     generator = MarimoIslandGenerator.from_file(
@@ -260,18 +259,17 @@ async def run_app_until_completion(
         current_path=file_manager.path
     ).with_overrides(
         {
-            "runtime": {
-                "on_cell_change": "autorun",
-                "auto_instantiate": True,
-                "auto_reload": "off",
-                "watcher_on_save": "lazy",
-                "output_max_bytes": int(
-                    os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000)
-                ),
-                "std_stream_max_bytes": int(
-                    os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
-                ),
-            }
+            "runtime": cast(
+                RuntimeConfig,
+                {
+                    "on_cell_change": "autorun",
+                    "auto_instantiate": True,
+                    "auto_reload": "off",
+                    "watcher_on_save": "lazy",
+                    # We cast because we don't want to override the other
+                    # config values
+                },
+            ),
         }
     )
 
