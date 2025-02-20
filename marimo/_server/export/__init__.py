@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, Union, cast
@@ -264,6 +265,12 @@ async def run_app_until_completion(
                 "auto_instantiate": True,
                 "auto_reload": "off",
                 "watcher_on_save": "lazy",
+                "output_max_bytes": int(
+                    os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000)
+                ),
+                "std_stream_max_bytes": int(
+                    os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+                ),
             }
         }
     )

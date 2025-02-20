@@ -44,7 +44,7 @@ from marimo._messaging.errors import (
     is_sensitive_error,
 )
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.streams import OUTPUT_MAX_BYTES
+from marimo._messaging.streams import output_max_bytes
 from marimo._messaging.types import Stream
 from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
@@ -52,6 +52,7 @@ from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._types.ids import CellId_t, RequestId
@@ -84,8 +85,6 @@ class Op:
 
     # TODO(akshayka): fix typing once mypy has stricter typing for asdict
     def broadcast(self, stream: Optional[Stream] = None) -> None:
-        from marimo._runtime.context.types import ContextNotInitializedError
-
         if stream is None:
             try:
                 ctx = get_context()
@@ -161,7 +160,7 @@ class CellOp(Op):
     def maybe_truncate_output(
         mimetype: KnownMimeType, data: str
     ) -> tuple[KnownMimeType, str]:
-        if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
+        if (size := sys.getsizeof(data)) > output_max_bytes():
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
 
@@ -172,9 +171,15 @@ class CellOp(Op):
                 of {size} bytes. Did you output this object by accident?
 
                 If this limitation is a problem for you, you can configure
-                the max output size with the environment variable
-                `MARIMO_OUTPUT_MAX_BYTES`. For example, to increase
-                the max output to 10 MB, use:
+                the max output size by adding (eg)
+
+                ```
+                [tool.marimo.runtime]
+                output_max_bytes = 10_000_000
+                ```
+
+                to your pyproject.toml, or with the environment variable
+                `MARIMO_OUTPUT_MAX_BYTES`:
 
                 ```
                 export MARIMO_OUTPUT_MAX_BYTES=10_000_000
