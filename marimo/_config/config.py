@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 
@@ -105,12 +106,18 @@ class RuntimeConfig(TypedDict):
       hidden potential state build up.
     - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
         affected cells as stale, `"autorun"` automatically runs affected cells.
+    - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
+        values may affect frontend performance
+    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
+      larger values may affect frontend performance
     """
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
     on_cell_change: OnCellChangeType
     watcher_on_save: Literal["lazy", "autorun"]
+    output_max_bytes: int
+    std_stream_max_bytes: int
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -304,6 +311,12 @@ DEFAULT_CONFIG: MarimoConfig = {
         "auto_reload": "off",
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
+        "output_max_bytes": int(
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
+        ),
+        "std_stream_max_bytes": int(
+            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+        ),
     },
     "save": {
         "autosave": "after_delay",

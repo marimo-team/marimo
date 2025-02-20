@@ -65,6 +65,8 @@ def test_read_marimo_config_from_script():
     # [tool.marimo.runtime]
     # watcher_on_save = "autorun"
     # auto_instantiate = true
+    # output_max_bytes = 20
+    # std_stream_max_bytes = 10
     # [tool.marimo.display]
     # cell_output = "above"
     # ///
@@ -74,4 +76,6 @@ def test_read_marimo_config_from_script():
     assert config is not None
     assert config["tool"]["marimo"]["runtime"]["auto_instantiate"] is True
     assert config["tool"]["marimo"]["runtime"]["watcher_on_save"] == "autorun"
+    assert config["tool"]["marimo"]["runtime"]["output_max_bytes"] == 20
+    assert config["tool"]["marimo"]["runtime"]["std_stream_max_bytes"] == 10
     assert config["tool"]["marimo"]["display"]["cell_output"] == "above"
