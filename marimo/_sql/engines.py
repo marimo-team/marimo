@@ -187,6 +187,7 @@ class SQLAlchemyEngine(SQLEngine):
 
     def get_databases(
         self,
+        *,
         include_schemas: bool = False,
         include_tables: bool = False,
         include_table_details: bool = False,
@@ -210,13 +211,18 @@ class SQLAlchemyEngine(SQLEngine):
         # We check for existing schemas to verify the connection's validity.
         # If valid, set database_name to an empty string to indicate it's detached.
         if database_name is None:
-            schemas_found = self.get_schemas(False, False)
+            schemas_found = self._get_schemas(
+                include_tables=False, include_table_details=False
+            )
             if not schemas_found:
                 return []
             database_name = ""
 
         schemas = (
-            self.get_schemas(include_tables, include_table_details)
+            self._get_schemas(
+                include_tables=include_tables,
+                include_table_details=include_table_details,
+            )
             if include_schemas
             else []
         )
@@ -230,8 +236,11 @@ class SQLAlchemyEngine(SQLEngine):
         )
         return databases
 
-    def get_schemas(
-        self, include_tables: bool = False, include_table_details: bool = False
+    def _get_schemas(
+        self,
+        *,
+        include_tables: bool,
+        include_table_details: bool,
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
 
@@ -248,8 +257,9 @@ class SQLAlchemyEngine(SQLEngine):
             schemas.append(
                 Schema(
                     name=schema,
-                    tables=self.get_tables_in_schema(
-                        schema, include_table_details
+                    tables=self._get_tables_in_schema(
+                        schema=schema,
+                        include_table_details=include_table_details,
                     )
                     if include_tables
                     else [],
@@ -258,8 +268,8 @@ class SQLAlchemyEngine(SQLEngine):
 
         return schemas
 
-    def get_tables_in_schema(
-        self, schema: str, include_table_details: bool = False
+    def _get_tables_in_schema(
+        self, *, schema: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
 
