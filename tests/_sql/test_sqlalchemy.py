@@ -92,14 +92,16 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_invalid_engine() -> None:
     """Test SQLAlchemyEngine with an invalid engine and inspector does not raise errors."""
 
-    engine = SQLAlchemyEngine(None)
+    engine = SQLAlchemyEngine(engine=None)  # type: ignore
     assert engine.inspector is None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine with an empty engine."""
-    engine = SQLAlchemyEngine(empty_sqlite_engine, engine_name="sqlite")
+    engine = SQLAlchemyEngine(
+        engine=empty_sqlite_engine, engine_name=VariableName("sqlite")
+    )
 
     databases = engine.get_databases(
         include_schemas=True, include_tables=True, include_table_details=True
@@ -113,7 +115,9 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
         )
     ]
 
-    tables = engine._get_tables_in_schema("main")
+    tables = engine._get_tables_in_schema(
+        schema="main", include_table_details=False
+    )
     assert tables == []
 
     table_info = engine.get_table_details("test", "main")
