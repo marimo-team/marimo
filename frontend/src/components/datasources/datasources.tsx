@@ -695,7 +695,7 @@ const DatasetColumnPreview: React.FC<{
   const { theme } = useTheme();
 
   // Do not fetch previews for custom SQL connections
-  // or if the table is not in the main schema for duckdb
+  // or if the table is In-Memory duckdb, but not in the main schema
   if (
     table.source_type === "connection" ||
     (table.source_type === "duckdb" && sqlTableContext?.schema !== "main")
