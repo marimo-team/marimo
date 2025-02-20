@@ -155,6 +155,36 @@ class SQLAlchemyEngine(SQLEngine):
         # Maybe in future we can enable this as a flag or for certain connection types.
         return False
 
+    def get_database_name(self) -> Optional[str]:
+        """Get the current database name."""
+
+        from sqlalchemy import text
+
+        if self._engine.url.database is not None:
+            return self._engine.url.database
+
+        # If there is no database name, the engine may connect to a default database.
+        # which may not show up in the url
+        try:
+            query: str
+            if self.dialect in ("postgresql"):
+                query = "SELECT current_database()"
+            elif self.dialect in ("mssql"):
+                query = "SELECT DB_NAME()"
+            if query is None:
+                return None
+
+            with self._engine.connect() as connection:
+                rows = connection.execute(text(query)).fetchone()
+                if rows is None or rows[0] is None:
+                    return None
+                return str(rows[0])
+        except Exception:
+            LOGGER.warning(
+                "Failed to get current database name", exc_info=True
+            )
+            return None
+
     def get_databases(
         self,
         include_schemas: bool = False,
@@ -174,11 +204,16 @@ class SQLAlchemyEngine(SQLEngine):
         Note: This operation can be performance intensive when fetching full metadata.
         """
         databases: list[Database] = []
-        database_name = self._engine.url.database
+        database_name = self.get_database_name()
 
-        # No database specified - could add multi-database support in future
+        # If database_name is None, the connection might be detached or invalid.
+        # We check for existing schemas to verify the connection's validity.
+        # If valid, set database_name to an empty string to indicate it's detached.
         if database_name is None:
-            return []
+            schemas_found = self.get_schemas(False, False)
+            if not schemas_found:
+                return []
+            database_name = ""
 
         schemas = (
             self.get_schemas(include_tables, include_table_details)

@@ -120,21 +120,9 @@ def get_column_preview_for_sql(
     table_name: str,
     column_name: str,
 ) -> Optional[DataColumnPreview]:
-    # Only show column previews for in-memory tables
-    # otherwise we could be making requests to postgres/mysql/etc
-    # that the user may not intend to do so.
-    # TODO: duckdb table names are no longer named "memory.main.<table_name>", so this does not work
-    if not table_name.startswith("memory.main."):
-        return DataColumnPreview(
-            table_name=table_name,
-            column_name=column_name,
-            error="Previews only supported for in-memory tables",
-        )
-    query_table_name = table_name.replace("memory.main.", "")
-
-    column_type = get_column_type(query_table_name, column_name)
-    summary = get_sql_summary(query_table_name, column_name, column_type)
-    histogram_data = get_histogram_data(query_table_name, column_name)
+    column_type = get_column_type(table_name, column_name)
+    summary = get_sql_summary(table_name, column_name, column_type)
+    histogram_data = get_histogram_data(table_name, column_name)
 
     # Generate Altair chart
     chart_spec = None

@@ -424,3 +424,16 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
     result = engine.execute("SELECT * FROM test ORDER BY id")
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
     assert len(result) == 4
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_get_database_name(sqlite_engine: sa.Engine) -> None:
+    """Test SQLAlchemyEngine get_database_name."""
+    engine = SQLAlchemyEngine(sqlite_engine)
+    assert engine.get_database_name() == ":memory:"
+
+    import sqlalchemy as sa
+
+    # Test with no database name
+    engine = SQLAlchemyEngine(sa.create_engine("sqlite:///"))
+    assert engine.get_database_name() == ""
