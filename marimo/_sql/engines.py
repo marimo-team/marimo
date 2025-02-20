@@ -166,22 +166,24 @@ class SQLAlchemyEngine(SQLEngine):
         # If there is no database name, the engine may connect to a default database.
         # which may not show up in the url
         try:
+            query: str
+            if self.dialect in ("postgresql"):
+                query = "SELECT current_database()"
+            elif self.dialect in ("mssql"):
+                query = "SELECT DB_NAME()"
+            if query is None:
+                return None
+
             with self._engine.connect() as connection:
-                if self.dialect in ("postgresql"):
-                    rows = connection.execute(
-                        text("SELECT current_database()")
-                    ).fetchone()
-                    return rows[0]
-                elif self.dialect in ("mssql"):
-                    rows = connection.execute(
-                        text("SELECT DB_NAME()")
-                    ).fetchone()
-                    return rows[0]
-            return None
+                rows = connection.execute(text(query)).fetchone()
+                if rows is None or rows[0] is None:
+                    return None
+                return str(rows[0])
         except Exception:
             LOGGER.warning(
                 "Failed to get current database name", exc_info=True
             )
+            return None
 
     def get_databases(
         self,
