@@ -180,6 +180,7 @@ export const DataSources: React.FC = () => {
             {connection.databases.map((database) => (
               <DatabaseItem
                 key={database.name}
+                engineName={connection.name}
                 database={database}
                 hasSearch={hasSearch}
               >
@@ -243,9 +244,10 @@ const Engine: React.FC<{
 
 const DatabaseItem: React.FC<{
   hasSearch: boolean;
+  engineName: string;
   database: Database;
   children: React.ReactNode;
-}> = ({ hasSearch, database, children }) => {
+}> = ({ hasSearch, engineName, database, children }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
 
@@ -261,6 +263,7 @@ const DatabaseItem: React.FC<{
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
         }}
+        value={`${engineName}:${database.name}`}
       >
         <RotatingChevron isExpanded={isExpanded} />
         <DatabaseIcon
@@ -270,7 +273,7 @@ const DatabaseItem: React.FC<{
           )}
         />
         <span className={cn(isSelected && "font-semibold")}>
-          {database.name}
+          {database.name === "" ? <i>Not connected</i> : database.name}
         </span>
       </CommandItem>
       {isExpanded && children}
@@ -372,7 +375,7 @@ const TableList: React.FC<{
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
   if (tables.length === 0) {
-    return <EmptyState content="No tables found" className="pl-5" />;
+    return <EmptyState content="No tables found" className="pl-9" />;
   }
 
   const filteredTables = tables.filter((table) => {
@@ -691,8 +694,12 @@ const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
 
-  // Only fetch previews for local or duckdb tables, not for SQL tables
-  if (sqlTableContext) {
+  // Do not fetch previews for custom SQL connections
+  // or if the table is not in the main schema for duckdb
+  if (
+    table.source_type === "connection" ||
+    (table.source_type === "duckdb" && sqlTableContext?.schema !== "main")
+  ) {
     return (
       <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
         {column.name} ({column.external_type})

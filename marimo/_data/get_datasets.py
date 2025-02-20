@@ -92,8 +92,8 @@ def get_databases_from_duckdb(
 ) -> List[Database]:
     try:
         return _get_databases_from_duckdb_internal(connection, engine_name)
-    except Exception as e:
-        LOGGER.error(e)
+    except Exception:
+        LOGGER.exception("Failed to get databases from DuckDB")
         return []
 
 
