@@ -39,11 +39,25 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { lastSavedNotebookAtom } from "./saving/state";
 
 interface AppProps {
+  /**
+   * The user config.
+   */
   userConfig: UserConfig;
+  /**
+   * The app config.
+   */
   appConfig: AppConfig;
+  /**
+   * If true, the floating controls will be hidden.
+   */
+  hideControls?: boolean;
 }
 
-export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
+export const EditApp: React.FC<AppProps> = ({
+  userConfig,
+  appConfig,
+  hideControls = false,
+}) => {
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
   const { setCells, mergeAllColumns } = useCellActions();
@@ -150,17 +164,19 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           </CellsRenderer>
         )}
       </AppContainer>
-      <TooltipProvider>
-        <Controls
-          presenting={isPresenting}
-          onTogglePresenting={togglePresenting}
-          onInterrupt={sendInterrupt}
-          onRun={runStaleCells}
-          closed={connection.state === WebSocketState.CLOSED}
-          running={isRunning}
-          appConfig={appConfig}
-        />
-      </TooltipProvider>
+      {!hideControls && (
+        <TooltipProvider>
+          <Controls
+            presenting={isPresenting}
+            onTogglePresenting={togglePresenting}
+            onInterrupt={sendInterrupt}
+            onRun={runStaleCells}
+            closed={connection.state === WebSocketState.CLOSED}
+            running={isRunning}
+            appConfig={appConfig}
+          />
+        </TooltipProvider>
+      )}
     </>
   );
 };
