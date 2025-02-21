@@ -282,6 +282,9 @@ class RemoteFileHandler(FileHandler):
     ) -> str:
         LOGGER.info("Creating temporary file")
         path_to_app = os.path.join(temp_dir.name, name)
+        # If doesn't end in .py, add it
+        if not path_to_app.endswith(".py"):
+            path_to_app += ".py"
         with open(path_to_app, "w") as f:
             f.write(content)
         LOGGER.info("App saved to %s", path_to_app)
