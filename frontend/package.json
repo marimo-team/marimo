@@ -179,7 +179,7 @@
     "@babel/preset-typescript": "^7.25.9",
     "@biomejs/biome": "1.9.4",
     "@csstools/postcss-light-dark-function": "^2.0.7",
-    "@playwright/test": "^1.49.1",
+    "@playwright/test": "^1.50.1",
     "@storybook/addon-docs": "^8.5.1",
     "@storybook/addon-essentials": "^8.5.1",
     "@storybook/addon-interactions": "^8.5.1",
