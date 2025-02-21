@@ -75,6 +75,7 @@ export const Chatbot: React.FC<Props> = (props) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
+  // TODO: This component is rendering every keystroke
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
     const messages: Message[] = chatMessages.messages.map((message, idx) => ({
@@ -149,7 +150,11 @@ export const Chatbot: React.FC<Props> = (props) => {
   });
 
   const handleDelete = (id: string) => {
-    setMessages(messages.filter((message) => message.id !== id));
+    const index = messages.findIndex((message) => message.id === id);
+    if (index !== -1) {
+      props.delete_chat_message({ index });
+      setMessages((prev) => prev.filter((message) => message.id !== id));
+    }
   };
 
   const renderAttachment = (attachment: ChatAttachment) => {
@@ -250,6 +255,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           onClick={() => {
             setMessages([]);
             props.setValue([]);
+            props.delete_chat_history({});
           }}
         >
           <Trash2Icon className="h-3 w-3" />
