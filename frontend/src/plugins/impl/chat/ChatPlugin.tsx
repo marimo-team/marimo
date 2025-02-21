@@ -8,8 +8,8 @@ import type { ChatMessage, SendMessageRequest } from "./types";
 import { Arrays } from "@/utils/arrays";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-type PluginFunctions = {
-  get_chat_history: () => Promise<{ messages: ChatMessage[] }>;
+export type PluginFunctions = {
+  get_chat_history: (req: {}) => Promise<{ messages: ChatMessage[] }>;
   send_prompt: (req: SendMessageRequest) => Promise<string>;
 };
 
@@ -81,7 +81,8 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
         maxHeight={props.data.maxHeight}
         allowAttachments={props.data.allowAttachments}
         config={props.data.config}
-        sendPrompt={props.functions.send_prompt}
+        get_chat_history={props.functions.get_chat_history}
+        send_prompt={props.functions.send_prompt}
         value={props.value?.messages || Arrays.EMPTY}
         setValue={(messages) => props.setValue({ messages })}
       />

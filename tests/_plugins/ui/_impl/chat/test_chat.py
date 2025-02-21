@@ -136,6 +136,9 @@ def test_chat_get_history():
         return "Mock response"
 
     chat = ui.chat(mock_model)
+    history = chat._get_chat_history(EmptyArgs())
+    assert history.messages == []
+
     chat._chat_history = [
         ChatMessage(role="user", content="Hello"),
         ChatMessage(role="assistant", content="Hi there!"),
