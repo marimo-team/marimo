@@ -1134,9 +1134,10 @@ export const UserConfigForm: React.FC = () => {
                     <FormDescription>
                       Enable experimental real-time collaboration to allow
                       editing cell inputs by multiple users. This experimental
-                      feature has known issues, including duplication of
-                      code. Requires refreshing the page to take effect.
-                    </FormDescription> </div>
+                      feature has known issues, including duplication of code.
+                      Requires refreshing the page to take effect.
+                    </FormDescription>{" "}
+                  </div>
                 )}
               />
             )}
