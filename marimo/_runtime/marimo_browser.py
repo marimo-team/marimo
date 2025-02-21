@@ -46,7 +46,7 @@ def browser_open_fallback(
     ):
         mo.output.append(
             mo.image(
-                "https://marimo.app/static/antigravity.png",
+                "https://marimo.app/images/antigravity.png",
                 alt=(
                     "The image shows 2 stick figures in XKCD style. The one "
                     'on the left says:"You\'re Flying! How?", a floating '
