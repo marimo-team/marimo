@@ -537,8 +537,14 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
+        # (e.g. in pyodide). Set default to just inject an iframe of the
+        # expected page to output.
+        patches.patch_webbrowser()
+        # micropip only patched in non-pyodide environments.
         if not is_pyodide():
             patches.patch_micropip(self.globals)
+
         exec("import marimo as __marimo__", self.globals)
 
     def teardown(self) -> None:
