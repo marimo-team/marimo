@@ -187,14 +187,20 @@ providing your users with an interactive code playground.
 
 ```html
 <iframe
-  src="https://marimo.app/l/aojjhb?embed=true"
+  src="https://marimo.app/l/aojjhb?embed=true&show-chrome=false"
   width="100%"
   height="500"
   frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/aojjhb?embed=true" width="100%" height="500" frameBorder="0"></iframe>
+<iframe src="https://marimo.app/l/aojjhb?embed=true&show-chrome=false" width="100%" height="500" frameBorder="0"></iframe>
+
+??? note "Showing editor controls"
+
+    To show editor controls (such as panels icons and the run button), use
+    the query parameter `show-chrome=true`
+
 
 ### Embedding an existing notebook
 
@@ -203,14 +209,14 @@ URL to your notebook](#creating-and-sharing-playground-notebooks), then put it i
 
 ```html
 <iframe
-  src="https://marimo.app/l/c7h6pz?embed=true"
+  src="https://marimo.app/l/c7h6pz?embed=true&show-chrome=false"
   width="100%"
   height="500"
   frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/c7h6pz?embed=true" width="100%" height="500" frameBorder="0"></iframe>
+<iframe src="https://marimo.app/l/c7h6pz?embed=true&show-chrome=false" width="100%" height="500" frameBorder="0"></iframe>
 
 ### Embedding an existing notebook in read-only mode
 
@@ -227,3 +233,38 @@ You can optionally render embedded notebooks in read-only mode by appending
 ```
 
 <iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="500" frameBorder="0"></iframe>
+
+### Embedding from code
+
+You can also embed marimo notebook from its string representation (i.e.,
+the notebook file's code), with the URL
+
+```
+https://marimo.app?embed=true&show-chrome=false#code/<encoded-uri-component>
+```
+
+#### MDX
+
+For example, if you are using MDX, you can use the following snippet:
+
+```jsx
+const MdxNotebook = (props: { code: string }) => {
+  return (
+    <iframe src={`https://marimo.app?embed=true&show-chrome=false#code/${encodeURIComponent(props.code)}`} />
+  );
+};
+
+<MdxNotebook code={`
+import marimo as mo
+
+@app.cell
+def _():
+    mo.md("Hello, world!")
+    return
+
+@app.cell(hide_code=True)
+def _():
+    ...
+    return 
+`} /> 
+```
