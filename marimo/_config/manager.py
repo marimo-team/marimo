@@ -162,7 +162,7 @@ class ScriptConfigManager(PartialMarimoConfigReader):
 
             from marimo._utils.scripts import read_pyproject_from_script
 
-            script_content = filepath.read_text()
+            script_content = filepath.read_text(encoding="utf-8")
             script_config = read_pyproject_from_script(script_content)
             if script_config is None:
                 return {}
