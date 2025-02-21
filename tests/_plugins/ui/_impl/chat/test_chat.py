@@ -13,7 +13,10 @@ from marimo._ai._types import (
 )
 from marimo._output.md import md
 from marimo._plugins import ui
-from marimo._plugins.ui._impl.chat.chat import SendMessageRequest
+from marimo._plugins.ui._impl.chat.chat import (
+    DeleteChatMessageRequest,
+    SendMessageRequest,
+)
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
@@ -150,6 +153,51 @@ def test_chat_get_history():
     assert history.messages[0].content == "Hello"
     assert history.messages[1].role == "assistant"
     assert history.messages[1].content == "Hi there!"
+
+
+def test_chat_delete_history():
+    def mock_model(
+        messages: List[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+    chat._delete_chat_history(EmptyArgs())
+    assert chat._chat_history == []
+    assert chat.value == []
+
+    chat._chat_history = [
+        ChatMessage(role="user", content="Hello"),
+        ChatMessage(role="assistant", content="Hi there!"),
+    ]
+
+    chat._delete_chat_history(EmptyArgs())
+    assert chat._chat_history == []
+    assert chat.value == []
+
+
+def test_chat_delete_message():
+    def mock_model(
+        messages: List[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+
+    with pytest.raises(ValueError, match="Invalid message index"):
+        chat._delete_chat_message(DeleteChatMessageRequest(index=0))
+
+    chat._chat_history = [
+        ChatMessage(role="user", content="Hello"),
+        ChatMessage(role="assistant", content="Hi there!"),
+    ]
+
+    chat._delete_chat_message(DeleteChatMessageRequest(index=0))
+    assert len(chat._chat_history) == 1
+    assert chat._chat_history[0].role == "assistant"
+    assert chat._chat_history[0].content == "Hi there!"
 
 
 def test_chat_convert_value():
