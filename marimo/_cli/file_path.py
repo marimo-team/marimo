@@ -58,7 +58,7 @@ class LocalFileReader(FileReader):
         # Is directory
         if os.path.isdir(name):
             return "", os.path.basename(name)
-        with open(name, "r") as f:
+        with open(name, "r", encoding="utf-8") as f:
             content = f.read()
         return content, os.path.basename(name)
 
