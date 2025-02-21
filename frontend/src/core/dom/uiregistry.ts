@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { Logger } from "@/utils/Logger";
 import type { CellId, UIElementId } from "../cells/ids";
 import {
   type ValueType,
@@ -134,7 +135,9 @@ export class UIElementRegistry {
     buffers: string[] | undefined | null,
   ): void {
     const entry = this.entries.get(objectId);
-    if (entry !== undefined) {
+    if (entry === undefined) {
+      Logger.warn("UIElementRegistry missing entry", objectId);
+    } else {
       const base64ToDataView = (base64: string) => {
         const bytes = window.atob(base64);
         const buffer = new ArrayBuffer(bytes.length);
@@ -176,7 +179,9 @@ export class UIElementRegistry {
     value: ValueType,
   ): void {
     const entry = this.entries.get(objectId);
-    if (entry !== undefined) {
+    if (entry === undefined) {
+      Logger.warn("UIElementRegistry missing entry", objectId);
+    } else {
       entry.value = value;
       entry.elements.forEach((element) => {
         if (element !== initiator) {

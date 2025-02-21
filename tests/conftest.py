@@ -43,6 +43,17 @@ if TYPE_CHECKING:
 register_formatters()
 
 
+@pytest.fixture(autouse=True)
+def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch UIElement._random_seed to use a fixed seed for testing"""
+    import random
+
+    from marimo._plugins.ui._core.ui_element import UIElement
+
+    # Patch the random seed to be deterministic for testing
+    monkeypatch.setattr(UIElement, "_random_seed", random.Random(42))
+
+
 @dataclasses.dataclass
 class _MockStream(ThreadSafeStream):
     """Captures the ops sent through the stream"""
