@@ -35,7 +35,7 @@ from marimo._tutorials import (
     create_temp_tutorial_file,
     tutorial_order,
 )
-from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -209,6 +209,18 @@ def main(
     GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
+def _temp_filename_from_stdin() -> str | None:
+    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
+    if not sys.stdin.isatty():
+        contents = sys.stdin.read()
+        temp_dir = tempfile.TemporaryDirectory()
+        path = create_temp_notebook_file(
+            "notebook.py", "py", contents, temp_dir
+        )
+        return path.absolute_name
+    return None
+
+
 edit_help_msg = "\n".join(
     [
         "\b",
@@ -329,6 +341,10 @@ def edit(
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    # We support unix-style piping, e.g. cat notebook.py | marimo edit
+    if name is None:
+        name = _temp_filename_from_stdin()
 
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,

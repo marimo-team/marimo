@@ -1,8 +1,24 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Literal, Union
+
+if TYPE_CHECKING:
+    import tempfile
+
+
+def create_temp_notebook_file(
+    name: str,
+    extension: Literal["py", "md"],
+    source: str,
+    temp_dir: tempfile.TemporaryDirectory[str],
+) -> MarimoPath:
+    fname = os.path.join(temp_dir.name, f"{name}.{extension}")
+    path = MarimoPath(fname)
+    path.write_text(source)
+    return path
 
 
 class MarimoPath:
