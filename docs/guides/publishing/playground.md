@@ -261,6 +261,7 @@ app = marimo.App()
 
 @app.cell
 def _():
+    import marimo as mo
     mo.md("Hello, world!")
     return
 
