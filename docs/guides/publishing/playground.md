@@ -257,8 +257,11 @@ const MdxNotebook = (props: { code: string }) => {
 <MdxNotebook code={`
 import marimo as mo
 
+app = marimo.App()
+
 @app.cell
 def _():
+    import marimo as mo
     mo.md("Hello, world!")
     return
 
