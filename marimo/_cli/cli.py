@@ -210,39 +210,6 @@ def main(
     GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
-def _temp_filename_from_stdin() -> str | None:
-    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
-    #
-    # This check is complicated, because we need to support running
-    #
-    #   marimo edit
-    #
-    # without a filename as well. To distinguish between `marimo edit` and
-    # `... | marimo edit`, we need to check if sys.stdin() has data on it in a
-    # nonblocking way. This does not seem to be possible on Windows, but it
-    # is possible on unix-like systems with select.
-    import select
-
-    if is_windows():
-        return None
-
-    try:
-        if (
-            not sys.stdin.isatty()
-            and select.select([sys.stdin], [], [], 0)[0]
-            and (contents := sys.stdin.read().strip())
-        ):
-            temp_dir = tempfile.TemporaryDirectory()
-            path = create_temp_notebook_file(
-                "notebook.py", "py", contents, temp_dir
-            )
-            return path.absolute_name
-    except Exception:
-        return None
-
-    return None
-
-
 edit_help_msg = "\n".join(
     [
         "\b",
@@ -365,8 +332,32 @@ def edit(
     from marimo._cli.sandbox import prompt_run_in_sandbox
 
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
-    if name is None:
-        name = _temp_filename_from_stdin()
+    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
+    #
+    # This check is complicated, because we need to support running
+    #
+    #   marimo edit
+    #
+    # without a filename as well. To distinguish between `marimo edit` and
+    # `... | marimo edit`, we need to check if sys.stdin() has data on it in a
+    # nonblocking way. This does not seem to be possible on Windows, but it
+    # is possible on unix-like systems with select.
+    if name is None and not is_windows():
+        import select
+
+        try:
+            if (
+                not sys.stdin.isatty()
+                and select.select([sys.stdin], [], [], 0)[0]
+                and (contents := sys.stdin.read().strip())
+            ):
+                temp_dir = tempfile.TemporaryDirectory()
+                path = create_temp_notebook_file(
+                    "notebook.py", "py", contents, temp_dir
+                )
+                name = path.absolute_name
+        except Exception:
+            pass
 
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,
