@@ -211,8 +211,7 @@ def main(
 
 def _temp_filename_from_stdin() -> str | None:
     # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
-    if not sys.stdin.isatty():
-        contents = sys.stdin.read()
+    if not sys.stdin.isatty() and (contents := sys.stdin.read().strip()):
         temp_dir = tempfile.TemporaryDirectory()
         path = create_temp_notebook_file(
             "notebook.py", "py", contents, temp_dir

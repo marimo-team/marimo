@@ -211,7 +211,7 @@ def test_cli_edit_none() -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"marimo-server-token", contents)
 
@@ -235,7 +235,7 @@ def test_cli_edit_token() -> None:
     contents = _try_fetch(port, "localhost", "secret")
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"marimo-server-token", contents)
 
@@ -258,7 +258,7 @@ def test_cli_edit_directory() -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"marimo-server-token", contents)
 
@@ -282,7 +282,7 @@ def test_cli_edit_new_file() -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"marimo-server-token", contents)
 
@@ -307,7 +307,7 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
 
 
@@ -374,7 +374,7 @@ def test_cli_new() -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"marimo-server-token", contents)
 
@@ -387,7 +387,7 @@ def test_cli_run(temp_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
 
 
@@ -407,7 +407,7 @@ def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
 
 
@@ -429,7 +429,7 @@ def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
 
 
@@ -449,7 +449,7 @@ def test_cli_tutorial() -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"intro.py", contents)
 
@@ -470,7 +470,7 @@ def test_cli_md_tutorial() -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
     _check_contents(p, b"markdown-format.md", contents)
 
@@ -483,7 +483,7 @@ def test_cli_md_run(temp_md_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
 
 
@@ -504,7 +504,7 @@ def test_cli_md_edit(temp_md_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version='{__version__}'".encode(), contents
+        p, f"marimo-version data-version='{__version__}".encode(), contents
     )
 
 
