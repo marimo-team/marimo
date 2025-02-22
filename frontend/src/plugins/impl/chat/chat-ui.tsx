@@ -75,7 +75,6 @@ export const Chatbot: React.FC<Props> = (props) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
-  // TODO: This component is rendering every keystroke
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
     const messages: Message[] = chatMessages.messages.map((message, idx) => ({
