@@ -90,10 +90,7 @@ def _check_shutdown(
 
 
 def _try_fetch(
-    port: int,
-    host: str = "localhost",
-    token: Optional[str] = None,
-    delay: float = 0.5,
+    port: int, host: str = "localhost", token: Optional[str] = None
 ) -> Optional[bytes]:
     for _ in range(10):
         try:
@@ -102,7 +99,7 @@ def _try_fetch(
                 url = f"{url}?access_token={token}"
             return urllib.request.urlopen(url).read()
         except Exception:
-            time.sleep(delay)
+            time.sleep(0.5)
     print("Failed to fetch contents")
     return None
 
@@ -552,7 +549,7 @@ def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
             "--sandbox",
         ]
     )
-    contents = _try_fetch(port, delay=1)
+    contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
 
 
@@ -573,7 +570,7 @@ def test_cli_sandbox_edit_new_file() -> None:
             "--sandbox",
         ]
     )
-    contents = _try_fetch(port, delay=1)
+    contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
 
 
@@ -591,7 +588,7 @@ def test_cli_sandbox_run(temp_marimo_file: str) -> None:
             "--sandbox",
         ]
     )
-    contents = _try_fetch(port, delay=1)
+    contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
 
 
