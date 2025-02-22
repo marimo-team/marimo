@@ -14,7 +14,7 @@ from marimo._server.file_router import MarimoFileKey
 from marimo._types.ids import CellId_t
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore
 async def setup_ycell() -> AsyncGenerator[None, None]:
     """Setup and teardown for ycell tests"""
     # Clear any existing ycells
@@ -24,8 +24,8 @@ async def setup_ycell() -> AsyncGenerator[None, None]:
     ycells.clear()
 
 
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_ycell")
+@pytest.mark.asyncio  # type: ignore
+@pytest.mark.usefixtures("setup_ycell")  # type: ignore
 async def test_quick_reconnection() -> None:
     """Test that quick reconnection properly handles cleanup task cancellation"""
     # Setup
