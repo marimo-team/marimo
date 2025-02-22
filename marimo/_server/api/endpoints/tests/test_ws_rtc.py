@@ -24,7 +24,7 @@ async def setup_ycell():
 
 
 @pytest.mark.asyncio
-async def test_quick_reconnection(setup_ycell):
+async def test_quick_reconnection(_setup_ycell):
     """Test that quick reconnection properly handles cleanup task cancellation"""
     # Setup
     cell_id = CellId_t("test_cell")
