@@ -134,8 +134,8 @@ class Html(MIME):
         """Format `self` as HTML text"""
         del spec
         return " ".join(
-            [line.strip() for line in self.text.split("\n")]
-        ).strip()
+            [line.strip() for line in self.text.strip().split("\n")]
+        )
 
     @mddoc
     def batch(self, **elements: UIElement[JSONType, object]) -> batch_plugin:
