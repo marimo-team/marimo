@@ -14,7 +14,7 @@ from marimo._types.ids import CellId_t
 
 
 @pytest.fixture
-async def setup_ycell():
+async def setup_ycell() -> None:
     """Setup and teardown for ycell tests"""
     # Clear any existing ycells
     ycells.clear()
@@ -25,7 +25,7 @@ async def setup_ycell():
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("setup_ycell")
-async def test_quick_reconnection():
+async def test_quick_reconnection() -> None:
     """Test that quick reconnection properly handles cleanup task cancellation"""
     # Setup
     cell_id = CellId_t("test_cell")
