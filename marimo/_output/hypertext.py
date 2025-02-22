@@ -133,7 +133,9 @@ class Html(MIME):
     def __format__(self, spec: str) -> str:
         """Format `self` as HTML text"""
         del spec
-        return " ".join([line.strip() for line in self.text.split("\n")])
+        return " ".join(
+            [line.strip() for line in self.text.split("\n")]
+        ).strip()
 
     @mddoc
     def batch(self, **elements: UIElement[JSONType, object]) -> batch_plugin:

@@ -23,7 +23,48 @@ def test_html_mime():
 
 def test_html_format():
     html = Html("<p>\n  Hello\n</p>")
-    assert f"{html}" == "<p>Hello</p>"
+    assert f"{html}" == "<p> Hello </p>"
+
+
+def test_html_format_multiline():
+    html = Html("""
+        <div>
+            <p>Hello</p>
+            <p>World</p>
+        </div>
+    """)
+    assert f"{html}" == "<div> <p>Hello</p> <p>World</p> </div>"
+
+
+def test_html_format_nested():
+    html = Html("""
+        <div>
+            <span>
+                Text
+            </span>
+        </div>
+    """)
+    assert f"{html}" == "<div> <span> Text </span> </div>"
+
+
+def test_html_format_attributes():
+    html = Html("""
+        <div class="test"
+             id="main">
+            Content
+        </div>
+    """)
+    assert f"{html}" == '<div class="test" id="main"> Content </div>'
+
+
+def test_html_format_empty():
+    html = Html("")
+    assert f"{html}" == ""
+
+
+def test_html_format_whitespace():
+    html = Html("  <p>  Lots   of    spaces  </p>  ")
+    assert f"{html}" == "<p>  Lots   of    spaces  </p>"
 
 
 def test_html_batch():
