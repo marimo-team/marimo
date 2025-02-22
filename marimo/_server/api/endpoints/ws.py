@@ -110,6 +110,8 @@ async def websocket_endpoint(
 @dataclass
 class YCell:
     ydoc: Doc[Text]
+    code_text: Text
+    language_text: Text
     clients: int
     cleaner: asyncio.Task[None] | None = None
 
@@ -218,8 +220,11 @@ async def ycell_provider(
                 code = ""
             ydoc = Doc[Text]()
             ytext = ydoc.get("code", type=Text)
+            ylang = ydoc.get("language", type=Text)
             ytext += code
-            ycell = YCell(ydoc=ydoc, clients=1)
+            ycell = YCell(
+                ydoc=ydoc, code_text=ytext, language_text=ylang, clients=1
+            )
             ycells[key] = ycell
     update_queue: asyncio.Queue[bytes] = asyncio.Queue()
     task = asyncio.create_task(send_updates(websocket, update_queue, cell_id))
@@ -245,7 +250,7 @@ async def ycell_provider(
                 if ycell.cleaner is not None:
                     ycell.cleaner.cancel()
                     ycell.cleaner = None
-                ycell.cleaner = asyncio.create_task(clean_cell(key))
+                ycell.cleaner = asyncio.create_task(clean_cell(key, 0))
 
 
 KIOSK_ONLY_OPERATIONS = {

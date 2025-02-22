@@ -39,7 +39,7 @@ const languageCompartment = new Compartment();
 /**
  * State effect to set the language adapter.
  */
-const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
+export const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
 
 /**
  * State field to keep track of the current language adapter.
@@ -154,12 +154,14 @@ function updateLanguageAdapterAndCode(
       // Let downstream extensions know that this is a formatting change
       formattingChangeEffect.of(true),
     ],
-    changes: {
-      from: 0,
-      to: view.state.doc.length,
-      insert: finalCode,
-    },
-    selection: EditorSelection.cursor(cursor),
+    changes: opts.keepCodeAsIs
+      ? undefined
+      : {
+          from: 0,
+          to: view.state.doc.length,
+          insert: finalCode,
+        },
+    selection: opts.keepCodeAsIs ? undefined : EditorSelection.cursor(cursor),
   });
 
   // Add history back
@@ -224,6 +226,13 @@ export function adaptiveLanguageConfiguration(
  */
 export function getInitialLanguageAdapter(state: EditorView["state"]) {
   const doc = getEditorCodeAsPython({ state }).trim();
+  return languageAdapterFromCode(doc);
+}
+
+/**
+ * Get the best language adapter given the editor's current code.
+ */
+export function languageAdapterFromCode(doc: string): LanguageAdapter {
   // Empty doc defaults to Python
   if (!doc) {
     return LanguageAdapters.python();
