@@ -1,4 +1,5 @@
 import asyncio
+from typing import AsyncGenerator
 
 import pytest
 from pycrdt import Doc, Text
@@ -14,7 +15,7 @@ from marimo._types.ids import CellId_t
 
 
 @pytest.fixture
-async def setup_ycell() -> None:
+async def setup_ycell() -> AsyncGenerator[None, None]:
     """Setup and teardown for ycell tests"""
     # Clear any existing ycells
     ycells.clear()
