@@ -157,16 +157,16 @@ async def send_updates(
 async def clean_cell(
     cell_id_and_file_key: CellIdAndFileKey, timeout: float = 60
 ) -> None:
-    # Clients disconnect/reconnect to keep the WebSocket connection alive,
-    # or because of network issues.
-    # Keep the ycell in memory for one minute after client disconnects,
-    # so that it can be synchronized and to prevent content duplication.
-    # This task will be cancelled when any client reconnets.
-    await asyncio.sleep(timeout)
-    async with ycell_lock:
-        ycell = ycells[cell_id_and_file_key]
-        if not ycell.clients:
-            del ycells[cell_id_and_file_key]
+    try:
+        await asyncio.sleep(timeout)
+        async with ycell_lock:
+            if cell_id_and_file_key in ycells:
+                ycell = ycells[cell_id_and_file_key]
+                if not ycell.clients:
+                    del ycells[cell_id_and_file_key]
+    except asyncio.CancelledError:
+        # Task was cancelled due to client reconnection
+        pass
 
 
 @router.websocket("/ws/{cell_id}")
