@@ -111,6 +111,13 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       const args = `df.pop(${columnId}).values.tolist())`;
       return `${dfName}.join(pd.DataFrame(${args})`;
     }
+    case "unique": {
+      const { column_ids, keep } = transform;
+      const keepArg = keep === "none" ? "False" : keep;
+      return `${dfName}.drop_duplicates(subset=${listOfStrings(
+        column_ids,
+      )}, keep=${keepArg})`;
+    }
     default:
       logNever(transform);
       return "";

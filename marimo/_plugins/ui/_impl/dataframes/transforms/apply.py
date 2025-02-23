@@ -43,6 +43,8 @@ def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
         return handler.handle_explode_columns(df, transform)
     elif transform.type is TransformType.EXPAND_DICT:
         return handler.handle_expand_dict(df, transform)
+    elif transform.type is TransformType.UNIQUE:
+        return handler.handle_unique(df, transform)
     else:
         assert_never(transform.type)
 

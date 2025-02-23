@@ -357,4 +357,17 @@ describe("pythonPrint: filter", () => {
       `"df.join(pd.DataFrame(df.pop("my_column").values.tolist()))"`,
     );
   });
+
+  // Test for unique
+  it("generates correct Python code for unique", () => {
+    const transform: TransformType = {
+      type: "unique",
+      column_ids: ["my_column"] as ColumnId[],
+      keep: "first",
+    };
+    const result = pythonPrint("df", transform);
+    expect(result).toMatchInlineSnapshot(
+      `"df.drop_duplicates(subset=["my_column"], keep="first")"`,
+    );
+  });
 });
