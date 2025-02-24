@@ -251,6 +251,7 @@ const DatabaseItem: React.FC<{
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
 
+  // Do not change the styling when searching
   React.useEffect(() => {
     setIsExpanded(hasSearch);
   }, [hasSearch]);
@@ -269,10 +270,12 @@ const DatabaseItem: React.FC<{
         <DatabaseIcon
           className={cn(
             "h-4 w-4",
-            isSelected ? "text-foreground" : "text-muted-foreground",
+            isSelected && isExpanded
+              ? "text-foreground"
+              : "text-muted-foreground",
           )}
         />
-        <span className={cn(isSelected && "font-semibold")}>
+        <span className={cn(isSelected && isExpanded && "font-semibold")}>
           {database.name === "" ? <i>Not connected</i> : database.name}
         </span>
       </CommandItem>
@@ -335,6 +338,7 @@ const SchemaItem: React.FC<{
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schema.name}`;
 
+  // Do not change the styling when searching
   React.useEffect(() => {
     setIsExpanded(hasSearch);
   }, [hasSearch]);
@@ -353,10 +357,12 @@ const SchemaItem: React.FC<{
         <PaintRollerIcon
           className={cn(
             "h-4 w-4 text-muted-foreground",
-            isSelected && "text-foreground",
+            isSelected && isExpanded && "text-foreground",
           )}
         />
-        <span className={cn(isSelected && "font-semibold")}>{schema.name}</span>
+        <span className={cn(isSelected && isExpanded && "font-semibold")}>
+          {schema.name}
+        </span>
       </CommandItem>
       {isExpanded && children}
     </>
