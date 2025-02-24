@@ -134,6 +134,7 @@ nav:
           - Runtime configuration: guides/configuration/runtime_configuration.md
           - HTML head: guides/configuration/html_head.md
           - Theming: guides/configuration/theming.md
+          - Snippets: guides/configuration/snippets.md
       - Coming from other tools:
           - Coming from other tools: guides/coming_from/index.md
           - Jupytext: guides/coming_from/jupytext.md
