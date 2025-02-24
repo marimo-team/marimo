@@ -1,7 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
-import { sql, StandardSQL, schemaCompletionSource } from "@codemirror/lang-sql";
+import {
+  sql,
+  StandardSQL,
+  schemaCompletionSource,
+  type SQLNamespace,
+  MySQL,
+  PostgreSQL,
+  SQLite,
+  type SQLDialect,
+  type SQLConfig,
+} from "@codemirror/lang-sql";
 import dedent from "string-dedent";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -11,7 +21,6 @@ import {
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
-import { datasetsAtom } from "@/core/datasets/state";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
@@ -25,6 +34,8 @@ import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
 import { Logger } from "@/utils/Logger";
+import { LRUCache } from "@/utils/lru";
+import type { DataSourceConnection } from "@/core/kernel/messages";
 
 /**
  * Language adapter for SQL.
@@ -151,27 +162,110 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
       }),
       StandardSQL.language.data.of({
-        autocomplete: tablesCompletionSource(),
+        autocomplete: tablesCompletionSource(this),
       }),
     ];
   }
 }
 
-function tablesCompletionSource(): CompletionSource {
-  return (ctx) => {
-    const schema: Record<string, string[]> = {};
-    const datasets = store.get(datasetsAtom);
-    for (const table of datasets.tables) {
-      schema[table.name] = table.columns.map((column) => column.name);
+export class SQLCompletionStore {
+  private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
+
+  getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
+    const dataSourceConnections = store.get(dataSourceConnectionsAtom);
+    const connection = dataSourceConnections.connectionsMap.get(connectionName);
+    if (!connection) {
+      return null;
     }
 
-    return schemaCompletionSource({
-      schema,
-    })(ctx);
+    let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
+    if (!cacheConfig) {
+      // Verbose version with database.schema.table
+      const schema: Record<
+        string,
+        Record<string, Record<string, string[]>>
+      > = {};
+      const tables: Record<string, string[]> = {};
+      for (const database of connection.databases) {
+        schema[database.name] = {};
+        for (const dbSchema of database.schemas) {
+          schema[database.name][dbSchema.name] = {};
+          for (const table of dbSchema.tables) {
+            const columns = table.columns.map((col) => col.name);
+            schema[database.name][dbSchema.name][table.name] = columns;
+            // Also add the table name at the top level
+            tables[table.name] = columns;
+          }
+        }
+      }
+
+      const combinedSchema: SQLNamespace = {
+        // Hierarchical schema: database.schema.table
+        ...schema,
+        // Tables at the top level
+        // TODO: For better correctness, we can filter to only include the default schema
+        ...tables,
+      };
+
+      cacheConfig = {
+        dialect: guessDialect(connection),
+        schema: combinedSchema,
+        defaultTable: getSingleTable(connection),
+      };
+      this.cache.set(connection, cacheConfig);
+    }
+
+    return cacheConfig;
+  }
+}
+
+const SCHEMA_CACHE = new SQLCompletionStore();
+
+function tablesCompletionSource(adapter: SQLLanguageAdapter): CompletionSource {
+  return (ctx) => {
+    const connectionName = adapter.engine;
+    const config = SCHEMA_CACHE.getCompletionSource(connectionName);
+
+    if (!config) {
+      return null;
+    }
+
+    return schemaCompletionSource(config)(ctx);
   };
 }
 
-interface SQLConfig {
+function getSingleTable(connection: DataSourceConnection): string | undefined {
+  if (connection.databases.length !== 1) {
+    return undefined;
+  }
+  const database = connection.databases[0];
+  if (database.schemas.length !== 1) {
+    return undefined;
+  }
+  const schema = database.schemas[0];
+  if (schema.tables.length !== 1) {
+    return undefined;
+  }
+  return schema.tables[0].name;
+}
+
+function guessDialect(
+  connection: DataSourceConnection,
+): SQLDialect | undefined {
+  switch (connection.dialect) {
+    case "postgresql":
+    case "postgres":
+      return PostgreSQL;
+    case "mysql":
+      return MySQL;
+    case "sqlite":
+      return SQLite;
+    default:
+      return undefined;
+  }
+}
+
+interface SQLParseInfo {
   dfName: string;
   sqlString: string;
   engine: string | undefined;
@@ -216,7 +310,7 @@ function getStringContent(node: SyntaxNode, code: string): string | null {
  * @param code - The Python code string to parse.
  * @returns The parsed SQL statement or null if parsing fails.
  */
-export function parseSQLStatement(code: string): SQLConfig | null {
+export function parseSQLStatement(code: string): SQLParseInfo | null {
   try {
     const tree = parser.parse(code);
     const cursor = tree.cursor();

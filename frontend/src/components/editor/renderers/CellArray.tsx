@@ -358,7 +358,7 @@ const AddCellButtons: React.FC<{
             onClick={isAiButtonOpenActions.toggle}
           >
             <SparklesIcon className="mr-2 size-4 flex-shrink-0" />
-            Generate with AI!!!
+            Generate with AI
           </Button>
         </Tooltip>
       </>
