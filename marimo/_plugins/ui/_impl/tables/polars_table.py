@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from functools import cached_property
 from typing import Any, Optional, Tuple, Union
 
@@ -52,6 +53,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
                 return self._original_data.schema
+
+            def to_arrow_ipc(self) -> bytes:
+                out = io.BytesIO()
+                self.collect().write_ipc(out)
+                return out.getvalue()
 
             # We override narwhals's to_csv to handle polars
             # nested data types.

@@ -1,9 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { DataFormat } from "./types";
 import { isNumber } from "lodash-es";
-import { typeParsers, createLoader, read, type DataType } from "./vega-loader";
+import { typeParsers, read, type DataType } from "./vega-loader";
 import { Objects } from "@/utils/objects";
 import { Logger } from "@/utils/Logger";
+import { tableFromIPC } from "@uwdata/flechette";
+import { batch } from "@/utils/batch-requests";
+import { createBatchedLoader } from "./batched";
 
 type Unsubscribe = () => void;
 type Middleware = () => Unsubscribe;
@@ -121,7 +124,15 @@ const customBooleanParser = (v: string) => {
 
 typeParsers.boolean = customBooleanParser;
 
-export const vegaLoader = createLoader();
+export const vegaLoader = createBatchedLoader();
+
+/**
+ * Batch requests to the same URL returning the same promise for all calls with the same key.
+ */
+export const batchedArrowLoader = batch(
+  (url: string) => fetch(url).then((r) => r.arrayBuffer()),
+  (url: string) => url,
+);
 
 /**
  * Load data from a URL and parse it according to the given format.
@@ -130,7 +141,11 @@ export const vegaLoader = createLoader();
  */
 export async function vegaLoadData<T = object>(
   url: string,
-  format: DataFormat | undefined | { type: "csv"; parse: "auto" },
+  format:
+    | DataFormat
+    | undefined
+    | { type: "csv"; parse: "auto" }
+    | { type: "arrow" },
   opts: {
     // We support enabling/disabling since the Table enables it
     // but Vega does not support BigInts
@@ -139,6 +154,16 @@ export async function vegaLoadData<T = object>(
   } = {},
 ): Promise<T[]> {
   const { handleBigIntAndNumberLike = false, replacePeriod = false } = opts;
+
+  // Handle arrow data
+  if (url.endsWith(".arrow") || format?.type === "arrow") {
+    const arrow = await batchedArrowLoader(url);
+    return tableFromIPC(arrow, {
+      useProxy: true,
+      useDate: true,
+      useBigInt: handleBigIntAndNumberLike,
+    }).toArray() as T[];
+  }
 
   const middleware: Middleware[] = [DATE_MIDDLEWARE];
   if (handleBigIntAndNumberLike) {

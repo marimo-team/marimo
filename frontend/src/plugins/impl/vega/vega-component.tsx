@@ -19,6 +19,12 @@ import { ErrorBanner } from "../common/error-banner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { HelpCircleIcon } from "lucide-react";
 import { isValid } from "date-fns";
+// @ts-expect-error vega-typings does not include formats
+import { formats } from "vega";
+import { arrow } from "./formats";
+
+// register arrow reader under type 'arrow'
+formats("arrow", arrow);
 
 export interface Data {
   spec: VegaLiteSpec;
