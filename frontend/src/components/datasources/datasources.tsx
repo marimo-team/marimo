@@ -251,7 +251,6 @@ const DatabaseItem: React.FC<{
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
 
-  // Do not change the styling when searching
   React.useEffect(() => {
     setIsExpanded(hasSearch);
   }, [hasSearch]);
@@ -338,7 +337,6 @@ const SchemaItem: React.FC<{
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schema.name}`;
 
-  // Do not change the styling when searching
   React.useEffect(() => {
     setIsExpanded(hasSearch);
   }, [hasSearch]);
