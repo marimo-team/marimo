@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import functools
 import os
 import random
 import string
@@ -23,7 +22,7 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import cell_factory, toplevel_cell_factory
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.pytest import wrap_fn_for_pytest
+from marimo._ast.pytest import process_for_pytest
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -120,7 +119,7 @@ class CellManager:
             # Manually set the signature for pytest.
             if is_top_level_pytest:
                 # NB. in place metadata update.
-                functools.wraps(wrap_fn_for_pytest(func, cell))(cell)
+                process_for_pytest(func, cell)
             return cell
 
         if func is None:
