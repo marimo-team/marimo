@@ -42,6 +42,7 @@ You can customize the following settings:
 - [VIM keybindings](../editor_features/overview.md#vim-keybindings)
 - Formatting settings
 - [AI assistance](../editor_features/ai_completion.md)
+- [Snippets](snippets.md)
 - Experimental features
 
 ### User configuration file
