@@ -49,6 +49,7 @@ export const {
   readCode,
   readSnippets,
   previewDatasetColumn,
+  previewSQLTable,
   openFile,
   getUsageStats,
   sendListFiles,

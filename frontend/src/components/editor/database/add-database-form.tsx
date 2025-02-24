@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DatabaseLogo } from "@/components/databases/icon";
+import { DatabaseLogo, type DBLogoName } from "@/components/databases/icon";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import {
@@ -90,9 +90,14 @@ const SCHEMAS = [
     name: "BigQuery",
     schema: BigQueryConnectionSchema,
     color: "#4285F4",
-    logo: "googlebigquery",
+    logo: "bigquery",
   },
-];
+] satisfies Array<{
+  name: string;
+  schema: z.ZodType;
+  color: string;
+  logo: DBLogoName;
+}>;
 
 const DatabaseSchemaSelector: React.FC<{
   onSelect: (schema: z.ZodType) => void;
@@ -134,7 +139,7 @@ const DatabaseForm: React.FC<{
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <ZodForm schema={schema} form={form}>
+      <ZodForm schema={schema} form={form} renderers={undefined}>
         <FormErrorsBanner />
       </ZodForm>
       <div className="flex gap-2 justify-between">

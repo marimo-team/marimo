@@ -9,7 +9,7 @@ from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
-from marimo._messaging.streams import STD_STREAM_MAX_BYTES
+from marimo._messaging.streams import std_stream_max_bytes
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -62,11 +62,12 @@ class PyodideStdout(Stdout):
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__
             )
-        if sys.getsizeof(data) > STD_STREAM_MAX_BYTES:
+        max_bytes = std_stream_max_bytes()
+        if sys.getsizeof(data) > max_bytes:
             sys.stderr.write(
                 "Warning: marimo truncated a very large console output.\n"
             )
-            data = data[: int(STD_STREAM_MAX_BYTES)] + " ... "
+            data = data[: int(max_bytes)] + " ... "
         CellOp(
             cell_id=self.stream.cell_id,
             console=CellOutput(
@@ -106,10 +107,11 @@ class PyodideStderr(Stderr):
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__
             )
-        if sys.getsizeof(data) > STD_STREAM_MAX_BYTES:
+        max_bytes = std_stream_max_bytes()
+        if sys.getsizeof(data) > max_bytes:
             data = (
                 "Warning: marimo truncated a very large console output.\n"
-                + data[: int(STD_STREAM_MAX_BYTES)]
+                + data[: int(max_bytes)]
                 + " ... "
             )
 
@@ -148,10 +150,11 @@ class PyodideStdin(Stdin):
             raise TypeError(
                 "prompt must be a str, not %s" % type(prompt).__name__
             )
-        if sys.getsizeof(prompt) > STD_STREAM_MAX_BYTES:
+        max_bytes = std_stream_max_bytes()
+        if sys.getsizeof(prompt) > max_bytes:
             prompt = (
                 "Warning: marimo truncated a very large console output.\n"
-                + prompt[: int(STD_STREAM_MAX_BYTES)]
+                + prompt[: int(max_bytes)]
                 + " ... "
             )
 

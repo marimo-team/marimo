@@ -50,6 +50,7 @@ from marimo._messaging.ops import (
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
+    SQLTablePreview,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -109,6 +110,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    PreviewSQLTableRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -135,8 +137,10 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
+from marimo._sql.engines import SQLAlchemyEngine
+from marimo._sql.get_engines import get_engines_from_variables
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t, UIElementId
+from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -533,8 +537,14 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
+        # (e.g. in pyodide). Set default to just inject an iframe of the
+        # expected page to output.
+        patches.patch_webbrowser()
+        # micropip only patched in non-pyodide environments.
         if not is_pyodide():
             patches.patch_micropip(self.globals)
+
         exec("import marimo as __marimo__", self.globals)
 
     def teardown(self) -> None:
@@ -2075,6 +2085,55 @@ class Kernel:
             ).broadcast()
         return
 
+    @kernel_tracer.start_as_current_span("preview_sql_table")
+    async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
+        """Get table details for an SQL table.
+
+        Args:
+            request (PreviewSQLTableRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+                - schema: Name of the schema
+                - table_name: Name of the table
+        """
+        engine_name = cast(VariableName, request.engine)
+        _database_name = request.database
+        schema_name = request.schema
+        table_name = request.table_name
+
+        # TODO: Can we find the existing engine
+        engine_val = self.globals.get(engine_name)
+        try:
+            engines = get_engines_from_variables([(engine_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                LOGGER.warning("Engine %s not found", engine_name)
+                SQLTablePreview(
+                    request_id=request.request_id,
+                    table=None,
+                    error="Engine not found",
+                ).broadcast()
+            engine = engines[0][1]
+        except Exception as e:
+            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+            SQLTablePreview(
+                request_id=request.request_id, table=None, error=str(e)
+            ).broadcast()
+            return
+
+        if isinstance(engine, SQLAlchemyEngine):
+            table = engine.get_table_details(table_name, schema_name)
+            if table is None:
+                LOGGER.warning("Table %s not found", table_name)
+            SQLTablePreview(
+                request_id=request.request_id, table=table
+            ).broadcast()
+        else:
+            SQLTablePreview(
+                request_id=request.request_id,
+                table=None,
+                error="Not an SQLAlchemyEngine",
+            ).broadcast()
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
@@ -2126,6 +2185,8 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, PreviewDatasetColumnRequest):
                 await self.preview_dataset_column(request)
+            elif isinstance(request, PreviewSQLTableRequest):
+                await self.preview_sql_table(request)
             elif isinstance(request, StopRequest):
                 return None
             else:

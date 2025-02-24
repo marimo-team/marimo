@@ -33,6 +33,11 @@ class GetChatHistoryResponse:
     messages: List[ChatMessage]
 
 
+@dataclass
+class DeleteChatMessageRequest:
+    index: int
+
+
 @mddoc
 class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
     """A chatbot UI element for interactive conversations.
@@ -158,6 +163,16 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                     function=self._get_chat_history,
                 ),
                 Function(
+                    name="delete_chat_history",
+                    arg_cls=EmptyArgs,
+                    function=self._delete_chat_history,
+                ),
+                Function(
+                    name="delete_chat_message",
+                    arg_cls=DeleteChatMessageRequest,
+                    function=self._delete_chat_message,
+                ),
+                Function(
                     name="send_prompt",
                     arg_cls=SendMessageRequest,
                     function=self._send_prompt,
@@ -167,6 +182,17 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     def _get_chat_history(self, _args: EmptyArgs) -> GetChatHistoryResponse:
         return GetChatHistoryResponse(messages=self._chat_history)
+
+    def _delete_chat_history(self, _args: EmptyArgs) -> None:
+        self._value = self._chat_history = []
+
+    def _delete_chat_message(self, args: DeleteChatMessageRequest) -> None:
+        index = args.index
+        if index < 0 or index >= len(self._chat_history):
+            raise ValueError("Invalid message index")
+
+        del self._chat_history[index]
+        self._value = self._chat_history
 
     async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages

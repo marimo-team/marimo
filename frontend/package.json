@@ -201,7 +201,7 @@
     "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.15.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "@vitejs/plugin-react-swc": "^3.7.2",
+    "@vitejs/plugin-react-swc": "^3.8.0",
     "autoprefixer": "^10.4.20",
     "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
     "blob-polyfill": "^7.0.20220408",
@@ -218,7 +218,7 @@
     "eslint-plugin-vitest": "^0.4.1",
     "jsdom": "^24.1.3",
     "npm-run-all2": "^6.2.6",
-    "postcss": "^8.5.1",
+    "postcss": "^8.5.3",
     "postcss-plugin-namespace": "^0.0.3",
     "react": "^18.3.1",
     "react-compiler-runtime": "19.0.0-beta-e552027-20250112",
@@ -230,9 +230,9 @@
     "tailwindcss": "^3.4.17",
     "turbo": "^2.3.4",
     "typescript": "^5.7.3",
-    "vite": "^5.4.13",
-    "vite-tsconfig-paths": "^4.3.2",
-    "vitest": "^3.0.2"
+    "vite": "^6.1.1",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.0.6"
   },
   "packageManager": "pnpm@9.15.4",
   "pnpm": {

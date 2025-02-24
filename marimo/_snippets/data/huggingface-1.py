@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.11.0"

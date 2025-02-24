@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 import pytest
 
 from marimo._data.get_datasets import (
-    get_datasets_from_duckdb,
+    get_databases_from_duckdb,
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
-from marimo._data.models import DataTable, DataTableColumn
+from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from tests._data.mocks import create_dataframes
 
@@ -24,184 +25,303 @@ def test_has_updates_to_datasource() -> None:
     assert has_updates_to_datasource("CREATE TABLE cars (name TEXT)") is True
 
 
+sql_query = """
+CREATE TABLE all_types (
+    col_boolean BOOLEAN,
+    col_tinyint TINYINT,
+    col_smallint SMALLINT,
+    col_integer INTEGER,
+    col_bigint BIGINT,
+    col_hugeint HUGEINT,
+    col_utinyint UTINYINT,
+    col_usmallint USMALLINT,
+    col_uinteger UINTEGER,
+    col_ubigint UBIGINT,
+    col_float FLOAT,
+    col_double DOUBLE,
+    col_decimal DECIMAL(18,3),
+    col_varchar VARCHAR,
+    col_date DATE,
+    col_time TIME,
+    col_timestamp TIMESTAMP,
+    col_interval INTERVAL,
+    col_blob BLOB,
+    col_bit BIT,
+    col_uuid UUID,
+    col_json JSON
+);
+
+CREATE SCHEMA s1;
+CREATE SCHEMA s2;
+
+CREATE TABLE s1.t (id INTEGER PRIMARY KEY, other_id INTEGER);
+CREATE TABLE s2.t (id INTEGER PRIMARY KEY, j VARCHAR);
+"""
+
+all_types_tables = [
+    DataTable(
+        name="all_types",
+        source_type="duckdb",
+        source="memory",
+        num_rows=None,
+        num_columns=22,
+        variable_name=None,
+        columns=[
+            DataTableColumn(
+                name="col_boolean",
+                type="boolean",
+                external_type="BOOLEAN",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_tinyint",
+                type="integer",
+                external_type="TINYINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_smallint",
+                type="integer",
+                external_type="SMALLINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_integer",
+                type="integer",
+                external_type="INTEGER",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_bigint",
+                type="integer",
+                external_type="BIGINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_hugeint",
+                type="integer",
+                external_type="HUGEINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_utinyint",
+                type="integer",
+                external_type="UTINYINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_usmallint",
+                type="integer",
+                external_type="USMALLINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_uinteger",
+                type="integer",
+                external_type="UINTEGER",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_ubigint",
+                type="integer",
+                external_type="UBIGINT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_float",
+                type="number",
+                external_type="FLOAT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_double",
+                type="number",
+                external_type="DOUBLE",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_decimal",
+                type="number",
+                external_type="DECIMAL(18,3)",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_varchar",
+                type="string",
+                external_type="VARCHAR",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_date",
+                type="date",
+                external_type="DATE",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_time",
+                type="time",
+                external_type="TIME",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_timestamp",
+                type="datetime",
+                external_type="TIMESTAMP",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_interval",
+                type="datetime",
+                external_type="INTERVAL",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_blob",
+                type="string",
+                external_type="BLOB",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_bit",
+                type="string",
+                external_type="BIT",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_uuid",
+                type="string",
+                external_type="UUID",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_json",
+                type="unknown",
+                external_type="JSON",
+                sample_values=[],
+            ),
+        ],
+    )
+]
+
+s1_tables = [
+    DataTable(
+        name="t",
+        source_type="duckdb",
+        source="memory",
+        num_rows=None,
+        num_columns=2,
+        variable_name=None,
+        columns=[
+            DataTableColumn(
+                name="id",
+                type="integer",
+                external_type="INTEGER",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="other_id",
+                type="integer",
+                external_type="INTEGER",
+                sample_values=[],
+            ),
+        ],
+    )
+]
+
+s2_tables = [
+    DataTable(
+        name="t",
+        source_type="duckdb",
+        source="memory",
+        num_rows=None,
+        num_columns=2,
+        variable_name=None,
+        columns=[
+            DataTableColumn(
+                name="id",
+                type="integer",
+                external_type="INTEGER",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="j",
+                type="string",
+                external_type="VARCHAR",
+                sample_values=[],
+            ),
+        ],
+    )
+]
+
+cleanup_query = """
+DROP TABLE all_types;
+DROP SCHEMA s1 CASCADE;
+DROP SCHEMA s2 CASCADE;
+"""
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_get_datasets() -> None:
-    assert get_datasets_from_duckdb(connection=None) == []
+def test_get_databases() -> None:
+    assert get_databases_from_duckdb(connection=None) == []
 
     import duckdb
 
-    duckdb.execute(
-        """
-        CREATE TABLE all_types (
-            col_boolean BOOLEAN,
-            col_tinyint TINYINT,
-            col_smallint SMALLINT,
-            col_integer INTEGER,
-            col_bigint BIGINT,
-            col_hugeint HUGEINT,
-            col_utinyint UTINYINT,
-            col_usmallint USMALLINT,
-            col_uinteger UINTEGER,
-            col_ubigint UBIGINT,
-            col_float FLOAT,
-            col_double DOUBLE,
-            col_decimal DECIMAL(18,3),
-            col_varchar VARCHAR,
-            col_date DATE,
-            col_time TIME,
-            col_timestamp TIMESTAMP,
-            col_interval INTERVAL,
-            col_blob BLOB,
-            col_bit BIT,
-            col_uuid UUID,
-            col_json JSON
-        )
-    """
-    )
-    assert get_datasets_from_duckdb(connection=None) == [
-        DataTable(
-            name="memory.main.all_types",
-            source_type="duckdb",
-            source="memory",
-            num_rows=None,
-            num_columns=22,
-            variable_name=None,
-            columns=[
-                DataTableColumn(
-                    name="col_boolean",
-                    type="boolean",
-                    external_type="BOOLEAN",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_tinyint",
-                    type="integer",
-                    external_type="TINYINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_smallint",
-                    type="integer",
-                    external_type="SMALLINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_integer",
-                    type="integer",
-                    external_type="INTEGER",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_bigint",
-                    type="integer",
-                    external_type="BIGINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_hugeint",
-                    type="integer",
-                    external_type="HUGEINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_utinyint",
-                    type="integer",
-                    external_type="UTINYINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_usmallint",
-                    type="integer",
-                    external_type="USMALLINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_uinteger",
-                    type="integer",
-                    external_type="UINTEGER",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_ubigint",
-                    type="integer",
-                    external_type="UBIGINT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_float",
-                    type="number",
-                    external_type="FLOAT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_double",
-                    type="number",
-                    external_type="DOUBLE",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_decimal",
-                    type="number",
-                    external_type="DECIMAL(18,3)",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_varchar",
-                    type="string",
-                    external_type="VARCHAR",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_date",
-                    type="date",
-                    external_type="DATE",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_time",
-                    type="time",
-                    external_type="TIME",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_timestamp",
-                    type="datetime",
-                    external_type="TIMESTAMP",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_interval",
-                    type="datetime",
-                    external_type="INTERVAL",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_blob",
-                    type="string",
-                    external_type="BLOB",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_bit",
-                    type="string",
-                    external_type="BIT",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_uuid",
-                    type="string",
-                    external_type="UUID",
-                    sample_values=[],
-                ),
-                DataTableColumn(
-                    name="col_json",
-                    type="unknown",
-                    external_type="JSON",
-                    sample_values=[],
-                ),
+    duckdb.execute(sql_query)
+
+    assert get_databases_from_duckdb(connection=None) == [
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[
+                Schema(name="main", tables=all_types_tables),
+                Schema(name="s1", tables=s1_tables),
+                Schema(name="s2", tables=s2_tables),
             ],
+            engine=None,
         )
     ]
+
+    duckdb.execute(cleanup_query)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_connection() -> None:
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    all_tables = deepcopy(all_types_tables)
+    for table in all_tables:
+        table.source_type = "connection"
+        table.engine = "engine"
+
+    s1 = deepcopy(s1_tables)
+    for table in s1:
+        table.source_type = "connection"
+        table.engine = "engine"
+
+    s2 = deepcopy(s2_tables)
+    for table in s2:
+        table.source_type = "connection"
+        table.engine = "engine"
+
+    assert get_databases_from_duckdb(
+        connection=connection, engine_name="engine"
+    ) == [
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[
+                Schema(name="main", tables=all_tables),
+                Schema(name="s1", tables=s1),
+                Schema(name="s2", tables=s2),
+            ],
+            engine="engine",
+        )
+    ]
+
+    connection.execute(cleanup_query)
 
 
 @pytest.mark.parametrize(

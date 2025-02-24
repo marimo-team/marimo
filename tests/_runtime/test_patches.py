@@ -118,3 +118,60 @@ class TestMicropip:
                     ]
                 )
             TestMicropip._assert_micropip_warning_printed(buf.getvalue())
+
+
+async def test_webbrowser_injection(
+    mocked_kernel: Kernel, exec_req: ExecReqProvider
+):
+    await mocked_kernel.k.run(
+        [
+            exec_req.get("""
+          import webbrowser
+          MarimoBrowser = __marimo__._runtime.marimo_browser.build_browser_fallback()
+          webbrowser.register(
+              "marimo-output", None, MarimoBrowser(), preferred=True
+          )
+          """),
+        ]
+    )
+    await mocked_kernel.k.run(
+        [
+            cell := exec_req.get("webbrowser.open('https://marimo.io');"),
+        ]
+    )
+    assert "webbrowser" in mocked_kernel.k.globals
+    outputs: list[str] = []
+    for msg in mocked_kernel.stream.messages:
+        if msg[0] == "cell-op" and msg[1]["output"] is not None:
+            outputs.append(msg[1]["output"]["data"])
+
+    assert "<iframe" in outputs[-1]
+
+
+async def test_webbrowser_easter_egg(
+    mocked_kernel: Kernel, exec_req: ExecReqProvider
+):
+    await mocked_kernel.k.run(
+        [
+            exec_req.get("""
+          import webbrowser
+          MarimoBrowser = __marimo__._runtime.marimo_browser.build_browser_fallback()
+          webbrowser.register(
+              "marimo-output", None, MarimoBrowser(), preferred=True
+          )
+          """),
+        ]
+    )
+    await mocked_kernel.k.run(
+        [
+            cell := exec_req.get("import antigravity;"),
+        ]
+    )
+    assert "antigravity" in mocked_kernel.k.globals
+    outputs: list[str] = []
+    for msg in mocked_kernel.stream.messages:
+        if msg[0] == "cell-op" and msg[1]["output"] is not None:
+            outputs.append(msg[1]["output"]["data"])
+
+    assert "<iframe" not in outputs[-1]
+    assert "<img" in outputs[-1]

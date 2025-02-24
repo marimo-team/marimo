@@ -35,7 +35,8 @@ from marimo._tutorials import (
     create_temp_tutorial_file,
     tutorial_order,
 )
-from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
+from marimo._utils.platform import is_windows
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -329,6 +330,34 @@ def edit(
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import prompt_run_in_sandbox
+
+    # We support unix-style piping, e.g. cat notebook.py | marimo edit
+    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
+    #
+    # This check is complicated, because we need to support running
+    #
+    #   marimo edit
+    #
+    # without a filename as well. To distinguish between `marimo edit` and
+    # `... | marimo edit`, we need to check if sys.stdin() has data on it in a
+    # nonblocking way. This does not seem to be possible on Windows, but it
+    # is possible on unix-like systems with select.
+    if name is None and not is_windows():
+        import select
+
+        try:
+            if (
+                not sys.stdin.isatty()
+                and select.select([sys.stdin], [], [], 0)[0]
+                and (contents := sys.stdin.read().strip())
+            ):
+                temp_dir = tempfile.TemporaryDirectory()
+                path = create_temp_notebook_file(
+                    "notebook.py", "py", contents, temp_dir
+                )
+                name = path.absolute_name
+        except Exception:
+            pass
 
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,

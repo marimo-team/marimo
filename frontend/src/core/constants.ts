@@ -40,4 +40,10 @@ export const KnownQueryParams = {
    * layout view.
    */
   viewAs: "view-as",
+  /**
+   * Show the chrome in edit mode.
+   * If true, the chrome will be shown.
+   * If false, the chrome will be hidden.
+   */
+  showChrome: "show-chrome",
 };

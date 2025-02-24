@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   type Path,
-  useController,
   type UseFormReturn,
   type FieldValues,
+  useWatch,
 } from "react-hook-form";
 import { z } from "zod";
 import { renderZodSchema, type FormRenderer } from "@/components/forms/form";
@@ -394,14 +394,15 @@ const ColumnFilterForm = <T extends FieldValues>({
 }) => {
   const { description } = FieldOptions.parse(schema._def.description);
   const columns = useContext(ColumnInfoContext);
-  const { field } = useController({ name: path });
 
   const columnIdSchema = Objects.entries(schema._def.shape()).find(
     ([key]) => key === "column_id",
   )?.[1] as unknown as z.ZodString;
 
   // existing values
-  const { column_id: columnId, operator } = (field.value ?? {}) as {
+  const { column_id: columnId, operator } = useWatch({
+    name: path,
+  }) as {
     column_id: ColumnId;
     operator: string;
   };

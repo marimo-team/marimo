@@ -49,6 +49,7 @@ jobs:
         run: |
           BREAKING_CHANGES=$(oasdiff breaking main/${{ env.SCHEMA_PATH }} current/${{ env.SCHEMA_PATH }})
           if [ -n "$BREAKING_CHANGES" ]; then
+            echo "breaking_changes=$BREAKING_CHANGES" >> $GITHUB_OUTPUT
             echo "Breaking changes detected:"
             echo "$BREAKING_CHANGES"
             exit 1
@@ -63,7 +64,7 @@ jobs:
           script: |
             const output = `Breaking changes detected in the OpenAPI specification!
 
-            ${process.env.BREAKING_CHANGES}`
+            ${{ steps.compare.outputs.breaking_changes }}`
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,

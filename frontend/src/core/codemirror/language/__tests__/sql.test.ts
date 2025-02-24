@@ -434,7 +434,6 @@ _df = mo.sql(
 
   describe("latestEngineSelected", () => {
     afterEach(() => {
-      adapter.engine = DEFAULT_ENGINE;
       const state = store.get(dataSourceConnectionsAtom);
       const connections = new Map(state.connectionsMap);
       connections
@@ -443,12 +442,21 @@ _df = mo.sql(
           source: "postgres",
           display_name: "PostgreSQL",
           dialect: "postgres",
+          databases: [],
         })
         .set("mysql_engine" as ConnectionName, {
           name: "mysql_engine" as ConnectionName,
           source: "mysql",
           display_name: "MySQL",
           dialect: "mysql",
+          databases: [],
+        })
+        .set(DEFAULT_ENGINE, {
+          name: DEFAULT_ENGINE,
+          source: "duckdb",
+          display_name: "DuckDB",
+          dialect: "duckdb",
+          databases: [],
         });
       store.set(dataSourceConnectionsAtom, {
         ...state,
@@ -461,29 +469,27 @@ _df = mo.sql(
     });
 
     it("should persist the selected engine", () => {
-      const engine = "postgres_engine" as ConnectionName;
+      const engine = "mysql_engine" as ConnectionName;
       adapter.selectEngine(engine);
       expect(adapter.engine).toBe(engine);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
         engine,
       );
+
+      adapter.selectEngine("postgres_engine" as ConnectionName);
+      expect(adapter.engine).toBe("postgres_engine");
+      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
+        "postgres_engine",
+      );
     });
 
-    it("should allow switching between engines", () => {
-      const engine1 = "postgres_engine" as ConnectionName;
-      const engine2 = "mysql_engine" as ConnectionName;
-
-      adapter.selectEngine(engine1);
-      expect(adapter.engine).toBe(engine1);
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        engine1,
-      );
-
-      adapter.selectEngine(engine2);
-      expect(adapter.engine).toBe(engine2);
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        engine2,
-      );
+    it("should not change when engine is not in connectionsMap", () => {
+      const engine = "unknown_engine" as ConnectionName;
+      adapter.selectEngine(engine);
+      expect(adapter.engine).toBe(engine);
+      expect(
+        store.get(dataSourceConnectionsAtom).latestEngineSelected,
+      ).not.toBe("unknown_engine");
     });
 
     it("should update engine in transformIn when specified", () => {

@@ -45,6 +45,7 @@ export const UserConfigSchema = z
           }),
         codeium_api_key: z.string().nullish(),
       })
+      .passthrough()
       .default({}),
     save: z
       .object({
@@ -57,6 +58,7 @@ export const UserConfigSchema = z
           .default(1000),
         format_on_save: z.boolean().default(false),
       })
+      .passthrough()
       .default({}),
     formatting: z
       .object({
@@ -66,12 +68,14 @@ export const UserConfigSchema = z
           .default(79)
           .transform((n) => Math.min(n, 1000)),
       })
+      .passthrough()
       .default({}),
     keymap: z
       .object({
         preset: z.enum(["default", "vim"]).default("default"),
         overrides: z.record(z.string()).default({}),
       })
+      .passthrough()
       .default({}),
     runtime: z
       .object({
@@ -80,6 +84,7 @@ export const UserConfigSchema = z
         auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
         watcher_on_save: z.enum(["lazy", "autorun"]).default("lazy"),
       })
+      .passthrough()
       .default({}),
     display: z
       .object({
@@ -97,11 +102,13 @@ export const UserConfigSchema = z
             return width;
           }),
       })
+      .passthrough()
       .default({}),
     package_management: z
       .object({
         manager: z.enum(PackageManagerNames).default("pip"),
       })
+      .passthrough()
       .default({ manager: "pip" }),
     ai: z
       .object({
@@ -124,6 +131,7 @@ export const UserConfigSchema = z
           })
           .optional(),
       })
+      .passthrough()
       .default({}),
     experimental: z
       .object({

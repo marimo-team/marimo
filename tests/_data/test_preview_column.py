@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Generator
 
 import pytest
 
@@ -19,6 +20,21 @@ HAS_DF_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 HAS_SQL_DEPS = DependencyManager.duckdb.has()
 
 snapshot = snapshotter(__file__)
+
+
+# Run cleanup after all tests are done
+@pytest.fixture(scope="module", autouse=True)
+def cleanup() -> Generator[None, None, None]:
+    import duckdb
+
+    yield
+    duckdb.execute("""
+        DROP TABLE IF EXISTS tbl;
+        DROP TABLE IF EXISTS date_tbl;
+        DROP TABLE IF EXISTS datetime_tbl;
+        DROP TABLE IF EXISTS time_tbl;
+        DROP TABLE IF EXISTS bool_tbl;
+    """)
 
 
 @pytest.mark.skipif(
@@ -104,7 +120,7 @@ def test_get_column_preview_for_duckdb() -> None:
 
     # Test preview for the 'outcome' column (alternating 0 and 1)
     result = get_column_preview_for_sql(
-        table_name="memory.main.tbl",
+        table_name="tbl",
         column_name="outcome",
     )
     assert result is not None
@@ -118,7 +134,7 @@ def test_get_column_preview_for_duckdb() -> None:
 
     # Test preview for the 'id' column (for comparison)
     result_id = get_column_preview_for_sql(
-        table_name="memory.main.tbl",
+        table_name="tbl",
         column_name="id",
     )
     assert result_id is not None
@@ -154,7 +170,7 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     """)
 
     result_categorical = get_column_preview_for_sql(
-        table_name="memory.main.tbl",
+        table_name="tbl",
         column_name="category",
     )
     assert result_categorical is not None
@@ -191,7 +207,7 @@ def test_get_column_preview_for_duckdb_date() -> None:
     """)
 
     result_date = get_column_preview_for_sql(
-        table_name="memory.main.date_tbl",
+        table_name="date_tbl",
         column_name="date_col",
     )
     assert result_date is not None
@@ -233,7 +249,7 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     """)
 
     result_datetime = get_column_preview_for_sql(
-        table_name="memory.main.datetime_tbl",
+        table_name="datetime_tbl",
         column_name="datetime_col",
     )
     assert result_datetime is not None
@@ -274,7 +290,7 @@ def test_get_column_preview_for_duckdb_time() -> None:
     """)
 
     result_time = get_column_preview_for_sql(
-        table_name="memory.main.time_tbl",
+        table_name="time_tbl",
         column_name="time_col",
     )
     assert result_time is not None
@@ -311,7 +327,7 @@ def test_get_column_preview_for_duckdb_bool() -> None:
     """)
 
     result_bool = get_column_preview_for_sql(
-        table_name="memory.main.bool_tbl",
+        table_name="bool_tbl",
         column_name="bool_col",
     )
     assert result_bool is not None
