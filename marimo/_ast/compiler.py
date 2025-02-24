@@ -70,6 +70,20 @@ def ends_with_semicolon(code: str) -> bool:
     return False
 
 
+def contains_only_tests(tree: ast.Module) -> bool:
+    """Returns True if the module contains only test functions."""
+    scope = tree.body[0]
+    assert isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
+    for node in scope.body:
+        if not isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            return False
+        if not node.name.lower().startswith("test"):
+            return False
+    return True
+
+
 def cache(filename: str, code: str) -> None:
     # Generate a cache entry in Python's linecache
     linecache.cache[filename] = (
@@ -317,6 +331,7 @@ def toplevel_cell_factory(
             source_position=source_position,
             test_rewrite=test_rewrite,
         ),
+        _test=f.__name__.startswith("test_"),
     )
 
 
@@ -449,4 +464,5 @@ def cell_factory(
             source_position=source_position,
             test_rewrite=test_rewrite,
         ),
+        _test=f.__name__.startswith("test_") or contains_only_tests(tree),
     )
