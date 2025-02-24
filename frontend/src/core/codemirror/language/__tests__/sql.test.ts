@@ -676,9 +676,9 @@ describe("tablesCompletionSource", () => {
     };
 
     mockStore.set(dataSourceConnectionsAtom, {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       connectionsMap: new Map([
         ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ]) as any,
       latestEngineSelected: "test_engine" as ConnectionName,
     });
@@ -780,9 +780,9 @@ describe("tablesCompletionSource", () => {
     };
 
     mockStore.set(dataSourceConnectionsAtom, {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       connectionsMap: new Map([
         [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ]) as any,
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
@@ -847,9 +847,9 @@ describe("tablesCompletionSource", () => {
     };
 
     mockStore.set(dataSourceConnectionsAtom, {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       connectionsMap: new Map([
         [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ]) as any,
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
