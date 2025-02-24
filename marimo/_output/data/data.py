@@ -70,6 +70,18 @@ def csv(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     return any_data(data, ext="csv")  # type: ignore
 
 
+def arrow(data: bytes) -> VirtualFile:
+    """Create a virtual file for Arrow data.
+
+    Args:
+        data: Arrow data in bytes
+
+    Returns:
+        A `VirtualFile` object.
+    """
+    return any_data(data, ext="arrow")  # type: ignore
+
+
 def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     """Create a virtual file for JSON data.
 

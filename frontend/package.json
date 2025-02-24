@@ -81,6 +81,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "@uiw/codemirror-extensions-langs": "^4.23.8",
     "@uiw/react-codemirror": "^4.23.7",
+    "@uwdata/flechette": "^1.1.2",
     "@valtown/codemirror-codeium": "^1.1.1",
     "@xterm/addon-attach": "^0.11.0",
     "@xterm/addon-fit": "^0.10.0",
