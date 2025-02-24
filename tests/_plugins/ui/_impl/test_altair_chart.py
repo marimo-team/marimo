@@ -672,6 +672,31 @@ def test_parse_spec_narwhal() -> None:
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_polars() -> None:
+    import altair as alt
+    import polars as pl
+
+    data = pl.DataFrame({"values": [1, 2, 3]})
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_polars.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.duckdb.has(),
+    reason="optional dependencies not installed",
+)
+def test_parse_spec_duckdb() -> None:
+    import altair as alt
+    import duckdb
+
+    data = duckdb.from_df(pd.DataFrame({"values": [1, 2, 3]}))
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_duckdb.txt", json.dumps(spec, indent=2))
+
+
 @pytest.mark.skipif(
     not HAS_DEPS or not DependencyManager.geopandas.has(),
     reason="optional dependencies not installed",
