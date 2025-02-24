@@ -186,7 +186,7 @@ const elementContainsMarimoCellFile = (domNode: Element) => {
 export const replaceTracebackFilenames = (domNode: DOMNode) => {
   // The traceback can be manipulated either in output render or in the pygments
   // parser. pygments extracts tokens and maps them to tags, but has no
-  // inherient knowledge of the traceback structure, so the methodology would
+  // inherent knowledge of the traceback structure, so the methodology would
   // have to be similar. Moreover, the client side "cell-id" is particular to
   // frontend, so frontend handling would have to occur anyway.
   //
