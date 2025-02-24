@@ -31,6 +31,7 @@ import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { getAICompletionBody, mentions } from "./completion-utils";
+import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -230,11 +231,21 @@ export const PromptInput = ({
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
   const tables = useAtomValue(datasetTablesAtom);
+  const datasources = useAtomValue(dataSourceConnectionsAtom);
 
   const extensions = useMemo(() => {
-    const completions = tables.map(
+    const connections = [...datasources.connectionsMap.values()];
+    const allTables = [
+      ...tables,
+      ...connections.flatMap((c) =>
+        c.databases.flatMap((d) => d.schemas.flatMap((s) => s.tables)),
+      ),
+    ];
+
+    const completions = allTables.map(
       (table): Completion => ({
         label: `@${table.name}`,
+        detail: table.source,
         info: () => {
           const shape = [
             table.num_rows == null ? undefined : `${table.num_rows} rows`,
@@ -367,7 +378,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tables, additionalCompletions, handleSubmit, handleEscape]);
+  }, [tables, datasources, additionalCompletions, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror
