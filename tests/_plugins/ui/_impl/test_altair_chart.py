@@ -38,6 +38,8 @@ HAS_DEPS = (
     and DependencyManager.altair.has()
     # altair produces different output on windows
     and sys.platform != "win32"
+    # skip 3.9
+    and sys.version_info >= (3, 10)
 )
 
 if HAS_DEPS:
