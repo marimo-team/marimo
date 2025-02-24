@@ -28,6 +28,8 @@ from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
+    CellWithValue,
     ColumnName,
     FieldType,
     FieldTypes,
@@ -138,6 +140,19 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 for row in self._normalize_data(self.data)
             ]
         )
+
+    def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
+        if isinstance(self.data, dict):
+            return [
+                CellWithValue(
+                    rowId=cell.rowId,
+                    columnName=cell.columnName,
+                    value=self.data[cell.columnName],
+                )
+                for cell in cells
+                if cell.rowId == 0 and cell.columnName in self.data
+            ]
+        return []
 
     def drop_columns(self, columns: list[str]) -> DefaultTableManager:
         return self.select_columns(

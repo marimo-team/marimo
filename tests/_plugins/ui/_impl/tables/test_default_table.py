@@ -8,6 +8,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.table_manager import Cell, CellWithValue
 
 HAS_DEPS = DependencyManager.pandas.has()
 
@@ -605,6 +606,14 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_select_columns(self) -> None:
         selected_manager = self.manager.select_columns(["a"])
         assert selected_manager.data == {"a": 1}
+
+    def test_select_cells(self) -> None:
+        selected_cells = self.manager.select_cells(
+            [Cell(rowId=0, columnName="b")]
+        )
+        assert selected_cells == [
+            CellWithValue(rowId=0, columnName="b", value=2)
+        ]
 
     def test_drop_columns(self) -> None:
         dropped_manager = self.manager.drop_columns(["a"])
