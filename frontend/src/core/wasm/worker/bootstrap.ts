@@ -165,6 +165,7 @@ export class DefaultWasmController implements WasmController {
       // We need pandas and duckdb for mo.sql
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
+      code = `import sqlglot\n${code}`;
     }
 
     // Add:

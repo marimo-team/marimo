@@ -89,6 +89,7 @@ const requestHandler = createRPCRequestHandler({
       // Add pandas and duckdb to the code
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
+      code = `import sqlglot\n${code}`;
     }
 
     await self.pyodide.loadPackagesFromImports(code, {
