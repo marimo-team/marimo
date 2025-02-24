@@ -449,7 +449,7 @@ class table(
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         if self._selection in ["single-cell", "multi-cell"]:
             cells = [
-                Cell(rowId=-int(v["rowId"]), columnName=v["columnId"])
+                Cell(rowId=-int(v["rowId"]), columnName=v["columnName"])
                 for v in value
                 if "rowId" in v and "columnName" in v
             ]
@@ -457,7 +457,8 @@ class table(
 
             self._selected_manager = self._searched_manager.select_cells(cells)
             self._has_any_selection = len(cells) > 0
-            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+            return self._searched_manager.select_cells(cells)
+            # unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
             # if (
             #     len(value) == 1
             #     and "rowId" in value[0]

@@ -21,6 +21,12 @@ class Cell(NamedTuple):
     columnName: str
 
 
+class CellWithValue(NamedTuple):
+    rowId: int
+    columnName: str
+    value: Any
+
+
 class TableManager(abc.ABC, Generic[T]):
     # Upper limit for column summaries
     # The only sets the default to show column summaries,
@@ -95,7 +101,7 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def select_cells(self, cells: list[Cell]) -> TableManager[Any]:
+    def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
         pass
 
     @abc.abstractmethod
