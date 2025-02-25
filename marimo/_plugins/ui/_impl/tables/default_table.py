@@ -142,15 +142,41 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
-        if isinstance(self.data, dict):
+        if (
+            self.is_column_oriented
+            and isinstance(self.data, dict)
+            and all(isinstance(v, list) for v in self.data.values())
+        ):
             return [
                 CellWithValue(
                     rowId=cell.rowId,
                     columnName=cell.columnName,
-                    value=self.data[cell.columnName],
+                    value=self.data[cell.columnName][cell.rowId],
                 )
                 for cell in cells
-                if cell.rowId == 0 and cell.columnName in self.data
+            ]
+        if isinstance(self.data, dict):
+            rows = list(self.data.items())
+            return [
+                CellWithValue(
+                    rowId=cell.rowId,
+                    columnName=cell.columnName,
+                    value=rows[cell.rowId][0]
+                    if cell.columnName == "key"
+                    else rows[cell.rowId][1],
+                )
+                for cell in cells
+            ]
+        elif isinstance(self.data, list):
+            rows = self.data
+            return [
+                CellWithValue(
+                    rowId=cell.rowId,
+                    columnName=cell.columnName,
+                    value=rows[cell.rowId][cell.columnName],
+                )
+                for cell in cells
+                if isinstance(rows[cell.rowId], dict)
             ]
         return []
 

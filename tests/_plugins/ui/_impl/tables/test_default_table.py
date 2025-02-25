@@ -49,6 +49,22 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert selected_manager.data == expected_data
 
+    def test_select_cells(self) -> None:
+        cells = [
+            Cell(rowId=0, columnName="name"),
+            Cell(rowId=1, columnName="age"),
+            Cell(rowId=2, columnName="birth_year"),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            CellWithValue(rowId=0, columnName="name", value="Alice"),
+            CellWithValue(rowId=1, columnName="age", value=25),
+            CellWithValue(
+                rowId=2, columnName="birth_year", value=date(1989, 12, 1)
+            ),
+        ]
+        assert selected_cells == expected_cells
+
     def test_drop_columns(self) -> None:
         columns = ["name"]
         dropped_manager = self.manager.drop_columns(columns)
@@ -335,6 +351,22 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert selected_manager.data == expected_data
 
+    def test_select_cells(self) -> None:
+        cells = [
+            Cell(rowId=0, columnName="name"),
+            Cell(rowId=1, columnName="age"),
+            Cell(rowId=2, columnName="birth_year"),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            CellWithValue(rowId=0, columnName="name", value="Alice"),
+            CellWithValue(rowId=1, columnName="age", value=25),
+            CellWithValue(
+                rowId=2, columnName="birth_year", value=date(1989, 12, 1)
+            ),
+        ]
+        assert selected_cells == expected_cells
+
     def test_drop_columns(self) -> None:
         columns = ["name", "birth_year"]
         dropped_manager = self.manager.drop_columns(columns)
@@ -609,10 +641,14 @@ class TestDictionaryDefaultTable(unittest.TestCase):
 
     def test_select_cells(self) -> None:
         selected_cells = self.manager.select_cells(
-            [Cell(rowId=0, columnName="b")]
+            [
+                Cell(rowId=0, columnName="key"),
+                Cell(rowId=1, columnName="value"),
+            ]
         )
         assert selected_cells == [
-            CellWithValue(rowId=0, columnName="b", value=2)
+            CellWithValue(rowId=0, columnName="key", value="a"),
+            CellWithValue(rowId=1, columnName="value", value=2),
         ]
 
     def test_drop_columns(self) -> None:
