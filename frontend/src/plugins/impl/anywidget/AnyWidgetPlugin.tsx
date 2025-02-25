@@ -65,8 +65,6 @@ const AnyWidgetSlot = (props: Props) => {
     // Re-render on jsHash change instead of url change (since URLs may change)
   }, [jsHash]);
 
-  console.warn("[debug] module value", props.value);
-
   const valueWithBuffer = useMemo(() => {
     return updateBufferPaths(props.value, bufferPaths);
   }, [props.value, bufferPaths]);

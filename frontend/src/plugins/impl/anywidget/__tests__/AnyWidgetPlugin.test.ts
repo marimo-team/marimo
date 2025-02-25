@@ -157,6 +157,13 @@ describe("Model", () => {
       modelWithObject.updateAndEmitDiffs({ foo: { nested: "changed" } });
       expect(callback).toHaveBeenCalled();
     });
+
+    it("should emit change event for any changes", () => {
+      const callback = vi.fn();
+      model.on("change", callback);
+      model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("receiveCustomMessage", () => {
