@@ -5,6 +5,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any
 
+from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_read_session, with_session
@@ -12,7 +13,7 @@ from tests._server.mocks import token_header, with_read_session, with_session
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
-SESSION_ID = "session-123"
+SESSION_ID = SessionId("session-123")
 HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
@@ -353,10 +354,22 @@ class TestExecutionRoutes_RunMode:
         assert app_meta_response["user"] is True
 
 
-def get_printed_object(client: TestClient, cell_id: str) -> dict[str, Any]:
+def get_printed_object(
+    client: TestClient, cell_id: CellId_t
+) -> dict[str, Any]:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
-    console = first(session.session_view.cell_operations[cell_id].console)
+
+    timeout = 2
+    start = time.time()
+    console = None
+    while time.time() - start < timeout:
+        if cell_id not in session.session_view.cell_operations:
+            time.sleep(0.1)
+            continue
+        console = first(session.session_view.cell_operations[cell_id].console)
+        if console:
+            break
     assert console
     assert isinstance(console.data, str)
     return json.loads(console.data)
