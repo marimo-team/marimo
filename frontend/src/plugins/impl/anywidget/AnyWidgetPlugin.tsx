@@ -65,6 +65,8 @@ const AnyWidgetSlot = (props: Props) => {
     // Re-render on jsHash change instead of url change (since URLs may change)
   }, [jsHash]);
 
+  console.warn("[debug] module value", props.value);
+
   const valueWithBuffer = useMemo(() => {
     return updateBufferPaths(props.value, bufferPaths);
   }, [props.value, bufferPaths]);
@@ -204,6 +206,8 @@ const LoadedSlot = ({
 };
 
 export class Model<T extends Record<string, any>> implements AnyModel<T> {
+  private ANY_CHANGE_EVENT = "change";
+
   constructor(
     private data: T,
     private onChange: (value: Partial<T>) => void,
@@ -261,6 +265,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     this.data = { ...this.data, [key]: value };
     this.dirtyFields.add(key);
     this.emit(`change:${key as K & string}`, value);
+    this.emitAnyChange();
   }
 
   save_changes(): void {
@@ -320,6 +325,10 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
       return;
     }
     this.listeners[event].forEach((cb) => cb(value));
+  }
+
+  private emitAnyChange() {
+    this.listeners[this.ANY_CHANGE_EVENT]?.forEach((cb) => cb());
   }
 }
 
