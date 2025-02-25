@@ -44,8 +44,8 @@ export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) {
     return false;
   }
-  for (const [i, element] of a.entries()) {
-    if (element !== b[i]) {
+  for (let i = 0, l = a.length; i < l; i++) {
+    if (a[i] !== b[i]) {
       return false;
     }
   }
