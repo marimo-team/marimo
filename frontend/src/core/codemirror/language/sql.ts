@@ -168,6 +168,10 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 }
 
+type Tables = Record<string, string[]>;
+type Schemas = Record<string, Tables>;
+type Databases = Record<string, Schemas>;
+
 export class SQLCompletionStore {
   private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
 
@@ -180,28 +184,33 @@ export class SQLCompletionStore {
 
     let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
     if (!cacheConfig) {
-      // Verbose version with database.schema.table
-      const schema: Record<
-        string,
-        Record<string, Record<string, string[]>>
-      > = {};
-      const tables: Record<string, string[]> = {};
+      const databases: Databases = {};
+      const schemas: Schemas = {};
+      const tables: Tables = {};
+
       for (const database of connection.databases) {
-        schema[database.name] = {};
+        databases[database.name] = {};
         for (const dbSchema of database.schemas) {
-          schema[database.name][dbSchema.name] = {};
+          databases[database.name][dbSchema.name] = {};
+          schemas[dbSchema.name] = {};
           for (const table of dbSchema.tables) {
             const columns = table.columns.map((col) => col.name);
-            schema[database.name][dbSchema.name][table.name] = columns;
-            // Also add the table name at the top level
+            databases[database.name][dbSchema.name][table.name] = columns;
+
+            // Add the table & schema name at the top level
+            schemas[dbSchema.name][table.name] = columns;
             tables[table.name] = columns;
           }
         }
       }
 
+      // If there is only one database, we can provide 'schema.table' completion
+      // Else we provide 'database.schema.table'
+      let selectedMapping = {};
+      selectedMapping = connection.databases.length === 1 ? schemas : databases;
+
       const combinedSchema: SQLNamespace = {
-        // Hierarchical schema: database.schema.table
-        ...schema,
+        ...selectedMapping,
         // Tables at the top level
         // TODO: For better correctness, we can filter to only include the default schema
         ...tables,

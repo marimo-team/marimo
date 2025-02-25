@@ -602,7 +602,7 @@ describe("tablesCompletionSource", () => {
     expect(completionSource).toBe(null);
   });
 
-  it("should create schema with database.schema.table structure and short table names", () => {
+  it("should create schema with schema.table structure and short table names for single db", () => {
     const mockConnection: DataSourceConnection = {
       name: "test_engine",
       dialect: "duckdb",
@@ -696,19 +696,17 @@ describe("tablesCompletionSource", () => {
           "user_id",
           "total",
         ],
-        "test_db": {
-          "public": {
-            "orders": [
-              "order_id",
-              "user_id",
-              "total",
-            ],
-            "users": [
-              "id",
-              "name",
-              "email",
-            ],
-          },
+        "public": {
+          "orders": [
+            "order_id",
+            "user_id",
+            "total",
+          ],
+          "users": [
+            "id",
+            "name",
+            "email",
+          ],
         },
         "users": [
           "id",
@@ -791,6 +789,7 @@ describe("tablesCompletionSource", () => {
     const completionSource = completionStore.getCompletionSource(
       "multi_db_engine" as ConnectionName,
     );
+    // expect fully qualified 'database.schema.table' names
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
         "db1": {
