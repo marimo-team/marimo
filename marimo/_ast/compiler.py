@@ -147,6 +147,8 @@ def compile_cell(
         code,
         "<unknown>",
         mode="exec",
+        # don't inherit compiler flags, in particular future annotations
+        dont_inherit=True,
         flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
     )
     if not module.body:
@@ -221,8 +223,12 @@ def compile_cell(
             )
 
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(module, filename, mode="exec", flags=flags)
-    last_expr = compile(expr, filename, mode="eval", flags=flags)
+    body = compile(
+        module, filename, mode="exec", dont_inherit=True, flags=flags
+    )
+    last_expr = compile(
+        expr, filename, mode="eval", dont_inherit=True, flags=flags
+    )
 
     nonlocals = {name for name in v.defs if not is_local(name)}
     temporaries = v.defs - nonlocals

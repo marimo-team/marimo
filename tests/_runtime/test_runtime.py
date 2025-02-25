@@ -2810,6 +2810,25 @@ def test_notebook_dir_in_non_notebook_mode() -> None:
     assert notebook_location() == pathlib.Path().absolute()
 
 
+async def test_future_annotations_not_inherited(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+        class A: pass
+        def foo() -> A:
+            ...
+        anno = foo.__annotations__
+        """
+            )
+        ]
+    )
+    assert not k.errors
+    assert k.globals["A"] == k.globals["anno"]["return"]
+
+
 def _parse_error_output(cell_op: CellOp) -> list[Error]:
     error_output = cell_op.output
     assert error_output is not None
