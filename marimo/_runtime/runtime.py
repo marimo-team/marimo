@@ -17,7 +17,6 @@ import traceback
 from copy import copy, deepcopy
 from multiprocessing import connection
 from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
-from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
@@ -135,6 +134,7 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._save.hash import hash_cell_execution, hash_function
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._sql.engines import SQLAlchemyEngine
@@ -688,8 +688,11 @@ class Kernel:
         ctx.execution_context = (
             exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
+        # TODO
         with (
-            get_context().provide_ui_ids(str(cell_id)),
+            get_context().provide_ui_ids(
+                hash_cell_execution(cell_id, self.graph).hex()
+            ),
             redirect_streams(
                 cell_id,
                 stream=self.stream,
@@ -1854,7 +1857,7 @@ class Kernel:
             LOGGER.debug("Executing RPC %s", request)
             with (
                 self._install_execution_context(cell_id=function.cell_id),
-                ctx.provide_ui_ids(str(uuid4())),
+                ctx.provide_ui_ids(hash_function(function).hex()),
             ):
                 # Usually UI element IDs are deterministic, based on
                 # cell id, so that element values can be matched up
