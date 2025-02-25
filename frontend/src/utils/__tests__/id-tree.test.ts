@@ -338,6 +338,10 @@ describe("CollapsibleTree", () => {
     `);
 
     const collapsed = tree.collapse("two", undefined);
+
+    // Not mutable
+    expect(tree.inOrderIds).toEqual(tree.inOrderIds);
+
     expect(collapsed.inOrderIds).toMatchInlineSnapshot(`
       [
         "one",
@@ -982,6 +986,7 @@ describe("MultiColumn", () => {
     const columns2 = transformed.getColumns();
     const allEqual = columns1.every((c, i) => c.equals(columns2[i]));
     expect(allEqual).toBe(true);
+    expect(transformed).toBe(multiColumn);
   });
 
   it("handles moving across columns with undefined toId", () => {
