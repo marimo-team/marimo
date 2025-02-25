@@ -84,6 +84,8 @@ class DirectedGraph:
         """Get all cells that have a ref to `name`.
 
         The variable can be either a Python variable or a SQL variable (table).
+        SQL variables don't leak to Python cells, but Python variables do leak
+        to SQL.
         """
         children = set()
         for cid, cell in self.cells.items():
@@ -93,6 +95,7 @@ class DirectedGraph:
                 # SQL variables don't leak to Python cells, but
                 # Python variables do leak to SQL cells
                 continue
+
             children.add(cid)
 
         return children

@@ -319,6 +319,56 @@ def test_topological_sort_with_cycle() -> None:
     assert sorted_cells == []
 
 
+def test_topological_sort_complex() -> None:
+    """Test the topological sort."""
+    graph = dataflow.DirectedGraph()
+
+    # Create a complex dependency graph
+    # 0 -> 1 -> 3
+    # 0 -> 2 -> 3
+    # 4 (standalone)
+    code = "a = 1"
+    cell0 = parse_cell(code)
+    graph.register_cell("0", cell0)
+
+    code = "b = a + 1"
+    cell1 = parse_cell(code)
+    graph.register_cell("1", cell1)
+
+    code = "c = a * 2"
+    cell2 = parse_cell(code)
+    graph.register_cell("2", cell2)
+
+    code = "d = b + c"
+    cell3 = parse_cell(code)
+    graph.register_cell("3", cell3)
+
+    code = "e = 5"
+    cell4 = parse_cell(code)
+    graph.register_cell("4", cell4)
+
+    # Check the sort order
+    sorted_cells = dataflow.topological_sort(graph, ["0", "1", "2", "3", "4"])
+
+    # The order should respect dependencies
+    # 0 must come before 1 and 2
+    # 1 and 2 must come before 3
+    # 4 can be anywhere
+
+    # Get the indices of each cell in the sorted list
+    indices = {cell: i for i, cell in enumerate(sorted_cells)}
+
+    # Check the relative ordering
+    assert indices["0"] < indices["1"]
+    assert indices["0"] < indices["2"]
+    assert indices["1"] < indices["3"]
+    assert indices["2"] < indices["3"]
+
+    # Check with a subset of cells
+    sorted_cells = dataflow.topological_sort(graph, ["1", "3"])
+    assert sorted_cells == ["1", "3"]
+
+
 @pytest.mark.skipif(not HAS_DUCKDB, reason="duckdb is required")
 class TestSQL:
     @pytest.mark.parametrize(
@@ -461,6 +511,65 @@ class TestSQL:
 
         assert graph.get_referring_cells("df", language="python") == set(["1"])
 
+    def test_get_referring_cells_sql_and_python(self) -> None:
+        """Test the get_referring_cells method."""
+        graph = dataflow.DirectedGraph()
+
+        # First cell defines x
+        code = "x = 0"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        # No cells refer to x yet
+        assert graph.get_referring_cells("x", language="python") == set()
+
+        # Second cell refers to x in Python
+        code = "y = x"
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        # Second cell should be in the referring cells for x
+        assert graph.get_referring_cells("x", language="python") == set(["1"])
+
+        # Third cell refers to x in SQL
+        code = "mo.sql('SELECT * FROM x')"
+        third_cell = parse_cell(code)
+        graph.register_cell("2", third_cell)
+
+        # Both cells should be in the referring cells for x
+        assert graph.get_referring_cells("x", language="python") == set(
+            ["1", "2"]
+        )
+        assert graph.get_referring_cells("x", language="sql") == set(["2"])
+
+        # Test language filter (Python vars can leak to SQL, but not vice versa)
+        code = "mo.sql('CREATE TABLE t1 (i INTEGER)')"
+        fourth_cell = parse_cell(code)
+        graph.register_cell("3", fourth_cell)
+
+        code = "df = mo.sql('SELECT * FROM t1')"
+        fifth_cell = parse_cell(code)
+        graph.register_cell("4", fifth_cell)
+
+        code = "t1"
+        sixth_cell = parse_cell(code)
+        graph.register_cell("5", sixth_cell)
+
+        # cell "5"'s t1 cannot possibly be a SQL variable
+        assert graph.get_referring_cells("t1", language="sql") == set(["4"])
+        # t1 could potentially be a Python variable, so it is included in the
+        # reference set; even if t1 were not defined anywhere, it would still
+        # return "5"
+        assert graph.get_referring_cells("t1", language="python") == set(
+            ["4", "5"]
+        )
+
+        # Test nonexistent variable
+        assert (
+            graph.get_referring_cells("nonexistent", language="python")
+            == set()
+        )
+
     def test_attached_db(self):
         graph = dataflow.DirectedGraph()
         code = "mo.sql(\"ATTACH 'my_db.db'\")"
@@ -486,57 +595,6 @@ class TestSQL:
         # cell 2 shouldn't count as a referring cell because it isn't a SQL
         # cell
         assert graph.get_referring_cells("my_db", language="sql") == set(["1"])
-
-
-@pytest.mark.xfail(reason="python should not depend on SQL defs")
-def test_get_referring_cells() -> None:
-    """Test the optimized get_referring_cells method."""
-    graph = dataflow.DirectedGraph()
-
-    # First cell defines x
-    code = "x = 0"
-    first_cell = parse_cell(code)
-    graph.register_cell("0", first_cell)
-
-    # No cells refer to x yet
-    assert graph.get_referring_cells("x", language="python") == set()
-
-    # Second cell refers to x in Python
-    code = "y = x"
-    second_cell = parse_cell(code)
-    graph.register_cell("1", second_cell)
-
-    # Second cell should be in the referring cells for x
-    assert graph.get_referring_cells("x", language="python") == set(["1"])
-
-    # Third cell refers to x in SQL
-    code = "mo.sql('SELECT * FROM x')"
-    third_cell = parse_cell(code)
-    graph.register_cell("2", third_cell)
-
-    # Both cells should be in the referring cells for x
-    assert graph.get_referring_cells("x", language="python") == set(["1", "2"])
-    assert graph.get_referring_cells("x", language="sql") == set(["2"])
-
-    # Test language filter (Python vars can leak to SQL, but not vice versa)
-    code = "mo.sql('CREATE TABLE t1 (i INTEGER)')"
-    fourth_cell = parse_cell(code)
-    graph.register_cell("3", fourth_cell)
-
-    code = "mo.sql('SELECT * FROM t1')"
-    fifth_cell = parse_cell(code)
-    graph.register_cell("4", fifth_cell)
-
-    code = "t1"
-    sixth_cell = parse_cell(code)
-    graph.register_cell("5", sixth_cell)
-
-    # t1 should be referred to by fifth_cell but not sixth_cell
-    assert graph.get_referring_cells("t1", language="sql") == set(["4"])
-    assert graph.get_referring_cells("t1", language="python") == set()
-
-    # Test nonexistent variable
-    assert graph.get_referring_cells("nonexistent", language="python") == set()
 
 
 def test_disable_enable_cell() -> None:
@@ -693,22 +751,21 @@ def test_is_disabled() -> None:
     assert not graph.is_disabled("2")
 
 
-@pytest.mark.xfail(reason="TODO: fix this")
 def test_runner_sync() -> None:
     """Test the Runner class for synchronous execution."""
     graph = dataflow.DirectedGraph()
 
     # Create a chain of cells: 0 -> 1 -> 2
     code = "x = 10"
-    first_cell = parse_cell(code)
+    first_cell = compiler.compile_cell(code, cell_id="0")
     graph.register_cell("0", first_cell)
 
     code = "y = x * 2"
-    second_cell = parse_cell(code)
+    second_cell = compiler.compile_cell(code, cell_id="1")
     graph.register_cell("1", second_cell)
 
     code = "z = y + 5; z"
-    third_cell = parse_cell(code)
+    third_cell = compiler.compile_cell(code, cell_id="2")
     graph.register_cell("2", third_cell)
 
     # Create a runner
@@ -736,22 +793,21 @@ def test_runner_sync() -> None:
         pass  # Expected
 
 
-@pytest.mark.xfail(reason="TODO: fix this")
 def test_runner_ancestors() -> None:
     """Test that the Runner correctly identifies ancestors based on refs."""
     graph = dataflow.DirectedGraph()
 
     # Create cells with different refs/defs patterns
     code = "x = 10"
-    first_cell = parse_cell(code)
+    first_cell = compiler.compile_cell(code, cell_id="0")
     graph.register_cell("0", first_cell)
 
     code = "y = 20"
-    second_cell = parse_cell(code)
+    second_cell = compiler.compile_cell(code, cell_id="1")
     graph.register_cell("1", second_cell)
 
     code = "z = x + y"
-    third_cell = parse_cell(code)
+    third_cell = compiler.compile_cell(code, cell_id="2")
     graph.register_cell("2", third_cell)
 
     # Create a runner
@@ -768,56 +824,6 @@ def test_runner_ancestors() -> None:
     # When substituting both x and y, there should be no ancestors
     ancestors = runner._get_ancestors(graph.cells["2"], {"x": 40, "y": 30})
     assert ancestors == set()
-
-
-def test_topological_sort_optimization() -> None:
-    """Test the optimized topological sort with in-degree calculation."""
-    graph = dataflow.DirectedGraph()
-
-    # Create a complex dependency graph
-    # 0 -> 1 -> 3
-    # 0 -> 2 -> 3
-    # 4 (standalone)
-    code = "a = 1"
-    cell0 = parse_cell(code)
-    graph.register_cell("0", cell0)
-
-    code = "b = a + 1"
-    cell1 = parse_cell(code)
-    graph.register_cell("1", cell1)
-
-    code = "c = a * 2"
-    cell2 = parse_cell(code)
-    graph.register_cell("2", cell2)
-
-    code = "d = b + c"
-    cell3 = parse_cell(code)
-    graph.register_cell("3", cell3)
-
-    code = "e = 5"
-    cell4 = parse_cell(code)
-    graph.register_cell("4", cell4)
-
-    # Check the sort order
-    sorted_cells = dataflow.topological_sort(graph, ["0", "1", "2", "3", "4"])
-
-    # The order should respect dependencies
-    # 0 must come before 1 and 2
-    # 1 and 2 must come before 3
-    # 4 can be anywhere
-
-    # Get the indices of each cell in the sorted list
-    indices = {cell: i for i, cell in enumerate(sorted_cells)}
-
-    # Check the relative ordering
-    assert indices["0"] < indices["1"]
-    assert indices["0"] < indices["2"]
-    assert indices["1"] < indices["3"]
-    assert indices["2"] < indices["3"]
-
-    # Check with a subset of cells
-    sorted_cells = dataflow.topological_sort(graph, ["1", "3"])
-    assert sorted_cells == ["1", "3"]
 
 
 def test_cycles() -> None:
@@ -972,92 +978,6 @@ def test_import_block_relatives() -> None:
     assert children == graph.children["3"]
 
 
-# def test_graph_lock() -> None:
-#     """Test the locking behavior of the graph during modifications."""
-#     graph = dataflow.DirectedGraph()
-
-#     # Add some initial cells
-#     code = "x = 0"
-#     first_cell = parse_cell(code)
-#     graph.register_cell("0", first_cell)
-
-#     code = "y = x"
-#     second_cell = parse_cell(code)
-#     graph.register_cell("1", second_cell)
-
-#     # Setup to test concurrent access
-#     results = {"thread1": None, "thread2": None, "thread3": None}
-#     lock_acquired = threading.Event()
-#     proceed_signal = threading.Event()
-
-#     def thread1_long_operation():
-#         with graph.lock:
-#             # Signal that we've acquired the lock
-#             lock_acquired.set()
-
-#             # Wait for the signal to proceed
-#             proceed_signal.wait(1.0)
-
-#             # Simulate a long operation
-#             time.sleep(0.1)
-#             graph.register_cell("2", parse_cell("z = y"))
-#             results["thread1"] = True
-
-#     def thread2_try_modify():
-#         # Wait until thread1 has the lock
-#         lock_acquired.wait(1.0)
-
-#         # Try to get the lock (should block)
-#         start_time = time.time()
-#         graph.register_cell("3", parse_cell("w = z"))
-#         end_time = time.time()
-
-#         # This thread should have been blocked waiting for the lock
-#         results["thread2"] = end_time - start_time
-
-#     def thread3_read_only():
-#         # Wait until thread1 has the lock
-#         lock_acquired.wait(1.0)
-
-#         # Read operations don't need the lock
-#         results["thread3"] = "1" in graph.cells
-
-#     # Start the threads
-#     t1 = threading.Thread(target=thread1_long_operation)
-#     t2 = threading.Thread(target=thread2_try_modify)
-#     t3 = threading.Thread(target=thread3_read_only)
-
-#     t1.start()
-#     t2.start()
-#     t3.start()
-
-#     # Let thread1 proceed after other threads have started
-#     time.sleep(0.1)
-#     proceed_signal.set()
-
-#     # Wait for all threads to complete
-#     t1.join()
-#     t2.join()
-#     t3.join()
-
-#     # Thread1 should have completed its operation
-#     assert results["thread1"] is True
-
-#     # Thread2 should have been blocked for some time
-#     assert isinstance(results["thread2"], float)
-#     assert results["thread2"] > 0.05  # Should have been blocked at least 50ms
-
-#     # Thread3 should have been able to read while lock was held
-#     assert results["thread3"] is True
-
-#     # Final graph state should include all cells
-#     assert "0" in graph.cells
-#     assert "1" in graph.cells
-#     assert "2" in graph.cells
-#     assert "3" in graph.cells
-
-
-@pytest.mark.xfail(reason="TODO: fix test (or impl)")
 def test_get_transitive_references() -> None:
     """Test the get_transitive_references method."""
     graph = dataflow.DirectedGraph()
@@ -1070,7 +990,7 @@ def func1():
 def func2():
     return func1() + 2
 """
-    first_cell = parse_cell(code)
+    first_cell = compiler.compile_cell(code, cell_id="0")
     graph.register_cell("0", first_cell)
 
     code = """
@@ -1079,7 +999,7 @@ def func3():
 
 result = func3()
 """
-    second_cell = parse_cell(code)
+    second_cell = compiler.compile_cell(code, cell_id="1")
     graph.register_cell("1", second_cell)
 
     # Get transitive references from result
@@ -1107,11 +1027,11 @@ result = func3()
         return data.kind == "function"
 
     refs = graph.get_transitive_references(
-        set(["result", "func3"]), predicate=is_function
+        set(["result", "func3"]), predicate=is_function, inclusive=False
     )
 
     # Should include only functions
-    assert refs == set(["func3", "func2", "func1"])
+    assert refs == set(["func2", "func1"])
 
     # result is not a function, so it should be excluded even with inclusive=True
     assert "result" not in refs
