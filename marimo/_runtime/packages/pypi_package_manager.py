@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from typing import List, Optional
+from typing import Optional
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
@@ -24,8 +24,8 @@ class PypiPackageManager(CanonicalizingPackageManager):
         return module_name_to_pypi_name()
 
     def _list_packages_from_cmd(
-        self, cmd: List[str]
-    ) -> List[PackageDescription]:
+        self, cmd: list[str]
+    ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
         proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -62,7 +62,7 @@ class PipPackageManager(PypiPackageManager):
             ]
         )
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["pip", "--python", PY_EXE, "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
@@ -97,7 +97,7 @@ class MicropipPackageManager(PypiPackageManager):
         except ValueError:
             return False
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -125,10 +125,10 @@ class UvPackageManager(PypiPackageManager):
         self,
         filepath: str,
         *,
-        packages_to_add: Optional[List[str]] = None,
-        packages_to_remove: Optional[List[str]] = None,
-        import_namespaces_to_add: Optional[List[str]] = None,
-        import_namespaces_to_remove: Optional[List[str]] = None,
+        packages_to_add: Optional[list[str]] = None,
+        packages_to_remove: Optional[list[str]] = None,
+        import_namespaces_to_add: Optional[list[str]] = None,
+        import_namespaces_to_remove: Optional[list[str]] = None,
     ) -> None:
         """Update the notebook's script metadata with the packages to add/remove.
 
@@ -197,7 +197,7 @@ class UvPackageManager(PypiPackageManager):
             ["uv", "pip", "uninstall", *split_packages(package), "-p", PY_EXE]
         )
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["uv", "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
 
@@ -212,7 +212,7 @@ class RyePackageManager(PypiPackageManager):
     async def uninstall(self, package: str) -> bool:
         return self.run(["rye", "remove", *split_packages(package)])
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["rye", "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
@@ -232,8 +232,8 @@ class PoetryPackageManager(PypiPackageManager):
         )
 
     def _list_packages_from_cmd(
-        self, cmd: List[str]
-    ) -> List[PackageDescription]:
+        self, cmd: list[str]
+    ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
         proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -256,6 +256,6 @@ class PoetryPackageManager(PypiPackageManager):
             )
         return packages
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["poetry", "show", "--no-dev"]
         return self._list_packages_from_cmd(cmd)

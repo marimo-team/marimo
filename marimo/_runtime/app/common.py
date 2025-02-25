@@ -1,11 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from marimo._types.ids import CellId_t
 
-OutputsType = Dict[CellId_t, Any]
-DefsType = Dict[str, Any]
+OutputsType = dict[CellId_t, Any]
+DefsType = dict[str, Any]
 
-RunOutput = Tuple[OutputsType, DefsType]
+RunOutput = tuple[OutputsType, DefsType]

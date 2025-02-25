@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import pathlib
 from dataclasses import dataclass, field
-from typing import List
 
 from marimo import _loggers
 from marimo._server.models.home import MarimoFile
@@ -14,7 +13,7 @@ from marimo._utils.paths import pretty_path
 
 @dataclass
 class RecentFilesState:
-    files: List[str] = field(default_factory=list)
+    files: list[str] = field(default_factory=list)
 
 
 # TODO(akshayka): _IGNORED_FOLDERS doesn't cover Windows
@@ -81,14 +80,14 @@ class RecentFilesManager:
 
             self.config.write_toml(state)
 
-    def get_recents(self) -> List[MarimoFile]:
+    def get_recents(self) -> list[MarimoFile]:
         if not self.config:
             return []
 
         state = self.config.read_toml(
             RecentFilesState, fallback=RecentFilesState()
         )
-        files: List[MarimoFile] = []
+        files: list[MarimoFile] = []
 
         cwd = pathlib.Path.cwd()
         limited_files = state.files[: self.MAX_FILES]

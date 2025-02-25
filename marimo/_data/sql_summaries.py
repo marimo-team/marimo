@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnSummary, DataType
 from marimo._sql.utils import wrapped_sql
@@ -66,7 +64,7 @@ def get_sql_summary(
         FROM {table_name}
         """  # noqa: E501
 
-    stats_result: Tuple[int, ...] | None = wrapped_sql(
+    stats_result: tuple[int, ...] | None = wrapped_sql(
         stats_query, connection=None
     ).fetchone()
     if stats_result is None:
@@ -143,7 +141,7 @@ def get_column_type(table_name: str, column_name: str) -> DataType:
     AND column_name = '{column_name}'
     """
 
-    column_info_result: Tuple[str] | None = wrapped_sql(
+    column_info_result: tuple[str] | None = wrapped_sql(
         column_info_query, connection=None
     ).fetchone()
     if column_info_result is None:
@@ -157,7 +155,7 @@ def get_column_type(table_name: str, column_name: str) -> DataType:
 
 def get_histogram_data(
     table_name: str, column_name: str
-) -> List[Tuple[str, int]]:
+) -> list[tuple[str, int]]:
     """
     Get the histogram data for a column in a SQL table.
     """

@@ -16,7 +16,7 @@ from marimo._plugins.ui._impl.comm import (  # pyright: ignore[reportMissingType
 
 
 # Initialize ipywidgets using a MarimoComm
-def init_marimo_widget(w: "ipywidgets.Widget") -> None:
+def init_marimo_widget(w: ipywidgets.Widget) -> None:
     DependencyManager.ipywidgets.require("for anywidget support.")
     import ipywidgets  # type: ignore
 

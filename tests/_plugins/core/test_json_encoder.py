@@ -5,7 +5,7 @@ import dataclasses
 import json
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import pytest
 
@@ -147,8 +147,8 @@ def test_nested_mime_encoding() -> None:
 class MockDataclass:
     a: int
     b: str
-    items: Optional[List[Any]] = None
-    other_items: Optional[Dict[str, Any]] = None
+    items: Optional[list[Any]] = None
+    other_items: Optional[dict[str, Any]] = None
 
 
 class Button(MIME):

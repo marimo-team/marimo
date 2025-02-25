@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Dict, Literal, TypedDict, Union
+from typing import Any, Literal, TypedDict, Union
 
 import narwhals.stable.v1 as nw
 from narwhals.typing import IntoDataFrame
@@ -15,8 +15,8 @@ from marimo._plugins.ui._impl.tables.utils import (
 )
 from marimo._utils.data_uri import build_data_url
 
-Data = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
-_DataType = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+Data = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+_DataType = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
 
 
 class _JsonFormatDict(TypedDict):
@@ -117,7 +117,7 @@ def _data_to_json_string(data: _DataType) -> str:
 
     raise NotImplementedError(
         "to_marimo_json only works with data expressed as a DataFrame "
-        + " or as a dict. Got %s" % type(data)
+        + f" or as a dict. Got {type(data)}"
     )
 
 

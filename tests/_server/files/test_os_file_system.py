@@ -84,7 +84,7 @@ def test_get_details(test_dir: str, fs: OSFileSystem) -> None:
         test_dir,
         "file",
         test_file_name,
-        "some content".encode("utf-8"),
+        b"some content",
     )
     file_info = fs.get_details(os.path.join(test_dir, test_file_name))
     assert isinstance(file_info, FileDetailsResponse)
@@ -168,7 +168,7 @@ def test_update_file(test_dir: str, fs: OSFileSystem) -> None:
         f.write("Initial content")
     new_content = "Updated content"
     fs.update_file(file_path, new_content)
-    with open(file_path, "r") as f:
+    with open(file_path) as f:
         assert f.read() == new_content
 
 

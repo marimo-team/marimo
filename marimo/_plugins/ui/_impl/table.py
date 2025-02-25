@@ -4,15 +4,12 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Set,
     Union,
 )
 
@@ -50,6 +47,9 @@ from marimo._plugins.validators import (
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 LOGGER = _loggers.marimo_logger()
 
 
@@ -75,7 +75,7 @@ class ColumnSummary:
 @dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
-    summaries: List[ColumnSummary]
+    summaries: list[ColumnSummary]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -87,7 +87,7 @@ class SearchTableArgs:
     page_number: int
     query: Optional[str] = None
     sort: Optional[SortArgs] = None
-    filters: Optional[List[Condition]] = None
+    filters: Optional[list[Condition]] = None
     limit: Optional[int] = None
 
 
@@ -106,7 +106,7 @@ class SortArgs:
 @mddoc
 class table(
     UIElement[
-        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
+        Union[list[str], list[int]], Union[list[JSONType], IntoDataFrame]
     ]
 ):
     """A table component with selectable rows.
@@ -225,26 +225,26 @@ class table(
         self,
         data: Union[
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
-            ListOrTuple[Dict[str, JSONType]],
-            Dict[str, ListOrTuple[JSONType]],
-            "IntoDataFrame",
+            ListOrTuple[dict[str, JSONType]],
+            dict[str, ListOrTuple[JSONType]],
+            IntoDataFrame,
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
-        initial_selection: Optional[List[int]] = None,
+        initial_selection: Optional[list[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
         ] = None,
         format_mapping: Optional[
-            Dict[str, Union[str, Callable[..., Any]]]
+            dict[str, Union[str, Callable[..., Any]]]
         ] = None,
         freeze_columns_left: Optional[Sequence[str]] = None,
         freeze_columns_right: Optional[Sequence[str]] = None,
         text_justify_columns: Optional[
-            Dict[str, Literal["left", "center", "right"]]
+            dict[str, Literal["left", "center", "right"]]
         ] = None,
-        wrapped_columns: Optional[List[str]] = None,
+        wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
         max_columns: Optional[int] = 50,
         *,
@@ -253,9 +253,9 @@ class table(
             Callable[
                 [
                     Union[
-                        List[JSONType],
-                        Dict[str, ListOrTuple[JSONType]],
-                        "IntoDataFrame",
+                        list[JSONType],
+                        dict[str, ListOrTuple[JSONType]],
+                        IntoDataFrame,
                     ]
                 ],
                 None,
@@ -440,8 +440,8 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[List[int], List[str]]
-    ) -> Union[List[JSONType], "IntoDataFrame"]:
+        self, value: Union[list[int], list[str]]
+    ) -> Union[list[JSONType], IntoDataFrame]:
         indices = [int(v) for v in value]
         if self._has_stable_row_id:
             # Search across the original data
@@ -523,7 +523,7 @@ class table(
             )
 
         # Get column summaries if not chart-only mode
-        summaries: List[ColumnSummary] = []
+        summaries: list[ColumnSummary] = []
         if self._show_column_summaries != "chart":
             for column in self._manager.get_column_names():
                 try:
@@ -565,7 +565,7 @@ class table(
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort(
         self,
-        filters: Optional[List[Condition]],
+        filters: Optional[list[Condition]],
         query: Optional[str],
         sort: Optional[SortArgs],
     ) -> TableManager[Any]:
@@ -669,8 +669,8 @@ class table(
 
 
 def _get_clamped_field_types(
-    field_types: List[Any], max_columns: Optional[int]
-) -> List[Any]:
+    field_types: list[Any], max_columns: Optional[int]
+) -> list[Any]:
     if max_columns is not None and len(field_types) > max_columns:
         return field_types[:max_columns]
     return field_types
@@ -679,7 +679,7 @@ def _get_clamped_field_types(
 def _validate_frozen_columns(
     freeze_columns_left: Optional[Sequence[str]],
     freeze_columns_right: Optional[Sequence[str]],
-    column_names_set: Set[str],
+    column_names_set: set[str],
 ) -> None:
     """Validate frozen column configurations.
 
@@ -718,10 +718,10 @@ def _validate_frozen_columns(
 
 def _validate_column_formatting(
     text_justify_columns: Optional[
-        Dict[str, Literal["left", "center", "right"]]
+        dict[str, Literal["left", "center", "right"]]
     ],
-    wrapped_columns: Optional[List[str]],
-    column_names_set: Set[str],
+    wrapped_columns: Optional[list[str]],
+    column_names_set: set[str],
 ) -> None:
     """Validate text justification and wrapped column configurations.
 

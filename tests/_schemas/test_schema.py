@@ -13,7 +13,7 @@ import yaml
     reason="This test is flaky on Windows",
 )
 def test_session_schema_up_to_date() -> None:
-    with open("marimo/_schemas/generated/session.yaml", "r") as f:
+    with open("marimo/_schemas/generated/session.yaml") as f:
         current_content = yaml.safe_load(f)
 
     script_path = (

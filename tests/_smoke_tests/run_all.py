@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import pathlib
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import pytest
 import yaml
@@ -23,7 +23,7 @@ async def test_all_smoke_tests() -> None:
     all_py_paths = list(pathlib.Path(root).rglob("*.py"))
     assert all_py_paths, "No smoke tests found"
 
-    with open(config_file, "r") as f:  # noqa: ASYNC101 ASYNC230
+    with open(config_file) as f:  # noqa: ASYNC101 ASYNC230
         smoke_test_config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
     semaphore = asyncio.Semaphore(CONCURRENT_TESTS)
@@ -41,7 +41,7 @@ async def test_all_examples() -> None:
     all_py_paths = list(pathlib.Path(root).rglob("*.py"))
     assert all_py_paths, "No examples found"
 
-    with open(config_file, "r") as f:  # noqa: ASYNC101 ASYNC230
+    with open(config_file) as f:  # noqa: ASYNC101 ASYNC230
         smoke_test_config = yaml.load(f.read(), Loader=yaml.FullLoader)
 
     semaphore = asyncio.Semaphore(CONCURRENT_TESTS)
@@ -55,7 +55,7 @@ async def test_all_examples() -> None:
 async def _run_test(
     file: pathlib.Path,
     root: str,
-    smoke_test_config: Dict[str, Any],
+    smoke_test_config: dict[str, Any],
     semaphore: asyncio.Semaphore,
     with_uv: bool,
 ) -> None:
@@ -71,7 +71,7 @@ async def _run_test(
         )
         input_data = file_config.get("input", None)
 
-        with open(file, "r") as f:  # noqa: ASYNC101 ASYNC230
+        with open(file) as f:  # noqa: ASYNC101 ASYNC230
             content = f.read()
             if "marimo.App(" not in content:
                 return

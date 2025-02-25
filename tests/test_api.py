@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, Optional, Set
+from typing import Any, Optional
 
 from tests.mocks import snapshotter
 
@@ -9,7 +9,7 @@ snapshot = snapshotter(__file__)
 
 
 def _explore_module(
-    module: Any, indent: int = 0, visited: Optional[Set[int]] = None
+    module: Any, indent: int = 0, visited: Optional[set[int]] = None
 ) -> list[str]:
     """
     Recursively explore a module and print all public exported items.

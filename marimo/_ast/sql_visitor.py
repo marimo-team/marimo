@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -217,7 +217,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                     # - catalog.table (this is shorthand for catalog.main.table)
                     # - table
 
-                    parts: List[str] = []
+                    parts: list[str] = []
                     while i < len(tokens):
                         part = token_extractor.strip_quotes(
                             token_extractor.token_str(i)

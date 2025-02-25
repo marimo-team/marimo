@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 
 
 # Base types for extensibility
@@ -29,12 +29,12 @@ class ErrorOutput(BaseDict):
     type: Literal["error"]
     ename: str
     evalue: str
-    traceback: List[str]
+    traceback: list[str]
 
 
 class DataOutput(BaseDict):
     type: Literal["data"]
-    data: Dict[str, Any]  # MIME-type bundles
+    data: dict[str, Any]  # MIME-type bundles
 
 
 # Union of all possible output types
@@ -50,8 +50,8 @@ class Cell(BaseDict):
 
     id: str
     code_hash: Optional[str]
-    outputs: List[OutputType]
-    console: List[StreamOutput]
+    outputs: list[OutputType]
+    console: list[StreamOutput]
 
     # We don't need to store code or cell config
     # since that exists in the notebook.py itself
@@ -76,7 +76,7 @@ class NotebookSessionV1(BaseDict):
     # Metadata about the notebook
     metadata: NotebookMetadata
     # The cells in the notebook
-    cells: List[Cell]
+    cells: list[Cell]
 
     # In future, we may want to add
     # - variables

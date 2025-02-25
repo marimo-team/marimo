@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 from functools import cached_property
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import narwhals.stable.v1 as nw
 
@@ -174,7 +174,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
             # internal fields since they get displayed in the UI.
             def get_field_type(
                 self, column_name: str
-            ) -> Tuple[FieldType, ExternalDataType]:
+            ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
                 try:
                     dtype_string = dtype._string_repr()

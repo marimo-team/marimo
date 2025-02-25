@@ -8,7 +8,6 @@ from typing import (
     Any,
     Literal,
     Optional,
-    Type,
     TypeVar,
     Union,
     get_args,
@@ -31,7 +30,7 @@ class DataclassParser:
     def __init__(self, allow_unknown_keys: bool = False):
         self.allow_unknown_keys = allow_unknown_keys
 
-    def _build_value(self, value: Any, cls: Type[T]) -> T:
+    def _build_value(self, value: Any, cls: type[T]) -> T:
         # origin_cls is not None if cls is a container (such as list,
         # tuple, set, ...)
         origin_cls = get_origin(cls)
@@ -101,7 +100,7 @@ class DataclassParser:
         else:
             return value  # type: ignore[no-any-return]
 
-    def build_dataclass(self, values: dict[Any, Any], cls: Type[T]) -> T:
+    def build_dataclass(self, values: dict[Any, Any], cls: type[T]) -> T:
         """Returns instance of dataclass [cls] instantiated from [values]."""
 
         if not isinstance(values, dict):
@@ -136,7 +135,7 @@ class DataclassParser:
 
 def parse_raw(
     message: Union[bytes, dict[Any, Any]],
-    cls: Type[T],
+    cls: type[T],
     allow_unknown_keys: bool = False,
 ) -> T:
     """Utility to parse a message as JSON, and instantiate into supplied type.

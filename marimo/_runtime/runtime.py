@@ -16,7 +16,7 @@ import time
 import traceback
 from copy import copy, deepcopy
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
@@ -148,7 +148,7 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     import queue
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -1838,15 +1838,13 @@ class Kernel:
                         return status, response, found
             found = False
             error_title = "Function not found"
-            error_message = (
-                "Could not find function given request: %s" % request
-            )
+            error_message = f"Could not find function given request: {request}"
             debug(error_title, error_message)
         elif function.cell_id is None:
             found = True
             error_title = "Function not associated with cell"
             error_message = (
-                "Attempted to call a function without a cell id: %s" % request
+                f"Attempted to call a function without a cell id: {request}"
             )
             debug(error_title, error_message)
         else:
@@ -1880,17 +1878,11 @@ class Kernel:
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
-                    error_message = (
-                        "Function call (%s) was interrupted by the user"
-                        % request.function_name
-                    )
+                    error_message = f"Function call ({request.function_name}) was interrupted by the user"
                     debug(error_title, error_message)
                 except Exception as e:
                     error_title = "Exception"
-                    error_message = (
-                        "Function call (name: %s, args: %s) failed with exception %s"  # noqa: E501
-                        % (request.function_name, request.args, str(e))
-                    )
+                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
                     debug(error_title, error_message)
 
         # Couldn't call function, or function call failed
@@ -2006,7 +1998,7 @@ class Kernel:
         )
 
     def _update_script_metadata(
-        self, import_namespaces_to_add: List[str]
+        self, import_namespaces_to_add: list[str]
     ) -> None:
         filename = self.app_metadata.filename
 

@@ -63,7 +63,7 @@ class refresh(UIElement[int, int]):
         ):
             raise ValueError(
                 "Invalid type: `default_interval` must be "
-                + "an int, float or str, not %s" % type(default_interval)
+                + f"an int, float or str, not {type(default_interval)}"
             )
 
         # If no options are provided and default_interval is provided,
@@ -74,8 +74,7 @@ class refresh(UIElement[int, int]):
 
         if not isinstance(resolved_options, list):
             raise ValueError(
-                "Invalid type: `options` must be a list, not %s"
-                % type(resolved_options)
+                f"Invalid type: `options` must be a list, not {type(resolved_options)}"
             )
 
         # If has options and default_interval is provided,
@@ -87,7 +86,7 @@ class refresh(UIElement[int, int]):
         ):
             raise ValueError(
                 "Invalid value: `default_interval` must be "
-                + "one of the options, not %s" % default_interval
+                + f"one of the options, not {default_interval}"
             )
 
         super().__init__(

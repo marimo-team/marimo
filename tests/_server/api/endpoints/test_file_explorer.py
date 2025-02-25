@@ -84,7 +84,7 @@ def test_update_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json()["success"] is True
-    with open(test_file_path, "r") as f:
+    with open(test_file_path) as f:
         assert f.read() == "new content"
     with open(test_file_path, "w") as f:
         f.write(test_content)

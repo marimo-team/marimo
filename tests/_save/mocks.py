@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from marimo._save.cache import Cache, CacheType
 from marimo._save.loaders import Loader
@@ -11,7 +11,7 @@ class MockLoader(Loader):
         self,
         name: str = "mock",
         save_path: str = "",
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         stateful_refs: Optional[set[str]] = None,
     ) -> None:
         self.save_path = save_path

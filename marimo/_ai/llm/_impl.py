@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, List, Optional, cast
+from typing import Callable, Optional, cast
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -37,7 +37,7 @@ class simple(ChatModel):
         self.delegate = delegate
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         del config
         prompt = str(messages[-1].content)
@@ -99,7 +99,7 @@ class openai(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
@@ -142,7 +142,7 @@ class openai(ChatModel):
         )
         response = client.chat.completions.create(
             model=self.model,
-            messages=cast(List[ChatCompletionMessageParam], openai_messages),
+            messages=cast(list[ChatCompletionMessageParam], openai_messages),
             max_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
@@ -213,7 +213,7 @@ class anthropic(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
             "chat model requires anthropic. `pip install anthropic`"
@@ -236,7 +236,7 @@ class anthropic(ChatModel):
             model=self.model,
             system=self.system_message,
             max_tokens=config.max_tokens or 1000,
-            messages=cast(List[MessageParam], anthropic_messages),
+            messages=cast(list[MessageParam], anthropic_messages),
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
             stream=False,
@@ -307,7 +307,7 @@ class google(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
             "chat model requires google. `pip install google-generativeai`"
@@ -390,7 +390,7 @@ class groq(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.groq.require(
             "chat model requires groq. `pip install groq`"

@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 # Define the app routes
-def build_routes(base_url: str = "") -> List[BaseRoute]:
+def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router = APIRouter(prefix=base_url)
     app_router.include_router(
         execution_router, prefix="/api/kernel", name="execution"

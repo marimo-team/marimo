@@ -4,17 +4,14 @@ from __future__ import annotations
 import abc
 import logging
 from asyncio import iscoroutine
+from collections.abc import Awaitable
 from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
-    Awaitable,
     Callable,
-    Dict,
-    List,
     Optional,
     Protocol,
-    Tuple,
     Union,
 )
 
@@ -47,7 +44,7 @@ class ASGIAppBuilder(abc.ABC):
         path: str,
         root: str,
         middleware: Optional[list[MiddlewareFactory]] = None,
-    ) -> "ASGIAppBuilder":
+    ) -> ASGIAppBuilder:
         """
         Adds a static application to the ASGI app at the specified path.
 
@@ -69,7 +66,7 @@ class ASGIAppBuilder(abc.ABC):
         directory: str,
         validate_callback: Optional[ValidateCallback] = None,
         middleware: Optional[list[MiddlewareFactory]] = None,
-    ) -> "ASGIAppBuilder":
+    ) -> ASGIAppBuilder:
         """
         Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
 
@@ -90,7 +87,7 @@ class ASGIAppBuilder(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def build(self) -> "ASGIApp":
+    def build(self) -> ASGIApp:
         """
         Builds and returns the final ASGI application.
 
@@ -118,7 +115,7 @@ class DynamicDirectoryMiddleware:
         self.base_path = base_path.rstrip("/")
         self.directory = Path(directory)
         self.app_builder = app_builder
-        self._app_cache: Dict[str, ASGIApp] = {}
+        self._app_cache: dict[str, ASGIApp] = {}
         self.validate_callback = validate_callback
         LOGGER.debug(
             f"Initialized DynamicDirectoryMiddleware with base_path={self.base_path}, "
@@ -146,7 +143,7 @@ class DynamicDirectoryMiddleware:
 
     def _find_matching_file(
         self, relative_path: str
-    ) -> Optional[Tuple[Path, str]]:
+    ) -> Optional[tuple[Path, str]]:
         """Find a matching Python file in the directory structure.
         Returns tuple of (matching file, remaining path) if found, None otherwise.
         """
@@ -408,18 +405,18 @@ def create_asgi_app(
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
         def __init__(self) -> None:
-            self._mount_configs: List[
-                Tuple[str, str, Optional[list[MiddlewareFactory]]]
+            self._mount_configs: list[
+                tuple[str, str, Optional[list[MiddlewareFactory]]]
             ] = []
-            self._dynamic_directory_configs: List[
-                Tuple[
+            self._dynamic_directory_configs: list[
+                tuple[
                     str,
                     str,
                     Optional[ValidateCallback],
                     Optional[list[MiddlewareFactory]],
                 ]
             ] = []
-            self._app_cache: Dict[str, ASGIApp] = {}
+            self._app_cache: dict[str, ASGIApp] = {}
 
         def with_app(
             self,
@@ -427,7 +424,7 @@ def create_asgi_app(
             path: str,
             root: str,
             middleware: Optional[list[MiddlewareFactory]] = None,
-        ) -> "ASGIAppBuilder":
+        ) -> ASGIAppBuilder:
             self._mount_configs.append((path, root, middleware))
             return self
 
@@ -438,7 +435,7 @@ def create_asgi_app(
             directory: str,
             validate_callback: Optional[ValidateCallback] = None,
             middleware: Optional[list[MiddlewareFactory]] = None,
-        ) -> "ASGIAppBuilder":
+        ) -> ASGIAppBuilder:
             self._dynamic_directory_configs.append(
                 (path, directory, validate_callback, middleware)
             )
@@ -481,7 +478,7 @@ def create_asgi_app(
             app.state.config_manager = config_reader
             return app
 
-        def build(self) -> "ASGIApp":
+        def build(self) -> ASGIApp:
             # Handle individual app mounts first
             # Sort to ensure the root app is mounted last
             self._mount_configs = sorted(

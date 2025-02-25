@@ -24,7 +24,7 @@ def get_mock_session_manager() -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
-        """
+        b"""
 import marimo
 
 __generated_with = "0.0.1"
@@ -39,7 +39,7 @@ def __():
 
 if __name__ == "__main__":
     app.run()
-""".encode()
+"""
     )
 
     temp_file.close()

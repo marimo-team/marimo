@@ -8,7 +8,6 @@ import sys
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Iterable,
     Optional,
     TypeVar,
 )
@@ -26,6 +25,8 @@ from marimo._ast.pytest import process_for_pytest
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from marimo._ast.app import InternalApp
 
 P = ParamSpec("P")

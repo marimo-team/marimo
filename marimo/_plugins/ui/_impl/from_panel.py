@@ -7,11 +7,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    List,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     cast,
 )
@@ -29,21 +25,21 @@ LOGGER = _loggers.marimo_logger()
 
 COMM_MANAGER = MarimoCommManager()
 
-comm_class: Optional[Type[Any]] = None
+comm_class: Optional[type[Any]] = None
 loaded_extension: int = 0
 loaded_extensions: list[str] = []
 
-T = TypeVar("T", bound=Dict[str, Any])
+T = TypeVar("T", bound=dict[str, Any])
 
 
 @dataclass
 class SendToWidgetArgs:
     message: Any
-    buffers: Optional[List[Any]] = None
+    buffers: Optional[list[Any]] = None
 
 
 # Singleton, we only create one instance of this class
-def _get_comm_class() -> Type[Any]:
+def _get_comm_class() -> type[Any]:
     global comm_class
     if comm_class:
         return comm_class
@@ -65,7 +61,7 @@ def _get_comm_class() -> Type[Any]:
 
         @classmethod
         def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
-            buffers: Dict[int, Any] = {
+            buffers: dict[int, Any] = {
                 i: memoryview(base64.b64decode(v))
                 for i, v in enumerate(msg.buffers or [])
             }
@@ -148,7 +144,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
 
 def render_component(
     obj: Viewable,
-) -> Tuple[str, dict[str, Any], dict[str, Any]]:
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
     """
     Render a Panel component.
 

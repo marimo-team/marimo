@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from marimo._config.config import Theme
 from marimo._output.formatters.ai_formatters import (
@@ -34,6 +34,9 @@ from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
 from marimo._output.formatters.tqdm_formatters import TqdmFormatter
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated

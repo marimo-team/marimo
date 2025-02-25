@@ -5,7 +5,7 @@ import pathlib
 import sys
 import textwrap
 from dataclasses import dataclass
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -43,6 +43,9 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -15,6 +15,9 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 )
 from marimo._runtime.requests import PreviewDatasetColumnRequest
 from tests.mocks import snapshotter
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 HAS_DF_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
 HAS_SQL_DEPS = DependencyManager.duckdb.has()

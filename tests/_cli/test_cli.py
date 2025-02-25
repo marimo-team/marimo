@@ -18,7 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Generator, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import pytest
 
@@ -28,6 +28,9 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 from marimo._utils.toml import read_toml
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
 
 HAS_UV = DependencyManager.which("uv")
 

@@ -2,7 +2,7 @@
 import contextlib
 import io
 import sys
-from typing import Iterator
+from collections.abc import Iterator
 
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._runtime.output import _output

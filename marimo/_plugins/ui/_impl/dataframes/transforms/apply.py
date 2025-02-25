@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Generic, List, TypeVar
+from typing import Any, Generic, TypeVar
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
@@ -105,7 +105,7 @@ class TransformsContainer(Generic[T]):
         # The dataframe for the given transform.
         self._snapshot_df = df
         self._handler = handler
-        self._transforms: List[Transform] = []
+        self._transforms: list[Transform] = []
 
     def apply(self, transform: Transformations) -> T:
         """

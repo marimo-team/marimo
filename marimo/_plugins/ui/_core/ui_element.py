@@ -15,10 +15,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Generic,
     Optional,
-    Sequence,
     TypeVar,
     cast,
 )
@@ -37,6 +35,8 @@ from marimo._runtime.functions import Function
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from marimo._plugins.ui._impl.input import form as form_plugin
 
 # S: Type of frontend value
@@ -428,7 +428,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         )
 
     def send_message(
-        self, message: Dict[str, object], buffers: Optional[Sequence[bytes]]
+        self, message: dict[str, object], buffers: Optional[Sequence[bytes]]
     ) -> None:
         """
         Send a message to the element rendered on the frontend

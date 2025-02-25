@@ -2,25 +2,25 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 
 class MarimoCommManager:
-    comms: Dict[str, "MarimoComm"] = {}
+    comms: dict[str, MarimoComm] = {}
 
-    def register_comm(self, comm: "MarimoComm") -> str:
+    def register_comm(self, comm: MarimoComm) -> str:
         comm_id = comm.comm_id
         self.comms[comm_id] = comm
         return comm_id
 
-    def unregister_comm(self, comm: "MarimoComm") -> "MarimoComm":
+    def unregister_comm(self, comm: MarimoComm) -> MarimoComm:
         return self.comms.pop(comm.comm_id)
 
 
-MsgCallback = Callable[[Dict[str, object]], None]
-DataType = Optional[Dict[str, object]]
-MetadataType = Optional[Dict[str, object]]
-BufferType = Optional[List[bytes]]
+MsgCallback = Callable[[dict[str, object]], None]
+DataType = Optional[dict[str, object]]
+MetadataType = Optional[dict[str, object]]
+BufferType = Optional[list[bytes]]
 
 COMM_MESSAGE_NAME = "marimo_comm_msg"
 COMM_OPEN_NAME = "marimo_comm_open"
@@ -39,7 +39,7 @@ class MarimoComm:
     _msg_callback: Optional[MsgCallback]
     _close_callback: Optional[MsgCallback]
     _closed: bool = False
-    _closed_data: Dict[str, object] = {}
+    _closed_data: dict[str, object] = {}
 
     def __init__(
         self,
@@ -172,10 +172,10 @@ class MarimoComm:
     def on_close(self, callback: MsgCallback) -> None:
         self._close_callback = callback
 
-    def handle_msg(self, msg: Dict[str, object]) -> None:
+    def handle_msg(self, msg: dict[str, object]) -> None:
         if self._msg_callback is not None:
             self._msg_callback(msg)
 
-    def handle_close(self, msg: Dict[str, object]) -> None:
+    def handle_close(self, msg: dict[str, object]) -> None:
         if self._close_callback is not None:
             self._close_callback(msg)

@@ -7,17 +7,14 @@ import os
 import pathlib
 import sys
 import traceback
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -137,7 +134,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "number":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> number:
         """Create a number picker from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -209,7 +206,7 @@ class slider(UIElement[Numeric, Numeric]):
     """
 
     _name: Final[str] = "marimo-slider"
-    _mapping: Optional[Dict[int, Numeric]] = None
+    _mapping: Optional[dict[int, Numeric]] = None
 
     def __init__(
         self,
@@ -337,7 +334,7 @@ class slider(UIElement[Numeric, Numeric]):
             )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "slider":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
         """Create a slider from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -352,7 +349,7 @@ class slider(UIElement[Numeric, Numeric]):
 
 
 @mddoc
-class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
+class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     """
     A numeric slider for specifying a range over an interval.
 
@@ -536,7 +533,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "range_slider":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
         """Create a range slider from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -544,7 +541,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         label = kwargs.pop("label", info.label)
         return range_slider(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
+    def _convert_value(self, value: list[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
             return cast(
                 Sequence[Numeric],
@@ -673,7 +670,7 @@ class radio(UIElement[Optional[str], Any]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "radio":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> radio:
         """Create a radio group from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -887,7 +884,7 @@ class code_editor(UIElement[str, str]):
 
 
 @mddoc
-class dropdown(UIElement[List[str], Any]):
+class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
 
     Examples:
@@ -998,7 +995,7 @@ class dropdown(UIElement[List[str], Any]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "dropdown":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> dropdown:
         """Create a dropdown from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -1021,7 +1018,7 @@ class dropdown(UIElement[List[str], Any]):
 
 
 @mddoc
-class multiselect(UIElement[List[str], List[object]]):
+class multiselect(UIElement[list[str], list[object]]):
     """A multiselect input.
 
     Examples:
@@ -1063,7 +1060,7 @@ class multiselect(UIElement[List[str], List[object]]):
         value: Optional[Sequence[str]] = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[List[object]], None]] = None,
+        on_change: Optional[Callable[[list[object]], None]] = None,
         full_width: bool = False,
         max_selections: Optional[int] = None,
     ) -> None:
@@ -1105,7 +1102,7 @@ class multiselect(UIElement[List[str], List[object]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "multiselect":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> multiselect:
         """Create a multiselect from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -1203,8 +1200,7 @@ class button(UIElement[Any, Any]):
             return self._on_click(self._value)
         except Exception:
             sys.stderr.write(
-                "on_click handler for button (%s) raised an Exception:\n %s\n"
-                % (str(self), traceback.format_exc())
+                f"on_click handler for button ({str(self)}) raised an Exception:\n {traceback.format_exc()}\n"
             )
             return None
 
@@ -1222,7 +1218,7 @@ class FileUploadResults:
 
 
 @mddoc
-class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
+class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
     """A button or drag-and-drop area to upload a file.
 
     Once a file is uploaded, the UI element's value is a list of namedtuples
@@ -1377,11 +1373,11 @@ class ListDirectoryArgs:
 
 @dataclass
 class ListDirectoryResponse:
-    files: List[FileInfo]
+    files: list[FileInfo]
 
 
 @mddoc
-class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
+class file_browser(UIElement[list[dict[str, Any]], Sequence[FileInfo]]):
     """File browser for browsing and selecting server-side files.
 
     Examples:
@@ -1513,7 +1509,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         return ListDirectoryResponse(files)
 
     def _convert_value(
-        self, value: list[Dict[str, Any]]
+        self, value: list[dict[str, Any]]
     ) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(

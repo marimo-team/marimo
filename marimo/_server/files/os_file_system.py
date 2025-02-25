@@ -8,7 +8,7 @@ import platform
 import re
 import shutil
 import subprocess
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
@@ -34,9 +34,9 @@ class OSFileSystem(FileSystem):
     def get_root(self) -> str:
         return os.getcwd()
 
-    def list_files(self, path: str) -> List[FileInfo]:
-        files: List[FileInfo] = []
-        folders: List[FileInfo] = []
+    def list_files(self, path: str) -> list[FileInfo]:
+        files: list[FileInfo] = []
+        folders: list[FileInfo] = []
         try:
             with os.scandir(path) as it:
                 for entry in it:
@@ -105,7 +105,7 @@ class OSFileSystem(FileSystem):
 
     def open_file(self, path: str, encoding: str | None = None) -> str:
         try:
-            with open(path, mode="r", encoding=encoding) as file:
+            with open(path, encoding=encoding) as file:
                 return file.read()
         except UnicodeDecodeError:
             # If its a UnicodeDecodeError, try as bytes and convert to base64
@@ -201,15 +201,15 @@ class OSFileSystem(FileSystem):
             return False
 
 
-def natural_sort_file(file: FileInfo) -> List[Union[int, str]]:
+def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:
     return natural_sort(file.name)
 
 
-def natural_sort(filename: str) -> List[Union[int, str]]:
+def natural_sort(filename: str) -> list[Union[int, str]]:
     def convert(text: str) -> Union[int, str]:
         return int(text) if text.isdigit() else text.lower()
 
-    def alphanum_key(key: str) -> List[Union[int, str]]:
+    def alphanum_key(key: str) -> list[Union[int, str]]:
         return [convert(c) for c in re.split("([0-9]+)", key)]
 
     return alphanum_key(filename)

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 import weakref
-from typing import Any, Dict, Iterable, Mapping, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from marimo._runtime.context.types import ContextNotInitializedError
 
@@ -17,10 +17,13 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._types.ids import CellId_t, UIElementId
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
 T = TypeVar("T")
 
 # Recursive types don't support | or dict[] in py3.8/3.9
-LensValue: TypeAlias = Union[T, Dict[str, "LensValue[T]"]]
+LensValue: TypeAlias = Union[T, dict[str, "LensValue[T]"]]
 
 
 class UIElementRegistry:

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 
@@ -14,7 +14,7 @@ class FileSystem(ABC):
         pass
 
     @abstractmethod
-    def list_files(self, path: str) -> List[FileInfo]:
+    def list_files(self, path: str) -> list[FileInfo]:
         """List files and directories in a given path."""
         pass
 

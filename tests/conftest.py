@@ -8,7 +8,7 @@ import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from _pytest import runner
@@ -37,6 +37,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
 
 # register import hooks for third-party module formatters

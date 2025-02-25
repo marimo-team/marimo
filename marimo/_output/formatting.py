@@ -21,7 +21,7 @@ import json
 import traceback
 from dataclasses import dataclass
 from html import escape
-from typing import Any, Callable, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType
@@ -40,13 +40,13 @@ from marimo._utils.methods import is_callable_method
 T = TypeVar("T")
 
 # we use Tuple instead of the builtin tuple for py3.8 compatibility
-Formatter = Callable[[T], Tuple[KnownMimeType, str]]
-FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
-OPINIONATED_FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
+Formatter = Callable[[T], tuple[KnownMimeType, str]]
+FORMATTERS: dict[type[Any], Formatter[Any]] = {}
+OPINIONATED_FORMATTERS: dict[type[Any], Formatter[Any]] = {}
 LOGGER = loggers.marimo_logger()
 
 
-def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
+def formatter(t: type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
     """Register a formatter function for a type
 
     Decorator to register a custom formatter for a given type.
@@ -69,7 +69,7 @@ def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
 
 
 def opinionated_formatter(
-    t: Type[Any],
+    t: type[Any],
 ) -> Callable[[Formatter[T]], Formatter[T]]:
     """Register an opinionated formatter function for a type
 

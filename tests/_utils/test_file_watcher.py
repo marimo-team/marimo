@@ -6,7 +6,6 @@ import os
 import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List
 
 import pytest
 
@@ -17,7 +16,7 @@ async def test_polling_file_watcher() -> None:
     with NamedTemporaryFile(delete=False) as tmp_file:
         tmp_path = Path(tmp_file.name)
 
-    callback_calls: List[Path] = []
+    callback_calls: list[Path] = []
 
     async def test_callback(path: Path):
         return callback_calls.append(path)
@@ -64,9 +63,9 @@ async def test_file_watcher_manager() -> None:
 
     try:
         # Track callback calls
-        callback1_calls: List[Path] = []
-        callback2_calls: List[Path] = []
-        callback3_calls: List[Path] = []
+        callback1_calls: list[Path] = []
+        callback2_calls: list[Path] = []
+        callback3_calls: list[Path] = []
 
         async def callback1(path: Path) -> None:
             callback1_calls.append(path)
