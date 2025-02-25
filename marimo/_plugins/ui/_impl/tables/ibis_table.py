@@ -18,6 +18,8 @@ from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
+    CellWithValue,
     ColumnName,
     FieldType,
     TableManager,
@@ -71,6 +73,9 @@ class IbisTableManagerFactory(TableManagerFactory):
                 self, columns: list[str]
             ) -> TableManager[ibis.Table]:
                 return IbisTableManager(self.data.select(columns))
+
+            def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
+                return super().select_cells(cells)
 
             def drop_columns(
                 self, columns: list[str]

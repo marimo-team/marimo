@@ -154,6 +154,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
                     value=self.data[cell.columnName][cell.rowId],
                 )
                 for cell in cells
+                if isinstance(self.data[cell.columnName], dict)
             ]
         if isinstance(self.data, dict):
             rows = list(self.data.items())
