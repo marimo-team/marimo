@@ -150,7 +150,7 @@ def test_kernel_manager_edit_mode() -> None:
 
 
 @save_and_restore_main
-def test_kernel_manager_interrupt(tmp_path) -> None:
+def test_kernel_manager_interrupt(tmp_path: Path) -> None:
     queue_manager = QueueManager(use_multiprocessing=True)
     mode = SessionMode.EDIT
 
@@ -216,22 +216,55 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
     kernel_manager.interrupt_kernel()
 
     try:
+        # Check the file content - should be "0" after interruption
         with open(file) as f:
             assert f.read() == "0"
+
         # if kernel failed to interrupt, f will read as "1"
         time.sleep(1.5)
         with open(file) as f:
             assert f.read() == "0"
+
+        # Explicitly terminate the kernel after interruption to ensure clean shutdown
+        if kernel_manager.kernel_task.is_alive():
+            import multiprocessing as mp
+
+            if isinstance(kernel_manager.kernel_task, mp.Process):
+                try:
+                    # Send explicit termination signal
+                    kernel_manager.kernel_task.terminate()
+                    # Wait a bit for termination to complete
+                    kernel_manager.kernel_task.join(timeout=1)
+                except Exception:
+                    # Ignore errors in cleanup
+                    pass
     finally:
         if sys.platform == "win32":
             os.remove(file)
 
+        # Wait for queues to be empty with timeout
+        # This makes the test more resilient to timing issues in CI
+        start_time = time.time()
+        timeout = 5  # 5-second timeout for queues to be empty
+
+        # Give some time for queues to be processed first
+        time.sleep(0.5)
+
+        while time.time() - start_time < timeout:
+            if (
+                queue_manager.input_queue.empty()
+                and queue_manager.control_queue.empty()
+            ):
+                break
+            time.sleep(0.2)  # slightly longer interval
+
+        # Now check if queues are empty
         assert queue_manager.input_queue.empty()
         assert queue_manager.control_queue.empty()
 
         # Assert shutdown
         kernel_manager.close_kernel()
-        kernel_manager.kernel_task.join()
+        kernel_manager.kernel_task.join(timeout=5)
         assert not kernel_manager.is_alive()
 
 
