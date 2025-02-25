@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.17"
+__generated_with = "0.11.8"
 app = marimo.App(width="columns")
 
 
@@ -147,7 +147,7 @@ def _():
 
 @app.cell(column=2)
 def _(mo):
-    mo.md("""## Example 2: """)
+    mo.md("""## Example 2:""")
     return
 
 

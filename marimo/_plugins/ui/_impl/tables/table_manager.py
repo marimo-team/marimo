@@ -83,6 +83,9 @@ class TableManager(abc.ABC, Generic[T]):
     ) -> bytes:
         pass
 
+    def to_arrow_ipc(self) -> bytes:
+        raise NotImplementedError("Arrow format not supported")
+
     @abc.abstractmethod
     def to_json(self) -> bytes:
         pass

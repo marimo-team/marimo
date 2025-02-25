@@ -222,8 +222,8 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
         with altair.data_transformers.enable("default"):
             return spec.to_dict()  # type: ignore
 
-    with altair.data_transformers.enable("marimo"):
-        return spec.to_dict()  # type: ignore
+    with altair.data_transformers.enable("marimo_arrow"):
+        return spec.to_dict(validate=False)  # type: ignore
 
 
 def _has_transforms(spec: VegaSpec) -> bool:

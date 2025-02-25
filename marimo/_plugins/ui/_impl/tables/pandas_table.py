@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from functools import cached_property
 from typing import Any, Optional, Tuple
 
@@ -64,6 +65,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return self._original_data.to_json(orient="records").encode(
                     "utf-8"
                 )
+
+            def to_arrow_ipc(self) -> bytes:
+                out = io.BytesIO()
+                self._original_data.to_feather(out, compression="uncompressed")
+                return out.getvalue()
 
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]
