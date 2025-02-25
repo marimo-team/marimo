@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import List, Literal, Optional, Union, cast
+from typing import Literal, Optional, Union, cast
 
 from marimo._output.hypertext import Html
 from marimo._output.md import md
@@ -78,7 +78,7 @@ def nav_menu(
 
 @dataclass
 class NavMenu:
-    items: List[Union[NavMenuItemLink, NavMenuItemGroup]]
+    items: list[Union[NavMenuItemLink, NavMenuItemGroup]]
 
 
 @dataclass
@@ -91,7 +91,7 @@ class NavMenuItemLink:
 @dataclass
 class NavMenuItemGroup:
     label: str
-    items: List[NavMenuItemLink]
+    items: list[NavMenuItemLink]
 
 
 def _build_and_validate_menu(menu: dict[str, JSONType]) -> NavMenu:
@@ -106,14 +106,14 @@ def _build_and_validate_menu(menu: dict[str, JSONType]) -> NavMenu:
             return href
         raise ValueError(f"Invalid href: {href}, must start with / or #")
 
-    items: List[Union[NavMenuItemLink, NavMenuItemGroup]] = []
+    items: list[Union[NavMenuItemLink, NavMenuItemGroup]] = []
     for k, v in menu.items():
         if isinstance(v, str):
             items.append(
                 NavMenuItemLink(label=md(v).text, href=validate_href(k))
             )
         elif isinstance(v, dict):
-            subitems: List[NavMenuItemLink] = []
+            subitems: list[NavMenuItemLink] = []
             for kk, vv in v.items():
                 if isinstance(vv, str):
                     subitems.append(

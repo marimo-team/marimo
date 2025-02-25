@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +13,8 @@ from marimo._plugins import ui
 from marimo._sql.sql import _query_includes_limit, sql
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     import duckdb
     import sqlalchemy as sa
 

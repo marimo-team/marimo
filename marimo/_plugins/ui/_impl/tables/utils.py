@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
@@ -19,7 +19,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._utils.narwhals_utils import can_narwhalify
 
-MANAGERS: List[TableManagerFactory] = [
+MANAGERS: list[TableManagerFactory] = [
     PandasTableManagerFactory(),
     PolarsTableManagerFactory(),
     IbisTableManagerFactory(),

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import logging.handlers
 import sys
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 try:
     import curses
@@ -64,7 +64,7 @@ class LogFormatter(logging.Formatter):
         datefmt: str = DEFAULT_DATE_FORMAT,
         style: str = "%",
         color: bool = True,
-        colors: Dict[int, int] = DEFAULT_COLORS,
+        colors: dict[int, int] = DEFAULT_COLORS,
     ) -> None:
         r"""
         :arg bool color: Enables color support.
@@ -109,7 +109,7 @@ class LogFormatter(logging.Formatter):
                 # If curses is not present (currently we'll only get here for
                 # colorama on windows), assume hard-coded ANSI color codes.
                 for levelno, code in colors.items():
-                    self._colors[levelno] = "\033[2;3%dm" % code
+                    self._colors[levelno] = "\033[2;3%dm" % code  # noqa: UP031
                 self._normal = "\033[0m"
         else:
             self._normal = ""
@@ -120,7 +120,7 @@ class LogFormatter(logging.Formatter):
             assert isinstance(message, str)  # guaranteed by logging
             record.message = message
         except Exception as e:
-            record.message = "Bad message (%r): %r" % (e, record.__dict__)
+            record.message = f"Bad message ({e!r}): {record.__dict__!r}"
 
         record.asctime = self.formatTime(record, cast(str, self.datefmt))
 

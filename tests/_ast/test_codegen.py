@@ -24,7 +24,7 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def get_expected_filecontents(name: str) -> str:
-    with open(os.path.join(DIR_PATH, f"codegen_data/{name}.py"), "r") as f:
+    with open(os.path.join(DIR_PATH, f"codegen_data/{name}.py")) as f:
         contents = f.read()
     lines = contents.split("\n")
     break_index = None

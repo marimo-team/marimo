@@ -7,9 +7,12 @@ import functools
 import inspect
 import itertools
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
 
 from marimo._ast.cell import Cell
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Mapping
 
 Fn = TypeVar("Fn", bound=Callable[..., Any])
 
@@ -168,10 +171,8 @@ def build_test_class(
             def fails(*args: Any, **kwargs: Any) -> NoReturn:
                 del args, kwargs
                 raise ValueError(
-                    (
-                        f"Could not find test {var}, please report to"
-                        "marimo-team/marimo/issues."
-                    )
+                    f"Could not find test {var}, please report to"
+                    "marimo-team/marimo/issues."
                 )
 
             return fails
@@ -203,11 +204,9 @@ def build_test_class(
                 def fails(*args: Any, **kwargs: Any) -> NoReturn:
                     del args, kwargs
                     raise ValueError(
-                        (
-                            f"Failed to evaluate decorator for {var}."
-                            "Consider adjusting the test to enable "
-                            "static analysis."
-                        )
+                        f"Failed to evaluate decorator for {var}."
+                        "Consider adjusting the test to enable "
+                        "static analysis."
                     ) from e
 
                 functools.wraps(stub_fn)(fails)
@@ -233,10 +232,8 @@ def build_test_class(
 
             return build_test_class(test.body, _run, file, var, defs, True)
         raise ValueError(
-            (
-                "Improperly compiled as a test. Please report to"
-                "marimo-team/marimo/issues."
-            )
+            "Improperly compiled as a test. Please report to"
+            "marimo-team/marimo/issues."
         )
 
     return type(name, (MarimoTest,), {var: hook(var) for var in defs})

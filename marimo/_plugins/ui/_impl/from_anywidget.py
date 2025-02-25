@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import weakref
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -24,17 +24,17 @@ LOGGER = _loggers.marimo_logger()
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+cache: dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
-def from_anywidget(widget: "AnyWidget") -> UIElement[Any, Any]:
+def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
     if widget not in cache:
         cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return cache[widget]
 
 
-T = Dict[str, Any]
+T = dict[str, Any]
 
 
 @dataclass
@@ -75,7 +75,7 @@ class anywidget(UIElement[T, T]):
         widget (AnyWidget): The widget to wrap.
     """
 
-    def __init__(self, widget: "AnyWidget"):
+    def __init__(self, widget: AnyWidget):
         self.widget = widget
         # This gets set to True in super().__init__()
         self._initialized = False
@@ -163,7 +163,7 @@ class anywidget(UIElement[T, T]):
     def _initialize(
         self,
         initialization_args: InitializationArgs[
-            Dict[str, Any], Dict[str, Any]
+            dict[str, Any], dict[str, Any]
         ],
     ) -> None:
         super()._initialize(initialization_args)

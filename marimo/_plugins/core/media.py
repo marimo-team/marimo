@@ -53,7 +53,7 @@ def io_to_data_url(
         io.BufferedReader,
         pathlib.Path,
         PILImage,
-        "npt.NDArray[Any]",
+        npt.NDArray[Any],
         DataFrame,
         None,
     ],
@@ -125,7 +125,7 @@ def io_to_data_url(
         try:
             with open(src, "rb") as f:
                 return io_to_data_url(f, fallback_mime_type)
-        except (FileNotFoundError, IOError):
+        except (OSError, FileNotFoundError):
             return src
 
     # Handle Pandas DataFrames (convert to CSV)

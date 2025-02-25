@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-from typing import List, Tuple
 
 import pytest
 
@@ -10,7 +9,7 @@ from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from tests.mocks import snapshotter
 
-TYPES: List[Tuple[DataType, bool]] = [
+TYPES: list[tuple[DataType, bool]] = [
     ("boolean", False),
     ("date", False),
     ("datetime", False),
@@ -35,7 +34,7 @@ def test_get_chart_builder():
 
 
 def test_charts_altair_code():
-    outputs: List[str] = []
+    outputs: list[str] = []
 
     for t, should_limit_to_10_items in TYPES:
         builder = get_chart_builder(t, should_limit_to_10_items)
@@ -52,7 +51,7 @@ def test_charts_altair_code():
 
 
 def test_charts_bad_characters():
-    outputs: List[str] = []
+    outputs: list[str] = []
     builder = get_chart_builder("string", False)
     chars = {
         "<": "angles",
@@ -72,7 +71,7 @@ def test_charts_bad_characters():
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_charts_altair_json():
-    outputs: List[str] = []
+    outputs: list[str] = []
     import altair as alt
     import pandas as pd
 

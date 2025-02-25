@@ -44,7 +44,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         file = click.get_text_stream("stderr")
     color = None
     click.echo(
-        red("Error") + ": %s\n" % self.format_message(),
+        red("Error") + f": {self.format_message()}\n",
         file=file,
         color=color,
     )

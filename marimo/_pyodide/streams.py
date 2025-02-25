@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import Any, Callable, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -18,6 +18,9 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -60,7 +63,7 @@ class PyodideStdout(Stdout):
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -105,7 +108,7 @@ class PyodideStderr(Stderr):
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -148,7 +151,7 @@ class PyodideStdin(Stdin):
         assert self.stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
-                "prompt must be a str, not %s" % type(prompt).__name__
+                f"prompt must be a str, not {type(prompt).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(prompt) > max_bytes:

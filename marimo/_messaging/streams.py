@@ -10,8 +10,6 @@ from collections import deque
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterable,
-    Iterator,
     Optional,
     Protocol,
 )
@@ -32,6 +30,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     import queue
+    from collections.abc import Iterable, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -241,7 +240,7 @@ class ThreadSafeStdout(Stdout):
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -305,7 +304,7 @@ class ThreadSafeStderr(Stderr):
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -357,7 +356,7 @@ class ThreadSafeStdin(Stdin):
         assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
-                "prompt must be a str, not %s" % type(prompt).__name__
+                f"prompt must be a str, not {type(prompt).__name__}"
             )
 
         max_bytes = std_stream_max_bytes()

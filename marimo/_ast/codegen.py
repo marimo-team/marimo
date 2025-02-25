@@ -8,7 +8,7 @@ import json
 import os
 import re
 import textwrap
-from typing import Any, List, Literal, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
@@ -352,7 +352,7 @@ def generate_filecontents(
             )
 
     assert all(isinstance(d, str) for d in definitions)
-    cell_blocks: List[str] = cast(List[str], definitions)
+    cell_blocks: list[str] = cast(list[str], definitions)
     if not toplevel_fn:
         return _classic_export(cell_blocks, header_comments, config)
 
@@ -402,7 +402,7 @@ def get_app(filename: Optional[str]) -> Optional[App]:
     if filename is None:
         return None
 
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, encoding="utf-8") as f:
         contents = f.read().strip()
 
     if not contents:
@@ -442,7 +442,7 @@ def get_app(filename: Optional[str]) -> Optional[App]:
 
 def recover(filename: str) -> str:
     """Generate a module for code recovered from a disconnected frontend"""
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, encoding="utf-8") as f:
         contents = f.read()
     cells = json.loads(contents)["cells"]
     codes, names, configs = tuple(
@@ -458,9 +458,9 @@ def recover(filename: str) -> str:
         )
     )
     return generate_filecontents(
-        cast(List[str], codes),
-        cast(List[str], names),
-        cast(List[CellConfig], configs),
+        cast(list[str], codes),
+        cast(list[str], names),
+        cast(list[CellConfig], configs),
     )
 
 
@@ -484,7 +484,7 @@ def get_header_comments(filename: str) -> Optional[str]:
     if not os.path.exists(filename):
         return None
 
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, encoding="utf-8") as f:
         contents = f.read()
 
     if "import marimo" not in contents:

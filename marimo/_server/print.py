@@ -52,7 +52,9 @@ def print_startup(
 
 def print_shutdown() -> None:
     print_()
-    print_tabbed("\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃"))
+    print_tabbed(
+        "\033[32mThanks for using marimo!\033[0m {}".format(_utf8("🌊🍃"))
+    )
     print_()
 
 

@@ -17,7 +17,7 @@ def test_cli_development_openapi() -> None:
 
 
 def test_openapi_up_to_date() -> None:
-    with open("openapi/api.yaml", "r") as f:
+    with open("openapi/api.yaml") as f:
         current_content = yaml.safe_load(f)
 
     result = subprocess.run(

@@ -1,13 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 @mddoc

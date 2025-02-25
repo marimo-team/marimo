@@ -5,8 +5,9 @@ import asyncio
 import os
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Coroutine
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, Optional, Set
+from typing import Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -18,7 +19,7 @@ Callback = Callable[[Path], Coroutine[None, None, None]]
 
 class FileWatcher(ABC):
     @staticmethod
-    def create(path: Path, callback: Callback) -> "FileWatcher":
+    def create(path: Path, callback: Callback) -> FileWatcher:
         if DependencyManager.watchdog.has():
             LOGGER.debug("Using watchdog file watcher")
             return _create_watchdog(path, callback, asyncio.get_event_loop())
@@ -137,9 +138,9 @@ class FileWatcherManager:
 
     def __init__(self) -> None:
         # Map of file paths to their watchers
-        self._watchers: Dict[str, FileWatcher] = {}
+        self._watchers: dict[str, FileWatcher] = {}
         # Map of file paths to their callbacks
-        self._callbacks: Dict[str, Set[Callback]] = defaultdict(set)
+        self._callbacks: dict[str, set[Callback]] = defaultdict(set)
 
     def add_callback(self, path: Path, callback: Callback) -> None:
         """Add a callback for a file path. Creates watcher if needed."""

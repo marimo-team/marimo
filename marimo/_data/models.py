@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from marimo._types.ids import VariableName
 
@@ -38,7 +38,7 @@ class DataTableColumn:
     name: str
     type: DataType
     external_type: ExternalDataType
-    sample_values: List[Any]
+    sample_values: list[Any]
 
 
 DataTableSource = Literal["local", "duckdb", "connection"]
@@ -70,17 +70,17 @@ class DataTable:
     num_rows: Optional[int]
     num_columns: Optional[int]
     variable_name: Optional[VariableName]
-    columns: List[DataTableColumn]
+    columns: list[DataTableColumn]
     engine: Optional[VariableName] = None
     type: DataTableType = "table"
-    primary_keys: Optional[List[str]] = None
-    indexes: Optional[List[str]] = None
+    primary_keys: Optional[list[str]] = None
+    indexes: Optional[list[str]] = None
 
 
 @dataclass
 class Schema:
     name: str
-    tables: List[DataTable] = field(default_factory=list)
+    tables: list[DataTable] = field(default_factory=list)
 
 
 @dataclass
@@ -97,7 +97,7 @@ class Database:
 
     name: str
     dialect: str
-    schemas: List[Schema] = field(default_factory=list)
+    schemas: list[Schema] = field(default_factory=list)
     engine: Optional[VariableName] = None
 
 
@@ -147,4 +147,4 @@ class DataSourceConnection:
     dialect: str
     name: str
     display_name: str
-    databases: List[Database] = field(default_factory=list)
+    databases: list[Database] = field(default_factory=list)

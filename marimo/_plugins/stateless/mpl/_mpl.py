@@ -16,7 +16,7 @@ import signal
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo import _loggers
 from marimo._output.builder import h
@@ -158,7 +158,7 @@ def create_application() -> Starlette:
 
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
-        queue: asyncio.Queue[Tuple[Any, str]] = asyncio.Queue()
+        queue: asyncio.Queue[tuple[Any, str]] = asyncio.Queue()
 
         class SyncWebSocket:
             def send_json(self, content: str) -> None:

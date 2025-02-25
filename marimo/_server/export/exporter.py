@@ -527,7 +527,7 @@ def get_html_contents() -> str:
         with urllib.request.urlopen(url) as response:
             return cast(str, response.read().decode("utf-8"))
 
-    with open(os.path.join(root, "index.html"), "r") as f:
+    with open(os.path.join(root, "index.html")) as f:
         return f.read()
 
 

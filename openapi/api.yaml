@@ -909,7 +909,21 @@ components:
           - function-call-result
           type: string
         return_value:
-          $ref: '#/components/schemas/JSONType'
+          nullable: true
+          oneOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/JSONType'
+            type: object
+          - items:
+              $ref: '#/components/schemas/JSONType'
+            type: array
+          - type: string
+          - type: integer
+          - type: number
+          - type: boolean
+          - additionalProperties: true
+            type: object
+          - $ref: '#/components/schemas/MIME'
         status:
           $ref: '#/components/schemas/HumanReadableStatus'
       required:
@@ -1097,10 +1111,38 @@ components:
             nullable: true
             oneOf:
             - additionalProperties:
-                $ref: '#/components/schemas/JSONType'
+                nullable: true
+                oneOf:
+                - additionalProperties:
+                    $ref: '#/components/schemas/JSONType'
+                  type: object
+                - items:
+                    $ref: '#/components/schemas/JSONType'
+                  type: array
+                - type: string
+                - type: integer
+                - type: number
+                - type: boolean
+                - additionalProperties: true
+                  type: object
+                - $ref: '#/components/schemas/MIME'
               type: object
             - items:
-                $ref: '#/components/schemas/JSONType'
+                nullable: true
+                oneOf:
+                - additionalProperties:
+                    $ref: '#/components/schemas/JSONType'
+                  type: object
+                - items:
+                    $ref: '#/components/schemas/JSONType'
+                  type: array
+                - type: string
+                - type: integer
+                - type: number
+                - type: boolean
+                - additionalProperties: true
+                  type: object
+                - $ref: '#/components/schemas/MIME'
               type: array
             - type: string
             - type: integer
@@ -2152,7 +2194,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.7
+  version: 0.11.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

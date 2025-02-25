@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
 from marimo._data.models import (
@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 
 
 def get_datasets_from_variables(
-    variables: List[tuple[VariableName, object]],
-) -> List[DataTable]:
-    tables: List[DataTable] = []
+    variables: list[tuple[VariableName, object]],
+) -> list[DataTable]:
+    tables: list[DataTable] = []
     for variable_name, value in variables:
         table = _get_data_table(value, variable_name)
         if table is not None:
@@ -89,7 +89,7 @@ def has_updates_to_datasource(query: str) -> bool:
 def get_databases_from_duckdb(
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName] = None,
-) -> List[Database]:
+) -> list[Database]:
     try:
         return _get_databases_from_duckdb_internal(connection, engine_name)
     except Exception:
@@ -100,7 +100,7 @@ def get_databases_from_duckdb(
 def _get_databases_from_duckdb_internal(
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName] = None,
-) -> List[Database]:
+) -> list[Database]:
     """Get database information from DuckDB."""
     # Columns
     # 0:"database"

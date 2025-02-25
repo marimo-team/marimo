@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -56,7 +56,7 @@ class Choice:
 # OpenAI
 @dataclass
 class FakeChoices:
-    choices: List[Choice]
+    choices: list[Choice]
 
 
 @pytest.mark.skipif(
@@ -476,7 +476,7 @@ def no_google_ai_config(config: UserConfigManager):
 
 
 class TestStreamResponse(unittest.TestCase):
-    def simulate_stream(self, contents: List[str]) -> Any:
+    def simulate_stream(self, contents: list[str]) -> Any:
         @dataclass
         class MockContent:
             content: str

@@ -6,7 +6,6 @@ from typing import (
     Any,
     Generic,
     Optional,
-    Tuple,
     TypeVar,
 )
 
@@ -19,7 +18,7 @@ T = TypeVar("T")
 
 ColumnName = str
 FieldType = DataType
-FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
+FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -109,7 +108,7 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         pass
 
     def get_field_types(self) -> FieldTypes:

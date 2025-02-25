@@ -216,11 +216,11 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
     kernel_manager.interrupt_kernel()
 
     try:
-        with open(file, "r") as f:
+        with open(file) as f:
             assert f.read() == "0"
         # if kernel failed to interrupt, f will read as "1"
         time.sleep(1.5)
-        with open(file, "r") as f:
+        with open(file) as f:
             assert f.read() == "0"
     finally:
         if sys.platform == "win32":

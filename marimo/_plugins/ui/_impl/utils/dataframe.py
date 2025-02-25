@@ -2,9 +2,6 @@
 from __future__ import annotations
 
 from typing import (
-    Dict,
-    List,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -19,13 +16,13 @@ LOGGER = _loggers.marimo_logger()
 
 T = TypeVar("T")
 Numeric = Union[int, float]
-ListOrTuple = Union[List[T], Tuple[T, ...]]
+ListOrTuple = Union[list[T], tuple[T, ...]]
 
 
 TableData = Union[
-    List[JSONType],
+    list[JSONType],
     ListOrTuple[Union[str, int, float, bool, MIME, None]],
-    ListOrTuple[Dict[str, JSONType]],
-    Dict[str, ListOrTuple[JSONType]],
+    ListOrTuple[dict[str, JSONType]],
+    dict[str, ListOrTuple[JSONType]],
     IntoDataFrame,
 ]

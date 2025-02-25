@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 import secrets
 import typing
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import starlette
 import starlette.status as status
@@ -129,7 +129,7 @@ class CookieSession:
     Wrapper around starlette's Session to add typesafety
     """
 
-    def __init__(self, session_state: Dict[str, Any]) -> None:
+    def __init__(self, session_state: dict[str, Any]) -> None:
         self.session_state = session_state
 
     def get_access_token(self) -> str:

@@ -3,16 +3,12 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    Iterator,
-    List,
-    Mapping,
     Optional,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -29,10 +25,10 @@ if TYPE_CHECKING:
 CompletionRequestId = str
 
 T = TypeVar("T")
-ListOrValue = Union[T, List[T]]
-SerializedQueryParams = Dict[str, ListOrValue[str]]
+ListOrValue = Union[T, list[T]]
+SerializedQueryParams = dict[str, ListOrValue[str]]
 Primitive = Union[str, bool, int, float]
-SerializedCLIArgs = Dict[str, ListOrValue[Primitive]]
+SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
 @dataclass
@@ -77,7 +73,7 @@ class HTTPRequest(Mapping[str, Any]):
         return f"HTTPRequest(path={self.url['path']}, params={len(self.query_params)})"
 
     @staticmethod
-    def from_request(request: HTTPConnection) -> "HTTPRequest":
+    def from_request(request: HTTPConnection) -> HTTPRequest:
         def _url_to_dict(url: URL) -> dict[str, Any]:
             return {
                 "path": url.path,
@@ -141,9 +137,9 @@ class ExecuteStaleRequest: ...
 @dataclass
 class ExecuteMultipleRequest:
     # ids of cells to run
-    cell_ids: List[CellId_t]
+    cell_ids: list[CellId_t]
     # code to register/run for each cell
-    codes: List[str]
+    codes: list[str]
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
     # time at which the request was received
@@ -153,7 +149,7 @@ class ExecuteMultipleRequest:
         return f"ExecuteMultipleRequest(cells={len(self.cell_ids)})"
 
     @property
-    def execution_requests(self) -> List[ExecutionRequest]:
+    def execution_requests(self) -> list[ExecutionRequest]:
         return [
             ExecutionRequest(
                 cell_id=cell_id,
@@ -184,8 +180,8 @@ class RenameRequest:
 
 @dataclass
 class SetUIElementValueRequest:
-    object_ids: List[UIElementId]
-    values: List[Any]
+    object_ids: list[UIElementId]
+    values: list[Any]
     # Incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
     # uniquely identifies the request
@@ -201,7 +197,7 @@ class SetUIElementValueRequest:
 
     @staticmethod
     def from_ids_and_values(
-        ids_and_values: List[Tuple[UIElementId, Any]],
+        ids_and_values: list[tuple[UIElementId, Any]],
         request: Optional[HTTPRequest] = None,
     ) -> SetUIElementValueRequest:
         if not ids_and_values:
@@ -216,7 +212,7 @@ class SetUIElementValueRequest:
         )
 
     @property
-    def ids_and_values(self) -> List[Tuple[UIElementId, Any]]:
+    def ids_and_values(self) -> list[tuple[UIElementId, Any]]:
         return list(zip(self.object_ids, self.values))
 
 
@@ -225,7 +221,7 @@ class FunctionCallRequest:
     function_call_id: RequestId
     namespace: str
     function_name: str
-    args: Dict[str, Any]
+    args: dict[str, Any]
 
     def __repr__(self) -> str:
         return f"FunctionCallRequest(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"
@@ -244,7 +240,7 @@ class AppMetadata:
 @dataclass
 class SetCellConfigRequest:
     # Map from Cell ID to (possibly partial) CellConfig
-    configs: Dict[CellId_t, Dict[str, Any]]
+    configs: dict[CellId_t, dict[str, Any]]
 
 
 @dataclass
@@ -255,7 +251,7 @@ class SetUserConfigRequest:
 
 @dataclass
 class CreationRequest:
-    execution_requests: Tuple[ExecutionRequest, ...]
+    execution_requests: tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
     auto_run: bool
     request: Optional[HTTPRequest] = None
@@ -289,7 +285,7 @@ class InstallMissingPackagesRequest:
     # Map from package name to desired version
     # If the package name is not in the map, the latest version
     # will be installed
-    versions: Dict[str, str]
+    versions: dict[str, str]
 
 
 @dataclass

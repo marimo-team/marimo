@@ -29,11 +29,11 @@ class PyProjectReader:
         self.project = project
 
     @staticmethod
-    def from_filename(name: str) -> "PyProjectReader":
+    def from_filename(name: str) -> PyProjectReader:
         return PyProjectReader(_get_pyproject_from_filename(name) or {})
 
     @staticmethod
-    def from_script(script: str) -> "PyProjectReader":
+    def from_script(script: str) -> PyProjectReader:
         return PyProjectReader(read_pyproject_from_script(script) or {})
 
     @property

@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -38,13 +38,13 @@ def create_starlette_app(
     *,
     base_url: str,
     host: Optional[str] = None,
-    middleware: Optional[List[Middleware]] = None,
+    middleware: Optional[list[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
     lsp_port: Optional[int] = None,
 ) -> Starlette:
-    final_middlewares: List[Middleware] = []
+    final_middlewares: list[Middleware] = []
 
     if allow_origins is None:
         allow_origins = ("localhost", "127.0.0.1") + (

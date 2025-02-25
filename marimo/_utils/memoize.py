@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Tuple, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -14,7 +14,7 @@ def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
     object identity for positional arguments instead of equality
     which for functools requires the arguments to be hashable.
     """
-    last_input: Tuple[Tuple[Any, ...], frozenset[Tuple[str, Any]]] = (
+    last_input: tuple[tuple[Any, ...], frozenset[tuple[str, Any]]] = (
         (),
         frozenset(),
     )
@@ -23,7 +23,7 @@ def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
     def wrapper(*args: Any, **kwargs: Any) -> T:
         nonlocal last_input, last_output
 
-        current_input: Tuple[Tuple[Any, ...], frozenset[Tuple[str, Any]]] = (
+        current_input: tuple[tuple[Any, ...], frozenset[tuple[str, Any]]] = (
             args,
             frozenset(kwargs.items()),
         )

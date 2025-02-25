@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 from marimo._ai._types import (
     ChatAttachment,
@@ -15,7 +15,7 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
         return d
 
     attachments_dict = d.get("attachments", None)
-    attachments: Optional[List[ChatAttachment]] = None
+    attachments: Optional[list[ChatAttachment]] = None
     if attachments_dict is not None:
         attachments = [
             ChatAttachment(

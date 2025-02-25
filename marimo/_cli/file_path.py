@@ -8,7 +8,7 @@ import pathlib
 import urllib.parse
 import urllib.request
 from tempfile import TemporaryDirectory
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.error import HTTPError
 
 from marimo import _loggers
@@ -45,7 +45,7 @@ class FileReader(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         """Read the file and return its content and filename."""
         pass
 
@@ -54,11 +54,11 @@ class LocalFileReader(FileReader):
     def can_read(self, name: str) -> bool:
         return not is_url(name)
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         # Is directory
         if os.path.isdir(name):
             return "", os.path.basename(name)
-        with open(name, "r", encoding="utf-8") as f:
+        with open(name, encoding="utf-8") as f:
             content = f.read()
         return content, os.path.basename(name)
 
@@ -69,7 +69,7 @@ class GitHubIssueReader(FileReader):
             "https://github.com/marimo-team/marimo/issues/"
         )
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         issue_number = name.split("/")[-1]
         api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
         issue_response = urllib.request.urlopen(api_url).read().decode("utf-8")
@@ -92,7 +92,7 @@ class StaticNotebookReader(FileReader):
     def can_read(self, name: str) -> bool:
         return self._is_static_marimo_notebook_url(name)[0]
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         _, file_contents = self._is_static_marimo_notebook_url(name)
         code = self._extract_code_from_static_notebook(file_contents)
         filename = self._extract_filename_from_static_notebook(file_contents)
@@ -150,7 +150,7 @@ class GitHubSourceReader(FileReader):
     def can_read(self, name: str) -> bool:
         return is_github_src(name, ext=".py") or is_github_src(name, ext=".md")
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         url = get_github_src_url(name)
         content = urllib.request.urlopen(url).read().decode("utf-8")
         return content, os.path.basename(url)
@@ -160,7 +160,7 @@ class GenericURLReader(FileReader):
     def can_read(self, name: str) -> bool:
         return is_url(name)
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         content = urllib.request.urlopen(name).read().decode("utf-8")
         # Remove query parameters from the URL
         url_without_query = name.split("?")[0]
@@ -177,7 +177,7 @@ class FileContentReader:
             GenericURLReader(),
         ]
 
-    def read_file(self, name: str) -> Tuple[str, str]:
+    def read_file(self, name: str) -> tuple[str, str]:
         """
         Read the file and return its content and filename
 
@@ -204,7 +204,7 @@ class FileHandler(abc.ABC):
     @abc.abstractmethod
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
         pass
 
 
@@ -218,7 +218,7 @@ class LocalFileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
         del temp_dir
         import click
 
@@ -264,7 +264,7 @@ class RemoteFileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
         try:
             content, filename = self.reader.read_file(name)
         except HTTPError as e:
@@ -293,7 +293,7 @@ class RemoteFileHandler(FileHandler):
 
 def validate_name(
     name: str, allow_new_file: bool, allow_directory: bool
-) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+) -> tuple[str, Optional[TemporaryDirectory[str]]]:
     """
     Validate the file name and return the path to the file.
 

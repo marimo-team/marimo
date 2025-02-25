@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import html
-from typing import Dict
 
 import marimo._output.data.data as mo_data
 from marimo._runtime.context.types import (
@@ -11,7 +10,7 @@ from marimo._runtime.context.types import (
 )
 
 
-def src_or_src_doc(html_content: str) -> Dict[str, str]:
+def src_or_src_doc(html_content: str) -> dict[str, str]:
     """
     Depending if virtual files are supported,
     return the appropriate src or srcdoc attribute for an iframe.

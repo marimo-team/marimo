@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import sys
-from typing import Any, ClassVar, List, Literal, Optional, TypedDict, Union
+from typing import Any, ClassVar, Literal, Optional, TypedDict, Union
 
 import pytest
 
@@ -24,7 +24,7 @@ class Person:
     name: str
     age: int
     address: Address
-    tags: List[str]
+    tags: list[str]
     metadata: Any
 
 

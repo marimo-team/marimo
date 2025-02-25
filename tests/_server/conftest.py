@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import sys
 from tempfile import TemporaryDirectory
-from typing import Generator, Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 import uvicorn
@@ -16,6 +16,9 @@ from marimo._server.main import create_starlette_app
 from marimo._server.sessions import SessionManager
 from marimo._server.utils import initialize_asyncio
 from tests._server.mocks import get_mock_session_manager
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
 
 app = create_starlette_app(base_url="", enable_auth=True)
 

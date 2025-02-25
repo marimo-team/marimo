@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Literal, Optional, Union
 
 import pytest
 
@@ -92,7 +92,7 @@ class TestParseRaw:
     def test_nested_list(self) -> None:
         @dataclass
         class Nested:
-            configs: List[Config]
+            configs: list[Config]
 
         nested = Nested(
             configs=[
@@ -107,7 +107,7 @@ class TestParseRaw:
     def test_nested_dict(self) -> None:
         @dataclass
         class Nested:
-            configs: Dict[str, Config]
+            configs: dict[str, Config]
 
         nested = Nested(
             configs={
@@ -122,7 +122,7 @@ class TestParseRaw:
     def test_nested_tuple_ellipses(self) -> None:
         @dataclass
         class Nested:
-            configs: Tuple[Config, ...]
+            configs: tuple[Config, ...]
 
         nested = Nested(
             configs=tuple(
@@ -139,7 +139,7 @@ class TestParseRaw:
     def test_nested_tuple_fixed(self) -> None:
         @dataclass
         class Nested:
-            configs: Tuple[str, Config]
+            configs: tuple[str, Config]
 
         nested = Nested(
             configs=(

@@ -15,7 +15,7 @@ def load_external_file(file_path: str, ext: str) -> str:
             .decode("utf-8")
         )
     else:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             notebook = f.read()
 
     return notebook

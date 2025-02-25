@@ -15,8 +15,6 @@ else:
 
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
     Optional,
     TypedDict,
@@ -77,7 +75,7 @@ class KeymapConfig(TypedDict):
     """
 
     preset: Literal["default", "vim"]
-    overrides: NotRequired[Dict[str, str]]
+    overrides: NotRequired[dict[str, str]]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -255,7 +253,7 @@ class SnippetsConfig(TypedDict):
     - `custom_path`: the path to the custom snippets directory
     """
 
-    custom_paths: NotRequired[List[str]]
+    custom_paths: NotRequired[list[str]]
     include_default_snippets: NotRequired[bool]
 
 
@@ -273,7 +271,7 @@ class MarimoConfig(TypedDict):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
-    experimental: NotRequired[Dict[str, Any]]
+    experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
 
 
@@ -291,7 +289,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
-    experimental: NotRequired[Dict[str, Any]]
+    experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
 
 
@@ -356,7 +354,7 @@ def merge_config(
     merged = cast(
         MarimoConfig,
         deep_merge(
-            cast(Dict[Any, Any], config), cast(Dict[Any, Any], new_config)
+            cast(dict[Any, Any], config), cast(dict[Any, Any], new_config)
         ),
     )
 

@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence  # noqa: TC003
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Dict, Sequence, Union
+from typing import Any, Union
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
@@ -32,7 +33,7 @@ class CellOutput:
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel
     mimetype: KnownMimeType
-    data: Union[str, Sequence[Error], Dict[str, Any]]
+    data: Union[str, Sequence[Error], dict[str, Any]]
     timestamp: float = field(default_factory=lambda: time.time())
 
     def __repr__(self) -> str:

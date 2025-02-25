@@ -5,7 +5,7 @@ import asyncio
 import json
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.app import App, InternalApp, _AppConfig
@@ -220,7 +220,7 @@ class MarimoIslandGenerator:
         self.has_run = False
         self._app_id = app_id
         self._app = InternalApp(App())
-        self._stubs: List[MarimoIslandStub] = []
+        self._stubs: list[MarimoIslandStub] = []
         self._config = _AppConfig()
 
     @staticmethod

@@ -6,7 +6,7 @@ import itertools
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Set, Union
+from typing import Callable, Literal, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -490,7 +490,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    tables: Set[str] = set()
+                    tables: set[str] = set()
                     from_targets: list[str] = []
                     # Parse the refs and defs of each statement
                     try:

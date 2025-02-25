@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import pytest
 
@@ -11,9 +11,9 @@ from marimo._utils.flatten import (
     flatten,
 )
 
-L = List[Any]
-T = Tuple[Any, ...]
-D = Dict[Any, Any]
+L = list[Any]
+T = tuple[Any, ...]
+D = dict[Any, Any]
 
 
 def test_flat_list() -> None:

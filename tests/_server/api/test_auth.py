@@ -132,7 +132,7 @@ async def test_validate_auth_with_missing_password_in_basic_auth(
     conn = create_connection(app)
     # Run all middleware
     await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
-    basic_auth_header = f"Basic {base64.b64encode('test:'.encode()).decode()}"
+    basic_auth_header = f"Basic {base64.b64encode(b'test:').decode()}"
     conn._headers = Headers({"Authorization": basic_auth_header})
 
     assert validate_auth(conn) is False

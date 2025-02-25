@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from marimo import __version__ as current_version, _loggers
 from marimo._cli.print import echo, green, orange
@@ -114,7 +114,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         return state
 
 
-def _fetch_data_from_url(url: str) -> Dict[str, Any]:
+def _fetch_data_from_url(url: str) -> dict[str, Any]:
     try:
         with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as response:
             status = response.status

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import List, Optional
+from typing import Optional
 
 from marimo._utils.platform import is_pyodide
 
@@ -48,7 +48,7 @@ def append_version(pkg_name: str, version: Optional[str]) -> str:
     return f"{pkg_name}=={version}"
 
 
-def split_packages(package: str) -> List[str]:
+def split_packages(package: str) -> list[str]:
     """
     Splits a package string into a list of packages.
 
@@ -64,8 +64,8 @@ def split_packages(package: str) -> List[str]:
     "package1 @ /path/to/package1" -> ["package1 @ /path/to/package1"]
     "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'" -> ["foo==1.0; python_version>'3.6'", "bar==2.0; sys_platform=='win32'"]
     """  # noqa: E501
-    packages: List[str] = []
-    current_package: List[str] = []
+    packages: list[str] = []
+    current_package: list[str] = []
     in_environment_marker = False
 
     for part in package.split():

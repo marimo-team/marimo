@@ -5,7 +5,7 @@ import asyncio
 import hashlib
 import json
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import Optional, cast
 
 from marimo import __version__, _loggers
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -35,16 +35,16 @@ LOGGER = _loggers.marimo_logger()
 
 def serialize_session_view(view: SessionView) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema."""
-    cells: List[Cell] = []
+    cells: list[Cell] = []
 
     for cell_id, cell_op in view.cell_operations.items():
-        outputs: List[OutputType] = []
-        console: List[StreamOutput] = []
+        outputs: list[OutputType] = []
+        console: list[StreamOutput] = []
 
         # Convert output
         if cell_op.output:
             if cell_op.output.channel == CellChannel.MARIMO_ERROR:
-                for error in cast(List[MarimoError], cell_op.output.data):
+                for error in cast(list[MarimoError], cell_op.output.data):
                     outputs.append(
                         ErrorOutput(
                             type="error",
@@ -100,7 +100,7 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
     view = SessionView()
 
     for cell in session["cells"]:
-        cell_outputs: List[CellOutput] = []
+        cell_outputs: list[CellOutput] = []
 
         # Convert outputs
         for output in cell["outputs"]:
@@ -148,7 +148,7 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                 continue
 
         # Convert console
-        console_outputs: List[CellOutput] = []
+        console_outputs: list[CellOutput] = []
         for console in cell["console"]:
             console_outputs.append(
                 CellOutput(

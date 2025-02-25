@@ -5,9 +5,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    Iterator,
     Optional,
 )
 
@@ -17,12 +15,12 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import ItemsView, ValuesView
+    from collections.abc import ItemsView, Iterator, ValuesView
 
 
 # - Frontend type is a dict {label => value update}
 # - Python type is a dict mapping label -> value
-class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
+class _batch_base(UIElement[dict[str, JSONType], dict[str, object]]):
     """A batch of named UI elements represented by HTML text."""
 
     _name: Final[str] = "marimo-dict"
@@ -32,7 +30,7 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
         html: Html,
         elements: dict[str, UIElement[JSONType, object]],
         label: str = "",
-        on_change: Optional[Callable[[Dict[str, object]], None]] = None,
+        on_change: Optional[Callable[[dict[str, object]], None]] = None,
     ) -> None:
         self._elements = elements
         super().__init__(
@@ -187,7 +185,7 @@ class batch(_batch_base):
         self,
         html: Html,
         elements: dict[str, UIElement[Any, Any]],
-        on_change: Optional[Callable[[Dict[str, object]], None]] = None,
+        on_change: Optional[Callable[[dict[str, object]], None]] = None,
     ) -> None:
         self._html = html
         elements = {key: element._clone() for key, element in elements.items()}

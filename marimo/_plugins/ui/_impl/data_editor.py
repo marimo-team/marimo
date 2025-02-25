@@ -8,9 +8,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Optional,
     TypedDict,
     Union,
@@ -41,7 +39,7 @@ class DataEditorValue:
         data (List[Dict[str, Any]]): Row-oriented data as a list of dictionaries.
     """
 
-    data: List[Dict[str, Any]]
+    data: list[dict[str, Any]]
 
 
 class PositionalEdit(TypedDict):
@@ -65,11 +63,11 @@ class DataEdits(TypedDict):
         edits (List[PositionalEdit]): List of individual cell edits.
     """
 
-    edits: List[PositionalEdit]
+    edits: list[PositionalEdit]
 
 
-RowOrientedData = List[Dict[str, Any]]
-ColumnOrientedData = Dict[str, List[Any]]
+RowOrientedData = list[dict[str, Any]]
+ColumnOrientedData = dict[str, list[Any]]
 
 
 @mddoc

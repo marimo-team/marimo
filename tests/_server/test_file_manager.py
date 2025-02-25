@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 import tempfile
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,6 +13,9 @@ from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveNotebookRequest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 save_request = SaveNotebookRequest(
     cell_ids=["1"],
@@ -32,7 +35,7 @@ def app_file_manager() -> Generator[AppFileManager, None, None]:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
-        """
+        b"""
 import marimo
 __generated_with = "0.0.1"
 app = marimo.App()
@@ -43,7 +46,7 @@ def __():
     return mo,
 if __name__ == "__main__":
     app.run()
-""".encode()
+"""
     )
 
     temp_file.close()
@@ -130,7 +133,7 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     initial_filename = app_file_manager.filename
     assert initial_filename
     assert initial_filename.endswith(".py")
-    with open(initial_filename, "r") as f:
+    with open(initial_filename) as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
         assert "marimo-version" not in contents
@@ -138,7 +141,7 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     next_filename = app_file_manager.filename
     assert next_filename
     assert next_filename.endswith(".md")
-    with open(next_filename, "r") as f:
+    with open(next_filename) as f:
         contents = f.read()
         assert "marimo-version" in contents
         assert "app = marimo.App()" not in contents
@@ -148,7 +151,7 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "app_config.py"
     try:
         app_file_manager.save_app_config({})
-        with open(app_file_manager.filename, "r", encoding="utf-8") as f:
+        with open(app_file_manager.filename, encoding="utf-8") as f:
             contents = f.read()
         assert "app = marimo.App" in contents
     finally:

@@ -6,9 +6,12 @@ import functools
 import sys
 import textwrap
 import types
-from typing import Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 
 from marimo._runtime import marimo_browser, marimo_pdb
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:

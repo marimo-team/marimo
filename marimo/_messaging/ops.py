@@ -9,17 +9,14 @@ from __future__ import annotations
 import json
 import sys
 import time
+from collections.abc import Sequence  # noqa: TC003
 from dataclasses import asdict, dataclass, field
 from types import ModuleType
 from typing import (
     Any,
     ClassVar,
-    Dict,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -61,20 +58,20 @@ from marimo._utils.platform import is_pyodide, is_windows
 LOGGER = loggers.marimo_logger()
 
 
-def serialize(datacls: Any) -> Dict[str, JSONType]:
+def serialize(datacls: Any) -> dict[str, JSONType]:
     # TODO(akshayka): maybe serialize as bytes (JSON), not objects ...,
     # then `send_bytes` over connection ... to try to avoid pickling
     # issues
     try:
         # Try to serialize as a dataclass
         return cast(
-            Dict[str, JSONType],
+            dict[str, JSONType],
             asdict(datacls),
         )
     except Exception:
         # If that fails, try to serialize using the WebComponentEncoder
         return cast(
-            Dict[str, JSONType],
+            dict[str, JSONType],
             json.loads(WebComponentEncoder.json_dumps(datacls)),
         )
 
@@ -131,7 +128,7 @@ class CellOp(Op):
     name: ClassVar[str] = "cell-op"
     cell_id: CellId_t
     output: Optional[CellOutput] = None
-    console: Optional[Union[CellOutput, List[CellOutput]]] = None
+    console: Optional[Union[CellOutput, list[CellOutput]]] = None
     status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
     run_id: Optional[RunId_t] = None
@@ -393,7 +390,7 @@ class SendUIElementMessage(Op):
 
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: str
-    message: Dict[str, object]
+    message: dict[str, object]
     buffers: Optional[Sequence[str]]
 
 
@@ -427,19 +424,19 @@ class KernelReady(Op):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: Tuple[CellId_t, ...]
-    codes: Tuple[str, ...]
-    names: Tuple[str, ...]
+    cell_ids: tuple[CellId_t, ...]
+    codes: tuple[str, ...]
+    names: tuple[str, ...]
     layout: Optional[LayoutConfig]
-    configs: Tuple[CellConfig, ...]
+    configs: tuple[CellConfig, ...]
     # Whether the kernel was resumed from a previous session
     resumed: bool
     # If the kernel was resumed, the values of the UI elements
-    ui_values: Optional[Dict[str, JSONType]]
+    ui_values: Optional[dict[str, JSONType]]
     # If the kernel was resumed, the last executed code for each cell
-    last_executed_code: Optional[Dict[CellId_t, str]]
+    last_executed_code: Optional[dict[CellId_t, str]]
     # If the kernel was resumed, the last execution time for each cell
-    last_execution_time: Optional[Dict[CellId_t, float]]
+    last_execution_time: Optional[dict[CellId_t, float]]
     # App config
     app_config: _AppConfig
     # Whether the kernel is kiosk mode
@@ -455,7 +452,7 @@ class CompletionResult(Op):
     name: ClassVar[str] = "completion-result"
     completion_id: str
     prefix_length: int
-    options: List[CompletionOption]
+    options: list[CompletionOption]
 
 
 @dataclass
@@ -470,12 +467,12 @@ class Alert(Op):
 @dataclass
 class MissingPackageAlert(Op):
     name: ClassVar[str] = "missing-package-alert"
-    packages: List[str]
+    packages: list[str]
     isolated: bool
 
 
 # package name => installation status
-PackageStatusType = Dict[
+PackageStatusType = dict[
     str, Literal["queued", "installing", "installed", "failed"]
 ]
 
@@ -509,8 +506,8 @@ class Reload(Op):
 @dataclass
 class VariableDeclaration:
     name: str
-    declared_by: List[CellId_t]
-    used_by: List[CellId_t]
+    declared_by: list[CellId_t]
+    used_by: list[CellId_t]
 
 
 @dataclass
@@ -575,7 +572,7 @@ class Variables(Op):
     """List of variable declarations."""
 
     name: ClassVar[str] = "variables"
-    variables: List[VariableDeclaration]
+    variables: list[VariableDeclaration]
 
 
 @dataclass
@@ -583,7 +580,7 @@ class VariableValues(Op):
     """List of variables and their types/values."""
 
     name: ClassVar[str] = "variable-values"
-    variables: List[VariableValue]
+    variables: list[VariableValue]
 
 
 @dataclass
@@ -591,7 +588,7 @@ class Datasets(Op):
     """List of datasets."""
 
     name: ClassVar[str] = "datasets"
-    tables: List[DataTable]
+    tables: list[DataTable]
     clear_channel: Optional[DataTableSource] = None
 
 
@@ -622,7 +619,7 @@ class DataColumnPreview(Op):
 @dataclass
 class DataSourceConnections(Op):
     name: ClassVar[str] = "data-source-connections"
-    connections: List[DataSourceConnection]
+    connections: list[DataSourceConnection]
 
 
 @dataclass
@@ -631,7 +628,7 @@ class QueryParamsSet(Op):
 
     name: ClassVar[str] = "query-params-set"
     key: str
-    value: Union[str, List[str]]
+    value: Union[str, list[str]]
 
 
 @dataclass
@@ -665,8 +662,8 @@ class FocusCell(Op):
 @dataclass
 class UpdateCellCodes(Op):
     name: ClassVar[str] = "update-cell-codes"
-    cell_ids: List[CellId_t]
-    codes: List[str]
+    cell_ids: list[CellId_t]
+    codes: list[str]
     # If true, this means the code was not run on the backend when updating
     # the cell codes.
     code_is_stale: bool
@@ -682,7 +679,7 @@ class UpdateCellIdsRequest(Op):
     """
 
     name: ClassVar[str] = "update-cell-ids"
-    cell_ids: List[CellId_t]
+    cell_ids: list[CellId_t]
 
 
 MessageOperation = Union[

@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.iframe import maybe_wrap_in_iframe
@@ -22,7 +22,7 @@ def maybe_get_repr_formatter(
 
     # Check for the misc _repr_ methods
     # Order dictates preference
-    reprs: list[Tuple[str, KnownMimeType]] = [
+    reprs: list[tuple[str, KnownMimeType]] = [
         ("_repr_html_", "text/html"),  # text/html is preferred first
         ("_repr_mimebundle_", "application/vnd.marimo+mimebundle"),
         ("_repr_svg_", "image/svg+xml"),

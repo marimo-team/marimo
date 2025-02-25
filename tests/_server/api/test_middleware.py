@@ -5,7 +5,7 @@ import io
 import json
 import time
 from multiprocessing import Process
-from typing import TYPE_CHECKING, Any, Tuple
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import uvicorn
@@ -373,7 +373,7 @@ class TestProxyMiddleware:
 
     @pytest.fixture
     def app_with_mpl_proxy(
-        self, edit_app: Starlette, mpl_server: Tuple[str, int]
+        self, edit_app: Starlette, mpl_server: tuple[str, int]
     ) -> ASGIApp:
         """Create the app with ProxyMiddleware targeting the matplotlib plugin server."""
         host, port = mpl_server

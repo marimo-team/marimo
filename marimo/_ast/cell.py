@@ -5,8 +5,8 @@ import ast
 import dataclasses
 import inspect
 import os
-from collections.abc import Awaitable
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
+from collections.abc import Awaitable, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData

@@ -27,7 +27,7 @@ import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -351,8 +351,8 @@ class Room:
 
     def __init__(self) -> None:
         self.main_consumer: Optional[SessionConsumer] = None
-        self.consumers: Dict[SessionConsumer, ConsumerId] = {}
-        self.disposables: Dict[SessionConsumer, Disposable] = {}
+        self.consumers: dict[SessionConsumer, ConsumerId] = {}
+        self.disposables: dict[SessionConsumer, Disposable] = {}
 
     @property
     def size(self) -> int:

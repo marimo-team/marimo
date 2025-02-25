@@ -10,7 +10,7 @@ import abc
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._config.config import MarimoConfig
 from marimo._messaging.context import HTTP_REQUEST_CTX
@@ -21,6 +21,8 @@ from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.requests import HTTPRequest
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._ast.app import AppKernelRunnerRegistry, InternalApp
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
