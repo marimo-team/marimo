@@ -155,13 +155,14 @@ describe("Model", () => {
       modelWithObject.on("change:foo", callback);
 
       modelWithObject.updateAndEmitDiffs({ foo: { nested: "changed" } });
-      expect(callback).toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledTimes(1);
     });
 
-    it("should emit change event for any changes", () => {
+    it("should emit change event for any changes", async () => {
       const callback = vi.fn();
       model.on("change", callback);
       model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
+      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
       expect(callback).toHaveBeenCalledTimes(1);
     });
   });
@@ -213,7 +214,7 @@ describe("Model", () => {
       });
       model.receiveCustomMessage({ invalid: "message" });
 
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledTimes(2);
     });
   });
 });
