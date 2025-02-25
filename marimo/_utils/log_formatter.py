@@ -85,7 +85,7 @@ class LogFormatter(logging.Formatter):
         logging.Formatter.__init__(self, datefmt=datefmt)
         self._fmt = fmt
 
-        self._colors = {}  # type: Dict[int, str]
+        self._colors: dict[int, str] = {}
         if color and _stderr_supports_color():
             if curses is not None:
                 fg_color = (
