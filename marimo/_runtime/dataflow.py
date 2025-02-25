@@ -86,6 +86,9 @@ class DirectedGraph:
         The variable can be either a Python variable or a SQL variable (table).
         SQL variables don't leak to Python cells, but Python variables do leak
         to SQL.
+
+        Only does a local analysis of refs, without taking into consideration
+        whether refs are defined by other cells.
         """
         children = set()
         for cid, cell in self.cells.items():

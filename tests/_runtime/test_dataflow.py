@@ -547,7 +547,7 @@ class TestSQL:
         fourth_cell = parse_cell(code)
         graph.register_cell("3", fourth_cell)
 
-        code = "df = mo.sql('SELECT * FROM t1')"
+        code = "mo.sql('SELECT * FROM t1')"
         fifth_cell = parse_cell(code)
         graph.register_cell("4", fifth_cell)
 
@@ -563,6 +563,10 @@ class TestSQL:
         assert graph.get_referring_cells("t1", language="python") == set(
             ["4", "5"]
         )
+
+        # Python cell "5" is not a child of SQL cell "3", even though 5
+        # refs "t1" and 3 defines SQL variable t1
+        assert graph.children["3"] == {"4"}
 
         # Test nonexistent variable
         assert (
