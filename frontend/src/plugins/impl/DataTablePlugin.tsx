@@ -536,12 +536,22 @@ const DataTableComponent = ({
     },
   );
 
+  const cellSelection = useMemo(
+    () => value.filter((v) => v.columnName !== undefined) as CellSelectionState,
+    [value],
+  );
+
   const handleCellSelectionChange: OnChangeFn<CellSelectionState> = useEvent(
     (updater) => {
       if (selection === "single-cell") {
         const nextValue = Functions.asUpdater(updater)([]);
         // This maps to the _value in marimo/_plugins/ui/_impl/table.py I think
         setValue(nextValue.slice(0, 1));
+      }
+
+      if (selection === "multi-cell") {
+        const nextValue = Functions.asUpdater(updater)(cellSelection);
+        setValue(nextValue);
       }
     },
   );
