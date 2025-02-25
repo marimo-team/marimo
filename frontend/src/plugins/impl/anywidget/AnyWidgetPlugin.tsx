@@ -18,6 +18,7 @@ import {
 } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
+import { debounce } from "lodash-es";
 
 interface Data {
   jsUrl: string;
@@ -204,6 +205,8 @@ const LoadedSlot = ({
 };
 
 export class Model<T extends Record<string, any>> implements AnyModel<T> {
+  private ANY_CHANGE_EVENT = "change";
+
   constructor(
     private data: T,
     private onChange: (value: Partial<T>) => void,
@@ -261,6 +264,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     this.data = { ...this.data, [key]: value };
     this.dirtyFields.add(key);
     this.emit(`change:${key as K & string}`, value);
+    this.emitAnyChange();
   }
 
   save_changes(): void {
@@ -321,6 +325,11 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     }
     this.listeners[event].forEach((cb) => cb(value));
   }
+
+  // Debounce 0 to send off one request in a single frame
+  private emitAnyChange = debounce(() => {
+    this.listeners[this.ANY_CHANGE_EVENT]?.forEach((cb) => cb());
+  }, 0);
 }
 
 const WidgetMessageSchema = z.union([
