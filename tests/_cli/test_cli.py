@@ -861,7 +861,6 @@ def test_cli_new_with_custom_pyproject_config(tmp_path: Path) -> None:
 
     # Run with --sandbox to ensure the file is run in a sandbox
     port = _get_port()
-    print(f"Running marimo edit with port {port}")
     p = subprocess.Popen(
         [
             "marimo",
