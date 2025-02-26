@@ -82,7 +82,6 @@ export const PANELS: PanelDescriptor[] = [
     Icon: BotMessageSquareIcon,
     tooltip: "Chat with AI",
     position: "sidebar",
-    hidden: !getFeatureFlag("chat_sidebar"),
   },
   {
     type: "documentation",

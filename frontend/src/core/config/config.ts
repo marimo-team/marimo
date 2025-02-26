@@ -41,6 +41,10 @@ export const autoSaveConfigAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).save;
 });
 
+export const aiAtom = atom((get) => {
+  return get(resolvedMarimoConfigAtom).ai;
+});
+
 /**
  * Returns the user config.
  */

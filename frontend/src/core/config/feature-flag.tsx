@@ -11,7 +11,6 @@ export interface ExperimentalFeatures {
   inline_ai_tooltip: boolean;
   wasm_layouts: boolean;
   scratchpad: boolean;
-  chat_sidebar: boolean;
   rtc: boolean;
   // Add new feature flags here
 }
@@ -21,7 +20,6 @@ const defaultValues: ExperimentalFeatures = {
   inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   scratchpad: true,
-  chat_sidebar: import.meta.env.DEV,
   rtc: false,
 };
 
