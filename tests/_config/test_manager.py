@@ -138,6 +138,29 @@ def test_get_config_with_override() -> None:
     assert manager.get_config()["runtime"]["auto_reload"] == "lazy"
 
 
+@restore_config
+def test_with_multiple_overrides() -> None:
+    manager = get_default_config_manager(current_path=None).with_overrides(
+        {
+            "package_management": {
+                "manager": "pixi",
+            }
+        }
+    )
+    assert manager.get_config()["package_management"]["manager"] == "pixi"
+
+    next_manager = manager.with_overrides(
+        {
+            "package_management": {
+                "manager": "uv",
+            }
+        }
+    )
+    assert next_manager.get_config()["package_management"]["manager"] == "uv"
+
+    assert manager.get_config()["package_management"]["manager"] == "pixi"
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"
