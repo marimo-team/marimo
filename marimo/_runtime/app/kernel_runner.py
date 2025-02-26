@@ -101,7 +101,7 @@ class AppKernelRunner:
         # Register cells through the kernel runner, so that compilation only
         # occurs once.
         for cell_id, cell in app.cell_manager.valid_cells():
-            self._kernel._register_cell(cell_id, cell._cell)
+            self._kernel._register_cell(cell_id, cell._cell, stale=False)
 
     @property
     def outputs(self) -> dict[CellId_t, Any]:

@@ -362,13 +362,16 @@ class CellImpl:
     ) -> None:
         self._run_result_status.state = run_result_status
 
-    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
+    def set_stale(
+        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
+    ) -> None:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(
-            cell_id=self.cell_id, stale=stale, stream=stream
-        )
+        if broadcast:
+            CellOp.broadcast_stale(
+                cell_id=self.cell_id, stale=stale, stream=stream
+            )
 
     def set_output(self, output: Any) -> None:
         self._output.output = output

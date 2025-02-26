@@ -717,7 +717,12 @@ class Kernel:
                         reload=False,
                     )
 
-    def _register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+    def _register_cell(
+        self,
+        cell_id: CellId_t,
+        cell: CellImpl,
+        stale: bool,
+    ) -> None:
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -728,6 +733,8 @@ class Kernel:
             self.cell_metadata[cell_id] = CellMetadata()
 
         self.graph.register_cell(cell_id, cell)
+        if stale:
+            self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
         module_reloader = self.module_reloader
@@ -768,7 +775,11 @@ class Kernel:
         return cell, error
 
     def _try_registering_cell(
-        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
+        self,
+        cell_id: CellId_t,
+        code: str,
+        carried_imports: list[ImportData],
+        stale: bool,
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -780,12 +791,12 @@ class Kernel:
         cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
         if cell is not None:
-            self._register_cell(cell_id, cell)
+            self._register_cell(cell_id, cell, stale)
 
         return error
 
     def _maybe_register_cell(
-        self, cell_id: CellId_t, code: str
+        self, cell_id: CellId_t, code: str, stale: bool
     ) -> tuple[set[CellId_t], Optional[Error]]:
         """Register a cell (given by id, code) if not already registered.
 
@@ -827,7 +838,7 @@ class Kernel:
                 previous_children = self._deactivate_cell(cell_id)
 
             error = self._try_registering_cell(
-                cell_id, code, carried_imports=carried_imports
+                cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is not None and previous_cell is not None:
                 # The frontend keeps the cell around in the case of a
@@ -1017,6 +1028,7 @@ class Kernel:
         self,
         execution_requests: Sequence[ExecutionRequest],
         deletion_requests: Sequence[DeleteCellRequest],
+        cells_starting_stale: set[CellId_t] | None = None,
     ) -> set[CellId_t]:
         """Add and remove cells to/from the graph.
 
@@ -1042,6 +1054,9 @@ class Kernel:
         cells_with_errors_before_mutation = set(self.errors.keys())
         edges_before = deepcopy(self.graph.children)
         definitions_before = set(self.graph.definitions.keys())
+        cells_starting_stale = (
+            set() if cells_starting_stale is None else cells_starting_stale
+        )
 
         # The set of cells that were successfully registered
         registered_cell_ids: set[CellId_t] = set()
@@ -1056,7 +1071,7 @@ class Kernel:
         # Register and delete cells
         for er in execution_requests:
             old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
+                er.cell_id, er.code, stale=er.cell_id in cells_starting_stale
             )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
@@ -1428,12 +1443,16 @@ class Kernel:
                 er.cell_id for er in execution_requests
             }
             graph = dataflow.DirectedGraph()
+            # cells in execution_requests that should be initially marked as
+            # stale:
+            cells_starting_stale: set[CellId_t] = set()
             for cid, er in list(
                 self._uninstantiated_execution_requests.items()
             ):
                 if cid in execution_requests_cell_ids:
                     # Running a previously uninstantiated cell; just remove
                     # it from our cache of uninstantiated execution requests.
+                    cells_starting_stale.add(cid)
                     del self._uninstantiated_execution_requests[cid]
                     continue
 
@@ -1461,6 +1480,7 @@ class Kernel:
                     previously_uninstantiated_requests.append(
                         self._uninstantiated_execution_requests[ancestor_cid]
                     )
+                    cells_starting_stale.add(ancestor_cid)
                     del self._uninstantiated_execution_requests[ancestor_cid]
 
             await self._run_cells(
@@ -1468,6 +1488,7 @@ class Kernel:
                     list(execution_requests)
                     + previously_uninstantiated_requests,
                     deletion_requests=[],
+                    cells_starting_stale=cells_starting_stale,
                 )
             )
 
@@ -1561,6 +1582,7 @@ class Kernel:
             self.mutate_graph(
                 list(self._uninstantiated_execution_requests.values()),
                 deletion_requests=[],
+                cells_starting_stale=cells_to_run,
             )
             self._uninstantiated_execution_requests = {}
 
