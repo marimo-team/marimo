@@ -32,6 +32,11 @@ _watch_message = (
     "Otherwise, file watcher will poll the file every 1s."
 )
 
+_sandbox_message = (
+    "Run the command in an isolated virtual environment using "
+    "`uv run --isolated`. Requires `uv`."
+)
+
 
 @click.group(help="""Export a notebook to various formats.""")
 def export() -> None:
@@ -131,15 +136,12 @@ Optionally pass CLI args to the notebook:
     ),
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
-    help=(
-        "Run the command in an isolated virtual environment using "
-        "`uv run --isolated`. Requires `uv`."
-    ),
+    help=_sandbox_message,
 )
 @click.argument(
     "name",
@@ -152,15 +154,19 @@ def html(
     include_code: bool,
     output: str,
     watch: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
     args: tuple[str],
 ) -> None:
     """Run a notebook and export it as an HTML file."""
     import sys
 
-    from marimo._cli.sandbox import prompt_run_in_sandbox
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
-    if sandbox or prompt_run_in_sandbox(name):
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -210,6 +216,14 @@ Watch for changes and regenerate the script on modification:
         "If not provided, the script will be printed to stdout."
     ),
 )
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
+)
 @click.argument(
     "name",
     required=True,
@@ -219,10 +233,24 @@ def script(
     name: str,
     output: str,
     watch: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """
     Export a marimo notebook as a flat script, in topological order.
     """
+    import sys
+
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_script(file_path)
@@ -260,6 +288,14 @@ Watch for changes and regenerate the script on modification:
         "If not provided, markdown will be printed to stdout."
     ),
 )
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
+)
 @click.argument(
     "name",
     required=True,
@@ -269,10 +305,24 @@ def md(
     name: str,
     output: str,
     watch: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
     """
+    import sys
+
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_md(file_path)
@@ -327,15 +377,12 @@ Requires nbformat to be installed.
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
-    help=(
-        "Run the command in an isolated virtual environment using "
-        "`uv run --isolated`. Requires `uv`."
-    ),
+    help=_sandbox_message,
 )
 @click.argument(
     "name",
@@ -348,7 +395,7 @@ def ipynb(
     watch: bool,
     sort: Literal["top-down", "topological"],
     include_outputs: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
@@ -359,13 +406,17 @@ def ipynb(
 
     import sys
 
-    from marimo._cli.sandbox import prompt_run_in_sandbox
+    if include_outputs:
+        # Set default, if not provided
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
-    if include_outputs and (sandbox or prompt_run_in_sandbox(name)):
-        from marimo._cli.sandbox import run_in_sandbox
+        if sandbox is None:
+            sandbox = maybe_prompt_run_in_sandbox(name)
 
-        run_in_sandbox(sys.argv[1:], name)
-        return
+        if sandbox:
+            from marimo._cli.sandbox import run_in_sandbox
+
+            run_in_sandbox(sys.argv[1:], name)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
@@ -429,6 +480,14 @@ and cannot be opened directly from the file system (e.g. file://).
         "only relevant for run mode."
     ),
 )
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
+)
 @click.argument(
     "name",
     required=True,
@@ -440,8 +499,23 @@ def html_wasm(
     mode: Literal["edit", "run"],
     watch: bool,
     show_code: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
+    import sys
+
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
+
     out_dir = output
     filename = "index.html"
     ignore_index_html = False

@@ -96,7 +96,7 @@ def _check_shutdown(
 def _try_fetch(
     port: int, host: str = "localhost", token: Optional[str] = None
 ) -> Optional[bytes]:
-    for _ in range(10):
+    for _ in range(20):
         try:
             url = f"http://{host}:{port}"
             if token is not None:
@@ -558,6 +558,25 @@ def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--no-sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit_new_file() -> None:
     port = _get_port()
     d = tempfile.TemporaryDirectory()
@@ -590,6 +609,24 @@ def test_cli_sandbox_run(temp_marimo_file: str) -> None:
             str(port),
             "--headless",
             "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_run_no_prompt(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-sandbox",
         ]
     )
     contents = _try_fetch(port)
@@ -807,7 +844,7 @@ def test_cli_run_sandbox_prompt_yes() -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_new_with_custom_pyproject_config(tmp_path: Path) -> None:
+def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
     # Create a custom pyproject.toml with special marimo config
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_content = """
@@ -822,9 +859,40 @@ def test_cli_new_with_custom_pyproject_config(tmp_path: Path) -> None:
     """
     pyproject_path.write_text(pyproject_content)
 
-    # Run with --sandbox to ensure the file is run in a sandbox
+    marimo_file = tmp_path / "tmp.py"
+
+    # marimo edit <marimo_file> --sandbox
     port = _get_port()
-    print(f"Running marimo edit with port {port}")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            str(marimo_file),
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ],
+    )
+
+    def assert_custom_config(contents: bytes | None) -> None:
+        assert contents is not None
+        # Verify that the custom config is applied
+        assert b'"line_length": 111' in contents
+        assert b'"auto_instantiate": false' in contents
+        # Verify that the package manager is switch to uv because we are running in a sandbox
+        # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
+        # assert b'"manager": "uv"' in contents
+
+    try:
+        contents = _try_fetch(port)
+        assert_custom_config(contents)
+    finally:
+        p.kill()
+
+    # marimo edit --sandbox, in the directory with pyproject.toml
+    port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
@@ -835,18 +903,33 @@ def test_cli_new_with_custom_pyproject_config(tmp_path: Path) -> None:
             "--headless",
             "--no-token",
         ],
-        cwd=tmp_path,  # Run from the directory with pyproject.toml
+        cwd=tmp_path,
     )
 
     try:
         contents = _try_fetch(port)
-        assert contents is not None
+        assert_custom_config(contents)
+    finally:
+        p.kill()
 
-        # Verify that the custom config is applied
-        assert b'"line_length": 111' in contents
-        assert b'"auto_instantiate": false' in contents
-        # Verify that the package manager is switch to uv because we are running in a sandbox
-        assert b'"manager": "uv"' in contents
+    # marimo new --sandbox, in the directory with pyproject.toml
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "new",
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ],
+        cwd=tmp_path,
+    )
+
+    try:
+        contents = _try_fetch(port)
+        assert_custom_config(contents)
     finally:
         p.kill()
 

@@ -363,6 +363,20 @@ class TestExportHTML:
         html = html.replace(dirname, "path")
         assert '<marimo-code hidden=""></marimo-code>' not in html
 
+    @staticmethod
+    def test_cli_export_html_sandbox_no_prompt(temp_marimo_file: str) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "--no-sandbox",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
 
 class TestExportHtmlSmokeTests:
     def assert_not_errored(
@@ -898,6 +912,20 @@ class TestExportIpynb:
         notebook = json.loads(output)
         assert "cells" in notebook
         assert "nbformat" in notebook
+
+    @staticmethod
+    def test_cli_export_html_sandbox_no_prompt(temp_marimo_file: str) -> None:
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "--no-sandbox",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
 
 
 def _delete_lines_with_files(output: str) -> str:
