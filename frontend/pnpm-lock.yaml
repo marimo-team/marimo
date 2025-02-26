@@ -328,8 +328,8 @@ importers:
         specifier: ^2.35.3
         version: 2.35.3(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.24.2))
       pyodide:
-        specifier: 0.27.0
-        version: 0.27.0
+        specifier: 0.27.3
+        version: 0.27.3
       react-arborist:
         specifier: ^3.4.0
         version: 3.4.0(@types/node@20.17.19)(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -7279,8 +7279,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  pyodide@0.27.0:
-    resolution: {integrity: sha512-0O992noCKqv8lPw4+QFWw8d8yrNWVtQ6zPhWNg/RNYbFohiwmV6SGlVh5fWk/4pOxyhgHbayq+ur8JoR/r5U9A==}
+  pyodide@0.27.3:
+    resolution: {integrity: sha512-6NwKEbPk0M3Wic2T1TCZijgZH9VE4RkHp1VGljS1sou0NjGdsmY2R/fG5oLmdDkjTRMI1iW7WYaY9pofX8gg1g==}
     engines: {node: '>=18.0.0'}
 
   qs@6.11.2:
@@ -17224,7 +17224,7 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  pyodide@0.27.0:
+  pyodide@0.27.3:
     dependencies:
       ws: 8.18.0
     transitivePeerDependencies:
