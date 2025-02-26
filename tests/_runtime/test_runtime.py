@@ -24,9 +24,7 @@ from marimo._messaging.ops import CellOp
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.kernel_context import (
-    initialize_kernel_context,
-)
+from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
@@ -41,6 +39,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
+from marimo._utils import parse_dataclass
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -404,6 +403,74 @@ class TestExecution:
         assert k.globals["y"] == 1
         assert k.globals["z"] == 2
         assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_run_all(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
+                    er2 := ExecutionRequest(cell_id="1", code="y=x+1"),
+                    er3 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run([er1, er2, er3])
+        assert k.globals["y"] == 1
+        assert k.globals["z"] == 2
+        assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_set_not_stale(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Tests that cells are set to not stale before they start running."""
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run([er1])
+        cell_ops = [
+            parse_dataclass.parse_raw(msg[1], CellOp)
+            for msg in k.stream.messages
+            if msg[0] == "cell-op"
+        ]
+        er1_set_not_stale_before_run = False
+        for op in cell_ops:
+            if op.cell_id == er1.cell_id and op.status == "running":
+                break
+            if (
+                op.cell_id == er1.cell_id
+                and op.stale_inputs is not None
+                and not op.stale_inputs
+            ):
+                er1_set_not_stale_before_run = True
+        assert er1_set_not_stale_before_run
 
     async def test_instantiate_autorun_false_delete_cells(
         self, any_kernel: Kernel

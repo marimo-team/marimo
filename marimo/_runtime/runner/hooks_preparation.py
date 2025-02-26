@@ -30,8 +30,7 @@ def _update_stale_statuses(runner: cell_runner.Runner) -> None:
         else:
             graph.cells[cid].set_runtime_state(status="queued")
             if graph.cells[cid].stale:
-                if runner.execution_mode == "autorun":
-                    graph.cells[cid].set_stale(stale=False)
+                graph.cells[cid].set_stale(stale=False)
 
 
 PREPARATION_HOOKS: list[PreparationHookType] = [_update_stale_statuses]
