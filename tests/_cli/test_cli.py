@@ -31,6 +31,7 @@ from marimo._utils.toml import read_toml
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
+    from pathlib import Path
 
 HAS_UV = DependencyManager.which("uv")
 
@@ -803,6 +804,51 @@ def test_cli_run_sandbox_prompt_yes() -> None:
     assert p.poll() is None
     _check_started(port)
     p.kill()
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_new_with_custom_pyproject_config(tmp_path: Path) -> None:
+    # Create a custom pyproject.toml with special marimo config
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo]
+    formatting = {line_length = 111}
+
+    [tool.marimo.runtime]
+    auto_instantiate = false
+
+    [tool.marimo.package_management]
+    manager = "pip"
+    """
+    pyproject_path.write_text(pyproject_content)
+
+    # Run with --sandbox to ensure the file is run in a sandbox
+    port = _get_port()
+    print(f"Running marimo edit with port {port}")
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ],
+        cwd=tmp_path,  # Run from the directory with pyproject.toml
+    )
+
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+
+        # Verify that the custom config is applied
+        assert b'"line_length": 111' in contents
+        assert b'"auto_instantiate": false' in contents
+        # Verify that the package manager is switch to uv because we are running in a sandbox
+        assert b'"manager": "uv"' in contents
+    finally:
+        p.kill()
 
 
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)
