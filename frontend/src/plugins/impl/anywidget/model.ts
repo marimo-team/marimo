@@ -49,8 +49,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     get_model<TT extends Record<string, any>>(
       _model_id: string,
     ): Promise<AnyModel<TT>> {
-      Logger.error("widget_manager not supported in marimo");
-      return Promise.resolve(this as unknown as AnyModel<TT>);
+      throw new Error("widget_manager not supported in marimo");
     },
   };
 

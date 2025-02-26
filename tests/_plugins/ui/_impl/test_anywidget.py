@@ -225,12 +225,25 @@ x = as_marimo_element.count
         class NonSerializableWidget(_anywidget.AnyWidget):
             _esm = ""
             serializable = traitlets.Int(1).tag(sync=True)
-            non_serializable = traitlets.Instance(object)
+            non_serializable = traitlets.Instance(object, sync=True)
 
         wrapped = anywidget(NonSerializableWidget())
-        assert "serializable" in wrapped._initial_value
-        assert wrapped._initial_value["non_serializable"] is None
+        assert wrapped._initial_value == {
+            "serializable": 1,
+            "non_serializable": None,
+        }
 
+    @staticmethod
+    async def test_skips_non_sync_traits() -> None:
+        class NonSyncWidget(_anywidget.AnyWidget):
+            _esm = ""
+            non_sync = traitlets.Int(1)
+            sync = traitlets.Int(2).tag(sync=True)
+
+        wrapped = anywidget(NonSyncWidget())
+        assert wrapped._initial_value == {"sync": 2}
+
+    @staticmethod
     @staticmethod
     async def test_frontend_changes(
         k: Kernel, exec_req: ExecReqProvider
