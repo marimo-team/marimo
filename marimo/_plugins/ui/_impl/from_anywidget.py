@@ -85,7 +85,7 @@ class anywidget(UIElement[T, T]):
 
         # Get state with custom serializers properly applied
         state = widget.get_state()
-        state_no_buffers, buffer_paths, buffers = _remove_buffers(state)  # type: ignore
+        _state_no_buffers, buffer_paths, buffers = _remove_buffers(state)  # type: ignore
 
         # Remove widget-specific system traits not needed for the frontend
         ignored_traits = [
@@ -112,10 +112,10 @@ class anywidget(UIElement[T, T]):
         ]
 
         # Filter out system traits from the serialized state
+        # This should include the binary data,
+        # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
         json_args: T = {
-            k: v
-            for k, v in state_no_buffers.items()
-            if k not in ignored_traits
+            k: v for k, v in state.items() if k not in ignored_traits
         }
 
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
