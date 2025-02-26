@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Model } from "../AnyWidgetPlugin";
+import { Model } from "../model";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
 describe("Model", () => {
@@ -124,12 +124,7 @@ describe("Model", () => {
 
   describe("widget_manager", () => {
     it("should throw error when accessing widget_manager", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => (model.widget_manager as any).foo).toThrow(
-        "widget_manager not supported in marimo",
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => ((model.widget_manager as any).foo = "bar")).toThrow(
+      expect(() => model.widget_manager.get_model("foo")).toThrow(
         "widget_manager not supported in marimo",
       );
     });
