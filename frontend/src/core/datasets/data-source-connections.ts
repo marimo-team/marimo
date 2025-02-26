@@ -2,12 +2,14 @@
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type {
   DataSourceConnection as DataSourceConnectionType,
+  DataTable,
   SQLTablePreview,
 } from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
 import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
 import { store } from "../state/jotai";
+import { datasetTablesAtom } from "./state";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -141,3 +143,36 @@ export const exportedForTesting = {
 export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
   new Map<string, SQLTablePreview>(),
 );
+
+// If you need to get tables from all connections & local datasets, use this atom
+// When a table name is used in multiple connections, we need to use a fully qualified name
+// starting with schema_name.table_name or database_name.schema_name.table_name
+export const allTablesAtom = atom((get) => {
+  const datasets = store.get(datasetTablesAtom);
+  const connections = get(dataSourceConnectionsAtom).connectionsMap;
+  const tableNames = new Map<string, DataTable>();
+
+  for (const dataset of datasets) {
+    tableNames.set(dataset.name, dataset);
+  }
+
+  for (const conn of connections.values()) {
+    for (const database of conn.databases) {
+      for (const schema of database.schemas) {
+        for (const table of schema.tables) {
+          // TODO: We should only save default schema tables with just the table name
+          let nameToSave = table.name;
+          if (tableNames.has(nameToSave)) {
+            nameToSave = `${schema.name}.${table.name}`;
+            if (tableNames.has(nameToSave)) {
+              nameToSave = `${database.name}.${schema.name}.${table.name}`;
+            }
+          }
+          tableNames.set(nameToSave, table);
+        }
+      }
+    }
+  }
+
+  return tableNames;
+});

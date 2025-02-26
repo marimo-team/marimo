@@ -17,7 +17,6 @@ import { Prec } from "@codemirror/state";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { asURL } from "@/utils/url";
 import { useMemo, useState } from "react";
-import { datasetTablesAtom } from "@/core/datasets/state";
 import { useAtom, useAtomValue } from "jotai";
 import type { Completion } from "@codemirror/autocomplete";
 import {
@@ -31,7 +30,7 @@ import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { getAICompletionBody, mentions } from "./completion-utils";
-import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
+import { allTablesAtom } from "@/core/datasets/data-source-connections";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -230,21 +229,12 @@ export const PromptInput = ({
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
-  const tables = useAtomValue(datasetTablesAtom);
-  const datasources = useAtomValue(dataSourceConnectionsAtom);
+  const tablesMap = useAtomValue(allTablesAtom);
 
   const extensions = useMemo(() => {
-    const connections = [...datasources.connectionsMap.values()];
-    const allTables = [
-      ...tables,
-      ...connections.flatMap((c) =>
-        c.databases.flatMap((d) => d.schemas.flatMap((s) => s.tables)),
-      ),
-    ];
-
-    const completions = allTables.map(
-      (table): Completion => ({
-        label: `@${table.name}`,
+    const completions = [...tablesMap.entries()].map(
+      ([tableName, table]): Completion => ({
+        label: `@${tableName}`,
         detail: table.source,
         info: () => {
           const shape = [
@@ -298,7 +288,8 @@ export const PromptInput = ({
       }),
     );
 
-    const matchBeforeRegexes = [/@(\w+)?/]; // Trigger autocompletion for text that begins with @
+    // Trigger autocompletion for text that begins with @, can contain dots
+    const matchBeforeRegexes = [/@([\w.]+)?/];
     if (additionalCompletions) {
       matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
     }
@@ -378,7 +369,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tables, datasources, additionalCompletions, handleSubmit, handleEscape]);
+  }, [tablesMap, additionalCompletions, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror
