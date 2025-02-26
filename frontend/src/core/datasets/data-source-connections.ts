@@ -10,6 +10,7 @@ import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
 import { store } from "../state/jotai";
 import { datasetTablesAtom } from "./state";
+import { Logger } from "@/utils/Logger";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -144,9 +145,8 @@ export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
   new Map<string, SQLTablePreview>(),
 );
 
-// If you need to get tables from all connections & local datasets, use this atom
-// When a table name is used in multiple connections, we need to use a fully qualified name
-// starting with schema_name.table_name or database_name.schema_name.table_name
+// If you need to get table names from all connections & local datasets, use this atom
+// When a table name is used in multiple connections, we need to use a more qualified name
 export const allTablesAtom = atom((get) => {
   const datasets = store.get(datasetTablesAtom);
   const connections = get(dataSourceConnectionsAtom).connectionsMap;
@@ -160,12 +160,22 @@ export const allTablesAtom = atom((get) => {
     for (const database of conn.databases) {
       for (const schema of database.schemas) {
         for (const table of schema.tables) {
-          // TODO: We should only save default schema tables with just the table name
-          let nameToSave = table.name;
+          // Start with the simplest name
+          let nameToSave = `${schema.name}.${table.name}`;
+          if (conn.default_schema && schema.name === conn.default_schema) {
+            nameToSave = table.name;
+          }
+
+          // If collision exists, use more qualified names progressively
           if (tableNames.has(nameToSave)) {
             nameToSave = `${schema.name}.${table.name}`;
             if (tableNames.has(nameToSave)) {
               nameToSave = `${database.name}.${schema.name}.${table.name}`;
+              if (tableNames.has(nameToSave)) {
+                Logger.warn(
+                  `Table name collision for ${nameToSave}. Skipping.`,
+                );
+              }
             }
           }
           tableNames.set(nameToSave, table);

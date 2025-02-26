@@ -25,6 +25,7 @@ import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
+  dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
   DEFAULT_ENGINE,
   setLatestEngineSelected,
@@ -168,57 +169,46 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 }
 
-type Tables = Record<string, string[]>;
-type Schemas = Record<string, Tables>;
-type Databases = Record<string, Schemas>;
-
 export class SQLCompletionStore {
   private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
 
   getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
-    const dataSourceConnections = store.get(dataSourceConnectionsAtom);
-    const connection = dataSourceConnections.connectionsMap.get(connectionName);
+    const dataConnectionsMap = store.get(dataConnectionsMapAtom);
+    const connection = dataConnectionsMap.get(connectionName);
     if (!connection) {
       return null;
     }
 
     let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
     if (!cacheConfig) {
-      const databases: Databases = {};
-      const schemas: Schemas = {};
-      const tables: Tables = {};
+      const mapping: SQLNamespace = {};
 
+      // When there is default db and schema, we can use the table name directly
+      // Otherwise, we need to use the fully qualified name
       for (const database of connection.databases) {
-        databases[database.name] = {};
-        for (const dbSchema of database.schemas) {
-          databases[database.name][dbSchema.name] = {};
-          schemas[dbSchema.name] = {};
-          for (const table of dbSchema.tables) {
-            const columns = table.columns.map((col) => col.name);
-            databases[database.name][dbSchema.name][table.name] = columns;
+        const isDefaultDb = connection.default_database === database.name;
 
-            // Add the table & schema name at the top level
-            schemas[dbSchema.name][table.name] = columns;
-            tables[table.name] = columns;
+        for (const schema of database.schemas) {
+          const isDefaultSchema = connection.default_schema === schema.name;
+
+          for (const table of schema.tables) {
+            const columns = table.columns.map((col) => col.name);
+
+            if (isDefaultDb && isDefaultSchema) {
+              mapping[table.name] = columns;
+            } else if (isDefaultDb) {
+              mapping[`${schema.name}.${table.name}`] = columns;
+            } else {
+              mapping[`${database.name}.${schema.name}.${table.name}`] =
+                columns;
+            }
           }
         }
       }
 
-      // If there is only one database, we can provide 'schema.table' completion
-      // Else we provide 'database.schema.table'
-      let selectedMapping = {};
-      selectedMapping = connection.databases.length === 1 ? schemas : databases;
-
-      const combinedSchema: SQLNamespace = {
-        ...selectedMapping,
-        // Tables at the top level
-        // TODO: For better correctness, we can filter to only include the default schema
-        ...tables,
-      };
-
       cacheConfig = {
         dialect: guessDialect(connection),
-        schema: combinedSchema,
+        schema: mapping,
         defaultTable: getSingleTable(connection),
       };
       this.cache.set(connection, cacheConfig);
