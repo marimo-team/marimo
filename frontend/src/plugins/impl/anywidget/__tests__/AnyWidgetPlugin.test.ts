@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Model } from "../AnyWidgetPlugin";
+import { Model } from "../model";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
 describe("Model", () => {

@@ -15,6 +15,9 @@ importers:
 
   .:
     dependencies:
+      '@anywidget/types':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@codemirror/autocomplete':
         specifier: ^6.18.4
         version: 6.18.6
@@ -658,6 +661,9 @@ packages:
 
   '@antfu/utils@0.7.10':
     resolution: {integrity: sha512-+562v9k4aI80m1+VuMHehNJWLOFjBnXn3tdOitzD0il5b7smkSBal4+a3oKiQTbrwMmN/TBUMDvbdoWDehgOww==}
+
+  '@anywidget/types@0.2.0':
+    resolution: {integrity: sha512-+XtK4uwxRd4JpuevUMhirrbvC0V4yCA/i0lEjhmSAtOaxiXIg/vBKzaSonDuoZ1a9LEjUXTW2+m7w+ULgsJYvg==}
 
   '@babel/code-frame@7.26.2':
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
@@ -9086,6 +9092,8 @@ snapshots:
       tinyexec: 0.3.2
 
   '@antfu/utils@0.7.10': {}
+
+  '@anywidget/types@0.2.0': {}
 
   '@babel/code-frame@7.26.2':
     dependencies:
