@@ -30,3 +30,11 @@ export const EmptyState: React.FC<{ content: string; className?: string }> = ({
     </div>
   );
 };
+
+export const ItemSubtext: React.FC<{ content: string }> = ({ content }) => {
+  return (
+    <span className="text-xs text-black bg-gray-200 rounded px-1">
+      {content}
+    </span>
+  );
+};

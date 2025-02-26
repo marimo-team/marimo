@@ -79,6 +79,28 @@ class DuckDBEngine(SQLEngine):
 
         return isinstance(var, duckdb.DuckDBPyConnection)
 
+    def get_current_database(self) -> Optional[str]:
+        try:
+            import duckdb
+
+            connection = self._connection or duckdb
+            return str(
+                connection.sql("SELECT CURRENT_DATABASE()").fetchone()[0]
+            )
+        except Exception:
+            LOGGER.info("Failed to get current database")
+            return None
+
+    def get_current_schema(self) -> Optional[str]:
+        try:
+            import duckdb
+
+            connection = self._connection or duckdb
+            return str(connection.sql("SELECT CURRENT_SCHEMA()").fetchone()[0])
+        except Exception:
+            LOGGER.info("Failed to get current schema")
+            return None
+
     def get_databases(self) -> list[Database]:
         """Fetch all databases from the engine. At the moment, will fetch everything."""
         return get_databases_from_duckdb(self._connection, self._engine_name)
@@ -95,11 +117,15 @@ class SQLAlchemyEngine(SQLEngine):
         self._engine = engine
         self._engine_name = engine_name
         self.inspector: Optional[Inspector] = None
+
         try:
             self.inspector = inspect(self._engine)
         except Exception:
             LOGGER.warning("Failed to create inspector", exc_info=True)
             self.inspector = None
+
+        self.default_database = self._get_current_database()
+        self.default_schema = self._get_default_schema()
 
     @property
     def source(self) -> str:
@@ -155,34 +181,63 @@ class SQLAlchemyEngine(SQLEngine):
         # Maybe in future we can enable this as a flag or for certain connection types.
         return False
 
-    def get_database_name(self) -> Optional[str]:
-        """Get the current database name."""
+    def _get_current_database(self) -> Optional[str]:
+        """Get the current database name.
+
+        Returns:
+            - The database name from the connection URL if available
+            - The database name queried from the database if URL doesn't contain it
+            - An empty string if the connection is detached but valid
+            - None if the connection is invalid
+        """
 
         from sqlalchemy import text
 
-        if self._engine.url.database is not None:
-            return self._engine.url.database
-
-        # If there is no database name, the engine may connect to a default database.
-        # which may not show up in the url
         try:
-            query: str
-            if self.dialect in ("postgresql"):
-                query = "SELECT current_database()"
-            elif self.dialect in ("mssql"):
-                query = "SELECT DB_NAME()"
-            if query is None:
+            if self._engine.url.database is not None:
+                return self._engine.url.database
+        except Exception:
+            LOGGER.warning("Connection URL is invalid", exc_info=True)
+            return None
+
+        database_name: Optional[str] = None
+        dialect_queries = {
+            "postgresql": "SELECT current_database()",
+            "mssql": "SELECT DB_NAME()",
+        }
+
+        # Try to get the database name by querying the database directly
+        if query := dialect_queries.get(self.dialect):
+            try:
+                with self._engine.connect() as connection:
+                    rows = connection.execute(text(query)).fetchone()
+                    if rows is not None and rows[0] is not None:
+                        database_name = str(rows[0])
+            except Exception:
+                LOGGER.warning(
+                    "Failed to get current database name", exc_info=True
+                )
+
+        # If database_name is None, the connection might be detached or invalid.
+        # We check for existing schemas to verify the connection's validity.
+        if database_name is None:
+            schemas_found = self._get_schemas(
+                include_tables=False, include_table_details=False
+            )
+            if not schemas_found:
                 return None
 
-            with self._engine.connect() as connection:
-                rows = connection.execute(text(query)).fetchone()
-                if rows is None or rows[0] is None:
-                    return None
-                return str(rows[0])
+        return database_name or ""
+
+    def _get_default_schema(self) -> Optional[str]:
+        """Get the default schema name"""
+        if self.inspector is None:
+            return None
+
+        try:
+            return self.inspector.default_schema_name
         except Exception:
-            LOGGER.warning(
-                "Failed to get current database name", exc_info=True
-            )
+            LOGGER.warning("Failed to get default schema name", exc_info=True)
             return None
 
     def get_databases(
@@ -205,18 +260,10 @@ class SQLAlchemyEngine(SQLEngine):
         Note: This operation can be performance intensive when fetching full metadata.
         """
         databases: list[Database] = []
-        database_name = self.get_database_name()
 
-        # If database_name is None, the connection might be detached or invalid.
-        # We check for existing schemas to verify the connection's validity.
-        # If valid, set database_name to an empty string to indicate it's detached.
-        if database_name is None:
-            schemas_found = self._get_schemas(
-                include_tables=False, include_table_details=False
-            )
-            if not schemas_found:
-                return []
-            database_name = ""
+        if self.default_database is None:
+            return databases
+        database_name = self.default_database
 
         schemas = (
             self._get_schemas(

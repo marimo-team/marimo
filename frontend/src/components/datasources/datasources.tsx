@@ -63,7 +63,12 @@ import {
 import { PythonIcon } from "../editor/cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
+import {
+  DatasourceLabel,
+  EmptyState,
+  ItemSubtext,
+  RotatingChevron,
+} from "./components";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -186,6 +191,7 @@ export const DataSources: React.FC = () => {
               >
                 <SchemaList
                   schemas={database.schemas}
+                  defaultSchema={connection.default_schema}
                   engineName={connection.name}
                   databaseName={database.name}
                   hasSearch={hasSearch}
@@ -285,11 +291,19 @@ const DatabaseItem: React.FC<{
 
 const SchemaList: React.FC<{
   schemas: DatabaseSchema[];
+  defaultSchema?: string | null;
   engineName: string;
   databaseName: string;
   hasSearch: boolean;
   searchValue?: string;
-}> = ({ schemas, engineName, databaseName, hasSearch, searchValue }) => {
+}> = ({
+  schemas,
+  defaultSchema,
+  engineName,
+  databaseName,
+  hasSearch,
+  searchValue,
+}) => {
   if (schemas.length === 0) {
     return <EmptyState content="No schemas available" className="pl-6" />;
   }
@@ -310,6 +324,7 @@ const SchemaList: React.FC<{
           key={schema.name}
           databaseName={databaseName}
           schema={schema}
+          isDefaultSchema={schema.name === defaultSchema}
           hasSearch={hasSearch}
         >
           <TableList
@@ -319,6 +334,7 @@ const SchemaList: React.FC<{
               engine: engineName,
               database: databaseName,
               schema: schema.name,
+              defaultSchema: defaultSchema,
             }}
           />
         </SchemaItem>
@@ -330,9 +346,10 @@ const SchemaList: React.FC<{
 const SchemaItem: React.FC<{
   databaseName: string;
   schema: DatabaseSchema;
+  isDefaultSchema?: boolean;
   children: React.ReactNode;
   hasSearch: boolean;
-}> = ({ databaseName, schema, children, hasSearch }) => {
+}> = ({ databaseName, schema, isDefaultSchema, children, hasSearch }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schema.name}`;
@@ -361,6 +378,8 @@ const SchemaItem: React.FC<{
         <span className={cn(isSelected && isExpanded && "font-semibold")}>
           {schema.name}
         </span>
+        {/* Do we want this? They could change the default by executing USE schema.. */}
+        {isDefaultSchema && <ItemSubtext content="default" />}
       </CommandItem>
       {isExpanded && children}
     </>
@@ -371,6 +390,7 @@ interface SQLTableContext {
   engine: string;
   database: string;
   schema: string;
+  defaultSchema?: string | null;
 }
 
 const TableList: React.FC<{
@@ -454,8 +474,10 @@ const DatasetTableItem: React.FC<{
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
     let code = "";
     if (sqlTableContext) {
-      const { engine, schema } = sqlTableContext;
-      code = `_df = mo.sql(f"SELECT * FROM ${schema}.${table.name} LIMIT 100", engine=${engine})`;
+      const { engine, schema, defaultSchema } = sqlTableContext;
+      const tableName =
+        defaultSchema === schema ? table.name : `${schema}.${table.name}`;
+      code = `_df = mo.sql(f"SELECT * FROM ${tableName} LIMIT 100", engine=${engine})`;
     } else {
       switch (table.source_type) {
         case "local":
@@ -651,16 +673,12 @@ const DatasetColumnItem: React.FC<{
           <span>{column.name}</span>
           {isPrimaryKey && (
             <Tooltip content="Primary Key" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                PK
-              </span>
+              <ItemSubtext content="PK" />
             </Tooltip>
           )}
           {isIndexed && (
             <Tooltip content="Indexed" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                IDX
-              </span>
+              <ItemSubtext content="IDX" />
             </Tooltip>
           )}
         </div>
@@ -850,8 +868,10 @@ function sqlCode(
   sqlTableContext?: SQLTableContext,
 ) {
   if (sqlTableContext) {
-    const { engine, schema } = sqlTableContext;
-    return `_df = mo.sql(f'SELECT ${column.name} FROM ${schema}.${table.name} LIMIT 100', engine=${engine})`;
+    const { engine, schema, defaultSchema } = sqlTableContext;
+    const tableName =
+      defaultSchema === schema ? table.name : `${schema}.${table.name}`;
+    return `_df = mo.sql(f"SELECT ${column.name} FROM ${tableName} LIMIT 100", engine=${engine})`;
   }
   return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
 }
