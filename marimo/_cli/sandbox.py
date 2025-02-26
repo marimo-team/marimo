@@ -164,7 +164,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
         return None
 
 
-def prompt_run_in_sandbox(name: str | None) -> bool:
+def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         return False
 
