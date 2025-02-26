@@ -28,10 +28,19 @@ export const DataTablePagination = <TData,>({
   totalColumns,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
-    const selected = Object.keys(table.getState().rowSelection).length;
-    const isAllPageSelected = table.getIsAllPageRowsSelected();
+    const { rowSelection, cellSelection } = table.getState();
+    let selected = Object.keys(rowSelection).length;
+    let isAllPageSelected = table.getIsAllPageRowsSelected();
     const numRows = table.getRowCount();
-    const isAllSelected = selected === numRows;
+    let isAllSelected = selected === numRows;
+
+    const isCellSelection =
+      selection === "single-cell" || selection === "multi-cell";
+    if (isCellSelection) {
+      selected = cellSelection.length;
+      isAllPageSelected = table.getIsAllPageCellsSelected();
+      isAllSelected = table.getIsAllCellsSelected();
+    }
 
     if (isAllPageSelected && !isAllSelected) {
       return (
@@ -66,10 +75,14 @@ export const DataTablePagination = <TData,>({
             variant="link"
             className="h-4"
             onClick={() => {
-              if (onSelectAllRowsChange) {
-                onSelectAllRowsChange(false);
+              if (!isCellSelection) {
+                if (onSelectAllRowsChange) {
+                  onSelectAllRowsChange(false);
+                } else {
+                  table.toggleAllRowsSelected(false);
+                }
               } else {
-                table.toggleAllRowsSelected(false);
+                table.resetCellSelection();
               }
             }}
           >
