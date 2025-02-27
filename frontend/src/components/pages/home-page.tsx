@@ -4,29 +4,18 @@ import {
   getRecentFiles,
   getRunningNotebooks,
   shutdownSession,
-  openTutorial,
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import type React from "react";
 import { Suspense, useContext, useEffect, useRef, useState } from "react";
 import { Spinner } from "../icons/spinner";
 import {
-  ActivityIcon,
-  BarChart2Icon,
-  BookOpenIcon,
   BookTextIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ClockIcon,
-  DatabaseIcon,
   ExternalLinkIcon,
-  FileIcon,
-  FileTextIcon,
-  GraduationCapIcon,
-  GridIcon,
-  LayoutIcon,
-  OrbitIcon,
   PlayCircleIcon,
   PowerOffIcon,
   RefreshCcwIcon,
@@ -45,7 +34,7 @@ import { assertExists } from "@/utils/assertExists";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import type { FileInfo, MarimoFile, TutorialId } from "@/core/network/types";
+import type { FileInfo, MarimoFile } from "@/core/network/types";
 import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -74,18 +63,15 @@ import {
 import { Maps } from "@/utils/maps";
 import { Input } from "../ui/input";
 import { Paths } from "@/utils/paths";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Objects } from "@/utils/objects";
-import { CaretDownIcon } from "@radix-ui/react-icons";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
 import { newNotebookURL } from "@/utils/urls";
+import {
+  Header,
+  OpenTutorialDropDown,
+  ResourceLinks,
+} from "../home/components";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -131,16 +117,17 @@ const HomePage: React.FC = () => {
           setRunningNotebooks: runningResponse.setData,
         }}
       >
-        <div className="absolute top-3 right-5 flex gap-2 z-50">
+        <div className="absolute top-3 right-5 flex gap-3 z-50">
           <OpenTutorialDropDown />
           <ConfigButton showAppConfig={false} />
           <ShutdownButton
             description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
           />
         </div>
-        <div className="flex flex-col gap-6 max-w-5xl container pt-5 pb-20 z-10">
-          <img src="logo.png" alt="marimo logo" className="w-64 mb-4" />
+        <div className="flex flex-col gap-6 max-w-6xl container pt-5 pb-20 z-10">
+          <img src="logo.png" alt="marimo logo" className="w-48 mb-2" />
           <CreateNewNotebook />
+          <ResourceLinks />
           <NotebookList
             header={<Header Icon={PlayCircleIcon}>Running notebooks</Header>}
             files={[...running.values()]}
@@ -229,7 +216,7 @@ const CollapseAllButton: React.FC = () => {
     <Button
       variant="text"
       size="sm"
-      className="h-fit"
+      className="h-fit hidden sm:flex"
       onClick={() => {
         setOpenState({});
       }}
@@ -396,22 +383,6 @@ const NotebookList: React.FC<{
   );
 };
 
-const Header: React.FC<{
-  Icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  control?: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ Icon, control, children }) => {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-2 text-xl font-semibold text-muted-foreground select-none">
-        <Icon className="h-5 w-5" />
-        {children}
-      </h2>
-      {control}
-    </div>
-  );
-};
-
 const MarimoFileComponent = ({
   file,
 }: {
@@ -529,7 +500,7 @@ const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-mdSolid shadow-accent border
+      text-primary hover:bg-[var(--blue-2)] shadow-mdSolid shadow-accent border bg-[var(--blue-1)]
       transition-all duration-300 cursor-pointer
       "
       href={url}
@@ -541,53 +512,6 @@ const CreateNewNotebook: React.FC = () => {
         <ExternalLinkIcon size={24} />
       </div>
     </a>
-  );
-};
-
-const TUTORIALS: Record<
-  TutorialId,
-  [string, React.FC<React.SVGProps<SVGSVGElement>>]
-> = {
-  intro: ["Introduction", BookOpenIcon],
-  dataflow: ["Dataflow", ActivityIcon],
-  ui: ["UI Elements", LayoutIcon],
-  markdown: ["Markdown", FileTextIcon],
-  plots: ["Plots", BarChart2Icon],
-  sql: ["SQL", DatabaseIcon],
-  layout: ["Layout", GridIcon],
-  fileformat: ["File format", FileIcon],
-  "for-jupyter-users": ["For Jupyter users", OrbitIcon],
-  "markdown-format": ["Markdown format", MarkdownIcon],
-};
-
-const OpenTutorialDropDown: React.FC = () => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild={true}>
-        <Button data-testid="open-tutorial-button" size="xs" variant="outline">
-          <GraduationCapIcon className="w-4 h-4 mr-2" />
-          Tutorials
-          <CaretDownIcon className="w-3 h-3 ml-1" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" className="no-print">
-        {Objects.entries(TUTORIALS).map(([tutorialId, [label, Icon]]) => (
-          <DropdownMenuItem
-            key={tutorialId}
-            onSelect={async () => {
-              const file = await openTutorial({ tutorialId });
-              if (!file) {
-                return;
-              }
-              window.open(asURL(`?file=${file.path}`).toString(), "_blank");
-            }}
-          >
-            <Icon strokeWidth={1.5} className="w-4 h-4 mr-2" />
-            {label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 };
 

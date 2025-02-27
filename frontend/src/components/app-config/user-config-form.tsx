@@ -48,6 +48,7 @@ import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
+import { getMarimoVersion } from "@/core/dom/marimo-tag";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -1168,6 +1169,11 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               </TabsTrigger>
             ))}
+
+            <div className="p-2 text-xs text-muted-foreground self-start">
+              <span>Version: {getMarimoVersion()}</span>
+            </div>
+
             <div className="flex-1" />
             {!isWasm() && configMessage}
           </TabsList>
