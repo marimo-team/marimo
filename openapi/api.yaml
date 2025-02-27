@@ -586,6 +586,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
+      - $ref: '#/components/schemas/ImportStarError'
       - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
@@ -948,6 +949,18 @@ components:
           type: string
       required:
       - code
+      type: object
+    ImportStarError:
+      properties:
+        msg:
+          type: string
+        type:
+          enum:
+          - import-star
+          type: string
+      required:
+      - msg
+      - type
       type: object
     InstallMissingPackagesRequest:
       properties:
@@ -2194,7 +2207,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.9
+  version: 0.11.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
