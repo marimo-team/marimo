@@ -5,7 +5,6 @@ import {
   sql,
   StandardSQL,
   schemaCompletionSource,
-  type SQLNamespace,
   MySQL,
   PostgreSQL,
   SQLite,
@@ -181,12 +180,19 @@ export class SQLCompletionStore {
 
     let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
     if (!cacheConfig) {
-      const mapping: SQLNamespace = {};
+      const mapping: Record<
+        string,
+        | string[]
+        | Record<string, string[] | Record<string, Record<string, string[]>>>
+      > = {};
 
       // When there is default db and schema, we can use the table name directly
       // Otherwise, we need to use the fully qualified name
       for (const database of connection.databases) {
-        const isDefaultDb = connection.default_database === database.name;
+        // If there is only one database, it is the default
+        const isDefaultDb =
+          connection.default_database === database.name ||
+          connection.databases.length === 1;
 
         for (const schema of database.schemas) {
           const isDefaultSchema = connection.default_schema === schema.name;
@@ -196,11 +202,28 @@ export class SQLCompletionStore {
 
             if (isDefaultDb && isDefaultSchema) {
               mapping[table.name] = columns;
-            } else if (isDefaultDb) {
-              mapping[`${schema.name}.${table.name}`] = columns;
+              continue;
+            }
+
+            if (isDefaultDb) {
+              const schemaMap = (mapping[schema.name] ?? {}) as Record<
+                string,
+                string[]
+              >;
+              schemaMap[table.name] = columns;
+              mapping[schema.name] = schemaMap;
             } else {
-              mapping[`${database.name}.${schema.name}.${table.name}`] =
-                columns;
+              const dbMap = (mapping[database.name] ?? {}) as unknown as Record<
+                string,
+                Record<string, string[]>
+              >;
+              const schemaMap = dbMap[schema.name] ?? {};
+              schemaMap[table.name] = columns;
+              dbMap[schema.name] = schemaMap;
+              mapping[database.name] = dbMap as unknown as Record<
+                string,
+                string[] | Record<string, Record<string, string[]>>
+              >;
             }
           }
         }
@@ -209,6 +232,7 @@ export class SQLCompletionStore {
       cacheConfig = {
         dialect: guessDialect(connection),
         schema: mapping,
+        defaultSchema: connection.default_schema ?? undefined,
         defaultTable: getSingleTable(connection),
       };
       this.cache.set(connection, cacheConfig);

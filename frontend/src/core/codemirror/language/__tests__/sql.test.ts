@@ -602,7 +602,7 @@ describe("tablesCompletionSource", () => {
     expect(completionSource).toBe(null);
   });
 
-  it("should create schema with schema.table structure and short table names for single db", () => {
+  it("should create schema with database.schema.table structure", () => {
     const mockConnection: DataSourceConnection = {
       name: "test_engine",
       dialect: "duckdb",
@@ -691,11 +691,6 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.dialect).toBe(undefined);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
-        "orders": [
-          "order_id",
-          "user_id",
-          "total",
-        ],
         "public": {
           "orders": [
             "order_id",
@@ -708,11 +703,6 @@ describe("tablesCompletionSource", () => {
             "email",
           ],
         },
-        "users": [
-          "id",
-          "name",
-          "email",
-        ],
       }
     `);
   });
@@ -806,15 +796,282 @@ describe("tablesCompletionSource", () => {
             ],
           },
         },
-        "table1": [
-          "col1",
+      }
+    `);
+    expect(completionSource?.defaultTable).toBeUndefined();
+  });
+
+  it("should handle default schema", () => {
+    const mockConnection: DataSourceConnection = {
+      name: "test_engine",
+      dialect: "postgres",
+      display_name: "postgres",
+      source: "postgres",
+      default_schema: "public",
+      default_database: "test_db",
+      databases: [
+        {
+          name: "test_db",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "public",
+              tables: [
+                {
+                  name: "users",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                    {
+                      name: "name",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                    {
+                      name: "email",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: mockConnection.name as ConnectionName,
+    });
+
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "users": [
+          "id",
+          "name",
+          "email",
         ],
+      }
+    `);
+    expect(completionSource?.defaultTable).toBe("users");
+    expect(completionSource?.defaultSchema).toBe("public");
+  });
+
+  it("should handle multiple schemas with default", () => {
+    const mockConnection: DataSourceConnection = {
+      name: "multi_schema_engine",
+      dialect: "postgres",
+      display_name: "postgres",
+      source: "postgres",
+      default_schema: "schema2",
+      databases: [
+        {
+          name: "test_db",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "schema1",
+              tables: [
+                {
+                  name: "table1",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col1",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "schema2",
+              tables: [
+                {
+                  name: "table2",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col2",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: mockConnection.name as ConnectionName,
+    });
+
+    adapter.engine = "multi_schema_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "multi_schema_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "schema1": {
+          "table1": [
+            "col1",
+          ],
+        },
         "table2": [
           "col2",
         ],
       }
     `);
     expect(completionSource?.defaultTable).toBeUndefined();
+    expect(completionSource?.defaultSchema).toBe("schema2");
+  });
+
+  it("should handle multiple databases and schemas with default", () => {
+    const mockConnection: DataSourceConnection = {
+      name: "multi_db_engine",
+      dialect: "postgres",
+      display_name: "postgres",
+      source: "postgres",
+      default_schema: "schema2",
+      default_database: "db1",
+      databases: [
+        {
+          name: "db1",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "schema1",
+              tables: [
+                {
+                  name: "table1",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col1",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "schema2",
+              tables: [
+                {
+                  name: "table2",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col2",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "db2",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "schema2",
+              tables: [
+                {
+                  name: "table2",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col2",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: mockConnection.name as ConnectionName,
+    });
+
+    adapter.engine = "multi_db_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "multi_db_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "db2": {
+          "schema2": {
+            "table2": [
+              "col2",
+            ],
+          },
+        },
+        "schema1": {
+          "table1": [
+            "col1",
+          ],
+        },
+        "table2": [
+          "col2",
+        ],
+      }
+    `);
+    expect(completionSource?.defaultTable).toBeUndefined();
+    expect(completionSource?.defaultSchema).toBe("schema2");
   });
 
   it("should create a default table if there is only one table", () => {
