@@ -180,11 +180,11 @@ export class SQLCompletionStore {
 
     let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
     if (!cacheConfig) {
-      const mapping: Record<
-        string,
-        | string[]
-        | Record<string, string[] | Record<string, Record<string, string[]>>>
-      > = {};
+      type TableMap = Record<string, string[]>;
+      type SchemaMap = Record<string, TableMap>;
+      type DatabaseMap = Record<string, SchemaMap>;
+
+      const mapping: DatabaseMap | SchemaMap = {};
 
       // When there is default db and schema, we can use the table name directly
       // Otherwise, we need to use the fully qualified name
@@ -199,24 +199,18 @@ export class SQLCompletionStore {
             const columns = table.columns.map((col) => col.name);
 
             if (isDefaultDb) {
-              const schemaMap = (mapping[schema.name] ?? {}) as Record<
-                string,
-                string[]
-              >;
+              const schemaMap = mapping[schema.name] ?? {};
               schemaMap[table.name] = columns;
               mapping[schema.name] = schemaMap;
             } else {
-              const dbMap = (mapping[database.name] ?? {}) as unknown as Record<
+              const dbMap = (mapping[database.name] ?? {}) as Record<
                 string,
                 Record<string, string[]>
               >;
               const schemaMap = dbMap[schema.name] ?? {};
               schemaMap[table.name] = columns;
               dbMap[schema.name] = schemaMap;
-              mapping[database.name] = dbMap as unknown as Record<
-                string,
-                string[] | Record<string, Record<string, string[]>>
-              >;
+              mapping[database.name] = dbMap;
             }
           }
         }
