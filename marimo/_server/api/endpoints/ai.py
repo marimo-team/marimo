@@ -399,7 +399,6 @@ async def ai_completion(
                 "content": prompt,
             },
         ],
-        temperature=0,
         stream=True,
         timeout=15,
     )
@@ -479,7 +478,6 @@ async def ai_chat(
                 [ChatMessage(role="system", content=system_prompt)] + messages
             ),
         ),
-        temperature=0,
         stream=True,
         timeout=15,
     )
