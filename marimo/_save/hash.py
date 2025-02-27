@@ -8,7 +8,7 @@ import inspect
 import struct
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Callable, Iterable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
 from marimo._ast.variables import (
     get_cell_from_local,
@@ -32,6 +32,7 @@ from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from types import CodeType
 
     from marimo._ast.cell import CellImpl

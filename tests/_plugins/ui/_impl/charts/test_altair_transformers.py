@@ -12,6 +12,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     _data_to_csv_string,
     _data_to_json_string,
+    _to_marimo_arrow,
     _to_marimo_csv,
     _to_marimo_inline_csv,
     _to_marimo_json,
@@ -223,7 +224,7 @@ def test_data_to_csv_string_with_different_dtypes(df: IntoDataFrame):
 def test_register_transformers(mock_data_transformers: MagicMock):
     register_transformers()
 
-    assert mock_data_transformers.register.call_count == 4
+    assert mock_data_transformers.register.call_count == 5
     mock_data_transformers.register.assert_any_call("marimo", _to_marimo_csv)
     mock_data_transformers.register.assert_any_call(
         "marimo_inline_csv", _to_marimo_inline_csv
@@ -234,3 +235,70 @@ def test_register_transformers(mock_data_transformers: MagicMock):
     mock_data_transformers.register.assert_any_call(
         "marimo_csv", _to_marimo_csv
     )
+    mock_data_transformers.register.assert_any_call(
+        "marimo_arrow", _to_marimo_arrow
+    )
+
+
+SUPPORTS_ARROW_IPC = ["pandas", "polars"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, include=SUPPORTS_ARROW_IPC
+    ),
+)
+def test_to_marimo_arrow(df: IntoDataFrame):
+    result = _to_marimo_arrow(df)
+
+    assert isinstance(result, dict)
+    assert "url" in result
+    assert "format" in result
+    print(type(df))
+    assert result["format"] == {"type": "arrow"}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, exclude=SUPPORTS_ARROW_IPC
+    ),
+)
+def test_to_marimo_arrow_fallback(df: IntoDataFrame):
+    result = _to_marimo_arrow(df)
+
+    # Should fallback to CSV format
+    assert isinstance(result, dict)
+    assert "url" in result
+    assert "format" in result
+    assert result["format"] == {"type": "csv"}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 3],
+            "float": [1.1, 2.2, 3.3],
+            "bool": [True, False, True],
+            "datetime": [
+                datetime.datetime(2023, 1, 1, 1),
+                datetime.datetime(2023, 1, 2, 1),
+                datetime.datetime(2023, 1, 3, 1),
+            ],
+            "category": ["a", "b", "c"],
+        },
+        include=SUPPORTS_ARROW_IPC,
+    ),
+)
+def test_to_marimo_arrow_different_dtypes(df: IntoDataFrame):
+    result = _to_marimo_arrow(df)
+
+    assert isinstance(result, dict)
+    assert "url" in result
+    assert "format" in result
+    assert result["format"] == {"type": "arrow"}

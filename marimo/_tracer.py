@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -14,6 +14,8 @@ from marimo._utils.platform import is_pyodide
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from opentelemetry import trace
 
 
@@ -141,7 +143,7 @@ def _set_tracer_provider() -> None:
     trace.set_tracer_provider(provider)
 
 
-def create_tracer(trace_name: str) -> "trace.Tracer":
+def create_tracer(trace_name: str) -> trace.Tracer:
     """
     Creates a tracer that logs to a file.
 

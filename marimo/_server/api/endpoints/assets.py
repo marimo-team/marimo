@@ -35,14 +35,14 @@ router = APIRouter()
 # Root directory for static assets
 root = Path(import_files("marimo").joinpath("_static")).resolve()
 
-config = (
+server_config = (
     get_default_config_manager(current_path=None)
     .get_config()
     .get("server", {})
 )
 
 assets_dir = root / "assets"
-follow_symlinks = config.get("follow_symlink", False)
+follow_symlinks = server_config.get("follow_symlink", False)
 
 if not follow_symlinks and assets_dir.is_symlink():
     LOGGER.error(

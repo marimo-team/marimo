@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from narwhals.typing import IntoDataFrame
 
 DFType = Literal["pandas", "polars", "ibis", "pyarrow", "duckdb"]
 
 
 def create_dataframes(
-    data: Dict[str, Sequence[Any]],
-    include: Optional[List[DFType]] = None,
-    exclude: Optional[List[DFType]] = None,
+    data: dict[str, Sequence[Any]],
+    include: Optional[list[DFType]] = None,
+    exclude: Optional[list[DFType]] = None,
     strict: bool = True,
 ) -> list[IntoDataFrame]:
     dfs: list[IntoDataFrame] = []

@@ -322,8 +322,7 @@ def _broadcast_outputs(
         CellOp.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
-                    msg="This cell raised an exception: %s%s"
-                    % (
+                    msg="This cell raised an exception: {}{}".format(
                         exception_type,
                         (
                             f"('{str(run_result.exception)}')"

@@ -4,9 +4,12 @@ from __future__ import annotations
 import ast
 import inspect
 import textwrap
-from typing import Any, Callable, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from marimo._ast.variables import unmangle_local
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 ARG_PREFIX: str = "*"
 

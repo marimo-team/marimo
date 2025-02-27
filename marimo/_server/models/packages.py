@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from marimo._runtime.packages.package_manager import PackageDescription
 
@@ -32,7 +32,7 @@ class RemovePackageRequest:
 
 @dataclass
 class ListPackagesResponse:
-    packages: List[PackageDescription]
+    packages: list[PackageDescription]
 
 
 @dataclass

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_pandas,
@@ -36,8 +37,8 @@ if TYPE_CHECKING:
 class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
     @staticmethod
     def handle_column_conversion(
-        df: "pd.DataFrame", transform: ColumnConversionTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: ColumnConversionTransform
+    ) -> pd.DataFrame:
         df[transform.column_id] = df[transform.column_id].astype(
             transform.data_type,
             errors=transform.errors,
@@ -46,16 +47,16 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_rename_column(
-        df: "pd.DataFrame", transform: RenameColumnTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: RenameColumnTransform
+    ) -> pd.DataFrame:
         return df.rename(
             columns={transform.column_id: transform.new_column_id}
         )
 
     @staticmethod
     def handle_sort_column(
-        df: "pd.DataFrame", transform: SortColumnTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: SortColumnTransform
+    ) -> pd.DataFrame:
         return df.sort_values(
             by=cast(str, transform.column_id),
             ascending=transform.ascending,
@@ -64,14 +65,14 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_filter_rows(
-        df: "pd.DataFrame", transform: FilterRowsTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: FilterRowsTransform
+    ) -> pd.DataFrame:
         if not transform.where:
             return df
 
         import pandas as pd
 
-        clauses: List[pd.Series[Any]] = []
+        clauses: list[pd.Series[Any]] = []
         for condition in transform.where:
             column: pd.Series[Any] = df[condition.column_id]
 
@@ -142,8 +143,8 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_group_by(
-        df: "pd.DataFrame", transform: GroupByTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: GroupByTransform
+    ) -> pd.DataFrame:
         group = df.groupby(transform.column_ids, dropna=transform.drop_na)
         if transform.aggregation == "count":
             return group.count()
@@ -162,8 +163,8 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_aggregate(
-        df: "pd.DataFrame", transform: AggregateTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: AggregateTransform
+    ) -> pd.DataFrame:
         dict_of_aggs = {
             column_id: transform.aggregations
             for column_id in transform.column_ids
@@ -176,20 +177,20 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_select_columns(
-        df: "pd.DataFrame", transform: SelectColumnsTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: SelectColumnsTransform
+    ) -> pd.DataFrame:
         return df[transform.column_ids]
 
     @staticmethod
     def handle_shuffle_rows(
-        df: "pd.DataFrame", transform: ShuffleRowsTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: ShuffleRowsTransform
+    ) -> pd.DataFrame:
         return df.sample(frac=1, random_state=transform.seed)
 
     @staticmethod
     def handle_sample_rows(
-        df: "pd.DataFrame", transform: SampleRowsTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: SampleRowsTransform
+    ) -> pd.DataFrame:
         return df.sample(
             n=transform.n,
             random_state=transform.seed,
@@ -198,14 +199,14 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_explode_columns(
-        df: "pd.DataFrame", transform: ExplodeColumnsTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: ExplodeColumnsTransform
+    ) -> pd.DataFrame:
         return df.explode(transform.column_ids)
 
     @staticmethod
     def handle_expand_dict(
-        df: "pd.DataFrame", transform: ExpandDictTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: ExpandDictTransform
+    ) -> pd.DataFrame:
         import pandas as pd
 
         column_id = transform.column_id
@@ -215,7 +216,7 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def as_python_code(
-        df_name: str, columns: List[str], transforms: List[Transform]
+        df_name: str, columns: list[str], transforms: list[Transform]
     ) -> str:
         return python_print_transforms(
             df_name, columns, transforms, python_print_pandas
@@ -225,8 +226,8 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     @staticmethod
     def handle_column_conversion(
-        df: "pl.DataFrame", transform: ColumnConversionTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: ColumnConversionTransform
+    ) -> pl.DataFrame:
         import polars.datatypes as pl_datatypes
 
         return df.cast(
@@ -240,16 +241,16 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_rename_column(
-        df: "pl.DataFrame", transform: RenameColumnTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: RenameColumnTransform
+    ) -> pl.DataFrame:
         return df.rename(
             {str(transform.column_id): str(transform.new_column_id)}
         )
 
     @staticmethod
     def handle_sort_column(
-        df: "pl.DataFrame", transform: SortColumnTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: SortColumnTransform
+    ) -> pl.DataFrame:
         return df.sort(
             by=transform.column_id,
             descending=not transform.ascending,
@@ -258,8 +259,8 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_filter_rows(
-        df: "pl.DataFrame", transform: FilterRowsTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: FilterRowsTransform
+    ) -> pl.DataFrame:
         import polars as pl
         from polars import col
 
@@ -342,8 +343,8 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_group_by(
-        df: "pl.DataFrame", transform: GroupByTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: GroupByTransform
+    ) -> pl.DataFrame:
         aggs: list[pl.Expr] = []
         from polars import col
 
@@ -376,8 +377,8 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_aggregate(
-        df: "pl.DataFrame", transform: AggregateTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: AggregateTransform
+    ) -> pl.DataFrame:
         import polars as pl
 
         selected_df = df.select(transform.column_ids)
@@ -409,20 +410,20 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_select_columns(
-        df: "pl.DataFrame", transform: SelectColumnsTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: SelectColumnsTransform
+    ) -> pl.DataFrame:
         return df.select(transform.column_ids)
 
     @staticmethod
     def handle_shuffle_rows(
-        df: "pl.DataFrame", transform: ShuffleRowsTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: ShuffleRowsTransform
+    ) -> pl.DataFrame:
         return df.sample(fraction=1, shuffle=True, seed=transform.seed)
 
     @staticmethod
     def handle_sample_rows(
-        df: "pl.DataFrame", transform: SampleRowsTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: SampleRowsTransform
+    ) -> pl.DataFrame:
         return df.sample(
             n=transform.n,
             shuffle=True,
@@ -432,14 +433,14 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_explode_columns(
-        df: "pl.DataFrame", transform: ExplodeColumnsTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: ExplodeColumnsTransform
+    ) -> pl.DataFrame:
         return df.explode(cast(Sequence[str], transform.column_ids))
 
     @staticmethod
     def handle_expand_dict(
-        df: "pl.DataFrame", transform: ExpandDictTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: ExpandDictTransform
+    ) -> pl.DataFrame:
         import polars as pl
 
         column_id = transform.column_id
@@ -449,7 +450,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def as_python_code(
-        df_name: str, columns: List[str], transforms: List[Transform]
+        df_name: str, columns: list[str], transforms: list[Transform]
     ) -> str:
         return python_print_transforms(
             df_name, columns, transforms, python_print_polars
@@ -459,8 +460,8 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 class IbisTransformHandler(TransformHandler["ibis.Table"]):
     @staticmethod
     def handle_column_conversion(
-        df: "ibis.Table", transform: ColumnConversionTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: ColumnConversionTransform
+    ) -> ibis.Table:
         import ibis
 
         if transform.errors == "ignore":
@@ -486,14 +487,14 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_rename_column(
-        df: "ibis.Table", transform: RenameColumnTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: RenameColumnTransform
+    ) -> ibis.Table:
         return df.rename({transform.new_column_id: transform.column_id})
 
     @staticmethod
     def handle_sort_column(
-        df: "ibis.Table", transform: SortColumnTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: SortColumnTransform
+    ) -> ibis.Table:
         return df.order_by(
             [
                 (
@@ -506,8 +507,8 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_filter_rows(
-        df: "ibis.Table", transform: FilterRowsTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: FilterRowsTransform
+    ) -> ibis.Table:
         import ibis
 
         filter_conditions: list[ir.BooleanValue] = []
@@ -562,8 +563,8 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_group_by(
-        df: "ibis.Table", transform: GroupByTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: GroupByTransform
+    ) -> ibis.Table:
         aggs: list[ir.Expr] = []
 
         group_by_column_id_set = set(transform.column_ids)
@@ -593,9 +594,9 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_aggregate(
-        df: "ibis.Table", transform: AggregateTransform
-    ) -> "ibis.Table":
-        agg_dict: Dict[str, Any] = {}
+        df: ibis.Table, transform: AggregateTransform
+    ) -> ibis.Table:
+        agg_dict: dict[str, Any] = {}
         for agg_func in transform.aggregations:
             for column_id in transform.column_ids:
                 name = f"{column_id}_{agg_func}"
@@ -604,14 +605,14 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_select_columns(
-        df: "ibis.Table", transform: SelectColumnsTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: SelectColumnsTransform
+    ) -> ibis.Table:
         return df.select(transform.column_ids)
 
     @staticmethod
     def handle_shuffle_rows(
-        df: "ibis.Table", transform: ShuffleRowsTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: ShuffleRowsTransform
+    ) -> ibis.Table:
         del transform
         import ibis
 
@@ -619,8 +620,8 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_sample_rows(
-        df: "ibis.Table", transform: SampleRowsTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: SampleRowsTransform
+    ) -> ibis.Table:
         return df.sample(
             transform.n / df.count().execute(),
             method="row",
@@ -629,16 +630,16 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_explode_columns(
-        df: "ibis.Table", transform: ExplodeColumnsTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: ExplodeColumnsTransform
+    ) -> ibis.Table:
         for column_id in transform.column_ids:
             df = df.unnest(column_id)
         return df
 
     @staticmethod
     def handle_expand_dict(
-        df: "ibis.Table", transform: ExpandDictTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: ExpandDictTransform
+    ) -> ibis.Table:
         return df.unpack(transform.column_id)
 
     # TODO: support as_python_code for Ibis
@@ -651,7 +652,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     #     )
 
     @staticmethod
-    def as_sql_code(transformed_df: "ibis.Table") -> str | None:
+    def as_sql_code(transformed_df: ibis.Table) -> str | None:
         import ibis
 
         try:

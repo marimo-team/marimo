@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, Union
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Condition,
@@ -13,12 +13,12 @@ from marimo._utils.assert_never import assert_never
 
 def python_print_transforms(
     df_name: str,
-    all_columns: List[str],
-    transforms: List[Transform],
-    print_transform: Callable[[str, List[str], Transform], str],
+    all_columns: list[str],
+    transforms: list[Transform],
+    print_transform: Callable[[str, list[str], Transform], str],
 ) -> str:
     df_next_name = f"{df_name}_next"
-    strs: List[str] = []
+    strs: list[str] = []
     for transform in transforms:
         strs.append(
             f"{df_next_name} = {print_transform(df_next_name, all_columns, transform)}"  # noqa: E501
@@ -27,7 +27,7 @@ def python_print_transforms(
 
 
 def python_print_pandas(
-    df_name: str, all_columns: List[str], transform: Transform
+    df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
     del all_columns
 
@@ -182,7 +182,7 @@ def python_print_pandas(
 
 
 def python_print_polars(
-    df_name: str, all_columns: List[str], transform: Transform
+    df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
     def generate_where_clause_polars(where: Condition) -> str:
         column_id, operator, value = (
@@ -329,7 +329,7 @@ def python_print_polars(
 
 
 def python_print_ibis(
-    df_name: str, all_columns: List[str], transform: Transform
+    df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
     del df_name, all_columns, transform
     # TODO: this does not fully work yet, but we can output the SQL for Ibis so
@@ -478,7 +478,7 @@ def _as_literal(value: Any) -> str:
     return f"{value}"
 
 
-def _list_of_strings(value: Union[List[Any], Any]) -> str:
+def _list_of_strings(value: Union[list[Any], Any]) -> str:
     if isinstance(value, list):
         return f"[{', '.join(_as_literal(v) for v in value)}]"
     return _as_literal(value)

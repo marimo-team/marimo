@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -19,13 +19,13 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
 
-Edge = Tuple[CellId_t, CellId_t]
+Edge = tuple[CellId_t, CellId_t]
 # EdgeWithVar uses a list rather than a set for the variables linking the cells
 # as sets are not JSON-serializable (required by static_notebook_template()).
 # The first entry is the source node; the second entry is a list of defs from
 # the source read by the destination; and the third entry is the destination
 # node.
-EdgeWithVar = Tuple[CellId_t, List[str], CellId_t]
+EdgeWithVar = tuple[CellId_t, list[str], CellId_t]
 
 LOGGER = _loggers.marimo_logger()
 
@@ -84,6 +84,11 @@ class DirectedGraph:
         """Get all cells that have a ref to `name`.
 
         The variable can be either a Python variable or a SQL variable (table).
+        SQL variables don't leak to Python cells, but Python variables do leak
+        to SQL.
+
+        Only does a local analysis of refs, without taking into consideration
+        whether refs are defined by other cells.
         """
         children = set()
         for cid, cell in self.cells.items():
@@ -93,6 +98,7 @@ class DirectedGraph:
                 # SQL variables don't leak to Python cells, but
                 # Python variables do leak to SQL cells
                 continue
+
             children.add(cid)
 
         return children

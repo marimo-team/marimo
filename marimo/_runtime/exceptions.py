@@ -20,6 +20,6 @@ class MarimoMissingRefError(BaseException):
     def __init__(
         self, ref: str, name_error: Optional[NameError] = None
     ) -> None:
-        super(MarimoMissingRefError, self).__init__(ref)
+        super().__init__(ref)
         self.ref = ref
         self.name_error = name_error

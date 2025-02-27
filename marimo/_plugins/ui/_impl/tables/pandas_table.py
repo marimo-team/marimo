@@ -1,8 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from functools import cached_property
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import narwhals.stable.v1 as nw
 
@@ -65,6 +66,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                     "utf-8"
                 )
 
+            def to_arrow_ipc(self) -> bytes:
+                out = io.BytesIO()
+                self._original_data.to_feather(out, compression="uncompressed")
+                return out.getvalue()
+
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]
             ) -> PandasTableManager:
@@ -119,7 +125,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             # internal fields since they get displayed in the UI.
             def get_field_type(
                 self, column_name: str
-            ) -> Tuple[FieldType, ExternalDataType]:
+            ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns

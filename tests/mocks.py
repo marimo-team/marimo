@@ -44,7 +44,7 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
             print("Snapshot updated")
 
         # Read snapshot
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             expected = normalize(f.read())
 
         assert result, "Result is empty"

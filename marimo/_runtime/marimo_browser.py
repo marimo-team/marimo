@@ -75,7 +75,7 @@ def browser_open_fallback(
     return True
 
 
-def build_browser_fallback() -> "type[webbrowser.BaseBrowser]":
+def build_browser_fallback() -> type[webbrowser.BaseBrowser]:
     """
     Dynamically create the class since BaseBrowser does not exist in
     pyodide.

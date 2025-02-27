@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, List, cast
+from typing import Any, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.structures import (
@@ -53,7 +53,7 @@ async def test_matplotlib_special_case(
 
 def test_format_structure_types() -> None:
     formatted = cast(
-        List[Any], format_structure(["hello", True, False, None, 1, 1.0])
+        list[Any], format_structure(["hello", True, False, None, 1, 1.0])
     )
     assert formatted[0] == "hello"
     assert formatted[1] is True

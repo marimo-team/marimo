@@ -14,7 +14,7 @@ T = TypeVar("T")
 
 ColumnName = str
 FieldType = DataType
-FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
+FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
 
 class TableCoordinate(NamedTuple):
@@ -90,6 +90,9 @@ class TableManager(abc.ABC, Generic[T]):
     ) -> bytes:
         pass
 
+    def to_arrow_ipc(self) -> bytes:
+        raise NotImplementedError("Arrow format not supported")
+
     @abc.abstractmethod
     def to_json(self) -> bytes:
         pass
@@ -121,7 +124,7 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         pass
 
     def get_field_types(self) -> FieldTypes:

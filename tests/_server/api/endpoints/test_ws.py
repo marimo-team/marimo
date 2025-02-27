@@ -487,11 +487,11 @@ async def test_ycell_persistence(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-async def test_ycell_cleanup_after_timeout(
+async def test_ycell_cleanup_after_close(
     client: TestClient, temp_marimo_file: str
 ) -> None:
     """Test that cell data is cleaned up after all clients disconnect"""
-    from marimo._server.api.endpoints.ws import clean_cell, ycells
+    from marimo._server.api.endpoints.ws import ycells
 
     cell_id = "Hbol"
 
@@ -513,12 +513,8 @@ async def test_ycell_cleanup_after_timeout(
             cell_ws.close()
 
             # Cell should still exist
-            assert key in ycells
-
-            # Wait for cleanup
-            await clean_cell(key, timeout=0.01)
-
-            # Cell should be removed
+            # Default timeout is 0 so it should be cleaned up immediately
+            await asyncio.sleep(0.1)
             assert key not in ycells
 
     client.post("/api/kernel/shutdown", headers=HEADERS)

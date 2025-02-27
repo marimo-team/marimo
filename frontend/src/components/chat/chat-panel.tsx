@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -7,7 +7,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ClockIcon, Loader2, PlusIcon } from "lucide-react";
+import {
+  BotMessageSquareIcon,
+  ClockIcon,
+  Loader2,
+  PlusIcon,
+} from "lucide-react";
 import {
   chatStateAtom,
   activeChatAtom,
@@ -26,7 +31,7 @@ import { generateUUID } from "@/utils/uuid";
 import { type Message, useChat } from "ai/react";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { Tooltip } from "../ui/tooltip";
+import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { asURL } from "@/utils/url";
 import { API } from "@/core/network/api";
 import { cn } from "@/utils/cn";
@@ -37,6 +42,11 @@ import { getAICompletionBody } from "../editor/ai/completion-utils";
 import { addMessageToChat } from "@/core/ai/chat-utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { useOpenSettingsToTab } from "../app-config/state";
+import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
+import { CopyClipboardIcon } from "../icons/copy-icon";
+import { timeAgo } from "@/utils/dates";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -52,54 +62,77 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   setActiveChat,
   chats,
   setMessages,
-}) => (
-  <div className="flex border-b px-2 py-1 justify-between flex-shrink-0">
-    <Tooltip content="New chat">
-      <Button variant="text" size="icon" onClick={onNewChat}>
-        <PlusIcon className="h-4 w-4" />
-      </Button>
-    </Tooltip>
-    <Popover>
-      <Tooltip content="Previous chats">
-        <PopoverTrigger asChild={true}>
-          <Button variant="text" size="icon">
-            <ClockIcon className="h-4 w-4" />
+}) => {
+  const ai = useAtomValue(aiAtom);
+  const { handleClick } = useOpenSettingsToTab();
+  const model = ai?.open_ai?.model || "gpt-4-turbo";
+
+  return (
+    <div className="flex border-b px-2 py-1 justify-between flex-shrink-0 items-center">
+      <div className="flex items-center gap-2">
+        <Tooltip content="New chat">
+          <Button variant="text" size="icon" onClick={onNewChat}>
+            <PlusIcon className="h-4 w-4" />
           </Button>
-        </PopoverTrigger>
-      </Tooltip>
-      <PopoverContent className="w-[520px] p-0" align="start" side="right">
-        <ScrollArea className="h-[500px] p-4">
-          <div className="space-y-4">
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className={cn(
-                  "p-3 rounded-md cursor-pointer hover:bg-accent",
-                  chat.id === activeChatId && "bg-accent",
-                )}
-                onClick={() => {
-                  setActiveChat(chat.id);
-                  setMessages(
-                    chat.messages.map(({ role, content, timestamp }) => ({
-                      role,
-                      content,
-                      id: timestamp.toString(),
-                    })),
-                  );
-                }}
-              >
-                <div className="font-medium">{chat.title}</div>
-                <div className="text-sm text-muted-foreground">
-                  {new Date(chat.updatedAt).toLocaleString()}
+        </Tooltip>
+        <Button
+          variant="text"
+          size="xs"
+          className="hover:bg-foreground/10 py-2"
+          onClick={() => handleClick("ai")}
+        >
+          {model}
+        </Button>
+      </div>
+      <Popover>
+        <Tooltip content="Previous chats">
+          <PopoverTrigger asChild={true}>
+            <Button variant="text" size="icon">
+              <ClockIcon className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+        </Tooltip>
+        <PopoverContent className="w-[520px] p-0" align="start" side="right">
+          <ScrollArea className="h-[500px] p-4">
+            <div className="space-y-4">
+              {chats.length === 0 && (
+                <PanelEmptyState
+                  title="No chats yet"
+                  description="Start a new chat to get started"
+                  icon={<BotMessageSquareIcon />}
+                />
+              )}
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={cn(
+                    "p-3 rounded-md cursor-pointer hover:bg-accent",
+                    chat.id === activeChatId && "bg-accent",
+                  )}
+                  onClick={() => {
+                    setActiveChat(chat.id);
+                    setMessages(
+                      chat.messages.map(({ role, content, timestamp }) => ({
+                        role,
+                        content,
+                        id: timestamp.toString(),
+                      })),
+                    );
+                  }}
+                >
+                  <div className="font-medium">{chat.title}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {timeAgo(chat.updatedAt)}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
-  </div>
-);
+              ))}
+            </div>
+          </ScrollArea>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
 
 interface ChatMessageProps {
   message: Message;
@@ -114,7 +147,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
   ({ message, index, theme, onEdit, setChatState, chatState }) => (
     <div
       className={cn(
-        "flex",
+        "flex group relative",
         message.role === "user" ? "justify-end" : "justify-start",
       )}
     >
@@ -151,6 +184,9 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
         </div>
       ) : (
         <div className="w-[95%]">
+          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <CopyClipboardIcon className="h-3 w-3" value={message.content} />
+          </div>
           <MarkdownRenderer content={message.content} />
         </div>
       )}
@@ -183,7 +219,30 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 );
 
 ChatInput.displayName = "ChatInput";
+
 export const ChatPanel = () => {
+  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const { handleClick } = useOpenSettingsToTab();
+
+  if (!aiEnabled) {
+    return (
+      <PanelEmptyState
+        title="Chat with AI"
+        description="AI is currently disabled. Add your API key to enable."
+        action={
+          <Button variant="outline" size="sm" onClick={() => handleClick("ai")}>
+            Edit AI settings
+          </Button>
+        }
+        icon={<BotMessageSquareIcon />}
+      />
+    );
+  }
+
+  return <ChatPanelBody />;
+};
+
+const ChatPanelBody = () => {
   const [chatState, setChatState] = useAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
   const [newThreadInput, setNewThreadInput] = useState("");
@@ -323,13 +382,15 @@ export const ChatPanel = () => {
 
   return (
     <div className="flex flex-col h-[calc(100%-53px)]">
-      <ChatHeader
-        onNewChat={handleNewChat}
-        activeChatId={activeChat?.id}
-        setActiveChat={setActiveChat}
-        chats={chatState.chats}
-        setMessages={setMessages}
-      />
+      <TooltipProvider>
+        <ChatHeader
+          onNewChat={handleNewChat}
+          activeChatId={activeChat?.id}
+          setActiveChat={setActiveChat}
+          chats={chatState.chats}
+          setMessages={setMessages}
+        />
+      </TooltipProvider>
 
       <div className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto">
         {(!messages || messages.length === 0) && (

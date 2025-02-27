@@ -5,7 +5,6 @@ import time
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterable,
     Literal,
     Optional,
     TypeVar,
@@ -20,7 +19,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterable
 
 S = TypeVar("S")
 T = TypeVar("T")

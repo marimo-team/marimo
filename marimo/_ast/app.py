@@ -6,6 +6,7 @@ import base64
 import inspect
 import sys
 import threading
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from textwrap import dedent
@@ -13,11 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
-    Iterator,
-    List,
     Literal,
-    Mapping,
     Optional,
     TypeVar,
     Union,
@@ -32,6 +29,8 @@ if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec, TypeAlias
 else:
     from typing import ParamSpec, TypeAlias
+
+from collections.abc import Sequence  # noqa: TC003
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellImpl
@@ -94,7 +93,7 @@ class _AppConfig:
     html_head_file: Optional[str] = None
 
     # Whether to automatically download the app as HTML and Markdown
-    auto_download: List[Literal["html", "markdown"]] = field(
+    auto_download: list[Literal["html", "markdown"]] = field(
         default_factory=list
     )
 

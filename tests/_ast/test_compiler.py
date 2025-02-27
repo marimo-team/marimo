@@ -71,6 +71,14 @@ class TestParseCell:
         assert not cell.imported_namespaces
 
 
+class TestCompilerFlags:
+    @staticmethod
+    def test_top_level_await_ok() -> None:
+        code = "await foo()"
+        cell = compile_cell(code)
+        assert cell.refs == {"foo"}
+
+
 class TestImportWorkspace:
     @staticmethod
     def test_import() -> None:

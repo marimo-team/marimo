@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import pytest
 from pycrdt import Doc, Text
@@ -14,6 +14,9 @@ from marimo._server.api.endpoints.ws import (
 )
 from marimo._server.file_router import MarimoFileKey
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 @pytest.fixture  # type: ignore

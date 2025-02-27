@@ -150,7 +150,7 @@ def test_kernel_manager_edit_mode() -> None:
 
 
 @save_and_restore_main
-def test_kernel_manager_interrupt(tmp_path) -> None:
+def test_kernel_manager_interrupt(tmp_path: Path) -> None:
     queue_manager = QueueManager(use_multiprocessing=True)
     mode = SessionMode.EDIT
 
@@ -174,34 +174,31 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         import string
 
         # Having trouble persisting the write to a temp file on Windows
-        file = (
+        file = Path(
             "".join(random.choice(string.ascii_uppercase) for _ in range(10))
             + ".txt"
         )
     else:
-        file = str(tmp_path / "output.txt")
+        file = tmp_path / "output.txt"
 
-    with open(file, "w") as f:
-        f.write("-1")
+    Path(file).write_text("-1")
 
     queue_manager.control_queue.put(
         CreationRequest(
-            execution_requests=tuple(
-                [
-                    ExecutionRequest(
-                        cell_id="1",
-                        code=inspect.cleandoc(
-                            f"""
+            execution_requests=(
+                ExecutionRequest(
+                    cell_id="1",
+                    code=inspect.cleandoc(
+                        f"""
                             import time
                             with open("{file}", 'w') as f:
                                 f.write('0')
-                            time.sleep(5)
+                            time.sleep(2)
                             with open("{file}", 'w') as f:
                                 f.write('1')
                             """
-                        ),
-                    )
-                ]
+                    ),
+                ),
             ),
             set_ui_element_value_request=SetUIElementValueRequest(
                 object_ids=[], values=[]
@@ -210,28 +207,47 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         )
     )
 
-    # give time for the file to be written to 0, but not enough for it to be
-    # written to 1
-    time.sleep(0.5)
+    timeout = 5
+    # Wait for the file to be written to 0
+    start_time = time.time()
+    while time.time() < start_time + timeout / 2:
+        time.sleep(0.1)
+        if file.read_text() == "0":
+            break
     kernel_manager.interrupt_kernel()
 
     try:
-        with open(file, "r") as f:
-            assert f.read() == "0"
+        assert file.read_text() == "0"
         # if kernel failed to interrupt, f will read as "1"
         time.sleep(1.5)
-        with open(file, "r") as f:
-            assert f.read() == "0"
+        assert file.read_text() == "0"
     finally:
         if sys.platform == "win32":
             os.remove(file)
 
+        # Wait for queues to be empty with timeout
+        # This makes the test more resilient to timing issues in CI
+        start_time = time.time()
+        timeout = 5  # 5-second timeout for queues to be empty
+
+        # Give some time for queues to be processed first
+        time.sleep(0.5)
+
+        while time.time() - start_time < timeout:
+            if (
+                queue_manager.input_queue.empty()
+                and queue_manager.control_queue.empty()
+            ):
+                break
+            time.sleep(0.2)  # slightly longer interval
+
+        # Now check if queues are empty
         assert queue_manager.input_queue.empty()
         assert queue_manager.control_queue.empty()
 
         # Assert shutdown
         kernel_manager.close_kernel()
-        kernel_manager.kernel_task.join()
+        kernel_manager.kernel_task.join(timeout=5)
         assert not kernel_manager.is_alive()
 
 

@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Final, Iterator, Optional, Sequence
+from collections.abc import Iterator, Sequence
+from typing import Any, Callable, Final, Optional
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.hypertext import Html
@@ -15,7 +16,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 # Frontend type is a tuple (index, value update)
 # Python type is a sequence of values, one for each UI element
 @mddoc
-class array(UIElement[Dict[str, JSONType], Sequence[object]]):
+class array(UIElement[dict[str, JSONType], Sequence[object]]):
     """An array of UI elements.
 
     Use an array to:

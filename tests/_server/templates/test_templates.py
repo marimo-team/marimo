@@ -25,7 +25,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
-        with open(index_html, "r") as f:
+        with open(index_html) as f:
             self.html = f.read()
 
         self.base_url = "/subpath"
@@ -152,7 +152,7 @@ class TestHomePageTemplate(unittest.TestCase):
             os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
-        with open(index_html, "r") as f:
+        with open(index_html) as f:
             self.html = f.read()
 
         self.base_url = "/subpath"
@@ -186,7 +186,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
-        with open(index_html, "r") as f:
+        with open(index_html) as f:
             self.html = f.read()
 
         self.user_config = DEFAULT_CONFIG
@@ -371,7 +371,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
             os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
-        with open(index_html, "r") as f:
+        with open(index_html) as f:
             self.html = f.read()
 
         self.version = "1.0.0"

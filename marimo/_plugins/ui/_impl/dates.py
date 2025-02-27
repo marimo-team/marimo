@@ -7,7 +7,6 @@ from typing import (
     Callable,
     Final,
     Optional,
-    Tuple,
     Union,
     cast,
 )
@@ -131,7 +130,7 @@ class date(UIElement[str, dt.date]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "date":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> date:
         """Create a date picker from a dataframe series.
 
         Args:
@@ -267,7 +266,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "datetime":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> datetime:
         """Create a datetime picker from a dataframe series.
 
         Args:
@@ -324,7 +323,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
 
 
 @mddoc
-class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
+class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
     """A date range picker over an interval.
 
     Examples:
@@ -362,10 +361,10 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
         self,
         start: Optional[dt.date | str] = None,
         stop: Optional[dt.date | str] = None,
-        value: Optional[Tuple[dt.date, dt.date] | Tuple[str, str]] = None,
+        value: Optional[tuple[dt.date, dt.date] | tuple[str, str]] = None,
         *,
         label: Optional[str] = None,
-        on_change: Optional[Callable[[Tuple[dt.date, dt.date]], None]] = None,
+        on_change: Optional[Callable[[tuple[dt.date, dt.date]], None]] = None,
         full_width: bool = False,
     ):
         if isinstance(start, str):
@@ -413,7 +412,7 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "date_range":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> date_range:
         """Create a date range picker from a dataframe series.
 
         Args:
@@ -431,8 +430,8 @@ class date_range(UIElement[Tuple[str, str], Tuple[dt.date, dt.date]]):
         return date_range(start=start, stop=stop, label=label, **kwargs)
 
     def _convert_value(
-        self, value: Tuple[str, str] | Tuple[dt.date, dt.date]
-    ) -> Tuple[dt.date, dt.date]:
+        self, value: tuple[str, str] | tuple[dt.date, dt.date]
+    ) -> tuple[dt.date, dt.date]:
         return (
             self._convert_single_value(value[0]),
             self._convert_single_value(value[1]),

@@ -1,7 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Dict, Iterator, List, Optional, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import (
@@ -20,6 +26,9 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State, StateRegistry
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 @mddoc
 class QueryParams(State[SerializedQueryParams]):
@@ -29,7 +38,7 @@ class QueryParams(State[SerializedQueryParams]):
 
     def __init__(
         self,
-        params: Dict[str, Union[str, List[str]]],
+        params: dict[str, Union[str, list[str]]],
         stream: Optional[Stream] = None,
         _registry: Optional[StateRegistry] = None,
     ):
@@ -37,17 +46,17 @@ class QueryParams(State[SerializedQueryParams]):
         self._params = params
         self._stream = stream
 
-    T = TypeVar("T", str, List[str])
+    T = TypeVar("T", str, list[str])
 
     @overload
-    def get(self, key: str) -> Optional[Union[str, List[str]]]: ...
+    def get(self, key: str) -> Optional[Union[str, list[str]]]: ...
 
     @overload
-    def get(self, key: str, default: T) -> Union[str, List[str], T]: ...
+    def get(self, key: str, default: T) -> Union[str, list[str], T]: ...
 
     def get(
-        self, key: str, default: Optional[Union[str, List[str]]] = None
-    ) -> Optional[Union[str, List[str]]]:
+        self, key: str, default: Optional[Union[str, list[str]]] = None
+    ) -> Optional[Union[str, list[str]]]:
         """Get the value of the query parameter.
 
         Args:
@@ -62,7 +71,7 @@ class QueryParams(State[SerializedQueryParams]):
             return default
         return self._params[key]
 
-    def get_all(self, key: str) -> List[str]:
+    def get_all(self, key: str) -> list[str]:
         """Get the value of a query parameter as a list."""
         value = self._params.get(key)
         if value is None:
@@ -71,7 +80,7 @@ class QueryParams(State[SerializedQueryParams]):
             return value
         return [value]
 
-    def __getitem__(self, key: str) -> Optional[Union[str, List[str]]]:
+    def __getitem__(self, key: str) -> Optional[Union[str, list[str]]]:
         return self.get(key)
 
     def __contains__(self, key: str) -> bool:
@@ -89,7 +98,7 @@ class QueryParams(State[SerializedQueryParams]):
     def __str__(self) -> str:
         return str(self._params)
 
-    def __setitem__(self, key: str, value: Union[str, List[str]]) -> None:
+    def __setitem__(self, key: str, value: Union[str, list[str]]) -> None:
         if value is None or value == []:  # type: ignore
             self.remove(key)
             return
@@ -103,7 +112,7 @@ class QueryParams(State[SerializedQueryParams]):
         QueryParamsDelete(key, None).broadcast(self._stream)
         self._set_value(self._params)
 
-    def set(self, key: str, value: Union[str, List[str]]) -> None:
+    def set(self, key: str, value: Union[str, list[str]]) -> None:
         """Set the value of a query parameter."""
         self[key] = value
 
@@ -155,7 +164,7 @@ class QueryParams(State[SerializedQueryParams]):
         QueryParamsClear().broadcast(self._stream)
         self._set_value(self._params)
 
-    def to_dict(self) -> Dict[str, Union[str, List[str]]]:
+    def to_dict(self) -> dict[str, Union[str, list[str]]]:
         return self._params
 
 
@@ -169,7 +178,7 @@ class CLIArgs:
     ):
         self._params = params
 
-    T = TypeVar("T", Primitive, List[Primitive])
+    T = TypeVar("T", Primitive, list[Primitive])
 
     @overload
     def get(self, key: str) -> Optional[ListOrValue[Primitive]]: ...
@@ -197,7 +206,7 @@ class CLIArgs:
             return default
         return self._params[key]
 
-    def get_all(self, key: str) -> List[Primitive]:
+    def get_all(self, key: str) -> list[Primitive]:
         """Get the value of a CLI arg as a list."""
         value = self._params.get(key)
         if value is None:

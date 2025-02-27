@@ -54,7 +54,7 @@ async def test_manage_script_metadata_uv(
         )
     )
     # Add marimo, skip os
-    k._maybe_register_cell("0", "import marimo as mo\nimport os")
+    k._maybe_register_cell("0", "import marimo as mo\nimport os", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
@@ -63,7 +63,7 @@ async def test_manage_script_metadata_uv(
         assert '"os",' not in contents
 
     # Add markdown
-    k._maybe_register_cell("1", "import markdown")
+    k._maybe_register_cell("1", "import markdown", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
@@ -72,7 +72,7 @@ async def test_manage_script_metadata_uv(
         assert '"markdown==' in contents
 
     # Remove marimo, it's still in requirements
-    k._maybe_register_cell("0", "import os")
+    k._maybe_register_cell("0", "import os", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
@@ -104,7 +104,7 @@ async def test_manage_script_metadata_uv_deletion(
     )
 
     # Add marimo, skip os
-    k._maybe_register_cell("0", "import marimo as mo\nimport os")
+    k._maybe_register_cell("0", "import marimo as mo\nimport os", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
@@ -112,7 +112,7 @@ async def test_manage_script_metadata_uv_deletion(
         assert '"os",' not in contents
 
     # Add markdown
-    k._maybe_register_cell("1", "import markdown")
+    k._maybe_register_cell("1", "import markdown", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
@@ -162,7 +162,7 @@ async def test_manage_script_metadata_uv_off(
     )
 
     # Add
-    k._maybe_register_cell("0", "import marimo as mo\nimport os")
+    k._maybe_register_cell("0", "import marimo as mo\nimport os", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         assert "" == f.read()
@@ -190,7 +190,7 @@ async def test_manage_script_metadata_uv_no_filename(
     )
 
     # Add
-    k._maybe_register_cell("0", "import marimo as mo\nimport os")
+    k._maybe_register_cell("0", "import marimo as mo\nimport os", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         assert "" == f.read()
@@ -218,7 +218,7 @@ async def test_manage_script_metadata_pip_noop(
     )
 
     # Add
-    k._maybe_register_cell("0", "import marimo as mo\nimport os")
+    k._maybe_register_cell("0", "import marimo as mo\nimport os", stale=False)
 
     with open(filename) as f:  # noqa: ASYNC230
         assert "" == f.read()

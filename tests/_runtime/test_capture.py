@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from tests.conftest import ExecReqProvider, MockedKernel
 
 
 def _has_output(
-    messages: list[Tuple[str, Dict[Any, Any]]], pattern: str
+    messages: list[tuple[str, dict[Any, Any]]], pattern: str
 ) -> bool:
     for op, data in messages:
         if (

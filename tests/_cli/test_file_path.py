@@ -80,9 +80,9 @@ def test_github_issue_reader() -> None:
 
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_response = mock_open(
-            read_data="""{
+            read_data=b"""{
                 "body": "Some content.```python\\nprint('Hello, world!')\\n```"}
-            """.encode()  # noqa: E501
+            """  # noqa: E501
         )
         mock_urlopen.return_value = mock_response()
 
@@ -108,7 +108,7 @@ def test_github_source_reader() -> None:
     assert reader.can_read(invalid_url) is False
 
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data="print('Hello, world!')".encode())
+        mock_response = mock_open(read_data=b"print('Hello, world!')")
         mock_urlopen.return_value = mock_response()
 
         content, filename = reader.read(valid_url)
@@ -154,7 +154,7 @@ def test_generic_url_reader() -> None:
     assert reader.can_read("local_file.py") is False
 
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data="print('Hello, world!')".encode())
+        mock_response = mock_open(read_data=b"print('Hello, world!')")
         mock_urlopen.return_value = mock_response()
 
         content, filename = reader.read("https://example.com/file.py")
@@ -262,7 +262,7 @@ def test_generic_url_reader_with_query_params():
     url = "https://example.com/file.py?param=value"
     assert reader.can_read(url) is True
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data="print('Hello, world!')".encode())
+        mock_response = mock_open(read_data=b"print('Hello, world!')")
         mock_urlopen.return_value = mock_response()
         content, filename = reader.read(url)
         assert content == "print('Hello, world!')"
@@ -314,7 +314,7 @@ def test_github_source_reader_different_extensions():
     for url in urls:
         assert reader.can_read(url) is True
         with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_response = mock_open(read_data="content".encode())
+            mock_response = mock_open(read_data=b"content")
             mock_urlopen.return_value = mock_response()
             content, filename = reader.read(url)
             assert content == "content"

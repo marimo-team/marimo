@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -72,7 +72,7 @@ class AppFileManager:
         if os.path.exists(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(filename),
+                detail=f"File {filename} already exists",
             )
 
     def _assert_path_is_the_same(self, filename: str) -> None:
@@ -100,7 +100,7 @@ class AppFileManager:
         except Exception as err:
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail="Failed to save file {0}".format(filename),
+                detail=f"Failed to save file {filename}",
             ) from err
 
     def _rename_file(self, new_filename: str) -> None:
@@ -240,7 +240,7 @@ class AppFileManager:
         except AttributeError:
             return None
 
-    def save_app_config(self, config: Dict[str, Any]) -> str:
+    def save_app_config(self, config: dict[str, Any]) -> str:
         """Save the app configuration."""
         # Update the file with the latest app config
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
@@ -331,7 +331,7 @@ class AppFileManager:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Cannot read code from an unnamed notebook",
             )
-        with open(self.filename, "r", encoding="utf-8") as f:
+        with open(self.filename, encoding="utf-8") as f:
             contents = f.read().strip()
         return contents
 

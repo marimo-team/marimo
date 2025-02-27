@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -307,7 +307,7 @@ class TestDefaultTable(unittest.TestCase):
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
-        self.data: Dict[str, Any] = {
+        self.data: dict[str, Any] = {
             "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
             "age": [30, 25, 35, 28, 22],
             "birth_year": [

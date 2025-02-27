@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncIterator, Dict, List
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -22,10 +22,13 @@ from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
 
 def test_chat_init():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -38,19 +41,19 @@ def test_chat_init():
 
 def test_chat_with_prompts():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
 
-    prompts: List[str] = ["Hello", "How are you?"]
+    prompts: list[str] = ["Hello", "How are you?"]
     chat = ui.chat(mock_model, prompts=prompts)
     assert chat._component_args["prompts"] == prompts
 
 
 def test_chat_with_config():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -62,7 +65,7 @@ def test_chat_with_config():
 
 async def test_chat_send_prompt():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del config
         return f"Response to: {messages[-1].content}"
@@ -84,7 +87,7 @@ async def test_chat_send_prompt():
 
 async def test_chat_send_prompt_async_function():
     async def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del config
         await asyncio.sleep(0.01)
@@ -107,7 +110,7 @@ async def test_chat_send_prompt_async_function():
 
 async def test_chat_send_prompt_async_generator():
     async def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> AsyncIterator[str]:
         del config
         del messages
@@ -133,7 +136,7 @@ async def test_chat_send_prompt_async_generator():
 
 def test_chat_get_history():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -157,7 +160,7 @@ def test_chat_get_history():
 
 def test_chat_delete_history():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -179,7 +182,7 @@ def test_chat_delete_history():
 
 def test_chat_delete_message():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -202,20 +205,20 @@ def test_chat_delete_message():
 
 def test_chat_convert_value():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
 
     chat = ui.chat(mock_model)
-    value: Dict[str, List[Dict[str, str]]] = {
+    value: dict[str, list[dict[str, str]]] = {
         "messages": [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
         ]
     }
 
-    converted: List[ChatMessage] = chat._convert_value(value)
+    converted: list[ChatMessage] = chat._convert_value(value)
     assert len(converted) == 2
     assert converted[0].role == "user"
     assert converted[0].content == "Hello"
@@ -225,7 +228,7 @@ def test_chat_convert_value():
 
 def test_chat_convert_value_invalid():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -238,14 +241,14 @@ def test_chat_convert_value_invalid():
 
 async def test_chat_with_on_message():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
 
     on_message_called = False
 
-    def on_message(messages: List[ChatMessage]) -> None:
+    def on_message(messages: list[ChatMessage]) -> None:
         del messages
         nonlocal on_message_called
         on_message_called = True
@@ -262,7 +265,7 @@ async def test_chat_with_on_message():
 
 def test_chat_with_show_configuration_controls():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"
@@ -273,7 +276,7 @@ def test_chat_with_show_configuration_controls():
 
 async def test_chat_clear_messages():
     def mock_model(
-        messages: List[ChatMessage], config: ChatModelConfig
+        messages: list[ChatMessage], config: ChatModelConfig
     ) -> str:
         del messages, config
         return "Mock response"

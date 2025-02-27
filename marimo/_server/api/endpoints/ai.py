@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generator, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
@@ -26,6 +26,8 @@ from marimo._server.models.completion import (
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from anthropic import (  # type: ignore[import-not-found]
         Client,
         Stream as AnthropicStream,
@@ -54,7 +56,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-def get_openai_client(config: MarimoConfig) -> "OpenAI":
+def get_openai_client(config: MarimoConfig) -> OpenAI:
     try:
         from urllib.parse import parse_qs, urlparse
 
@@ -117,7 +119,7 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
         )
 
 
-def get_anthropic_client(config: MarimoConfig) -> "Client":
+def get_anthropic_client(config: MarimoConfig) -> Client:
     try:
         from anthropic import Client  # type: ignore[import-not-found]
     except ImportError:
@@ -267,7 +269,7 @@ def as_stream_response(
     LOGGER.debug(f"Completion content: {original_content}")
 
 
-def get_google_client(config: MarimoConfig, model: str) -> "GenerativeModel":
+def get_google_client(config: MarimoConfig, model: str) -> GenerativeModel:
     try:
         import google.generativeai as genai  # type: ignore[import-not-found]
     except ImportError:

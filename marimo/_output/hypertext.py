@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import weakref
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Iterator, Literal, Optional, cast, final
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast, final
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
@@ -12,6 +12,8 @@ from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._plugins.core.web_component import JSONType
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._plugins.ui._impl.batch import batch as batch_plugin

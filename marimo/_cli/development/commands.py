@@ -5,7 +5,7 @@ import ast
 import os
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -183,10 +183,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.StopRequest,
     ]
 
-    processed_classes: Dict[Any, str] = {
+    processed_classes: dict[Any, str] = {
         JSONType: "JSONType",
     }
-    component_schemas: Dict[str, Any] = {
+    component_schemas: dict[str, Any] = {
         # Hand-written schema to avoid circular dependencies
         "JSONType": {
             "oneOf": [
@@ -202,7 +202,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     }
     # We must override the names of some Union Types,
     # otherwise, their __name__ is "Union"
-    name_overrides: Dict[Any, str] = {
+    name_overrides: dict[Any, str] = {
         JSONType: "JSONType",
         errors.Error: "Error",
         KnownMimeType: "MimeType",
@@ -278,7 +278,7 @@ def ps() -> None:
     pass
 
 
-def get_marimo_processes() -> list["psutil.Process"]:
+def get_marimo_processes() -> list[psutil.Process]:
     import psutil
 
     def is_marimo_process(proc: psutil.Process) -> bool:
@@ -390,7 +390,7 @@ def inline_packages(name: str) -> None:
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
-        with open(name, "r") as file:
+        with open(name) as file:
             tree = ast.parse(file.read(), filename=name)
 
         imported_modules = set[str]()

@@ -12,11 +12,11 @@ installation of dm-tree on macOS is buggy
 from __future__ import annotations
 
 import itertools
-from typing import Any, Callable, Dict, List, Tuple, Type, Union
+from typing import Any, Callable, Union
 
-STRUCT_TYPE = Union[Tuple[Any, ...], List[Any], Dict[Any, Any]]
-UNFLATTEN_TYPE = Callable[[List[Any]], Union[STRUCT_TYPE, Any]]
-FLATTEN_RET_TYPE = Tuple[List[Any], UNFLATTEN_TYPE]
+STRUCT_TYPE = Union[tuple[Any, ...], list[Any], dict[Any, Any]]
+UNFLATTEN_TYPE = Callable[[list[Any]], Union[STRUCT_TYPE, Any]]
+FLATTEN_RET_TYPE = tuple[list[Any], UNFLATTEN_TYPE]
 
 
 class CyclicStructureError(Exception):
@@ -31,7 +31,7 @@ def _flatten_sequence(
     value: list[Any] | tuple[Any, ...], json_compat_keys: bool, seen: set[int]
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
-    base_type: Type[List[Any]] | Type[Tuple[Any, ...]]
+    base_type: type[list[Any]] | type[tuple[Any, ...]]
     if isinstance(value, list):
         base_type = list
     elif isinstance(value, tuple):

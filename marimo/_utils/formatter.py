@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from typing import Dict
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -12,7 +11,7 @@ from marimo._types.ids import CellId_t
 LOGGER = _loggers.marimo_logger()
 
 
-CellCodes = Dict[CellId_t, str]
+CellCodes = dict[CellId_t, str]
 
 
 def ruff(codes: CellCodes, *cmd: str) -> CellCodes:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import subprocess
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -88,10 +88,10 @@ class PackageManager(abc.ABC):
         self,
         filepath: str,
         *,
-        packages_to_add: Optional[List[str]] = None,
-        packages_to_remove: Optional[List[str]] = None,
-        import_namespaces_to_add: Optional[List[str]] = None,
-        import_namespaces_to_remove: Optional[List[str]] = None,
+        packages_to_add: Optional[list[str]] = None,
+        packages_to_remove: Optional[list[str]] = None,
+        import_namespaces_to_add: Optional[list[str]] = None,
+        import_namespaces_to_remove: Optional[list[str]] = None,
     ) -> None:
         del (
             filepath,
@@ -113,7 +113,7 @@ class PackageManager(abc.ABC):
         return
 
     @abc.abstractmethod
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         """List installed packages."""
         ...
 

@@ -70,6 +70,20 @@ def ends_with_semicolon(code: str) -> bool:
     return False
 
 
+def contains_only_tests(tree: ast.Module) -> bool:
+    """Returns True if the module contains only test functions."""
+    scope = tree.body[0]
+    assert isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
+    for node in scope.body:
+        if not isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            return False
+        if not node.name.lower().startswith("test"):
+            return False
+    return True
+
+
 def cache(filename: str, code: str) -> None:
     # Generate a cache entry in Python's linecache
     linecache.cache[filename] = (
@@ -133,6 +147,8 @@ def compile_cell(
         code,
         "<unknown>",
         mode="exec",
+        # don't inherit compiler flags, in particular future annotations
+        dont_inherit=True,
         flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
     )
     if not module.body:
@@ -207,8 +223,12 @@ def compile_cell(
             )
 
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(module, filename, mode="exec", flags=flags)
-    last_expr = compile(expr, filename, mode="eval", flags=flags)
+    body = compile(
+        module, filename, mode="exec", dont_inherit=True, flags=flags
+    )
+    last_expr = compile(
+        expr, filename, mode="eval", dont_inherit=True, flags=flags
+    )
 
     nonlocals = {name for name in v.defs if not is_local(name)}
     temporaries = v.defs - nonlocals
@@ -317,6 +337,7 @@ def toplevel_cell_factory(
             source_position=source_position,
             test_rewrite=test_rewrite,
         ),
+        _test=f.__name__.startswith("test_"),
     )
 
 
@@ -449,4 +470,5 @@ def cell_factory(
             source_position=source_position,
             test_rewrite=test_rewrite,
         ),
+        _test=f.__name__.startswith("test_") or contains_only_tests(tree),
     )

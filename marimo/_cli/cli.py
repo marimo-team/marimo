@@ -44,7 +44,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         file = click.get_text_stream("stderr")
     color = None
     click.echo(
-        red("Error") + ": %s\n" % self.format_message(),
+        red("Error") + f": {self.format_message()}\n",
         file=file,
         color=color,
     )
@@ -295,10 +295,10 @@ edit_help_msg = "\n".join(
     help="Don't check if a new version of marimo is available for download.",
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -323,14 +323,12 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import prompt_run_in_sandbox
-
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
     #
@@ -372,7 +370,13 @@ def edit(
         )
         return
 
-    if sandbox or prompt_run_in_sandbox(name):
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -486,10 +490,10 @@ def edit(
     callback=validators.base_url,
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -501,7 +505,7 @@ def new(
     token: bool,
     token_password: Optional[str],
     base_url: str,
-    sandbox: bool,
+    sandbox: Optional[bool],
 ) -> None:
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -631,10 +635,10 @@ Example:
     help="Redirect console logs to the browser console.",
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -653,12 +657,10 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import prompt_run_in_sandbox
-
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,
     # but later we can make this a CLI flag
@@ -672,7 +674,13 @@ def run(
         )
         return
 
-    if sandbox or prompt_run_in_sandbox(name):
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)

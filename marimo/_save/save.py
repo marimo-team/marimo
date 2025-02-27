@@ -17,7 +17,6 @@ from typing import (
     Any,
     Callable,
     Optional,
-    Type,
     Union,
     cast,
     overload,
@@ -67,7 +66,7 @@ class SkipWithBlock(Exception):
     """Special exception to get around executing the with block body."""
 
 
-class _cache_call(object):
+class _cache_call:
     """Like functools.cache but notebook-aware. See `cache` docstring`"""
 
     graph: DirectedGraph
@@ -216,7 +215,7 @@ class _cache_call(object):
         return response
 
 
-class _cache_context(object):
+class _cache_context:
     def __init__(
         self,
         name: str,
@@ -326,22 +325,20 @@ class _cache_context(object):
                     "(cannot be in a function or class)"
                 )
         raise CacheException(
-            (
-                "`persistent_cache` could not resolve block"
-                f"{UNEXPECTED_FAILURE_BOILERPLATE}"
-            )
+            "`persistent_cache` could not resolve block"
+            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
         )
 
     def __exit__(
         self,
-        exception: Optional[Type[BaseException]],
+        exception: Optional[type[BaseException]],
         instance: Optional[BaseException],
         _tracebacktype: Optional[TracebackType],
     ) -> bool:
         sys.settrace(self._old_trace)  # Clear to previous set trace.
         if not self._entered_trace:
             raise CacheException(
-                (f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}")
+                f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
 
         # Backfill the loaded values into global scope.

@@ -283,6 +283,7 @@ deploy = "mkdocs gh-deploy --force {args}"
 
 [tool.ruff]
 line-length = 79
+target-version = "py39"
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "examples",
@@ -320,6 +321,8 @@ ignore = [
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
+    "UP007", # Use X | Y for type annotations, not supported in 3.9
+    "UP045", # Use X | None for optional type annotations, not supported in 3.9
 ]
 extend-select = [
     # pyflakes
@@ -383,6 +386,7 @@ extend-select = [
     "D211",  # No blank lines allowed before class docstring
     "D214",  # Section is over-indented
     "D215",  # Section underline is over-indented
+    "UP",  # Upgrades
 ]
 
 # Never try to fix `F401` (unused imports).

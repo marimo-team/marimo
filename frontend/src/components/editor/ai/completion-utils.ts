@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AiCompletionRequest } from "@/core/network/types";
@@ -43,7 +44,16 @@ export function getAICompletionBody(
  */
 function extractDatasets(input: string): DataTable[] {
   const datasets = store.get(datasetTablesAtom);
-  const existingDatasets = Maps.keyBy(datasets, (dataset) => dataset.name);
+  const connectionsMap = store.get(dataSourceConnectionsAtom).connectionsMap;
+  const connections = [...connectionsMap.values()];
+  const allTables = [
+    ...datasets,
+    ...connections.flatMap((c) =>
+      c.databases.flatMap((d) => d.schemas.flatMap((s) => s.tables)),
+    ),
+  ];
+  // TODO: This does not handle duplicates table names.
+  const existingDatasets = Maps.keyBy(allTables, (dataset) => dataset.name);
 
   // Extract dataset mentions from the input
   const mentionedDatasets = input.match(/@([\w.]+)/g) || [];

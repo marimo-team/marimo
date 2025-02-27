@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -18,6 +18,8 @@ HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_PANDAS = DependencyManager.pandas.has()
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     import duckdb
 
 

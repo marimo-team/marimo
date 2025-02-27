@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from functools import cached_property
-from typing import Any, Optional, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
@@ -139,7 +139,7 @@ class NarwhalsTableManager(
 
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         dtype = self.nw_schema[column_name]
         dtype_string = str(dtype)
         if is_narwhals_string_type(dtype):

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Literal, Optional, Type
+from typing import TYPE_CHECKING, Literal, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -74,7 +74,7 @@ class import_guard:
 
     def __exit__(
         self,
-        exception: Optional[Type[BaseException]],
+        exception: Optional[type[BaseException]],
         instance: Optional[BaseException],
         _tracebacktype: Optional[TracebackType],
     ) -> Literal[False]:

@@ -1,0 +1,24 @@
+{
+  "config": {
+    "view": {
+      "continuousWidth": 300,
+      "continuousHeight": 300
+    }
+  },
+  "data": {
+    "url": "data:text/csv;base64,InZhbHVlcyIKMQoyCjMK",
+    "format": {
+      "type": "csv"
+    }
+  },
+  "mark": {
+    "type": "point"
+  },
+  "encoding": {
+    "x": {
+      "field": "values",
+      "type": "quantitative"
+    }
+  },
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json"
+}

@@ -9,6 +9,7 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import get_default_config_manager
+from marimo._config.settings import GlobalSettings
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
@@ -117,6 +118,18 @@ def start(
             }
         )
         LOGGER.info("Watch mode enabled, auto-save is disabled")
+
+    if GlobalSettings.MANAGE_SCRIPT_METADATA:
+        config_reader = config_reader.with_overrides(
+            {
+                # Currently, only uv is supported for managing script metadata
+                # If this changes, instead we should only update the config
+                # if the user's package manager does not support sandboxes.
+                "package_management": {
+                    "manager": "uv",
+                }
+            }
+        )
 
     session_manager = SessionManager(
         file_router=file_router,

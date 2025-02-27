@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Model } from "../AnyWidgetPlugin";
+import { Model } from "../model";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
 describe("Model", () => {
@@ -124,12 +124,7 @@ describe("Model", () => {
 
   describe("widget_manager", () => {
     it("should throw error when accessing widget_manager", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => (model.widget_manager as any).foo).toThrow(
-        "widget_manager not supported in marimo",
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => ((model.widget_manager as any).foo = "bar")).toThrow(
+      expect(() => model.widget_manager.get_model("foo")).toThrow(
         "widget_manager not supported in marimo",
       );
     });
@@ -155,7 +150,15 @@ describe("Model", () => {
       modelWithObject.on("change:foo", callback);
 
       modelWithObject.updateAndEmitDiffs({ foo: { nested: "changed" } });
-      expect(callback).toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it("should emit change event for any changes", async () => {
+      const callback = vi.fn();
+      model.on("change", callback);
+      model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
+      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
+      expect(callback).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -206,7 +209,7 @@ describe("Model", () => {
       });
       model.receiveCustomMessage({ invalid: "message" });
 
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledTimes(2);
     });
   });
 });

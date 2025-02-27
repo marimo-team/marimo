@@ -5,7 +5,7 @@ import base64
 import json
 import os
 from textwrap import dedent
-from typing import Any, List, Literal, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import _AppConfig
@@ -108,7 +108,7 @@ def static_notebook_template(
     cell_codes: list[str],
     cell_configs: list[CellConfig],
     cell_outputs: dict[CellId_t, CellOutput],
-    cell_console_outputs: dict[CellId_t, List[CellOutput]],
+    cell_console_outputs: dict[CellId_t, list[CellOutput]],
     files: dict[str, str],
     asset_url: Optional[str] = None,
 ) -> str:

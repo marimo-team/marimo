@@ -37,12 +37,11 @@ class switch(UIElement[bool, bool]):
     ) -> None:
         if not isinstance(value, bool):
             raise ValueError(
-                "Invalid type: `value` must be a bool, but got %s"
-                % type(value)
+                f"Invalid type: `value` must be a bool, but got {type(value)}"
             )
         if not isinstance(label, str):
             raise ValueError(
-                "Invalid type: `label` must be a str, but got %s" % type(label)
+                f"Invalid type: `label` must be a str, but got {type(label)}"
             )
 
         super().__init__(

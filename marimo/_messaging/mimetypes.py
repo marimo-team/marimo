@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Tuple, Union
+from typing import Any, Literal, Union
 
 # It is convenient to write mimetypes as strings,
 # but can lead to typos. This literal type
@@ -29,5 +29,5 @@ KnownMimeType = Literal[
     "text/csv",
 ]
 
-MimeBundle = Dict[KnownMimeType, Any]
-MimeBundleOrTuple = Union[MimeBundle, Tuple[MimeBundle, Any]]
+MimeBundle = dict[KnownMimeType, Any]
+MimeBundleOrTuple = Union[MimeBundle, tuple[MimeBundle, Any]]

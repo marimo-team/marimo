@@ -7,9 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Literal,
     Optional,
     Union,
@@ -44,11 +42,11 @@ if TYPE_CHECKING:
 #     "field": ["value1", "value2", ...]
 #   }
 # }
-ChartSelectionField = Dict[str, Union[List[int], List[float], List[str]]]
-ChartSelection = Dict[str, ChartSelectionField]
-VegaSpec = Dict[str, Any]
-RowOrientedData = List[Dict[str, Any]]
-ColumnOrientedData = Dict[str, List[Any]]
+ChartSelectionField = dict[str, Union[list[int], list[float], list[str]]]
+ChartSelection = dict[str, ChartSelectionField]
+VegaSpec = dict[str, Any]
+RowOrientedData = list[dict[str, Any]]
+ColumnOrientedData = dict[str, list[Any]]
 
 ChartDataType = Union[IntoDataFrame, RowOrientedData, ColumnOrientedData]
 
@@ -155,7 +153,7 @@ def _filter_dataframe(
     return nw.to_native(df)
 
 
-def _resolve_values(values: Any, dtype: Any) -> List[Any]:
+def _resolve_values(values: Any, dtype: Any) -> list[Any]:
     def _coerce_value(value: Any, dtype: Any) -> Any:
         import zoneinfo
 
@@ -222,8 +220,8 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
         with altair.data_transformers.enable("default"):
             return spec.to_dict()  # type: ignore
 
-    with altair.data_transformers.enable("marimo"):
-        return spec.to_dict()  # type: ignore
+    with altair.data_transformers.enable("marimo_arrow"):
+        return spec.to_dict(validate=False)  # type: ignore
 
 
 def _has_transforms(spec: VegaSpec) -> bool:

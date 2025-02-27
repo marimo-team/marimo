@@ -3,17 +3,23 @@ import { invariant } from "./invariant";
 import { clamp } from "./math";
 
 export function arrayDelete<T>(array: T[], index: number): T[] {
-  return [...array.slice(0, index), ...array.slice(index + 1)];
+  const result = [...array];
+  result.splice(index, 1);
+  return result;
 }
 
 export function arrayInsert<T>(array: T[], index: number, value: T): T[] {
   index = clamp(index, 0, array.length);
-  return arrayInsertMany(array, index, [value]);
+  const result = [...array];
+  result.splice(index, 0, value);
+  return result;
 }
 
 export function arrayMove<T>(array: T[], from: number, to: number): T[] {
-  const value = array[from];
-  return arrayInsertMany(arrayDelete(array, from), to, [value]);
+  const result = [...array];
+  const [value] = result.splice(from, 1);
+  result.splice(to, 0, value);
+  return result;
 }
 
 export function arrayInsertMany<T>(
@@ -26,10 +32,15 @@ export function arrayInsertMany<T>(
   }
   // Clamp index to the end of the array
   index = clamp(index, 0, array.length);
-  return [...array.slice(0, index), ...values, ...array.slice(index)];
+  const result = [...array];
+  result.splice(index, 0, ...values);
+  return result;
 }
 
 export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
+  if (a === b) {
+    return true;
+  }
   if (a.length !== b.length) {
     return false;
   }
@@ -43,14 +54,10 @@ export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
 
 export const Arrays = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  EMPTY: [] as any[],
+  EMPTY: [] as any,
   zip: <T, U>(a: T[], b: U[]): Array<[T, U]> => {
     invariant(a.length === b.length, "Arrays must be the same length");
-    const result: Array<[T, U]> = [];
-    for (let i = 0; i < Math.min(a.length, b.length); i++) {
-      result.push([a[i], b[i]]);
-    }
-    return result;
+    return a.map((item, i) => [item, b[i]]);
   },
 };
 
@@ -58,5 +65,11 @@ export function arrayToggle<T>(arr: T[], item: T): T[] {
   if (!arr) {
     return [item];
   }
-  return arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
+  const index = arr.indexOf(item);
+  if (index === -1) {
+    return [...arr, item];
+  }
+  const result = [...arr];
+  result.splice(index, 1);
+  return result;
 }

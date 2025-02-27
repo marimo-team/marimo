@@ -5,8 +5,8 @@ import ast
 import dataclasses
 import inspect
 import os
-from collections.abc import Awaitable
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
+from collections.abc import Awaitable, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
@@ -362,13 +362,16 @@ class CellImpl:
     ) -> None:
         self._run_result_status.state = run_result_status
 
-    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
+    def set_stale(
+        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
+    ) -> None:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(
-            cell_id=self.cell_id, stale=stale, stream=stream
-        )
+        if broadcast:
+            CellOp.broadcast_stale(
+                cell_id=self.cell_id, stale=stale, stream=stream
+            )
 
     def set_output(self, output: Any) -> None:
         self._output.output = output
@@ -413,6 +416,12 @@ class Cell:
 
     # Number of reserved arguments for pytest
     _pytest_reserved: set[str] = dataclasses.field(default_factory=set)
+
+    # The property __test__ is picked up by nose and pytest.
+    # We have the compiler mark if the cell name starts with test_
+    # _or_, is comprised of only tests; allowing for testing suites to
+    # collect this cell.
+    _test: bool = False
 
     @property
     def name(self) -> str:
@@ -481,6 +490,10 @@ class Cell:
             {as_html(list(self.defs))}
             """
         )
+
+    @property
+    def __test__(self) -> bool:
+        return self._test
 
     def _register_app(self, app: InternalApp) -> None:
         self._app = app
@@ -601,7 +614,7 @@ class Cell:
             raise e.__cause__ from None  # type: ignore
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        # TODO: Expand for top level modules when/ if the time comes.
+        # TODO: Expand for toplevel modules when the time comes.
         arg_names = sorted(
             self._cell.refs - set(globals()["__builtins__"].keys())
         )

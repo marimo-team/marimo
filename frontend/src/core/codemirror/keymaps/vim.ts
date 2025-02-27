@@ -12,6 +12,7 @@ import type { Extension } from "@codemirror/state";
 import { Logger } from "@/utils/Logger";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import { once } from "@/utils/once";
+import { onIdle } from "@/utils/idle";
 
 export function vimKeymapExtension(callbacks: {
   focusUp: () => void;
@@ -45,7 +46,10 @@ export function vimKeymapExtension(callbacks: {
       },
     ]),
     ViewPlugin.define((view) => {
-      CodeMirrorVimSync.INSTANCES.addInstance(view);
+      // Wait for the next animation frame so the CodeMirror instance is ready
+      requestAnimationFrame(() => {
+        CodeMirrorVimSync.INSTANCES.addInstance(view);
+      });
       return {
         destroy() {
           CodeMirrorVimSync.INSTANCES.removeInstance(view);
@@ -93,8 +97,11 @@ class CodeMirrorVimSync {
       }
       invariant("mode" in e, 'Expected event to have a "mode" property');
       this.isBroadcasting = true;
-      this.broadcastModeChange(instance, e.mode, e.subMode);
-      this.isBroadcasting = false;
+      // We use onIdle to keep the focused editor snappy
+      onIdle(() => {
+        this.broadcastModeChange(instance, e.mode, e.subMode);
+        this.isBroadcasting = false;
+      });
     });
   }
 

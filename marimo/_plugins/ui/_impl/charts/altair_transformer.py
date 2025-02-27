@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Dict, Literal, TypedDict, Union
+from typing import Any, Literal, TypedDict, Union
 
 import narwhals.stable.v1 as nw
 from narwhals.typing import IntoDataFrame
@@ -15,8 +15,8 @@ from marimo._plugins.ui._impl.tables.utils import (
 )
 from marimo._utils.data_uri import build_data_url
 
-Data = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
-_DataType = Union[Dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+Data = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+_DataType = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
 
 
 class _JsonFormatDict(TypedDict):
@@ -27,17 +27,16 @@ class _CsvFormatDict(TypedDict):
     type: Literal["csv"]
 
 
-class _ToJsonReturnUrlDict(TypedDict):
+class _ArrowFormatDict(TypedDict):
+    type: Literal["arrow"]
+
+
+class _TransformResult(TypedDict):
     url: str
-    format: _JsonFormatDict
+    format: Union[_CsvFormatDict, _JsonFormatDict, _ArrowFormatDict]
 
 
-class _ToCsvReturnUrlDict(TypedDict):
-    url: str
-    format: _CsvFormatDict
-
-
-def _to_marimo_json(data: Data, **kwargs: Any) -> _ToJsonReturnUrlDict:
+def _to_marimo_json(data: Data, **kwargs: Any) -> _TransformResult:
     """
     Custom implementation of altair.utils.data.to_json that
     returns a VirtualFile URL instead of writing to disk.
@@ -48,7 +47,7 @@ def _to_marimo_json(data: Data, **kwargs: Any) -> _ToJsonReturnUrlDict:
     return {"url": virtual_file.url, "format": {"type": "json"}}
 
 
-def _to_marimo_csv(data: Data, **kwargs: Any) -> _ToCsvReturnUrlDict:
+def _to_marimo_csv(data: Data, **kwargs: Any) -> _TransformResult:
     """
     Custom implementation of altair.utils.data.to_csv that
     returns a VirtualFile URL instead of writing to disk.
@@ -59,7 +58,20 @@ def _to_marimo_csv(data: Data, **kwargs: Any) -> _ToCsvReturnUrlDict:
     return {"url": virtual_file.url, "format": {"type": "csv"}}
 
 
-def _to_marimo_inline_csv(data: Data, **kwargs: Any) -> _ToCsvReturnUrlDict:
+def _to_marimo_arrow(data: Data, **kwargs: Any) -> _TransformResult:
+    """
+    Convert data to arrow format, falls back to CSV if not possible.
+    """
+    del kwargs
+    try:
+        data_arrow = get_table_manager(data).to_arrow_ipc()
+    except Exception:
+        return _to_marimo_csv(data)
+    virtual_file = mo_data.arrow(data_arrow)
+    return {"url": virtual_file.url, "format": {"type": "arrow"}}
+
+
+def _to_marimo_inline_csv(data: Data, **kwargs: Any) -> _TransformResult:
     """
     Custom implementation of altair.utils.data.to_csv that
     inlines the CSV data in the URL.
@@ -105,7 +117,7 @@ def _data_to_json_string(data: _DataType) -> str:
 
     raise NotImplementedError(
         "to_marimo_json only works with data expressed as a DataFrame "
-        + " or as a dict. Got %s" % type(data)
+        + f" or as a dict. Got {type(data)}"
     )
 
 
@@ -136,3 +148,4 @@ def register_transformers() -> None:
     alt.data_transformers.register("marimo_inline_csv", _to_marimo_inline_csv)
     alt.data_transformers.register("marimo_json", _to_marimo_json)
     alt.data_transformers.register("marimo_csv", _to_marimo_csv)
+    alt.data_transformers.register("marimo_arrow", _to_marimo_arrow)

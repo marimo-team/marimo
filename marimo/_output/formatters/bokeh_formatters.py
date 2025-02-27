@@ -54,9 +54,10 @@ class BokehFormatter(FormatterFactory):
             bokeh.plotting.show = old_show
             bokeh.plotting.output_notebook = old_output_notebook
 
-        @formatting.formatter(bokeh.models.Plot)
+        @formatting.formatter(bokeh.models.Model)
+        @formatting.formatter(bokeh.document.Document)
         def _show_plot(
-            plot: bokeh.models.Plot,
+            plot: bokeh.models.Model | bokeh.document.Document,
         ) -> tuple[KnownMimeType, str]:
             import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
             import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501

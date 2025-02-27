@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from marimo._data.models import (
     ColumnSummary,
@@ -190,7 +190,7 @@ class IbisTableManagerFactory(TableManagerFactory):
 
             def get_field_type(
                 self, column_name: str
-            ) -> Tuple[FieldType, ExternalDataType]:
+            ) -> tuple[FieldType, ExternalDataType]:
                 column = self.data[column_name]
                 dtype = column.type()
                 if dtype.is_string():

@@ -8,7 +8,7 @@ import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from _pytest import runner
@@ -37,6 +37,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
 
 # register import hooks for third-party module formatters
@@ -627,10 +628,25 @@ def app() -> Generator[App, None, None]:
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
     report = runner.pytest_make_collect_report(collector)
+    # If it's not a module, we can return early.
+    if not isinstance(collector, pytest.Module):
+        return report
+
     # Defined within the file does not seem to hook correctly, as such filter
     # for the test_pytest specific file here.
     if "test_pytest" in str(collector.path):
-        collected = {fn.originalname for fn in collector.collect()}
+        # Classes may also be registered, but they will be hidden behind a cell.
+        # As such, let's just collect functions.
+        collected = {
+            fn.originalname
+            for fn in collector.collect()
+            if isinstance(fn, pytest.Function)
+        }
+        classes = {
+            cls.name
+            for cls in collector.collect()
+            if isinstance(cls, pytest.Class)
+        }
         from tests._ast.test_pytest import app as app_pytest
         from tests._ast.test_pytest_toplevel import app as app_toplevel
 
@@ -639,6 +655,21 @@ def pytest_make_collect_report(collector):
             "test_pytest_toplevel": app_toplevel,
         }[collector.path.stem]
 
+        # Just a quick check to make sure the class is actually exported.
+        if app == app_pytest:
+            if len(classes) == 0:
+                report.outcome = "failed"
+                report.longrepr = (
+                    f"Expected class in {collector.path}, found none."
+                )
+                return report
+        for cls in classes:
+            if not cls.startswith("MarimoTestBlock"):
+                report.outcome = "failed"
+                report.longrepr = f"Unknown class '{cls}' in {collector.path}"
+                return report
+
+        # Check the functions match cells in the app.
         invalid = []
         for name in app._cell_manager.names():
             if name.startswith("test_") and name not in collected:
