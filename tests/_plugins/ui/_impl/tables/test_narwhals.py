@@ -17,7 +17,7 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     Cell,
-    CellWithValue,
+    TableCoordinate,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -182,21 +182,19 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_select_cells(self) -> None:
         cells = [
-            Cell(columnName="A", rowId=0),
-            Cell(columnName="B", rowId=1),
-            Cell(columnName="C", rowId=2),
-            Cell(columnName="D", rowId=1),
-            Cell(columnName="E", rowId=0),
+            TableCoordinate(columnName="A", rowId=0),
+            TableCoordinate(columnName="B", rowId=1),
+            TableCoordinate(columnName="C", rowId=2),
+            TableCoordinate(columnName="D", rowId=1),
+            TableCoordinate(columnName="E", rowId=0),
         ]
         selected_cells = self.manager.select_cells(cells)
         expected_cells = [
-            CellWithValue(columnName="A", rowId=0, value=1),
-            CellWithValue(columnName="B", rowId=1, value="b"),
-            CellWithValue(columnName="C", rowId=2, value=3.0),
-            CellWithValue(columnName="D", rowId=1, value=False),
-            CellWithValue(
-                columnName="E", rowId=0, value=datetime.datetime(2021, 1, 1)
-            ),
+            Cell(columnName="A", rowId=0, value=1),
+            Cell(columnName="B", rowId=1, value="b"),
+            Cell(columnName="C", rowId=2, value=3.0),
+            Cell(columnName="D", rowId=1, value=False),
+            Cell(columnName="E", rowId=0, value=datetime.datetime(2021, 1, 1)),
         ]
         assert selected_cells == expected_cells
 

@@ -8,7 +8,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
-from marimo._plugins.ui._impl.tables.table_manager import Cell, CellWithValue
+from marimo._plugins.ui._impl.tables.table_manager import Cell, TableCoordinate
 
 HAS_DEPS = DependencyManager.pandas.has()
 
@@ -51,17 +51,15 @@ class TestDefaultTable(unittest.TestCase):
 
     def test_select_cells(self) -> None:
         cells = [
-            Cell(rowId=0, columnName="name"),
-            Cell(rowId=1, columnName="age"),
-            Cell(rowId=2, columnName="birth_year"),
+            TableCoordinate(rowId=0, columnName="name"),
+            TableCoordinate(rowId=1, columnName="age"),
+            TableCoordinate(rowId=2, columnName="birth_year"),
         ]
         selected_cells = self.manager.select_cells(cells)
         expected_cells = [
-            CellWithValue(rowId=0, columnName="name", value="Alice"),
-            CellWithValue(rowId=1, columnName="age", value=25),
-            CellWithValue(
-                rowId=2, columnName="birth_year", value=date(1989, 12, 1)
-            ),
+            Cell(rowId=0, columnName="name", value="Alice"),
+            Cell(rowId=1, columnName="age", value=25),
+            Cell(rowId=2, columnName="birth_year", value=date(1989, 12, 1)),
         ]
         assert selected_cells == expected_cells
 
@@ -353,17 +351,15 @@ class TestColumnarDefaultTable(unittest.TestCase):
 
     def test_select_cells(self) -> None:
         cells = [
-            Cell(rowId=0, columnName="name"),
-            Cell(rowId=1, columnName="age"),
-            Cell(rowId=2, columnName="birth_year"),
+            TableCoordinate(rowId=0, columnName="name"),
+            TableCoordinate(rowId=1, columnName="age"),
+            TableCoordinate(rowId=2, columnName="birth_year"),
         ]
         selected_cells = self.manager.select_cells(cells)
         expected_cells = [
-            CellWithValue(rowId=0, columnName="name", value="Alice"),
-            CellWithValue(rowId=1, columnName="age", value=25),
-            CellWithValue(
-                rowId=2, columnName="birth_year", value=date(1989, 12, 1)
-            ),
+            Cell(rowId=0, columnName="name", value="Alice"),
+            Cell(rowId=1, columnName="age", value=25),
+            Cell(rowId=2, columnName="birth_year", value=date(1989, 12, 1)),
         ]
         assert selected_cells == expected_cells
 
@@ -642,13 +638,13 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_select_cells(self) -> None:
         selected_cells = self.manager.select_cells(
             [
-                Cell(rowId=0, columnName="key"),
-                Cell(rowId=1, columnName="value"),
+                TableCoordinate(rowId=0, columnName="key"),
+                TableCoordinate(rowId=1, columnName="value"),
             ]
         )
         assert selected_cells == [
-            CellWithValue(rowId=0, columnName="key", value="a"),
-            CellWithValue(rowId=1, columnName="value", value=2),
+            Cell(rowId=0, columnName="key", value="a"),
+            Cell(rowId=1, columnName="value", value=2),
         ]
 
     def test_drop_columns(self) -> None:

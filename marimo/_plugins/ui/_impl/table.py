@@ -447,15 +447,19 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[List[dict]]
+        self, value: Union[List[int], List[dict]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
+        # To not break the initial selected rows value
+        # We transform a list of int to row coordinates.
+        if all(isinstance(v, int) for v in value):
+            value = [{"rowId": v} for v in value]
+
         if self._selection in ["single-cell", "multi-cell"]:
             coordinates = [
                 TableCoordinate(rowId=v["rowId"], columnName=v["columnName"])
                 for v in value
                 if "rowId" in v and "columnName" in v
             ]
-
             self._has_any_selection = len(coordinates) > 0
             return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:

@@ -107,7 +107,7 @@ class NarwhalsTableManager(
         if INDEX_COLUMN_NAME in df.columns:
             selection = []
             for row, col in cells:
-                filtered = df.filter(nw.col(INDEX_COLUMN_NAME) == row)
+                filtered = df.filter(nw.col(INDEX_COLUMN_NAME) == int(row))
                 if filtered.is_empty():
                     continue
 

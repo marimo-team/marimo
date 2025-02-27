@@ -149,36 +149,38 @@ class DefaultTableManager(TableManager[JsonTableData]):
         ):
             return [
                 Cell(
-                    rowId=cell.rowId,
-                    columnName=cell.columnName,
-                    value=self.data[cell.columnName][cell.rowId],
+                    rowId=rowId,
+                    columnName=columnName,
+                    value=self.data[columnName][int(rowId)],
                 )
-                for cell in cells
-                if isinstance(self.data[cell.columnName], dict)
+                for (rowId, columnName) in cells
+                if isinstance(self.data[columnName], dict)
+                or isinstance(self.data[columnName], list)
             ]
         if isinstance(self.data, dict):
             rows = list(self.data.items())
             return [
                 Cell(
-                    rowId=cell.rowId,
-                    columnName=cell.columnName,
-                    value=rows[cell.rowId][0]
-                    if cell.columnName == "key"
-                    else rows[cell.rowId][1],
+                    rowId=rowId,
+                    columnName=columnName,
+                    value=rows[rowId][0]
+                    if columnName == "key"
+                    else rows[rowId][1],
                 )
-                for cell in cells
+                for (rowId, columnName) in cells
             ]
         elif isinstance(self.data, list):
             rows = self.data
             return [
                 Cell(
-                    rowId=cell.rowId,
-                    columnName=cell.columnName,
-                    value=rows[cell.rowId][cell.columnName],
+                    rowId=rowId,
+                    columnName=columnName,
+                    value=rows[rowId][columnName],
                 )
-                for cell in cells
-                if isinstance(rows[cell.rowId], dict)
+                for (rowId, columnName) in cells
+                if isinstance(rows[rowId], dict)
             ]
+
         return []
 
     def drop_columns(self, columns: list[str]) -> DefaultTableManager:
