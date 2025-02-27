@@ -108,8 +108,8 @@ class SortArgs:
 @mddoc
 class table(
     UIElement[
-        Union[list[str], list[int], list[Cell]],
-        Union[list[JSONType], IntoDataFrame],
+        Union[list[str], list[int], list[dict[str, Any]]],
+        Union[list[JSONType], IntoDataFrame, list[Cell]],
     ]
 ):
     """A table component with selectable rows.
@@ -217,7 +217,7 @@ class table(
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
         label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame]], None], optional):
+        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[Cell]]], None], optional):
             Optional callback to run when this element's value changes.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
@@ -262,6 +262,7 @@ class table(
                         list[JSONType],
                         dict[str, ListOrTuple[JSONType]],
                         IntoDataFrame,
+                        list[Cell],
                     ]
                 ],
                 None,
@@ -447,8 +448,8 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[list[int], list[dict]]
-    ) -> Union[list[JSONType], IntoDataFrame]:
+        self, value: Union[list[int], list[str], list[dict[str, Any]]]
+    ) -> Union[list[JSONType], IntoDataFrame, list[Cell]]:
         # To not break the initial selected rows value
         # We transform a list of int to row coordinates.
         if all(isinstance(v, int) for v in value):
@@ -458,7 +459,7 @@ class table(
             coordinates = [
                 TableCoordinate(rowId=v["rowId"], columnName=v["columnName"])
                 for v in value
-                if "rowId" in v and "columnName" in v
+                if isinstance(v, dict) and "rowId" in v and "columnName" in v
             ]
             self._has_any_selection = len(coordinates) > 0
             return self._searched_manager.select_cells(coordinates)  # type: ignore

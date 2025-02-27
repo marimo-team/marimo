@@ -155,27 +155,27 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 or isinstance(self.data[columnName], list)
             ]
         if isinstance(self.data, dict):
-            rows = list(self.data.items())
+            rows_of_dict = list(self.data.items())
             return [
                 Cell(
                     rowId=rowId,
                     columnName=columnName,
-                    value=rows[rowId][0]
+                    value=rows_of_dict[rowId][0]
                     if columnName == "key"
-                    else rows[rowId][1],
+                    else rows_of_dict[rowId][1],
                 )
                 for (rowId, columnName) in cells
             ]
         elif isinstance(self.data, list):
-            rows = self.data
+            rows_of_list = self.data
             return [
                 Cell(
                     rowId=rowId,
                     columnName=columnName,
-                    value=rows[rowId][columnName],
+                    value=rows_of_list[rowId][columnName],
                 )
                 for (rowId, columnName) in cells
-                if isinstance(rows[rowId], dict)
+                if isinstance(rows_of_list[rowId], dict)
             ]
 
         return []
