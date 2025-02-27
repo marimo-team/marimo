@@ -108,7 +108,8 @@ class SortArgs:
 @mddoc
 class table(
     UIElement[
-        Union[list[str], list[int], List[Cell]], Union[list[JSONType], IntoDataFrame]
+        Union[list[str], list[int], List[Cell]],
+        Union[list[JSONType], IntoDataFrame],
     ]
 ):
     """A table component with selectable rows.
