@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, Tuple, TypeVar
 
 import marimo._output.data.data as mo_data
@@ -16,15 +17,16 @@ FieldType = DataType
 FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
 
 
-class Cell(NamedTuple):
-    rowId: int
+class TableCoordinate(NamedTuple):
+    rowId: str
     columnName: str
 
 
-class CellWithValue(NamedTuple):
-    rowId: int
+@dataclass
+class Cell:
+    rowId: str
     columnName: str
-    value: Any
+    value: Any | None
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -101,7 +103,7 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
+    def select_cells(self, cells: list[TableCoordinate]) -> list[Cell]:
         pass
 
     @abc.abstractmethod

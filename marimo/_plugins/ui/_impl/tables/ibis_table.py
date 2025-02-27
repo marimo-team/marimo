@@ -19,9 +19,9 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     Cell,
-    CellWithValue,
     ColumnName,
     FieldType,
+    TableCoordinate,
     TableManager,
     TableManagerFactory,
 )
@@ -74,8 +74,10 @@ class IbisTableManagerFactory(TableManagerFactory):
             ) -> TableManager[ibis.Table]:
                 return IbisTableManager(self.data.select(columns))
 
-            def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
-                return super().select_cells(cells)
+            def select_cells(
+                self, _cells: list[TableCoordinate]
+            ) -> list[Cell]:
+                raise NotImplementedError("Cell selection not supported")
 
             def drop_columns(
                 self, columns: list[str]

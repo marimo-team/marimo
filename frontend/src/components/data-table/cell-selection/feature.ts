@@ -19,6 +19,14 @@ import type {
   CellSelectionState,
   CellSelectionTableState,
 } from "./types";
+import { INDEX_COLUMN_NAME } from "../types";
+
+function getRowId<TData>(row: Row<TData>): string {
+  if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
+    return String(row[INDEX_COLUMN_NAME]);
+  }
+  return row.id;
+}
 
 export const CellSelectionFeature: TableFeature = {
   getInitialState: (state?: InitialTableState): CellSelectionTableState => {
@@ -71,7 +79,7 @@ export const CellSelectionFeature: TableFeature = {
     cell.getIsSelected = () => {
       const state: CellSelectionState = table.getState().cellSelection ?? [];
       return state.some(
-        (item) => item.rowId === cell.row.id && item.columnName === column.id,
+        (item) => item.rowId === getRowId(row) && item.columnName === column.id,
       );
     };
 
@@ -80,8 +88,9 @@ export const CellSelectionFeature: TableFeature = {
 
       const currentIsSelected = cell.getIsSelected();
       const nextIsSelected = value !== undefined ? value : !currentIsSelected;
+      const rowId = getRowId(row);
       console.log(
-        `Should toggle cell: row id = ${row.id}, columnName = ${columnName}, value = ${value}, currently ${currentIsSelected}, next ${nextIsSelected}`,
+        `Should toggle cell: row id = ${rowId}, columnName = ${columnName}, value = ${value}, currently ${currentIsSelected}, next ${nextIsSelected}`,
       );
 
       if (nextIsSelected && !currentIsSelected) {
@@ -89,7 +98,7 @@ export const CellSelectionFeature: TableFeature = {
         if (table.options.enableMultiCellSelection) {
           table.setCellSelection((selectedCells) => [
             {
-              rowId: row.id,
+              rowId,
               columnName: columnName,
             },
             ...selectedCells,
@@ -98,7 +107,7 @@ export const CellSelectionFeature: TableFeature = {
           // This cell becomes the single selected cell
           table.setCellSelection((_) => [
             {
-              rowId: row.id,
+              rowId: rowId,
               columnName: columnName,
             },
           ]);
@@ -108,7 +117,7 @@ export const CellSelectionFeature: TableFeature = {
         if (table.options.enableMultiCellSelection) {
           table.setCellSelection((selectedCells) =>
             selectedCells.filter(
-              (c) => c.rowId !== row.id && c.columnName !== columnName,
+              (c) => c.rowId !== rowId && c.columnName !== columnName,
             ),
           );
         } else {

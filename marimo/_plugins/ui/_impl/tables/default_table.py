@@ -29,10 +29,10 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     Cell,
-    CellWithValue,
     ColumnName,
     FieldType,
     FieldTypes,
+    TableCoordinate,
     TableManager,
 )
 
@@ -141,14 +141,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ]
         )
 
-    def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
+    def select_cells(self, cells: list[TableCoordinate]) -> list[Cell]:
         if (
             self.is_column_oriented
             and isinstance(self.data, dict)
             and all(isinstance(v, list) for v in self.data.values())
         ):
             return [
-                CellWithValue(
+                Cell(
                     rowId=cell.rowId,
                     columnName=cell.columnName,
                     value=self.data[cell.columnName][cell.rowId],
@@ -159,7 +159,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if isinstance(self.data, dict):
             rows = list(self.data.items())
             return [
-                CellWithValue(
+                Cell(
                     rowId=cell.rowId,
                     columnName=cell.columnName,
                     value=rows[cell.rowId][0]
@@ -171,7 +171,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         elif isinstance(self.data, list):
             rows = self.data
             return [
-                CellWithValue(
+                Cell(
                     rowId=cell.rowId,
                     columnName=cell.columnName,
                     value=rows[cell.rowId][cell.columnName],

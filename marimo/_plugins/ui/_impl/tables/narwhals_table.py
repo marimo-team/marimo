@@ -16,9 +16,9 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     Cell,
-    CellWithValue,
     ColumnName,
     FieldType,
+    TableCoordinate,
     TableManager,
 )
 from marimo._utils.narwhals_utils import (
@@ -102,12 +102,24 @@ class NarwhalsTableManager(
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.select(columns))
 
-    def select_cells(self, cells: list[Cell]) -> list[CellWithValue]:
+    def select_cells(self, cells: list[TableCoordinate]) -> list[Cell]:
         df = self.as_frame()
-        return [
-            CellWithValue(row, col, df.item(row=row, column=col))
-            for row, col in cells
-        ]
+        if INDEX_COLUMN_NAME in df.columns:
+            selection = []
+            for row, col in cells:
+                filtered = df.filter(nw.col(INDEX_COLUMN_NAME) == row)
+                if filtered.is_empty():
+                    continue
+
+                row = filtered[0]
+                selection.append(Cell(row, col, row[col]))
+
+            return selection
+        else:
+            return [
+                Cell(row, col, df.item(row=row, column=col))
+                for row, col in cells
+            ]
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.drop(columns, strict=False))

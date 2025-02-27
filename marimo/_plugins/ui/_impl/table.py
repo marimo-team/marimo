@@ -40,6 +40,7 @@ from marimo._plugins.ui._impl.tables.selection import (
 from marimo._plugins.ui._impl.tables.table_manager import (
     Cell,
     ColumnName,
+    TableCoordinate,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -107,7 +108,8 @@ class SortArgs:
 @mddoc
 class table(
     UIElement[
-        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
+        Union[List[str], List[int], List[Cell]],
+        Union[List[JSONType], IntoDataFrame],
     ]
 ):
     """A table component with selectable rows.
@@ -448,35 +450,14 @@ class table(
         self, value: Union[List[dict]]
     ) -> Union[List[JSONType], "IntoDataFrame"]:
         if self._selection in ["single-cell", "multi-cell"]:
-            cells = [
-                Cell(rowId=-int(v["rowId"]), columnName=v["columnName"])
+            coordinates = [
+                TableCoordinate(rowId=v["rowId"], columnName=v["columnName"])
                 for v in value
                 if "rowId" in v and "columnName" in v
             ]
-            print(cells)
 
-            self._selected_manager = self._searched_manager.select_cells(cells)
-            self._has_any_selection = len(cells) > 0
-            return self._searched_manager.select_cells(cells)
-            # unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
-            # if (
-            #     len(value) == 1
-            #     and "rowId" in value[0]
-            #     and "columnName" in value[0]
-            # ):
-            #     row = value[0]["rowId"]
-            #     column = value[0]["columnName"]
-            #     print("Select value from", value[0])
-            #     # TODO: This works because I assume _data is a Pandas dataframe
-            #     # How to properly deal with this?
-            #     return self._data.at[int(row), column]
-
-            # if type(value) is List[dict]:
-            #     print("got a cell")
-            #     return None
-
-            # print(value, type(value))
-            # return 60
+            self._has_any_selection = len(coordinates) > 0
+            return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
             indices = [int(v["rowId"]) for v in value]
             if self._has_stable_row_id:
@@ -487,7 +468,7 @@ class table(
                     indices
                 )
                 self._has_any_selection = len(indices) > 0
-                return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.
