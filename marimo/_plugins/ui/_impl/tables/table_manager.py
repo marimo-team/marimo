@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import Any, Generic, NamedTuple, Optional, TypeVar, tuple
+from typing import Any, Generic, NamedTuple, Optional, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType

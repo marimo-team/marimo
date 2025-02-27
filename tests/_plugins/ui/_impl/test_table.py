@@ -442,11 +442,6 @@ def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
     assert value[0].value == "baz"
 
 
-# Add more tests here wherever you see selection
-
-# Check the ibis throws unimplemented
-
-
 def test_value_with_selection_then_sorting_dict_of_lists() -> None:
     data = {
         "company": [
@@ -535,6 +530,12 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
         Cell(rowId="0", columnName="company", value="Company B"),
         Cell(rowId="2", columnName="company", value="Company E"),
     ]
+
+
+@pytest.mark.parametrize("df", create_dataframes({"a": [1, 2, 3]}, ["ibis"]))
+def test_value_with_cell_selection_unsupported_for_ibis(df: Any) -> None:
+    with pytest.raises(NotImplementedError):
+        _table = ui.table(df, selection="multi-cell")
 
 
 def test_search_sort_nonexistent_columns() -> None:
