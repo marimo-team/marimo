@@ -84,9 +84,10 @@ class DuckDBEngine(SQLEngine):
             import duckdb
 
             connection = self._connection or duckdb
-            return str(
-                connection.sql("SELECT CURRENT_DATABASE()").fetchone()[0]
-            )
+            row = connection.sql("SELECT CURRENT_DATABASE()").fetchone()
+            if row is not None and row[0] is not None:
+                return str(row[0])
+            return None
         except Exception:
             LOGGER.info("Failed to get current database")
             return None
@@ -96,7 +97,10 @@ class DuckDBEngine(SQLEngine):
             import duckdb
 
             connection = self._connection or duckdb
-            return str(connection.sql("SELECT CURRENT_SCHEMA()").fetchone()[0])
+            row = connection.sql("SELECT CURRENT_SCHEMA()").fetchone()
+            if row is not None and row[0] is not None:
+                return str(row[0])
+            return None
         except Exception:
             LOGGER.info("Failed to get current schema")
             return None
