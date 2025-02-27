@@ -108,7 +108,7 @@ class SortArgs:
 @mddoc
 class table(
     UIElement[
-        Union[list[str], list[int], List[Cell]],
+        Union[list[str], list[int], list[Cell]],
         Union[list[JSONType], IntoDataFrame],
     ]
 ):
@@ -237,7 +237,7 @@ class table(
         selection: Optional[
             Literal["single", "multi", "single-cell", "multi-cell"]
         ] = "multi",
-        initial_selection: Optional[List[int]] = None,
+        initial_selection: Optional[list[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
@@ -447,8 +447,8 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[List[int], List[dict]]
-    ) -> Union[List[JSONType], IntoDataFrame]:
+        self, value: Union[list[int], list[dict]]
+    ) -> Union[list[JSONType], IntoDataFrame]:
         # To not break the initial selected rows value
         # We transform a list of int to row coordinates.
         if all(isinstance(v, int) for v in value):
