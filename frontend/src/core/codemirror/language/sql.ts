@@ -195,15 +195,8 @@ export class SQLCompletionStore {
           connection.databases.length === 1;
 
         for (const schema of database.schemas) {
-          const isDefaultSchema = connection.default_schema === schema.name;
-
           for (const table of schema.tables) {
             const columns = table.columns.map((col) => col.name);
-
-            if (isDefaultDb && isDefaultSchema) {
-              mapping[table.name] = columns;
-              continue;
-            }
 
             if (isDefaultDb) {
               const schemaMap = (mapping[schema.name] ?? {}) as Record<
