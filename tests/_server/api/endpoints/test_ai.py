@@ -12,7 +12,7 @@ import pytest
 from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.endpoints.ai import make_stream_response
-from tests._server.conftest import get_user_config_manager
+from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
@@ -70,7 +70,7 @@ class TestOpenAiEndpoints:
         client: TestClient, openai_mock: Any
     ) -> None:
         del openai_mock
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         with no_openai_config(user_config_manager):
             response = client.post(
@@ -91,7 +91,7 @@ class TestOpenAiEndpoints:
     def test_completion_without_code(
         client: TestClient, openai_mock: Any
     ) -> None:
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
@@ -125,7 +125,7 @@ class TestOpenAiEndpoints:
     def test_completion_with_code(
         client: TestClient, openai_mock: Any
     ) -> None:
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
@@ -161,7 +161,7 @@ class TestOpenAiEndpoints:
     def test_completion_with_custom_model(
         client: TestClient, openai_mock: Any
     ) -> None:
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
@@ -193,7 +193,7 @@ class TestOpenAiEndpoints:
     def test_completion_with_custom_base_url(
         client: TestClient, openai_mock: Any
     ) -> None:
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
@@ -231,7 +231,7 @@ class TestAnthropicAiEndpoints:
         client: TestClient, anthropic_mock: Any
     ) -> None:
         del anthropic_mock
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         with no_anthropic_config(user_config_manager):
             response = client.post(
@@ -254,7 +254,7 @@ class TestAnthropicAiEndpoints:
     def test_anthropic_completion_with_code(
         client: TestClient, anthropic_mock: Any
     ) -> None:
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         anthropic_client = MagicMock()
         anthropic_mock.return_value = anthropic_client
@@ -293,7 +293,7 @@ class TestGoogleAiEndpoints:
     def test_google_ai_completion_with_code(
         client: TestClient, google_ai_mock: Any
     ) -> None:
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
@@ -328,7 +328,7 @@ class TestGoogleAiEndpoints:
         client: TestClient, google_ai_mock: Any
     ) -> None:
         del google_ai_mock
-        user_config_manager = get_user_config_manager(client)
+        user_config_manager = get_session_config_manager(client)
 
         with no_google_ai_config(user_config_manager):
             response = client.post(
@@ -560,7 +560,7 @@ class TestStreamResponse(unittest.TestCase):
         def test_chat_without_code(
             client: TestClient, openai_mock: Any
         ) -> None:
-            user_config_manager = get_user_config_manager(client)
+            user_config_manager = get_session_config_manager(client)
 
             oaiclient = MagicMock()
             openai_mock.return_value = oaiclient
@@ -598,7 +598,7 @@ class TestStreamResponse(unittest.TestCase):
         @with_session(SESSION_ID)
         @patch("openai.OpenAI")
         def test_chat_with_code(client: TestClient, openai_mock: Any) -> None:
-            user_config_manager = get_user_config_manager(client)
+            user_config_manager = get_session_config_manager(client)
 
             oaiclient = MagicMock()
             openai_mock.return_value = oaiclient
