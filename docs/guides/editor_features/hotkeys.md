@@ -59,3 +59,5 @@ You can find a list of available hotkeys below:
 | `markdown.link`             |
 | `markdown.orderedList`      |
 | `markdown.unorderedList`    |
+| `panel.nextPanel`           |
+| `panel.previousPanel`       |
