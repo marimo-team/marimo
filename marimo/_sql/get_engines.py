@@ -4,9 +4,13 @@ from __future__ import annotations
 from typing import Any, cast
 
 from marimo import _loggers
+from marimo._config.config import DatasourcesConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._data.models import Database, DataSourceConnection
-from marimo._runtime.context.types import get_context
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._sql.engines import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
@@ -49,11 +53,15 @@ def engine_to_data_source_connection(
 ) -> DataSourceConnection:
     databases: list[Database] = []
     if isinstance(engine, SQLAlchemyEngine):
-        config = get_context().marimo_config.get(
-            "datasources"
-        ) or get_default_config_manager(current_path=None).get_config().get(
-            "datasources", {}
-        )
+        config: DatasourcesConfig = {}
+        try:
+            config = get_context().marimo_config.get("datasources", {})
+        except ContextNotInitializedError:
+            config = (
+                get_default_config_manager(current_path=None)
+                .get_config()
+                .get("datasources", {})
+            )
 
         databases = engine.get_databases(
             include_schemas=config.get("include_schemas", True),
