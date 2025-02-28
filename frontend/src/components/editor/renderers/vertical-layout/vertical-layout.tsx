@@ -157,6 +157,15 @@ const ActionButtons: React.FC<{
   showCode: boolean;
   onToggleShowCode: () => void;
 }> = ({ canShowCode, showCode, onToggleShowCode }) => {
+  // Even though we can still show the Download as PNG and Download as HTML
+  // without code. Lots of user feedback has been to remove this.
+  // So let's just hide the whole things when we don't show the code.
+  // If people DO want to show the code, but also want to hide the
+  // Download as PNG, they can use custom.css (for now)
+  if (!canShowCode) {
+    return null;
+  }
+
   const handleDownloadAsPNG = async () => {
     const app = document.getElementById("App");
     if (!app) {
