@@ -139,7 +139,7 @@ def start(
         include_code=include_code,
         ttl_seconds=ttl_seconds,
         lsp_server=LspServer(lsp_port),
-        user_config_manager=config_reader,
+        config_manager=config_reader,
         cli_args=cli_args,
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,

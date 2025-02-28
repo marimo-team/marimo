@@ -335,7 +335,7 @@ async def ai_completion(
     """
     app_state = AppState(request)
     app_state.require_current_session()
-    config = app_state.config_manager.get_config(hide_secrets=False)
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=AiCompletionRequest, allow_unknown_keys=True
     )
@@ -420,7 +420,7 @@ async def ai_chat(
     """
     app_state = AppState(request)
     app_state.require_current_session()
-    config = app_state.config_manager.get_config(hide_secrets=False)
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=ChatRequest, allow_unknown_keys=True
     )

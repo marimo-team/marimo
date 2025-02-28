@@ -51,7 +51,7 @@ async def save_user_config(
     body = await parse_request(
         request, cls=SaveUserConfigurationRequest, allow_unknown_keys=True
     )
-    config = app_state.config_manager.save_config(body.config)
+    config = app_state.app_config_manager.save_config(body.config)
 
     # Update the server's view of the config
     if config["completion"]["copilot"]:

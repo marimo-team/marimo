@@ -53,7 +53,7 @@ if __name__ == "__main__":
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,
-        user_config_manager=get_default_config_manager(current_path=None),
+        config_manager=get_default_config_manager(current_path=None),
         cli_args={},
         auth_token=AuthToken("fake-token"),
         redirect_console_to_browser=False,

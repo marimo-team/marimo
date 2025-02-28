@@ -11,9 +11,12 @@ from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
     PartialMarimoConfig,
+    Theme,
+    WidthType,
     merge_config,
     merge_default_config,
 )
+from marimo._config.packages import PackageManagerKind
 from marimo._config.reader import (
     get_marimo_config_from_pyproject_dict,
     read_marimo_config,
@@ -54,12 +57,25 @@ def get_default_config_manager(
     )
 
 
-@abstractmethod
 class MarimoConfigReader:
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, optionally hiding secrets"""
         pass
+
+    # Convenience methods for common access patterns
+
+    @property
+    def default_width(self) -> WidthType:
+        return self.get_config()["display"]["default_width"]
+
+    @property
+    def theme(self) -> Theme:
+        return self.get_config()["display"]["theme"]
+
+    @property
+    def package_manager(self) -> PackageManagerKind:
+        return self.get_config()["package_management"]["manager"]
 
 
 class MarimoConfigManager(MarimoConfigReader):
