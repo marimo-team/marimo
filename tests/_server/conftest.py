@@ -88,4 +88,4 @@ def get_session_config_manager(client: TestClient) -> UserConfigManager:
 
 
 def get_user_config_manager(client: TestClient) -> UserConfigManager:
-    return client.app.state.app_config_manager  # type: ignore
+    return client.app.state.config_manager  # type: ignore
