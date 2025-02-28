@@ -384,7 +384,7 @@ const TableList: React.FC<{
       <div className="text-sm text-muted-foreground py-1 pl-9">
         No tables found or{" "}
         <a
-          className="text-blue-500 dark:text-blue-50"
+          className="text-link"
           href="https://docs.marimo.io/guides/working_with_data/sql/#database-schema-and-table-auto-discovery"
           target="_blank"
           rel="noreferrer"
