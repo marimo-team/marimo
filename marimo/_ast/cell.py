@@ -420,7 +420,7 @@ class Cell:
     _pytest_reserved: set[str] = dataclasses.field(default_factory=set)
 
     # Whether to expose this cell as a test cell.
-    _test_allowed: bool = True
+    _test_allowed: bool = False
 
     @property
     def name(self) -> str:
@@ -496,7 +496,7 @@ class Cell:
     # collect this cell.
     @property
     def __test__(self) -> bool:
-        return self._test_allowed and self._cell._test
+        return self._test_allowed
 
     def _register_app(self, app: InternalApp) -> None:
         self._app = app

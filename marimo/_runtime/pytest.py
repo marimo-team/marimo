@@ -3,6 +3,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import marimo
@@ -222,17 +223,23 @@ class ReplaceStubPlugin:
                     )
 
 
-def run_pytest(defs: set[str], lcls: dict[str, Any]) -> MarimoPytestResult:
+def run_pytest(
+    defs: set[str] | None = None,
+    lcls: dict[str, Any] | None = None,
+    notebook_path: Path | str | None = None,
+) -> MarimoPytestResult:
     import pytest  # type: ignore
 
-    # Translate name to python module
-    notebook_path = os.path.relpath(_maybe_name(), marimo.notebook_location())
+    if not notebook_path:
+        # Translate name to python module
+        notebook_path = os.path.relpath(
+            _maybe_name(), marimo.notebook_location()
+        )
+    notebook_path = str(notebook_path)
     # So path/to/notebook.py -> path.to.notebook
     # but windows compat
     notebook = (
-        notebook_path.replace(os.sep, ".")
-        .replace(".py", "")
-        .replace(".md", "")
+        notebook_path.replace(os.sep, ".").strip(".py").strip(".md")
     ).strip(".")
 
     if notebook in sys.modules:

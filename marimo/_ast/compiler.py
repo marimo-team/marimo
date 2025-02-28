@@ -332,15 +332,17 @@ def toplevel_cell_factory(
             lnum + decorator.end_lineno - 1,  # Scrub the decorator
             0,
         )
+
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
-        _test_allowed=test_rewrite or f.__name__.startswith("test_"),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )
 
 
@@ -465,13 +467,14 @@ def cell_factory(
             f, lnum + start_line - 1, col_offset
         )
 
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
-        _test_allowed=test_rewrite or f.__name__.startswith("test_"),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )
