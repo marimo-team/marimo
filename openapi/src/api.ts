@@ -2650,9 +2650,9 @@ export interface components {
         copilot: boolean | ("github" | "codeium");
       };
       datasources?: {
-        include_schemas?: boolean;
-        include_table_details?: boolean;
-        include_tables?: boolean;
+        auto_discover_columns?: boolean;
+        auto_discover_schemas?: boolean;
+        auto_discover_tables?: boolean;
       };
       display: {
         /** @enum {string} */

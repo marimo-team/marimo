@@ -1268,11 +1268,11 @@ components:
           type: object
         datasources:
           properties:
-            include_schemas:
+            auto_discover_columns:
               type: boolean
-            include_table_details:
+            auto_discover_schemas:
               type: boolean
-            include_tables:
+            auto_discover_tables:
               type: boolean
           type: object
         display:

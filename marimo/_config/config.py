@@ -263,14 +263,14 @@ class DatasourcesConfig(TypedDict):
 
     **Keys.**
 
-    - `include_schemas`: if `True`, include schemas in the datasource
-    - `include_tables`: if `True`, include tables in the datasource
-    - `include_table_details`: if `True`, include table details like columns in the datasource
+    - `auto_discover_schemas`: if `True`, include schemas in the datasource
+    - `auto_discover_tables`: if `True`, include tables in the datasource
+    - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
     """
 
-    include_schemas: NotRequired[bool]
-    include_tables: NotRequired[bool]
-    include_table_details: NotRequired[bool]
+    auto_discover_schemas: NotRequired[bool]
+    auto_discover_tables: NotRequired[bool]
+    auto_discover_columns: NotRequired[bool]
 
 
 @mddoc
