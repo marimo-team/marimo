@@ -130,10 +130,14 @@ def build_import_section(import_blocks: list[str]) -> str:
     formatted = Formatter(MAX_LINE_LENGTH).format({stub_cell_id: code})
     if not formatted:
         return code
-    tidied = ruff(formatted, "check", "--fix-only")
-    if not tidied:
-        return formatted[stub_cell_id]
-    return tidied[stub_cell_id] + "\n\n"
+    try:
+        tidied = ruff(formatted, "check", "--fix-only")
+        if tidied:
+            return tidied[stub_cell_id] + "\n\n"
+    # Thrown in WASM
+    except OSError:
+        pass
+    return formatted[stub_cell_id]
 
 
 def to_functiondef(
