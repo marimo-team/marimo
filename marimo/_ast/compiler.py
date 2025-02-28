@@ -338,8 +338,9 @@ def toplevel_cell_factory(
             cell_code,
             cell_id=cell_id,
             source_position=source_position,
-            test_rewrite=test_rewrite or f.__name__.startswith("test_"),
+            test_rewrite=test_rewrite,
         ),
+        _test_allowed=test_rewrite or f.__name__.startswith("test_"),
     )
 
 
@@ -470,6 +471,7 @@ def cell_factory(
             cell_code,
             cell_id=cell_id,
             source_position=source_position,
-            test_rewrite=test_rewrite or f.__name__.startswith("test_"),
+            test_rewrite=test_rewrite,
         ),
+        _test_allowed=test_rewrite or f.__name__.startswith("test_"),
     )

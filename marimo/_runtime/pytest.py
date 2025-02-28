@@ -62,6 +62,43 @@ def _to_marimo_uri(uri: str) -> str:
     return f"marimo://{notebook}#cell_id={cell_id}"
 
 
+def _sub_function(
+    old_item: "_pytest.Item", parent: Any, fn: Callable[..., Any]
+) -> "_pytest.Item":
+    # Directly execute the cell, since this means it's a toplevel function with no deps.
+    # Or a cell where which we already wrapped in skip.
+    if isinstance(old_item.obj, marimo._ast.cell.Cell):
+        return old_item
+
+    import pytest  # type: ignore
+
+    if hasattr(old_item, "callspec") and old_item.callspec:
+        params: dict[str, Any] = old_item.callspec.params
+
+        def make_test_func(
+            func_JYWB: Callable[..., Any], param_dict: dict[str, Any]
+        ) -> Callable[[], Any]:
+            # note _JYWB is a suffix to easily detect in stack trace for
+            # removal.
+            # Also no functools.wraps(func) because we need the empty
+            # call signature
+            def test_wrapper() -> Any:
+                return func_JYWB(**param_dict)
+
+            # but copy attributes from the original function
+            test_wrapper.__name__ = func_JYWB.__name__
+            test_wrapper.__module__ = func_JYWB.__module__
+            return test_wrapper
+
+        fn = make_test_func(fn, params)
+    pyfn = pytest.Function.from_parent(parent, name=old_item.name, callobj=fn)
+    # Attributes that need to be carried over.
+    for attr in ["keywords", "own_markers"]:
+        if hasattr(old_item, attr):
+            setattr(pyfn, attr, getattr(old_item, attr))
+    return pyfn
+
+
 class ReplaceStubPlugin:
     """Allows pytest to run in the runtime, by replacing the statically
     collected stubs with the runtime relevant implementations."""
@@ -89,20 +126,10 @@ class ReplaceStubPlugin:
         # Not official marimo dependencies
         # So don't import at the top level.
         import _pytest  # type: ignore
-        import pytest  # type: ignore
 
-        to_collect: list[tuple[Optional[Any], Optional[Any]]] = [
-            (None, None)
-        ] * len(items)
-        # there's a chance this is a named cell
-        cell_names = set()
-        try:
-            ctx: Any = get_context()
-            if ctx._app:
-                cell_names = set(ctx.app.cell_manager.names)
-        except ContextNotInitializedError:
-            pass
-
+        to_collect = []
+        # Filter tests, and create new "Functions" with the relevant references
+        # where needed.
         for i, item in enumerate(items):
             head: Any = item
             path: list[str] = []
@@ -123,52 +150,8 @@ class ReplaceStubPlugin:
                     if isinstance(obj, type):
                         obj = obj()
                     obj = getattr(obj, attr)
-                to_collect[i] = (parent, obj)
-            # Not a function, but a named cell
-            # Not supported right now.
-            elif name in cell_names:
-                to_collect[i] = pytest.mark.skip(
-                    reason="Should already reactively run."
-                )(items[i].parent, items[i])
-
-        # Filter tests, and create new "Functions" with the relevant references
-        # where needed.
-        for i, (parent, fn) in reversed(list(enumerate(to_collect))):
-            if fn is None:
-                del items[i]
-                continue
-            old_item: Any = items[i]
-            # Directly execute the cell, since this means it's a toplevel function with no deps.
-            # Or a cell where which we already wrapped in skip.
-            if isinstance(old_item.obj, marimo._ast.cell.Cell):
-                continue
-
-            if hasattr(old_item, "callspec") and old_item.callspec:
-                params: dict[str, Any] = old_item.callspec.params
-
-                def make_test_func(
-                    func_JYWB: Callable[..., Any], param_dict: dict[str, Any]
-                ) -> Callable[[], Any]:
-                    # note _JYWB is a suffix to easily detect in stack trace for
-                    # removal.
-                    # Also no functools.wraps(func) because we need the empty
-                    # call signature
-                    def test_wrapper() -> Any:
-                        return func_JYWB(**param_dict)
-
-                    # but copy attributes from the original function
-                    test_wrapper.__name__ = func_JYWB.__name__
-                    test_wrapper.__module__ = func_JYWB.__module__
-                    return test_wrapper
-
-                fn = make_test_func(fn, params)
-            items[i] = pytest.Function.from_parent(
-                parent, name=items[i].name, callobj=fn
-            )
-            # Attributes that need to be carried over.
-            for attr in ["keywords", "own_markers"]:
-                if hasattr(old_item, attr):
-                    setattr(items[i], attr, getattr(old_item, attr))
+                to_collect.append(_sub_function(items[i], parent, obj))
+        items[:] = to_collect
 
     def pytest_terminal_summary(self, terminalreporter: Any) -> None:
         """Provide a clean summary of test results. Gives something like:
