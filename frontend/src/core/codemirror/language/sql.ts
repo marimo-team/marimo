@@ -184,6 +184,11 @@ export class SQLCompletionStore {
       type SchemaMap = Record<string, TableMap>;
       type DatabaseMap = Record<string, SchemaMap>;
 
+      // Let's form mappings for each
+      const tableMap: Record<string, string[]> = {};
+      const schemaMap: Record<string, TableMap> = {};
+      const databaseMap: Record<string, SchemaMap> = {};
+
       const mapping: DatabaseMap | SchemaMap = {};
 
       // When there is default db and schema, we can use the table name directly
@@ -195,13 +200,17 @@ export class SQLCompletionStore {
           connection.databases.length === 1;
 
         for (const schema of database.schemas) {
+          const tableMap: Record<string, string[]> = {};
+
           for (const table of schema.tables) {
             const columns = table.columns.map((col) => col.name);
 
             if (isDefaultDb) {
-              const schemaMap = mapping[schema.name] ?? {};
-              schemaMap[table.name] = columns;
-              mapping[schema.name] = schemaMap;
+              tableMap[table.name] = columns;
+
+              // const schemaMap = mapping[schema.name] ?? {};
+              // schemaMap[table.name] = columns;
+              // mapping[schema.name] = schemaMap;
             } else {
               const dbMap = (mapping[database.name] ?? {}) as Record<
                 string,

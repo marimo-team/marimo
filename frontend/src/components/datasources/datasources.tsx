@@ -63,12 +63,7 @@ import {
 import { PythonIcon } from "../editor/cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import {
-  DatasourceLabel,
-  EmptyState,
-  ItemSubtext,
-  RotatingChevron,
-} from "./components";
+import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -324,7 +319,6 @@ const SchemaList: React.FC<{
           key={schema.name}
           databaseName={databaseName}
           schema={schema}
-          isDefaultSchema={schema.name === defaultSchema}
           hasSearch={hasSearch}
         >
           <TableList
@@ -346,10 +340,9 @@ const SchemaList: React.FC<{
 const SchemaItem: React.FC<{
   databaseName: string;
   schema: DatabaseSchema;
-  isDefaultSchema?: boolean;
   children: React.ReactNode;
   hasSearch: boolean;
-}> = ({ databaseName, schema, isDefaultSchema, children, hasSearch }) => {
+}> = ({ databaseName, schema, children, hasSearch }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isSelected, setIsSelected] = React.useState(false);
   const uniqueValue = `${databaseName}:${schema.name}`;
@@ -378,8 +371,6 @@ const SchemaItem: React.FC<{
         <span className={cn(isSelected && isExpanded && "font-semibold")}>
           {schema.name}
         </span>
-        {/* Do we want this? They could change the default by executing USE schema.. */}
-        {isDefaultSchema && <ItemSubtext content="default" />}
       </CommandItem>
       {isExpanded && children}
     </>
@@ -655,6 +646,22 @@ const DatasetColumnItem: React.FC<{
     });
   };
 
+  const renderItemSubtext = ({
+    tooltipContent,
+    content,
+  }: {
+    tooltipContent: string;
+    content: string;
+  }) => {
+    return (
+      <Tooltip content={tooltipContent} delayDuration={100}>
+        <span className="text-xs text-black bg-gray-100 dark:invert rounded px-1">
+          {content}
+        </span>
+      </Tooltip>
+    );
+  };
+
   return (
     <>
       <CommandItem
@@ -671,16 +678,10 @@ const DatasetColumnItem: React.FC<{
         >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
           <span>{column.name}</span>
-          {isPrimaryKey && (
-            <Tooltip content="Primary Key" delayDuration={100}>
-              <ItemSubtext content="PK" />
-            </Tooltip>
-          )}
-          {isIndexed && (
-            <Tooltip content="Indexed" delayDuration={100}>
-              <ItemSubtext content="IDX" />
-            </Tooltip>
-          )}
+          {isPrimaryKey &&
+            renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
+          {isIndexed &&
+            renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
         <Tooltip content="Copy column name" delayDuration={400}>
           <Button
