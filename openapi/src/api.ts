@@ -2338,6 +2338,7 @@ export interface components {
     Error:
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
+      | components["schemas"]["ImportStarError"]
       | components["schemas"]["DeleteNonlocalError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
       | components["schemas"]["MarimoAncestorPreventedError"]
@@ -2471,7 +2472,21 @@ export interface components {
       function_call_id: string;
       /** @enum {string} */
       name: "function-call-result";
-      return_value?: components["schemas"]["JSONType"];
+      return_value?:
+        | (
+            | {
+                [key: string]: components["schemas"]["JSONType"];
+              }
+            | components["schemas"]["JSONType"][]
+            | string
+            | number
+            | boolean
+            | {
+                [key: string]: unknown;
+              }
+            | components["schemas"]["MIME"]
+          )
+        | null;
       status: components["schemas"]["HumanReadableStatus"];
     };
     HTTPRequest: null;
@@ -2480,6 +2495,11 @@ export interface components {
       code: "ok" | "error";
       message?: string | null;
       title?: string | null;
+    };
+    ImportStarError: {
+      msg: string;
+      /** @enum {string} */
+      type: "import-star";
     };
     InstallMissingPackagesRequest: {
       manager: string;
@@ -2549,9 +2569,38 @@ export interface components {
         [key: string]:
           | (
               | {
-                  [key: string]: components["schemas"]["JSONType"];
+                  [key: string]:
+                    | (
+                        | {
+                            [key: string]: components["schemas"]["JSONType"];
+                          }
+                        | components["schemas"]["JSONType"][]
+                        | string
+                        | number
+                        | boolean
+                        | {
+                            [key: string]: unknown;
+                          }
+                        | components["schemas"]["MIME"]
+                      )
+                    | null;
                 }
-              | components["schemas"]["JSONType"][]
+              | (
+                  | (
+                      | {
+                          [key: string]: components["schemas"]["JSONType"];
+                        }
+                      | components["schemas"]["JSONType"][]
+                      | string
+                      | number
+                      | boolean
+                      | {
+                          [key: string]: unknown;
+                        }
+                      | components["schemas"]["MIME"]
+                    )
+                  | null
+                )[]
               | string
               | number
               | boolean
