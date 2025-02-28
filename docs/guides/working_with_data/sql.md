@@ -187,6 +187,17 @@ marimo will automatically discover the database connection and display the datab
   </figure>
 </div>
 
+!!! note
+
+    marimo currently supports auto-discovery up to the schema level. If you want to discover tables and columns, you can enable it in `marimo.toml`:
+
+    ```toml
+    [datasources]
+    include_schemas = true        # Defaults to true, set to false to disable schema discovery
+    include_tables = false        # Defaults to false, set to true to enable table discovery
+    include_table_details = false # Defaults to false, set to true to enable column discovery & table metadata
+    ```
+
 ## Interactive tutorial
 
 For an interactive tutorial, run

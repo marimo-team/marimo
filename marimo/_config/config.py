@@ -257,6 +257,22 @@ class SnippetsConfig(TypedDict):
     include_default_snippets: NotRequired[bool]
 
 
+@dataclass
+class DatasourcesConfig(TypedDict):
+    """Configuration for datasources panel.
+
+    **Keys.**
+
+    - `include_schemas`: if `True`, include schemas in the datasource
+    - `include_tables`: if `True`, include tables in the datasource
+    - `include_table_details`: if `True`, include table details like columns in the datasource
+    """
+
+    include_schemas: NotRequired[bool]
+    include_tables: NotRequired[bool]
+    include_table_details: NotRequired[bool]
+
+
 @mddoc
 @dataclass
 class MarimoConfig(TypedDict):
@@ -273,6 +289,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
+    datasources: NotRequired[DatasourcesConfig]
 
 
 @mddoc
@@ -291,6 +308,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
+    datasources: NotRequired[DatasourcesConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
