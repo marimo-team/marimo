@@ -72,11 +72,13 @@ def get_openai_client(config: MarimoConfig) -> OpenAI:
 
     if "ai" not in config:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not configured"
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI API key not configured",
         )
     if "open_ai" not in config["ai"]:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not configured"
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI API key not configured",
         )
     if "api_key" not in config["ai"]["open_ai"]:
         raise HTTPException(
