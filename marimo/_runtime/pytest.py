@@ -5,7 +5,6 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import marimo
@@ -18,6 +17,8 @@ MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import _pytest  # type: ignore
 
 
