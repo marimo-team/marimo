@@ -66,8 +66,8 @@ def _to_marimo_uri(uri: str) -> str:
 
 
 def _sub_function(
-    old_item: "_pytest.Item", parent: Any, fn: Callable[..., Any]
-) -> "_pytest.Item":
+    old_item: _pytest.Item, parent: Any, fn: Callable[..., Any]
+) -> _pytest.Item:
     # Directly execute the cell, since this means it's a toplevel function with no deps.
     # Or a cell where which we already wrapped in skip.
     if isinstance(old_item.obj, marimo._ast.cell.Cell):
@@ -192,7 +192,7 @@ class ReplaceStubPlugin:
         tr.write_line(self._result.summary)
 
     def pytest_runtest_logreport(
-        self, report: "_pytest.reports.TestReport"
+        self, report: _pytest.reports.TestReport
     ) -> None:
         """In place updates the report for some better formatting.
         In particular:
