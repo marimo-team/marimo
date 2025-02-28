@@ -26,6 +26,11 @@ const defaultValues: ExperimentalFeatures = {
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,
 ): ExperimentalFeatures[T] {
+  // Disable "rtc", regardless of the user's configuration, until
+  // it is more stable.
+  if (feature === "rtc") {
+    return false;
+  }
   return (
     (getResolvedMarimoConfig().experimental?.[
       feature
