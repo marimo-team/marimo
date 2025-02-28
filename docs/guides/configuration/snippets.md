@@ -4,7 +4,7 @@ marimo provides a snippets feature that allows you to quickly insert commonly us
 
 ## Configuration Options
 
-You can configure snippets through your `marimo.toml` file:
+You can configure snippets through your `.marimo.toml` file:
 
 ```toml
 [snippets]
