@@ -373,9 +373,4 @@ def merge_config(
         ):
             merged["runtime"]["auto_reload"] = "lazy"
 
-    # Force RTC off until it is more stable, in particular don't enable until
-    # the code duplication bug is fixed.
-    if "experimental" in merged and "rtc" in merged["experimental"]:
-        merged["experimental"]["rtc"] = False
-
     return merged

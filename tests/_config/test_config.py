@@ -123,11 +123,3 @@ def test_merge_config_with_keymap_overrides() -> None:
 
     assert new_config["keymap"]["preset"] == "vim"
     assert new_config["keymap"]["overrides"] == {}
-
-
-def test_marimo_config_rtc_disabled() -> None:
-    config = merge_default_config(
-        PartialMarimoConfig(experimental={"rtc": True})
-    )
-    assert "experimental" in config
-    assert not config["experimental"]["rtc"]
