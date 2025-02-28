@@ -1091,6 +1091,27 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.reactive_tests"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Autorun Unit Tests</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="reactive-test-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                      Enable experimental reactive pytest tests in notebook.
+                      When a cell contains only test functions and classes, marimo
+                      will automatically run relevant tests.
+                  </FormDescription> </div>)}
+            />
             {!isWasm() && (
               <FormField
                 control={form.control}

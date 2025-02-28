@@ -12,6 +12,7 @@ export interface ExperimentalFeatures {
   wasm_layouts: boolean;
   scratchpad: boolean;
   rtc: boolean;
+  reactive_tests: boolean;
   // Add new feature flags here
 }
 
@@ -21,6 +22,7 @@ const defaultValues: ExperimentalFeatures = {
   wasm_layouts: false,
   scratchpad: true,
   rtc: false,
+  reactive_tests: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
