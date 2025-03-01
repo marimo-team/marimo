@@ -412,6 +412,12 @@ components:
             - schemas
             type: object
           type: array
+        default_database:
+          nullable: true
+          type: string
+        default_schema:
+          nullable: true
+          type: string
         dialect:
           type: string
         display_name:

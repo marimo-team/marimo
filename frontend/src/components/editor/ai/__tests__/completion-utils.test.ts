@@ -5,6 +5,10 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { datasetsAtom } from "@/core/datasets/state";
 import { store } from "@/core/state/jotai";
 import type { DatasetsState } from "@/core/datasets/types";
+import {
+  dataSourceConnectionsAtom,
+  DEFAULT_ENGINE,
+} from "@/core/datasets/data-source-connections";
 
 // Mock getCodes function
 vi.mock("@/core/codemirror/copilot/getCodes", () => ({
@@ -17,6 +21,10 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, {
       tables: [],
     } as unknown as DatasetsState);
+    store.set(dataSourceConnectionsAtom, {
+      latestEngineSelected: DEFAULT_ENGINE,
+      connectionsMap: new Map(),
+    });
     (getCodes as Mock).mockReturnValue("// Some other code");
   });
 
@@ -144,6 +152,54 @@ describe("getAICompletionBody", () => {
           {
             name: "regular_dataset",
             columns: [{ name: "col3", type: "boolean" }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("should handle connections", () => {
+    // Set up test data in the Jotai store
+    const testConnection = {
+      name: DEFAULT_ENGINE,
+      dialect: "duckdb",
+      source: "duckdb",
+      display_name: "DuckDB In-Memory",
+      default_schema: "default_schema",
+      databases: [
+        {
+          name: "db1",
+          schemas: [
+            {
+              name: "default_schema",
+              tables: [
+                { name: "table1", columns: [{ name: "col1", type: "number" }] },
+                { name: "table2", columns: [] },
+              ],
+            },
+            {
+              name: "other_schema",
+              tables: [{ name: "table3", columns: [] }],
+            },
+          ],
+        },
+      ],
+    };
+    store.set(dataSourceConnectionsAtom, {
+      latestEngineSelected: DEFAULT_ENGINE,
+      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+    });
+
+    const input = "Use @table1 for analysis";
+    const result = getAICompletionBody(input);
+
+    expect(result).toEqual({
+      includeOtherCode: "// Some other code",
+      context: {
+        schema: [
+          {
+            name: "table1",
+            columns: [{ name: "col1", type: "number" }],
           },
         ],
       },

@@ -38,6 +38,8 @@ def test_engine_to_data_source_connection() -> None:
     assert connection.dialect == "duckdb"
     assert connection.name == "my_duckdb"
     assert connection.display_name == "duckdb (my_duckdb)"
+    assert connection.default_database == "memory"
+    assert connection.default_schema == "main"
     assert connection.databases == []
 
     # Test with SQLAlchemy engine
@@ -75,14 +77,10 @@ def test_get_engines_from_variables_duckdb():
 def test_get_engines_from_variables_sqlalchemy() -> None:
     import sqlalchemy as sa
 
-    mock_sqlalchemy_engine = MagicMock(spec=sa.Engine)
+    sqlalchemy_engine = sa.create_engine("sqlite:///:memory:")
+    variables: list[tuple[str, object]] = [("sa_engine", sqlalchemy_engine)]
 
-    variables: list[tuple[str, object]] = [
-        ("sa_engine", mock_sqlalchemy_engine)
-    ]
-
-    with patch("sqlalchemy.inspect", return_value=MagicMock()):
-        engines = get_engines_from_variables(variables)
+    engines = get_engines_from_variables(variables)
 
     assert len(engines) == 1
     var_name, engine = engines[0]
@@ -109,16 +107,15 @@ def test_get_engines_from_variables_multiple():
     import sqlalchemy as sa
 
     mock_duckdb_conn = MagicMock(spec=duckdb.DuckDBPyConnection)
-    mock_sqlalchemy_engine = MagicMock(spec=sa.Engine)
+    sqlalchemy_engine = sa.create_engine("sqlite:///:memory:")
 
     variables: list[tuple[str, object]] = [
-        ("sa_engine", mock_sqlalchemy_engine),
+        ("sa_engine", sqlalchemy_engine),
         ("duckdb_conn", mock_duckdb_conn),
         ("not_an_engine", "some string"),
     ]
 
-    with patch("sqlalchemy.inspect", return_value=MagicMock()):
-        engines = get_engines_from_variables(variables)
+    engines = get_engines_from_variables(variables)
 
     assert len(engines) == 2
 
@@ -154,6 +151,8 @@ def test_get_engines_duckdb_databases() -> None:
     assert connection.dialect == "duckdb"
     assert connection.name == "my_duckdb"
     assert connection.display_name == "duckdb (my_duckdb)"
+    assert connection.default_database == "memory"
+    assert connection.default_schema == "main"
 
     sql("CREATE TABLE test_table (id INTEGER);")
 
@@ -194,6 +193,8 @@ def test_get_engines_sqlalchemy_databases() -> None:
     assert connection.dialect == "sqlite"
     assert connection.name == "sqlite"
     assert connection.display_name == "sqlite (sqlite)"
+    assert connection.default_database == ":memory:"
+    assert connection.default_schema == "main"
 
     assert connection.databases == [
         Database(

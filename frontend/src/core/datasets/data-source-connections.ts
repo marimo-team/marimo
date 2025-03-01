@@ -2,12 +2,15 @@
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type {
   DataSourceConnection as DataSourceConnectionType,
+  DataTable,
   SQLTablePreview,
 } from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
 import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
 import { store } from "../state/jotai";
+import { datasetTablesAtom } from "./state";
+import { Logger } from "@/utils/Logger";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -141,3 +144,58 @@ export const exportedForTesting = {
 export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
   new Map<string, SQLTablePreview>(),
 );
+
+// If you need to get table names from all connections & local datasets, use this atom
+// When a table name is used in multiple connections, we need to use a more qualified name
+export const allTablesAtom = atom((get) => {
+  const datasets = store.get(datasetTablesAtom);
+  const connections = get(dataSourceConnectionsAtom).connectionsMap;
+  const tableNames = new Map<string, DataTable>();
+
+  for (const dataset of datasets) {
+    tableNames.set(dataset.name, dataset);
+  }
+
+  for (const conn of connections.values()) {
+    for (const database of conn.databases) {
+      // If there is only one database, it is the default
+      const isDefaultDb =
+        database.name === conn.default_database || conn.databases.length === 1;
+
+      for (const schema of database.schemas) {
+        const isDefaultSchema = schema.name === conn.default_schema;
+
+        for (const table of schema.tables) {
+          let nameToSave: string;
+
+          // If the database and schema are default, we can use the table name directly
+          // Otherwise, we need to qualify the table name
+          // We also need to use the more qualified name if there are collisions
+          nameToSave = table.name;
+
+          if (isDefaultDb && isDefaultSchema && !tableNames.has(nameToSave)) {
+            tableNames.set(nameToSave, table);
+            continue;
+          }
+
+          nameToSave = `${schema.name}.${table.name}`;
+
+          if (isDefaultDb && !tableNames.has(nameToSave)) {
+            tableNames.set(nameToSave, table);
+            continue;
+          }
+
+          nameToSave = `${database.name}.${schema.name}.${table.name}`;
+
+          if (tableNames.has(nameToSave)) {
+            Logger.warn(`Table name collision for ${nameToSave}. Skipping.`);
+          } else {
+            tableNames.set(nameToSave, table);
+          }
+        }
+      }
+    }
+  }
+
+  return tableNames;
+});

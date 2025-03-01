@@ -2272,6 +2272,8 @@ export interface components {
           tables: components["schemas"]["DataTable"][];
         }[];
       }[];
+      default_database?: string | null;
+      default_schema?: string | null;
       dialect: string;
       display_name: string;
       name: string;

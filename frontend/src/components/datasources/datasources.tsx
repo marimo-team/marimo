@@ -186,6 +186,7 @@ export const DataSources: React.FC = () => {
               >
                 <SchemaList
                   schemas={database.schemas}
+                  defaultSchema={connection.default_schema}
                   engineName={connection.name}
                   databaseName={database.name}
                   hasSearch={hasSearch}
@@ -285,11 +286,19 @@ const DatabaseItem: React.FC<{
 
 const SchemaList: React.FC<{
   schemas: DatabaseSchema[];
+  defaultSchema?: string | null;
   engineName: string;
   databaseName: string;
   hasSearch: boolean;
   searchValue?: string;
-}> = ({ schemas, engineName, databaseName, hasSearch, searchValue }) => {
+}> = ({
+  schemas,
+  defaultSchema,
+  engineName,
+  databaseName,
+  hasSearch,
+  searchValue,
+}) => {
   if (schemas.length === 0) {
     return <EmptyState content="No schemas available" className="pl-6" />;
   }
@@ -319,6 +328,7 @@ const SchemaList: React.FC<{
               engine: engineName,
               database: databaseName,
               schema: schema.name,
+              defaultSchema: defaultSchema,
             }}
           />
         </SchemaItem>
@@ -371,6 +381,7 @@ interface SQLTableContext {
   engine: string;
   database: string;
   schema: string;
+  defaultSchema?: string | null;
 }
 
 const TableList: React.FC<{
@@ -454,8 +465,10 @@ const DatasetTableItem: React.FC<{
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
     let code = "";
     if (sqlTableContext) {
-      const { engine, schema } = sqlTableContext;
-      code = `_df = mo.sql(f"SELECT * FROM ${schema}.${table.name} LIMIT 100", engine=${engine})`;
+      const { engine, schema, defaultSchema } = sqlTableContext;
+      const tableName =
+        defaultSchema === schema ? table.name : `${schema}.${table.name}`;
+      code = `_df = mo.sql(f"SELECT * FROM ${tableName} LIMIT 100", engine=${engine})`;
     } else {
       switch (table.source_type) {
         case "local":
@@ -633,6 +646,22 @@ const DatasetColumnItem: React.FC<{
     });
   };
 
+  const renderItemSubtext = ({
+    tooltipContent,
+    content,
+  }: {
+    tooltipContent: string;
+    content: string;
+  }) => {
+    return (
+      <Tooltip content={tooltipContent} delayDuration={100}>
+        <span className="text-xs text-black bg-gray-100 dark:invert rounded px-1">
+          {content}
+        </span>
+      </Tooltip>
+    );
+  };
+
   return (
     <>
       <CommandItem
@@ -649,20 +678,10 @@ const DatasetColumnItem: React.FC<{
         >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
           <span>{column.name}</span>
-          {isPrimaryKey && (
-            <Tooltip content="Primary Key" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                PK
-              </span>
-            </Tooltip>
-          )}
-          {isIndexed && (
-            <Tooltip content="Indexed" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                IDX
-              </span>
-            </Tooltip>
-          )}
+          {isPrimaryKey &&
+            renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
+          {isIndexed &&
+            renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
         <Tooltip content="Copy column name" delayDuration={400}>
           <Button
@@ -850,8 +869,10 @@ function sqlCode(
   sqlTableContext?: SQLTableContext,
 ) {
   if (sqlTableContext) {
-    const { engine, schema } = sqlTableContext;
-    return `_df = mo.sql(f'SELECT ${column.name} FROM ${schema}.${table.name} LIMIT 100', engine=${engine})`;
+    const { engine, schema, defaultSchema } = sqlTableContext;
+    const tableName =
+      defaultSchema === schema ? table.name : `${schema}.${table.name}`;
+    return `_df = mo.sql(f"SELECT ${column.name} FROM ${tableName} LIMIT 100", engine=${engine})`;
   }
   return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
 }

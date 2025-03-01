@@ -141,6 +141,8 @@ class DataSourceConnection:
         name (str): The name of the data source connection. E.g 'engine'.
         display_name (str): The display name of the data source connection. E.g 'PostgresQL (engine)'.
         databases (List[Database]): The databases in the data source connection.
+        default_database (Optional[str]): The default database in the data source connection.
+        default_schema (Optional[str]): The default schema in the data source connection.
     """
 
     source: str
@@ -148,3 +150,5 @@ class DataSourceConnection:
     name: str
     display_name: str
     databases: list[Database] = field(default_factory=list)
+    default_database: Optional[str] = None
+    default_schema: Optional[str] = None

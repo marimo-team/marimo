@@ -94,6 +94,8 @@ def test_sqlalchemy_invalid_engine() -> None:
 
     engine = SQLAlchemyEngine(engine=None)  # type: ignore
     assert engine.inspector is None
+    assert engine.default_database is None
+    assert engine.default_schema is None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -460,10 +462,10 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_get_database_name(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_database_name."""
     engine = SQLAlchemyEngine(sqlite_engine)
-    assert engine.get_database_name() == ":memory:"
+    assert engine._get_current_database() == ":memory:"
 
     import sqlalchemy as sa
 
     # Test with no database name
     engine = SQLAlchemyEngine(sa.create_engine("sqlite:///"))
-    assert engine.get_database_name() == ""
+    assert engine._get_current_database() == ""

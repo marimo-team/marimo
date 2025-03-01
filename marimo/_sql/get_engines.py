@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from marimo import _loggers
 from marimo._config.config import DatasourcesConfig
@@ -52,8 +52,13 @@ def engine_to_data_source_connection(
     engine: SQLEngine,
 ) -> DataSourceConnection:
     databases: list[Database] = []
+    default_database: Optional[str] = None
+    default_schema: Optional[str] = None
+
     if isinstance(engine, SQLAlchemyEngine):
         config = get_datasources_config()
+        default_database = engine.default_database
+        default_schema = engine.default_schema
         databases = engine.get_databases(
             include_schemas=config.get("auto_discover_schemas", True),
             include_tables=config.get("auto_discover_tables", False),
@@ -61,6 +66,8 @@ def engine_to_data_source_connection(
         )
     elif isinstance(engine, DuckDBEngine):
         databases = engine.get_databases()
+        default_database = engine.get_current_database()
+        default_schema = engine.get_current_schema()
     else:
         LOGGER.warning(
             f"Unsupported engine type: {type(engine)}. Unable to get databases for {variable_name}."
@@ -78,6 +85,8 @@ def engine_to_data_source_connection(
         name=variable_name,
         display_name=display_name,
         databases=databases,
+        default_database=default_database,
+        default_schema=default_schema,
     )
 
 
