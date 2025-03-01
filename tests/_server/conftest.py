@@ -12,6 +12,7 @@ from starlette.testclient import TestClient
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._config.utils import CONFIG_FILENAME
+from marimo._server.api.deps import AppState
 from marimo._server.main import create_starlette_app
 from marimo._server.sessions import SessionManager
 from marimo._server.utils import initialize_asyncio
@@ -75,6 +76,15 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
 
 def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
+
+
+def get_session_config_manager(client: TestClient) -> UserConfigManager:
+    """Assumes only one active session."""
+    sessions = list(
+        AppState.from_app(client.app).session_manager.sessions.values()
+    )
+    assert len(sessions) == 1
+    return sessions[0].config_manager  # type: ignore
 
 
 def get_user_config_manager(client: TestClient) -> UserConfigManager:

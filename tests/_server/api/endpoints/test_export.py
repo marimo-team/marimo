@@ -332,3 +332,23 @@ def test_auto_export_ipynb(
     assert os.path.exists(
         os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
+
+
+@with_session(SESSION_ID)
+def test_export_html_with_script_config(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.config_manager = session.config_manager.with_overrides(
+        {"display": {"code_editor_font_size": 999}}
+    )
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": False,
+        },
+    )
+    body = response.text
+    assert '"code_editor_font_size": 999' in body

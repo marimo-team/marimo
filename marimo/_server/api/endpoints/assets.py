@@ -95,6 +95,8 @@ async def index(request: Request) -> HTMLResponse:
             server_token=app_state.skew_protection_token,
         )
     else:
+        config_manager = app_state.config_manager_at_file(file_key)
+
         # We have a file key, so we can render the app with the file
         LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
@@ -103,8 +105,8 @@ async def index(request: Request) -> HTMLResponse:
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
-            user_config=app_state.config_manager.get_user_config(),
-            config_overrides=app_state.config_manager.get_config_overrides(),
+            user_config=config_manager.get_user_config(),
+            config_overrides=config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=app_manager.filename,

@@ -90,7 +90,7 @@ async def websocket_endpoint(
 
     kiosk = app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
 
-    config = app_state.config_manager.get_config()
+    config = app_state.config_manager_at_file(file_key).get_config()
 
     rtc_enabled: bool = config.get("experimental", {}).get("rtc", False)
     auto_instantiate = config["runtime"]["auto_instantiate"]

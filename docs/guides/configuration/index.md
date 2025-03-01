@@ -79,7 +79,7 @@ For example, the following `pyproject.toml` file overrides the `autosave` settin
 in the user configuration:
 
 ```toml title="pyproject.toml"
-[tool.marimo.format]
+[tool.marimo.formatting]
 line_length = 120
 
 [tool.marimo.display]

@@ -287,7 +287,7 @@ async def run_app_until_completion(
             cli_args=cli_args,
         ),
         app_file_manager=file_manager,
-        user_config_manager=config_manager,
+        config_manager=config_manager,
         virtual_files_supported=False,
         redirect_console_to_browser=False,
         ttl_seconds=None,

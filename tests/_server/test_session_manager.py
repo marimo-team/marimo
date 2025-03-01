@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from textwrap import dedent
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock
 
 import pytest
@@ -14,6 +16,10 @@ from marimo._server.sessions import (
     Session,
     SessionManager,
 )
+from marimo._types.ids import SessionId
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -41,12 +47,15 @@ def session_manager():
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
-        user_config_manager=get_default_config_manager(current_path=None),
+        config_manager=get_default_config_manager(current_path=None),
         cli_args={},
         auth_token=None,
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
+
+
+session_id = SessionId("test_session_id")
 
 
 async def test_start_lsp_server(session_manager: SessionManager) -> None:
@@ -57,7 +66,6 @@ async def test_start_lsp_server(session_manager: SessionManager) -> None:
 async def test_create_session_new(
     session_manager: SessionManager, mock_session_consumer: SessionConsumer
 ) -> None:
-    session_id = "test_session_id"
     session = session_manager.create_session(
         session_id,
         mock_session_consumer,
@@ -75,7 +83,6 @@ async def test_create_session_absolute_url(
     mock_session_consumer: SessionConsumer,
     temp_marimo_file: str,
 ) -> None:
-    session_id = "test_session_id"
     session = session_manager.create_session(
         session_id,
         mock_session_consumer,
@@ -92,7 +99,6 @@ def test_maybe_resume_session_for_new_file(
     session_manager: SessionManager,
     mock_session: Session,
 ) -> None:
-    session_id = "test_session_id"
     mock_session.connection_state.return_value = ConnectionState.ORPHANED
     mock_session.app_file_manager = AppFileManager(filename=None)
     session_manager.sessions[session_id] = mock_session
@@ -122,7 +128,6 @@ def test_maybe_resume_session_for_existing_file(
     mock_session: Session,
     temp_marimo_file: str,
 ) -> None:
-    session_id = "test_session_id"
     mock_session.connection_state.return_value = ConnectionState.ORPHANED
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
     session_manager.sessions[session_id] = mock_session
@@ -150,7 +155,6 @@ def test_maybe_resume_session_for_existing_file(
 def test_close_session(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
-    session_id = "test_session_id"
     mock_session.app_file_manager = AppFileManager(filename=None)
     session_manager.sessions[session_id] = mock_session
     assert session_manager.close_session(session_id)
@@ -161,7 +165,6 @@ def test_close_session(
 def test_any_clients_connected_new_file(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
-    session_id = "test_session_id"
     session_manager.sessions[session_id] = mock_session
     mock_session.app_file_manager = AppFileManager(filename=None)
     assert (
@@ -175,7 +178,6 @@ def test_any_clients_connected_existing_file(
     mock_session: Session,
     temp_marimo_file: str,
 ) -> None:
-    session_id = "test_session_id"
     session_manager.sessions[session_id] = mock_session
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
     assert (
@@ -209,3 +211,45 @@ def test_shutdown(
     session_manager.lsp_server.stop.assert_called_once()
     assert len(session_manager.sessions) == 0
     assert mock_session.close.call_count == 2
+
+
+async def test_create_session_with_script_config_overrides(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+    tmp_path: Path,
+) -> None:
+    tmp_file = tmp_path / "test.py"
+    tmp_file.write_text(
+        dedent(
+            """
+        # /// script
+        # [tool.marimo.formatting]
+        # line_length = 999
+        # ///
+        """
+        )
+    )
+
+    session = session_manager.create_session(
+        session_id,
+        mock_session_consumer,
+        query_params={},
+        file_key=str(tmp_path / "test.py"),
+    )
+    assert session_id in session_manager.sessions
+    assert session_manager.get_session(session_id) is session
+
+    # Verify that the session's config is affected by the script config
+    assert (
+        session.config_manager.get_config()["formatting"]["line_length"] == 999
+    )
+
+    # Verify that the session manager's config is not affected by the script config
+    assert (
+        session_manager._config_manager.get_config()["formatting"][
+            "line_length"
+        ]
+        != 999
+    )
+
+    session.close()
