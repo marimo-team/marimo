@@ -257,7 +257,7 @@ extra-dependencies = [
     "google-generativeai==0.8.4",
     # exporting as ipynb
     "nbformat >=5.10.4",
-    "sympy>=1.13.2",
+    "sympy>=1.13.3",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
