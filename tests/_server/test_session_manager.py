@@ -213,7 +213,7 @@ def test_shutdown(
     assert mock_session.close.call_count == 2
 
 
-def test_create_session_with_script_config_overrides(
+async def test_create_session_with_script_config_overrides(
     session_manager: SessionManager,
     mock_session_consumer: SessionConsumer,
     tmp_path: Path,
