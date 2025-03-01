@@ -183,7 +183,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "pyarrow-stubs>=17.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.38",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
@@ -240,7 +240,7 @@ extra-dependencies = [
     "altair>=5.4.0",
     "polars~=1.9.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.38",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
     # Causes issues installing `shapely` (v2.0.7)
