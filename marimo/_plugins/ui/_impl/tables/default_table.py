@@ -25,9 +25,11 @@ from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
     ColumnName,
     FieldType,
     FieldTypes,
+    TableCoordinate,
     TableManager,
 )
 
@@ -135,6 +137,48 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 for row in self._normalize_data(self.data)
             ]
         )
+
+    def select_cells(self, cells: list[TableCoordinate]) -> list[Cell]:
+        if (
+            self.is_column_oriented
+            and isinstance(self.data, dict)
+            and all(isinstance(v, list) for v in self.data.values())
+        ):
+            return [
+                Cell(
+                    rowId=rowId,
+                    columnName=columnName,
+                    value=self.data[columnName][int(rowId)],
+                )
+                for (rowId, columnName) in cells
+                if isinstance(self.data[columnName], dict)
+                or isinstance(self.data[columnName], list)
+            ]
+        if isinstance(self.data, dict):
+            rows_of_dict = list(self.data.items())
+            return [
+                Cell(
+                    rowId=rowId,
+                    columnName=columnName,
+                    value=rows_of_dict[rowId][0]
+                    if columnName == "key"
+                    else rows_of_dict[rowId][1],
+                )
+                for (rowId, columnName) in cells
+            ]
+        elif isinstance(self.data, list):
+            rows_of_list = self.data
+            return [
+                Cell(
+                    rowId=rowId,
+                    columnName=columnName,
+                    value=rows_of_list[rowId][columnName],
+                )
+                for (rowId, columnName) in cells
+                if isinstance(rows_of_list[rowId], dict)
+            ]
+
+        return []
 
     def drop_columns(self, columns: list[str]) -> DefaultTableManager:
         return self.select_columns(
