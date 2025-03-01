@@ -131,7 +131,7 @@ def build_import_section(import_blocks: list[str]) -> str:
     if not formatted:
         return code
     try:
-        tidied = ruff(formatted, "check", "--fix-only")
+        tidied = ruff(formatted, "check", "--fix-only", "--ignore=F401")
         if tidied:
             return tidied[stub_cell_id] + "\n\n"
     # Thrown in WASM
