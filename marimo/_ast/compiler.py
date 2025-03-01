@@ -72,16 +72,17 @@ def ends_with_semicolon(code: str) -> bool:
 
 def contains_only_tests(tree: ast.Module) -> bool:
     """Returns True if the module contains only test functions."""
-    scope = tree.body[0]
-    assert isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
-    for node in scope.body:
+    scope = tree.body
+    for node in scope:
+        if isinstance(node, ast.Return):
+            return True
         if not isinstance(
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         ):
             return False
         if not node.name.lower().startswith("test"):
             return False
-    return True
+    return bool(scope)
 
 
 def cache(filename: str, code: str) -> None:
@@ -168,6 +169,7 @@ def compile_cell(
             cell_id=cell_id,
         )
 
+    is_test = contains_only_tests(module)
     is_import_block = all(
         isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
     )
@@ -208,7 +210,7 @@ def compile_cell(
         cache(filename, code)
 
     # pytest assertion rewriting, gives more context for assertion failures.
-    if test_rewrite:
+    if is_test or test_rewrite:
         # pytest is not required, so fail gracefully if needed
         try:
             from _pytest.assertion.rewrite import (  # type: ignore
@@ -270,6 +272,7 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        _test=is_test,
     )
 
 
@@ -329,15 +332,17 @@ def toplevel_cell_factory(
             lnum + decorator.end_lineno - 1,  # Scrub the decorator
             0,
         )
+
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
-        _test=f.__name__.startswith("test_"),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )
 
 
@@ -462,13 +467,14 @@ def cell_factory(
             f, lnum + start_line - 1, col_offset
         )
 
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
-        _test=f.__name__.startswith("test_") or contains_only_tests(tree),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )

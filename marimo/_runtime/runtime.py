@@ -474,6 +474,14 @@ class Kernel:
             on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
         )
 
+        # Adds in a post_execution hook to run pytest immediately
+        if user_config.get("experimental", {}).get("reactive_pytest", False):
+            from marimo._runtime.runner.hooks_post_execution import (
+                _attempt_pytest,
+            )
+
+            self._post_execution_hooks.append(_attempt_pytest)
+
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 

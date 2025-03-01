@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 Fn = TypeVar("Fn", bound=Callable[..., Any])
 
 
+MARIMO_TEST_STUB_NAME = "MarimoTestBlock"
+
 block_incrementer = itertools.count()
 
 
@@ -152,6 +154,8 @@ def build_test_class(
     """
     tests = {}
     for node in body:
+        if isinstance(node, ast.Return):
+            continue
         assert isinstance(
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         ), (
@@ -251,13 +255,13 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
         return
 
     # Turn off test for the cell itself in this case.
-    cell._test = False
+    cell._test_allowed = False
 
     tree = ast.parse(inspect.getsource(func))
     run = functools.cache(cell.run)
 
     # Must be a unique name, otherwise won't be injected properly.
-    name = f"MarimoTestBlock_{next(block_incrementer)}"
+    name = f"{MARIMO_TEST_STUB_NAME}_{next(block_incrementer)}"
 
     scope = tree.body[0]
     assert isinstance(
