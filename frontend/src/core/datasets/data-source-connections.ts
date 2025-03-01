@@ -158,27 +158,40 @@ export const allTablesAtom = atom((get) => {
 
   for (const conn of connections.values()) {
     for (const database of conn.databases) {
+      // If there is only one database, it is the default
+      const isDefaultDb =
+        database.name === conn.default_database || conn.databases.length === 1;
+
       for (const schema of database.schemas) {
+        const isDefaultSchema = schema.name === conn.default_schema;
+
         for (const table of schema.tables) {
-          // Start with the simplest name
-          let nameToSave = `${schema.name}.${table.name}`;
-          if (conn.default_schema && schema.name === conn.default_schema) {
-            nameToSave = table.name;
+          let nameToSave: string;
+
+          // If the database and schema are default, we can use the table name directly
+          // Otherwise, we need to qualify the table name
+          // We also need to use the more qualified name if there are collisions
+          nameToSave = table.name;
+
+          if (isDefaultDb && isDefaultSchema && !tableNames.has(nameToSave)) {
+            tableNames.set(nameToSave, table);
+            continue;
           }
 
-          // If collision exists, use more qualified names progressively
-          if (tableNames.has(nameToSave)) {
-            nameToSave = `${schema.name}.${table.name}`;
-            if (tableNames.has(nameToSave)) {
-              nameToSave = `${database.name}.${schema.name}.${table.name}`;
-              if (tableNames.has(nameToSave)) {
-                Logger.warn(
-                  `Table name collision for ${nameToSave}. Skipping.`,
-                );
-              }
-            }
+          nameToSave = `${schema.name}.${table.name}`;
+
+          if (isDefaultDb && !tableNames.has(nameToSave)) {
+            tableNames.set(nameToSave, table);
+            continue;
           }
-          tableNames.set(nameToSave, table);
+
+          nameToSave = `${database.name}.${schema.name}.${table.name}`;
+
+          if (tableNames.has(nameToSave)) {
+            Logger.warn(`Table name collision for ${nameToSave}. Skipping.`);
+          } else {
+            tableNames.set(nameToSave, table);
+          }
         }
       }
     }
