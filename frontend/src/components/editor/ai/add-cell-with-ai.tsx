@@ -31,6 +31,7 @@ import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { getAICompletionBody, mentions } from "./completion-utils";
 import { allTablesAtom } from "@/core/datasets/data-source-connections";
+import type { DataTable } from "@/core/kernel/messages";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -236,6 +237,7 @@ export const PromptInput = ({
       ([tableName, table]): Completion => ({
         label: `@${tableName}`,
         detail: table.source,
+        boost: table.source_type === "local" ? 5 : 0,
         info: () => {
           const shape = [
             table.num_rows == null ? undefined : `${table.num_rows} rows`,
@@ -275,7 +277,13 @@ export const PromptInput = ({
             table.columns.forEach((column) => {
               const row = columnsTable.insertRow();
               const nameCell = row.insertCell();
+
               nameCell.textContent = column.name;
+              const itemMetadata = getItemMetadata(table, column);
+              if (itemMetadata) {
+                nameCell.append(itemMetadata);
+              }
+
               const typeCell = row.insertCell();
               typeCell.textContent = column.type;
             });
@@ -387,3 +395,25 @@ export const PromptInput = ({
     />
   );
 };
+
+function getItemMetadata(
+  table: DataTable,
+  column: DataTable["columns"][0],
+): HTMLSpanElement | undefined {
+  const isPrimaryKey = table.primary_keys?.includes(column.name);
+  const isIndexed = table.indexes?.includes(column.name);
+  if (isPrimaryKey || isIndexed) {
+    const subtext = document.createElement("span");
+    subtext.textContent = isPrimaryKey ? "PK" : "IDX";
+    subtext.classList.add(
+      "text-xs",
+      "text-black",
+      "bg-gray-100",
+      "dark:invert",
+      "rounded",
+      "px-1",
+      "ml-1",
+    );
+    return subtext;
+  }
+}
