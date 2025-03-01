@@ -32,6 +32,11 @@ import {
   FastForwardIcon,
   DatabaseIcon,
   EyeOffIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
+  GithubIcon,
+  MessagesSquareIcon,
+  YoutubeIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -75,6 +80,7 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
+import { Constants } from "@/core/constants";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -419,8 +425,51 @@ export function useNotebookActions() {
       icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
       label: "Open documentation",
       handle: () => {
-        window.open("https://docs.marimo.io", "_blank");
+        window.open(Constants.docsPage, "_blank");
       },
+    },
+
+    {
+      icon: <ExternalLinkIcon size={14} strokeWidth={1.5} />,
+      label: "Resources",
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
+          label: "Documentation",
+          handle: () => {
+            window.open(Constants.docsPage, "_blank");
+          },
+        },
+        {
+          icon: <GithubIcon size={14} strokeWidth={1.5} />,
+          label: "GitHub",
+          handle: () => {
+            window.open(Constants.githubPage, "_blank");
+          },
+        },
+        {
+          icon: <MessagesSquareIcon size={14} strokeWidth={1.5} />,
+          label: "Discord Community",
+          handle: () => {
+            window.open(Constants.discordLink, "_blank");
+          },
+        },
+        {
+          icon: <YoutubeIcon size={14} strokeWidth={1.5} />,
+          label: "YouTube",
+          handle: () => {
+            window.open(Constants.youtube, "_blank");
+          },
+        },
+        {
+          icon: <FileTextIcon size={14} strokeWidth={1.5} />,
+          label: "Changelog",
+          handle: () => {
+            window.open(Constants.releasesPage, "_blank");
+          },
+        },
+      ],
     },
 
     {

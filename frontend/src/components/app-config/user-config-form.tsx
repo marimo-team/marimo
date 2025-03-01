@@ -48,6 +48,7 @@ import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
+import { getMarimoVersion } from "@/core/dom/marimo-tag";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
@@ -1116,34 +1117,6 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
-            {!isWasm() && (
-              <FormField
-                control={form.control}
-                name="experimental.rtc"
-                render={({ field }) => (
-                  <div className="flex flex-col gap-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Real-time Collaboration
-                      </FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          data-testid="rtc-checkbox"
-                          checked={field.value === true}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                    <FormDescription>
-                      Enable experimental real-time collaboration to allow
-                      editing cell inputs by multiple users. This experimental
-                      feature has known issues, including duplication of code.
-                      Requires refreshing the page to take effect.
-                    </FormDescription>{" "}
-                  </div>
-                )}
-              />
-            )}
           </SettingGroup>
         );
     }
@@ -1193,6 +1166,11 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               </TabsTrigger>
             ))}
+
+            <div className="p-2 text-xs text-muted-foreground self-start">
+              <span>Version: {getMarimoVersion()}</span>
+            </div>
+
             <div className="flex-1" />
             {!isWasm() && configMessage}
           </TabsList>

@@ -57,6 +57,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         # Errors
         errors.CycleError,
         errors.MultipleDefinitionError,
+        errors.ImportStarError,
         errors.DeleteNonlocalError,
         errors.MarimoInterruptionError,
         errors.MarimoInternalError,
