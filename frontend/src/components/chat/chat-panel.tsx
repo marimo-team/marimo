@@ -375,7 +375,9 @@ const ChatPanelBody = () => {
   };
 
   const handleNewThreadSubmit = () => {
-    newThreadInput.trim() && createNewThread(newThreadInput.trim());
+    if (newThreadInput.trim()) {
+      createNewThread(newThreadInput.trim());
+    }
   };
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();

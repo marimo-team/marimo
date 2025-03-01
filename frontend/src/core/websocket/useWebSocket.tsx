@@ -24,7 +24,6 @@ interface UseWebSocketOptions {
 export function useWebSocket(options: UseWebSocketOptions) {
   const { onOpen, onMessage, onClose, onError, ...rest } = options;
 
-  // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
     const socket: IReconnectingWebSocket = isWasm()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
@@ -40,10 +39,18 @@ export function useWebSocket(options: UseWebSocketOptions) {
             connectionTimeout: 10_000,
           });
 
-    onOpen && socket.addEventListener("open", onOpen);
-    onClose && socket.addEventListener("close", onClose);
-    onError && socket.addEventListener("error", onError);
-    onMessage && socket.addEventListener("message", onMessage);
+    if (onOpen) {
+      socket.addEventListener("open", onOpen);
+    }
+    if (onClose) {
+      socket.addEventListener("close", onClose);
+    }
+    if (onError) {
+      socket.addEventListener("error", onError);
+    }
+    if (onMessage) {
+      socket.addEventListener("message", onMessage);
+    }
 
     return socket;
   });
@@ -60,10 +67,18 @@ export function useWebSocket(options: UseWebSocketOptions) {
         "useWebSocket is unmounting. This likely means there is a bug.",
       );
       ws.close();
-      onOpen && ws.removeEventListener("open", onOpen);
-      onClose && ws.removeEventListener("close", onClose);
-      onError && ws.removeEventListener("error", onError);
-      onMessage && ws.removeEventListener("message", onMessage);
+      if (onOpen) {
+        ws.removeEventListener("open", onOpen);
+      }
+      if (onClose) {
+        ws.removeEventListener("close", onClose);
+      }
+      if (onError) {
+        ws.removeEventListener("error", onError);
+      }
+      if (onMessage) {
+        ws.removeEventListener("message", onMessage);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws]);

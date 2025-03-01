@@ -14,19 +14,16 @@ module.exports = {
     // Accessibility
     "plugin:jsx-a11y/strict",
     // React
-    // Temporarily disabled due to compatibility issues with ESLint 9.x
-    // "plugin:react-hooks/recommended",
+    "plugin:react-hooks/recommended",
     "plugin:react/recommended",
     "plugin:react/jsx-runtime",
-    // Temporarily disabled due to compatibility issues with ESLint 9.x
-    // "plugin:ssr-friendly/recommended",
+    "plugin:ssr-friendly/recommended",
     // Storybook
     "plugin:storybook/recommended",
     // Unicorn
     "plugin:unicorn/all",
     // Testing
-    // Temporarily disabled due to compatibility issues with ESLint 9.x
-    // "plugin:vitest/recommended",
+    "plugin:vitest/recommended",
     // This removes rules that conflict with prettier/biomejs.
     "prettier",
   ],
@@ -39,16 +36,24 @@ module.exports = {
   parserOptions: {
     project: require.resolve("./tsconfig.json"),
   },
-  plugins: ["@typescript-eslint", "header", "react-compiler"],
+  plugins: [
+    "@typescript-eslint",
+    "header",
+    "react-compiler",
+    "ssr-friendly",
+    "react-hooks",
+  ],
   rules: {
-    "react-compiler/react-compiler": "warn",
-
     // Temporarily disabled due to compatibility issues with ESLint 9.x
-    // "header/header": [
-    //   "error",
-    //   "block",
-    //   [" Copyright 2024 Marimo. All rights reserved. "]
-    // ],
+    // "react-compiler/react-compiler": "warn",
+    "ssr-friendly/no-dom-globals-in-module-scope": "off",
+    "react-compiler/react-compiler": "off",
+
+    "header/header": [
+      "error",
+      "block",
+      " Copyright 2024 Marimo. All rights reserved. ",
+    ],
 
     // These rules don't require type information and have autofixes
     "@typescript-eslint/array-type": ["error", { default: "array-simple" }],
@@ -60,9 +65,9 @@ module.exports = {
     curly: "error",
 
     // Turn off recommended we don't want
-    // Temporarily disabled due to compatibility issues with ESLint 9.x
-    // "ssr-friendly/no-dom-globals-in-react-fc": "off",
-    // "ssr-friendly/no-dom-globals-in-constructor": "off",
+    "ssr-friendly/no-dom-globals-in-react-fc": "off",
+    "ssr-friendly/no-dom-globals-in-constructor": "off",
+    "ssr-friendly/no-dom-globals-in-module-scope": "off",
     "react/prop-types": "off",
     "react/no-unescaped-entities": "off",
     "@typescript-eslint/no-unnecessary-condition": "off",
@@ -70,6 +75,8 @@ module.exports = {
     // Temporarily disabled due to compatibility issues with ESLint 9.x
     "@typescript-eslint/ban-types": "off",
     "@typescript-eslint/no-empty-object-type": "off",
+    // Disable problematic plugins
+    "react-compiler/react-compiler": "off",
     "@typescript-eslint/no-confusing-void-expression": [
       "error",
       { ignoreArrowShorthand: true },
