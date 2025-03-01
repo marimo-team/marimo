@@ -27,6 +27,13 @@ export interface DataSourceState {
   connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
 }
 
+export interface SQLTableContext {
+  engine: string;
+  database: string;
+  schema: string;
+  defaultSchema?: string | null;
+}
+
 function initialState(): DataSourceState {
   return {
     latestEngineSelected: DEFAULT_ENGINE,
@@ -111,6 +118,51 @@ const {
       latestEngineSelected: newMap.has(latestEngineSelected)
         ? latestEngineSelected
         : DEFAULT_ENGINE,
+      connectionsMap: newMap,
+    };
+  },
+
+  // Add tables to a specific connection
+  addTableList: (
+    state: DataSourceState,
+    opts: {
+      connectionName: ConnectionName;
+      tables: DataTable[];
+      sqlTableContext: SQLTableContext;
+    },
+  ): DataSourceState => {
+    const { connectionName, tables, sqlTableContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const conn = connectionsMap.get(connectionName);
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlTableContext.database) {
+          return db;
+        }
+        return {
+          ...db,
+          schemas: db.schemas.map((schema) => {
+            if (schema.name !== sqlTableContext.schema) {
+              return schema;
+            }
+            return {
+              ...schema,
+              tables: tables,
+            };
+          }),
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
       connectionsMap: newMap,
     };
   },

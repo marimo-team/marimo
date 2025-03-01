@@ -117,7 +117,7 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
         )
     ]
 
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=False
     )
     assert tables == []
@@ -170,7 +170,7 @@ def test_sqlalchemy_sql_types() -> None:
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=True
     )
 
@@ -276,7 +276,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=True
     )
 
@@ -285,7 +285,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert tables[0] == get_expected_table("test")
 
     # Test with other schema
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="my_schema", include_table_details=True
     )
     assert isinstance(tables, list)
@@ -294,14 +294,14 @@ def test_sqlalchemy_engine_get_tables_in_schema(
 
     # Test with non-existent schema
     assert (
-        engine._get_tables_in_schema(
+        engine.get_tables_in_schema(
             schema="non_existent", include_table_details=True
         )
         == []
     )
 
     # Test with include_table_details false
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=False
     )
     assert isinstance(tables, list)

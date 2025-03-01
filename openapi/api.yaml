@@ -1549,6 +1549,7 @@ components:
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/SQLTablePreview'
+      - $ref: '#/components/schemas/SQLTableListPreview'
       - properties:
           connections:
             items:
@@ -1698,6 +1699,22 @@ components:
       - source
       - tableName
       - columnName
+      type: object
+    PreviewSQLTableListRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
       type: object
     PreviewSQLTableRequest:
       properties:
@@ -1886,6 +1903,26 @@ components:
       - running
       - disabled-transitively
       type: string
+    SQLTableListPreview:
+      properties:
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - sql-table-list-preview
+          type: string
+        request_id:
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - request_id
+      - tables
+      - name
+      type: object
     SQLTablePreview:
       properties:
         error:
@@ -2288,6 +2325,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a SQL table
+  /api/datasources/preview_sql_table_list:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableListRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a list of tables in an SQL schema
   /api/documentation/snippets:
     get:
       responses:

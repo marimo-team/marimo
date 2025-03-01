@@ -6,7 +6,6 @@ import {
   PaintRollerIcon,
   PlusSquareIcon,
   XIcon,
-  LoaderCircle,
   Table2Icon,
   EyeIcon,
 } from "lucide-react";
@@ -59,11 +58,23 @@ import {
   tablePreviewsAtom,
   dataConnectionsMapAtom,
   DEFAULT_ENGINE,
+  type SQLTableContext,
+  useDataSourceActions,
+  type ConnectionName,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
+import {
+  PreviewSQLTable,
+  PreviewSQLTableList,
+} from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
+import {
+  DatasourceLabel,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  RotatingChevron,
+} from "./components";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -377,18 +388,42 @@ const SchemaItem: React.FC<{
   );
 };
 
-interface SQLTableContext {
-  engine: string;
-  database: string;
-  schema: string;
-  defaultSchema?: string | null;
-}
-
 const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
+  const { addTableList } = useDataSourceActions();
+
+  const { loading, error } = useAsyncData(async () => {
+    if (tables.length === 0 && sqlTableContext) {
+      const { engine, database, schema } = sqlTableContext;
+      const previewTableList = await PreviewSQLTableList.request({
+        engine: engine,
+        database: database,
+        schema: schema,
+      });
+
+      if (!previewTableList?.tables) {
+        throw new Error("No tables available");
+      }
+
+      addTableList({
+        connectionName: engine as ConnectionName,
+        tables: previewTableList.tables,
+        sqlTableContext: sqlTableContext,
+      });
+    }
+  }, [tables.length, sqlTableContext]);
+
+  if (loading) {
+    return <LoadingState message="Loading tables..." />;
+  }
+
+  if (error) {
+    return <ErrorState error={error} />;
+  }
+
   if (tables.length === 0) {
     // TODO: We should preview tables instead of disabling introspection
     return (
@@ -517,21 +552,11 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (loading) {
-      return (
-        <div className="pl-12 text-sm bg-blue-50 dark:bg-[var(--accent)] text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          Loading columns...
-        </div>
-      );
+      return <LoadingState message="Loading columns..." />;
     }
 
     if (error) {
-      return (
-        <div className="pl-12 text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-50 flex items-center gap-2 p-2 h-8">
-          <XIcon className="h-4 w-4" />
-          {error.message}
-        </div>
-      );
+      return <ErrorState error={error} />;
     }
 
     const columns = tableDetailsExist

@@ -17,6 +17,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   FUNCTIONS_REGISTRY,
   PreviewSQLTable,
+  PreviewSQLTableList,
 } from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
@@ -200,6 +201,9 @@ export function useMarimoWebSocket(opts: {
         return;
       case "sql-table-preview":
         PreviewSQLTable.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "sql-table-list-preview":
+        PreviewSQLTableList.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "data-source-connections":
         addDataSourceConnection(msg.data);
