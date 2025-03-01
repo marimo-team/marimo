@@ -4,7 +4,13 @@ from __future__ import annotations
 from typing import Any, cast
 
 from marimo import _loggers
+from marimo._config.config import DatasourcesConfig
+from marimo._config.manager import get_default_config_manager
 from marimo._data.models import Database, DataSourceConnection
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._sql.engines import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
@@ -47,10 +53,11 @@ def engine_to_data_source_connection(
 ) -> DataSourceConnection:
     databases: list[Database] = []
     if isinstance(engine, SQLAlchemyEngine):
+        config = get_datasources_config()
         databases = engine.get_databases(
-            include_schemas=True,
-            include_tables=True,
-            include_table_details=False,
+            include_schemas=config.get("auto_discover_schemas", True),
+            include_tables=config.get("auto_discover_tables", False),
+            include_table_details=config.get("auto_discover_columns", False),
         )
     elif isinstance(engine, DuckDBEngine):
         databases = engine.get_databases()
@@ -72,3 +79,26 @@ def engine_to_data_source_connection(
         display_name=display_name,
         databases=databases,
     )
+
+
+def get_datasources_config() -> DatasourcesConfig:
+    try:
+        return get_context().marimo_config.get("datasources", {})
+    except ContextNotInitializedError:
+        pass
+    except Exception as e:
+        LOGGER.warning(
+            f"Failed to get datasources config from context: {e}. Falling back to default config."
+        )
+
+    try:
+        return (
+            get_default_config_manager(current_path=None)
+            .get_config()
+            .get("datasources", {})
+        )
+    except Exception as e:
+        LOGGER.warning(
+            f"Failed to get datasources config from default config: {e}. Returning empty config."
+        )
+        return {}

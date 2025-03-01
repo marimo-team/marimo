@@ -187,6 +187,17 @@ marimo will automatically discover the database connection and display the datab
   </figure>
 </div>
 
+???+ note
+
+    By default, marimo auto-discovers databases and schemas, but not tables and columns (to avoid performance issues with large databases). You can configure this behavior in your `pyproject.toml` file:
+
+    ```toml title="pyproject.toml"
+    [tool.marimo.datasources]
+    auto_discover_schemas = true   # Default: true
+    auto_discover_tables = false   # Default: false - enable for table auto-discovery
+    auto_discover_columns = false  # Default: false - enable for column auto-discovery
+    ```
+
 ## Interactive tutorial
 
 For an interactive tutorial, run

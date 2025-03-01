@@ -1266,6 +1266,15 @@ components:
           - activate_on_typing
           - copilot
           type: object
+        datasources:
+          properties:
+            auto_discover_columns:
+              type: boolean
+            auto_discover_schemas:
+              type: boolean
+            auto_discover_tables:
+              type: boolean
+          type: object
         display:
           properties:
             cell_output:
@@ -2207,7 +2216,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.11
+  version: 0.11.12
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

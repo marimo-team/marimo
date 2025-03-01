@@ -2649,6 +2649,11 @@ export interface components {
         codeium_api_key?: string | null;
         copilot: boolean | ("github" | "codeium");
       };
+      datasources?: {
+        auto_discover_columns?: boolean;
+        auto_discover_schemas?: boolean;
+        auto_discover_tables?: boolean;
+      };
       display: {
         /** @enum {string} */
         cell_output: "above" | "below";

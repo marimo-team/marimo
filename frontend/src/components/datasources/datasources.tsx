@@ -379,7 +379,20 @@ const TableList: React.FC<{
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
   if (tables.length === 0) {
-    return <EmptyState content="No tables found" className="pl-9" />;
+    // TODO: We should preview tables instead of disabling introspection
+    return (
+      <div className="text-sm text-muted-foreground py-1 pl-9">
+        No tables found or{" "}
+        <a
+          className="text-link"
+          href="https://docs.marimo.io/guides/working_with_data/sql/#database-schema-and-table-auto-discovery"
+          target="_blank"
+          rel="noreferrer"
+        >
+          introspection is disabled
+        </a>
+      </div>
+    );
   }
 
   const filteredTables = tables.filter((table) => {
