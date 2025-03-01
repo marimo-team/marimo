@@ -168,6 +168,9 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 }
 
+type TableToCols = Record<string, string[]>;
+type Schemas = Record<string, TableToCols>;
+
 export class SQLCompletionStore {
   private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
 
@@ -180,54 +183,45 @@ export class SQLCompletionStore {
 
     let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
     if (!cacheConfig) {
-      type TableMap = Record<string, string[]>;
-      type SchemaMap = Record<string, TableMap>;
-      type DatabaseMap = Record<string, SchemaMap>;
+      const schemaMap: Record<string, TableToCols> = {};
+      const databaseMap: Record<string, Schemas> = {};
 
-      // Let's form mappings for each
-      const tableMap: Record<string, string[]> = {};
-      const schemaMap: Record<string, TableMap> = {};
-      const databaseMap: Record<string, SchemaMap> = {};
+      // When there is only one database, it is the default
+      const defaultDb = connection.databases.find(
+        (db) =>
+          db.name === connection.default_database ||
+          connection.databases.length === 1,
+      );
 
-      const mapping: DatabaseMap | SchemaMap = {};
+      // For default db, we can use the schema name directly
+      for (const schema of defaultDb?.schemas ?? []) {
+        schemaMap[schema.name] = {};
+        for (const table of schema.tables) {
+          const columns = table.columns.map((col) => col.name);
+          schemaMap[schema.name][table.name] = columns;
+        }
+      }
 
-      // When there is default db and schema, we can use the table name directly
       // Otherwise, we need to use the fully qualified name
       for (const database of connection.databases) {
-        // If there is only one database, it is the default
-        const isDefaultDb =
-          connection.default_database === database.name ||
-          connection.databases.length === 1;
+        if (database.name === defaultDb?.name) {
+          continue;
+        }
+        databaseMap[database.name] = {};
 
         for (const schema of database.schemas) {
-          const tableMap: Record<string, string[]> = {};
+          databaseMap[database.name][schema.name] = {};
 
           for (const table of schema.tables) {
             const columns = table.columns.map((col) => col.name);
-
-            if (isDefaultDb) {
-              tableMap[table.name] = columns;
-
-              // const schemaMap = mapping[schema.name] ?? {};
-              // schemaMap[table.name] = columns;
-              // mapping[schema.name] = schemaMap;
-            } else {
-              const dbMap = (mapping[database.name] ?? {}) as Record<
-                string,
-                Record<string, string[]>
-              >;
-              const schemaMap = dbMap[schema.name] ?? {};
-              schemaMap[table.name] = columns;
-              dbMap[schema.name] = schemaMap;
-              mapping[database.name] = dbMap;
-            }
+            databaseMap[database.name][schema.name][table.name] = columns;
           }
         }
       }
 
       cacheConfig = {
         dialect: guessDialect(connection),
-        schema: mapping,
+        schema: { ...databaseMap, ...schemaMap },
         defaultSchema: connection.default_schema ?? undefined,
         defaultTable: getSingleTable(connection),
       };

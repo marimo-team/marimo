@@ -880,6 +880,31 @@ describe("tablesCompletionSource", () => {
             },
           ],
         },
+        {
+          name: "db3",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "schema2",
+              tables: [
+                {
+                  name: "table2",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col2",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
       ],
     };
 
@@ -898,6 +923,13 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
         "db2": {
+          "schema2": {
+            "table2": [
+              "col2",
+            ],
+          },
+        },
+        "db3": {
           "schema2": {
             "table2": [
               "col2",
