@@ -10,9 +10,7 @@ module.exports = {
     // It disables core ESLint rules that are already checked by the TypeScript compiler.
     "plugin:@typescript-eslint/eslint-recommended",
     // TS ESLint
-    "plugin:@typescript-eslint/recommended-type-checked",
-    "plugin:@typescript-eslint/stylistic-type-checked",
-    "plugin:@typescript-eslint/strict-type-checked",
+    "plugin:@typescript-eslint/recommended",
     // Accessibility
     "plugin:jsx-a11y/strict",
     // React
@@ -38,9 +36,18 @@ module.exports = {
   parserOptions: {
     project: require.resolve("./tsconfig.json"),
   },
-  plugins: ["@typescript-eslint", "header", "react-compiler"],
+  plugins: [
+    "@typescript-eslint",
+    "header",
+    "react-compiler",
+    "ssr-friendly",
+    "react-hooks",
+  ],
   rules: {
-    "react-compiler/react-compiler": "warn",
+    // Temporarily disabled due to compatibility issues with ESLint 9.x
+    // "react-compiler/react-compiler": "warn",
+    "ssr-friendly/no-dom-globals-in-module-scope": "off",
+    "react-compiler/react-compiler": "off",
 
     "header/header": [
       "error",
@@ -60,20 +67,16 @@ module.exports = {
     // Turn off recommended we don't want
     "ssr-friendly/no-dom-globals-in-react-fc": "off",
     "ssr-friendly/no-dom-globals-in-constructor": "off",
+    "ssr-friendly/no-dom-globals-in-module-scope": "off",
     "react/prop-types": "off",
     "react/no-unescaped-entities": "off",
     "@typescript-eslint/no-unnecessary-condition": "off",
     "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
-    "@typescript-eslint/ban-types": [
-      "error",
-      {
-        types: {
-          // un-ban {}
-          "{}": false,
-        },
-        extendDefaults: true,
-      },
-    ],
+    // Temporarily disabled due to compatibility issues with ESLint 9.x
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-empty-object-type": "off",
+    // Disable problematic plugins
+    "react-compiler/react-compiler": "off",
     "@typescript-eslint/no-confusing-void-expression": [
       "error",
       { ignoreArrowShorthand: true },

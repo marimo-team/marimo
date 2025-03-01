@@ -83,8 +83,8 @@ export const KeyboardShortcuts: React.FC = () => {
       },
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete newConfig.keymap.overrides[editingShortcut];
+    const { [editingShortcut]: _, ...rest } = newConfig.keymap.overrides;
+    newConfig.keymap.overrides = rest;
 
     setEditingShortcut(null);
     setNewShortcut([]);
