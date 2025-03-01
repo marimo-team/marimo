@@ -249,7 +249,7 @@ extra-dependencies = [
     "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
-    "anywidget~=0.9.13",
+    "anywidget~=0.9.14",
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
