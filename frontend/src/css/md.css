@@ -354,3 +354,7 @@ button .prose.prose {
 .markdown details > :not(summary) {
   @apply p-4 pt-0;
 }
+
+.markdown .codehilite {
+  background-color: var(--slate-2);
+}
