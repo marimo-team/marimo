@@ -3,7 +3,6 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import type {
   DataSourceConnection as DataSourceConnectionType,
   DataTable,
-  SQLTablePreview,
 } from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
 import type { VariableName } from "../variables/types";
@@ -126,14 +125,15 @@ const {
   addTableList: (
     state: DataSourceState,
     opts: {
-      connectionName: ConnectionName;
       tables: DataTable[];
       sqlTableContext: SQLTableContext;
     },
   ): DataSourceState => {
-    const { connectionName, tables, sqlTableContext } = opts;
+    const { tables, sqlTableContext } = opts;
     const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlTableContext.engine as ConnectionName;
     const conn = connectionsMap.get(connectionName);
+
     if (!conn) {
       return state;
     }
@@ -154,6 +154,58 @@ const {
             return {
               ...schema,
               tables: tables,
+            };
+          }),
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
+      connectionsMap: newMap,
+    };
+  },
+
+  // Add table to a specific connection
+  addTable: (
+    state: DataSourceState,
+    opts: {
+      tableName: string;
+      table: DataTable;
+      sqlTableContext: SQLTableContext;
+    },
+  ): DataSourceState => {
+    const { tableName, table, sqlTableContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlTableContext.engine as ConnectionName;
+
+    const conn = connectionsMap.get(connectionName);
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlTableContext.database) {
+          return db;
+        }
+        return {
+          ...db,
+          schemas: db.schemas.map((schema) => {
+            if (schema.name !== sqlTableContext.schema) {
+              return schema;
+            }
+            return {
+              ...schema,
+              tables: schema.tables.map((t) => {
+                if (t.name !== tableName) {
+                  return t;
+                }
+                return table;
+              }),
             };
           }),
         };

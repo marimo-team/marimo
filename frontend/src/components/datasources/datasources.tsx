@@ -23,7 +23,7 @@ import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
@@ -55,12 +55,10 @@ import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
-  tablePreviewsAtom,
   dataConnectionsMapAtom,
   DEFAULT_ENGINE,
   type SQLTableContext,
   useDataSourceActions,
-  type ConnectionName,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
 import {
@@ -409,7 +407,6 @@ const TableList: React.FC<{
       }
 
       addTableList({
-        connectionName: engine as ConnectionName,
         tables: previewTableList.tables,
         sqlTableContext: sqlTableContext,
       });
@@ -467,15 +464,14 @@ const DatasetTableItem: React.FC<{
   sqlTableContext?: SQLTableContext;
   isSearching: boolean;
 }> = ({ table, sqlTableContext, isSearching }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const { addTable } = useDataSourceActions();
 
-  const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
-  const tablePreview = tablePreviews.get(table.name);
+  const [isExpanded, setIsExpanded] = React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
   const { loading, error } = useAsyncData(async () => {
     // Only fetch table preview when the data is not passed in and doesn't exist in the atom
-    if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+    if (isExpanded && !tableDetailsExist && sqlTableContext) {
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
@@ -488,9 +484,13 @@ const DatasetTableItem: React.FC<{
         throw new Error("No table details available");
       }
 
-      setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
+      addTable({
+        tableName: table.name,
+        table: previewTable.table,
+        sqlTableContext: sqlTableContext,
+      });
     }
-  }, [isExpanded, tableDetailsExist, tablePreview]);
+  }, [isExpanded, tableDetailsExist]);
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
@@ -559,13 +559,11 @@ const DatasetTableItem: React.FC<{
       return <ErrorState error={error} />;
     }
 
-    const columns = tableDetailsExist
-      ? table.columns
-      : tablePreview?.table?.columns || [];
+    const columns = table.columns;
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
-        table={tablePreview?.table ?? table}
+        table={table}
         column={column}
         sqlTableContext={sqlTableContext}
       />
