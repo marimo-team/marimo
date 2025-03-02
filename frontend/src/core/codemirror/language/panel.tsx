@@ -46,7 +46,9 @@ export const LanguagePanelComponent: React.FC<{
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
     showDivider = true;
-    const sanitizeAndTriggerUpdate = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const sanitizeAndTriggerUpdate = (
+      e: React.SyntheticEvent<HTMLInputElement>,
+    ) => {
       // Normalize the name to a valid variable name
       const name = normalizeName(e.currentTarget.value, false);
       languageAdapter.setDataframeName(name);
