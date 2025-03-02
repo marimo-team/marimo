@@ -357,4 +357,5 @@ button .prose.prose {
 
 .markdown .codehilite {
   background-color: var(--slate-2);
+  border-radius: 4px;
 }
