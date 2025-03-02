@@ -121,7 +121,7 @@ const {
     };
   },
 
-  // Add tables to a specific connection
+  // Add table list to a specific schema in a connection
   addTableList: (
     state: DataSourceState,
     opts: {
@@ -171,14 +171,14 @@ const {
   addTable: (
     state: DataSourceState,
     opts: {
-      tableName: string;
       table: DataTable;
       sqlTableContext: SQLTableContext;
     },
   ): DataSourceState => {
-    const { tableName, table, sqlTableContext } = opts;
+    const { table, sqlTableContext } = opts;
     const { connectionsMap, latestEngineSelected } = state;
     const connectionName = sqlTableContext.engine as ConnectionName;
+    const tableName = table.name;
 
     const conn = connectionsMap.get(connectionName);
     if (!conn) {
@@ -200,12 +200,15 @@ const {
             }
             return {
               ...schema,
-              tables: schema.tables.map((t) => {
-                if (t.name !== tableName) {
-                  return t;
-                }
-                return table;
-              }),
+              tables:
+                schema.tables.length === 0
+                  ? [table]
+                  : schema.tables.map((t) => {
+                      if (t.name !== tableName) {
+                        return t;
+                      }
+                      return table;
+                    }),
             };
           }),
         };

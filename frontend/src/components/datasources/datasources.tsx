@@ -485,7 +485,6 @@ const DatasetTableItem: React.FC<{
       }
 
       addTable({
-        tableName: table.name,
         table: previewTable.table,
         sqlTableContext: sqlTableContext,
       });
