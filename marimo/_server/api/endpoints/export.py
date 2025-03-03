@@ -63,9 +63,7 @@ async def export_as_html(
     html, filename = Exporter().export_as_html(
         file_manager=session.app_file_manager,
         session_view=session.session_view,
-        display_config=app_state.session_manager.user_config_manager.get_config()[
-            "display"
-        ],
+        display_config=session.config_manager.get_config()["display"],
         request=body,
     )
 
@@ -119,9 +117,7 @@ async def auto_export_as_html(
     html, _filename = Exporter().export_as_html(
         file_manager=session.app_file_manager,
         session_view=session_view,
-        display_config=app_state.session_manager.user_config_manager.get_config()[
-            "display"
-        ],
+        display_config=session.config_manager.get_config()["display"],
         request=body,
     )
 

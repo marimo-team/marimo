@@ -262,3 +262,12 @@ def test_script_config_manager_no_marimo_section(tmp_path: Path) -> None:
 
     manager = ScriptConfigManager(str(notebook_path))
     assert manager.get_config() == {}
+
+
+def test_marimo_config_reader_properties() -> None:
+    """Test the convenience properties on MarimoConfigReader"""
+
+    manager = get_default_config_manager(current_path=None)
+    assert manager.default_width is not None
+    assert manager.theme is not None
+    assert manager.package_manager is not None

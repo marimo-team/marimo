@@ -11,13 +11,16 @@ import time
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from textwrap import dedent
 from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
 
 from marimo._ast.app import App, InternalApp
-from marimo._config.manager import get_default_config_manager
+from marimo._config.manager import (
+    get_default_config_manager,
+)
 from marimo._messaging.ops import UpdateCellCodes
 from marimo._runtime.requests import (
     AppMetadata,
@@ -255,6 +258,9 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
         assert not kernel_manager.is_alive()
 
 
+session_id = SessionId("test_session_id")
+
+
 @save_and_restore_main
 async def test_session() -> None:
     session_consumer: Any = MagicMock()
@@ -277,6 +283,7 @@ async def test_session() -> None:
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -323,6 +330,7 @@ def test_session_disconnect_reconnect() -> None:
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -380,6 +388,7 @@ def test_session_with_kiosk_consumers() -> None:
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -452,7 +461,7 @@ def __():
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
-            user_config_manager=get_default_config_manager(
+            config_manager=get_default_config_manager(
                 current_path=None
             ).with_overrides(
                 {
@@ -616,7 +625,7 @@ def test_watch_mode_config_override() -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        user_config_manager=config_reader_watch,
+        config_manager=config_reader_watch,
         cli_args={},
         auth_token=None,
         redirect_console_to_browser=False,
@@ -631,7 +640,7 @@ def test_watch_mode_config_override() -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        user_config_manager=config_reader,
+        config_manager=config_reader,
         cli_args={},
         auth_token=None,
         redirect_console_to_browser=False,
@@ -641,12 +650,12 @@ def test_watch_mode_config_override() -> None:
 
     try:
         # Verify that the config was overridden
-        config = session_manager.user_config_manager.get_config()
+        config = session_manager._config_manager.get_config()
         assert config["save"]["autosave"] == "off"
         assert config["save"]["format_on_save"] is False
 
         # Verify that the config was not overridden
-        config = session_manager_no_watch.user_config_manager.get_config()
+        config = session_manager_no_watch._config_manager.get_config()
         assert config["save"]["autosave"] == "after_delay"
         assert config["save"]["format_on_save"] is True
 
@@ -698,7 +707,7 @@ def __():
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
-            user_config_manager=config_reader_autorun,
+            config_manager=config_reader_autorun,
             cli_args={},
             auth_token=None,
             redirect_console_to_browser=False,
@@ -769,7 +778,7 @@ def __():
                 }
             }
         )
-        session_manager.user_config_manager = config_reader_lazy
+        session_manager._config_manager = config_reader_lazy
 
         # Reset the mock
         session_consumer.put_control_request.reset_mock()
@@ -845,7 +854,7 @@ def __():
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
-            user_config_manager=get_default_config_manager(current_path=None),
+            config_manager=get_default_config_manager(current_path=None),
             cli_args={},
             auth_token=None,
             redirect_console_to_browser=False,
@@ -964,6 +973,7 @@ def __():
         queue_manager,
         kernel_manager,
         app_file_manager,
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -995,6 +1005,7 @@ def __():
         queue_manager,
         kernel_manager,
         app_file_manager,
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
     session2.sync_session_view_from_cache()
@@ -1015,6 +1026,7 @@ def __():
         queue_manager,
         kernel_manager,
         app_file_manager_no_path,
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
     session3.sync_session_view_from_cache()
@@ -1029,3 +1041,53 @@ def __():
     session3.close()
     if kernel_manager.kernel_task:
         kernel_manager.kernel_task.join()
+
+
+def test_session_with_script_config_overrides(
+    tmp_path: Path,
+) -> None:
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+
+    # Create a temporary file with script config
+    tmp_file = tmp_path / "test.py"
+    tmp_file.write_text(
+        dedent(
+            """
+        # /// script
+        # [tool.marimo.formatting]
+        # line_length = 999
+        # ///
+        """
+        )
+    )
+
+    # Create app file manager with the temp file
+    app_file_manager = AppFileManager(filename=str(tmp_file))
+
+    # Create session with the file that has script config
+    session = Session.create(
+        initialization_id="test_id",
+        session_consumer=session_consumer,
+        mode=SessionMode.RUN,
+        app_metadata=app_metadata,
+        app_file_manager=app_file_manager,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_files_supported=True,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Verify that the session's config is affected by the script config
+    assert (
+        session.config_manager.get_config()["formatting"]["line_length"] == 999
+    )
+    assert (
+        session.kernel_manager.config_manager.get_config()["formatting"][
+            "line_length"
+        ]
+        == 999
+    )
+
+    # Cleanup
+    session.close()
