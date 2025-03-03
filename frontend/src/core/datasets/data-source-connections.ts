@@ -246,12 +246,6 @@ export const exportedForTesting = {
   initialState,
 };
 
-// Hook to get & persist SQL table previews
-// Acts as a cache
-export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
-  new Map<string, SQLTablePreview>(),
-);
-
 // If you need to get table names from all connections & local datasets, use this atom
 // When a table name is used in multiple connections, we need to use a more qualified name
 export const allTablesAtom = atom((get) => {
