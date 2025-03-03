@@ -8,6 +8,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.table_manager import Cell, TableCoordinate
 
 HAS_DEPS = DependencyManager.pandas.has()
 
@@ -47,6 +48,20 @@ class TestDefaultTable(unittest.TestCase):
             {"birth_year": date(2002, 1, 30)},
         ]
         assert selected_manager.data == expected_data
+
+    def test_select_cells(self) -> None:
+        cells = [
+            TableCoordinate(rowId=0, columnName="name"),
+            TableCoordinate(rowId=1, columnName="age"),
+            TableCoordinate(rowId=2, columnName="birth_year"),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            Cell(rowId=0, columnName="name", value="Alice"),
+            Cell(rowId=1, columnName="age", value=25),
+            Cell(rowId=2, columnName="birth_year", value=date(1989, 12, 1)),
+        ]
+        assert selected_cells == expected_cells
 
     def test_drop_columns(self) -> None:
         columns = ["name"]
@@ -334,6 +349,20 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert selected_manager.data == expected_data
 
+    def test_select_cells(self) -> None:
+        cells = [
+            TableCoordinate(rowId=0, columnName="name"),
+            TableCoordinate(rowId=1, columnName="age"),
+            TableCoordinate(rowId=2, columnName="birth_year"),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            Cell(rowId=0, columnName="name", value="Alice"),
+            Cell(rowId=1, columnName="age", value=25),
+            Cell(rowId=2, columnName="birth_year", value=date(1989, 12, 1)),
+        ]
+        assert selected_cells == expected_cells
+
     def test_drop_columns(self) -> None:
         columns = ["name", "birth_year"]
         dropped_manager = self.manager.drop_columns(columns)
@@ -605,6 +634,18 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_select_columns(self) -> None:
         selected_manager = self.manager.select_columns(["a"])
         assert selected_manager.data == {"a": 1}
+
+    def test_select_cells(self) -> None:
+        selected_cells = self.manager.select_cells(
+            [
+                TableCoordinate(rowId=0, columnName="key"),
+                TableCoordinate(rowId=1, columnName="value"),
+            ]
+        )
+        assert selected_cells == [
+            Cell(rowId=0, columnName="key", value="a"),
+            Cell(rowId=1, columnName="value", value=2),
+        ]
 
     def test_drop_columns(self) -> None:
         dropped_manager = self.manager.drop_columns(["a"])

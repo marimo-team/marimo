@@ -15,7 +15,11 @@ from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
 )
-from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
+    TableCoordinate,
+    TableManager,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
 from tests._data.mocks import create_dataframes
@@ -175,6 +179,24 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         selected_manager = self.manager.select_columns(columns)
         expected_data = self.data.select(columns)
         assert_frame_equal(selected_manager.data, expected_data)
+
+    def test_select_cells(self) -> None:
+        cells = [
+            TableCoordinate(columnName="A", rowId=0),
+            TableCoordinate(columnName="B", rowId=1),
+            TableCoordinate(columnName="C", rowId=2),
+            TableCoordinate(columnName="D", rowId=1),
+            TableCoordinate(columnName="E", rowId=0),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            Cell(columnName="A", rowId=0, value=1),
+            Cell(columnName="B", rowId=1, value="b"),
+            Cell(columnName="C", rowId=2, value=3.0),
+            Cell(columnName="D", rowId=1, value=False),
+            Cell(columnName="E", rowId=0, value=datetime.datetime(2021, 1, 1)),
+        ]
+        assert selected_cells == expected_cells
 
     def test_drop_columns(self) -> None:
         columns = ["A"]

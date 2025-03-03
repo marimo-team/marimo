@@ -8,6 +8,7 @@ import { SearchIcon } from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
+import type { DataTableSelection } from "./types";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -16,7 +17,7 @@ interface TableActionsProps<TData> {
   setIsSearchEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   pagination: boolean;
   totalColumns: number;
-  selection?: "single" | "multi" | null;
+  selection?: DataTableSelection;
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
