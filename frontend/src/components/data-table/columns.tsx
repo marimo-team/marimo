@@ -190,6 +190,11 @@ export function generateColumns<T>({
           cell.toggleSelected();
         }
 
+        const isCellSelected = cell.getIsSelected();
+        const canSelectCell =
+          (selection === "single-cell" || selection === "multi-cell") &&
+          !isCellSelected;
+
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
@@ -198,7 +203,8 @@ export function generateColumns<T>({
               className={getCellStyleClass(
                 justify,
                 wrapped,
-                cell.getIsSelected(),
+                canSelectCell,
+                isCellSelected,
               )}
             >
               {column.applyColumnFormatting(value)}
@@ -214,7 +220,8 @@ export function generateColumns<T>({
               className={getCellStyleClass(
                 justify,
                 wrapped,
-                cell.getIsSelected(),
+                canSelectCell,
+                isCellSelected,
               )}
             >
               {rendered == null ? (
@@ -238,7 +245,8 @@ export function generateColumns<T>({
               className={getCellStyleClass(
                 justify,
                 wrapped,
-                cell.getIsSelected(),
+                canSelectCell,
+                isCellSelected,
               )}
             >
               <DatePopover date={value} type={type}>
@@ -255,7 +263,8 @@ export function generateColumns<T>({
               className={getCellStyleClass(
                 justify,
                 wrapped,
-                cell.getIsSelected(),
+                canSelectCell,
+                isCellSelected,
               )}
             >
               <MimeCell value={value} />
@@ -269,7 +278,8 @@ export function generateColumns<T>({
             className={getCellStyleClass(
               justify,
               wrapped,
-              cell.getIsSelected(),
+              canSelectCell,
+              isCellSelected,
             )}
           >
             {renderAny(getValue())}
@@ -355,11 +365,12 @@ function getFilterTypeForFieldType(
 function getCellStyleClass(
   justify: "left" | "center" | "right" | undefined,
   wrapped: boolean | undefined,
+  canSelectCell: boolean,
   isSelected: boolean,
 ): string {
   return cn(
-    "cursor-pointer", // TODO: only when select cell?
-    isSelected && "bg-blue-200",
+    canSelectCell && "cursor-pointer",
+    isSelected && "bg-[var(--blue-2)]",
     "w-full",
     "text-left",
     justify === "center" && "text-center",

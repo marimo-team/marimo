@@ -38,8 +38,8 @@ export const DataTablePagination = <TData,>({
       selection === "single-cell" || selection === "multi-cell";
     if (isCellSelection) {
       selected = cellSelection.length;
-      isAllPageSelected = table.getIsAllPageCellsSelected();
-      isAllSelected = table.getIsAllCellsSelected();
+      isAllPageSelected = false;
+      isAllSelected = false;
     }
 
     if (isAllPageSelected && !isAllSelected) {
@@ -81,7 +81,7 @@ export const DataTablePagination = <TData,>({
                 } else {
                   table.toggleAllRowsSelected(false);
                 }
-              } else {
+              } else if (table.resetCellSelection) {
                 table.resetCellSelection();
               }
             }}

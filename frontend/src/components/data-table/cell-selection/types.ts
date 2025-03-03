@@ -27,15 +27,9 @@ export interface CellSelectionCell {
 
 // These are additional properties add to the table instance in createTable
 export interface CellSelectionInstance<TData extends RowData> {
-  setCellSelection: (updater: Updater<CellSelectionState>) => void;
+  setCellSelection?: (updater: Updater<CellSelectionState>) => void;
 
-  toggleAllRowsSelected: (value?: boolean) => void;
-
-  resetCellSelection(defaultValue?: CellSelectionState): void;
-
-  getIsAllCellsSelected: () => boolean;
-
-  getIsAllPageCellsSelected: () => boolean;
+  resetCellSelection?(defaultValue?: CellSelectionState): void;
 }
 
 // Use declaration merging to add our new feature APIs

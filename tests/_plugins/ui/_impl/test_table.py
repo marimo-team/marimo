@@ -221,7 +221,7 @@ def test_value() -> None:
 def test_value_with_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
-    assert list(table._convert_value([{"rowId": "0"}, {"rowId": "2"}])) == [
+    assert list(table._convert_value(["0", "2"])) == [
         "banana",
         "cherry",
     ]
@@ -257,7 +257,7 @@ def test_value_with_sorting_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value([{"rowId": "0"}])) == [
+    assert list(table._convert_value(["0"])) == [
         {"value": "elderberry"},
     ]
 
@@ -271,7 +271,7 @@ def test_value_with_sorting_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value([{"rowId": "0"}])) == [
+    assert list(table._convert_value(["0"])) == [
         {"value": "apple"},
     ]
 
@@ -293,7 +293,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value([{"rowId": "0"}])
+    value = table._convert_value(["0"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "x"
 
@@ -304,7 +304,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value([{"rowId": "0"}])
+    value = table._convert_value(["0"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "x"
 
@@ -320,7 +320,7 @@ def test_value_with_search_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value([{"rowId": "0"}])) == [
+    assert list(table._convert_value(["0"])) == [
         {"value": "apple"},
     ]
 
@@ -331,13 +331,13 @@ def test_value_with_search_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value([{"rowId": "0"}])) == [
+    assert list(table._convert_value(["0"])) == [
         {"value": "banana"},
     ]
 
     # Rows not in the search are not selected
     with pytest.raises(IndexError):
-        table._convert_value([{"rowId": "2"}])
+        table._convert_value(["2"])
 
     # empty search
     table._search(
@@ -346,7 +346,7 @@ def test_value_with_search_then_selection() -> None:
             page_number=0,
         )
     )
-    assert list(table._convert_value([{"rowId": "2"}])) == ["cherry"]
+    assert list(table._convert_value(["2"])) == ["cherry"]
 
 
 @pytest.mark.parametrize(
@@ -366,7 +366,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value([{"rowId": "1"}])
+    value = table._convert_value(["1"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "bar"
 
@@ -378,7 +378,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
         )
     )
     # Can still select rows not in the search
-    value = table._convert_value([{"rowId": "0"}, {"rowId": "1"}])
+    value = table._convert_value(["0", "1"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "foo"
     assert nw.from_native(value)["a"][1] == "bar"
@@ -389,7 +389,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value([{"rowId": "2"}])
+    value = table._convert_value(["2"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "baz"
 
@@ -462,9 +462,7 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
             page_number=0,
         )
     )
-    assert table._convert_value([{"rowId": "0"}, {"rowId": "2"}])[
-        "company"
-    ] == [
+    assert table._convert_value(["0", "2"])["company"] == [
         "Company A",
         "Company C",
     ]
@@ -476,9 +474,7 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
             page_number=0,
         )
     )
-    assert table._convert_value([{"rowId": "0"}, {"rowId": "2"}])[
-        "company"
-    ] == [
+    assert table._convert_value(["0", "2"])["company"] == [
         "Company B",
         "Company E",
     ]
@@ -551,7 +547,7 @@ def test_search_sort_nonexistent_columns() -> None:
         )
     )
 
-    assert table._convert_value([{"rowId": "0"}]) == ["banana"]
+    assert table._convert_value(["0"]) == ["banana"]
 
 
 def test_table_with_too_many_columns_passes() -> None:

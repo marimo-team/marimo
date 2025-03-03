@@ -57,17 +57,10 @@ export const CellSelectionFeature: TableFeature = {
     };
 
     table.resetCellSelection = (defaultValue) => {
-      table.setCellSelection(() => defaultValue ?? []);
+      if (table.setCellSelection) {
+        table.setCellSelection(() => defaultValue ?? []);
+      }
     };
-
-    table.getIsAllCellsSelected = () => {
-      const state = table.getState().cellSelection ?? [];
-      return (
-        state.length === table.getRowCount() * table.getAllColumns().length
-      );
-    };
-
-    table.getIsAllPageCellsSelected = () => false; // TODO: I don't quite have a notion of pages yet
   },
 
   createCell: <TData extends RowData>(
@@ -76,6 +69,9 @@ export const CellSelectionFeature: TableFeature = {
     row: Row<TData>,
     table: Table<TData>,
   ) => {
+    // This could be a performance bottleneck if we have a lot of cells.
+    // (for each cell, for each selected cell), which is O(n^2)
+    // Perhaps consider using datastructure mentioned in https://github.com/marimo-team/marimo/pull/3725/files#r1974362428
     cell.getIsSelected = () => {
       const state: CellSelectionState = table.getState().cellSelection ?? [];
       return state.some(
@@ -84,6 +80,10 @@ export const CellSelectionFeature: TableFeature = {
     };
 
     cell.toggleSelected = (value?: boolean) => {
+      if (!table.setCellSelection) {
+        return;
+      }
+
       const columnName = column.id;
 
       const currentIsSelected = cell.getIsSelected();

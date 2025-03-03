@@ -101,10 +101,7 @@ type Functions = {
   }>;
 };
 
-// TODO: this was Array<number | string>
-// I don't quite get this. Does it represent the row-id?
-// Is the row-id the index property in our case?
-type S = Array<{ rowId: string; columnName?: string }>;
+type S = Array<number | string | { rowId: string; columnName?: string }>;
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -516,7 +513,7 @@ const DataTableComponent = ({
   );
 
   const rowSelection = useMemo(
-    () => Object.fromEntries((value || []).map((v) => [v.rowId, true])),
+    () => Object.fromEntries((value || []).map((v) => [v, true])),
     [value],
   );
 
@@ -524,29 +521,24 @@ const DataTableComponent = ({
     (updater) => {
       if (selection === "single") {
         const nextValue = Functions.asUpdater(updater)({});
-        setValue(
-          Object.keys(nextValue)
-            .slice(0, 1)
-            .map((r) => ({ rowId: r })),
-        );
+        setValue(Object.keys(nextValue).slice(0, 1));
       }
 
       if (selection === "multi") {
         const nextValue = Functions.asUpdater(updater)(rowSelection);
-        setValue(Object.keys(nextValue).map((r) => ({ rowId: r })));
+        setValue(Object.keys(nextValue));
       }
     },
   );
 
-  const cellSelection = useMemo(
-    () => value.filter((v) => v.columnName !== undefined) as CellSelectionState,
-    [value],
-  );
+  const cellSelection = value.filter(
+    (v) => v instanceof Object && v.columnName !== undefined,
+  ) as CellSelectionState;
 
   const handleCellSelectionChange: OnChangeFn<CellSelectionState> = useEvent(
     (updater) => {
       if (selection === "single-cell") {
-        const nextValue = Functions.asUpdater(updater)([]);
+        const nextValue = Functions.asUpdater(updater)(cellSelection);
         // This maps to the _value in marimo/_plugins/ui/_impl/table.py I think
         setValue(nextValue.slice(0, 1));
       }
