@@ -6,7 +6,6 @@ import {
   PaintRollerIcon,
   PlusSquareIcon,
   XIcon,
-  LoaderCircle,
   Table2Icon,
   EyeIcon,
 } from "lucide-react";
@@ -24,7 +23,7 @@ import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
@@ -56,14 +55,24 @@ import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
-  tablePreviewsAtom,
   dataConnectionsMapAtom,
   DEFAULT_ENGINE,
+  type SQLTableContext,
+  useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
+import {
+  PreviewSQLTable,
+  PreviewSQLTableList,
+} from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
+import {
+  DatasourceLabel,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  RotatingChevron,
+} from "./components";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -377,18 +386,41 @@ const SchemaItem: React.FC<{
   );
 };
 
-interface SQLTableContext {
-  engine: string;
-  database: string;
-  schema: string;
-  defaultSchema?: string | null;
-}
-
 const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
+  const { addTableList } = useDataSourceActions();
+
+  const { loading, error } = useAsyncData(async () => {
+    if (tables.length === 0 && sqlTableContext) {
+      const { engine, database, schema } = sqlTableContext;
+      const previewTableList = await PreviewSQLTableList.request({
+        engine: engine,
+        database: database,
+        schema: schema,
+      });
+
+      if (!previewTableList?.tables) {
+        throw new Error("No tables available");
+      }
+
+      addTableList({
+        tables: previewTableList.tables,
+        sqlTableContext: sqlTableContext,
+      });
+    }
+  }, [tables.length, sqlTableContext]);
+
+  if (loading) {
+    return <LoadingState message="Loading tables..." />;
+  }
+
+  if (error) {
+    return <ErrorState error={error} />;
+  }
+
   if (tables.length === 0) {
     // TODO: We should preview tables instead of disabling introspection
     return (
@@ -432,15 +464,14 @@ const DatasetTableItem: React.FC<{
   sqlTableContext?: SQLTableContext;
   isSearching: boolean;
 }> = ({ table, sqlTableContext, isSearching }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const { addTable } = useDataSourceActions();
 
-  const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
-  const tablePreview = tablePreviews.get(table.name);
+  const [isExpanded, setIsExpanded] = React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
   const { loading, error } = useAsyncData(async () => {
     // Only fetch table preview when the data is not passed in and doesn't exist in the atom
-    if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+    if (isExpanded && !tableDetailsExist && sqlTableContext) {
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
@@ -453,9 +484,12 @@ const DatasetTableItem: React.FC<{
         throw new Error("No table details available");
       }
 
-      setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
+      addTable({
+        table: previewTable.table,
+        sqlTableContext: sqlTableContext,
+      });
     }
-  }, [isExpanded, tableDetailsExist, tablePreview]);
+  }, [isExpanded, tableDetailsExist]);
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
@@ -517,30 +551,18 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (loading) {
-      return (
-        <div className="pl-12 text-sm bg-blue-50 dark:bg-[var(--accent)] text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          Loading columns...
-        </div>
-      );
+      return <LoadingState message="Loading columns..." />;
     }
 
     if (error) {
-      return (
-        <div className="pl-12 text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-50 flex items-center gap-2 p-2 h-8">
-          <XIcon className="h-4 w-4" />
-          {error.message}
-        </div>
-      );
+      return <ErrorState error={error} />;
     }
 
-    const columns = tableDetailsExist
-      ? table.columns
-      : tablePreview?.table?.columns || [];
+    const columns = table.columns;
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
-        table={tablePreview?.table ?? table}
+        table={table}
         column={column}
         sqlTableContext={sqlTableContext}
       />

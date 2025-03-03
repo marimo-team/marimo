@@ -1,13 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { previewSQLTable, sendFunctionRequest } from "@/core/network/requests";
+import {
+  previewSQLTable,
+  previewSQLTableList,
+  sendFunctionRequest,
+} from "@/core/network/requests";
 import type {
   FunctionCallResultMessage,
+  SQLTableListPreview,
   SQLTablePreview,
 } from "../kernel/messages";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import type {
   FunctionCallRequest,
+  PreviewSQLTableListRequest,
   PreviewSQLTableRequest,
 } from "../network/types";
 
@@ -30,6 +36,16 @@ export const PreviewSQLTable = new DeferredRequestRegistry<
   SQLTablePreview
 >("sql-table-preview", async (requestId, req) => {
   await previewSQLTable({
+    requestId: requestId,
+    ...req,
+  });
+});
+
+export const PreviewSQLTableList = new DeferredRequestRegistry<
+  Omit<PreviewSQLTableListRequest, "requestId">,
+  SQLTableListPreview
+>("sql-table-list-preview", async (requestId, req) => {
+  await previewSQLTableList({
     requestId: requestId,
     ...req,
   });

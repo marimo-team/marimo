@@ -165,6 +165,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    previewSQLTableList: (request) => {
+      return marimoClient
+        .POST("/api/datasources/preview_sql_table_list", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     openFile: async (request) => {
       await marimoClient
         .POST("/api/files/open", {

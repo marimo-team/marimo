@@ -3,7 +3,6 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import type {
   DataSourceConnection as DataSourceConnectionType,
   DataTable,
-  SQLTablePreview,
 } from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
 import type { VariableName } from "../variables/types";
@@ -25,6 +24,13 @@ export interface DataSourceConnection
 export interface DataSourceState {
   latestEngineSelected: ConnectionName;
   connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
+}
+
+export interface SQLTableContext {
+  engine: string;
+  database: string;
+  schema: string;
+  defaultSchema?: string | null;
 }
 
 function initialState(): DataSourceState {
@@ -114,6 +120,108 @@ const {
       connectionsMap: newMap,
     };
   },
+
+  // Add table list to a specific schema in a connection
+  addTableList: (
+    state: DataSourceState,
+    opts: {
+      tables: DataTable[];
+      sqlTableContext: SQLTableContext;
+    },
+  ): DataSourceState => {
+    const { tables, sqlTableContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlTableContext.engine as ConnectionName;
+    const conn = connectionsMap.get(connectionName);
+
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlTableContext.database) {
+          return db;
+        }
+        return {
+          ...db,
+          schemas: db.schemas.map((schema) => {
+            if (schema.name !== sqlTableContext.schema) {
+              return schema;
+            }
+            return {
+              ...schema,
+              tables: tables,
+            };
+          }),
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
+      connectionsMap: newMap,
+    };
+  },
+
+  // Add table to a specific connection
+  addTable: (
+    state: DataSourceState,
+    opts: {
+      table: DataTable;
+      sqlTableContext: SQLTableContext;
+    },
+  ): DataSourceState => {
+    const { table, sqlTableContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlTableContext.engine as ConnectionName;
+    const tableName = table.name;
+
+    const conn = connectionsMap.get(connectionName);
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlTableContext.database) {
+          return db;
+        }
+
+        return {
+          ...db,
+          schemas: db.schemas.map((schema) => {
+            if (schema.name !== sqlTableContext.schema) {
+              return schema;
+            }
+
+            // If tables array is empty, add the table
+            // Otherwise, replace existing table or keep unchanged tables
+            const tables =
+              schema.tables.length === 0
+                ? [table]
+                : schema.tables.map((t) => (t.name === tableName ? table : t));
+
+            return {
+              ...schema,
+              tables,
+            };
+          }),
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
+      connectionsMap: newMap,
+    };
+  },
 });
 
 export { dataSourceConnectionsAtom, useDataSourceActions };
@@ -138,12 +246,6 @@ export const exportedForTesting = {
   createActions,
   initialState,
 };
-
-// Hook to get & persist SQL table previews
-// Acts as a cache
-export const tablePreviewsAtom = atom<ReadonlyMap<string, SQLTablePreview>>(
-  new Map<string, SQLTablePreview>(),
-);
 
 // If you need to get table names from all connections & local datasets, use this atom
 // When a table name is used in multiple connections, we need to use a more qualified name

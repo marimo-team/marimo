@@ -467,6 +467,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  previewSQLTableList: EditRequests["previewSQLTableList"] = async (
+    request,
+  ) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
   syncCellIds = () => Promise.resolve(null);
   getUsageStats = throwNotImplemented;
   openTutorial = throwNotImplemented;

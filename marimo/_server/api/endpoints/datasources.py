@@ -8,6 +8,7 @@ from starlette.authentication import requires
 from marimo import _loggers
 from marimo._runtime.requests import (
     PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
 )
 from marimo._server.api.deps import AppState
@@ -72,6 +73,32 @@ async def preview_sql_table(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, PreviewSQLTableRequest)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+    return SuccessResponse()
+
+
+@router.post("/preview_sql_table_list")
+@requires("edit")
+async def preview_sql_table_list(request: Request) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PreviewSQLTableListRequest"
+    responses:
+        200:
+            description: Preview a list of tables in an SQL schema
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, PreviewSQLTableListRequest)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

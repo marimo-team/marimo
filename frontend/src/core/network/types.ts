@@ -52,6 +52,7 @@ export type MarimoFile = schemas["MarimoFile"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
+export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
@@ -121,6 +122,7 @@ export interface EditRequests {
   readSnippets: () => Promise<Snippets>;
   previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   previewSQLTable: (request: PreviewSQLTableRequest) => Promise<null>;
+  previewSQLTableList: (request: PreviewSQLTableListRequest) => Promise<null>;
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // File explorer requests

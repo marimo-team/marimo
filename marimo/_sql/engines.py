@@ -308,7 +308,7 @@ class SQLAlchemyEngine(SQLEngine):
             schemas.append(
                 Schema(
                     name=schema,
-                    tables=self._get_tables_in_schema(
+                    tables=self.get_tables_in_schema(
                         schema=schema,
                         include_table_details=include_table_details,
                     )
@@ -319,7 +319,7 @@ class SQLAlchemyEngine(SQLEngine):
 
         return schemas
 
-    def _get_tables_in_schema(
+    def get_tables_in_schema(
         self, *, schema: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
