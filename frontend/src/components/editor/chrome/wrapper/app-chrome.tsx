@@ -31,14 +31,29 @@ import { PackagesPanel } from "../panels/packages-panel";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { TracingPanel } from "../panels/tracing-panel";
+import { useHotkey } from "@/hooks/useHotkey";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isSidebarOpen, isTerminalOpen, selectedPanel } = useChromeState();
-  const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
+  const { setIsSidebarOpen, setIsTerminalOpen, nextPanel, previousPanel } =
+    useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
+
+  // Register hotkeys for panel navigation
+  useHotkey("panel.nextPanel", () => {
+    if (isSidebarOpen) {
+      nextPanel();
+    }
+  });
+
+  useHotkey("panel.previousPanel", () => {
+    if (isSidebarOpen) {
+      previousPanel();
+    }
+  });
 
   // sync sidebar
   useEffect(() => {
