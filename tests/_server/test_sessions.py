@@ -37,6 +37,7 @@ from marimo._server.sessions import (
     SessionManager,
 )
 from marimo._server.utils import initialize_asyncio
+from marimo._types.ids import SessionId
 from marimo._utils.marimo_path import MarimoPath
 
 initialize_asyncio()
@@ -65,6 +66,9 @@ def save_and_restore_main(f: F) -> F:
             sys.modules["__main__"] = main
 
     return wrapper  # type: ignore
+
+
+session_id = SessionId("test")
 
 
 @save_and_restore_main
@@ -268,7 +272,7 @@ async def test_session() -> None:
 
     # Instantiate a Session
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
@@ -314,7 +318,7 @@ def test_session_disconnect_reconnect() -> None:
 
     # Instantiate a Session
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
@@ -371,7 +375,7 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Instantiate a Session
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
@@ -435,7 +439,6 @@ app = marimo.App()
 @app.cell
 def __():
     1
-    return ()
 """
         )
 
@@ -475,24 +478,21 @@ def __():
 
         # Create a session
         session_manager.create_session(
-            session_id="test",
+            session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path),
         )
 
-        # Wait a bit and then modify the file
-        with open(tmp_path, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo
+        tmp_path.write_text(
+            """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     2
-    return ()
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
         for _ in range(16):  # noqa: B007
@@ -517,7 +517,7 @@ def __():
         )
 
         session_manager.create_session(
-            session_id="test2",
+            session_id=SessionId("test2"),
             session_consumer=session_consumer2,
             query_params={},
             file_key=str(tmp_path),
@@ -526,17 +526,15 @@ def __():
         # Modify the file again
         operations.clear()
         operations2.clear()
-        with open(tmp_path, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo
+        tmp_path.write_text(
+            """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     3
-    return ()
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
         for _ in range(16):  # noqa: B007
@@ -557,21 +555,32 @@ def __():
         assert "3" == update_ops2[0].codes[0]
 
         # Close one session and verify the other still receives updates
-        assert session_manager.close_session("test")
+        session_manager.close_session(session_id)
         operations.clear()
         operations2.clear()
 
-        with open(tmp_path, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo
+        tmp_path.write_text(
+            """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     4
-    return ()
 """
-            )
+        )
+
+        # Wait for the watcher to detect the change
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations2) > 0:
+                break
+
+        # Only one session should receive the update
+        update_ops2 = [
+            op for op in operations2 if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops2) == 1
+        assert "4" == update_ops2[0].codes[0]
     finally:
         # Cleanup
         session_manager.shutdown()
@@ -666,7 +675,6 @@ app = marimo.App()
 @app.cell
 def __():
     1
-    return ()
 """
         )
 
@@ -708,7 +716,7 @@ def __():
 
         # Create a session
         session = session_manager.create_session(
-            session_id="test",
+            session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path),
@@ -731,7 +739,6 @@ app = marimo.App()
 @app.cell
 def __():
     2
-    return ()
 """
             )
 
@@ -777,7 +784,6 @@ app = marimo.App()
 @app.cell
 def __():
     3
-    return ()
 """
             )
 
@@ -824,7 +830,6 @@ app = marimo.App()
 @app.cell
 def __():
     1
-    return ()
 """
         )
 
@@ -858,7 +863,7 @@ def __():
 
         # Create a session
         session_manager.create_session(
-            session_id="test",
+            session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path1),
@@ -866,7 +871,7 @@ def __():
 
         # Try to rename to a non-existent file
         success, error = session_manager.handle_file_rename_for_watch(
-            "test", str(tmp_path1), "/nonexistent/file.py"
+            session_id, str(tmp_path1), "/nonexistent/file.py"
         )
         assert not success
         assert error is not None
@@ -881,12 +886,12 @@ def __():
         assert "Session not found" in error
 
         # Rename to the second file
-        session = session_manager.get_session("test")
+        session = session_manager.get_session(session_id)
         assert session is not None
         session.app_file_manager.rename(str(new_path))
         assert new_path.exists()
         success, error = session_manager.handle_file_rename_for_watch(
-            "test", str(tmp_path1), str(new_path)
+            session_id, str(tmp_path1), str(new_path)
         )
         assert success
         assert error is None
@@ -900,7 +905,6 @@ app = marimo.App()
 @app.cell
 def __():
     2
-    return ()
 """
         )
 
@@ -936,7 +940,6 @@ app = marimo.App()
 @app.cell
 def __():
     1
-    return ()
 """
     )
 
@@ -956,7 +959,7 @@ def __():
 
     app_file_manager = AppFileManager(filename=str(notebook_path))
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
