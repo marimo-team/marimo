@@ -228,7 +228,7 @@ class PythonTypeToOpenAPI:
 
     def convert_dataclass(
         self,
-        cls: Any,  # Changed from type[Any] to Any to handle both instances and types
+        cls: Any,
         processed_classes: dict[Any, str],
     ) -> dict[str, Any]:
         """Convert a dataclass to an OpenAPI schema.
