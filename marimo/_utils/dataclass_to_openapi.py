@@ -246,7 +246,7 @@ class PythonTypeToOpenAPI:
         # If cls is an instance, get its class
         if not isinstance(cls, type) and dataclasses.is_dataclass(cls):
             cls = cls.__class__
-        
+
         if not dataclasses.is_dataclass(cls):
             raise ValueError(f"{cls} is not a dataclass")
 
