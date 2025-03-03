@@ -143,6 +143,7 @@ from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._sql.engines import SQLAlchemyEngine
 from marimo._sql.get_engines import get_engines_from_variables
+from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
@@ -2116,11 +2117,12 @@ class Kernel:
 
     def _get_sql_engine(
         self, engine_name: str
-    ) -> tuple[Optional[SQLAlchemyEngine], Optional[str]]:
+    ) -> tuple[Optional[SQLEngine], Optional[str]]:
         """Find the SQL engine associated with the given name. Returns the engine and the error message if any."""
+        engine_name = cast(VariableName, engine_name)
 
         try:
-            # TODO: Can we find the existing engine
+            # Should we find the existing engine instead?
             engine_val = self.globals.get(engine_name)
             engines = get_engines_from_variables([(engine_name, engine_val)])
             if engines is None or len(engines) == 0:

@@ -103,6 +103,7 @@ export async function initialize() {
       case "variable-values":
       case "data-column-preview":
       case "sql-table-preview":
+      case "sql-table-list-preview":
       case "datasets":
       case "data-source-connections":
         // Unsupported
