@@ -24,8 +24,29 @@ const Tip = (props: {
   return (
     <Accordion type="single" collapsible={true} className={props.className}>
       <AccordionItem value="item-1" className="text-muted-foreground">
-        <AccordionTrigger className="py-2">Tip:</AccordionTrigger>
-        <AccordionContent>{props.children}</AccordionContent>
+        <AccordionTrigger className="pt-4 pb-2">Tip</AccordionTrigger>
+        <AccordionContent className="mr-24 text-[0.84375rem]">
+          {props.children}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+};
+
+const Explainer = (props: {
+  title?: string;
+  className?: string;
+  children: React.ReactNode;
+}): JSX.Element => {
+  return (
+    <Accordion type="single" collapsible={true} className={props.className}>
+      <AccordionItem value="item-1" className="text-muted-foreground">
+        <AccordionTrigger className="pt-4 pb-2">
+          {props.title ?? "Learn more"}
+        </AccordionTrigger>
+        <AccordionContent className="mr-24 text-[0.84375rem]">
+          {props.children}
+        </AccordionContent>
       </AccordionItem>
     </Accordion>
   );
@@ -58,7 +79,9 @@ export const MarimoErrorOutput = ({
       case "cycle":
         return (
           <Fragment key={idx}>
-            <p>{"This cell is in a cycle:"}</p>
+            <p className="text-muted-foreground">
+              {"This cell is in a cycle:"}
+            </p>
             <ul className="list-disc">
               {error.edges_with_vars.map((edge) => (
                 <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
@@ -79,7 +102,7 @@ export const MarimoErrorOutput = ({
       case "multiple-defs":
         return (
           <Fragment key={idx}>
-            <p>{`The variable '${error.name}' was defined by another cell:`}</p>
+            <p className="text-muted-foreground">{`The variable '${error.name}' was defined by another cell:`}</p>
             <ul className="list-disc">
               {error.cells.map((cid) => (
                 <li className={liStyle} key={cid}>
@@ -88,10 +111,45 @@ export const MarimoErrorOutput = ({
               ))}
             </ul>
             <Tip>
-              Try merging this cell with the above cells. Alternatively, rename
-              '{error.name}' to '_{error.name}' to make the variable private to
-              this cell.
+              <p className="pb-2">
+                marimo requires that each variable is defined in just one cell.
+                This constraint enables reactive and reproducible execution,
+                arbitrary cell reordering, seamless UI elements, execution as a
+                script, and more.
+              </p>
+
+              <p className="py-2">
+                Try merging this cell with the above cells or wrapping it in a
+                function. Alternatively, rename '{error.name}' to '_{error.name}
+                ' to make the variable private to this cell.
+              </p>
             </Tip>
+          </Fragment>
+        );
+
+      case "import-star":
+        return (
+          <Fragment key={idx}>
+            <p className="text-muted-foreground">{error.msg}</p>
+
+            <Explainer>
+              <p className="pb-2">
+                Star imports are incompatible with marimo's git-friendly file
+                format and reproducible reactive execution.
+              </p>
+
+              <p className="py-2">
+                marimo's Python file format stores code in functions, so
+                notebooks can be imported as regular Python modules without
+                executing all their code. But Python disallows `import *`
+                everywhere except at the top-level of a module.
+              </p>
+
+              <p className="py-2">
+                Star imports would also silently add names to globals, which
+                would be incompatible with reactive execution.
+              </p>
+            </Explainer>
           </Fragment>
         );
 
@@ -120,8 +178,8 @@ export const MarimoErrorOutput = ({
         titleContents = error.exception_type;
         return error.raising_cell == null ? (
           <Fragment key={idx}>
-            <p>{error.msg}</p>
-            <div className="text-sm text-muted-foreground mt-2">
+            <p className="text-muted-foreground">{error.msg}</p>
+            <div className="text-muted-foreground mt-2">
               See the console area for a traceback.
             </div>
           </Fragment>

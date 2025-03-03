@@ -10,6 +10,7 @@ from typing import Callable, Literal, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
     find_sql_defs,
@@ -220,8 +221,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     if hasattr(node, "lineno")
                     else "line ..."
                 )
-                raise SyntaxError(
-                    f"{line} SyntaxError: `import *` is not allowed in marimo."
+                raise ImportStarError(
+                    f"{line} SyntaxError: Importing symbols with `import *` "
+                    "is not allowed in marimo."
                 )
             return basename
         else:

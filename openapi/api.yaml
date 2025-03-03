@@ -412,6 +412,12 @@ components:
             - schemas
             type: object
           type: array
+        default_database:
+          nullable: true
+          type: string
+        default_schema:
+          nullable: true
+          type: string
         dialect:
           type: string
         display_name:
@@ -586,6 +592,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
+      - $ref: '#/components/schemas/ImportStarError'
       - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
@@ -949,6 +956,18 @@ components:
       required:
       - code
       type: object
+    ImportStarError:
+      properties:
+        msg:
+          type: string
+        type:
+          enum:
+          - import-star
+          type: string
+      required:
+      - msg
+      - type
+      type: object
     InstallMissingPackagesRequest:
       properties:
         manager:
@@ -1252,6 +1271,15 @@ components:
           required:
           - activate_on_typing
           - copilot
+          type: object
+        datasources:
+          properties:
+            auto_discover_columns:
+              type: boolean
+            auto_discover_schemas:
+              type: boolean
+            auto_discover_tables:
+              type: boolean
           type: object
         display:
           properties:
@@ -2194,7 +2222,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.9
+  version: 0.11.12
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

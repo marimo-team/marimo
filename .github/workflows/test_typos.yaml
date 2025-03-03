@@ -12,4 +12,4 @@ jobs:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
-      - uses: crate-ci/typos@v1.29.4
+      - uses: crate-ci/typos@v1.29.10

@@ -22,6 +22,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.errors import ImportStarError
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
@@ -35,6 +36,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
+    ImportStarError as MarimoImportStarError,
     MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -472,6 +474,14 @@ class Kernel:
             on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
         )
 
+        # Adds in a post_execution hook to run pytest immediately
+        if user_config.get("experimental", {}).get("reactive_pytest", False):
+            from marimo._runtime.runner.hooks_post_execution import (
+                _attempt_pytest,
+            )
+
+            self._post_execution_hooks.append(_attempt_pytest)
+
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 
@@ -766,7 +776,10 @@ class Kernel:
                 syntax_error[0] = syntax_error[0][
                     syntax_error[0].find("line") :
                 ]
-                error = MarimoSyntaxError(msg="\n".join(syntax_error))
+                if isinstance(e, ImportStarError):
+                    error = MarimoImportStarError(msg=str(e))
+                else:
+                    error = MarimoSyntaxError(msg="\n".join(syntax_error))
             else:
                 tmpio = io.StringIO()
                 traceback.print_exc(file=tmpio)

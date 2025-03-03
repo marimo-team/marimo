@@ -46,6 +46,16 @@ export const LanguagePanelComponent: React.FC<{
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
     showDivider = true;
+    const sanitizeAndTriggerUpdate = (
+      e: React.SyntheticEvent<HTMLInputElement>,
+    ) => {
+      // Normalize the name to a valid variable name
+      const name = normalizeName(e.currentTarget.value, false);
+      languageAdapter.setDataframeName(name);
+      e.currentTarget.value = name;
+
+      triggerUpdate();
+    };
     actions = (
       <div className="flex flex-1 gap-2 relative items-center">
         <label className="flex gap-2 items-center">
@@ -57,13 +67,11 @@ export const LanguagePanelComponent: React.FC<{
               languageAdapter.setDataframeName(e.target.value);
               inputProps.onChange?.(e);
             }}
-            onBlur={(e) => {
-              // Normalize the name to a valid variable name
-              const name = normalizeName(e.target.value, false);
-              languageAdapter.setDataframeName(name);
-              e.target.value = name;
-
-              triggerUpdate();
+            onBlur={sanitizeAndTriggerUpdate}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.shiftKey) {
+                sanitizeAndTriggerUpdate(e);
+              }
             }}
             className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />

@@ -12,6 +12,7 @@ export interface ExperimentalFeatures {
   wasm_layouts: boolean;
   scratchpad: boolean;
   rtc: boolean;
+  reactive_tests: boolean;
   // Add new feature flags here
 }
 
@@ -21,11 +22,17 @@ const defaultValues: ExperimentalFeatures = {
   wasm_layouts: false,
   scratchpad: true,
   rtc: false,
+  reactive_tests: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,
 ): ExperimentalFeatures[T] {
+  // Disable "rtc", regardless of the user's configuration, until
+  // it is more stable.
+  if (feature === "rtc") {
+    return false;
+  }
   return (
     (getResolvedMarimoConfig().experimental?.[
       feature
