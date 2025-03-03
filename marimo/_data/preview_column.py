@@ -61,7 +61,7 @@ def get_column_preview_dataframe(
         if not DependencyManager.altair.has():
             error = (
                 "Altair is required to render charts. "
-                "Install it with `pip install altair`."
+                "Install it via the Manage packages side panel."
             )
         else:
             # Check for special characters that can't be escaped easily
