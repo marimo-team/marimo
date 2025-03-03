@@ -83,7 +83,8 @@ export const KeyboardShortcuts: React.FC = () => {
       },
     };
 
-    const { [editingShortcut]: _, ...rest } = newConfig.keymap.overrides;
+    // Delete the shortcut from the overrides
+    const { [editingShortcut]: Unused, ...rest } = newConfig.keymap.overrides;
     newConfig.keymap.overrides = rest;
 
     setEditingShortcut(null);

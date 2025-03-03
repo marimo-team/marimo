@@ -2,8 +2,8 @@
 import globals from "globals";
 import { FlatCompat } from "@eslint/eslintrc";
 import eslintJs from "@eslint/js";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";

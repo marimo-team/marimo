@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-empty-interface */
 
 export type CopilotSignInInitiateParams = object;
 export interface CopilotSignInInitiateResult {

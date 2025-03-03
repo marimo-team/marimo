@@ -107,7 +107,6 @@ export const API = {
     response: Response;
   }): Promise<T> => {
     if (response.error) {
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       return Promise.reject(response.error);
     }
     return Promise.resolve(response.data as T);
@@ -117,7 +116,6 @@ export const API = {
     response: Response;
   }): Promise<null> => {
     if (response.error) {
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       return Promise.reject(response.error);
     }
     return Promise.resolve(null);
@@ -125,7 +123,7 @@ export const API = {
 };
 
 export const marimoClient = createMarimoClient({
-  // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
+  // Using document check for SSR compatibility
   baseUrl:
     typeof document === "undefined"
       ? undefined

@@ -162,7 +162,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "run-s lint:eslint lint:stylelint lint:biome format",
     "lint:biome": "biome lint --diagnostic-level=warn --write .",
-    "lint:eslint": "TIMING=1 eslint src e2e-tests --fix",
+    "lint:eslint": "ESLINT_USE_FLAT_CONFIG=true TIMING=1 eslint src e2e-tests --fix",
     "lint:stylelint": "stylelint src/**/*.css --fix",
     "format": "biome format --write .",
     "preview": "vite preview",

@@ -29,7 +29,7 @@ if (isStaticNotebook()) {
   patchVegaLoader(vegaLoader);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-non-null-assertion, ssr-friendly/no-dom-globals-in-module-scope
+// Create root element for React rendering
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 try {

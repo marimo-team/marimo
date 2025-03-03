@@ -6,7 +6,7 @@ import { isPlatformMac } from "../hotkeys/shortcuts";
 import { KnownQueryParams } from "../constants";
 
 export const isEmbedded =
-  // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
+  // Using window check for embedded detection
   typeof window !== "undefined" && window.parent !== window;
 
 // To enable keyboard shortcuts of VS Code when the iframe is focused,

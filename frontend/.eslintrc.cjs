@@ -45,9 +45,6 @@ module.exports = {
   ],
   rules: {
     // Temporarily disabled due to compatibility issues with ESLint 9.x
-    // "react-compiler/react-compiler": "warn",
-    "ssr-friendly/no-dom-globals-in-module-scope": "off",
-    "react-compiler/react-compiler": "off",
 
     "header/header": [
       "error",
