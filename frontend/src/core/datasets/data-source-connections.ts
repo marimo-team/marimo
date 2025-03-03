@@ -192,23 +192,24 @@ const {
         if (db.name !== sqlTableContext.database) {
           return db;
         }
+
         return {
           ...db,
           schemas: db.schemas.map((schema) => {
             if (schema.name !== sqlTableContext.schema) {
               return schema;
             }
+
+            // If tables array is empty, add the table
+            // Otherwise, replace existing table or keep unchanged tables
+            const tables =
+              schema.tables.length === 0
+                ? [table]
+                : schema.tables.map((t) => (t.name === tableName ? table : t));
+
             return {
               ...schema,
-              tables:
-                schema.tables.length === 0
-                  ? [table]
-                  : schema.tables.map((t) => {
-                      if (t.name !== tableName) {
-                        return t;
-                      }
-                      return table;
-                    }),
+              tables,
             };
           }),
         };
