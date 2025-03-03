@@ -50,6 +50,7 @@ export const {
   readSnippets,
   previewDatasetColumn,
   previewSQLTable,
+  previewSQLTableList,
   openFile,
   getUsageStats,
   sendListFiles,
