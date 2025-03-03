@@ -340,8 +340,8 @@ def update_property(old: object, new: object) -> None:
     update_generic(old.fset, new.fset)  # type:ignore[attr-defined]
 
 
-def isinstance2(a: object, b: object, typ: type[Any]) -> bool:
-    return isinstance(a, typ) and isinstance(b, typ)
+def isinstance2(a: object, b: object, typo: type[Any]) -> bool:
+    return isinstance(a, typo) and isinstance(b, typo)
 
 
 UPDATE_RULES: list[
