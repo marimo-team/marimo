@@ -358,7 +358,7 @@ class progress_bar:
 
     def __iter__(self) -> Iterable[S | int]:
         for item in self.collection:
-            yield item
+            yield item  # type: ignore[misc]
             if not self.disabled:
                 self.progress.update(increment=self.step)
         self._finish()

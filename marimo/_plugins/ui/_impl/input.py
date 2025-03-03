@@ -1197,7 +1197,7 @@ class button(UIElement[Any, Any]):
             # frontend will send is 1
             return self._initial_value
         try:
-            return self._on_click(self._value)
+            return self._on_click(self._value)  # type: ignore[no-untyped-call]
         except Exception:
             sys.stderr.write(
                 f"on_click handler for button ({str(self)}) raised an Exception:\n {traceback.format_exc()}\n"
