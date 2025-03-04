@@ -2730,6 +2730,7 @@ export interface components {
         /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
+        pythonpath: string[];
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
