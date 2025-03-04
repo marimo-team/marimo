@@ -458,6 +458,13 @@ class Kernel:
         # timestamp, to save the user from having to spam the interrupt button
         self.last_interrupt_timestamp: Optional[float] = None
 
+        # Apply pythonpath from config at initialization
+        pythonpath = user_config["runtime"].get("pythonpath")
+        if pythonpath:
+            for path in pythonpath:
+                if path not in sys.path:
+                    sys.path.insert(0, path)
+
         self._preparation_hooks = (
             preparation_hooks
             if preparation_hooks is not None
