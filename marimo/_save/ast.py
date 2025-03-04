@@ -22,9 +22,7 @@ def compiled_ast(block: Sequence[ast.AST | ast.stmt]) -> ast.Module:
     return cast(
         ast.Module,
         compile(
-            ast.Module(
-                cast(list[ast.stmt], block), type_ignores=[]
-            ),
+            ast.Module(cast(list[ast.stmt], block), type_ignores=[]),
             # <ast> is non-standard as a filename, but easier to debug than
             # <module> everywhere.
             "<ast>",
