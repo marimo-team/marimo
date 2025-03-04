@@ -11,7 +11,7 @@ class TestGetContent(unittest.TestCase):
         mock_response = Mock()
         mock_response.choices = [Mock()]
         mock_response.choices[0].delta = None
-        
+
         # Ensure text attribute doesn't exist to avoid fallback
         type(mock_response).text = property(lambda self: None)
 
