@@ -8,7 +8,8 @@
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
   <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> ·
-  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
+  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a> ·
+  <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a>
 </p>
 
 <p align="center">
