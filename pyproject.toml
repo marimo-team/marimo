@@ -174,7 +174,7 @@ format = "ruff format"
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "mypy~=1.10.1",
+    "mypy~=1.15.0",
     # Types for mypy
     "leafmap~=0.39.2",
     "panel~=1.5.3",

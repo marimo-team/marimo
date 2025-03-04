@@ -228,13 +228,13 @@ class PythonTypeToOpenAPI:
 
     def convert_dataclass(
         self,
-        cls: type[Any],
+        cls: Any,
         processed_classes: dict[Any, str],
     ) -> dict[str, Any]:
         """Convert a dataclass to an OpenAPI schema.
 
         Args:
-            cls (Type[Any]): The dataclass to convert.
+            cls (Any): The dataclass type or instance to convert.
             processed_classes (Dict[Any, str]): A dictionary of processed classes.
 
         Raises:
@@ -243,13 +243,21 @@ class PythonTypeToOpenAPI:
         Returns:
             Dict[str, Any]: The OpenAPI schema.
         """
+        # If cls is an instance, get its class
+        if not isinstance(cls, type) and dataclasses.is_dataclass(cls):
+            cls = cls.__class__
+
         if not dataclasses.is_dataclass(cls):
             raise ValueError(f"{cls} is not a dataclass")
 
         if cls in processed_classes:
             return {"$ref": f"#/components/schemas/{processed_classes[cls]}"}
 
-        schema_name = self.name_overrides.get(cls, cls.__name__)
+        # Handle both class and instance for __name__ access
+        if isinstance(cls, type):
+            schema_name = self.name_overrides.get(cls, cls.__name__)
+        else:
+            schema_name = self.name_overrides.get(cls, cls.__class__.__name__)
         processed_classes[cls] = schema_name
 
         type_hints = get_type_hints(cls)

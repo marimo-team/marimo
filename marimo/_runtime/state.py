@@ -173,9 +173,9 @@ class SetFunctor(Generic[T]):
 
     def __call__(self, update: T | Callable[[T], T]) -> None:
         self._state._value = (
-            update(self._state._value)
+            update(self._state._value)  # type: ignore[assignment]
             if isinstance(update, (types.MethodType, types.FunctionType))
-            else update
+            else update  # type: ignore[assignment]
         )
         try:
             ctx = get_context()
