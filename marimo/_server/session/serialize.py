@@ -45,11 +45,14 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
         if cell_op.output:
             if cell_op.output.channel == CellChannel.MARIMO_ERROR:
                 for error in cast(list[MarimoError], cell_op.output.data):
+                    # Handle both dictionary and object errors
+                    error_type = error["type"] if isinstance(error, dict) else error.type
+                    error_value = error["msg"] if isinstance(error, dict) else error.describe()
                     outputs.append(
                         ErrorOutput(
                             type="error",
-                            ename=error.type,
-                            evalue=error.describe(),
+                            ename=error_type,
+                            evalue=error_value,
                             traceback=[],
                         )
                     )

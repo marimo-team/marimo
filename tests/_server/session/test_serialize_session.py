@@ -348,6 +348,32 @@ def test_deserialize_empty_data():
     assert cell.output is None
 
 
+def test_serialize_session_with_dict_error():
+    """Test serialization of a session with a dictionary error"""
+    view = SessionView()
+    view.cell_operations["cell1"] = CellOp(
+        cell_id="cell1",
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.MARIMO_ERROR,
+            mimetype="text/plain",
+            data=[{"type": "unknown", "msg": "Something went wrong"}],  # Dictionary instead of Error object
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code["cell1"] = (
+        "raise RuntimeError('Something went wrong')"
+    )
+
+    result = serialize_session_view(view)
+    assert len(result["cells"]) == 1
+    assert len(result["cells"][0]["outputs"]) == 1
+    assert result["cells"][0]["outputs"][0]["type"] == "error"
+    assert result["cells"][0]["outputs"][0]["ename"] == "unknown"
+    assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"
+
+
 class TestSessionCacheManager:
     """Test SessionCacheManager functionality"""
 
