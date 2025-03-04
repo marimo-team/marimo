@@ -38,7 +38,7 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
   }
 
   if (error.type === "exception" && error.exception_type === "NameError") {
-    const name = error.msg.match(/name '(.+)' is not defined/)?.[1];
+    const name = /name '(.+)' is not defined/.exec(error.msg)?.[1];
 
     if (!name || !(name in IMPORT_MAPPING)) {
       return [];

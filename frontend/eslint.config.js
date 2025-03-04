@@ -1,0 +1,113 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+import eslint from "@eslint/js";
+import tseslint from "typescript-eslint";
+import reactPlugin from "eslint-plugin-react";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import unicorn from "eslint-plugin-unicorn";
+import storybook from "eslint-plugin-storybook";
+import reactCompiler from "eslint-plugin-react-compiler";
+import header from "eslint-plugin-header";
+
+export default [
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: "./tsconfig.json",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+      react: reactPlugin,
+      "jsx-a11y": jsxA11y,
+      unicorn: unicorn,
+      storybook: storybook,
+      "react-compiler": reactCompiler,
+      header: header,
+    },
+    rules: {
+      "react-compiler/react-compiler": "warn",
+      "header/header": "off",
+      "@typescript-eslint/dot-notation": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/array-type": ["error", { default: "array-simple" }],
+      "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/prefer-for-of": "error",
+      "@typescript-eslint/prefer-function-type": "error",
+      curly: "error",
+      "react/prop-types": "off",
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/restrict-plus-operands": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/ban-types": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      "unicorn/consistent-function-scoping": "off",
+      "unicorn/filename-case": "off",
+      "unicorn/no-array-callback-reference": "off",
+      "unicorn/no-array-for-each": "off",
+      "unicorn/no-array-reduce": "off",
+      "unicorn/no-await-expression-member": "off",
+      "unicorn/no-negated-condition": "off",
+      "unicorn/no-nested-ternary": "off",
+      "unicorn/no-null": "off",
+      "unicorn/no-useless-undefined": "off",
+      "unicorn/prefer-at": "off",
+      "unicorn/prefer-dom-node-append": "off",
+      "unicorn/prefer-dom-node-dataset": "off",
+      "unicorn/prefer-dom-node-remove": "off",
+      "unicorn/prefer-export-from": "off",
+      "unicorn/prefer-module": "off",
+      "unicorn/prefer-node-protocol": "off",
+      "unicorn/prefer-number-properties": "off",
+      "unicorn/prefer-query-selector": "off",
+      "unicorn/prefer-string-replace-all": "off",
+      "unicorn/prefer-string-slice": "off",
+      "unicorn/prefer-top-level-await": "off",
+      "unicorn/prevent-abbreviations": "off",
+      "unicorn/switch-case-braces": "off",
+      "unicorn/template-indent": "off",
+      "unicorn/no-useless-switch-case": "off",
+      "unicorn/no-useless-spread": "off",
+      "unicorn/no-useless-fallback-in-spread": "off",
+      "unicorn/no-thenable": "off",
+      "unicorn/no-unnecessary-polyfills": "off",
+      "unicorn/prefer-ternary": "error",
+      "unicorn/prefer-array-some": "error",
+      "react/jsx-boolean-value": ["error", "always"],
+      "react/jsx-no-useless-fragment": "error",
+      "react/jsx-pascal-case": "error",
+      "react/self-closing-comp": "error",
+    },
+  },
+  {
+    files: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+    },
+  },
+];

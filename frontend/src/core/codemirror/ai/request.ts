@@ -49,7 +49,7 @@ Your task: ${opts.prompt}`;
     }),
   });
 
-  const firstLineIndent = opts.selection.match(/^\s*/)?.[0] || "";
+  const firstLineIndent = /^\s*/.exec(opts.selection)?.[0] || "";
 
   const reader = response.body?.getReader();
   if (!reader) {
