@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MultiselectPlugin } from "../MultiselectPlugin";
-import { IPluginProps } from "../../types";
+import type { IPluginProps } from "../../types";
 import { vi, describe, it, expect } from "vitest";
 
 describe("MultiselectPlugin", () => {
@@ -34,7 +34,11 @@ describe("MultiselectPlugin", () => {
       functions: {} as any,
     };
 
-    const { container } = render(<MultiselectPlugin.prototype.render {...props} />);
-    expect(container.querySelector("[data-marimo-element='multiselect']")).not.toBeNull();
+    const { container } = render(
+      <MultiselectPlugin.prototype.render {...props} />,
+    );
+    expect(
+      container.querySelector("[data-marimo-element='multiselect']"),
+    ).not.toBeNull();
   });
 });
