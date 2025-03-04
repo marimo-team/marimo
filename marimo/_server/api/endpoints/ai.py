@@ -171,7 +171,7 @@ def get_content(
         RawMessageStreamEvent | ChatCompletionChunk | GenerateContentResponse
     ),
 ) -> str | None:
-    if hasattr(response, "choices") and response.choices:
+    if hasattr(response, "choices") and response.choices and response.choices[0].delta:
         return response.choices[0].delta.content  # type: ignore
 
     if hasattr(response, "text"):
