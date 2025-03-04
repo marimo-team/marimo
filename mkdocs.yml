@@ -112,6 +112,7 @@ nav:
           - Embedding: guides/publishing/embedding.md
           - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
+          - Cloudflare Pages: guides/publishing/cloudflare_pages.md
           - Online playground: guides/publishing/playground.md
           - Community Cloud: guides/publishing/community_cloud/index.md
           - Self-host WASM: guides/publishing/self_host_wasm.md
