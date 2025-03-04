@@ -392,9 +392,17 @@ const TableList: React.FC<{
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
   const { addTableList } = useDataSourceActions();
+  const [tablesRequested, setTablesRequested] = React.useState(false);
+
+  // Custom loading state, we need to wait for the data to propagate once requested
+  // useAsyncData's loading state may return false before data has propagated
+  const [tablesLoading, setTablesLoading] = React.useState(false);
 
   const { loading, error } = useAsyncData(async () => {
-    if (tables.length === 0 && sqlTableContext) {
+    if (tables.length === 0 && sqlTableContext && !tablesRequested) {
+      setTablesRequested(true);
+      setTablesLoading(true);
+
       const { engine, database, schema } = sqlTableContext;
       const previewTableList = await PreviewSQLTableList.request({
         engine: engine,
@@ -403,6 +411,7 @@ const TableList: React.FC<{
       });
 
       if (!previewTableList?.tables) {
+        setTablesLoading(false);
         throw new Error("No tables available");
       }
 
@@ -410,10 +419,11 @@ const TableList: React.FC<{
         tables: previewTableList.tables,
         sqlTableContext: sqlTableContext,
       });
+      setTablesLoading(false);
     }
-  }, [tables.length, sqlTableContext]);
+  }, [tables.length, sqlTableContext, tablesRequested]);
 
-  if (loading) {
+  if (loading || tablesLoading) {
     return <LoadingState message="Loading tables..." />;
   }
 
@@ -422,20 +432,7 @@ const TableList: React.FC<{
   }
 
   if (tables.length === 0) {
-    // TODO: We should preview tables instead of disabling introspection
-    return (
-      <div className="text-sm text-muted-foreground py-1 pl-9">
-        No tables found or{" "}
-        <a
-          className="text-link"
-          href="https://docs.marimo.io/guides/working_with_data/sql/#database-schema-and-table-auto-discovery"
-          target="_blank"
-          rel="noreferrer"
-        >
-          introspection is disabled
-        </a>
-      </div>
-    );
+    return <EmptyState content="No tables found" className="pl-9" />;
   }
 
   const filteredTables = tables.filter((table) => {
@@ -467,11 +464,18 @@ const DatasetTableItem: React.FC<{
   const { addTable } = useDataSourceActions();
 
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [tableDetailsRequested, setTableDetailsRequested] =
+    React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
   const { loading, error } = useAsyncData(async () => {
-    // Only fetch table preview when the data is not passed in and doesn't exist in the atom
-    if (isExpanded && !tableDetailsExist && sqlTableContext) {
+    if (
+      isExpanded &&
+      !tableDetailsExist &&
+      sqlTableContext &&
+      !tableDetailsRequested
+    ) {
+      setTableDetailsRequested(true);
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
