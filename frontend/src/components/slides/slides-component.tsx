@@ -88,10 +88,15 @@ const SlidesComponent = ({
           <SwiperSlide key={index}>
             <div
               onKeyDown={(e) => {
-                // If the target is from a marimo element, stop propagation
+                // If the target is from a marimo element or its children, stop propagation
                 if (
                   e.target instanceof HTMLElement &&
-                  e.target.tagName.toLocaleLowerCase().startsWith("marimo-")
+                  (e.target.tagName.toLocaleLowerCase().startsWith("marimo-") ||
+                    e.target.closest("[data-marimo-element]") ||
+                    e.target.closest("[cmdk-root]") ||
+                    e.target.closest("[role=combobox]") ||
+                    e.target.closest("[role=listbox]") ||
+                    e.target.closest("[role=option]"))
                 ) {
                   e.stopPropagation();
                 }
