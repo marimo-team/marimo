@@ -89,9 +89,6 @@ export const CellSelectionFeature: TableFeature = {
       const currentIsSelected = cell.getIsSelected();
       const nextIsSelected = value !== undefined ? value : !currentIsSelected;
       const rowId = getRowId(row);
-      console.log(
-        `Should toggle cell: row id = ${rowId}, columnName = ${columnName}, value = ${value}, currently ${currentIsSelected}, next ${nextIsSelected}`,
-      );
 
       if (nextIsSelected && !currentIsSelected) {
         // Add cell to selection

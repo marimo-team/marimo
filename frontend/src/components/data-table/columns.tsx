@@ -186,7 +186,6 @@ export function generateColumns<T>({
             return;
           }
 
-          console.log("Select", value, cell);
           cell.toggleSelected();
         }
 
