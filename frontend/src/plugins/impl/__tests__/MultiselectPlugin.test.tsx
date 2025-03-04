@@ -10,6 +10,12 @@ interface MultiselectData {
   fullWidth: boolean;
 }
 
+// Create a wrapper component to render the plugin
+const MultiselectWrapper = (props: IPluginProps<string[], MultiselectData>) => {
+  // Call the render method directly
+  return MultiselectPlugin.prototype.render(props);
+};
+
 describe("MultiselectPlugin", () => {
   it("renders correctly", () => {
     const props: IPluginProps<string[], MultiselectData> = {
@@ -24,7 +30,7 @@ describe("MultiselectPlugin", () => {
       functions: {},
     };
 
-    render(<MultiselectPlugin["prototype"]["render"] {...props} />);
+    render(<MultiselectWrapper {...props} />);
     expect(screen.getByText("Test")).toBeInTheDocument();
   });
 
@@ -42,10 +48,10 @@ describe("MultiselectPlugin", () => {
     };
 
     const { container } = render(
-      <MultiselectPlugin["prototype"]["render"] {...props} />,
+      <MultiselectWrapper {...props} />
     );
     expect(
-      container.querySelector("[data-marimo-element='multiselect']"),
+      container.querySelector("[data-marimo-element='multiselect']")
     ).not.toBeNull();
   });
 });
