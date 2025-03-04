@@ -13,13 +13,13 @@ class TestGetContent(unittest.TestCase):
         mock_response.choices[0].delta = None
 
         # Ensure text attribute doesn't exist to avoid fallback
-        type(mock_response).text = property(lambda self: None)
+        type(mock_response).text = property(lambda _: None)
 
         # Call get_content with the mock response
         result = get_content(mock_response)
 
         # Assert that the result is None
-        self.assertIsNone(result)
+        assert result is None
 
     def test_get_content_with_delta_content(self) -> None:
         # Create a mock response with choices and delta.content
@@ -32,4 +32,4 @@ class TestGetContent(unittest.TestCase):
         result = get_content(mock_response)
 
         # Assert that the result is the expected content
-        self.assertEqual(result, "Test content")
+        assert result == "Test content"
