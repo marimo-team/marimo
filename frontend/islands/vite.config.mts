@@ -29,11 +29,6 @@ const ReactCompilerConfig = {
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
-    conditions: [
-      "module",
-      "browser",
-      process.env.NODE_ENV === "production" ? "production" : "development",
-    ],
   },
   worker: {
     format: "es",
@@ -73,13 +68,21 @@ export default defineConfig({
   ],
   build: {
     emptyOutDir: true,
-    outDir: "dist",
-    assetsDir: ".",
+    lib: {
+      entry: path.resolve(__dirname, "../src/core/islands/main.ts"),
+      formats: ["es"],
+    },
     rollupOptions: {
-      input: path.resolve(__dirname, "../src/core/islands/main.ts"),
       output: {
-        entryFileNames: "main.js",
-        assetFileNames: "style.css",
+        // Remove hash from entry file name, so it's easier to import
+        entryFileNames: "[name].js",
+        // Ensure CSS is output as style.css instead of frontend.css
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.names.includes("frontend.css")) {
+            return "style.css";
+          }
+          return assetInfo.names[0];
+        },
       },
     },
   },
