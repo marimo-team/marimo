@@ -17,12 +17,12 @@ export interface CellSelectionCell {
   /**
    * Returns whether or not the cell is selected.
    */
-  getIsSelected: () => boolean;
+  getIsSelected?: () => boolean;
 
   /**
    * Selects/deselects the cell.
    */
-  toggleSelected: (value?: boolean) => void;
+  toggleSelected?: (value?: boolean) => void;
 }
 
 // These are additional properties add to the table instance in createTable

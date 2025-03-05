@@ -186,10 +186,10 @@ export function generateColumns<T>({
             return;
           }
 
-          cell.toggleSelected();
+          cell.toggleSelected?.();
         }
 
-        const isCellSelected = cell.getIsSelected();
+        const isCellSelected = cell?.getIsSelected?.() || false;
         const canSelectCell =
           (selection === "single-cell" || selection === "multi-cell") &&
           !isCellSelected;
