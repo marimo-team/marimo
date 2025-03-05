@@ -19,7 +19,10 @@ import { connectionAtom } from "@/core/network/connection";
 
 // Mock dependencies
 vi.mock("y-websocket", () => ({
-  WebsocketProvider: vi.fn(),
+  WebsocketProvider: vi.fn().mockImplementation(() => ({
+    on: vi.fn(),
+    destroy: vi.fn(),
+  })),
 }));
 
 vi.mock("@/core/kernel/session", () => ({
@@ -34,6 +37,7 @@ describe("CellProviderManager", () => {
     doc: {
       getText: vi.fn(),
     },
+    on: vi.fn(),
     destroy: vi.fn(),
   };
   const mockYText = {};
@@ -72,6 +76,7 @@ describe("CellProviderManager", () => {
         params: {
           session_id: "test-session",
         },
+        resyncInterval: 5000,
       },
     );
     expect(provider).toBe(mockProvider);
@@ -110,6 +115,7 @@ describe("CellProviderManager", () => {
           session_id: "test-session",
           file: "/path/to/file.py",
         },
+        resyncInterval: 5000,
       },
     );
   });
