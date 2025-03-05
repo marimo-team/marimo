@@ -103,6 +103,12 @@ class SortArgs:
     descending: bool
 
 
+@dataclass
+class GetRowIdsResponse:
+    row_ids: list[int]
+    error: Optional[str] = None
+
+
 @mddoc
 class table(
     UIElement[
@@ -416,6 +422,11 @@ class table(
                     arg_cls=SearchTableArgs,
                     function=self._search,
                 ),
+                Function(
+                    name="get_all_row_ids",
+                    arg_cls=EmptyArgs,
+                    function=self._get_all_row_ids,
+                ),
             ),
         )
 
@@ -648,6 +659,29 @@ class table(
             data=clamp_rows_and_columns(result),
             total_rows=result.get_num_rows(force=True) or 0,
         )
+
+    def _get_all_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
+        """Get all row IDs of a table, useful when the table is searched."""
+        del args
+
+        row_ids: list[int] = []
+
+        if self._searched_manager.get_num_rows() > 1_000_000:
+            return GetRowIdsResponse(
+                row_ids=row_ids,
+                error="Select all is unavailable for large datasets. Please filter to less than 1,000,000 rows",
+            )
+
+        try:
+            # searched manager can be used even if the table is not searched
+            # as we assign manager to searched_manager in the constructor
+            df = self._searched_manager.data
+            row_ids = df[INDEX_COLUMN_NAME].to_list()
+            return GetRowIdsResponse(row_ids=row_ids)
+        except Exception:
+            return GetRowIdsResponse(
+                row_ids=row_ids, error="Failed to get row IDs."
+            )
 
     def _repr_markdown_(self) -> str:
         """Return a markdown representation of the table.

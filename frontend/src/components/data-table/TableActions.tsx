@@ -8,6 +8,8 @@ import { SearchIcon } from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
+import type { GetAllRowIds } from "@/plugins/impl/DataTablePlugin";
+import { toast } from "../ui/use-toast";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -20,6 +22,7 @@ interface TableActionsProps<TData> {
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
+  getAllRowIds: GetAllRowIds;
 }
 
 export const TableActions = <TData,>({
@@ -33,7 +36,32 @@ export const TableActions = <TData,>({
   onRowSelectionChange,
   table,
   downloadAs,
+  getAllRowIds,
 }: TableActionsProps<TData>) => {
+  const handleSelectAllRows = (value: boolean) => {
+    if (!onRowSelectionChange) {
+      return;
+    }
+
+    if (value) {
+      getAllRowIds({}).then((data) => {
+        if (data.error) {
+          toast({
+            title: "Not available",
+            description: data.error,
+            variant: "danger",
+          });
+        } else {
+          onRowSelectionChange(
+            Object.fromEntries(data.row_ids.map((id) => [id, true])),
+          );
+        }
+      });
+    } else {
+      onRowSelectionChange({});
+    }
+  };
+
   return (
     <div className="flex items-center justify-between flex-shrink-0 pt-1">
       {onSearchQueryChange && enableSearch && (
@@ -52,21 +80,7 @@ export const TableActions = <TData,>({
         <DataTablePagination
           totalColumns={totalColumns}
           selection={selection}
-          onSelectAllRowsChange={
-            onRowSelectionChange
-              ? (value: boolean) => {
-                  if (value) {
-                    const allKeys = Array.from(
-                      { length: table.getRowCount() },
-                      (_, i) => [i, true] as const,
-                    );
-                    onRowSelectionChange(Object.fromEntries(allKeys));
-                  } else {
-                    onRowSelectionChange({});
-                  }
-                }
-              : undefined
-          }
+          onSelectAllRowsChange={handleSelectAllRows}
           table={table}
         />
       ) : (

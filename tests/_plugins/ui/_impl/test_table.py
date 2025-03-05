@@ -444,6 +444,26 @@ def test_search_sort_nonexistent_columns() -> None:
     assert table._convert_value(["0"]) == ["banana"]
 
 
+def test_get_searched_row_ids() -> None:
+    data = {
+        "id": [1, 2, 3, 4, 5] * 3,
+        "fruits": ["banana", "apple", "cherry", "grapes", "elderberry"] * 3,
+        "quantity": [10, 20, 30, 40, 50] * 3,
+    }
+    table = ui.table(data)
+
+    table._search(
+        SearchTableArgs(
+            query="cherry",
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    response = table._get_all_row_ids(EmptyArgs())
+    assert response.row_ids == [2, 7, 12]
+
+
 def test_table_with_too_many_columns_passes() -> None:
     data = {str(i): [1] for i in range(101)}
     assert ui.table(data) is not None
