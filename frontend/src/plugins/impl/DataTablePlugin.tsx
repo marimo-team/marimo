@@ -18,6 +18,7 @@ import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 
 import {
+  type DataTableSelection,
   toFieldTypes,
   type ColumnHeaderSummary,
   type FieldTypesWithExternalType,
@@ -45,6 +46,7 @@ import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
+import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -66,7 +68,7 @@ interface Data<T> {
   totalRows: number | "too_many";
   pagination: boolean;
   pageSize: number;
-  selection: "single" | "multi" | null;
+  selection: DataTableSelection;
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
@@ -99,7 +101,7 @@ type Functions = {
   }>;
 };
 
-type S = Array<string | number>;
+type S = Array<number | string | { rowId: string; columnName?: string }>;
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -110,7 +112,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       totalRows: z.union([z.number(), z.literal("too_many")]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
-      selection: z.enum(["single", "multi"]).nullable().default(null),
+      selection: z
+        .enum(["single", "multi", "single-cell", "multi-cell"])
+        .nullable()
+        .default(null),
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
       showColumnSummaries: z
@@ -526,6 +531,25 @@ const DataTableComponent = ({
     },
   );
 
+  const cellSelection = value.filter(
+    (v) => v instanceof Object && v.columnName !== undefined,
+  ) as CellSelectionState;
+
+  const handleCellSelectionChange: OnChangeFn<CellSelectionState> = useEvent(
+    (updater) => {
+      if (selection === "single-cell") {
+        const nextValue = Functions.asUpdater(updater)(cellSelection);
+        // This maps to the _value in marimo/_plugins/ui/_impl/table.py I think
+        setValue(nextValue.slice(0, 1));
+      }
+
+      if (selection === "multi-cell") {
+        const nextValue = Functions.asUpdater(updater)(cellSelection);
+        setValue(nextValue);
+      }
+    },
+  );
+
   return (
     <>
       {/* // HACK: We assume "too_many" is coming from a SQL table */}
@@ -576,6 +600,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
+            onCellSelectionChange={handleCellSelectionChange}
           />
         </Labeled>
       </ColumnChartContext.Provider>

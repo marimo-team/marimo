@@ -11,6 +11,7 @@ from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.table_manager import Cell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
@@ -220,7 +221,10 @@ def test_value() -> None:
 def test_value_with_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
-    assert list(table._convert_value(["0", "2"])) == ["banana", "cherry"]
+    assert list(table._convert_value(["0", "2"])) == [
+        "banana",
+        "cherry",
+    ]
 
 
 def test_value_with_initial_selection() -> None:
@@ -390,6 +394,54 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     assert nw.from_native(value)["a"][0] == "baz"
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+    ),
+)
+def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
+    import narwhals as nw
+
+    table = ui.table(df, selection="multi-cell")
+    table._search(
+        SearchTableArgs(
+            query="bar",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value([{"rowId": "1", "columnName": "a"}])
+    assert not isinstance(value, nw.DataFrame)
+    assert value[0].value == "bar"
+
+    table._search(
+        SearchTableArgs(
+            query="foo",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    # Can still select rows not in the search
+    value = table._convert_value(
+        [{"rowId": 0, "columnName": "a"}, {"rowId": 1, "columnName": "a"}]
+    )
+    assert not isinstance(value, nw.DataFrame)
+    assert value[0].value == "foo"
+    assert len(value) == 1
+
+    # empty search
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value([{"rowId": "2", "columnName": "a"}])
+    assert not isinstance(value, nw.DataFrame)
+    assert value[0].value == "baz"
+
+
 def test_value_with_selection_then_sorting_dict_of_lists() -> None:
     data = {
         "company": [
@@ -426,6 +478,60 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
         "Company B",
         "Company E",
     ]
+
+
+def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
+    data = {
+        "company": [
+            "Company A",
+            "Company B",
+            "Company C",
+            "Company D",
+            "Company E",
+        ],
+        "type": ["Tech", "Finance", "Health", "Tech", "Finance"],
+        "net_worth": [1000, 2000, 1500, 1800, 1700],
+    }
+    table = ui.table(data, selection="multi-cell")
+
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(
+        [
+            {"rowId": "0", "columnName": "company"},
+            {"rowId": "2", "columnName": "company"},
+        ]
+    ) == [
+        Cell(rowId="0", columnName="company", value="Company A"),
+        Cell(rowId="2", columnName="company", value="Company C"),
+    ]
+
+    table._search(
+        SearchTableArgs(
+            sort=SortArgs("net_worth", descending=True),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(
+        [
+            {"rowId": "0", "columnName": "company"},
+            {"rowId": "2", "columnName": "company"},
+        ]
+    ) == [
+        Cell(rowId="0", columnName="company", value="Company B"),
+        Cell(rowId="2", columnName="company", value="Company E"),
+    ]
+
+
+@pytest.mark.parametrize("df", create_dataframes({"a": [1, 2, 3]}, ["ibis"]))
+def test_value_with_cell_selection_unsupported_for_ibis(df: Any) -> None:
+    with pytest.raises(NotImplementedError):
+        _table = ui.table(df, selection="multi-cell")
 
 
 def test_search_sort_nonexistent_columns() -> None:
