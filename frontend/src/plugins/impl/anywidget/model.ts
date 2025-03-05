@@ -17,6 +17,8 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     private sendToWidget: (req: { content?: any }) => Promise<null | undefined>,
   ) {}
 
+  // TODO: there might be a bug here still, because we don't re-initialize
+  // the dirty fields when the anywidget mounts/re-mounts.
   private dirtyFields = new Set<keyof T>();
   private listeners: Record<string, Set<EventHandler>> = {};
 
