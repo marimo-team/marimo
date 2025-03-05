@@ -307,9 +307,9 @@ const requestHandler = createRPCRequestHandler({
     const response =
       payloadString == null
         ? // @ts-expect-error ehh TypeScript
-        await bridge[functionName]()
+          await bridge[functionName]()
         : // @ts-expect-error ehh TypeScript
-        await bridge[functionName](payloadString);
+          await bridge[functionName](payloadString);
 
     // Sync the filesystem if we're saving, creating, deleting, or renaming a file
     if (namesThatRequireSync.has(functionName)) {

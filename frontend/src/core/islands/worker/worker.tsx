@@ -131,9 +131,9 @@ const requestHandler = createRPCRequestHandler({
     const response =
       payloadString == null
         ? // @ts-expect-error ehh TypeScript
-        await bridge[functionName]()
+          await bridge[functionName]()
         : // @ts-expect-error ehh TypeScript
-        await bridge[functionName](payloadString);
+          await bridge[functionName](payloadString);
 
     // Post the response back to the main thread
     return typeof response === "string" ? JSON.parse(response) : response;
