@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import json
 import sys
 from enum import Enum
@@ -49,6 +50,12 @@ class DataclassParser:
             return bool(value)  # type: ignore[return-value]
         if cls is bytes and isinstance(value, bytes):
             return bytes(value)  # type: ignore[return-value]
+
+        # Handle date and datetime types
+        if cls is datetime.date and isinstance(value, str):
+            return datetime.datetime.fromisoformat(value).date()  # type: ignore[return-value]
+        if cls is datetime.datetime and isinstance(value, str):
+            return datetime.datetime.fromisoformat(value)  # type: ignore[return-value]
 
         if cls is Any:  # type: ignore[comparison-overlap]
             return value  # type: ignore[no-any-return]

@@ -1,11 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Generic, Literal, NewType, Optional, TypeVar, Union
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    NewType,
+    Optional,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 
 import pytest
 
@@ -689,34 +699,40 @@ def test_recursive_structure_limit() -> None:
     assert count == 100
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 11), reason="Not supported in Python >= 3.11"
+)
 def test_not_required_types() -> None:
-    @dataclass
-    class WithNotRequired:
+    class WithNotRequired(TypedDict):
         required: str
         optional: NotRequired[str]
         optional_dict: NotRequired[dict[str, str]]
         optional_list: NotRequired[list[str]]
 
     # Test with all fields provided
-    data = {
+    data: dict[str, Any] = {
         "required": "value",
         "optional": "optional_value",
         "optionalDict": {"key": "value"},
         "optionalList": ["item"],
     }
-    parsed = parse_raw(json.dumps(data).encode(), WithNotRequired)
-    assert parsed.required == "value"
-    assert parsed.optional == "optional_value"
-    assert parsed.optional_dict == {"key": "value"}
-    assert parsed.optional_list == ["item"]
+    parsed = parse_raw(data, WithNotRequired)
+    assert parsed["required"] == "value"
+    assert parsed["optional"] == "optional_value"
+    assert parsed["optional_dict"] == {"key": "value"}
+    assert parsed["optional_list"] == ["item"]
 
     # Test with only required fields
     data = {"required": "value"}
-    parsed = parse_raw(json.dumps(data).encode(), WithNotRequired)
-    assert parsed.required == "value"
-    assert not hasattr(parsed, "optional") or parsed.optional is None
-    assert not hasattr(parsed, "optional_dict") or parsed.optional_dict is None
-    assert not hasattr(parsed, "optional_list") or parsed.optional_list is None
+    parsed = parse_raw(data, WithNotRequired)
+    assert parsed["required"] == "value"
+    assert not hasattr(parsed, "optional") or parsed["optional"] is None
+    assert (
+        not hasattr(parsed, "optional_dict") or parsed["optional_dict"] is None
+    )
+    assert (
+        not hasattr(parsed, "optional_list") or parsed["optional_list"] is None
+    )
 
     # Test with empty values for container types
     data = {
@@ -725,8 +741,93 @@ def test_not_required_types() -> None:
         "optionalDict": {},
         "optionalList": [],
     }
-    parsed = parse_raw(json.dumps(data).encode(), WithNotRequired)
-    assert parsed.required == "value"
-    assert parsed.optional is None
-    assert parsed.optional_dict == {}
-    assert parsed.optional_list == []
+    parsed = parse_raw(data, WithNotRequired)
+    assert parsed["required"] == "value"
+    assert parsed["optional"] is None
+    assert parsed["optional_dict"] == {}
+    assert parsed["optional_list"] == []
+
+
+def test_date_and_datetime_types() -> None:
+    @dataclass
+    class DateTimeTypes:
+        date_value: dt.date
+        datetime_value: dt.datetime
+        optional_date: Optional[dt.date] = None
+        optional_datetime: Optional[dt.datetime] = None
+
+    # Test with ISO format strings
+    data = {
+        "dateValue": "2023-01-15",
+        "datetimeValue": "2023-01-15T14:30:45",
+        "optionalDate": "2023-02-20",
+        "optionalDatetime": "2023-02-20T18:15:30",
+    }
+
+    parsed = parse_raw(data, DateTimeTypes)
+
+    assert isinstance(parsed.date_value, dt.date)
+    assert parsed.date_value == dt.date(2023, 1, 15)
+
+    assert isinstance(parsed.datetime_value, dt.datetime)
+    assert parsed.datetime_value == dt.datetime(2023, 1, 15, 14, 30, 45)
+
+    assert isinstance(parsed.optional_date, dt.date)
+    assert parsed.optional_date == dt.date(2023, 2, 20)
+
+    assert isinstance(parsed.optional_datetime, dt.datetime)
+    assert parsed.optional_datetime == dt.datetime(2023, 2, 20, 18, 15, 30)
+
+    # Test with None values for optional fields
+    data = {
+        "dateValue": "2023-01-15",
+        "datetimeValue": "2023-01-15T14:30:45",
+        "optionalDate": None,
+        "optionalDatetime": None,
+    }
+
+    parsed = parse_raw(data, DateTimeTypes)
+
+    assert isinstance(parsed.date_value, dt.date)
+    assert parsed.date_value == dt.date(2023, 1, 15)
+
+    assert isinstance(parsed.datetime_value, dt.datetime)
+    assert parsed.datetime_value == dt.datetime(2023, 1, 15, 14, 30, 45)
+
+    assert parsed.optional_date is None
+    assert parsed.optional_datetime is None
+
+    # Test with nested structures containing dates and datetimes
+    @dataclass
+    class NestedDateTimes:
+        dates: list[dt.date]
+        datetimes: dict[str, dt.datetime]
+
+    nested_data = {
+        "dates": ["2023-01-15", "2023-02-20", "2023-03-25"],
+        "datetimes": {
+            "morning": "2023-01-15T08:00:00",
+            "noon": "2023-01-15T12:00:00",
+            "evening": "2023-01-15T18:00:00",
+        },
+    }
+
+    nested_parsed = parse_raw(nested_data, NestedDateTimes)
+
+    assert all(isinstance(d, dt.date) for d in nested_parsed.dates)
+    assert nested_parsed.dates[0] == dt.date(2023, 1, 15)
+    assert nested_parsed.dates[1] == dt.date(2023, 2, 20)
+    assert nested_parsed.dates[2] == dt.date(2023, 3, 25)
+
+    assert all(
+        isinstance(d, dt.datetime) for d in nested_parsed.datetimes.values()
+    )
+    assert nested_parsed.datetimes["morning"] == dt.datetime(
+        2023, 1, 15, 8, 0, 0
+    )
+    assert nested_parsed.datetimes["noon"] == dt.datetime(
+        2023, 1, 15, 12, 0, 0
+    )
+    assert nested_parsed.datetimes["evening"] == dt.datetime(
+        2023, 1, 15, 18, 0, 0
+    )
