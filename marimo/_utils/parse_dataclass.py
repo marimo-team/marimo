@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import sys
 from enum import Enum
 from typing import (
     Any,
@@ -14,6 +15,12 @@ from typing import (
     get_origin,
     get_type_hints,
 )
+
+# Import NotRequired from typing_extensions for Python < 3.11
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired
+else:
+    from typing import NotRequired
 
 T = TypeVar("T")
 
@@ -61,6 +68,13 @@ class DataclassParser:
             # against the supertype
             supertype = cls.__supertype__  # type: ignore
             return cls(self._build_value(value, supertype))  # type: ignore
+
+        # Handle NotRequired type
+        if origin_cls is NotRequired:
+            (arg_type,) = get_args(cls)
+            if value is None:
+                return None  # type: ignore[return-value]
+            return self._build_value(value, arg_type)  # type: ignore[no-any-return]
 
         if origin_cls is Optional:
             (arg_type,) = get_args(cls)

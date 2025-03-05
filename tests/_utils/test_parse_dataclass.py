@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Generic, Literal, NewType, Optional, TypeVar, Union
@@ -11,6 +12,12 @@ import pytest
 from marimo._runtime.requests import SetCellConfigRequest
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
+
+# Import NotRequired for testing
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired
+else:
+    from typing import NotRequired
 
 
 @dataclass
@@ -680,3 +687,46 @@ def test_recursive_structure_limit() -> None:
         count += 1
         node = node.next
     assert count == 100
+
+
+def test_not_required_types() -> None:
+    @dataclass
+    class WithNotRequired:
+        required: str
+        optional: NotRequired[str]
+        optional_dict: NotRequired[dict[str, str]]
+        optional_list: NotRequired[list[str]]
+
+    # Test with all fields provided
+    data = {
+        "required": "value",
+        "optional": "optional_value",
+        "optionalDict": {"key": "value"},
+        "optionalList": ["item"],
+    }
+    parsed = parse_raw(json.dumps(data).encode(), WithNotRequired)
+    assert parsed.required == "value"
+    assert parsed.optional == "optional_value"
+    assert parsed.optional_dict == {"key": "value"}
+    assert parsed.optional_list == ["item"]
+
+    # Test with only required fields
+    data = {"required": "value"}
+    parsed = parse_raw(json.dumps(data).encode(), WithNotRequired)
+    assert parsed.required == "value"
+    assert not hasattr(parsed, "optional") or parsed.optional is None
+    assert not hasattr(parsed, "optional_dict") or parsed.optional_dict is None
+    assert not hasattr(parsed, "optional_list") or parsed.optional_list is None
+
+    # Test with empty values for container types
+    data = {
+        "required": "value",
+        "optional": None,
+        "optionalDict": {},
+        "optionalList": [],
+    }
+    parsed = parse_raw(json.dumps(data).encode(), WithNotRequired)
+    assert parsed.required == "value"
+    assert parsed.optional is None
+    assert parsed.optional_dict == {}
+    assert parsed.optional_list == []
