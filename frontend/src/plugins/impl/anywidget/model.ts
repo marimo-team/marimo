@@ -72,7 +72,13 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     this.dirtyFields.forEach((key) => {
       partialData[key] = this.data[key];
     });
-    this.dirtyFields.clear();
+    // We don't clear the dirty fields here, because we want
+    // to send all fields that different from the initial value (have ever been changed).
+    // This is less performant, but more correct, because the backend
+    // stores the last value sent, and not a merge of the values.
+    // When the backend knows to merge the partial updates, then we can clear
+    // the dirty fields.
+    // this.dirtyFields.clear();
     this.onChange(partialData);
   }
 

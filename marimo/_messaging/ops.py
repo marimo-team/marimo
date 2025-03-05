@@ -390,8 +390,8 @@ class SendUIElementMessage(Op):
 
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: str
-    message: dict[str, object]
-    buffers: Optional[Sequence[str]]
+    message: dict[str, Any]
+    buffers: Optional[list[str]]
 
 
 @dataclass

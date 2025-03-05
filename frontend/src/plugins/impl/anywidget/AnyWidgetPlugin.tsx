@@ -24,6 +24,7 @@ interface Data {
   jsHash: string;
   css?: string | null;
   bufferPaths?: Array<Array<string | number>> | null;
+  initialValue: T;
 }
 
 type T = Record<string, any>;
@@ -42,6 +43,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
       bufferPaths: z
         .array(z.array(z.union([z.string(), z.number()])))
         .nullish(),
+      initialValue: z.object({}).passthrough(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -171,11 +173,18 @@ const LoadedSlot = ({
   setValue,
   widget,
   functions,
+  data,
   host,
 }: Props & { widget: AnyWidget }) => {
   const ref = useRef<HTMLDivElement>(null);
   const model = useRef<Model<T>>(
-    new Model(value, setValue, functions.send_to_widget),
+    new Model(
+      // Merge the initial value with the current value
+      // since we only send partial updates to the backend
+      { ...data.initialValue, ...value },
+      setValue,
+      functions.send_to_widget,
+    ),
   );
 
   // Listen to incoming messages
