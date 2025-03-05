@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { getDirtyFields } from "../AnyWidgetPlugin";
 import { Model } from "../model";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 
@@ -12,7 +13,12 @@ describe("Model", () => {
   beforeEach(() => {
     onChange = vi.fn();
     sendToWidget = vi.fn().mockResolvedValue(null);
-    model = new Model({ foo: "test", bar: 123 }, onChange, sendToWidget);
+    model = new Model(
+      { foo: "test", bar: 123 },
+      onChange,
+      sendToWidget,
+      new Set(),
+    );
   });
 
   describe("get/set", () => {
@@ -51,7 +57,25 @@ describe("Model", () => {
       });
     });
 
-    it("should clear dirty fields after save", () => {
+    it("should send all dirty fields", () => {
+      model.set("foo", "new value");
+      model.save_changes();
+
+      expect(onChange).toHaveBeenCalledWith({
+        foo: "new value",
+      });
+
+      model.set("bar", 456);
+      model.save_changes();
+
+      expect(onChange).toHaveBeenCalledWith({
+        foo: "new value",
+        bar: 456,
+      });
+    });
+
+    // Skip because we don't clear the dirty fields after save
+    it.skip("should clear dirty fields after save", () => {
       model.set("foo", "new value");
       model.save_changes();
       model.save_changes(); // Second save should not call onChange
@@ -145,6 +169,7 @@ describe("Model", () => {
         { foo: { nested: "test" } },
         onChange,
         sendToWidget,
+        new Set(),
       );
       const callback = vi.fn();
       modelWithObject.on("change:foo", callback);
@@ -211,5 +236,56 @@ describe("Model", () => {
 
       expect(consoleSpy).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe("getDirtyFields", () => {
+  it("should return empty set when values are equal", () => {
+    const value = { foo: "bar", baz: 123 };
+    const initialValue = { foo: "bar", baz: 123 };
+
+    const result = getDirtyFields(value, initialValue);
+
+    expect(result.size).toBe(0);
+  });
+
+  it("should return keys of changed values", () => {
+    const value = { foo: "changed", baz: 123 };
+    const initialValue = { foo: "bar", baz: 123 };
+
+    const result = getDirtyFields(value, initialValue);
+
+    expect(result.size).toBe(1);
+    expect(result.has("foo")).toBe(true);
+  });
+
+  it("should handle multiple changed values", () => {
+    const value = { foo: "changed", baz: 456, extra: "new" };
+    const initialValue = { foo: "bar", baz: 123, extra: "old" };
+
+    const result = getDirtyFields(value, initialValue);
+
+    expect(result.size).toBe(3);
+    expect(result.has("foo")).toBe(true);
+    expect(result.has("baz")).toBe(true);
+    expect(result.has("extra")).toBe(true);
+  });
+
+  it("should handle nested objects correctly", () => {
+    const value = { foo: "bar", nested: { a: 1, b: 2 } };
+    const initialValue = { foo: "bar", nested: { a: 1, b: 3 } };
+
+    const result = getDirtyFields(value, initialValue);
+
+    expect(result.size).toBe(1);
+    expect(result.has("nested")).toBe(true);
+  });
+
+  it("should handle subset of initial fields", () => {
+    const value = { foo: "bar", baz: 123 };
+    const initialValue = { foo: "bar", baz: 123, full: "value" };
+
+    const result = getDirtyFields(value, initialValue);
+    expect(result.size).toBe(0);
   });
 });

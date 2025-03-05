@@ -3001,9 +3001,7 @@ export interface components {
     SendUIElementMessage: {
       buffers?: string[] | null;
       message: {
-        [key: string]: {
-          [key: string]: unknown;
-        };
+        [key: string]: unknown;
       };
       /** @enum {string} */
       name: "send-ui-element-message";
