@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Literal, Optional, Union
+from typing import Any, Generic, Literal, NewType, Optional, TypeVar, Union
 
 import pytest
 
@@ -290,3 +290,393 @@ def test_with_unknown_keys() -> None:
 
     parsed = parse_raw({"key": "value"}, Empty, allow_unknown_keys=True)
     assert parsed == Empty()
+
+
+def test_newtype() -> None:
+    UserId = NewType("UserId", int)
+
+    @dataclass
+    class User:
+        id: UserId
+        name: str
+
+    # Need to use globals() to make the NewType available in the scope
+    globals()["UserId"] = UserId
+
+    parsed = parse_raw({"id": 123, "name": "John"}, User)
+    assert parsed == User(id=UserId(123), name="John")
+    assert isinstance(parsed.id, int)
+
+
+def test_nested_optional_fields() -> None:
+    @dataclass
+    class NestedOptional:
+        value: Optional[Config] = None
+
+    # Test with None value
+    parsed = parse_raw({}, NestedOptional)
+    assert parsed == NestedOptional(value=None)
+
+    # Test with actual value
+    parsed = parse_raw(
+        {"value": {"disabled": True, "gpu": False}}, NestedOptional
+    )
+    assert parsed == NestedOptional(value=Config(disabled=True, gpu=False))
+
+
+def test_mixed_container_types() -> None:
+    @dataclass
+    class MixedContainer:
+        data: list[Union[int, str, Config]]
+
+    mixed = MixedContainer(
+        data=[1, "string", Config(disabled=True, gpu=False)]
+    )
+
+    parsed = parse_raw(serialize(mixed), MixedContainer)
+    assert parsed == mixed
+
+
+def test_complex_nested_structures() -> None:
+    @dataclass
+    class ComplexNested:
+        mapping: dict[str, list[Optional[Config]]]
+
+    complex_data = ComplexNested(
+        mapping={
+            "first": [Config(disabled=True, gpu=False), None],
+            "second": [Config(disabled=False, gpu=True)],
+        }
+    )
+
+    parsed = parse_raw(serialize(complex_data), ComplexNested)
+    assert parsed == complex_data
+
+
+def test_invalid_enum_value() -> None:
+    @dataclass
+    class WithEnum:
+        animal: AnimalType
+
+    # Test with invalid enum value
+    with pytest.raises(ValueError) as e:
+        parse_raw({"animal": "fish"}, WithEnum)
+    assert "fish" in str(e.value)
+
+
+def test_literal_types() -> None:
+    @dataclass
+    class WithLiteral:
+        status: Literal["active", "inactive", "pending"]
+
+    # Valid literal value
+    parsed = parse_raw({"status": "active"}, WithLiteral)
+    assert parsed == WithLiteral(status="active")
+
+    # Invalid literal value
+    with pytest.raises(ValueError) as e:
+        parse_raw({"status": "deleted"}, WithLiteral)
+    assert "does not fit any type of the literal" in str(e.value)
+
+
+def test_missing_required_fields() -> None:
+    @dataclass
+    class Required:
+        name: str
+        age: int
+
+    # Missing required field
+    with pytest.raises(TypeError) as e:
+        parse_raw({"name": "John"}, Required)
+    assert (
+        "missing" in str(e.value).lower() or "required" in str(e.value).lower()
+    )
+
+
+def test_bytes_handling() -> None:
+    @dataclass
+    class WithBytes:
+        data: bytes
+
+    # We need to handle bytes specially since JSON doesn't support bytes directly
+    # This test verifies that bytes passed as a string are properly converted
+    original = WithBytes(data=b"hello")
+    serialized = json.dumps({"data": original.data.decode("utf-8")}).encode(
+        "utf-8"
+    )
+
+    # This should raise an error since JSON serialization of bytes doesn't work directly
+    with pytest.raises(ValueError):
+        parse_raw(serialized, WithBytes)
+
+
+def test_default_values() -> None:
+    @dataclass
+    class WithDefaults:
+        name: str
+        age: int = 30
+        active: bool = True
+
+    # Test with all values provided
+    parsed = parse_raw(
+        {"name": "John", "age": 25, "active": False}, WithDefaults
+    )
+    assert parsed == WithDefaults(name="John", age=25, active=False)
+
+    # Test with only required values
+    parsed = parse_raw({"name": "John"}, WithDefaults)
+    assert parsed == WithDefaults(name="John", age=30, active=True)
+
+
+def test_type_conversion() -> None:
+    @dataclass
+    class TypeConversion:
+        integer: int
+        floating: float
+        boolean: bool
+
+    parsed = parse_raw(
+        {"integer": 42, "floating": 3.14, "boolean": True}, TypeConversion
+    )
+    assert parsed.integer == 42
+    assert parsed.floating == 3.14
+    assert parsed.boolean is True
+
+
+def test_nested_union_with_none() -> None:
+    @dataclass
+    class NestedUnionWithNone:
+        value: Union[Config, None]
+
+    # Test with None
+    parsed = parse_raw({"value": None}, NestedUnionWithNone)
+    assert parsed.value is None
+
+    # Test with actual value
+    parsed = parse_raw(
+        {"value": {"disabled": True, "gpu": False}}, NestedUnionWithNone
+    )
+    assert parsed.value == Config(disabled=True, gpu=False)
+
+
+def test_forward_references() -> None:
+    # Define classes with forward references
+    @dataclass
+    class Node:
+        value: int
+        children: list[Node] = field(default_factory=list)
+
+    # Make Node available in globals for forward reference resolution
+    globals()["Node"] = Node
+
+    # Create a simple tree
+    leaf1 = Node(value=1)
+    leaf2 = Node(value=2)
+    root = Node(value=0, children=[leaf1, leaf2])
+
+    # Test serialization and parsing
+    parsed = parse_raw(serialize(root), Node)
+    assert parsed.value == 0
+    assert len(parsed.children) == 2
+    assert parsed.children[0].value == 1
+    assert parsed.children[1].value == 2
+
+
+def test_case_insensitive_enum() -> None:
+    class CaseInsensitiveEnum(str, Enum):
+        UPPER = "UPPER"
+        LOWER = "lower"
+        MIXED = "MiXeD"
+
+    # Make enum available in globals
+    globals()["CaseInsensitiveEnum"] = CaseInsensitiveEnum
+
+    @dataclass
+    class WithCaseEnum:
+        value: CaseInsensitiveEnum
+
+    # Test with exact case
+    parsed = parse_raw({"value": "UPPER"}, WithCaseEnum)
+    assert parsed.value == CaseInsensitiveEnum.UPPER
+
+    parsed = parse_raw({"value": "lower"}, WithCaseEnum)
+    assert parsed.value == CaseInsensitiveEnum.LOWER
+
+    # Test with different case (this will fail with current implementation)
+    with pytest.raises(ValueError):
+        parsed = parse_raw({"value": "upper"}, WithCaseEnum)
+
+
+def test_allow_unknown_keys_nested() -> None:
+    @dataclass
+    class Inner:
+        required: str
+
+    # Make Inner available in globals
+    globals()["Inner"] = Inner
+
+    @dataclass
+    class Outer:
+        inner: Inner
+
+    # Test with unknown keys in nested structure
+    data = {
+        "inner": {"required": "value", "unknown": "extra"},
+        "outer_unknown": "something",
+    }
+
+    # Should fail without allow_unknown_keys
+    with pytest.raises(ValueError) as e:
+        parsed = parse_raw(data, Outer)
+    assert "Unknown keys" in str(e.value)
+
+    # Should succeed with allow_unknown_keys
+    parsed = parse_raw(data, Outer, allow_unknown_keys=True)
+    assert parsed.inner.required == "value"
+
+
+def test_inheritance() -> None:
+    @dataclass
+    class Base:
+        id: int
+        name: str
+
+    @dataclass
+    class Derived(Base):
+        extra: bool
+
+    # Test parsing with inheritance
+    parsed = parse_raw({"id": 1, "name": "test", "extra": True}, Derived)
+    assert parsed == Derived(id=1, name="test", extra=True)
+
+    # Missing field from derived class
+    with pytest.raises(TypeError):
+        parsed = parse_raw({"id": 1, "name": "test"}, Derived)
+
+
+@pytest.mark.xfail(reason="Generic types are not supported yet")
+def test_generic_types() -> None:
+    T = TypeVar("T")
+
+    # Make T available in globals
+    globals()["T"] = T
+
+    @dataclass
+    class GenericContainer(Generic[T]):
+        value: T
+
+    @dataclass
+    class StringContainer(GenericContainer[str]):
+        pass
+
+    @dataclass
+    class IntContainer(GenericContainer[int]):
+        pass
+
+    # Test with string
+    parsed = parse_raw({"value": "test"}, StringContainer)
+    assert parsed == StringContainer(value="test")
+
+    # Test with int
+    parsed = parse_raw({"value": 42}, IntContainer)
+    assert parsed == IntContainer(value=42)
+
+
+def test_complex_union_discrimination() -> None:
+    @dataclass
+    class TypeA:
+        type: Literal["a"]
+        value_a: str
+
+    @dataclass
+    class TypeB:
+        type: Literal["b"]
+        value_b: int
+
+    @dataclass
+    class TypeC:
+        type: Literal["c"]
+        value_c: bool
+
+    # Make types available in globals
+    globals()["TypeA"] = TypeA
+    globals()["TypeB"] = TypeB
+    globals()["TypeC"] = TypeC
+
+    @dataclass
+    class Container:
+        data: Union[TypeA, TypeB, TypeC]
+
+    # Test with TypeA
+    parsed = parse_raw({"data": {"type": "a", "value_a": "test"}}, Container)
+    assert isinstance(parsed.data, TypeA)
+    assert parsed.data.value_a == "test"
+
+    # Test with TypeB
+    parsed = parse_raw({"data": {"type": "b", "value_b": 42}}, Container)
+    assert isinstance(parsed.data, TypeB)
+    assert parsed.data.value_b == 42
+
+    # Test with TypeC
+    parsed = parse_raw({"data": {"type": "c", "value_c": True}}, Container)
+    assert isinstance(parsed.data, TypeC)
+    assert parsed.data.value_c is True
+
+    # Test with invalid discriminator
+    with pytest.raises(ValueError):
+        parsed = parse_raw(
+            {"data": {"type": "d", "value": "invalid"}}, Container
+        )
+
+
+def test_empty_containers() -> None:
+    @dataclass
+    class EmptyContainers:
+        empty_list: list[str]
+        empty_dict: dict[str, int]
+        empty_tuple: tuple[int, ...]
+
+    # Test with empty containers
+    parsed = parse_raw(
+        {"empty_list": [], "empty_dict": {}, "empty_tuple": []},
+        EmptyContainers,
+    )
+    assert parsed.empty_list == []
+    assert parsed.empty_dict == {}
+    assert parsed.empty_tuple == ()
+
+
+def test_invalid_json() -> None:
+    @dataclass
+    class Simple:
+        value: str
+
+    # Test with invalid JSON
+    with pytest.raises(json.JSONDecodeError):
+        parse_raw(b"{invalid json}", Simple)
+
+
+def test_recursive_structure_limit() -> None:
+    @dataclass
+    class RecursiveNode:
+        value: int
+        next: Optional[RecursiveNode] = None
+
+    # Make RecursiveNode available in globals
+    globals()["RecursiveNode"] = RecursiveNode
+
+    # Create a deeply nested structure
+    current = None
+    for i in range(100):  # Create a chain of 100 nodes
+        current = RecursiveNode(value=i, next=current)
+
+    # This should work fine
+    parsed = parse_raw(serialize(current), RecursiveNode)
+
+    # Verify the structure
+    count = 0
+    node = parsed
+    while node is not None:
+        count += 1
+        node = node.next
+    assert count == 100

@@ -33,22 +33,22 @@ class DataclassParser:
     def _build_value(self, value: Any, cls: type[T]) -> T:
         # Handle basic types
         if cls is float and isinstance(value, (int, float)):
-            return float(value)  # type: ignore[no-any-return]
+            return float(value)  # type: ignore[return-value]
         if cls is int and isinstance(value, int):
-            return int(value)  # type: ignore[no-any-return]
+            return int(value)  # type: ignore[return-value]
         if cls is str and isinstance(value, str):
-            return str(value)  # type: ignore[no-any-return]
+            return str(value)  # type: ignore[return-value]
         if cls is bool and isinstance(value, bool):
-            return bool(value)  # type: ignore[no-any-return]
+            return bool(value)  # type: ignore[return-value]
         if cls is bytes and isinstance(value, bytes):
-            return bytes(value)  # type: ignore[no-any-return]
+            return bytes(value)  # type: ignore[return-value]
 
-        if cls is Any:
+        if cls is Any:  # type: ignore[comparison-overlap]
             return value  # type: ignore[no-any-return]
 
         # Already a dataclass
         if dataclasses.is_dataclass(value):
-            return value  # type: ignore[no-any-return]
+            return value  # type: ignore[return-value]
 
         # Handle container types
         # origin_cls is not None if cls is a container (such as list,
