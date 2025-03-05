@@ -189,6 +189,7 @@ const Multiselect = ({
   return (
     <Labeled label={label} id={id} fullWidth={fullWidth}>
       <Combobox<string>
+        data-marimo-element="multiselect"
         displayValue={(option) => option}
         placeholder="Select..."
         multiple={true}
