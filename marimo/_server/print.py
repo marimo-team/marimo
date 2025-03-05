@@ -6,6 +6,7 @@ import sys
 from typing import Optional
 
 from marimo._cli.print import bold, green, muted
+from marimo._config.config import MarimoConfig
 from marimo._server.utils import print_, print_tabbed
 
 UTF8_SUPPORTED = False
@@ -99,3 +100,29 @@ def _colorized_url(url_string: str) -> str:
 
 def _utf8(msg: str) -> str:
     return msg if UTF8_SUPPORTED else ""
+
+
+def print_experimental_features(config: MarimoConfig) -> None:
+    if "experimental" not in config:
+        return
+
+    keys = set(config["experimental"].keys())
+
+    # These experiments have been released
+    finished_experiments = {
+        "rtc",
+        "chat_sidebar",
+        "multi_column",
+        "scratchpad",
+        "tracing",
+        "markdown",
+        "sql_engines",
+    }
+    keys = keys - finished_experiments
+
+    if len(keys) == 0:
+        return
+
+    print_tabbed(
+        f"{_utf8('🧪')} {green('Experimental features (use with caution)')}: {', '.join(keys)}"
+    )
