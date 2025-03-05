@@ -10,16 +10,17 @@ export type EventHandler = (...args: any[]) => void;
 
 export class Model<T extends Record<string, any>> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
+  private dirtyFields;
 
   constructor(
     private data: T,
     private onChange: (value: Partial<T>) => void,
     private sendToWidget: (req: { content?: any }) => Promise<null | undefined>,
-  ) {}
+    initialDirtyFields: Set<keyof T>,
+  ) {
+    this.dirtyFields = new Set(initialDirtyFields);
+  }
 
-  // TODO: there might be a bug here still, because we don't re-initialize
-  // the dirty fields when the anywidget mounts/re-mounts.
-  private dirtyFields = new Set<keyof T>();
   private listeners: Record<string, Set<EventHandler>> = {};
 
   off(eventName?: string | null, callback?: EventHandler | null): void {

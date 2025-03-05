@@ -18,6 +18,7 @@ import {
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
 import { Model } from "./model";
+import { isEqual } from "lodash-es";
 
 interface Data {
   jsUrl: string;
@@ -168,6 +169,12 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
   );
 }
 
+export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
+  return new Set(
+    Object.keys(value).filter((key) => !isEqual(value[key], initialValue[key])),
+  );
+}
+
 const LoadedSlot = ({
   value,
   setValue,
@@ -184,6 +191,7 @@ const LoadedSlot = ({
       { ...data.initialValue, ...value },
       setValue,
       functions.send_to_widget,
+      getDirtyFields(value, data.initialValue),
     ),
   );
 
