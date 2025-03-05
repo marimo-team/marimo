@@ -86,8 +86,8 @@ export const CellSelectionFeature: TableFeature = {
 
       const columnName = column.id;
 
-      const currentIsSelected = cell.getIsSelected();
-      const nextIsSelected = value !== undefined ? value : !currentIsSelected;
+      const currentIsSelected = cell.getIsSelected?.() || false;
+      const nextIsSelected = value === undefined ? !currentIsSelected : value;
       const rowId = getRowId(row);
 
       if (nextIsSelected && !currentIsSelected) {

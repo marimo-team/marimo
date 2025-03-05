@@ -1,11 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-empty-interface */
 import type { OnChangeFn, RowData, Updater } from "@tanstack/react-table";
 
-export type CellSelectionItem = { rowId: string; columnName: string };
+export interface CellSelectionItem {
+  rowId: string;
+  columnName: string;
+}
 export type CellSelectionState = CellSelectionItem[];
-export type CellSelectionTableState = {
+export interface CellSelectionTableState {
   cellSelection: CellSelectionState;
-};
+}
 
 export interface CellSelectionOptions {
   enableCellSelection?: boolean;
