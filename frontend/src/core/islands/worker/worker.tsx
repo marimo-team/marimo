@@ -90,6 +90,13 @@ const requestHandler = createRPCRequestHandler({
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
       code = `import sqlglot\n${code}`;
+
+      // Polars + SQL requires pyarrow, and installing
+      // after notebook load does not work. As a heuristic,
+      // if it appears that the notebook uses polars, add pyarrow.
+      if (code.includes("polars")) {
+        code = `import pyarrow\n${code}`;
+      }
     }
 
     await self.pyodide.loadPackagesFromImports(code, {
@@ -124,9 +131,9 @@ const requestHandler = createRPCRequestHandler({
     const response =
       payloadString == null
         ? // @ts-expect-error ehh TypeScript
-          await bridge[functionName]()
+        await bridge[functionName]()
         : // @ts-expect-error ehh TypeScript
-          await bridge[functionName](payloadString);
+        await bridge[functionName](payloadString);
 
     // Post the response back to the main thread
     return typeof response === "string" ? JSON.parse(response) : response;
