@@ -9,6 +9,7 @@ from typing import Any, Literal, Optional, Union
 import pytest
 
 from marimo._runtime.requests import SetCellConfigRequest
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -153,7 +154,10 @@ class TestParseRaw:
 
     def test_set_cell_config(self) -> None:
         config = SetCellConfigRequest(
-            {"0": {"disabled": True}, "1": {"disabled": False}}
+            {
+                CellId_t("0"): {"disabled": True},
+                CellId_t("1"): {"disabled": False},
+            }
         )
         parsed = parse_raw(serialize(config), SetCellConfigRequest)
         assert parsed == config
@@ -184,6 +188,41 @@ class TestParseRaw:
         nested = Nested(config=Config(True, True))  # type: ignore
         with pytest.raises(ValueError) as e:
             parsed = parse_raw(serialize(nested), Nested)
+
+    def test_awkward_unions(self):
+        @dataclass
+        class Nested:
+            data: Union[str, bool, dict[str, Any], list[float], list[bytes]]
+
+        # str
+        nested = Nested(data="string")
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+        # bool
+        nested = Nested(data=True)
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+        # dict
+        nested = Nested(data={"first": "hi", "second": False})
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+        # list floats
+        nested = Nested(data=[1, 2])
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+        # not valid, list of strings
+        with pytest.raises(ValueError) as e:
+            parsed = parse_raw({"data": ["one", "two"]}, Nested)
+        assert "does not fit any type of the union" in str(e.value)
+
+        # not valid, int
+        with pytest.raises(ValueError) as e:
+            parsed = parse_raw({"data": 1}, Nested)
+        assert "does not fit any type of the union" in str(e.value)
 
     def test_enums(self) -> None:
         @dataclass

@@ -31,19 +31,49 @@ class DataclassParser:
         self.allow_unknown_keys = allow_unknown_keys
 
     def _build_value(self, value: Any, cls: type[T]) -> T:
+        # Handle basic types
+        if cls is float and isinstance(value, (int, float)):
+            return float(value)  # type: ignore[no-any-return]
+        if cls is int and isinstance(value, int):
+            return int(value)  # type: ignore[no-any-return]
+        if cls is str and isinstance(value, str):
+            return str(value)  # type: ignore[no-any-return]
+        if cls is bool and isinstance(value, bool):
+            return bool(value)  # type: ignore[no-any-return]
+        if cls is bytes and isinstance(value, bytes):
+            return bytes(value)  # type: ignore[no-any-return]
+
+        if cls is Any:
+            return value  # type: ignore[no-any-return]
+
+        # Already a dataclass
+        if dataclasses.is_dataclass(value):
+            return value  # type: ignore[no-any-return]
+
+        # Handle container types
         # origin_cls is not None if cls is a container (such as list,
         # tuple, set, ...)
         origin_cls = get_origin(cls)
+
+        # Handle NewType - check if cls has __supertype__ attribute
+        if hasattr(cls, "__supertype__"):
+            # NewType returns its argument at runtime, but we need to validate
+            # against the supertype
+            supertype = cls.__supertype__  # type: ignore
+            return cls(self._build_value(value, supertype))  # type: ignore
+
         if origin_cls is Optional:
             (arg_type,) = get_args(cls)
             if value is None:
                 return None  # type: ignore[return-value]
             else:
                 return self._build_value(value, arg_type)  # type: ignore # noqa: E501
-        elif origin_cls in (list, set):
+        elif origin_cls in (list, set) and isinstance(
+            value, (tuple, list, set)
+        ):
             (arg_type,) = get_args(cls)
             return origin_cls(self._build_value(v, arg_type) for v in value)  # type: ignore # noqa: E501
-        elif origin_cls is tuple:
+        elif origin_cls is tuple and isinstance(value, (tuple, list)):
             arg_types = get_args(cls)
             if len(arg_types) == 2 and isinstance(
                 arg_types[1], type(Ellipsis)
@@ -55,7 +85,7 @@ class DataclassParser:
                 return origin_cls(  # type: ignore # noqa: E501
                     self._build_value(v, t) for v, t in zip(value, arg_types)
                 )
-        elif origin_cls is dict:
+        elif origin_cls is dict and isinstance(value, dict):
             key_type, value_type = get_args(cls)
             return origin_cls(  # type: ignore[no-any-return]
                 **{
@@ -97,8 +127,14 @@ class DataclassParser:
             return cls(value)  # type: ignore[return-value]
         elif dataclasses.is_dataclass(cls):
             return self.build_dataclass(value, cls)  # type: ignore[return-value]
-        else:
-            return value  # type: ignore[no-any-return]
+
+        try:
+            if isinstance(value, cls):
+                return value  # type: ignore[no-any-return]
+        except TypeError:
+            pass
+
+        raise ValueError(f"Value '{value}' does not fit '{cls}'")
 
     def build_dataclass(self, values: dict[Any, Any], cls: type[T]) -> T:
         """Returns instance of dataclass [cls] instantiated from [values]."""
