@@ -51,6 +51,23 @@ describe("Model", () => {
       });
     });
 
+    it("should send all dirty fields", () => {
+      model.set("foo", "new value");
+      model.save_changes();
+
+      expect(onChange).toHaveBeenCalledWith({
+        foo: "new value",
+      });
+
+      model.set("bar", 456);
+      model.save_changes();
+
+      expect(onChange).toHaveBeenCalledWith({
+        foo: "new value",
+        bar: 456,
+      });
+    });
+
     // Skip because we don't clear the dirty fields after save
     it.skip("should clear dirty fields after save", () => {
       model.set("foo", "new value");
