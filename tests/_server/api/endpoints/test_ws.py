@@ -15,7 +15,11 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import CellIdAndFileKey, WebSocketCodes
+from marimo._server.api.endpoints.ws import (
+    CellIdAndFileKey,
+    WebSocketCodes,
+    clean_cell,
+)
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
@@ -513,8 +517,12 @@ async def test_ycell_cleanup_after_close(
             cell_ws.close()
 
             # Cell should still exist
-            # Default timeout is 0 so it should be cleaned up immediately
-            await asyncio.sleep(0.1)
+            assert key in ycells
+
+            # Wait for cleanup
+            await clean_cell(key, timeout=0.01)
+
+            # Cell should be removed
             assert key not in ycells
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
