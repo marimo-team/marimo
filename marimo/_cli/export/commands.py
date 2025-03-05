@@ -57,6 +57,16 @@ def watch_and_export(
 
     def write_data(data: str) -> None:
         if output:
+            output_path = Path(output)
+            # Check if the file exists
+            if output_path.exists():
+                overwrite = click.confirm(
+                    f"Warning: The file '{output}' already exists. Overwrite?",
+                    default=False,
+                )
+                if not overwrite:
+                    echo("No changes made. File was not overwritten.")
+                    return
             # Make dirs if needed
             maybe_make_dirs(output)
             with open(output, "w", encoding="utf-8") as f:
