@@ -1331,6 +1331,51 @@ describe("cell reducer", () => {
     });
   });
 
+  it("can can add a new cell with/without stale code", () => {
+    actions.setCellCodes({
+      codes: ["new code"],
+      ids: ["2"] as CellId[],
+      codeIsStale: false,
+    });
+
+    expect(state.cellData["2" as CellId].code).toBe("new code");
+    expect(state.cellData["2" as CellId].edited).toBe(false);
+    expect(state.cellData["2" as CellId].lastCodeRun).toBe("new code");
+
+    actions.setCellCodes({
+      codes: ["new code 2"],
+      ids: ["9"] as CellId[],
+      codeIsStale: true,
+    });
+
+    expect(state.cellData["9" as CellId].code).toBe("new code 2");
+    expect(state.cellData["9" as CellId].edited).toBe(true);
+    expect(state.cellData["9" as CellId].lastCodeRun).toBe(null);
+  });
+
+  it("can partial update cell codes", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    expect(state.cellIds.inOrderIds).toEqual(["0", "1", "2"]);
+    expect(state.cellData["0" as CellId].code).toBe("");
+    expect(state.cellData["1" as CellId].code).toBe("");
+    expect(state.cellData["2" as CellId].code).toBe("");
+
+    // Update cell 1
+    actions.setCellCodes({
+      codes: ["new code 2"],
+      ids: ["1"] as CellId[],
+      codeIsStale: false,
+    });
+
+    expect(state.cellIds.inOrderIds).toEqual(["0", "1", "2"]);
+    expect(state.cellData["0" as CellId].code).toBe("");
+    expect(state.cellData["1" as CellId].code).toBe("new code 2");
+    expect(state.cellData["1" as CellId].edited).toBe(false);
+    expect(state.cellData["2" as CellId].code).toBe("");
+  });
+
   it("can set cell codes with new cell ids, while preserving the old cell data", () => {
     actions.setCellCodes({
       codes: ["code1", "code2", "code3"],

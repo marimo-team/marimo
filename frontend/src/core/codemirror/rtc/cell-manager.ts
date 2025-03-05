@@ -7,6 +7,7 @@ import { getSessionId } from "@/core/kernel/session";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
 import { store } from "@/core/state/jotai";
+import { Logger } from "@/utils/Logger";
 
 const DOC_KEY = "code";
 const LANGUAGE_KEY = "language";
@@ -39,17 +40,12 @@ export class CellProviderManager {
       };
     }
 
-    // Wait for connection to be established
-    // while (store.get(connectionAtom).state !== WebSocketState.OPEN) {
-    //   await new Promise((resolve) => setTimeout(resolve, 100));
-    // }
-
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText(DOC_KEY);
     const ylanguage = ydoc.getText(LANGUAGE_KEY);
-
-    // Replace
-    if (initialCode && ytext.length === 0) {
+    // Handle initial code. This is only used if a cell is brought back
+    // from being deleted.
+    if (initialCode) {
       ytext.doc?.transact(() => {
         ytext.delete(0, ytext.length);
         ytext.insert(0, initialCode);
@@ -65,8 +61,21 @@ export class CellProviderManager {
       params.file = filePath;
     }
 
-    const provider = new WebsocketProvider("ws", cellId, ydoc, { params });
+    const provider = new WebsocketProvider("ws", cellId, ydoc, {
+      params,
+      // This serves as a heartbeat to keep the connection alive
+      // otherwise, the connection will close and can lead to data loss
+      // or duplicate code from an awkward rsync.
+      resyncInterval: 5000,
+    });
+
     this.providers.set(cellId, provider);
+    provider.on("connection-close", () => {
+      Logger.warn("RTC: connection closed. This could lead to data loss.");
+    });
+    provider.on("connection-error", () => {
+      Logger.warn("RTC: connection error. This could lead to data loss.");
+    });
 
     return { provider, ytext, ylanguage };
   }

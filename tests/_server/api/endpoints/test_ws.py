@@ -359,7 +359,7 @@ def flush_messages(
 def rtc_enabled(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"experimental": {"rtc": True}})
+        config.save_config({"experimental": {"rtc_v2": True}})
         yield
     finally:
         config.save_config(prev_config)
