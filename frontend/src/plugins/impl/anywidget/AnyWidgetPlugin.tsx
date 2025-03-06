@@ -183,7 +183,7 @@ const LoadedSlot = ({
   data,
   host,
 }: Props & { widget: AnyWidget }) => {
-  const ref = useRef<HTMLDivElement>(null);
+  const htmlRef = useRef<HTMLDivElement>(null);
   const model = useRef<Model<T>>(
     new Model(
       // Merge the initial value with the current value
@@ -205,11 +205,16 @@ const LoadedSlot = ({
   );
 
   useEffect(() => {
-    if (!ref.current) {
+    if (!htmlRef.current) {
       return;
     }
-    runAnyWidgetModule(widget, model.current, ref.current);
-  }, [widget]);
+    runAnyWidgetModule(widget, model.current, htmlRef.current);
+    // We re-run the widget when the jsUrl changes, which means the cell
+    // that created the Widget has been re-run.
+    // We need to re-run the widget because it may contain initialization code
+    // that could be reset by the new widget.
+    // See example: https://github.com/marimo-team/marimo/issues/3962#issuecomment-2703184123
+  }, [widget, data.jsUrl]);
 
   // When the value changes, update the model
   const valueMemo = useDeepCompareMemoize(value);
@@ -217,5 +222,12 @@ const LoadedSlot = ({
     model.current.updateAndEmitDiffs(valueMemo);
   }, [valueMemo]);
 
-  return <div ref={ref} />;
+  return <div ref={htmlRef} />;
+};
+
+export const visibleForTesting = {
+  LoadedSlot,
+  runAnyWidgetModule,
+  isAnyWidgetModule,
+  getDirtyFields,
 };
