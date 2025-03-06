@@ -105,19 +105,21 @@ class NarwhalsTableManager(
     def select_cells(self, cells: list[TableCoordinate]) -> list[Cell]:
         df = self.as_frame()
         if INDEX_COLUMN_NAME in df.columns:
-            selection = []
+            selection: list[Cell] = []
             for row, col in cells:
-                filtered = df.filter(nw.col(INDEX_COLUMN_NAME) == int(row))
+                filtered: nw.DataFrame[Any] = df.filter(
+                    nw.col(INDEX_COLUMN_NAME) == int(row)
+                )
                 if filtered.is_empty():
                     continue
 
-                row = filtered[0]
-                selection.append(Cell(row, col, row[col]))
+                filtered_row = filtered.item(0)
+                selection.append(Cell(row, col, filtered_row.get_column(col)))
 
             return selection
         else:
             return [
-                Cell(row, col, df.item(row=row, column=col))
+                Cell(row, col, df.item(row=int(row), column=col))
                 for row, col in cells
             ]
 
