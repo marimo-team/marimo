@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -24,14 +24,19 @@ from marimo._server.models.models import (
 from marimo._server.utils import canonicalize_filename
 from marimo._types.ids import CellId_t
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 LOGGER = _loggers.marimo_logger()
 
 
 class AppFileManager:
     def __init__(
-        self, filename: Optional[str], default_width: WidthType | None = None
+        self,
+        filename: Optional[Union[str, Path]],
+        default_width: WidthType | None = None,
     ) -> None:
-        self.filename = filename
+        self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
         self.app = self._load_app(self.path)
 

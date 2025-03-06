@@ -386,10 +386,13 @@ class CellManager:
         id_mapping = dict(zip(sorted_ids, current_ids))
 
         # Update the cell data in place
-        self._cell_data = {
-            new_id: self._cell_data[old_id]
-            for new_id, old_id in id_mapping.items()
-        }
+        new_cell_data: dict[CellId_t, CellData] = {}
+        for new_id, old_id in id_mapping.items():
+            prev_cell_data = self._cell_data[old_id]
+            prev_cell_data.cell_id = new_id
+            new_cell_data[new_id] = prev_cell_data
+
+        self._cell_data = new_cell_data
 
         # Add the new ids to the set, so we don't reuse them in the future
         for _id in sorted_ids:
