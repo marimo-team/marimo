@@ -116,7 +116,9 @@ class TestGoogle:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"google": {"api_key": "config-key"}}}
+        mock_context.marimo_config = {
+            "ai": {"google": {"api_key": "config-key"}}
+        }
         mock_get_context.return_value = mock_context
 
         model = google("gemini-pro")
@@ -124,7 +126,9 @@ class TestGoogle:
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("marimo._runtime.context.types.get_context")
-    def test_require_api_key_missing(self, mock_get_context: MagicMock) -> None:
+    def test_require_api_key_missing(
+        self, mock_get_context: MagicMock
+    ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
         mock_context.marimo_config = {"ai": {"google": {"api_key": ""}}}
@@ -255,9 +259,7 @@ def test_google_require() -> None:
         model(messages, config)
 
 
-@pytest.mark.skipif(
-    DependencyManager.groq.has(), reason="Groq is installed"
-)
+@pytest.mark.skipif(DependencyManager.groq.has(), reason="Groq is installed")
 def test_groq_require() -> None:
     """Test that groq.require raises ModuleNotFoundError."""
     model = groq("llama3-70b-8192")
@@ -343,7 +345,9 @@ class TestOpenAI:
     @patch.object(openai, "_require_api_key")
     @patch("openai.AzureOpenAI")
     def test_call_azure(
-        self, mock_azure_openai_class: MagicMock, mock_require_api_key: MagicMock
+        self,
+        mock_azure_openai_class: MagicMock,
+        mock_require_api_key: MagicMock,
     ) -> None:
         """Test calling the openai class with Azure OpenAI."""
         mock_require_api_key.return_value = "test-key"
@@ -389,7 +393,9 @@ class TestOpenAI:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"open_ai": {"api_key": "config-key"}}}
+        mock_context.marimo_config = {
+            "ai": {"open_ai": {"api_key": "config-key"}}
+        }
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
@@ -397,7 +403,9 @@ class TestOpenAI:
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("marimo._runtime.context.types.get_context")
-    def test_require_api_key_missing(self, mock_get_context: MagicMock) -> None:
+    def test_require_api_key_missing(
+        self, mock_get_context: MagicMock
+    ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
         mock_context.marimo_config = {"ai": {"open_ai": {"api_key": ""}}}
@@ -527,7 +535,9 @@ class TestAnthropic:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"anthropic": {"api_key": "config-key"}}}
+        mock_context.marimo_config = {
+            "ai": {"anthropic": {"api_key": "config-key"}}
+        }
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")
@@ -535,7 +545,9 @@ class TestAnthropic:
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("marimo._runtime.context.types.get_context")
-    def test_require_api_key_missing(self, mock_get_context: MagicMock) -> None:
+    def test_require_api_key_missing(
+        self, mock_get_context: MagicMock
+    ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
         mock_context.marimo_config = {"ai": {"anthropic": {"api_key": ""}}}
