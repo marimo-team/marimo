@@ -71,9 +71,6 @@ jobs:
             python-version: '3.12'
             dependencies: 'core'
           - os: ubuntu-latest
-            python-version: '3.13'
-            dependencies: 'core'
-          - os: ubuntu-latest
             python-version: '3.9'
             dependencies: 'core,optional'
           - os: ubuntu-latest
@@ -84,9 +81,6 @@ jobs:
             dependencies: 'core,optional'
           - os: ubuntu-latest
             python-version: '3.12'
-            dependencies: 'core,optional'
-          - os: ubuntu-latest
-            python-version: '3.13'
             dependencies: 'core,optional'
     steps:
       - name: 🛑 Cancel Previous Runs
