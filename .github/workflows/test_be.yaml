@@ -143,12 +143,19 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 --cov=marimo
+          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
+          --cov=marimo --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
       # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
       # coverage from the other matrix jobs.
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
