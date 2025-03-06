@@ -693,7 +693,7 @@ class table(
                 all_rows=False,
             )
 
-        # For dataframes and other data types
+        # For dataframes
         try:
             row_ids = self._searched_manager.data[INDEX_COLUMN_NAME].to_list()
             return GetRowIdsResponse(row_ids=row_ids, all_rows=False)
