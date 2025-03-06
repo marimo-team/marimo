@@ -395,7 +395,7 @@ def inline_packages(name: Path) -> None:
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
-        tree = ast.parse(name.read_text(), filename=name)
+        tree = ast.parse(name.read_text(encoding="utf-8"), filename=name)
 
         imported_modules = set[str]()
 
