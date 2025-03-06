@@ -11,7 +11,7 @@ from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
-from marimo._plugins.ui._impl.tables.table_manager import Cell
+from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
@@ -506,8 +506,8 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
             {"rowId": "2", "columnName": "company"},
         ]
     ) == [
-        Cell(rowId="0", columnName="company", value="Company A"),
-        Cell(rowId="2", columnName="company", value="Company C"),
+        TableCell(row="0", column="company", value="Company A"),
+        TableCell(row="2", column="company", value="Company C"),
     ]
 
     table._search(
@@ -523,8 +523,8 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
             {"rowId": "2", "columnName": "company"},
         ]
     ) == [
-        Cell(rowId="0", columnName="company", value="Company B"),
-        Cell(rowId="2", columnName="company", value="Company E"),
+        TableCell(row="0", column="company", value="Company B"),
+        TableCell(row="2", column="company", value="Company E"),
     ]
 
 

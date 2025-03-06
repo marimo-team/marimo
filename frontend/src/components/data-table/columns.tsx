@@ -369,7 +369,8 @@ function getCellStyleClass(
 ): string {
   return cn(
     canSelectCell && "cursor-pointer",
-    isSelected && "bg-[var(--blue-2)]",
+    isSelected &&
+      "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
     justify === "center" && "text-center",

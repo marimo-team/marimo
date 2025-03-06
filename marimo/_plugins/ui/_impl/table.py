@@ -35,8 +35,8 @@ from marimo._plugins.ui._impl.tables.selection import (
     add_selection_column,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
-    Cell,
     ColumnName,
+    TableCell,
     TableCoordinate,
     TableManager,
 )
@@ -116,7 +116,7 @@ class GetRowIdsResponse:
 class table(
     UIElement[
         Union[list[str], list[int], list[dict[str, Any]]],
-        Union[list[JSONType], IntoDataFrame, list[Cell]],
+        Union[list[JSONType], IntoDataFrame, list[TableCell]],
     ]
 ):
     """A table component with selectable rows.
@@ -269,7 +269,7 @@ class table(
                         list[JSONType],
                         dict[str, ListOrTuple[JSONType]],
                         IntoDataFrame,
-                        list[Cell],
+                        list[TableCell],
                     ]
                 ],
                 None,
@@ -461,10 +461,10 @@ class table(
 
     def _convert_value(
         self, value: Union[list[int], list[str], list[dict[str, Any]]]
-    ) -> Union[list[JSONType], IntoDataFrame, list[Cell]]:
+    ) -> Union[list[JSONType], IntoDataFrame, list[TableCell]]:
         if self._selection in ["single-cell", "multi-cell"]:
             coordinates = [
-                TableCoordinate(rowId=v["rowId"], columnName=v["columnName"])
+                TableCoordinate(row_id=v["rowId"], column_name=v["columnName"])
                 for v in value
                 if isinstance(v, dict) and "rowId" in v and "columnName" in v
             ]
