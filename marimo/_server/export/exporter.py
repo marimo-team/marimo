@@ -187,6 +187,9 @@ class Exporter:
 
         notebook["cells"] = []
         for cid in cell_ids:
+            if cid not in graph.cells:
+                LOGGER.warning("Cell %s not found in graph", cid)
+                continue
             cell = graph.cells[cid]
             outputs: list[NotebookNode] = []
 
