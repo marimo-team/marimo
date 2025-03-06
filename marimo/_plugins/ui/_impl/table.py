@@ -35,7 +35,9 @@ from marimo._plugins.ui._impl.tables.selection import (
     add_selection_column,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    Cell,
     ColumnName,
+    TableCoordinate,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -113,7 +115,8 @@ class GetRowIdsResponse:
 @mddoc
 class table(
     UIElement[
-        Union[list[str], list[int]], Union[list[JSONType], IntoDataFrame]
+        Union[list[str], list[int], list[dict[str, Any]]],
+        Union[list[JSONType], IntoDataFrame, list[Cell]],
     ]
 ):
     """A table component with selectable rows.
@@ -203,7 +206,8 @@ class table(
             - as a single column: a list of values
         pagination (bool, optional): Whether to paginate; if False, all rows will be shown.
             Defaults to True when above 10 rows, False otherwise.
-        selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
+        selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
+            'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
         initial_selection (List[int], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
@@ -220,7 +224,7 @@ class table(
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
         label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame]], None], optional):
+        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[Cell]]], None], optional):
             Optional callback to run when this element's value changes.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
@@ -237,7 +241,9 @@ class table(
             IntoDataFrame,
         ],
         pagination: Optional[bool] = None,
-        selection: Optional[Literal["single", "multi"]] = "multi",
+        selection: Optional[
+            Literal["single", "multi", "single-cell", "multi-cell"]
+        ] = "multi",
         initial_selection: Optional[list[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
@@ -263,6 +269,7 @@ class table(
                         list[JSONType],
                         dict[str, ListOrTuple[JSONType]],
                         IntoDataFrame,
+                        list[Cell],
                     ]
                 ],
                 None,
@@ -317,6 +324,7 @@ class table(
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
 
+        self._selection = selection
         initial_value = []
         if initial_selection and self._manager.supports_selection():
             if selection == "single" and len(initial_selection) > 1:
@@ -452,18 +460,31 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[list[int], list[str]]
-    ) -> Union[list[JSONType], IntoDataFrame]:
-        indices = [int(v) for v in value]
-        if self._has_stable_row_id:
-            # Search across the original data
-            self._selected_manager = self._manager.select_rows(indices)
+        self, value: Union[list[int], list[str], list[dict[str, Any]]]
+    ) -> Union[list[JSONType], IntoDataFrame, list[Cell]]:
+        if self._selection in ["single-cell", "multi-cell"]:
+            coordinates = [
+                TableCoordinate(rowId=v["rowId"], columnName=v["columnName"])
+                for v in value
+                if isinstance(v, dict) and "rowId" in v and "columnName" in v
+            ]
+            self._has_any_selection = len(coordinates) > 0
+            return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
-            self._selected_manager = self._searched_manager.select_rows(
-                indices
-            )
-        self._has_any_selection = len(indices) > 0
-        return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+            indices = [
+                int(v)
+                for v in value
+                if isinstance(v, int) or isinstance(v, str)
+            ]
+            if self._has_stable_row_id:
+                # Search across the original data
+                self._selected_manager = self._manager.select_rows(indices)
+            else:
+                self._selected_manager = self._searched_manager.select_rows(
+                    indices
+                )
+                self._has_any_selection = len(indices) > 0
+            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.

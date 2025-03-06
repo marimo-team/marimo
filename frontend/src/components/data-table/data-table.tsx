@@ -29,7 +29,10 @@ import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
+import type { DataTableSelection } from "./types";
 import { INDEX_COLUMN_NAME } from "./types";
+import { CellSelectionFeature } from "./cell-selection/feature";
+import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
@@ -49,9 +52,10 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   paginationState?: PaginationState; // controlled pagination
   setPaginationState?: OnChangeFn<PaginationState>; // controlled pagination
   // Selection
-  selection?: "single" | "multi" | null;
+  selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
   // Search
   enableSearch?: boolean;
@@ -84,6 +88,7 @@ const DataTableInternal = <TData,>({
   manualPagination = false,
   pagination = false,
   onRowSelectionChange,
+  onCellSelectionChange,
   getRowIds,
   enableSearch = false,
   searchQuery,
@@ -103,7 +108,12 @@ const DataTableInternal = <TData,>({
   );
 
   const table = useReactTable<TData>({
-    _features: [ColumnPinning, ColumnWrappingFeature, ColumnFormattingFeature],
+    _features: [
+      ColumnPinning,
+      ColumnWrappingFeature,
+      ColumnFormattingFeature,
+      CellSelectionFeature,
+    ],
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
@@ -143,6 +153,10 @@ const DataTableInternal = <TData,>({
     onColumnFiltersChange: onFiltersChange,
     // selection
     onRowSelectionChange: onRowSelectionChange,
+    onCellSelectionChange: onCellSelectionChange,
+    enableCellSelection:
+      selection === "single-cell" || selection === "multi-cell",
+    enableMultiCellSelection: selection === "multi-cell",
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
