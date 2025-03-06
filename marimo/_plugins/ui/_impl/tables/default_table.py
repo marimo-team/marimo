@@ -25,10 +25,10 @@ from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
-    Cell,
     ColumnName,
     FieldType,
     FieldTypes,
+    TableCell,
     TableCoordinate,
     TableManager,
 )
@@ -138,48 +138,48 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ]
         )
 
-    def select_cells(self, cells: list[TableCoordinate]) -> list[Cell]:
-        selected_cells: list[Cell] = []
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        selected_cells: list[TableCell] = []
         if (
             self.is_column_oriented
             and isinstance(self.data, dict)
             and all(isinstance(v, list) for v in self.data.values())
         ):
-            for rowId, columnName in cells:
-                column = self.data[columnName]
+            for row_id, column_name in cells:
+                column = self.data[column_name]
                 if isinstance(column, Sequence):
                     selected_cells.append(
-                        Cell(
-                            rowId=rowId,
-                            columnName=columnName,
-                            value=column[int(rowId)],
+                        TableCell(
+                            row=row_id,
+                            column=column_name,
+                            value=column[int(row_id)],
                         )
                     )
         elif isinstance(self.data, dict):
             rows_of_dict = list(self.data.items())
-            for rowId, columnName in cells:
+            for row_id, column_name in cells:
                 value = (
-                    rows_of_dict[int(rowId)][0]
-                    if columnName == "key"
-                    else rows_of_dict[int(rowId)][1]
+                    rows_of_dict[int(row_id)][0]
+                    if column_name == "key"
+                    else rows_of_dict[int(row_id)][1]
                 )
                 selected_cells.append(
-                    Cell(rowId=rowId, columnName=columnName, value=value)
+                    TableCell(row=row_id, column=column_name, value=value)
                 )
         elif isinstance(self.data, list):
             rows_of_list = self.data
-            for rowId, columnName in cells:
-                row_index = int(rowId)
+            for row_id, column_name in cells:
+                row_index = int(row_id)
                 if row_index < 0 or row_index > len(rows_of_list) - 1:
                     continue
 
                 row = rows_of_list[row_index]
-                if isinstance(row, dict) and columnName in row:
+                if isinstance(row, dict) and column_name in row:
                     selected_cells.append(
-                        Cell(
-                            rowId=rowId,
-                            columnName=columnName,
-                            value=row[columnName],
+                        TableCell(
+                            row=row_id,
+                            column=column_name,
+                            value=row[column_name],
                         )
                     )
 

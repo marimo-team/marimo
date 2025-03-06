@@ -114,7 +114,7 @@ export const CellSelectionFeature: TableFeature = {
         if (table.options.enableMultiCellSelection) {
           table.setCellSelection((selectedCells) =>
             selectedCells.filter(
-              (c) => c.rowId !== rowId && c.columnName !== columnName,
+              (c) => !(c.rowId === rowId && c.columnName === columnName),
             ),
           );
         } else {
