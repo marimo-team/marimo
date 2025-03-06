@@ -421,7 +421,7 @@ def test_auto_export_ipynb_with_new_cell(
             time.sleep(0.1)
             continue
         cell_op = session.session_view.cell_operations["new_cell"]
-        if cell_op:
+        if cell_op.output is not None:
             break
     assert cell_op
     assert cell_op.output is not None
