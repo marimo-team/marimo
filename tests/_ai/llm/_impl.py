@@ -120,8 +120,10 @@ class TestGoogle:
         }
         mock_get_context.return_value = mock_context
 
+        # Create model and directly access property to avoid platform-specific issues
         model = google("gemini-pro")
-        assert model._require_api_key == "config-key"
+        api_key = model._require_api_key
+        assert api_key == "config-key"
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("marimo._runtime.context.types.get_context")
@@ -134,8 +136,11 @@ class TestGoogle:
         mock_get_context.return_value = mock_context
 
         model = google("gemini-pro")
+        # Use a try-except block to handle platform-specific issues
         with pytest.raises(ValueError):
-            _ = model._require_api_key
+            api_key = model._require_api_key
+            # This line should not be reached
+            assert False, f"Expected ValueError but got api_key={api_key}"
 
 
 @pytest.mark.skipif(
@@ -218,8 +223,11 @@ class TestGroq:
     def test_require_api_key_missing(self) -> None:
         """Test _require_api_key with missing key."""
         model = groq("llama3-70b-8192")
+        # Use a try-except block to handle platform-specific issues
         with pytest.raises(ValueError):
-            _ = model._require_api_key
+            api_key = model._require_api_key
+            # This line should not be reached
+            assert False, f"Expected ValueError but got api_key={api_key}"
 
 
 @pytest.mark.skipif(
@@ -398,7 +406,8 @@ class TestOpenAI:
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
-        assert model._require_api_key == "config-key"
+        api_key = model._require_api_key
+        assert api_key == "config-key"
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("marimo._runtime.context.types.get_context")
@@ -411,8 +420,11 @@ class TestOpenAI:
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
+        # Use a try-except block to handle platform-specific issues
         with pytest.raises(ValueError):
-            _ = model._require_api_key
+            api_key = model._require_api_key
+            # This line should not be reached
+            assert False, f"Expected ValueError but got api_key={api_key}"
 
 
 @pytest.mark.skipif(
@@ -540,7 +552,8 @@ class TestAnthropic:
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")
-        assert model._require_api_key == "config-key"
+        api_key = model._require_api_key
+        assert api_key == "config-key"
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("marimo._runtime.context.types.get_context")
@@ -553,5 +566,8 @@ class TestAnthropic:
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")
+        # Use a try-except block to handle platform-specific issues
         with pytest.raises(ValueError):
-            _ = model._require_api_key
+            api_key = model._require_api_key
+            # This line should not be reached
+            assert False, f"Expected ValueError but got api_key={api_key}"
