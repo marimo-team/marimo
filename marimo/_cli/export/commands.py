@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from pathlib import Path
 from typing import Callable, Literal, Optional
 
@@ -45,7 +44,7 @@ def export() -> None:
 
 def watch_and_export(
     marimo_path: MarimoPath,
-    output: Optional[str],
+    output: Optional[Path],
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
 ) -> None:
@@ -59,9 +58,7 @@ def watch_and_export(
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(data)
-                f.close()
+            output.write_text(data, encoding="utf-8")
         else:
             echo(data)
         return
@@ -79,7 +76,7 @@ def watch_and_export(
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
-                f"File {str(file_path)} changed. Re-exporting to {green(output)}"
+                f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
             )
         result = export_callback(MarimoPath(file_path))
         write_data(result.contents)
@@ -128,7 +125,7 @@ Optionally pass CLI args to the notebook:
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the HTML to. "
@@ -152,7 +149,7 @@ Optionally pass CLI args to the notebook:
 def html(
     name: str,
     include_code: bool,
-    output: str,
+    output: Path,
     watch: bool,
     sandbox: Optional[bool],
     args: tuple[str],
@@ -209,7 +206,7 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the script to. "
@@ -231,7 +228,7 @@ Watch for changes and regenerate the script on modification:
 )
 def script(
     name: str,
-    output: str,
+    output: Path,
     watch: bool,
     sandbox: Optional[bool],
 ) -> None:
@@ -281,7 +278,7 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the markdown to. "
@@ -303,7 +300,7 @@ Watch for changes and regenerate the script on modification:
 )
 def md(
     name: str,
-    output: str,
+    output: Path,
     watch: bool,
     sandbox: Optional[bool],
 ) -> None:
@@ -362,7 +359,7 @@ Requires nbformat to be installed.
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the ipynb file to. "
@@ -391,7 +388,7 @@ Requires nbformat to be installed.
 )
 def ipynb(
     name: str,
-    output: str,
+    output: Path,
     watch: bool,
     sort: Literal["top-down", "topological"],
     include_outputs: bool,
@@ -453,7 +450,7 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     required=True,
     help="Output directory to save the HTML to.",
 )
@@ -495,7 +492,7 @@ and cannot be opened directly from the file system (e.g. file://).
 )
 def html_wasm(
     name: str,
-    output: str,
+    output: Path,
     mode: Literal["edit", "run"],
     watch: bool,
     show_code: bool,
@@ -520,9 +517,9 @@ def html_wasm(
     filename = "index.html"
     ignore_index_html = False
     # If ends with .html, get the directory
-    if output.endswith(".html"):
-        out_dir = os.path.dirname(output)
-        filename = os.path.basename(output)
+    if output.suffix == ".html":
+        out_dir = output.parent
+        filename = output.name
         ignore_index_html = True
 
     marimo_file = MarimoPath(name)
@@ -538,7 +535,7 @@ def html_wasm(
     (Path(out_dir) / ".nojekyll").touch()
 
     echo(
-        f"Assets copied to {green(out_dir)}. These assets are required for the "
+        f"Assets copied to {green(str(out_dir))}. These assets are required for the "
         "notebook to run in the browser."
     )
 
@@ -546,7 +543,7 @@ def html_wasm(
     if did_export_public:
         echo(
             f"The public folder next to your notebook was copied to "
-            f"{green(out_dir)}."
+            f"{green(str(out_dir))}."
         )
 
     echo(
@@ -555,7 +552,7 @@ def html_wasm(
         "Then open the URL that is printed to your terminal."
     )
 
-    outfile = os.path.join(out_dir, filename)
+    outfile = out_dir / filename
     return watch_and_export(MarimoPath(name), outfile, watch, export_callback)
 
 

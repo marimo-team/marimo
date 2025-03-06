@@ -18,6 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import pytest
@@ -32,7 +33,6 @@ from marimo._utils.toml import read_toml
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
-    from pathlib import Path
 
 HAS_UV = DependencyManager.which("uv")
 
@@ -117,10 +117,9 @@ def _temp_run_file(directory: tempfile.TemporaryDirectory[str]) -> str:
     filecontents = codegen.generate_filecontents(
         ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
     )
-    path = os.path.join(directory.name, "run.py")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(filecontents)
-    return path
+    path = Path(directory.name) / "run.py"
+    path.write_text(filecontents, encoding="utf-8")
+    return str(path)
 
 
 def _check_contents(
