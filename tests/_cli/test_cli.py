@@ -597,6 +597,23 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
 
 
+def test_cli_edit_by_url() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "https://github.com/marimo-team/marimo/blob/main/examples/ui/button.py",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_run(temp_marimo_file: str) -> None:
     port = _get_port()
