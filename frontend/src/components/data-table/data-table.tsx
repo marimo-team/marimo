@@ -30,6 +30,7 @@ import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { INDEX_COLUMN_NAME } from "./types";
+import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -51,6 +52,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowIds?: GetRowIds;
   // Search
   enableSearch?: boolean;
   searchQuery?: string;
@@ -82,6 +84,7 @@ const DataTableInternal = <TData,>({
   manualPagination = false,
   pagination = false,
   onRowSelectionChange,
+  getRowIds,
   enableSearch = false,
   searchQuery,
   onSearchQueryChange,
@@ -186,6 +189,7 @@ const DataTableInternal = <TData,>({
         onRowSelectionChange={onRowSelectionChange}
         table={table}
         downloadAs={downloadAs}
+        getRowIds={getRowIds}
       />
     </div>
   );

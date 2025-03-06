@@ -54,6 +54,12 @@ interface ColumnSummaries<T = unknown> {
   is_disabled?: boolean;
 }
 
+export type GetRowIds = (opts: {}) => Promise<{
+  row_ids: number[];
+  all_rows: boolean;
+  error: string | null;
+}>;
+
 /**
  * Arguments for a data table
  *
@@ -81,7 +87,7 @@ interface Data<T> {
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-type Functions = {
+type DataTableFunctions = {
   download_as: (req: { format: "csv" | "json" }) => Promise<string>;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
@@ -97,6 +103,7 @@ type Functions = {
     data: TableData<T>;
     total_rows: number;
   }>;
+  get_row_ids?: GetRowIds;
 };
 
 type S = Array<string | number>;
@@ -135,7 +142,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       hasStableRowId: z.boolean().default(false),
     }),
   )
-  .withFunctions<Functions>({
+  .withFunctions<DataTableFunctions>({
     download_as: rpc
       .input(z.object({ format: z.enum(["csv", "json"]) }))
       .output(z.string()),
@@ -176,6 +183,13 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           total_rows: z.number(),
         }),
       ),
+    get_row_ids: rpc.input(z.object({}).passthrough()).output(
+      z.object({
+        row_ids: z.array(z.number()),
+        all_rows: z.boolean(),
+        error: z.string().nullable(),
+      }),
+    ),
   })
   .renderer((props) => {
     return (
@@ -192,7 +206,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     );
   });
 
-interface DataTableProps<T> extends Data<T>, Functions {
+interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   className?: string;
   // Selection
   value: S;
@@ -455,6 +469,7 @@ const DataTableComponent = ({
   textJustifyColumns,
   wrappedColumns,
   totalColumns,
+  get_row_ids,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -576,6 +591,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
+            getRowIds={get_row_ids}
           />
         </Labeled>
       </ColumnChartContext.Provider>
