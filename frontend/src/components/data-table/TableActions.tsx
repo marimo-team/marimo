@@ -22,7 +22,7 @@ interface TableActionsProps<TData> {
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
-  getRowIds: GetRowIds;
+  getRowIds?: GetRowIds;
 }
 
 export const TableActions = <TData,>({
@@ -43,29 +43,43 @@ export const TableActions = <TData,>({
       return;
     }
 
-    if (value) {
-      getRowIds({}).then((data) => {
-        if (data.error) {
-          toast({
-            title: "Not available",
-            description: data.error,
-            variant: "danger",
-          });
-        } else if (data.all_rows) {
-          const allKeys = Array.from(
-            { length: table.getRowCount() },
-            (_, i) => [i, true] as const,
-          );
-          onRowSelectionChange(Object.fromEntries(allKeys));
-        } else {
-          onRowSelectionChange(
-            Object.fromEntries(data.row_ids.map((id) => [id, true])),
-          );
-        }
-      });
-    } else {
+    // Clear all selections
+    if (!value) {
       onRowSelectionChange({});
+      return;
     }
+
+    const selectAllRowsByIndex = () => {
+      const allKeys = Array.from(
+        { length: table.getRowCount() },
+        (_, i) => [i, true] as const,
+      );
+      onRowSelectionChange(Object.fromEntries(allKeys));
+    };
+
+    if (!getRowIds) {
+      selectAllRowsByIndex();
+      return;
+    }
+
+    getRowIds({}).then((data) => {
+      if (data.error) {
+        toast({
+          title: "Not available",
+          description: data.error,
+          variant: "danger",
+        });
+        return;
+      }
+
+      if (data.all_rows) {
+        selectAllRowsByIndex();
+      } else {
+        onRowSelectionChange(
+          Object.fromEntries(data.row_ids.map((id) => [id, true])),
+        );
+      }
+    });
   };
 
   return (

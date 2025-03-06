@@ -446,9 +446,9 @@ def test_search_sort_nonexistent_columns() -> None:
 
 def test_get_row_ids() -> None:
     data = {
-        "id": [1, 2, 3, 4, 5] * 3,
-        "fruits": ["banana", "apple", "cherry", "grapes", "elderberry"] * 3,
-        "quantity": [10, 20, 30, 40, 50] * 3,
+        "id": [1, 2, 3] * 3,
+        "fruits": ["banana", "apple", "cherry"] * 3,
+        "quantity": [10, 20, 30] * 3,
     }
     table = ui.table(data)
 
@@ -476,10 +476,9 @@ def test_get_row_ids() -> None:
     "df",
     create_dataframes(
         {
-            "id": [1, 2, 3, 4, 5] * 3,
-            "fruits": ["banana", "apple", "cherry", "grapes", "elderberry"]
-            * 3,
-            "quantity": [10, 20, 30, 40, 50] * 3,
+            "id": [1, 2, 3] * 3,
+            "fruits": ["banana", "apple", "cherry"] * 3,
+            "quantity": [10, 20, 30] * 3,
         },
         exclude=["ibis", "duckdb", "pyarrow"],
     ),
@@ -487,6 +486,12 @@ def test_get_row_ids() -> None:
 def test_get_row_ids_with_df(df: any) -> None:
     table = ui.table(df)
 
+    initial_response = table._get_row_ids(EmptyArgs())
+    assert initial_response.all_rows is True
+    assert initial_response.row_ids == []
+    assert initial_response.error is None
+
+    # Test with search
     table._search(
         SearchTableArgs(
             query="cherry",
@@ -496,7 +501,7 @@ def test_get_row_ids_with_df(df: any) -> None:
     )
 
     response = table._get_row_ids(EmptyArgs())
-    assert response.row_ids == [2, 7, 12]
+    assert response.row_ids == [2, 5, 8]
     assert response.all_rows is False
     assert response.error is None
 

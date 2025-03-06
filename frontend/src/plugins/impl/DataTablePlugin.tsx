@@ -103,7 +103,7 @@ type DataTableFunctions = {
     data: TableData<T>;
     total_rows: number;
   }>;
-  get_row_ids: GetRowIds;
+  get_row_ids?: GetRowIds;
 };
 
 type S = Array<string | number>;

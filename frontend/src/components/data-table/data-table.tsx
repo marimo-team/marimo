@@ -52,7 +52,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
-  getRowIds: GetRowIds;
+  getRowIds?: GetRowIds;
   // Search
   enableSearch?: boolean;
   searchQuery?: string;
