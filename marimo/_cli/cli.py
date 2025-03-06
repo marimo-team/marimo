@@ -311,7 +311,11 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Watch the file for changes and reload the code when saved in another editor.",
 )
-@click.argument("name", required=False, type=click.Path())
+@click.argument(
+    "name",
+    required=False,
+    type=click.Path(),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
@@ -404,7 +408,7 @@ def edit(
         elif not is_dir:
             # write empty file
             try:
-                with open(name, "w"):
+                with open(name, "w", encoding="utf-8"):
                     pass
             except OSError as e:
                 if isinstance(e, FileNotFoundError):
@@ -642,7 +646,11 @@ Example:
     type=bool,
     help=sandbox_message,
 )
-@click.argument("name", required=True, type=click.Path())
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     port: Optional[int],

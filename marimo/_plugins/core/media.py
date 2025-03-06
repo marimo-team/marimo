@@ -112,8 +112,7 @@ def io_to_data_url(
 
     # Handle pathlib.Path
     if isinstance(src, pathlib.Path):
-        with open(src, "rb") as f:
-            return io_to_data_url(f, fallback_mime_type)
+        return io_to_data_url(src.read_bytes(), fallback_mime_type)
 
     # Handle strings - check if it's a URL
     if isinstance(src, str):

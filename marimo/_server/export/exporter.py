@@ -51,7 +51,7 @@ from marimo._utils.paths import import_files
 LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
-root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+root: str = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 
 if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
@@ -385,7 +385,7 @@ class Exporter:
         return html, download_filename
 
     def export_assets(
-        self, directory: str, ignore_index_html: bool = False
+        self, directory: Path, ignore_index_html: bool = False
     ) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
@@ -407,7 +407,7 @@ class Exporter:
         )
 
     def export_public_folder(
-        self, directory: str, marimo_file: MarimoPath
+        self, directory: Path, marimo_file: MarimoPath
     ) -> bool:
         FOLDER_NAME = "public"
         public_dir = marimo_file.path.parent / FOLDER_NAME
@@ -441,52 +441,49 @@ class AutoExporter:
 
     def save_html(self, file_manager: AppFileManager, html: str) -> None:
         # get filename
-        directory = os.path.dirname(get_filename(file_manager))
+        directory = Path(get_filename(file_manager)).parent
         filename = get_download_filename(file_manager, "html")
 
         # make directory if it doesn't exist
         self._make_export_dir(directory)
-        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+        filepath = directory / self.EXPORT_DIR / filename
 
         # save html to .marimo directory
-        with open(filepath, "w") as f:
-            f.write(html)
+        filepath.write_text(html, encoding="utf-8")
 
     def save_md(self, file_manager: AppFileManager, markdown: str) -> None:
         # get filename
-        directory = os.path.dirname(get_filename(file_manager))
+        directory = Path(get_filename(file_manager)).parent
         filename = get_download_filename(file_manager, "md")
 
         # make directory if it doesn't exist
         self._make_export_dir(directory)
-        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+        filepath = directory / self.EXPORT_DIR / filename
 
         # save md to .marimo directory
-        with open(filepath, "w") as f:
-            f.write(markdown)
+        filepath.write_text(markdown, encoding="utf-8")
 
     def save_ipynb(self, file_manager: AppFileManager, ipynb: str) -> None:
         # get filename
-        directory = os.path.dirname(get_filename(file_manager))
+        directory = Path(get_filename(file_manager)).parent
         filename = get_download_filename(file_manager, "ipynb")
 
         # make directory if it doesn't exist
         self._make_export_dir(directory)
-        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+        filepath = directory / self.EXPORT_DIR / filename
 
         # save ipynb to .marimo directory
-        with open(filepath, "w") as f:
-            f.write(ipynb)
+        filepath.write_text(ipynb, encoding="utf-8")
 
-    def _make_export_dir(self, directory: str) -> None:
+    def _make_export_dir(self, directory: Path) -> None:
         # make .marimo dir if it doesn't exist
         # don't make the other directories
-        if not os.path.exists(directory):
+        if not directory.exists():
             raise FileNotFoundError(f"Directory {directory} does not exist")
 
-        export_dir = os.path.join(directory, self.EXPORT_DIR)
-        if not os.path.exists(export_dir):
-            os.mkdir(export_dir)
+        export_dir = directory / self.EXPORT_DIR
+        if not export_dir.exists():
+            export_dir.mkdir(parents=True, exist_ok=True)
 
 
 def hash_code(code: str) -> str:
@@ -530,8 +527,8 @@ def get_html_contents() -> str:
         with urllib.request.urlopen(url) as response:
             return cast(str, response.read().decode("utf-8"))
 
-    with open(os.path.join(root, "index.html")) as f:
-        return f.read()
+    index_html = Path(root) / "index.html"
+    return index_html.read_text(encoding="utf-8")
 
 
 def _convert_marimo_output_to_ipynb(

@@ -8,6 +8,7 @@ import platform
 import re
 import shutil
 import subprocess
+from pathlib import Path
 from typing import Literal, Optional, Union
 
 from marimo import _loggers
@@ -97,11 +98,11 @@ class OSFileSystem(FileSystem):
         )
 
     def _is_marimo_file(self, path: str) -> bool:
-        if not path.endswith(".py"):
+        file_path = Path(path)
+        if not file_path.suffix == ".py":
             return False
 
-        with open(path, "rb") as file:
-            return b"app = marimo.App(" in file.read()
+        return b"app = marimo.App(" in file_path.read_bytes()
 
     def open_file(self, path: str, encoding: str | None = None) -> str:
         try:
@@ -126,28 +127,27 @@ class OSFileSystem(FileSystem):
         if name.strip() == "":
             raise ValueError("Cannot create file or directory with empty name")
 
-        full_path = os.path.join(path, name)
+        full_path = Path(path) / name
         # If the file already exists, generate a new name
-        if os.path.exists(full_path):
+        if full_path.exists():
             i = 1
-            name_without_extension, extension = os.path.splitext(name)
+            name_without_extension = full_path.stem
+            extension = full_path.suffix
             while True:
                 new_name = f"{name_without_extension}_{i}{extension}"
-                new_full_path = os.path.join(path, new_name)
-                if not os.path.exists(new_full_path):
+                new_full_path = full_path.parent / new_name
+                if not new_full_path.exists():
                     full_path = new_full_path
                     break
                 i += 1
 
         if file_type == "directory":
-            os.makedirs(full_path)
+            full_path.mkdir(parents=True, exist_ok=True)
         else:
-            with open(full_path, "wb") as file:
-                if contents:
-                    file.write(contents)
+            full_path.write_bytes(contents or b"")
         # encoding latin-1 to get an invertible representation of the
         # bytes as a string ...
-        return self.get_details(full_path, encoding="latin-1").file
+        return self.get_details(str(full_path), encoding="latin-1").file
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):
@@ -166,8 +166,8 @@ class OSFileSystem(FileSystem):
         return self.get_details(new_path).file
 
     def update_file(self, path: str, contents: str) -> FileInfo:
-        with open(path, "w") as file:
-            file.write(contents)
+        file_path = Path(path)
+        file_path.write_text(contents)
         return self.get_details(path).file
 
     def open_in_editor(self, path: str) -> bool:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 import os
+from pathlib import Path
 from typing import Callable
 
 from marimo import __version__
@@ -22,9 +23,7 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
     def snapshot(
         filename: str, result: str, keep_version: bool = False
     ) -> None:
-        filepath = os.path.join(
-            os.path.dirname(current_file), "snapshots", filename
-        )
+        filepath = Path(current_file).parent / "snapshots" / filename
 
         if not keep_version:
             result = _sanitize_version(result)

@@ -16,7 +16,7 @@ from marimo._utils.paths import maybe_make_dirs
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the converted notebook to. "
@@ -25,7 +25,7 @@ from marimo._utils.paths import maybe_make_dirs
 )
 def convert(
     filename: str,
-    output: str,
+    output: Path,
 ) -> None:
     r"""Convert a Jupyter notebook or Markdown file to a marimo notebook.
 
@@ -64,8 +64,7 @@ def convert(
     if output:
         # Make dirs if needed
         maybe_make_dirs(output)
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(notebook)
+        Path(output).write_text(notebook, encoding="utf-8")
         echo(f"Converted notebook saved to {output}")
     else:
         echo(notebook)
