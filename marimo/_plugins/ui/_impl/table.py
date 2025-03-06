@@ -665,32 +665,31 @@ class table(
         """Get row IDs of a table. If searched, return searched rows else all rows."""
         del args
 
-        # If no search has been applied, return with all_rows=True to avoid passing row IDs
-        if (
-            self._manager.get_num_rows()
-            == self._searched_manager.get_num_rows()
-        ):
-            return GetRowIdsResponse(row_ids=[], all_rows=True)
+        total_rows = self._manager.get_num_rows()
+        num_rows_searched = self._searched_manager.get_num_rows()
 
-        num_rows = self._searched_manager.get_num_rows()
-        if num_rows is None:
+        if total_rows is None or num_rows_searched is None:
             return GetRowIdsResponse(
                 row_ids=[],
                 all_rows=False,
                 error="Failed to get row IDs: number of rows is unknown",
             )
 
-        if num_rows > 1_000_000:
+        # If no search has been applied, return with all_rows=True to avoid passing row IDs
+        if total_rows == num_rows_searched:
+            return GetRowIdsResponse(row_ids=[], all_rows=True)
+
+        if num_rows_searched > 1_000_000:
             return GetRowIdsResponse(
                 row_ids=[],
                 all_rows=False,
-                error="Select all with search is unavailable for large datasets. Please filter to less than 1,000,000 rows",
+                error="Select all with search is not supported for large datasets. Please filter to less than 1,000,000 rows",
             )
 
         # For dictionary data, return sequential indices
         if isinstance(self.data, dict):
             return GetRowIdsResponse(
-                row_ids=list(range(num_rows)),
+                row_ids=list(range(num_rows_searched)),
                 all_rows=False,
             )
 
