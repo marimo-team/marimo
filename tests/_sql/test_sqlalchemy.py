@@ -94,6 +94,8 @@ def test_sqlalchemy_invalid_engine() -> None:
 
     engine = SQLAlchemyEngine(engine=None)  # type: ignore
     assert engine.inspector is None
+    assert engine.default_database is None
+    assert engine.default_schema is None
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -115,7 +117,7 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
         )
     ]
 
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=False
     )
     assert tables == []
@@ -168,7 +170,7 @@ def test_sqlalchemy_sql_types() -> None:
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=True
     )
 
@@ -274,7 +276,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=True
     )
 
@@ -283,7 +285,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert tables[0] == get_expected_table("test")
 
     # Test with other schema
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="my_schema", include_table_details=True
     )
     assert isinstance(tables, list)
@@ -292,14 +294,14 @@ def test_sqlalchemy_engine_get_tables_in_schema(
 
     # Test with non-existent schema
     assert (
-        engine._get_tables_in_schema(
+        engine.get_tables_in_schema(
             schema="non_existent", include_table_details=True
         )
         == []
     )
 
     # Test with include_table_details false
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=False
     )
     assert isinstance(tables, list)
@@ -460,10 +462,10 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_get_database_name(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_database_name."""
     engine = SQLAlchemyEngine(sqlite_engine)
-    assert engine.get_database_name() == ":memory:"
+    assert engine._get_current_database() == ":memory:"
 
     import sqlalchemy as sa
 
     # Test with no database name
     engine = SQLAlchemyEngine(sa.create_engine("sqlite:///"))
-    assert engine.get_database_name() == ""
+    assert engine._get_current_database() == ""

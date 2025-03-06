@@ -452,7 +452,7 @@ def create_asgi_app(
                 # Currently we only support run mode,
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
-                user_config_manager=config_reader,
+                config_manager=config_reader,
                 # We don't pass any CLI args for now
                 # since we don't want to read arbitrary args and apply them
                 # to each application

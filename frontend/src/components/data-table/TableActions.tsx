@@ -9,6 +9,8 @@ import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
 import type { DataTableSelection } from "./types";
+import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { toast } from "../ui/use-toast";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -21,6 +23,7 @@ interface TableActionsProps<TData> {
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
+  getRowIds?: GetRowIds;
 }
 
 export const TableActions = <TData,>({
@@ -34,7 +37,52 @@ export const TableActions = <TData,>({
   onRowSelectionChange,
   table,
   downloadAs,
+  getRowIds,
 }: TableActionsProps<TData>) => {
+  const handleSelectAllRows = (value: boolean) => {
+    if (!onRowSelectionChange) {
+      return;
+    }
+
+    // Clear all selections
+    if (!value) {
+      onRowSelectionChange({});
+      return;
+    }
+
+    const selectAllRowsByIndex = () => {
+      const allKeys = Array.from(
+        { length: table.getRowCount() },
+        (_, i) => [i, true] as const,
+      );
+      onRowSelectionChange(Object.fromEntries(allKeys));
+    };
+
+    if (!getRowIds) {
+      selectAllRowsByIndex();
+      return;
+    }
+
+    getRowIds({}).then((data) => {
+      if (data.error) {
+        toast({
+          title: "Not available",
+          description: data.error,
+          variant: "danger",
+        });
+        return;
+      }
+
+      if (data.all_rows) {
+        selectAllRowsByIndex();
+      } else {
+        onRowSelectionChange(
+          Object.fromEntries(data.row_ids.map((id) => [id, true])),
+        );
+      }
+    });
+  };
+
   return (
     <div className="flex items-center justify-between flex-shrink-0 pt-1">
       {onSearchQueryChange && enableSearch && (
@@ -53,21 +101,7 @@ export const TableActions = <TData,>({
         <DataTablePagination
           totalColumns={totalColumns}
           selection={selection}
-          onSelectAllRowsChange={
-            onRowSelectionChange
-              ? (value: boolean) => {
-                  if (value) {
-                    const allKeys = Array.from(
-                      { length: table.getRowCount() },
-                      (_, i) => [i, true] as const,
-                    );
-                    onRowSelectionChange(Object.fromEntries(allKeys));
-                  } else {
-                    onRowSelectionChange({});
-                  }
-                }
-              : undefined
-          }
+          onSelectAllRowsChange={handleSelectAllRows}
           table={table}
         />
       ) : (

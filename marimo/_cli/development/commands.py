@@ -57,6 +57,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         # Errors
         errors.CycleError,
         errors.MultipleDefinitionError,
+        errors.ImportStarError,
         errors.DeleteNonlocalError,
         errors.MarimoInterruptionError,
         errors.MarimoInternalError,
@@ -99,6 +100,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.Datasets,
         ops.DataColumnPreview,
         ops.SQLTablePreview,
+        ops.SQLTableListPreview,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -177,6 +179,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.InstallMissingPackagesRequest,
         requests.PreviewDatasetColumnRequest,
         requests.PreviewSQLTableRequest,
+        requests.PreviewSQLTableListRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,

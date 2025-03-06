@@ -33,7 +33,11 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._cli.print import red
-from marimo._config.manager import MarimoConfigReader
+from marimo._config.manager import (
+    MarimoConfigManager,
+    MarimoConfigReader,
+    ScriptConfigManager,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     Alert,
@@ -166,7 +170,7 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
@@ -175,7 +179,7 @@ class KernelManager:
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
-        self.user_config_manager = user_config_manager
+        self.config_manager = config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
 
         # Only used in edit mode
@@ -204,7 +208,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.get_config(hide_secrets=False),
+                    self.config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -229,9 +233,7 @@ class KernelManager:
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
-            register_formatters(
-                theme=self.user_config_manager.get_config()["display"]["theme"]
-            )
+            register_formatters(theme=self.config_manager.theme)
 
             assert self.queue_manager.stream_queue is not None
             # Make threads daemons so killing the server immediately brings
@@ -249,7 +251,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.get_config(hide_secrets=False),
+                    self.config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
@@ -426,12 +428,13 @@ class Session:
     @classmethod
     def create(
         cls,
+        *,
         initialization_id: str,
         session_consumer: SessionConsumer,
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
@@ -439,6 +442,12 @@ class Session:
         """
         Create a new session.
         """
+        # Inherit config from the session manager
+        # and override with any script-level config
+        config_manager = config_manager.with_overrides(
+            ScriptConfigManager(app_file_manager.path).get_config()
+        )
+
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
@@ -447,17 +456,19 @@ class Session:
             mode,
             configs,
             app_metadata,
-            user_config_manager,
+            config_manager,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
         )
+
         return cls(
-            initialization_id,
-            session_consumer,
-            queue_manager,
-            kernel_manager,
-            app_file_manager,
-            ttl_seconds,
+            initialization_id=initialization_id,
+            session_consumer=session_consumer,
+            queue_manager=queue_manager,
+            kernel_manager=kernel_manager,
+            app_file_manager=app_file_manager,
+            config_manager=config_manager,
+            ttl_seconds=ttl_seconds,
         )
 
     def __init__(
@@ -467,6 +478,7 @@ class Session:
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
+        config_manager: MarimoConfigManager,
         ttl_seconds: Optional[int],
     ) -> None:
         """Initialize kernel and client connection to it."""
@@ -483,7 +495,7 @@ class Session:
         )
         self.session_view = SessionView()
         self.session_cache_manager: SessionCacheManager | None = None
-
+        self.config_manager = config_manager
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
@@ -738,7 +750,7 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
@@ -756,9 +768,12 @@ class SessionManager:
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
         self.recents = RecentFilesManager()
-        self.user_config_manager = user_config_manager
         self.cli_args = cli_args
         self.redirect_console_to_browser = redirect_console_to_browser
+
+        # We should access the config_manager from the session if possible
+        # since this will contain config-level overrides
+        self._config_manager = config_manager
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -771,9 +786,7 @@ class SessionManager:
             self.skew_protection_token = SkewProtectionToken.random()
         else:
             app = file_router.get_single_app_file_manager(
-                default_width=user_config_manager.get_config()["display"][
-                    "default_width"
-                ]
+                default_width=self._config_manager.default_width
             ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
@@ -788,9 +801,7 @@ class SessionManager:
         """
         return self.file_router.get_file_manager(
             key,
-            default_width=self.user_config_manager.get_config()["display"][
-                "default_width"
-            ],
+            default_width=self._config_manager.default_width,
         )
 
     def create_session(
@@ -805,9 +816,7 @@ class SessionManager:
         if session_id not in self.sessions:
             app_file_manager = self.file_router.get_file_manager(
                 file_key,
-                default_width=self.user_config_manager.get_config()["display"][
-                    "default_width"
-                ],
+                default_width=self._config_manager.default_width,
             )
 
             if app_file_manager.path:
@@ -823,7 +832,7 @@ class SessionManager:
                     cli_args=self.cli_args,
                 ),
                 app_file_manager=app_file_manager,
-                user_config_manager=self.user_config_manager,
+                config_manager=self._config_manager,
                 virtual_files_supported=True,
                 redirect_console_to_browser=self.redirect_console_to_browser,
                 ttl_seconds=self.ttl_seconds,
@@ -873,9 +882,7 @@ class SessionManager:
 
             # Check if we should auto-run cells based on config
             should_autorun = (
-                self.user_config_manager.get_config()["runtime"][
-                    "watcher_on_save"
-                ]
+                self._config_manager.get_config()["runtime"]["watcher_on_save"]
                 == "autorun"
             )
 

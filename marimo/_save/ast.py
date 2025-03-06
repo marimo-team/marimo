@@ -22,7 +22,7 @@ def compiled_ast(block: Sequence[ast.AST | ast.stmt]) -> ast.Module:
     return cast(
         ast.Module,
         compile(
-            ast.Module(block, type_ignores=[]),
+            ast.Module(cast(list[ast.stmt], block), type_ignores=[]),
             # <ast> is non-standard as a filename, but easier to debug than
             # <module> everywhere.
             "<ast>",
@@ -67,11 +67,11 @@ def clean_to_modules(
     if with_block.optional_vars:
         initializer = ast.Assign(
             targets=[with_block.optional_vars],
-            value=initializer,
+            value=cast(ast.expr, initializer),
         )
     else:
         # Edgecase with no "as" clause.
-        initializer = ast.Expr(value=initializer)
+        initializer = ast.Expr(value=cast(ast.expr, initializer))
     initializer.lineno = len(pre_block) + 1
     initializer.col_offset = 0
     pre_block.append(initializer)
@@ -214,7 +214,7 @@ class RemoveReturns(ast.NodeTransformer):
     # Note that functools caches the generator, which is then dequeue'd,
     # so in that sense, it doesn't work either.
     def visit_Return(self, node: ast.Return) -> ast.Expr:
-        expr = ast.Expr(value=node.value)
+        expr = ast.Expr(value=cast(ast.expr, node.value))
         expr.lineno = node.lineno
         expr.col_offset = node.col_offset
         return expr

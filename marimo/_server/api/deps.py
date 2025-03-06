@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers as loggers
-from marimo._config.manager import MarimoConfigManager
+from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager
 from marimo._server.tokens import SkewProtectionToken
@@ -149,3 +149,18 @@ class AppState(AppStateBase):
         if param not in self.request.query_params:
             return None
         return self.request.query_params[param]
+
+    # Config manager for the marimo file that we are running.
+    # This could have custom config in the script metadata.
+    @property
+    def app_config_manager(self) -> MarimoConfigManager:
+        session = self.require_current_session()
+        return session.config_manager
+
+    # We may have not created a session yet, but we know the file where we will
+    # create one.
+    # Use this file to override the config manager.
+    def config_manager_at_file(self, path: str) -> MarimoConfigManager:
+        return super().config_manager.with_overrides(
+            ScriptConfigManager(path).get_config()
+        )

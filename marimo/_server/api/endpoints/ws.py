@@ -90,9 +90,9 @@ async def websocket_endpoint(
 
     kiosk = app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
 
-    config = app_state.config_manager.get_config()
+    config = app_state.config_manager_at_file(file_key).get_config()
 
-    rtc_enabled: bool = config.get("experimental", {}).get("rtc", False)
+    rtc_enabled: bool = config.get("experimental", {}).get("rtc_v2", False)
     auto_instantiate = config["runtime"]["auto_instantiate"]
 
     await WebsocketHandler(
@@ -150,9 +150,9 @@ async def send_updates(
             update = await update_queue.get()
             message = create_update_message(update)
             await websocket.send_bytes(message)
-    except Exception:
-        LOGGER.debug(
-            f"Could not send Y update to client for cell with ID {cell_id}",
+    except Exception as e:
+        LOGGER.warning(
+            f"RTC: Could not send Y update to client for cell with ID {cell_id}: {str(e)}",
         )
 
 
@@ -164,10 +164,23 @@ async def clean_cell(
         async with ycell_lock:
             if cell_id_and_file_key in ycells:
                 ycell = ycells[cell_id_and_file_key]
+                # Double-check client count before removing
                 if not ycell.clients:
+                    LOGGER.debug(
+                        f"RTC: Removing cell {cell_id_and_file_key.cell_id} as it has no clients"
+                    )
+                    # Store the YDoc state before removing it
+                    # This could be used to restore state for quick reconnects if needed
                     del ycells[cell_id_and_file_key]
+            else:
+                LOGGER.warning(
+                    f"RTC: Cell {cell_id_and_file_key.cell_id} not found in ycells dict during cleanup"
+                )
     except asyncio.CancelledError:
         # Task was cancelled due to client reconnection
+        LOGGER.debug(
+            f"RTC: clean_cell task cancelled for cell {cell_id_and_file_key.cell_id} - likely due to reconnection"
+        )
         pass
 
 
@@ -190,6 +203,7 @@ async def ycell_provider(
     )
 
     if file_key is None:
+        LOGGER.warning("RTC: Closing websocket - no file key")
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_FILE_KEY"
         )
@@ -198,6 +212,9 @@ async def ycell_provider(
     manager = app_state.session_manager
     session = manager.get_session_by_file_key(file_key)
     if session is None:
+        LOGGER.warning(
+            f"RTC: Closing websocket - no session found for file key {file_key}"
+        )
         await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
         return
     await websocket.accept()
@@ -209,6 +226,9 @@ async def ycell_provider(
             ydoc = ycell.ydoc
             ycell.clients += 1
             if ycell.cleaner is not None:
+                LOGGER.debug(
+                    f"RTC: Cancelling existing cleaner for cell {cell_id}"
+                )
                 ycell.cleaner.cancel()
                 ycell.cleaner = None
         else:
@@ -216,8 +236,14 @@ async def ycell_provider(
             mgr = file_manager.app.cell_manager
             if mgr.has_cell(cell_id):
                 code = mgr.cell_data_at(cell_id).code
+                LOGGER.debug(
+                    f"RTC: Creating new ydoc for existing cell {cell_id} with code length {len(code)}"
+                )
             else:
                 code = ""
+                LOGGER.debug(
+                    f"RTC: Creating new ydoc for new cell {cell_id} with empty code"
+                )
             ydoc = Doc[Text]()
             ytext = ydoc.get("code", type=Text)
             ylang = ydoc.get("language", type=Text)
@@ -239,18 +265,30 @@ async def ycell_provider(
                 reply = handle_sync_message(message[1:], ydoc)
                 if reply is not None:
                     await websocket.send_bytes(reply)
-    except Exception:
+    except WebSocketDisconnect:
+        # Normal disconnection
+        pass
+    except Exception as e:
+        LOGGER.warning(
+            f"RTC: Exception in websocket loop for cell {cell_id}: {str(e)}"
+        )
         pass
     finally:
+        # Cleanup cell resources
+        # Start the cleanup task timer
         task.cancel()
         ydoc.unobserve(subscription)
         async with ycell_lock:
             ycell.clients -= 1
             if not ycell.clients:
                 if ycell.cleaner is not None:
+                    LOGGER.warning(
+                        f"RTC: Cancelling existing cleaner for cell {cell_id}"
+                    )
                     ycell.cleaner.cancel()
                     ycell.cleaner = None
-                ycell.cleaner = asyncio.create_task(clean_cell(key, 0))
+                # Timeout of 60 seconds to allow for client reconnection
+                ycell.cleaner = asyncio.create_task(clean_cell(key, 60.0))
 
 
 KIOSK_ONLY_OPERATIONS = {

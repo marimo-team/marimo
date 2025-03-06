@@ -28,6 +28,15 @@ class MultipleDefinitionError:
 
 
 @dataclass
+class ImportStarError:
+    msg: str
+    type: Literal["import-star"] = "import-star"
+
+    def describe(self) -> str:
+        return self.msg
+
+
+@dataclass
 class DeleteNonlocalError:
     name: str
     cells: tuple[CellId_t, ...]
@@ -154,6 +163,7 @@ def is_sensitive_error(error: Error) -> bool:
 Error = Union[
     CycleError,
     MultipleDefinitionError,
+    ImportStarError,
     DeleteNonlocalError,
     MarimoAncestorStoppedError,
     MarimoAncestorPreventedError,

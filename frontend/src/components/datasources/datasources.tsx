@@ -6,7 +6,6 @@ import {
   PaintRollerIcon,
   PlusSquareIcon,
   XIcon,
-  LoaderCircle,
   Table2Icon,
   EyeIcon,
 } from "lucide-react";
@@ -24,7 +23,7 @@ import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
@@ -56,14 +55,24 @@ import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
-  tablePreviewsAtom,
   dataConnectionsMapAtom,
   DEFAULT_ENGINE,
+  type SQLTableContext,
+  useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
+import {
+  PreviewSQLTable,
+  PreviewSQLTableList,
+} from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
+import {
+  DatasourceLabel,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  RotatingChevron,
+} from "./components";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -186,6 +195,7 @@ export const DataSources: React.FC = () => {
               >
                 <SchemaList
                   schemas={database.schemas}
+                  defaultSchema={connection.default_schema}
                   engineName={connection.name}
                   databaseName={database.name}
                   hasSearch={hasSearch}
@@ -285,11 +295,19 @@ const DatabaseItem: React.FC<{
 
 const SchemaList: React.FC<{
   schemas: DatabaseSchema[];
+  defaultSchema?: string | null;
   engineName: string;
   databaseName: string;
   hasSearch: boolean;
   searchValue?: string;
-}> = ({ schemas, engineName, databaseName, hasSearch, searchValue }) => {
+}> = ({
+  schemas,
+  defaultSchema,
+  engineName,
+  databaseName,
+  hasSearch,
+  searchValue,
+}) => {
   if (schemas.length === 0) {
     return <EmptyState content="No schemas available" className="pl-6" />;
   }
@@ -319,6 +337,7 @@ const SchemaList: React.FC<{
               engine: engineName,
               database: databaseName,
               schema: schema.name,
+              defaultSchema: defaultSchema,
             }}
           />
         </SchemaItem>
@@ -367,17 +386,51 @@ const SchemaItem: React.FC<{
   );
 };
 
-interface SQLTableContext {
-  engine: string;
-  database: string;
-  schema: string;
-}
-
 const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
+  const { addTableList } = useDataSourceActions();
+  const [tablesRequested, setTablesRequested] = React.useState(false);
+
+  // Custom loading state, we need to wait for the data to propagate once requested
+  // useAsyncData's loading state may return false before data has propagated
+  const [tablesLoading, setTablesLoading] = React.useState(false);
+
+  const { loading, error } = useAsyncData(async () => {
+    if (tables.length === 0 && sqlTableContext && !tablesRequested) {
+      setTablesRequested(true);
+      setTablesLoading(true);
+
+      const { engine, database, schema } = sqlTableContext;
+      const previewTableList = await PreviewSQLTableList.request({
+        engine: engine,
+        database: database,
+        schema: schema,
+      });
+
+      if (!previewTableList?.tables) {
+        setTablesLoading(false);
+        throw new Error("No tables available");
+      }
+
+      addTableList({
+        tables: previewTableList.tables,
+        sqlTableContext: sqlTableContext,
+      });
+      setTablesLoading(false);
+    }
+  }, [tables.length, sqlTableContext, tablesRequested]);
+
+  if (loading || tablesLoading) {
+    return <LoadingState message="Loading tables..." />;
+  }
+
+  if (error) {
+    return <ErrorState error={error} />;
+  }
+
   if (tables.length === 0) {
     return <EmptyState content="No tables found" className="pl-9" />;
   }
@@ -408,15 +461,21 @@ const DatasetTableItem: React.FC<{
   sqlTableContext?: SQLTableContext;
   isSearching: boolean;
 }> = ({ table, sqlTableContext, isSearching }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const { addTable } = useDataSourceActions();
 
-  const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
-  const tablePreview = tablePreviews.get(table.name);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [tableDetailsRequested, setTableDetailsRequested] =
+    React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
   const { loading, error } = useAsyncData(async () => {
-    // Only fetch table preview when the data is not passed in and doesn't exist in the atom
-    if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+    if (
+      isExpanded &&
+      !tableDetailsExist &&
+      sqlTableContext &&
+      !tableDetailsRequested
+    ) {
+      setTableDetailsRequested(true);
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
@@ -429,9 +488,12 @@ const DatasetTableItem: React.FC<{
         throw new Error("No table details available");
       }
 
-      setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
+      addTable({
+        table: previewTable.table,
+        sqlTableContext: sqlTableContext,
+      });
     }
-  }, [isExpanded, tableDetailsExist, tablePreview]);
+  }, [isExpanded, tableDetailsExist]);
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
@@ -441,8 +503,10 @@ const DatasetTableItem: React.FC<{
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
     let code = "";
     if (sqlTableContext) {
-      const { engine, schema } = sqlTableContext;
-      code = `_df = mo.sql(f"SELECT * FROM ${schema}.${table.name} LIMIT 100", engine=${engine})`;
+      const { engine, schema, defaultSchema } = sqlTableContext;
+      const tableName =
+        defaultSchema === schema ? table.name : `${schema}.${table.name}`;
+      code = `_df = mo.sql(f"SELECT * FROM ${tableName} LIMIT 100", engine=${engine})`;
     } else {
       switch (table.source_type) {
         case "local":
@@ -491,30 +555,18 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (loading) {
-      return (
-        <div className="pl-12 text-sm bg-blue-50 dark:bg-[var(--accent)] text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          Loading columns...
-        </div>
-      );
+      return <LoadingState message="Loading columns..." />;
     }
 
     if (error) {
-      return (
-        <div className="pl-12 text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-50 flex items-center gap-2 p-2 h-8">
-          <XIcon className="h-4 w-4" />
-          {error.message}
-        </div>
-      );
+      return <ErrorState error={error} />;
     }
 
-    const columns = tableDetailsExist
-      ? table.columns
-      : tablePreview?.table?.columns || [];
+    const columns = table.columns;
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
-        table={tablePreview?.table ?? table}
+        table={table}
         column={column}
         sqlTableContext={sqlTableContext}
       />
@@ -620,6 +672,22 @@ const DatasetColumnItem: React.FC<{
     });
   };
 
+  const renderItemSubtext = ({
+    tooltipContent,
+    content,
+  }: {
+    tooltipContent: string;
+    content: string;
+  }) => {
+    return (
+      <Tooltip content={tooltipContent} delayDuration={100}>
+        <span className="text-xs text-black bg-gray-100 dark:invert rounded px-1">
+          {content}
+        </span>
+      </Tooltip>
+    );
+  };
+
   return (
     <>
       <CommandItem
@@ -636,20 +704,10 @@ const DatasetColumnItem: React.FC<{
         >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
           <span>{column.name}</span>
-          {isPrimaryKey && (
-            <Tooltip content="Primary Key" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                PK
-              </span>
-            </Tooltip>
-          )}
-          {isIndexed && (
-            <Tooltip content="Indexed" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                IDX
-              </span>
-            </Tooltip>
-          )}
+          {isPrimaryKey &&
+            renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
+          {isIndexed &&
+            renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
         <Tooltip content="Copy column name" delayDuration={400}>
           <Button
@@ -837,8 +895,10 @@ function sqlCode(
   sqlTableContext?: SQLTableContext,
 ) {
   if (sqlTableContext) {
-    const { engine, schema } = sqlTableContext;
-    return `_df = mo.sql(f'SELECT ${column.name} FROM ${schema}.${table.name} LIMIT 100', engine=${engine})`;
+    const { engine, schema, defaultSchema } = sqlTableContext;
+    const tableName =
+      defaultSchema === schema ? table.name : `${schema}.${table.name}`;
+    return `_df = mo.sql(f"SELECT ${column.name} FROM ${tableName} LIMIT 100", engine=${engine})`;
   }
   return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
 }

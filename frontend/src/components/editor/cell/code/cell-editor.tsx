@@ -270,8 +270,12 @@ const CellEditorInternal = ({
 
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc")) {
-      const rtc = realTimeCollaboration(cellId);
+    if (getFeatureFlag("rtc_v2")) {
+      const rtc = realTimeCollaboration(cellId, (code) => {
+        // It's not really a formatting change,
+        // but this means it won't be marked as stale
+        updateCellCode({ cellId, code, formattingChange: true });
+      });
       extensions.push(rtc.extension);
       code = rtc.code;
     }
@@ -291,8 +295,12 @@ const CellEditorInternal = ({
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc")) {
-      const rtc = realTimeCollaboration(cellId);
+    if (getFeatureFlag("rtc_v2")) {
+      const rtc = realTimeCollaboration(cellId, (code) => {
+        // It's not really a formatting change,
+        // but this means it won't be marked as stale
+        updateCellCode({ cellId, code, formattingChange: true });
+      });
       extensions.push(rtc.extension);
     }
 
@@ -310,8 +318,16 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    if (getFeatureFlag("rtc")) {
-      const rtc = realTimeCollaboration(cellId, code);
+    if (getFeatureFlag("rtc_v2")) {
+      const rtc = realTimeCollaboration(
+        cellId,
+        (code) => {
+          // It's not really a formatting change,
+          // but this means it won't be marked as stale
+          updateCellCode({ cellId, code, formattingChange: true });
+        },
+        code,
+      );
       extensions.push(rtc.extension);
     }
 
@@ -529,6 +545,6 @@ function WithWaitUntilConnected<T extends {}>(
   return WaitUntilConnectedComponent;
 }
 
-export const CellEditor = getFeatureFlag("rtc")
+export const CellEditor = getFeatureFlag("rtc_v2")
   ? WithWaitUntilConnected(memo(CellEditorInternal))
   : memo(CellEditorInternal);

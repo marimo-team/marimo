@@ -169,6 +169,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_sql_table_list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewSQLTableListRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview a list of tables in an SQL schema */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -2272,6 +2311,8 @@ export interface components {
           tables: components["schemas"]["DataTable"][];
         }[];
       }[];
+      default_database?: string | null;
+      default_schema?: string | null;
       dialect: string;
       display_name: string;
       name: string;
@@ -2338,6 +2379,7 @@ export interface components {
     Error:
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
+      | components["schemas"]["ImportStarError"]
       | components["schemas"]["DeleteNonlocalError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
       | components["schemas"]["MarimoAncestorPreventedError"]
@@ -2471,7 +2513,21 @@ export interface components {
       function_call_id: string;
       /** @enum {string} */
       name: "function-call-result";
-      return_value?: components["schemas"]["JSONType"];
+      return_value?:
+        | (
+            | {
+                [key: string]: components["schemas"]["JSONType"];
+              }
+            | components["schemas"]["JSONType"][]
+            | string
+            | number
+            | boolean
+            | {
+                [key: string]: unknown;
+              }
+            | components["schemas"]["MIME"]
+          )
+        | null;
       status: components["schemas"]["HumanReadableStatus"];
     };
     HTTPRequest: null;
@@ -2480,6 +2536,11 @@ export interface components {
       code: "ok" | "error";
       message?: string | null;
       title?: string | null;
+    };
+    ImportStarError: {
+      msg: string;
+      /** @enum {string} */
+      type: "import-star";
     };
     InstallMissingPackagesRequest: {
       manager: string;
@@ -2549,9 +2610,38 @@ export interface components {
         [key: string]:
           | (
               | {
-                  [key: string]: components["schemas"]["JSONType"];
+                  [key: string]:
+                    | (
+                        | {
+                            [key: string]: components["schemas"]["JSONType"];
+                          }
+                        | components["schemas"]["JSONType"][]
+                        | string
+                        | number
+                        | boolean
+                        | {
+                            [key: string]: unknown;
+                          }
+                        | components["schemas"]["MIME"]
+                      )
+                    | null;
                 }
-              | components["schemas"]["JSONType"][]
+              | (
+                  | (
+                      | {
+                          [key: string]: components["schemas"]["JSONType"];
+                        }
+                      | components["schemas"]["JSONType"][]
+                      | string
+                      | number
+                      | boolean
+                      | {
+                          [key: string]: unknown;
+                        }
+                      | components["schemas"]["MIME"]
+                    )
+                  | null
+                )[]
               | string
               | number
               | boolean
@@ -2600,6 +2690,11 @@ export interface components {
         codeium_api_key?: string | null;
         copilot: boolean | ("github" | "codeium");
       };
+      datasources?: {
+        auto_discover_columns?: boolean;
+        auto_discover_schemas?: boolean;
+        auto_discover_tables?: boolean;
+      };
       display: {
         /** @enum {string} */
         cell_output: "above" | "below";
@@ -2635,6 +2730,7 @@ export interface components {
         /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
+        pythonpath: string[];
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
@@ -2714,6 +2810,7 @@ export interface components {
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
       | components["schemas"]["SQLTablePreview"]
+      | components["schemas"]["SQLTableListPreview"]
       | {
           connections: components["schemas"]["DataSourceConnection"][];
           /** @enum {string} */
@@ -2787,6 +2884,12 @@ export interface components {
       sourceType: "local" | "duckdb" | "connection";
       tableName: string;
     };
+    PreviewSQLTableListRequest: {
+      database: string;
+      engine: string;
+      requestId: string;
+      schema: string;
+    };
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
@@ -2858,6 +2961,13 @@ export interface components {
     };
     /** @enum {string} */
     RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
+    SQLTableListPreview: {
+      error?: string | null;
+      /** @enum {string} */
+      name: "sql-table-list-preview";
+      request_id: string;
+      tables: components["schemas"]["DataTable"][];
+    };
     SQLTablePreview: {
       error?: string | null;
       /** @enum {string} */
@@ -2891,9 +3001,7 @@ export interface components {
     SendUIElementMessage: {
       buffers?: string[] | null;
       message: {
-        [key: string]: {
-          [key: string]: unknown;
-        };
+        [key: string]: unknown;
       };
       /** @enum {string} */
       name: "send-ui-element-message";

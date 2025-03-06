@@ -634,7 +634,7 @@ def pytest_make_collect_report(collector):
 
     # Defined within the file does not seem to hook correctly, as such filter
     # for the test_pytest specific file here.
-    if "test_pytest" in str(collector.path):
+    if "test_pytest" in str(collector.path) and "_ast" in str(collector.path):
         # Classes may also be registered, but they will be hidden behind a cell.
         # As such, let's just collect functions.
         collected = {

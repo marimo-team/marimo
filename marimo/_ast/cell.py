@@ -181,6 +181,8 @@ class CellImpl:
     _raw_sqls: ParsedSQLStatements = dataclasses.field(
         default_factory=ParsedSQLStatements
     )
+    # Whether this cell can be executed as a test cell.
+    _test: bool = False
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
@@ -417,11 +419,8 @@ class Cell:
     # Number of reserved arguments for pytest
     _pytest_reserved: set[str] = dataclasses.field(default_factory=set)
 
-    # The property __test__ is picked up by nose and pytest.
-    # We have the compiler mark if the cell name starts with test_
-    # _or_, is comprised of only tests; allowing for testing suites to
-    # collect this cell.
-    _test: bool = False
+    # Whether to expose this cell as a test cell.
+    _test_allowed: bool = False
 
     @property
     def name(self) -> str:
@@ -491,9 +490,13 @@ class Cell:
             """
         )
 
+    # The property __test__ is picked up by nose and pytest.
+    # We have the compiler mark if the cell name starts with test_
+    # _or_, is comprised of only tests; allowing for testing suites to
+    # collect this cell.
     @property
     def __test__(self) -> bool:
-        return self._test
+        return self._test_allowed
 
     def _register_app(self, app: InternalApp) -> None:
         self._app = app

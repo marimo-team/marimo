@@ -398,7 +398,7 @@ const ChatPanelBody = () => {
             <PromptInput
               key="new-thread-input"
               value={newThreadInput}
-              placeholder="Ask anything, @ to include context"
+              placeholder="Ask anything, @ to include context about tables or dataframes"
               theme={theme}
               onClose={handleOnCloseThread}
               onChange={setNewThreadInput}

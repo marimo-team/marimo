@@ -1227,6 +1227,58 @@ class TestExecution:
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
+    async def test_sys_path_updated_with_exec_req(
+        self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
+    ) -> None:
+        custom_path = pathlib.Path("some") / "path"
+        filename = tmp_path / "notebook.py"
+
+        try:
+            k = Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config={
+                    **DEFAULT_CONFIG,
+                    "runtime": {
+                        **DEFAULT_CONFIG["runtime"],
+                        "pythonpath": [str(custom_path)],
+                    },
+                },
+                app_metadata=AppMetadata(
+                    query_params={}, filename=str(filename), cli_args={}
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+            initialize_kernel_context(
+                kernel=k,
+                stream=k.stream,
+                stdout=k.stdout,
+                stderr=k.stderr,
+                virtual_files_supported=True,
+                mode=SessionMode.EDIT,
+            )
+
+            # Verify the path was added using exec_req
+            await k.run(
+                [
+                    exec_req.get("import sys"),
+                    exec_req.get("paths = list(sys.path)"),
+                ]
+            )
+
+            assert str(custom_path) in k.globals["paths"]
+            assert str(filename.parent) in k.globals["paths"]
+        finally:
+            teardown_context()
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+            if str(custom_path) in sys.path:
+                sys.path.remove(str(custom_path))
+
     async def test_set_config_before_registering_cell(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:

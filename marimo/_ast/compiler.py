@@ -72,16 +72,17 @@ def ends_with_semicolon(code: str) -> bool:
 
 def contains_only_tests(tree: ast.Module) -> bool:
     """Returns True if the module contains only test functions."""
-    scope = tree.body[0]
-    assert isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
-    for node in scope.body:
+    scope = tree.body
+    for node in scope:
+        if isinstance(node, ast.Return):
+            return True
         if not isinstance(
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         ):
             return False
         if not node.name.lower().startswith("test"):
             return False
-    return True
+    return bool(scope)
 
 
 def cache(filename: str, code: str) -> None:
@@ -110,23 +111,23 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
             continue
 
         if "lineno" in child._attributes:
-            child.lineno = getattr(child, "lineno", 0) + line_offset
+            child.lineno = getattr(child, "lineno", 0) + line_offset  # type: ignore[attr-defined]
 
         if "col_offset" in child._attributes:
-            child.col_offset = getattr(child, "col_offset", 0) + col_offset
+            child.col_offset = getattr(child, "col_offset", 0) + col_offset  # type: ignore[attr-defined]
 
         if (
             "end_lineno" in child._attributes
             and (end_lineno := getattr(child, "end_lineno", 0)) is not None
         ):
-            child.end_lineno = end_lineno + line_offset
+            child.end_lineno = end_lineno + line_offset  # type: ignore[attr-defined]
 
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0))
             is not None
         ):
-            child.end_col_offset = end_col_offset + col_offset
+            child.end_col_offset = end_col_offset + col_offset  # type: ignore[attr-defined]
     return node
 
 
@@ -168,6 +169,7 @@ def compile_cell(
             cell_id=cell_id,
         )
 
+    is_test = contains_only_tests(module)
     is_import_block = all(
         isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
     )
@@ -181,7 +183,7 @@ def compile_cell(
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
         expr = ast.Expression(module.body.pop().value)
-        expr.lineno = final_expr.lineno
+        expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)
         const.col_offset = final_expr.end_col_offset
@@ -189,10 +191,10 @@ def compile_cell(
         expr = ast.Expression(const)
         # use code over body since lineno corresponds to source
         const.lineno = len(code.splitlines()) + 1
-        expr.lineno = const.lineno
+        expr.lineno = const.lineno  # type: ignore[attr-defined]
     # Creating an expression clears source info, so it needs to be set back
-    expr.col_offset = final_expr.end_col_offset
-    expr.end_col_offset = final_expr.end_col_offset
+    expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
+    expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
     filename: str
     if source_position:
@@ -208,7 +210,7 @@ def compile_cell(
         cache(filename, code)
 
     # pytest assertion rewriting, gives more context for assertion failures.
-    if test_rewrite:
+    if is_test or test_rewrite:
         # pytest is not required, so fail gracefully if needed
         try:
             from _pytest.assertion.rewrite import (  # type: ignore
@@ -270,6 +272,7 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        _test=is_test,
     )
 
 
@@ -329,15 +332,17 @@ def toplevel_cell_factory(
             lnum + decorator.end_lineno - 1,  # Scrub the decorator
             0,
         )
+
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
-        _test=f.__name__.startswith("test_"),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )
 
 
@@ -462,13 +467,14 @@ def cell_factory(
             f, lnum + start_line - 1, col_offset
         )
 
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
-        _test=f.__name__.startswith("test_") or contains_only_tests(tree),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )

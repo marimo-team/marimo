@@ -3,6 +3,10 @@ class CycleError(Exception):
     pass
 
 
+class ImportStarError(SyntaxError):
+    pass
+
+
 class MultipleDefinitionError(Exception):
     pass
 

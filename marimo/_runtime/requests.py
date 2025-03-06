@@ -312,6 +312,16 @@ class PreviewSQLTableRequest:
     table_name: str
 
 
+@dataclass
+class PreviewSQLTableListRequest:
+    """Preview list of tables in an SQL schema"""
+
+    request_id: RequestId
+    engine: str
+    database: str
+    schema: str
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -327,4 +337,5 @@ ControlRequest = Union[
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
+    PreviewSQLTableListRequest,
 ]

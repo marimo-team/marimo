@@ -18,12 +18,14 @@ import {
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
 import { Model } from "./model";
+import { isEqual } from "lodash-es";
 
 interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
   bufferPaths?: Array<Array<string | number>> | null;
+  initialValue: T;
 }
 
 type T = Record<string, any>;
@@ -42,6 +44,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
       bufferPaths: z
         .array(z.array(z.union([z.string(), z.number()])))
         .nullish(),
+      initialValue: z.object({}).passthrough(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -166,16 +169,30 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
   );
 }
 
+export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
+  return new Set(
+    Object.keys(value).filter((key) => !isEqual(value[key], initialValue[key])),
+  );
+}
+
 const LoadedSlot = ({
   value,
   setValue,
   widget,
   functions,
+  data,
   host,
 }: Props & { widget: AnyWidget }) => {
   const ref = useRef<HTMLDivElement>(null);
   const model = useRef<Model<T>>(
-    new Model(value, setValue, functions.send_to_widget),
+    new Model(
+      // Merge the initial value with the current value
+      // since we only send partial updates to the backend
+      { ...data.initialValue, ...value },
+      setValue,
+      functions.send_to_widget,
+      getDirtyFields(value, data.initialValue),
+    ),
   );
 
   // Listen to incoming messages

@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from typing import Callable
 
 from marimo import _loggers
@@ -337,6 +338,26 @@ def _broadcast_outputs(
             clear_console=False,
             cell_id=cell.cell_id,
         )
+
+
+@kernel_tracer.start_as_current_span("run_pytest")
+def _attempt_pytest(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    if cell._test:
+        try:
+            import marimo._runtime.pytest as marimo_pytest
+
+            if runner.execution_context is not None:
+                with runner.execution_context(cell.cell_id):
+                    result = marimo_pytest.run_pytest(cell.defs, runner.glbls)
+                    if result.output:
+                        sys.stdout.write(result.output)
+        except ImportError:
+            pass
 
 
 @kernel_tracer.start_as_current_span("reset_matplotlib_context")
