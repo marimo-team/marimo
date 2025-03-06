@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
+import pytest  # noqa: F401
 
 from marimo._messaging.context import (
     HTTP_REQUEST_CTX,
