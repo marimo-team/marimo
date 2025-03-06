@@ -285,7 +285,7 @@ class RemoteFileHandler(FileHandler):
         # If doesn't end in .py, add it
         if not path_to_app.endswith(".py"):
             path_to_app += ".py"
-        with open(path_to_app, "w") as f:
+        with open(path_to_app, "w", encoding="utf-8") as f:
             f.write(content)
         LOGGER.info("App saved to %s", path_to_app)
         return path_to_app
