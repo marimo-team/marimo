@@ -27,6 +27,7 @@ from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
+from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
 
 if TYPE_CHECKING:
@@ -597,6 +598,7 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
 
 
+@pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
 def test_cli_edit_by_url() -> None:
     port = _get_port()
     p = subprocess.Popen(
