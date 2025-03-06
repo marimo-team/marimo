@@ -444,13 +444,18 @@ def test_search_sort_nonexistent_columns() -> None:
     assert table._convert_value(["0"]) == ["banana"]
 
 
-def test_get_searched_row_ids() -> None:
+def test_get_row_ids() -> None:
     data = {
         "id": [1, 2, 3, 4, 5] * 3,
         "fruits": ["banana", "apple", "cherry", "grapes", "elderberry"] * 3,
         "quantity": [10, 20, 30, 40, 50] * 3,
     }
     table = ui.table(data)
+
+    initial_response = table._get_row_ids(EmptyArgs())
+    assert initial_response.all_rows is True
+    assert initial_response.row_ids == []
+    assert initial_response.error is None
 
     table._search(
         SearchTableArgs(
@@ -460,8 +465,54 @@ def test_get_searched_row_ids() -> None:
         )
     )
 
-    response = table._get_all_row_ids(EmptyArgs())
+    response = table._get_row_ids(EmptyArgs())
+    # For dicts, we do not need to find row_id, we just return the index
+    assert response.row_ids == [0, 1, 2]
+    assert response.all_rows is False
+    assert response.error is None
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "id": [1, 2, 3, 4, 5] * 3,
+            "fruits": ["banana", "apple", "cherry", "grapes", "elderberry"]
+            * 3,
+            "quantity": [10, 20, 30, 40, 50] * 3,
+        },
+        exclude=["ibis", "duckdb", "pyarrow"],
+    ),
+)
+def test_get_row_ids_with_df(df: any) -> None:
+    table = ui.table(df)
+
+    table._search(
+        SearchTableArgs(
+            query="cherry",
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    response = table._get_row_ids(EmptyArgs())
     assert response.row_ids == [2, 7, 12]
+    assert response.all_rows is False
+    assert response.error is None
+
+    # Test with no search
+    table._search(
+        SearchTableArgs(
+            query="",
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    response = table._get_row_ids(EmptyArgs())
+    assert response.all_rows is True
+    assert response.row_ids == []
+    assert response.error is None
 
 
 def test_table_with_too_many_columns_passes() -> None:

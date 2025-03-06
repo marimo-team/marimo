@@ -106,6 +106,7 @@ class SortArgs:
 @dataclass
 class GetRowIdsResponse:
     row_ids: list[int]
+    all_rows: bool
     error: Optional[str] = None
 
 
@@ -423,9 +424,9 @@ class table(
                     function=self._search,
                 ),
                 Function(
-                    name="get_all_row_ids",
+                    name="get_row_ids",
                     arg_cls=EmptyArgs,
-                    function=self._get_all_row_ids,
+                    function=self._get_row_ids,
                 ),
             ),
         )
@@ -660,27 +661,48 @@ class table(
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
-    def _get_all_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
-        """Get all row IDs of a table, useful when the table is searched."""
+    def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
+        """Get row IDs of a table. If searched, return searched rows else all rows."""
         del args
 
-        row_ids: list[int] = []
+        # If no search has been applied, return with all_rows=True to avoid passing row IDs
+        if (
+            self._manager.get_num_rows()
+            == self._searched_manager.get_num_rows()
+        ):
+            return GetRowIdsResponse(row_ids=[], all_rows=True)
 
-        if self._searched_manager.get_num_rows() > 1_000_000:
+        num_rows = self._searched_manager.get_num_rows()
+        if num_rows is None:
             return GetRowIdsResponse(
-                row_ids=row_ids,
-                error="Select all is unavailable for large datasets. Please filter to less than 1,000,000 rows",
+                row_ids=[],
+                all_rows=False,
+                error="Failed to get row IDs: number of rows is unknown",
             )
 
-        try:
-            # searched manager can be used even if the table is not searched
-            # as we assign manager to searched_manager in the constructor
-            df = self._searched_manager.data
-            row_ids = df[INDEX_COLUMN_NAME].to_list()
-            return GetRowIdsResponse(row_ids=row_ids)
-        except Exception:
+        if num_rows > 1_000_000:
             return GetRowIdsResponse(
-                row_ids=row_ids, error="Failed to get row IDs."
+                row_ids=[],
+                all_rows=False,
+                error="Select all with search is unavailable for large datasets. Please filter to less than 1,000,000 rows",
+            )
+
+        # For dictionary data, return sequential indices
+        if isinstance(self.data, dict):
+            return GetRowIdsResponse(
+                row_ids=list(range(num_rows)),
+                all_rows=False,
+            )
+
+        # For dataframes and other data types
+        try:
+            row_ids = self._searched_manager.data[INDEX_COLUMN_NAME].to_list()
+            return GetRowIdsResponse(row_ids=row_ids, all_rows=False)
+        except Exception as e:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error=f"Failed to get row IDs: {str(e)}",
             )
 
     def _repr_markdown_(self) -> str:

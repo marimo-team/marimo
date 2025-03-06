@@ -54,8 +54,9 @@ interface ColumnSummaries<T = unknown> {
   is_disabled?: boolean;
 }
 
-export type GetAllRowIds = (opts: {}) => Promise<{
+export type GetRowIds = (opts: {}) => Promise<{
   row_ids: number[];
+  all_rows: boolean;
   error: string | null;
 }>;
 
@@ -102,7 +103,7 @@ type DataTableFunctions = {
     data: TableData<T>;
     total_rows: number;
   }>;
-  get_all_row_ids: GetAllRowIds;
+  get_row_ids: GetRowIds;
 };
 
 type S = Array<string | number>;
@@ -182,9 +183,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           total_rows: z.number(),
         }),
       ),
-    get_all_row_ids: rpc.input(z.object({}).passthrough()).output(
+    get_row_ids: rpc.input(z.object({}).passthrough()).output(
       z.object({
         row_ids: z.array(z.number()),
+        all_rows: z.boolean(),
         error: z.string().nullable(),
       }),
     ),
@@ -467,7 +469,7 @@ const DataTableComponent = ({
   textJustifyColumns,
   wrappedColumns,
   totalColumns,
-  get_all_row_ids,
+  get_row_ids,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -589,7 +591,7 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
-            getAllRowIds={get_all_row_ids}
+            getRowIds={get_row_ids}
           />
         </Labeled>
       </ColumnChartContext.Provider>
