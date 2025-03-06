@@ -113,7 +113,7 @@ class NarwhalsTableManager(
                 if filtered.is_empty():
                     continue
 
-                filtered_row = filtered.item(0)
+                filtered_row = filtered[[0]]
                 selection.append(Cell(row, col, filtered_row.get_column(col)))
 
             return selection
