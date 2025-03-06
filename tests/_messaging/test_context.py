@@ -54,8 +54,22 @@ class TestHTTPRequestContext:
     def test_http_request_context_manager_with_request(self) -> None:
         # Test that http_request_context sets and unsets the HTTP request
         request = HTTPRequest(
-            url={"path": "/test", "port": None, "scheme": "http", "netloc": "localhost", "query": "", "hostname": "localhost"},
-            base_url={"path": "", "port": None, "scheme": "http", "netloc": "localhost", "query": "", "hostname": "localhost"},
+            url={
+                "path": "/test",
+                "port": None,
+                "scheme": "http",
+                "netloc": "localhost",
+                "query": "",
+                "hostname": "localhost",
+            },
+            base_url={
+                "path": "",
+                "port": None,
+                "scheme": "http",
+                "netloc": "localhost",
+                "query": "",
+                "hostname": "localhost",
+            },
             headers={},
             query_params={},
             path_params={},
@@ -89,8 +103,22 @@ class TestHTTPRequestContext:
     def test_nested_http_request_contexts(self) -> None:
         # Test nested http_request_contexts
         request1 = HTTPRequest(
-            url={"path": "/test1", "port": None, "scheme": "http", "netloc": "localhost", "query": "", "hostname": "localhost"},
-            base_url={"path": "", "port": None, "scheme": "http", "netloc": "localhost", "query": "", "hostname": "localhost"},
+            url={
+                "path": "/test1",
+                "port": None,
+                "scheme": "http",
+                "netloc": "localhost",
+                "query": "",
+                "hostname": "localhost",
+            },
+            base_url={
+                "path": "",
+                "port": None,
+                "scheme": "http",
+                "netloc": "localhost",
+                "query": "",
+                "hostname": "localhost",
+            },
             headers={},
             query_params={},
             path_params={},
@@ -100,8 +128,22 @@ class TestHTTPRequestContext:
         )
 
         request2 = HTTPRequest(
-            url={"path": "/test2", "port": None, "scheme": "http", "netloc": "localhost", "query": "", "hostname": "localhost"},
-            base_url={"path": "", "port": None, "scheme": "http", "netloc": "localhost", "query": "", "hostname": "localhost"},
+            url={
+                "path": "/test2",
+                "port": None,
+                "scheme": "http",
+                "netloc": "localhost",
+                "query": "",
+                "hostname": "localhost",
+            },
+            base_url={
+                "path": "",
+                "port": None,
+                "scheme": "http",
+                "netloc": "localhost",
+                "query": "",
+                "hostname": "localhost",
+            },
             headers={},
             query_params={},
             path_params={},

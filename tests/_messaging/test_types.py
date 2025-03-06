@@ -33,7 +33,9 @@ class TestStdoutStderr:
         def __init__(self) -> None:
             self.written_data: list[tuple[str, KnownMimeType]] = []
 
-        def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+        def _write_with_mimetype(
+            self, data: str, mimetype: KnownMimeType
+        ) -> int:
             self.written_data.append((data, mimetype))
             return len(data)
 
@@ -41,7 +43,9 @@ class TestStdoutStderr:
         def __init__(self) -> None:
             self.written_data: list[tuple[str, KnownMimeType]] = []
 
-        def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+        def _write_with_mimetype(
+            self, data: str, mimetype: KnownMimeType
+        ) -> int:
             self.written_data.append((data, mimetype))
             return len(data)
 
