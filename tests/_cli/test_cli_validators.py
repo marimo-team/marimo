@@ -1,9 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import click
 import pytest
