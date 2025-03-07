@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 
 from pathlib import Path
-from sys import stdin
+from sys import stdout
 
 from marimo._config.settings import GLOBAL_SETTINGS
 
@@ -12,7 +12,7 @@ def prompt_to_overwrite(path: Path) -> bool:
 
     # Check if not in an interactive terminal
     # default to False
-    if not stdin.isatty():
+    if not stdout.isatty():
         return False
 
     if path.exists():
