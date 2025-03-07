@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
-import { Cell } from "@/components/editor/Cell";
+import { Cell, SetupCell } from "@/components/editor/Cell";
 import {
   type ConnectionStatus,
   WebSocketState,
@@ -11,6 +11,7 @@ import {
   columnIdsAtom,
   type NotebookState,
   useCellActions,
+  SETUP_CELL_ID,
 } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
@@ -63,6 +64,8 @@ interface CellArrayProps {
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
   const columnIds = useAtomValue(columnIdsAtom);
+
+  // Setup context for sorting
   return (
     <SortableCellsProvider multiColumn={props.appConfig.width === "columns"}>
       <SortableContext
@@ -132,7 +135,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
         )}
       >
         {columns.map((column, index) => (
-          <SortableColumn
+          <CellColumn
             key={column.id}
             column={column}
             index={index}
@@ -155,7 +158,10 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   );
 };
 
-const SortableColumn: React.FC<{
+/**
+ * A single column of cells.
+ */
+const CellColumn: React.FC<{
   column: CollapsibleTree<CellId>;
   index: number;
   columnsLength: number;
@@ -184,6 +190,8 @@ const SortableColumn: React.FC<{
   invisible,
   onDeleteCell,
 }) => {
+  const appClosed = connStatus.state !== WebSocketState.OPEN;
+
   return (
     <Column
       columnId={column.id}
@@ -206,6 +214,33 @@ const SortableColumn: React.FC<{
         items={column.topLevelIds}
         strategy={verticalListSortingStrategy}
       >
+        {index === 0 && notebook.cellData[SETUP_CELL_ID] && (
+          <SetupCell
+            key={SETUP_CELL_ID}
+            theme={theme}
+            showPlaceholder={false}
+            allowFocus={!invisible}
+            {...notebook.cellData[SETUP_CELL_ID]}
+            {...notebook.cellRuntime[SETUP_CELL_ID]}
+            {...actions}
+            runElapsedTimeMs={
+              notebook.cellRuntime[SETUP_CELL_ID].runElapsedTimeMs ??
+              (notebook.cellData[SETUP_CELL_ID]
+                .lastExecutionTime as Milliseconds)
+            }
+            canDelete={!hasOnlyOneCell}
+            mode={mode}
+            appClosed={appClosed}
+            ref={notebook.cellHandles[SETUP_CELL_ID]}
+            userConfig={userConfig}
+            isCollapsed={false}
+            collapseCount={0}
+            canMoveX={false}
+            {...actions}
+            deleteCell={onDeleteCell}
+          />
+        )}
+
         {column.topLevelIds.map((cellId) => {
           const cellData = notebook.cellData[cellId];
           const cellRuntime = notebook.cellRuntime[cellId];
@@ -235,7 +270,7 @@ const SortableColumn: React.FC<{
               serializedEditorState={cellData.serializedEditorState}
               canDelete={!hasOnlyOneCell}
               mode={mode}
-              appClosed={connStatus.state !== WebSocketState.OPEN}
+              appClosed={appClosed}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
               debuggerActive={cellRuntime.debuggerActive}
