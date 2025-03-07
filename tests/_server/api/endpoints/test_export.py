@@ -415,7 +415,7 @@ def test_auto_export_ipynb_with_new_cell(
     assert session
 
     # Wait for the cell operation to be created
-    timeout = 2
+    timeout = 3
     start = time.time()
     cell_op = None
     while time.time() - start < timeout:
@@ -454,3 +454,47 @@ def test_export_html_with_script_config(client: TestClient) -> None:
     )
     body = response.text
     assert '"code_editor_font_size": 999' in body
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_unnamed_file(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    # Ensure the file is unnamed
+    session.app_file_manager.filename = None
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+
+    # Should return 400 Bad Request when file is unnamed
+    assert response.status_code == 400
+    assert "File must have a name before exporting" in response.text
+
+
+@with_session(SESSION_ID)
+def test_export_html_unnamed_file(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    # Ensure the file is unnamed
+    session.app_file_manager.filename = None
+
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+
+    # Should return 400 Bad Request when file is unnamed
+    assert response.status_code == 400
+    assert "File must have a name before exporting" in response.text

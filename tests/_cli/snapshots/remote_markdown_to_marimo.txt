@@ -1,0 +1,22 @@
+import marimo
+
+
+app = marimo.App()
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        # Remote Markdown Test
+
+        ```python
+        print('Hello from Remote Markdown!')
+        ```
+        """
+    )
+    return
+
+
+if __name__ == "__main__":
+    app.run()

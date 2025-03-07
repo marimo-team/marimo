@@ -1,0 +1,14 @@
+import marimo
+
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    print('Hello from Remote with Output!')
+    return
+
+
+if __name__ == "__main__":
+    app.run()

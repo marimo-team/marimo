@@ -193,7 +193,7 @@ class AppFileManager:
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
-        if self._is_named() and self.filename is not None:
+        if self.is_notebook_named and self.filename is not None:
             # Force a save after rename in case filetype changed.
             need_save = self.filename[-3:] != new_filename[-3:]
             self._rename_file(new_filename)
@@ -277,7 +277,7 @@ class AppFileManager:
             configs=configs,
         )
 
-        if self._is_named() and not self._is_same_path(filename):
+        if self.is_notebook_named and not self._is_same_path(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Save handler cannot rename files.",
@@ -323,7 +323,9 @@ class AppFileManager:
     def _is_unnamed(self) -> bool:
         return self.filename is None
 
-    def _is_named(self) -> bool:
+    @property
+    def is_notebook_named(self) -> bool:
+        """Whether the notebook has a name."""
         return self.filename is not None
 
     def read_file(self) -> str:
