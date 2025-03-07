@@ -13,6 +13,7 @@ from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import SessionId
+from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
     token_header,
@@ -343,7 +344,8 @@ def test_auto_export_ipynb(
 
 
 @pytest.mark.skipif(
-    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+    not DependencyManager.nbformat.has() or is_windows(),
+    reason="nbformat not installed or on Windows",
 )
 @with_session(SESSION_ID)
 def test_auto_export_ipynb_with_new_cell(
