@@ -604,6 +604,7 @@ const DataTableComponent = ({
             paginationState={paginationState}
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}
+            cellSelection={cellSelection}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}

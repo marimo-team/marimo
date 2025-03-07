@@ -54,6 +54,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Selection
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
+  cellSelection?: CellSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -82,6 +83,7 @@ const DataTableInternal = <TData,>({
   sorting,
   setSorting,
   rowSelection,
+  cellSelection,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -169,6 +171,7 @@ const DataTableInternal = <TData,>({
           : // No pagination, show all rows
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection,
+      cellSelection,
       columnPinning: columnPinning,
     },
     onColumnPinningChange: setColumnPinning,
