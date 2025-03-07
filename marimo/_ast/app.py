@@ -57,9 +57,11 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
+from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from types import TracebackType
 
     from marimo._messaging.ops import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
@@ -147,6 +149,32 @@ class _Namespace(Mapping[str, object]):
         from marimo._plugins.stateless.tree import tree
 
         return tree(self._dict)._mime_()
+
+
+class _SetupContext(SkipContext):
+    """
+    A context manager that controls imports from being executed in top level code.
+    See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
+    """
+
+    def __init__(self, cell: Cell):
+        super().__init__()
+        self._cell = cell
+
+    def trace(self, _frame: Any) -> None:
+        # Call self.skip() to skip the block
+        return
+
+    def __exit__(
+        self,
+        exception: Optional[type[BaseException]],
+        instance: Optional[BaseException],
+        _tracebacktype: Optional[TracebackType],
+    ) -> Literal[False]:  # type: ignore
+        self.teardown()
+        # Must be a Literal[False], for linters.
+        # Whether to suppress a given exception.
+        return False
 
 
 @dataclass
@@ -376,6 +404,24 @@ class App:
                 top_level=True,
             ),
         )
+
+    @property
+    def setup(self) -> _SetupContext:
+        """Provides a context manager to initialize the setup cell.
+
+        This block should only be utilized at the start of a marimo notebook.
+        It's used as following:
+
+        ```
+        with app.setup:
+            import my_libraries
+            from typing import Any
+
+            CONSTANT = "my constant"
+        ```
+        """
+        cell = self._cell_manager.cell_context(app=InternalApp(self))
+        return _SetupContext(cell)
 
     def _unparsable_cell(
         self,
