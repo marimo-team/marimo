@@ -240,7 +240,9 @@ class TestTopLevelExtraction:
             TopLevelType.CELL,
             TopLevelType.CELL,
         ] == [s.type for s in extraction], [s.hint for s in extraction]
-        assert extraction.statuses[0].hint == toplevel.HINT_HAS_CLOSE_REFS.format({"Z"})
+        assert extraction.statuses[
+            0
+        ].hint == toplevel.HINT_HAS_CLOSE_REFS.format({"Z"})
 
     @staticmethod
     def test_indirect_recursion() -> None:
