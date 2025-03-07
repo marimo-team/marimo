@@ -14,7 +14,7 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# Constant for easy resuse in tests
+# Constant for easy reuse in tests
 HINT_UNPARSABLE = "Cannot parse cell."
 HINT_BAD_NAME = (
     "Top level definitions cannot be named 'app', '__name__' or 'generated'"

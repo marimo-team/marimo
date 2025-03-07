@@ -389,7 +389,7 @@ class ScopedVisitor(ast.NodeVisitor):
         class), visit the children the node, propagate the refs to the higher
         scope and then return the refs."""
 
-        # TODO: Update for class_defintion toplevel decorator.
+        # TODO: Update for class_definition toplevel decorator.
         self.ref_stack.append(set())
         self.generic_visit(node)
         refs = self.ref_stack.pop()
