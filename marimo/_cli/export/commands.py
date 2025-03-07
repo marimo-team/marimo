@@ -10,6 +10,7 @@ import click
 
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
+from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import (
     ExportResult,
@@ -57,16 +58,6 @@ def watch_and_export(
 
     def write_data(data: str) -> None:
         if output:
-            output_path = Path(output)
-            # Check if the file exists
-            if output_path.exists():
-                overwrite = click.confirm(
-                    f"Warning: The file '{output}' already exists. Overwrite?",
-                    default=False,
-                )
-                if not overwrite:
-                    echo("No changes made. File was not overwritten.")
-                    return
             # Make dirs if needed
             maybe_make_dirs(output)
             with open(output, "w", encoding="utf-8") as f:
@@ -75,6 +66,16 @@ def watch_and_export(
         else:
             echo(data)
         return
+
+    if output:
+        output_path = Path(output)
+        if prompt_to_overwrite(output_path):
+            confirmed = click.confirm(
+                f"Warning: The file '{output_path}' already exists. Overwrite?",
+                default=False,
+            )
+            if not confirmed:
+                return
 
     # No watch, just run once
     if not watch:

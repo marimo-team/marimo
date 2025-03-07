@@ -8,6 +8,7 @@ import click
 from marimo._cli.convert.markdown import convert_from_md
 from marimo._cli.convert.utils import load_external_file
 from marimo._cli.print import echo
+from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.ipynb import convert_from_ipynb
 from marimo._utils.paths import maybe_make_dirs
 
@@ -63,13 +64,12 @@ def convert(
 
     if output:
         output_path = Path(output)
-        if output_path.exists():
-            overwrite = click.confirm(
+        if prompt_to_overwrite(output_path):
+            confirmed = click.confirm(
                 f"Warning: The file '{output}' already exists. Overwrite?",
                 default=False,
             )
-            if not overwrite:
-                echo("No changes made. File was not overwritten.")
+            if not confirmed:
                 return
         # Make dirs if needed
         maybe_make_dirs(output)
