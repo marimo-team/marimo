@@ -14,12 +14,15 @@ import {
   cellIdState,
   type CodemirrorCellActions,
 } from "./state";
+import { SCRATCH_CELL_ID } from "@/core/cells/cells";
 
 /**
  * Extensions for cell actions
  */
 function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
-  const keybindings: KeyBinding[] = [
+  const keybindings: KeyBinding[] = [];
+
+  keybindings.push(
     {
       key: hotkeys.getHotkey("cell.run").key,
       preventDefault: true,
@@ -37,7 +40,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
       run: (ev) => {
         const actions = ev.state.facet(cellActionsState);
         actions.onRun();
-        if (!actions.moveToNextCell) {
+        if (cellId === SCRATCH_CELL_ID) {
           return true;
         }
         ev.contentDOM.blur();
@@ -52,171 +55,11 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
       run: (ev) => {
         const actions = ev.state.facet(cellActionsState);
         actions.onRun();
-        if (!actions.moveToNextCell) {
+        if (cellId === SCRATCH_CELL_ID) {
           return true;
         }
         ev.contentDOM.blur();
         actions.moveToNextCell({ cellId, before: true });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.delete").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (cm) => {
-        // Cannot delete non-empty cells for safety
-        if (cm.state.doc.length === 0) {
-          const actions = cm.state.facet(cellActionsState);
-          actions.deleteCell();
-        }
-        // shortcuts.delete (shift-backspace) overlaps with
-        // defaultKeymap's deleteCharBackward (backspace); we don't want
-        // shift-backspace to trigger character deletion, because otherwise
-        // users might accidentally delete their whole notebook if they
-        // absent-mindedly held these keys. That's why we always return true.
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.moveUp").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.moveCell({ cellId, before: true });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.moveDown").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.moveCell({ cellId, before: false });
-        return true;
-      },
-    },
-    {
-      key: "ArrowUp",
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        // Skip if we are in the middle of an autocompletion
-        const hasAutocomplete = completionStatus(ev.state);
-        if (hasAutocomplete) {
-          return false;
-        }
-
-        if (isAtStartOfEditor(ev)) {
-          const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: true });
-          return true;
-        }
-        return false;
-      },
-    },
-    {
-      key: "ArrowDown",
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        // Skip if we are in the middle of an autocompletion
-        const hasAutocomplete = completionStatus(ev.state);
-        if (hasAutocomplete) {
-          return false;
-        }
-
-        if (isAtEndOfEditor(ev)) {
-          const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: false });
-          return true;
-        }
-        return false;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.focusDown").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.moveToNextCell({ cellId, before: false });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.focusUp").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.moveToNextCell({ cellId, before: true });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.sendToBottom").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.sendToBottom({ cellId });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.sendToTop").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.sendToTop({ cellId });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.createAbove").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        ev.contentDOM.blur();
-        const actions = ev.state.facet(cellActionsState);
-        actions.createNewCell({ cellId, before: true });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.createBelow").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        ev.contentDOM.blur();
-        const actions = ev.state.facet(cellActionsState);
-        actions.createNewCell({ cellId, before: false });
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.hideCode").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        const isHidden = actions.toggleHideCode();
-        closeCompletion(ev);
-        // If we are newly hidden, blur the editor
-        if (isHidden) {
-          ev.contentDOM.blur();
-          // Focus on the parent element
-          // https://github.com/marimo-team/marimo/issues/2941
-          document
-            .getElementById(HTMLCellId.create(cellId))
-            ?.parentElement?.focus();
-        } else {
-          ev.contentDOM.focus();
-        }
         return true;
       },
     },
@@ -233,33 +76,198 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         return true;
       },
     },
-    {
-      key: hotkeys.getHotkey("cell.goToDefinition").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        goToDefinitionAtCursorPosition(ev);
-        return true;
-      },
-    },
-    {
-      key: hotkeys.getHotkey("cell.splitCell").key,
-      preventDefault: true,
-      stopPropagation: true,
-      run: (ev) => {
-        const actions = ev.state.facet(cellActionsState);
-        actions.splitCell({ cellId });
-        if (!actions.moveToNextCell) {
+  );
+
+  if (cellId !== SCRATCH_CELL_ID) {
+    keybindings.push(
+      {
+        key: hotkeys.getHotkey("cell.goToDefinition").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          goToDefinitionAtCursorPosition(ev);
           return true;
-        }
-        requestAnimationFrame(() => {
-          ev.contentDOM.blur();
-          actions.moveToNextCell({ cellId, before: false }); // focus new cell
-        });
-        return true;
+        },
       },
-    },
-  ];
+      {
+        key: hotkeys.getHotkey("cell.delete").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (cm) => {
+          // Cannot delete non-empty cells for safety
+          if (cm.state.doc.length === 0) {
+            const actions = cm.state.facet(cellActionsState);
+            actions.deleteCell();
+          }
+          // shortcuts.delete (shift-backspace) overlaps with
+          // defaultKeymap's deleteCharBackward (backspace); we don't want
+          // shift-backspace to trigger character deletion, because otherwise
+          // users might accidentally delete their whole notebook if they
+          // absent-mindedly held these keys. That's why we always return true.
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveUp").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: true });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveDown").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: false });
+          return true;
+        },
+      },
+      {
+        key: "ArrowUp",
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          // Skip if we are in the middle of an autocompletion
+          const hasAutocomplete = completionStatus(ev.state);
+          if (hasAutocomplete) {
+            return false;
+          }
+
+          if (isAtStartOfEditor(ev)) {
+            const actions = ev.state.facet(cellActionsState);
+            actions.moveToNextCell({ cellId, before: true });
+            return true;
+          }
+          return false;
+        },
+      },
+      {
+        key: "ArrowDown",
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          // Skip if we are in the middle of an autocompletion
+          const hasAutocomplete = completionStatus(ev.state);
+          if (hasAutocomplete) {
+            return false;
+          }
+
+          if (isAtEndOfEditor(ev)) {
+            const actions = ev.state.facet(cellActionsState);
+            actions.moveToNextCell({ cellId, before: false });
+            return true;
+          }
+          return false;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.focusDown").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveToNextCell({ cellId, before: false });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.focusUp").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveToNextCell({ cellId, before: true });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.sendToBottom").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.sendToBottom({ cellId });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.sendToTop").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.sendToTop({ cellId });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.createAbove").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          ev.contentDOM.blur();
+          const actions = ev.state.facet(cellActionsState);
+          actions.createNewCell({ cellId, before: true });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.createBelow").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          ev.contentDOM.blur();
+          const actions = ev.state.facet(cellActionsState);
+          actions.createNewCell({ cellId, before: false });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.hideCode").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          const isHidden = actions.toggleHideCode();
+          closeCompletion(ev);
+          // If we are newly hidden, blur the editor
+          if (isHidden) {
+            ev.contentDOM.blur();
+            // Focus on the parent element
+            // https://github.com/marimo-team/marimo/issues/2941
+            document
+              .getElementById(HTMLCellId.create(cellId))
+              ?.parentElement?.focus();
+          } else {
+            ev.contentDOM.focus();
+          }
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.splitCell").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.splitCell({ cellId });
+          if (!actions.moveToNextCell) {
+            return true;
+          }
+          requestAnimationFrame(() => {
+            ev.contentDOM.blur();
+            actions.moveToNextCell({ cellId, before: false }); // focus new cell
+          });
+          return true;
+        },
+      },
+    );
+  }
 
   // Highest priority so that we can override the default keymap
   return [Prec.high(keymap.of(keybindings))];
