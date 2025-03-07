@@ -2,17 +2,11 @@
 from __future__ import annotations
 
 import io
-import os
-import sys
 from contextlib import redirect_stdout
-from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from marimo._config.config import MarimoConfig, merge_default_config
+from marimo._config.config import merge_default_config
 from marimo._server.print import (
-    UTF8_SUPPORTED,
     _colorized_url,
     _get_network_url,
     _utf8,
