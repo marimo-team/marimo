@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 # Constant for easy reuse in tests
 HINT_UNPARSABLE = "Cannot parse cell."
 HINT_BAD_NAME = (
-    "Top level definitions cannot be named 'app', '__name__' or 'generated'"
+    "Top level definitions cannot be named 'app', '__name__' or "
+    "'__generated_with'"
 )
 HINT_NOT_SINGLE = "Cell must contain exactly one function definition"
 HINT_ORDER_DEPENDENT = (
@@ -97,7 +98,7 @@ class TopLevelStatus:
             return
 
         (self.name,) = self._cell.defs
-        if self.name in ("app", "__generated__", "__name__"):
+        if self.name in ("app", "__generated_with", "__name__"):
             self.demote(HINT_BAD_NAME)
             return
 
