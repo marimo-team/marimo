@@ -240,7 +240,9 @@ def serialize(
     cell = status._cell
     assert cell is not None
     if not toplevel_fn:
-        return to_functiondef(cell, status.name, extraction.allowed_refs)
+        return to_functiondef(
+            cell, status.name, extraction.unshadowed, None, fn="cell"
+        )
     elif status.is_cell:
         return to_functiondef(
             cell,

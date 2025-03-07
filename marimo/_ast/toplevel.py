@@ -81,7 +81,9 @@ class TopLevelStatus:
 
         if self._cell is None:
             try:
-                self._cell = compile_cell(self.code, cell_id=self.cell_id)
+                self._cell = compile_cell(
+                    self.code, cell_id=self.cell_id
+                ).configure(self.cell_config)
             except SyntaxError:
                 # Keep default
                 self.type = TopLevelType.UNPARSABLE
@@ -211,8 +213,8 @@ class TopLevelExtraction:
         # Refresh names
         names = [status.name for status in self.statuses]
 
-        unshadowed_builtins = set(builtins.__dict__.keys()) - defs
-        self.allowed_refs.update(unshadowed_builtins)
+        self.unshadowed = set(builtins.__dict__.keys()) - defs
+        self.allowed_refs.update(self.unshadowed)
         self.used_refs = refs
 
         # Now toplevel, "allowed" defs have been determined, we can resolve

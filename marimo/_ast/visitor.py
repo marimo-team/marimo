@@ -384,67 +384,27 @@ class ScopedVisitor(ast.NodeVisitor):
             super().generic_visit(node)
         return node
 
-    def _visit_and_get_refs(self, node: ast.AST) -> set[Name]:
-        """Create a ref scope for the variable to be declared (e.g. function,
-        class), visit the children the node, propagate the refs to the higher
-        scope and then return the refs."""
-
-        # TODO: Update for class_definition toplevel decorator.
-        self.ref_stack.append(set())
-        self.generic_visit(node)
-        refs = self.ref_stack.pop()
-        # The scope a level up from the one just investigated also is dependent
-        # on these refs. Consider the case:
-        # >> def foo():
-        # >>   def bar(): <- current scope
-        # >>     print(x)
-        #
-        # the variable `foo` needs to be aware that it may require the ref `x`
-        # during execution.
-        self.ref_stack[-1].update(refs)
-        return refs
-
-    def _extract_signature_keys(
-        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
-    ) -> dict[str, ast.AST]:
-        signature_keys = {
-            # Include args so it's known they are not refs
-            "args": ast.arguments(  # type: ignore[call-overload]
-                node.args.args
-                + node.args.kwonlyargs
-                + [
-                    arg
-                    for arg in (node.args.vararg, node.args.kwarg)
-                    if arg is not None
-                ]
-            ),
-        }
-        if sys.version_info >= (3, 12):
-            signature_keys["type_params"] = node.type_params
-        return signature_keys
-
-    def _visit_and_get_fn_refs(
-        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
+    def _visit_and_get_refs(
+        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef]
     ) -> tuple[set[Name], set[Name]]:
         """Create a ref scope for the variable to be declared (e.g. function,
         class), visit the children the node, propagate the refs to the higher
         scope and then return the body refs and unbounded refs."""
 
-        # Handle function refs that are evaluated in the outer scope
         self.ref_stack.append(set())
-        mock = deepcopy(node)
-        # Just signature and non-scope parts.
-        mock.body.clear()
-        self.generic_visit(mock)
-        # Collect the unbounded refs
-        unbounded_refs = set(self.ref_stack[-1])
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Handle function refs that are evaluated in the outer scope
+            # Remove the body, which keeps signature and non-scoped parts.
+            mock = deepcopy(node)
+            mock.body.clear()
+            self.generic_visit(mock)
+            # Collect the unbounded refs
+            unbounded_refs = set(self.ref_stack[-1])
+        else:
+            # TODO: Update for class_definition toplevel decorator.
+            unbounded_refs = set()
 
         # Process the function body
-        # module_stub = ast.FunctionDef(
-        #     name=node.name,
-        #     body=node.body,
-        #     **_extract_signature_keys(node),
-        # )
         self.generic_visit(node)
         refs = self.ref_stack.pop()
         # The scope a level up from the one just investigated also is dependent
@@ -462,7 +422,7 @@ class ScopedVisitor(ast.NodeVisitor):
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, _ = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
@@ -474,7 +434,7 @@ class ScopedVisitor(ast.NodeVisitor):
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs, unbounded_refs = self._visit_and_get_fn_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
@@ -488,7 +448,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs, unbounded_refs = self._visit_and_get_fn_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
