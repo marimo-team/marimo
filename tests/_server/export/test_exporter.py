@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -294,10 +295,18 @@ async def test_run_until_completion_with_stack_trace():
     )
     assert did_error is True
     cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
-    snapshot(
-        "run_until_completion_with_stack_trace.txt",
-        _delete_lines_with_files(_print_messages(cell_ops)),
-    )
+    
+    # Use different snapshot files for Python 3.13 due to traceback format changes
+    if sys.version_info >= (3, 13):
+        snapshot(
+            "run_until_completion_with_stack_trace_py313.txt",
+            _delete_lines_with_files(_print_messages(cell_ops)),
+        )
+    else:
+        snapshot(
+            "run_until_completion_with_stack_trace.txt",
+            _delete_lines_with_files(_print_messages(cell_ops)),
+        )
 
 
 async def test_export_wasm_edit():
