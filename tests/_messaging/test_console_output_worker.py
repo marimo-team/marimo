@@ -172,7 +172,8 @@ class TestConsoleOutputWorker:
 
             # Wait for the timeout to expire and the message to be written
             # Use a longer timeout to ensure the message is processed
-            time.sleep(TIMEOUT_S * 5)
+            # Increase timeout for Windows compatibility (especially Python 3.9)
+            time.sleep(TIMEOUT_S * 20)  # 200ms instead of 50ms
 
             # Check that the message was written to the stream
             assert len(stream.messages) == 1
@@ -229,7 +230,8 @@ class TestConsoleOutputWorker:
 
             # Wait for the timeout to expire and the messages to be written
             # Use a longer timeout to ensure the messages are processed
-            time.sleep(TIMEOUT_S * 5)
+            # Increase timeout for Windows compatibility (especially Python 3.9)
+            time.sleep(TIMEOUT_S * 20)  # 200ms instead of 50ms
 
             # Check that the messages were written to the stream
             assert len(stream.messages) == 2  # Merged stdout messages + stderr
