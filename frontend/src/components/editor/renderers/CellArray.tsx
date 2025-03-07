@@ -95,7 +95,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   useHotkey("global.foldCode", actions.foldAll);
   useHotkey("global.unfoldCode", actions.unfoldAll);
   useHotkey("global.formatAll", () => {
-    formatAll(actions.updateCellCode);
+    formatAll();
   });
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window

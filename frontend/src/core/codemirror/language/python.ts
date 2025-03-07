@@ -20,8 +20,8 @@ import {
   smartPlaceholderExtension,
   clickablePlaceholderExtension,
 } from "../placeholder/extensions";
-import type { MovementCallbacks } from "../cells/extensions";
-
+import type { CellId } from "@/core/cells/ids";
+import { cellActionsState } from "../cells/state";
 /**
  * Language adapter for Python.
  */
@@ -42,10 +42,10 @@ export class PythonLanguageAdapter implements LanguageAdapter {
   }
 
   getExtension(
+    _cellId: CellId,
     completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
-    cellMovementCallbacks: MovementCallbacks,
   ): Extension[] {
     return [
       // Whether or not to require keypress to activate autocompletion (default
@@ -69,7 +69,10 @@ export class PythonLanguageAdapter implements LanguageAdapter {
               beforeText: "Start coding or ",
               linkText: "generate",
               afterText: " with AI.",
-              onClick: cellMovementCallbacks.aiCellCompletion,
+              onClick: (ev) => {
+                const cellActions = ev.state.facet(cellActionsState);
+                cellActions.aiCellCompletion();
+              },
             })
           : [],
     ];

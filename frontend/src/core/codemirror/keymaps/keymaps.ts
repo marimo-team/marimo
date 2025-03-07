@@ -7,17 +7,11 @@ import { type EditorView, keymap } from "@codemirror/view";
 import { getCM, vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
 import { once } from "@/utils/once";
+import { cellActionsState } from "../cells/state";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
-export function keymapBundle(
-  config: KeymapConfig,
-  callbacks: {
-    focusUp: () => void;
-    focusDown: () => void;
-    deleteCell: () => void;
-  },
-): Extension[] {
+export function keymapBundle(config: KeymapConfig): Extension[] {
   switch (config.preset) {
     case "default":
       return [
@@ -57,7 +51,8 @@ export function keymapBundle(
             (view) => view.state.doc.toString() === "",
             (view) => {
               if (view.state.doc.toString() === "") {
-                callbacks.deleteCell();
+                const actions = view.state.facet(cellActionsState);
+                actions.deleteCell();
                 return true;
               }
               return false;
@@ -67,7 +62,7 @@ export function keymapBundle(
         // Base vim mode
         vim({ status: false }),
         // Custom vim keymaps for cell navigation
-        Prec.high(vimKeymapExtension(callbacks)),
+        Prec.high(vimKeymapExtension()),
       ];
     default:
       logNever(config.preset);

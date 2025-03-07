@@ -246,7 +246,14 @@ export default defineConfig({
     sourcemap: isDev,
   },
   resolve: {
-    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    dedupe: [
+      "react",
+      "react-dom",
+      "@emotion/react",
+      "@emotion/cache",
+      "@codemirror/view",
+      "@codemirror/state",
+    ],
   },
   worker: {
     format: "es",

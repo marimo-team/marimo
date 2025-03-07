@@ -40,12 +40,7 @@ import type { CompletionConfig, KeymapConfig } from "../config/config-schema";
 import type { Theme } from "../../theme/useTheme";
 
 import { findReplaceBundle } from "./find-replace/extension";
-import {
-  type CodeCallbacks,
-  type MovementCallbacks,
-  cellCodeEditingBundle,
-  cellMovementBundle,
-} from "./cells/extensions";
+import { cellBundle } from "./cells/extensions";
 import type { CellId } from "../cells/ids";
 import { keymapBundle } from "./keymaps/keymaps";
 import { scrollActiveLineIntoView } from "./extensions";
@@ -65,17 +60,23 @@ import { requestEditCompletion } from "./ai/request";
 import { getCurrentLanguageAdapter } from "./language/commands";
 import { aiExtension } from "@marimo-team/codemirror-ai";
 import { getFeatureFlag } from "../config/feature-flag";
+import type { CodemirrorCellActions } from "./cells/state";
+import { cellConfigExtension } from "./config/extension";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
   enableAI: boolean;
-  cellMovementCallbacks: MovementCallbacks;
-  cellCodeCallbacks: CodeCallbacks;
+  cellActions: CodemirrorCellActions;
   completionConfig: CompletionConfig;
   keymapConfig: KeymapConfig;
   theme: Theme;
   hotkeys: HotkeyProvider;
+}
+
+function getPlaceholderType(opts: CodeMirrorSetupOpts) {
+  const { showPlaceholder, enableAI } = opts;
+  return showPlaceholder ? "marimo-import" : enableAI ? "ai" : "none";
 }
 
 /**
@@ -84,22 +85,23 @@ export interface CodeMirrorSetupOpts {
 export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
   const {
     cellId,
-    cellMovementCallbacks,
-    cellCodeCallbacks,
     keymapConfig,
     hotkeys,
     enableAI,
+    cellActions,
+    completionConfig,
   } = opts;
+  const placeholderType = getPlaceholderType(opts);
 
   return [
     // Editor keymaps (vim or defaults) based on user config
-    keymapBundle(keymapConfig, cellMovementCallbacks),
+    keymapBundle(keymapConfig),
     dndBundle(),
     pasteBundle(),
     jupyterHelpExtension(),
     // Cell editing
-    cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
-    cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),
+    cellConfigExtension(completionConfig, hotkeys, placeholderType),
+    cellBundle(cellId, hotkeys, cellActions),
     // Comes last so that it can be overridden
     basicBundle(opts),
     // Underline cmd+clickable placeholder
@@ -137,7 +139,8 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
-  const { theme, hotkeys, completionConfig } = opts;
+  const { theme, hotkeys, completionConfig, cellId } = opts;
+  const placeholderType = getPlaceholderType(opts);
 
   return [
     ///// View
@@ -173,7 +176,12 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     keymap.of(foldKeymap),
 
     ///// Language Support
-    adaptiveLanguageConfiguration(opts),
+    adaptiveLanguageConfiguration({
+      placeholderType,
+      completionConfig,
+      hotkeys,
+      cellId,
+    }),
 
     ///// Editing
     historyCompartment.of(history()),
