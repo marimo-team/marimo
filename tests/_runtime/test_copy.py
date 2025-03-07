@@ -1,4 +1,5 @@
 import sys
+
 import pytest
 
 from marimo._runtime.copy import (
