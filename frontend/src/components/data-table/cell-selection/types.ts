@@ -8,7 +8,7 @@ export interface CellSelectionItem {
 }
 export type CellSelectionState = CellSelectionItem[];
 export interface CellSelectionTableState {
-  cellSelection?: CellSelectionState;
+  cellSelection: CellSelectionState;
 }
 
 export interface CellSelectionOptions {
