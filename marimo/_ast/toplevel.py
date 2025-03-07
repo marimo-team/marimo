@@ -287,6 +287,19 @@ class TopLevelExtraction:
         assert not self.unresolved
 
     @classmethod
+    def from_cells(cls, cells: list[CellImpl]) -> TopLevelExtraction:
+        codes = [cell.code for cell in cells]
+        names = ["_" for cell in cells]
+        cell_configs = [cell.config for cell in cells]
+
+        from marimo._ast.codegen import get_setup_cell
+
+        setup = get_setup_cell(codes, names, cell_configs, True)
+        if setup:
+            return cls(codes, names, cell_configs, setup.defs)
+        return cls(codes, names, cell_configs, set())
+
+    @classmethod
     def from_app(cls, app: InternalApp) -> TopLevelExtraction:
         codes = list(app.cell_manager.codes())
         names = list(app.cell_manager.names())
