@@ -73,6 +73,7 @@ export interface CellEditorProps
   hidden?: boolean;
   hasOutput?: boolean;
   languageAdapter: LanguageAdapterType | undefined;
+  showLanguageToggles?: boolean;
   setLanguageAdapter: React.Dispatch<
     React.SetStateAction<LanguageAdapterType | undefined>
   >;
@@ -109,6 +110,7 @@ const CellEditorInternal = ({
   temporarilyShowCode,
   languageAdapter,
   setLanguageAdapter,
+  showLanguageToggles = true,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const setLastFocusedCellId = useSetLastFocusedCellId();
@@ -468,7 +470,7 @@ const CellEditorInternal = ({
           editorView={editorViewRef.current}
           ref={editorViewParentRef}
         />
-        {!hidden && (
+        {!hidden && showLanguageToggles && (
           <div className="absolute top-1 right-5">
             <LanguageToggles
               code={code}
