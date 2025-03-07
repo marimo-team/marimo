@@ -21,7 +21,6 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import type { CellHandle } from "@/components/editor/Cell";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
-import type { MovementCallbacks } from "@/core/codemirror/cells/extensions";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
@@ -80,15 +79,14 @@ function createEditor(content: string) {
     extensions: [
       python(),
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           activate_on_typing: true,
           copilot: false,
           codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
-        showPlaceholder: true,
-        enableAI: true,
-        cellMovementCallbacks: {} as MovementCallbacks,
+        placeholderType: "marimo-import",
       }),
     ],
   });

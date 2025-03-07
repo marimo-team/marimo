@@ -154,16 +154,13 @@ const CellComponent = (
     debuggerActive,
     appClosed,
     canDelete,
-    updateCellCode,
     prepareForRun,
     createNewCell,
     deleteCell,
-    focusCell,
     moveCell,
     setStdinResponse,
     moveToNextCell,
     updateCellConfig,
-    clearSerializedEditorState,
     sendToBottom,
     sendToTop,
     collapseCell,
@@ -661,17 +658,9 @@ const CellComponent = (
                 status={status}
                 serializedEditorState={serializedEditorState}
                 runCell={handleRun}
-                updateCellCode={updateCellCode}
                 setEditorView={(ev) => {
                   editorView.current = ev;
                 }}
-                createNewCell={createNewCell}
-                deleteCell={deleteCell}
-                focusCell={focusCell}
-                moveCell={moveCell}
-                moveToNextCell={moveToNextCell}
-                updateCellConfig={updateCellConfig}
-                clearSerializedEditorState={clearSerializedEditorState}
                 userConfig={userConfig}
                 editorViewRef={editorView}
                 editorViewParentRef={editorViewParentRef}

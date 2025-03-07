@@ -4,61 +4,29 @@ import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { type Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
-import type { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
-
-export interface MovementCallbacks
-  extends Pick<CellActions, "splitCell" | "sendToTop" | "sendToBottom"> {
-  moveToNextCell: CellActions["moveToNextCell"] | undefined;
-  onRun: () => void;
-  deleteCell: () => void;
-  createAbove: () => void;
-  createBelow: () => void;
-  createManyBelow: (content: string[]) => void;
-  moveUp: () => void;
-  moveDown: () => void;
-  focusUp: () => void;
-  focusDown: () => void;
-  toggleHideCode: () => boolean;
-  aiCellCompletion: () => boolean;
-}
+import {
+  cellActionsState,
+  cellIdState,
+  type CodemirrorCellActions,
+} from "./state";
 
 /**
- * Extensions for cell movement
+ * Extensions for cell actions
  */
-export function cellMovementBundle(
-  cellId: CellId,
-  callbacks: MovementCallbacks,
-  hotkeys: HotkeyProvider,
-): Extension[] {
-  const {
-    onRun,
-    deleteCell,
-    createAbove,
-    createBelow,
-    moveUp,
-    moveDown,
-    focusUp,
-    focusDown,
-    sendToTop,
-    sendToBottom,
-    splitCell,
-    moveToNextCell,
-    toggleHideCode,
-    aiCellCompletion,
-  } = callbacks;
-
+function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
   const keybindings: KeyBinding[] = [
     {
       key: hotkeys.getHotkey("cell.run").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        onRun();
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.onRun();
         return true;
       },
     },
@@ -67,12 +35,13 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        onRun();
-        if (!moveToNextCell) {
+        const actions = ev.state.facet(cellActionsState);
+        actions.onRun();
+        if (!actions.moveToNextCell) {
           return true;
         }
         ev.contentDOM.blur();
-        moveToNextCell({ cellId, before: false });
+        actions.moveToNextCell({ cellId, before: false });
         return true;
       },
     },
@@ -81,12 +50,13 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        onRun();
-        if (!moveToNextCell) {
+        const actions = ev.state.facet(cellActionsState);
+        actions.onRun();
+        if (!actions.moveToNextCell) {
           return true;
         }
         ev.contentDOM.blur();
-        moveToNextCell({ cellId, before: true });
+        actions.moveToNextCell({ cellId, before: true });
         return true;
       },
     },
@@ -97,7 +67,8 @@ export function cellMovementBundle(
       run: (cm) => {
         // Cannot delete non-empty cells for safety
         if (cm.state.doc.length === 0) {
-          deleteCell();
+          const actions = cm.state.facet(cellActionsState);
+          actions.deleteCell();
         }
         // shortcuts.delete (shift-backspace) overlaps with
         // defaultKeymap's deleteCharBackward (backspace); we don't want
@@ -111,8 +82,9 @@ export function cellMovementBundle(
       key: hotkeys.getHotkey("cell.moveUp").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        moveUp();
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.moveCell({ cellId, before: true });
         return true;
       },
     },
@@ -120,8 +92,9 @@ export function cellMovementBundle(
       key: hotkeys.getHotkey("cell.moveDown").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        moveDown();
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.moveCell({ cellId, before: false });
         return true;
       },
     },
@@ -137,7 +110,8 @@ export function cellMovementBundle(
         }
 
         if (isAtStartOfEditor(ev)) {
-          focusUp();
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveToNextCell({ cellId, before: true });
           return true;
         }
         return false;
@@ -155,7 +129,8 @@ export function cellMovementBundle(
         }
 
         if (isAtEndOfEditor(ev)) {
-          focusDown();
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveToNextCell({ cellId, before: false });
           return true;
         }
         return false;
@@ -165,8 +140,9 @@ export function cellMovementBundle(
       key: hotkeys.getHotkey("cell.focusDown").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        focusDown();
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.moveToNextCell({ cellId, before: false });
         return true;
       },
     },
@@ -174,8 +150,9 @@ export function cellMovementBundle(
       key: hotkeys.getHotkey("cell.focusUp").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        focusUp();
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.moveToNextCell({ cellId, before: true });
         return true;
       },
     },
@@ -183,8 +160,9 @@ export function cellMovementBundle(
       key: hotkeys.getHotkey("cell.sendToBottom").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        sendToBottom({ cellId });
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.sendToBottom({ cellId });
         return true;
       },
     },
@@ -192,8 +170,9 @@ export function cellMovementBundle(
       key: hotkeys.getHotkey("cell.sendToTop").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        sendToTop({ cellId });
+      run: (ev) => {
+        const actions = ev.state.facet(cellActionsState);
+        actions.sendToTop({ cellId });
         return true;
       },
     },
@@ -203,7 +182,8 @@ export function cellMovementBundle(
       stopPropagation: true,
       run: (ev) => {
         ev.contentDOM.blur();
-        createAbove();
+        const actions = ev.state.facet(cellActionsState);
+        actions.createNewCell({ cellId, before: true });
         return true;
       },
     },
@@ -213,7 +193,8 @@ export function cellMovementBundle(
       stopPropagation: true,
       run: (ev) => {
         ev.contentDOM.blur();
-        createBelow();
+        const actions = ev.state.facet(cellActionsState);
+        actions.createNewCell({ cellId, before: false });
         return true;
       },
     },
@@ -222,7 +203,8 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        const isHidden = toggleHideCode();
+        const actions = ev.state.facet(cellActionsState);
+        const isHidden = actions.toggleHideCode();
         closeCompletion(ev);
         // If we are newly hidden, blur the editor
         if (isHidden) {
@@ -243,7 +225,8 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        const closed = aiCellCompletion();
+        const actions = ev.state.facet(cellActionsState);
+        const closed = actions.aiCellCompletion();
         if (closed) {
           ev.contentDOM.focus();
         }
@@ -264,13 +247,14 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        splitCell({ cellId });
-        if (!moveToNextCell) {
+        const actions = ev.state.facet(cellActionsState);
+        actions.splitCell({ cellId });
+        if (!actions.moveToNextCell) {
           return true;
         }
         requestAnimationFrame(() => {
           ev.contentDOM.blur();
-          moveToNextCell({ cellId, before: false }); // focus new cell
+          actions.moveToNextCell({ cellId, before: false }); // focus new cell
         });
         return true;
       },
@@ -281,21 +265,10 @@ export function cellMovementBundle(
   return [Prec.high(keymap.of(keybindings))];
 }
 
-export interface CodeCallbacks {
-  updateCellCode: CellActions["updateCellCode"];
-  afterToggleMarkdown: () => void;
-}
-
 /**
  * Extensions for cell code editing
  */
-export function cellCodeEditingBundle(
-  cellId: CellId,
-  callbacks: CodeCallbacks,
-  hotkeys: HotkeyProvider,
-): Extension[] {
-  const { updateCellCode } = callbacks;
-
+function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   const onChangePlugin = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
       // Check if the doc update was a formatting change
@@ -304,7 +277,9 @@ export function cellCodeEditingBundle(
         tr.effects.some((effect) => effect.is(formattingChangeEffect)),
       );
       const nextCode = getEditorCodeAsPython(update.view);
-      updateCellCode({
+      const cellActions = update.view.state.facet(cellActionsState);
+      const cellId = update.view.state.facet(cellIdState);
+      cellActions.updateCellCode({
         cellId,
         code: nextCode,
         formattingChange: isFormattingChange,
@@ -312,15 +287,13 @@ export function cellCodeEditingBundle(
     }
   });
 
-  return [onChangePlugin, formatKeymapExtension(cellId, callbacks, hotkeys)];
+  return [onChangePlugin, formatKeymapExtension(hotkeys)];
 }
 
 /**
  * Extension for auto-running markdown cells
  */
-export function markdownAutoRunExtension(
-  callbacks: MovementCallbacks,
-): Extension {
+export function markdownAutoRunExtension(): Extension {
   return EditorView.updateListener.of((update) => {
     // If the doc didn't change, ignore
     if (!update.docChanged) {
@@ -342,6 +315,20 @@ export function markdownAutoRunExtension(
       return;
     }
 
-    callbacks.onRun();
+    const actions = update.view.state.facet(cellActionsState);
+    actions.onRun();
   });
+}
+
+export function cellBundle(
+  cellId: CellId,
+  hotkeys: HotkeyProvider,
+  cellActions: CodemirrorCellActions,
+): Extension[] {
+  return [
+    cellActionsState.of(cellActions),
+    cellIdState.of(cellId),
+    cellKeymaps(cellId, hotkeys),
+    cellCodeEditing(hotkeys),
+  ];
 }

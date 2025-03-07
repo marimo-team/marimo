@@ -913,6 +913,12 @@ const {
     action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
+
+    // Can't move focus of scratch cell
+    if (cellId === SCRATCH_CELL_ID) {
+      return state;
+    }
+
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;

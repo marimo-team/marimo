@@ -3,8 +3,10 @@ import { describe, it, expect, vi } from "vitest";
 import { extractCells, pasteBundle } from "../paste";
 import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import { movementCallbacksState } from "../../config/extension";
-import type { MovementCallbacks } from "../../cells/extensions";
+import {
+  cellActionsState,
+  type CodemirrorCellActions,
+} from "../../cells/state";
 
 describe("extractCells", () => {
   it("returns empty array for non-marimo text", () => {
@@ -176,9 +178,9 @@ describe("pasteBundle", () => {
         doc: "",
         extensions: [
           extension,
-          movementCallbacksState.of({
+          cellActionsState.of({
             createManyBelow,
-          } as Partial<MovementCallbacks> as MovementCallbacks),
+          } as never as CodemirrorCellActions),
         ],
       }),
     });
@@ -214,9 +216,9 @@ def _():
         doc: "",
         extensions: [
           extension,
-          movementCallbacksState.of({
+          cellActionsState.of({
             createManyBelow,
-          } as Partial<MovementCallbacks> as MovementCallbacks),
+          } as never as CodemirrorCellActions),
         ],
       }),
     });

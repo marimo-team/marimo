@@ -15,21 +15,21 @@ import {
 import { clamp } from "@/utils/math";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import {
+  cellIdState,
   completionConfigState,
   hotkeysProviderState,
-  movementCallbacksState,
   placeholderState,
+  type PlaceholderType,
 } from "../config/extension";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { CodeMirrorSetupOpts } from "../cm";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
 import { LanguagePanelComponent } from "./panel";
-
+import type { CellId } from "@/core/cells/ids";
 /**
  * Compartment to keep track of the current language and extension.
  * When the language changes, the extensions inside the compartment will be updated.
@@ -116,7 +116,7 @@ function updateLanguageAdapterAndCode(
   const completionConfig = view.state.facet(completionConfigState);
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
   const placeholderType = view.state.facet(placeholderState);
-  const movementCallbacks = view.state.facet(movementCallbacksState);
+  const cellId = view.state.facet(cellIdState);
   let cursor = view.state.selection.main.head;
 
   // If keepCodeAsIs is true, we just keep the original code
@@ -143,10 +143,10 @@ function updateLanguageAdapterAndCode(
       setLanguageAdapter.of(nextLanguage),
       languageCompartment.reconfigure(
         nextLanguage.getExtension(
+          cellId,
           completionConfig,
           hotkeysProvider,
           placeholderType,
-          movementCallbacks,
         ),
       ),
       // Clear history
@@ -177,44 +177,23 @@ function createLanguagePanel(view: EditorView): Panel {
 /**
  * Set of extensions to enable adaptive language configuration.
  */
-export function adaptiveLanguageConfiguration(
-  opts: Pick<
-    CodeMirrorSetupOpts,
-    | "completionConfig"
-    | "hotkeys"
-    | "showPlaceholder"
-    | "enableAI"
-    | "cellMovementCallbacks"
-  >,
-) {
-  const {
-    showPlaceholder,
-    enableAI,
-    completionConfig,
-    hotkeys,
-    cellMovementCallbacks,
-  } = opts;
-
-  const placeholderType = showPlaceholder
-    ? "marimo-import"
-    : enableAI
-      ? "ai"
-      : "none";
+export function adaptiveLanguageConfiguration(opts: {
+  placeholderType: PlaceholderType;
+  completionConfig: CompletionConfig;
+  hotkeys: HotkeyProvider;
+  cellId: CellId;
+}) {
+  const { placeholderType, completionConfig, hotkeys, cellId } = opts;
 
   return [
-    // Store state
-    completionConfigState.of(completionConfig),
-    hotkeysProviderState.of(hotkeys),
-    placeholderState.of(placeholderType),
-    movementCallbacksState.of(cellMovementCallbacks),
     // Language adapter
     languageToggle(),
     languageCompartment.of(
       LanguageAdapters.python().getExtension(
+        cellId,
         completionConfig,
         hotkeys,
         placeholderType,
-        cellMovementCallbacks,
       ),
     ),
     languageAdapterState,
@@ -282,13 +261,13 @@ export function reconfigureLanguageEffect(
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
-  const movementCallbacks = view.state.facet(movementCallbacksState);
+  const cellId = view.state.facet(cellIdState);
   return languageCompartment.reconfigure(
     language.getExtension(
+      cellId,
       completionConfig,
       hotkeysProvider,
       placeholderType,
-      movementCallbacks,
     ),
   );
 }
