@@ -18,6 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import pytest
@@ -27,11 +28,11 @@ from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
+from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
-    from pathlib import Path
 
 HAS_UV = DependencyManager.which("uv")
 
@@ -116,10 +117,9 @@ def _temp_run_file(directory: tempfile.TemporaryDirectory[str]) -> str:
     filecontents = codegen.generate_filecontents(
         ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
     )
-    path = os.path.join(directory.name, "run.py")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(filecontents)
-    return path
+    path = Path(directory.name) / "run.py"
+    path.write_text(filecontents, encoding="utf-8")
+    return str(path)
 
 
 def _check_contents(
@@ -591,6 +591,24 @@ def test_cli_sandbox_edit_new_file() -> None:
             "--headless",
             "--no-token",
             "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
+def test_cli_edit_by_url() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "https://github.com/marimo-team/marimo/blob/main/examples/ui/button.py",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
         ]
     )
     contents = _try_fetch(port)

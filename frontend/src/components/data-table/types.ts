@@ -31,3 +31,10 @@ export function toFieldTypes(
 export const SELECT_COLUMN_ID = "__select__";
 
 export const INDEX_COLUMN_NAME = "_marimo_row_id";
+
+export type DataTableSelection =
+  | "single"
+  | "multi"
+  | "single-cell"
+  | "multi-cell"
+  | null;

@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def import_files(filename: str) -> Any:
@@ -29,10 +32,8 @@ def pretty_path(filename: str) -> str:
     return filename
 
 
-def maybe_make_dirs(filepath: str) -> None:
+def maybe_make_dirs(filepath: Path) -> None:
     """
     Create directories if they don't exist.
     """
-    dirname = os.path.dirname(filepath)
-    if dirname:
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    filepath.parent.mkdir(parents=True, exist_ok=True)

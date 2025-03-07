@@ -56,6 +56,7 @@ describe("Cell data attributes", () => {
           watcher_on_save: "lazy",
           output_max_bytes: 1_000_000,
           std_stream_max_bytes: 1_000_000,
+          pythonpath: [],
         },
         server: {
           browser: "default",

@@ -4,7 +4,8 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -29,9 +30,11 @@ LOGGER = _loggers.marimo_logger()
 
 class AppFileManager:
     def __init__(
-        self, filename: Optional[str], default_width: WidthType | None = None
+        self,
+        filename: Optional[Union[str, Path]],
+        default_width: WidthType | None = None,
     ) -> None:
-        self.filename = filename
+        self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
         self.app = self._load_app(self.path)
 
@@ -95,8 +98,7 @@ class AppFileManager:
     ) -> None:
         self._create_parent_directories(filename)
         try:
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(contents)
+            Path(filename).write_text(contents, encoding="utf-8")
         except Exception as err:
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
@@ -331,23 +333,20 @@ class AppFileManager:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Cannot read code from an unnamed notebook",
             )
-        with open(self.filename, encoding="utf-8") as f:
-            contents = f.read().strip()
-        return contents
+        return Path(self.filename).read_text(encoding="utf-8")
 
 
 def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
     if not css_file or not filename:
         return None
 
-    app_dir = os.path.dirname(filename)
-    filepath = os.path.join(app_dir, css_file)
-    if not os.path.exists(filepath):
+    app_dir = Path(filename).parent
+    filepath = app_dir / css_file
+    if not filepath.exists():
         LOGGER.error("CSS file %s does not exist", css_file)
         return None
     try:
-        with open(filepath) as f:
-            return f.read()
+        return filepath.read_text(encoding="utf-8")
     except OSError as e:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
@@ -363,14 +362,13 @@ def read_html_head_file(
     if not html_head_file or not filename:
         return None
 
-    app_dir = os.path.dirname(filename)
-    filepath = os.path.join(app_dir, html_head_file)
-    if not os.path.exists(filepath):
+    app_dir = Path(filename).parent
+    filepath = app_dir / html_head_file
+    if not filepath.exists():
         LOGGER.error("HTML head file %s does not exist", html_head_file)
         return None
     try:
-        with open(filepath) as f:
-            return f.read()
+        return filepath.read_text(encoding="utf-8")
     except OSError as e:
         LOGGER.warning(
             "Failed to open HTML head file %s for reading: %s",

@@ -2015,9 +2015,7 @@ components:
           nullable: true
           type: array
         message:
-          additionalProperties:
-            additionalProperties: true
-            type: object
+          additionalProperties: {}
           type: object
         name:
           enum:

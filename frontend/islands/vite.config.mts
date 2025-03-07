@@ -78,7 +78,10 @@ export default defineConfig({
         entryFileNames: "[name].js",
         // Ensure CSS is output as style.css instead of frontend.css
         assetFileNames: (assetInfo) => {
-          if (assetInfo.names.includes("frontend.css")) {
+          if (
+            assetInfo.names.includes("frontend.css") ||
+            assetInfo.names.includes("islands.css")
+          ) {
             return "style.css";
           }
           return assetInfo.names[0];
