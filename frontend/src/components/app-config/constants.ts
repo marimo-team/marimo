@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export const KNOWN_AI_MODELS = [
   // Anthropic
+  "claude-3-7-sonnet-20250219",
   "claude-3-5-sonnet-20241022",
   "claude-3-opus",
   "claude-3.5-haiku",
