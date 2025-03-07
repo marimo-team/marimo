@@ -38,7 +38,7 @@
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
     "@lezer/lr": "^1.4.2",
-    "@lezer/python": "^1.1.15",
+    "@lezer/python": "^1.1.16",
     "@marimo-team/codemirror-ai": "^0.1.9",
     "@marimo-team/marimo-api": "file:../openapi",
     "@marimo-team/react-slotz": "^0.1.8",
