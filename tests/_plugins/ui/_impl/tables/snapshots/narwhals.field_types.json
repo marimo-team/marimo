@@ -1,1 +1,18 @@
-[["strings", ["string", "String"]], ["bool", ["boolean", "Boolean"]], ["int", ["integer", "Int64"]], ["float", ["number", "Float64"]], ["datetime", ["date", "Datetime(time_unit='us', time_zone=None)"]], ["date", ["date", "Date"]], ["struct", ["unknown", "Struct({'a': Int64, 'b': Int64})"]], ["list", ["unknown", "List(Int64)"]], ["array", ["unknown", "Array(Int64, shape=(1,))"]], ["nulls", ["string", "String"]], ["category", ["string", "Categorical"]], ["set", ["unknown", "Object"]], ["imaginary", ["unknown", "Object"]], ["time", ["unknown", "Time"]], ["duration", ["number", "Duration(time_unit='us')"]], ["mixed_list", ["unknown", "List(String)"]]]
+[
+  ["strings", ["string", "String"]],
+  ["bool", ["boolean", "Boolean"]],
+  ["int", ["integer", "Int64"]],
+  ["float", ["number", "Float64"]],
+  ["datetime", ["date", "Datetime(time_unit='us', time_zone=None)"]],
+  ["date", ["date", "Date"]],
+  ["struct", ["unknown", "Struct({'a': Int64, 'b': Int64})"]],
+  ["list", ["unknown", "List(Int64)"]],
+  ["array", ["unknown", "Array(Int64, shape=(1,))"]],
+  ["nulls", ["string", "String"]],
+  ["category", ["string", "Categorical"]],
+  ["set", ["unknown", "Object"]],
+  ["imaginary", ["unknown", "Object"]],
+  ["time", ["unknown", "Time"]],
+  ["duration", ["number", "Duration(time_unit='us')"]],
+  ["mixed_list", ["unknown", "List(String)"]]
+]
