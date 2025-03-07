@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING, Literal, Optional
+import inspect
+import ast
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -60,23 +62,3 @@ def get_mode() -> Optional[RunMode]:
         return "test"
 
     return None
-
-
-class import_guard:
-    """
-    A context manager that controls imports from being executed in top level code.
-    NB. May be replaced for `import_guard -> bool`, experimental stub pending
-    MEP-0008 (github:marimo-team/meps/pull/8)
-    """
-
-    def __enter__(self) -> None:
-        pass
-
-    def __exit__(
-        self,
-        exception: Optional[type[BaseException]],
-        instance: Optional[BaseException],
-        _tracebacktype: Optional[TracebackType],
-    ) -> Literal[False]:
-        # Whether to suppress a given exception.
-        return False

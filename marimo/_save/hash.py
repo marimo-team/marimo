@@ -27,7 +27,7 @@ from marimo._runtime.primitives import (
     is_pure_function,
 )
 from marimo._runtime.state import SetFunctor, State
-from marimo._save.ast import DeprivateVisitor, strip_function
+from marimo._ast.transformers import DeprivateVisitor, strip_function
 from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
 

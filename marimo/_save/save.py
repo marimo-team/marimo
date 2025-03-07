@@ -22,11 +22,15 @@ from typing import (
     overload,
 )
 
+from marimo._ast.transformers import (
+    ARG_PREFIX,
+    ExtractWithBlock,
+    strip_function,
+)
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._runtime.state import State
-from marimo._save.ast import ARG_PREFIX, ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
     DEFAULT_HASH,
@@ -257,7 +261,7 @@ class _cache_context:
         # "<module>" function call, which corresponds to a cell level block.
         #   2) Run static analysis to determine whether the call meets our
         # criteria. The procedure is a little brittle as such, certain contexts
-        # are not allow (e.g. called within a function or a loop).
+        # are not allowed (e.g. called within a function or a loop).
         #  3) Hash the execution and lookup the cache, and return!
         #  otherwise) Set _skipped such that the block continues to execute.
 
