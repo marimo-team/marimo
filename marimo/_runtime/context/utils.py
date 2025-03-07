@@ -2,17 +2,12 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Literal, Optional
-import inspect
-import ast
+from typing import Literal, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._server.model import SessionMode
 from marimo._utils.assert_never import assert_never
-
-if TYPE_CHECKING:
-    from types import TracebackType
 
 RunMode = Literal["run", "edit", "script", "test"]
 

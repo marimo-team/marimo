@@ -10,6 +10,7 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
+from marimo._ast.transformers import DeprivateVisitor, strip_function
 from marimo._ast.variables import (
     get_cell_from_local,
     if_local_then_mangle,
@@ -27,7 +28,6 @@ from marimo._runtime.primitives import (
     is_pure_function,
 )
 from marimo._runtime.state import SetFunctor, State
-from marimo._ast.transformers import DeprivateVisitor, strip_function
 from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
 
