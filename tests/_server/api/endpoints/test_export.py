@@ -415,7 +415,7 @@ def test_auto_export_ipynb_with_new_cell(
     assert session
 
     # Wait for the cell operation to be created
-    timeout = 3
+    timeout = 4
     start = time.time()
     cell_op = None
     while time.time() - start < timeout:
@@ -423,7 +423,7 @@ def test_auto_export_ipynb_with_new_cell(
             time.sleep(0.1)
             continue
         cell_op = session.session_view.cell_operations["new_cell"]
-        if cell_op.output is not None:
+        if cell_op.output is not None and cell_op.output.data:
             break
     assert cell_op
     assert cell_op.output is not None
