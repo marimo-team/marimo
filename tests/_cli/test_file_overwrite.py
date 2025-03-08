@@ -9,9 +9,6 @@ from pathlib import Path
 
 import pytest
 
-from marimo._config.settings import GLOBAL_SETTINGS
-
-
 @pytest.fixture
 def existing_file() -> Generator[str, None, None]:
     """Create a temporary file that already exists."""
