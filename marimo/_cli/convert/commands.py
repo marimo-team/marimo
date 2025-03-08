@@ -8,6 +8,7 @@ import click
 from marimo._cli.convert.markdown import convert_from_md
 from marimo._cli.convert.utils import load_external_file
 from marimo._cli.print import echo
+from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.ipynb import convert_from_ipynb
 from marimo._utils.paths import maybe_make_dirs
 
@@ -63,9 +64,11 @@ def convert(
         notebook = convert_from_md(text)
 
     if output:
-        # Make dirs if needed
-        maybe_make_dirs(output)
-        Path(output).write_text(notebook, encoding="utf-8")
-        echo(f"Converted notebook saved to {output}")
+        output_path = Path(output)
+        if prompt_to_overwrite(output_path):
+            # Make dirs if needed
+            maybe_make_dirs(output)
+            Path(output).write_text(notebook, encoding="utf-8")
+            echo(f"Converted notebook saved to {output}")
     else:
         echo(notebook)

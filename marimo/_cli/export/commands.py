@@ -9,6 +9,7 @@ import click
 
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
+from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import (
     ExportResult,
@@ -62,6 +63,11 @@ def watch_and_export(
         else:
             echo(data)
         return
+
+    if output:
+        output_path = Path(output)
+        if not prompt_to_overwrite(output_path):
+            return
 
     # No watch, just run once
     if not watch:
