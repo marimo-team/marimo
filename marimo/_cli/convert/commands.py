@@ -65,16 +65,10 @@ def convert(
     if output:
         output_path = Path(output)
         if prompt_to_overwrite(output_path):
-            confirmed = click.confirm(
-                f"Warning: The file '{output}' already exists. Overwrite?",
-                default=False,
-            )
-            if not confirmed:
-                return
-        # Make dirs if needed
-        maybe_make_dirs(output)
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(notebook)
-        echo(f"Converted notebook saved to {output}")
+            # Make dirs if needed
+            maybe_make_dirs(output)
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(notebook)
+            echo(f"Converted notebook saved to {output}")
     else:
         echo(notebook)

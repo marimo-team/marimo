@@ -69,13 +69,8 @@ def watch_and_export(
 
     if output:
         output_path = Path(output)
-        if prompt_to_overwrite(output_path):
-            confirmed = click.confirm(
-                f"Warning: The file '{output_path}' already exists. Overwrite?",
-                default=False,
-            )
-            if not confirmed:
-                return
+        if not prompt_to_overwrite(output_path):
+            return
 
     # No watch, just run once
     if not watch:

@@ -3,19 +3,24 @@
 from pathlib import Path
 from sys import stdout
 
+import click
+
 from marimo._config.settings import GLOBAL_SETTINGS
 
 
 def prompt_to_overwrite(path: Path) -> bool:
     if GLOBAL_SETTINGS.YES:
-        return False
+        return True
 
     # Check if not in an interactive terminal
     # default to False
     if not stdout.isatty():
-        return False
-
-    if path.exists():
         return True
 
-    return False
+    if path.exists():
+        return click.confirm(
+            f"Warning: The file '{path}' already exists. Overwrite?",
+            default=False,
+        )
+
+    return True
