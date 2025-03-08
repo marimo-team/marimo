@@ -12,6 +12,7 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+
 @pytest.fixture
 def existing_file() -> Generator[str, None, None]:
     """Create a temporary file that already exists."""
