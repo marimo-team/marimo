@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import type { PanelType } from "./types";
 import { ZodLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
+import { PANELS } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
@@ -65,6 +66,39 @@ const {
       ...state,
       isTerminalOpen: isOpen,
     }),
+    nextPanel: (state) => {
+      if (!state.isSidebarOpen || !state.selectedPanel) {
+        return state;
+      }
+      const visiblePanels = PANELS.filter(
+        (p) => !p.hidden && p.position === "sidebar",
+      );
+      const currentIndex = visiblePanels.findIndex(
+        (p) => p.type === state.selectedPanel,
+      );
+      const nextIndex = (currentIndex + 1) % visiblePanels.length;
+      return {
+        ...state,
+        selectedPanel: visiblePanels[nextIndex].type,
+      };
+    },
+    previousPanel: (state) => {
+      if (!state.isSidebarOpen || !state.selectedPanel) {
+        return state;
+      }
+      const visiblePanels = PANELS.filter(
+        (p) => !p.hidden && p.position === "sidebar",
+      );
+      const currentIndex = visiblePanels.findIndex(
+        (p) => p.type === state.selectedPanel,
+      );
+      const prevIndex =
+        (currentIndex - 1 + visiblePanels.length) % visiblePanels.length;
+      return {
+        ...state,
+        selectedPanel: visiblePanels[prevIndex].type,
+      };
+    },
   },
   [(_prevState, newState) => storage.set(newState)],
 );

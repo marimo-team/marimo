@@ -354,6 +354,16 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Ctrl-k",
   },
+  "panel.nextPanel": {
+    name: "Navigate to next panel",
+    group: "Navigation",
+    key: NOT_SET,
+  },
+  "panel.previousPanel": {
+    name: "Navigate to previous panel",
+    group: "Navigation",
+    key: NOT_SET,
+  },
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
