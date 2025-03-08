@@ -131,7 +131,9 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
   const sizeColumns = useCallback(() => {
     // Size the columns to either fit the grid or auto-size based on content
     const api = gridRef.current?.api;
-    if (!api) { return }
+    if (!api) {
+      return;
+    }
 
     if (columnSizingMode === "fit") {
       api.sizeColumnsToFit();
@@ -141,9 +143,12 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
     api.refreshHeader();
   }, [columnSizingMode]);
 
-  const onGridReady = useCallback((params: GridReadyEvent) => {
-    sizeColumns();
-  }, [sizeColumns]);
+  const onGridReady = useCallback(
+    (params: GridReadyEvent) => {
+      sizeColumns();
+    },
+    [sizeColumns],
+  );
 
   useEffect(() => {
     // Update grid layout when column sizing prop changes
