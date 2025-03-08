@@ -19,6 +19,8 @@ from marimo._ast.cell import (
     ImportWorkspace,
     SourcePosition,
 )
+from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._types.ids import CellId_t
@@ -293,6 +295,51 @@ def get_source_position(
         filename=f.__code__.co_filename,
         lineno=lineno,
         col_offset=col_offset,
+    )
+
+
+def context_cell_factory(
+    cell_id: CellId_t,
+    frame_offset: int = 3,
+    anonymous_file: bool = False,
+) -> Cell:
+    frame = inspect.stack()[frame_offset].frame
+    _, lnum = inspect.getsourcelines(frame)
+
+    source = inspect.getsource(frame)
+    lines = source.split("\n")
+
+    entry_line = frame.f_lineno
+    if lnum > 0:
+        entry_line += 1 - lnum
+
+    _, with_block = ContainedExtractWithBlock(entry_line).visit(
+        ast.parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
+    )
+
+    start_node = with_block.body[0]
+    end_node = with_block.body[-1]
+    col_offset = start_node.col_offset
+    cell_code = textwrap.dedent(
+        "\n".join(lines[entry_line : end_node.end_lineno + 1])
+    ).rstrip()
+
+    source_position = None
+    if not anonymous_file:
+        source_position = SourcePosition(
+            filename=frame.f_code.co_filename,
+            lineno=start_node.lineno,
+            col_offset=col_offset,
+        )
+
+    return Cell(
+        _name=SETUP_CELL_NAME,
+        _cell=compile_cell(
+            cell_code,
+            cell_id=cell_id,
+            source_position=source_position,
+            test_rewrite=False,
+        ),
     )
 
 

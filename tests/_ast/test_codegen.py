@@ -321,7 +321,7 @@ class TestGeneration:
         assert "import marimo" in source
         split = source.split("import marimo")
         # The default one, the as mo in top level, in as mo in cell
-        assert len(split) == 4
+        assert len(split) == 3
 
     @staticmethod
     def test_generate_filecontents_toplevel_pytest() -> None:

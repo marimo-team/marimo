@@ -290,48 +290,34 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
-    def is_toplevel_acceptable(
-        self, allowed_refs: Optional[set[Name]] = None
-    ) -> bool:
-        # Check no defs aside from the single function
-        if len(self.defs) != 1:
-            return False
-
-        # Must be parsable
+    @property
+    def toplevel_variable(self) -> Optional[VariableData]:
+        """Return the single, scoped, toplevel variable defined if found."""
         try:
             tree = ast.parse(self.code)
         except SyntaxError:
-            return False
+            return None
 
-        # Must be a bare function.
+        if len(self.defs) != 1:
+            return None
+
         if not (
             len(tree.body) == 1
             and isinstance(
                 tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)
             )
         ):
-            return False
+            return None
 
         # Check that def matches the single definition
         name = tree.body[0].name
         if not (name == list(self.defs)[0] and name in self.variable_data):
-            return False
+            return None
 
-        # No required_refs are allowed for now
-        refs = set().union(
-            *[v.required_refs for v in self.variable_data[name]]
-        )
-        # NOTE: Builtins are allowed, but should be passed in under
-        # allowed_refs. Defers to allowed_refs because shadowed builtins
-        # are accounted for.
-        if allowed_refs is None:
-            allowed_refs = set(globals()["__builtins__"].keys())
-        # Allow recursion
-        refs -= {name} | allowed_refs
-        if refs:
-            return False
+        if len(variable_data := self.variable_data[name]) != 1:
+            return None
 
-        return True
+        return list(variable_data)[0]
 
     def set_runtime_state(
         self, status: RuntimeStateType, stream: Stream | None = None

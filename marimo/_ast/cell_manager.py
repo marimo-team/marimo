@@ -18,7 +18,11 @@ else:
     from typing import ParamSpec, TypeAlias
 
 from marimo._ast.cell import Cell, CellConfig
-from marimo._ast.compiler import cell_factory, toplevel_cell_factory
+from marimo._ast.compiler import (
+    cell_factory,
+    context_cell_factory,
+    toplevel_cell_factory,
+)
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.pytest import process_for_pytest
@@ -133,6 +137,20 @@ class CellManager:
             return decorator
         else:
             return _register(func)
+
+    def cell_context(
+        self,
+        frame_offset: int = 2,
+        app: InternalApp | None = None,
+    ) -> Cell:
+        """Registers cells when called through a context block."""
+        cell = context_cell_factory(
+            cell_id=self.create_cell_id(),
+            frame_offset=frame_offset + 1,
+        )
+        cell._cell.configure(CellConfig())
+        self._register_cell(cell, app=app)
+        return cell
 
     def _register_cell(
         self, cell: Cell, app: InternalApp | None = None
