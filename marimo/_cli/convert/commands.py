@@ -65,9 +65,9 @@ def convert(
     if output:
         output_path = Path(output)
         if prompt_to_overwrite(output_path):
-          # Make dirs if needed
-          maybe_make_dirs(output)
-          Path(output).write_text(notebook, encoding="utf-8")
-          echo(f"Converted notebook saved to {output}")
+            # Make dirs if needed
+            maybe_make_dirs(output)
+            Path(output).write_text(notebook, encoding="utf-8")
+            echo(f"Converted notebook saved to {output}")
     else:
         echo(notebook)
