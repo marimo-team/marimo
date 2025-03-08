@@ -30,6 +30,34 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+def preprocess_future_imports(code: str) -> str:
+    """Move __future__ imports to the top of the code.
+
+    This ensures that future imports are always at the top of the file,
+    which is required by Python's compiler.
+    """
+    # Check if the code already starts with a future import
+    if code.lstrip().startswith("from __future__"):
+        return code
+
+    # Find all future import statements
+    future_import_pattern = r"from\s+__future__\s+import\s+[^;\n]+"
+    future_imports = re.findall(future_import_pattern, code)
+
+    if not future_imports:
+        return code
+
+    # Remove future imports from original code
+    code_without_futures = re.sub(future_import_pattern, "", code)
+
+    # Clean up any empty lines left by removing imports
+    code_without_futures = re.sub(r"\n\s*\n", "\n", code_without_futures)
+    code_without_futures = code_without_futures.strip()
+
+    # Add future imports at the top with proper newlines
+    return "\n".join(future_imports) + "\n\n" + code_without_futures
+
+
 def code_key(code: str) -> int:
     return hash(code)
 
@@ -144,6 +172,10 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
+
+    # Preprocess code to move __future__ imports to the top
+    # This prevents SyntaxError when future imports are not at the top
+    code = preprocess_future_imports(code)
     module = compile(
         code,
         "<unknown>",
