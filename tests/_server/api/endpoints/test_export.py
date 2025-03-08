@@ -396,6 +396,25 @@ def test_auto_export_ipynb_with_new_cell(
     marimo_dir = Path(temp_marimo_file).parent / "__marimo__"
     shutil.rmtree(marimo_dir, ignore_errors=True)
 
+    # Verify the cell output is correct
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Wait for the cell operation to be created
+    timeout = 2
+    start = time.time()
+    cell_op = None
+    while time.time() - start < timeout:
+        if "new_cell" not in session.session_view.cell_operations:
+            time.sleep(0.1)
+            continue
+        cell_op = session.session_view.cell_operations["new_cell"]
+        if cell_op.output is not None and cell_op.output.data:
+            break
+    assert cell_op
+    assert cell_op.output is not None
+    assert "3.14" in cell_op.output.data
+
     # Now attempt to auto-export as ipynb
     export_response = client.post(
         "/api/export/auto_export/ipynb",
@@ -410,28 +429,12 @@ def test_auto_export_ipynb_with_new_cell(
     # Verify the exported file exists
     assert marimo_dir.exists()
 
-    # Verify the cell output is correct
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-
-    # Wait for the cell operation to be created
-    timeout = 4
-    start = time.time()
-    cell_op = None
-    while time.time() - start < timeout:
-        if "new_cell" not in session.session_view.cell_operations:
-            time.sleep(0.1)
-            continue
-        cell_op = session.session_view.cell_operations["new_cell"]
-        if cell_op.output is not None and cell_op.output.data:
-            break
-    assert cell_op
-    assert cell_op.output is not None
-    assert "3.14" in cell_op.output.data
-
     # Verify the ipynb file exists
     filename = Path(temp_marimo_file).name.replace(".py", ".ipynb")
     ipynb_path = marimo_dir / filename
+
+    # Wait for the ipynb file to be created
+    time.sleep(0.2)
     notebook = ipynb_path.read_text()
     assert "<pre style='font-size: 12px'>3.14</pre>" in notebook
 
