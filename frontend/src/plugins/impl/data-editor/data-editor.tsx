@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useCallback, useMemo, useRef } from "react";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import { AgGridReact } from "ag-grid-react";
 import type {
   ColDef,
@@ -32,6 +32,7 @@ export interface DataEditorProps<T> {
     }>,
   ) => void;
   onAddRows: (newRows: object[]) => void;
+  columnSizingMode: "fit" | "auto";
 }
 
 function cellEditorForDataType(dataType: DataType) {
@@ -67,6 +68,7 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
   fieldTypes,
   onAddEdits,
   onAddRows,
+  columnSizingMode,
 }) => {
   const { theme } = useTheme();
   const gridRef = useRef<AgGridReact>(null);
@@ -125,9 +127,27 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
     };
   }, []);
 
+  const sizeColumns = useCallback(() => {
+    // Size the columns to either fit the grid or auto-size based on content
+    const api = gridRef.current?.api;
+    if (!api) { return }
+
+    if (columnSizingMode === "fit") {
+      api.sizeColumnsToFit();
+    } else if (columnSizingMode === "auto") {
+      api.autoSizeAllColumns();
+    }
+    api.refreshHeader();
+  }, [columnSizingMode]);
+
   const onGridReady = useCallback((params: GridReadyEvent) => {
-    params.api.sizeColumnsToFit();
-  }, []);
+    sizeColumns();
+  }, [sizeColumns]);
+
+  useEffect(() => {
+    // Update grid layout when column sizing prop changes
+    sizeColumns();
+  }, [columnSizingMode, sizeColumns]);
 
   const onCellEditingStopped = useCallback(
     (event: CellEditingStoppedEvent) => {

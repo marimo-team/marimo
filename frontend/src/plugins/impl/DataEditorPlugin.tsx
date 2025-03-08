@@ -57,6 +57,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           ]),
         )
         .nullish(),
+      columnSizingMode: z.enum(["fit", "auto"]).default("fit"),
     }),
   )
   .withFunctions({})
@@ -70,6 +71,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           fieldTypes={props.data.fieldTypes}
           edits={props.value.edits}
           onEdits={props.setValue}
+          columnSizingMode={props.data.columnSizingMode}
         />
       </TooltipProvider>
     );
@@ -138,6 +140,7 @@ const LoadingDataEditor = (props: Props) => {
         );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
       }}
+      columnSizingMode={props.columnSizingMode}
     />
   );
 };
