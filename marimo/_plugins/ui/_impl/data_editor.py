@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Final,
+    Literal,
     Optional,
     TypedDict,
     Union,
@@ -140,6 +141,7 @@ class data_editor(
                 None,
             ]
         ] = None,
+        column_sizing_mode: Literal["fit", "auto"] = "fit",
     ) -> None:
         validate_page_size(page_size)
         table_manager = get_table_manager(data)
@@ -163,6 +165,7 @@ class data_editor(
                 "field-types": field_types or None,
                 "pagination": pagination,
                 "page-size": page_size,
+                "column-sizing-mode": column_sizing_mode,
             },
             on_change=on_change,
         )
