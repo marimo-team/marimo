@@ -122,6 +122,7 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
     return {
       sortable: true,
       filter: true,
+      minWidth: 100, // Add minimum width to ensure columns are readable
     };
   }, []);
 
