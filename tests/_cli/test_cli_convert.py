@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from marimo._server.utils import find_free_port
+from marimo._utils.platform import is_windows
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -208,6 +209,10 @@ print('Hello from Markdown!')
         snapshot("remote_ipynb_to_marimo.txt", output)
 
     @staticmethod
+    @pytest.mark.skipif(
+        is_windows(),
+        reason="Markdown conversion adds extra new line on Windows",
+    )
     def test_convert_remote_markdown(http_server: TestHTTPServer) -> None:
         # Create a markdown file
         md_path = http_server.directory / "remote_markdown.md"
