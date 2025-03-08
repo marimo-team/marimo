@@ -74,7 +74,6 @@ export function useCellActionButtons({ cell }: Props) {
   const {
     createNewCell: createCell,
     updateCellConfig,
-    updateCellCode,
     updateCellName,
     moveCell,
     sendToTop,
@@ -218,7 +217,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          formatEditorViews({ [cellId]: editorView }, updateCellCode);
+          formatEditorViews({ [cellId]: editorView });
         },
       },
       {

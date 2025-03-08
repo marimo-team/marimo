@@ -137,14 +137,6 @@ export const ScratchPad: React.FC = () => {
             status="idle"
             serializedEditorState={null}
             runCell={handleRun}
-            updateCellCode={updateCellCode}
-            createNewCell={Functions.NOOP}
-            deleteCell={Functions.NOOP}
-            focusCell={Functions.NOOP}
-            moveCell={Functions.NOOP}
-            moveToNextCell={undefined}
-            updateCellConfig={Functions.NOOP}
-            clearSerializedEditorState={Functions.NOOP}
             userConfig={userConfig}
             editorViewRef={ref}
             setEditorView={(ev) => {

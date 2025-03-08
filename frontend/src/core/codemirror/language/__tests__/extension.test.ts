@@ -8,26 +8,35 @@ import {
 } from "../extension";
 import { EditorState } from "@codemirror/state";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { MovementCallbacks } from "../../cells/extensions";
 import { store } from "@/core/state/jotai";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { EditorView } from "@codemirror/view";
+import type { CellId } from "@/core/cells/ids";
+import { cellConfigExtension } from "../../config/extension";
 
 function createState(content: string, selection?: { anchor: number }) {
   const state = EditorState.create({
     doc: content,
     extensions: [
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           copilot: false,
           activate_on_typing: true,
           codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
-        enableAI: true,
-        showPlaceholder: true,
-        cellMovementCallbacks: {} as MovementCallbacks,
+        placeholderType: "marimo-import",
       }),
+      cellConfigExtension(
+        {
+          copilot: false,
+          activate_on_typing: true,
+          codeium_api_key: null,
+        },
+        new OverridingHotkeyProvider({}),
+        "marimo-import",
+      ),
     ],
     selection,
   });

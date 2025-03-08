@@ -157,7 +157,7 @@ To use Anthropic with marimo:
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "claude-3-5-sonnet-20240620"
+model = "claude-3-7-sonnet-20250219"
 # or any model from https://docs.anthropic.com/en/docs/about-claude/models
 
 [ai.anthropic]

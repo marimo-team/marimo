@@ -1,16 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
-import {
-  sql,
-  StandardSQL,
-  schemaCompletionSource,
-  MySQL,
-  PostgreSQL,
-  SQLite,
-  type SQLDialect,
-  type SQLConfig,
-} from "@codemirror/lang-sql";
 import dedent from "string-dedent";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -34,6 +24,17 @@ import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
 import { Logger } from "@/utils/Logger";
+import type { CellId } from "@/core/cells/ids";
+import {
+  sql,
+  StandardSQL,
+  type SQLConfig,
+  schemaCompletionSource,
+  type SQLDialect,
+  PostgreSQL,
+  MySQL,
+  SQLite,
+} from "@codemirror/lang-sql";
 import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 
@@ -151,6 +152,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 
   getExtension(
+    _cellId: CellId,
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
   ): Extension[] {

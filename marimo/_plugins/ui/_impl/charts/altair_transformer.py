@@ -8,12 +8,15 @@ import narwhals.stable.v1 as nw
 from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
     get_table_manager_or_none,
 )
 from marimo._utils.data_uri import build_data_url
+
+LOGGER = _loggers.marimo_logger()
 
 Data = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
 _DataType = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
@@ -65,7 +68,12 @@ def _to_marimo_arrow(data: Data, **kwargs: Any) -> _TransformResult:
     del kwargs
     try:
         data_arrow = get_table_manager(data).to_arrow_ipc()
-    except Exception:
+    except NotImplementedError:
+        return _to_marimo_csv(data)
+    except Exception as e:
+        LOGGER.warning(
+            f"Failed to convert data to arrow format, falling back to CSV: {e}"
+        )
         return _to_marimo_csv(data)
     virtual_file = mo_data.arrow(data_arrow)
     return {"url": virtual_file.url, "format": {"type": "arrow"}}

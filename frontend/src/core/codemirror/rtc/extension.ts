@@ -16,6 +16,7 @@ import { Logger } from "@/utils/Logger";
 
 export function realTimeCollaboration(
   cellId: CellId,
+  updateCellCode: (code: string) => void,
   initialCode = "",
 ): { extension: Extension; code: string } {
   if (isWasm()) {
@@ -26,7 +27,42 @@ export function realTimeCollaboration(
   }
 
   const manager = CellProviderManager.getInstance();
-  const { ytext, ylanguage } = manager.getOrCreateProvider(cellId, initialCode);
+  const { ytext, ylanguage, provider } = manager.getOrCreateProvider(
+    cellId,
+    initialCode,
+  );
+
+  // Code sync plugin
+  const codeSync = ViewPlugin.define((view) => {
+    const handleSync = (isSynced: boolean) => {
+      Logger.debug(`RTC: sync=${isSynced}, ytext.length=${ytext.toJSON()}`);
+
+      // If it's not synced, update the editor code
+      if (!isSynced) {
+        const code = ytext.toJSON();
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: code,
+          },
+        });
+      }
+
+      // If it's synced, update the cell code
+      if (isSynced) {
+        updateCellCode(ytext.toJSON());
+      }
+    };
+
+    // Wait for provider to connect before initializing with local code
+    provider.on("sync", handleSync);
+    return {
+      destroy() {
+        provider.off("sync", handleSync);
+      },
+    };
+  });
 
   // Create a view plugin to observe language changes
   const languageObserver = ViewPlugin.define((view) => {
@@ -70,7 +106,12 @@ export function realTimeCollaboration(
     }
   });
 
-  const extension = [languageObserver, languageListener, yCollab(ytext, null)];
+  const extension = [
+    languageObserver,
+    languageListener,
+    codeSync,
+    yCollab(ytext, null),
+  ];
 
   return {
     code: ytext.toJSON(),

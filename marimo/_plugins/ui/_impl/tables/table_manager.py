@@ -2,12 +2,8 @@
 from __future__ import annotations
 
 import abc
-from typing import (
-    Any,
-    Generic,
-    Optional,
-    TypeVar,
-)
+from dataclasses import dataclass
+from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
@@ -19,6 +15,24 @@ T = TypeVar("T")
 ColumnName = str
 FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
+
+
+class TableCoordinate(NamedTuple):
+    row_id: Union[int, str]
+    column_name: str
+
+
+@dataclass
+class TableCell:
+    row: Union[int, str]
+    column: str
+    value: Any | None
+
+    def __getitem__(self, key: str) -> Any:
+        """Allow dictionary-style access to cell values."""
+        if key not in ["row", "column", "value"]:
+            raise KeyError(f"Invalid key: {key}")
+        return getattr(self, key)
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -95,6 +109,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        pass
+
+    @abc.abstractmethod
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
         pass
 
     @abc.abstractmethod

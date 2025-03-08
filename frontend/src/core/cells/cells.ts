@@ -47,7 +47,7 @@ import {
   type CellIndex,
   MultiColumn,
 } from "@/utils/id-tree";
-import { isEqual } from "lodash-es";
+import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
@@ -797,12 +797,30 @@ const {
       cellId: CellId,
     ) => {
       if (!cell) {
-        return createCell({ id: cellId, code });
+        return createCell({
+          id: cellId,
+          code,
+          lastCodeRun: action.codeIsStale ? null : code,
+          edited: action.codeIsStale && code.trim().length > 0,
+        });
       }
+
+      // If code is stale, we don't promote it to lastCodeRun
+      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
+
+      // Mark as edited if the code has changed
+      const edited = lastCodeRun
+        ? lastCodeRun.trim() !== code.trim()
+        : Boolean(code);
 
       // No change
       if (cell.code.trim() === code.trim()) {
-        return cell;
+        return {
+          ...cell,
+          code: code,
+          edited,
+          lastCodeRun,
+        };
       }
 
       // Update codemirror if mounted
@@ -811,24 +829,18 @@ const {
         updateEditorCodeFromPython(cellHandle.editorView, code);
       }
 
-      // If code is stale, we don't promote it to lastCodeRun
-      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
-
       return {
         ...cell,
         code: code,
-        // Mark as edited if the code has changed
-        edited: lastCodeRun
-          ? lastCodeRun.trim() !== code.trim()
-          : Boolean(code),
+        edited,
         lastCodeRun,
       };
     };
 
-    for (let i = 0; i < action.codes.length; i++) {
-      const cellId = action.ids[i];
-      const code = action.codes[i];
-
+    for (const [cellId, code] of zip(action.ids, action.codes)) {
+      if (cellId === undefined || code === undefined) {
+        continue;
+      }
       nextState = {
         ...nextState,
         cellData: {
@@ -901,6 +913,12 @@ const {
     action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
+
+    // Can't move focus of scratch cell
+    if (cellId === SCRATCH_CELL_ID) {
+      return state;
+    }
+
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;

@@ -24,7 +24,11 @@ from marimo import _loggers
 from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
 from marimo._server.model import SessionMode
-from marimo._server.print import print_shutdown, print_startup
+from marimo._server.print import (
+    print_experimental_features,
+    print_shutdown,
+    print_startup,
+)
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
 
@@ -106,6 +110,8 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
             new=file_router.get_unique_file_key() == AppFileRouter.NEW_FILE,
             network=state.host == "0.0.0.0",
         )
+
+        print_experimental_features(state.config_manager.get_config())
 
     yield
 

@@ -16,6 +16,7 @@ from marimo._server.models.models import SaveNotebookRequest
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from pathlib import Path
 
 save_request = SaveNotebookRequest(
     cell_ids=["1"],
@@ -452,3 +453,125 @@ def test_rename_with_special_chars(app_file_manager: AppFileManager) -> None:
         assert os.path.exists(new_path)
     finally:
         shutil.rmtree(temp_dir)
+
+
+def test_reload_reinitializes_graph(tmp_path: Path) -> None:
+    """Test that reload() properly reinitializes the graph with new cells."""
+    # Create a temporary file
+    tmp_file = tmp_path / "test.py"
+
+    # Initial content with one cell
+    tmp_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    cell_one = "Hbol"
+    cell_two = "MJUe"
+
+    # Create the file manager and load the app
+    manager = AppFileManager(tmp_file)
+
+    # Force initialization to create the graph
+    assert manager.app._app._initialized is False
+    assert manager.app.graph is not None
+    assert manager.app._app._initialized is True
+
+    # Check initial graph state
+    cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(cell_ids) == 1
+    assert cell_ids[0] == cell_one
+
+    # Check the graph has the correct cells
+    assert manager.app.graph.cells.keys() == {cell_one}
+    assert manager.app.graph.get_defining_cells("x") == {cell_one}
+
+    # Modify file with an additional cell
+    tmp_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = x + 1
+    return y
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Reload the app
+    changed_cell_ids = manager.reload()
+    assert changed_cell_ids == {cell_two}
+
+    # Check that the graph was updated
+    assert manager.app._app._initialized is False
+    assert manager.app.graph is not None
+    assert manager.app._app._initialized is True
+
+    # Verify graph has both cells
+    assert len(list(manager.app.graph.cells)) == 2
+
+    # Verify edge exists between cell1 and cell2 (dependency)
+    cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert cell_ids == [cell_two, cell_one]
+    assert manager.app.cell_manager.get_cell_code(cell_one) == "x = 1"
+    assert manager.app.cell_manager.get_cell_code(cell_two) == "y = x + 1"
+
+    # Check that cell2 depends on cell1 in the graph
+    assert manager.app.graph.get_defining_cells("x") == {cell_one}
+    assert manager.app.graph.get_defining_cells("y") == {cell_two}
+
+    # Modify the file to remove the dependency
+    tmp_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = 2 + 1
+    return y
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Reload the app
+    changed_cell_ids = manager.reload()
+    assert changed_cell_ids == {cell_one}
+
+    # Verify cell_manager has only one cell
+    cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert cell_ids == [cell_one]
+
+    # Verify graph has only one cell
+    graph_ids = list(manager.app.graph.cells)
+    assert graph_ids == [cell_one]
+
+    # Check that the graph was updated
+    assert manager.app.graph.get_defining_cells("y") == {cell_one}
+
+    # Clean up
+    os.remove(tmp_file)
