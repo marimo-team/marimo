@@ -122,6 +122,8 @@ class data_editor(
             Can be a Pandas dataframe, a list of dicts, or a dict of lists.
         label (str): Markdown label for the element.
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
+        column_sizing_mode (Literal["fit", "auto"]): The column sizing mode for the table.
+            `fit` will size columns to fit the view, `auto` will size columns based on the content.
     """
 
     _name: Final[str] = "marimo-data-editor"
