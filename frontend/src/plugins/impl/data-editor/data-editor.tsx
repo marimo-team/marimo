@@ -140,7 +140,6 @@ const DataEditor: React.FC<DataEditorProps<object>> = ({
     } else if (columnSizingMode === "auto") {
       api.autoSizeAllColumns();
     }
-    api.refreshHeader();
   }, [columnSizingMode]);
 
   const onGridReady = useCallback(
