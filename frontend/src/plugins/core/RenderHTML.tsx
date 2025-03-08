@@ -1,12 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import parse, { Element, type DOMNode } from "html-react-parser";
-import React from "react";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import parse, {
+  Element,
+  type HTMLReactParserOptions,
+  type DOMNode,
+} from "html-react-parser";
+import React, { useId, type ReactNode } from "react";
 
-type ReplacementFn = Array<(domNode: DOMNode) => JSX.Element | undefined>;
+type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
+type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;
 
 interface Options {
   html: string;
-  additionalReplacements?: ReplacementFn;
+  additionalReplacements?: ReplacementFn[];
 }
 
 const replaceValidTags = (domNode: DOMNode) => {
@@ -57,23 +63,70 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
   }
 };
 
+// Add copy button to codehilite blocks
+const addCopyButtonToCodehilite: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+): JSX.Element | undefined => {
+  if (
+    domNode instanceof Element &&
+    domNode.name === "div" &&
+    domNode.attribs?.class?.includes("codehilite")
+  ) {
+    return <CopyableCode>{reactNode}</CopyableCode>;
+  }
+};
+
+const CopyableCode = ({ children }: { children: ReactNode }) => {
+  const id = useId();
+  return (
+    <div className="relative group" id={id}>
+      {children}
+
+      <CopyClipboardIcon
+        tooltip={false}
+        className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        value={() => {
+          const codeElement = document.getElementById(id)?.firstChild;
+          if (codeElement) {
+            return codeElement.textContent || "";
+          }
+          return "";
+        }}
+      />
+    </div>
+  );
+};
+
 export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
-  const renderFunctions: ReplacementFn = [
+  const renderFunctions: ReplacementFn[] = [
     replaceValidTags,
     replaceValidIframes,
     replaceSrcScripts,
     ...additionalReplacements,
   ];
 
+  const transformFunctions: TransformFn[] = [addCopyButtonToCodehilite];
+
   return parse(html, {
-    replace: (domNode: DOMNode) => {
+    replace: (domNode: DOMNode, index: number) => {
       for (const renderFunction of renderFunctions) {
-        const replacement = renderFunction(domNode);
+        const replacement = renderFunction(domNode, index);
         if (replacement) {
           return replacement;
         }
       }
       return domNode;
+    },
+    transform: (reactNode: ReactNode, domNode: DOMNode, index: number) => {
+      for (const transformFunction of transformFunctions) {
+        const transformed = transformFunction(reactNode, domNode, index);
+        if (transformed) {
+          return transformed;
+        }
+      }
+      // eslint-disable-next-line react/jsx-no-useless-fragment
+      return reactNode as JSX.Element;
     },
   });
 };
