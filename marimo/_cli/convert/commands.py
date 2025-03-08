@@ -50,8 +50,6 @@ def convert(
     you may need to fix errors like multiple definition errors or cycle
     errors.
     """
-    if not Path(filename).exists():
-        raise click.FileError(filename, "File does not exist")
 
     ext = Path(filename).suffix
     if ext not in (".ipynb", ".md", ".qmd"):
