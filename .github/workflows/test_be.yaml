@@ -150,6 +150,7 @@ jobs:
       # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
       # coverage from the other matrix jobs.
       - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
