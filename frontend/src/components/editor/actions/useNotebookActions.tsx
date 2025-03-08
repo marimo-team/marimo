@@ -37,6 +37,7 @@ import {
   GithubIcon,
   MessagesSquareIcon,
   YoutubeIcon,
+  DiamondPlusIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -96,8 +97,12 @@ export function useNotebookActions() {
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
 
-  const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
-    useCellActions();
+  const {
+    updateCellConfig,
+    undoDeleteCell,
+    clearAllCellOutputs,
+    upsertSetupCell,
+  } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
   const copyNotebook = useCopyNotebook(filename);
@@ -368,6 +373,15 @@ export function useNotebookActions() {
       icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
       label: "Hide all markdown code",
       handle: hideAllMarkdownCode,
+    },
+    {
+      icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
+      label: "Add setup cell",
+      handle: () => {
+        upsertSetupCell({
+          code: "# Setup code goes here\n",
+        });
+      },
     },
     {
       icon: <XCircleIcon size={14} strokeWidth={1.5} />,
