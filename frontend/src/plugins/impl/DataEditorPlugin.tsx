@@ -57,7 +57,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           ]),
         )
         .nullish(),
-      columnSizingMode: z.enum(["fit", "auto"]).default("fit"),
+      columnSizingMode: z.enum(["auto", "fit"]).default("auto"),
     }),
   )
   .withFunctions({})
