@@ -8,7 +8,7 @@ import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
-  value: string;
+  value: string | (() => string);
   className?: string;
   tooltip?: string | false;
 }
@@ -21,7 +21,8 @@ export const CopyClipboardIcon: React.FC<Props> = ({
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = Events.stopPropagation(async () => {
-    await copyToClipboard(value).then(() => {
+    const valueToCopy = typeof value === "function" ? value() : value;
+    await copyToClipboard(valueToCopy).then(() => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     });
