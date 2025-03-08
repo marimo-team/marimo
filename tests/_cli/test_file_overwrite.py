@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+
 @pytest.fixture
 def existing_file() -> Generator[str, None, None]:
     """Create a temporary file that already exists."""
