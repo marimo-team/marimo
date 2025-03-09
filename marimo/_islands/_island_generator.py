@@ -12,10 +12,7 @@ from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
-from marimo._output.formatting import as_html, mime_to_html
 from marimo._output.utils import uri_encode_component
-from marimo._plugins.ui import code_editor
-from marimo._server.export import run_app_until_completion
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._types.ids import CellId_t
@@ -86,6 +83,8 @@ class MarimoIslandStub:
 
         - str: The HTML code.
         """
+        from marimo._output.formatting import as_html, mime_to_html
+        from marimo._plugins.ui import code_editor
 
         is_reactive = (
             is_reactive if is_reactive is not None else self._is_reactive
@@ -309,6 +308,8 @@ class MarimoIslandGenerator:
 
         - App: The built app.
         """
+        from marimo._server.export import run_app_until_completion
+
         if self.has_run:
             raise ValueError("You can only call build() once")
 
