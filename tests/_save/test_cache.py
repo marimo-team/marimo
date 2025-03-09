@@ -14,8 +14,8 @@ from tests.conftest import ExecReqProvider
 
 
 class TestScriptCache:
-    @pytest.mark.xfail("TODO: this fails when merged to main")
     @staticmethod
+    @pytest.mark.xfail("TODO: this fails when merged to main")
     def test_cache_miss(app) -> None:
         @app.cell
         def one() -> tuple[int]:
