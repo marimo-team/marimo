@@ -35,9 +35,9 @@ import {
   scratchpadHistoryAtom,
   historyVisibleAtom,
 } from "./scratchpad-history";
-import { 
-  scratchpadCodeAtom, 
-  updateScratchpadCodeAtom 
+import {
+  scratchpadCodeAtom,
+  updateScratchpadCodeAtom,
 } from "./scratchpad-storage";
 import { cn } from "@/utils/cn";
 import type { CellConfig } from "@/core/network/types";

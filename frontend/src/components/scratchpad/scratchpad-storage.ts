@@ -10,7 +10,9 @@ import { ZodLocalStorage } from "@/utils/localStorage";
  */
 export const getStorageKey = (): string => {
   const filename = getFilenameFromDOM();
-  return filename ? `marimo:scratchpad:${filename}` : "marimo:scratchpad:default";
+  return filename
+    ? `marimo:scratchpad:${filename}`
+    : "marimo:scratchpad:default";
 };
 
 // Schema for the scratchpad code
@@ -22,24 +24,18 @@ const scratchpadCodeSchema = z.string().default("");
 export const scratchpadStorage = new ZodLocalStorage<string>(
   getStorageKey(),
   scratchpadCodeSchema,
-  () => ""
+  () => "",
 );
 
 /**
  * Atom for the scratchpad code
  * Using atomWithStorage to persist the code in localStorage
  */
-export const scratchpadCodeAtom = atomWithStorage<string>(
-  getStorageKey(),
-  ""
-);
+export const scratchpadCodeAtom = atomWithStorage<string>(getStorageKey(), "");
 
 /**
  * Action to update the scratchpad code in localStorage
  */
-export const updateScratchpadCodeAtom = atom(
-  null,
-  (get, set, code: string) => {
-    set(scratchpadCodeAtom, code);
-  }
-);
+export const updateScratchpadCodeAtom = atom(null, (get, set, code: string) => {
+  set(scratchpadCodeAtom, code);
+});
