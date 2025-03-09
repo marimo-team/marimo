@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useTheme } from "@/theme/useTheme";
 import { CellEditor } from "../editor/cell/code/cell-editor";
 import { HTMLCellId } from "@/core/cells/ids";
@@ -35,6 +35,10 @@ import {
   scratchpadHistoryAtom,
   historyVisibleAtom,
 } from "./scratchpad-history";
+import { 
+  scratchpadCodeAtom, 
+  updateScratchpadCodeAtom 
+} from "./scratchpad-storage";
 import { cn } from "@/utils/cn";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -64,10 +68,24 @@ export const ScratchPad: React.FC = () => {
   const addToHistory = useSetAtom(addToHistoryAtom);
   const [historyVisible, setHistoryVisible] = useAtom(historyVisibleAtom);
   const history = useAtomValue(scratchpadHistoryAtom);
+  const updateScratchpadCode = useSetAtom(updateScratchpadCodeAtom);
+  const savedCode = useAtomValue(scratchpadCodeAtom);
+
+  // Initialize code from localStorage
+  useEffect(() => {
+    if (savedCode && !code) {
+      updateCellCode({
+        cellId,
+        code: savedCode,
+        formattingChange: false,
+      });
+    }
+  }, [savedCode, code, cellId, updateCellCode]);
 
   const handleRun = useEvent(() => {
     sendRunScratchpad({ code });
     addToHistory(code);
+    updateScratchpadCode(code);
   });
 
   const handleInsertCode = useEvent(() => {
@@ -88,6 +106,7 @@ export const ScratchPad: React.FC = () => {
       formattingChange: false,
     });
     sendRunScratchpad({ code: "" });
+    updateScratchpadCode("");
     const ev = ref.current;
     if (ev) {
       ev.dispatch({
@@ -107,6 +126,7 @@ export const ScratchPad: React.FC = () => {
       code: item,
       formattingChange: false,
     });
+    updateScratchpadCode(item);
     const ev = ref.current;
     if (ev) {
       ev.dispatch({
