@@ -273,9 +273,9 @@ class DatasourcesConfig(TypedDict):
     - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
     """
 
-    auto_discover_schemas: NotRequired[bool]
-    auto_discover_tables: NotRequired[bool]
-    auto_discover_columns: NotRequired[bool]
+    auto_discover_schemas: NotRequired[Union[bool, Literal["auto"]]]
+    auto_discover_tables: NotRequired[Union[bool, Literal["auto"]]]
+    auto_discover_columns: NotRequired[Union[bool, Literal["auto"]]]
 
 
 @mddoc

@@ -1275,11 +1275,23 @@ components:
         datasources:
           properties:
             auto_discover_columns:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
             auto_discover_schemas:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
             auto_discover_tables:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
           type: object
         display:
           properties:
@@ -2262,7 +2274,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.14
+  version: 0.11.17
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

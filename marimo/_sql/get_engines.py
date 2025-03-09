@@ -61,7 +61,7 @@ def engine_to_data_source_connection(
         default_schema = engine.default_schema
         databases = engine.get_databases(
             include_schemas=config.get("auto_discover_schemas", True),
-            include_tables=config.get("auto_discover_tables", False),
+            include_tables=config.get("auto_discover_tables", "auto"),
             include_table_details=config.get("auto_discover_columns", False),
         )
     elif isinstance(engine, DuckDBEngine):
