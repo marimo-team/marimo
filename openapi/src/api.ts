@@ -2691,9 +2691,9 @@ export interface components {
         copilot: boolean | ("github" | "codeium");
       };
       datasources?: {
-        auto_discover_columns?: boolean;
-        auto_discover_schemas?: boolean;
-        auto_discover_tables?: boolean;
+        auto_discover_columns?: boolean | "auto";
+        auto_discover_schemas?: boolean | "auto";
+        auto_discover_tables?: boolean | "auto";
       };
       display: {
         /** @enum {string} */
