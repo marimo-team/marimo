@@ -88,6 +88,7 @@ export interface NotebookState {
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;
+    isSetupCell: boolean;
   }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
@@ -622,6 +623,7 @@ const {
           serializedEditorState: serializedEditorState,
           column: column.id,
           index: cellIndex,
+          isSetupCell: cellId === SETUP_CELL_ID,
         },
       ],
       scrollKey: scrollKey,
@@ -639,9 +641,10 @@ const {
       serializedEditorState = { doc: "" },
       column,
       index,
+      isSetupCell,
     } = mostRecentlyDeleted;
 
-    const cellId = CellId.create();
+    const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
     const undoCell = createCell({
       id: cellId,
       name,

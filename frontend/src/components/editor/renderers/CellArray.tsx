@@ -117,6 +117,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
 
   const columns = notebook.cellIds.getColumns();
   const hasOnlyOneCell = notebook.cellIds.hasOnlyOneId();
+  const hasSetupCell = notebook.cellIds.inOrderIds.includes(SETUP_CELL_ID);
 
   return (
     <VerticalLayoutWrapper
@@ -149,6 +150,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             theme={theme}
             hasOnlyOneCell={hasOnlyOneCell}
             invisible={invisible}
+            hasSetupCell={hasSetupCell}
             onDeleteCell={onDeleteCell}
           />
         ))}
@@ -174,6 +176,7 @@ const CellColumn: React.FC<{
   theme: Theme;
   hasOnlyOneCell: boolean;
   invisible: boolean;
+  hasSetupCell: boolean;
   onDeleteCell: (payload: { cellId: CellId }) => void;
 }> = ({
   column,
@@ -188,6 +191,7 @@ const CellColumn: React.FC<{
   theme,
   hasOnlyOneCell,
   invisible,
+  hasSetupCell,
   onDeleteCell,
 }) => {
   const appClosed = connStatus.state !== WebSocketState.OPEN;
@@ -215,7 +219,7 @@ const CellColumn: React.FC<{
         strategy={verticalListSortingStrategy}
       >
         {/* Render the setup cell first, always */}
-        {index === 0 && notebook.cellData[SETUP_CELL_ID] && (
+        {index === 0 && hasSetupCell && (
           <Cell
             key={SETUP_CELL_ID}
             theme={theme}

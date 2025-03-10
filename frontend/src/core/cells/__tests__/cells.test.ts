@@ -1935,4 +1935,33 @@ describe("cell reducer", () => {
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
+
+  it("can delete and undelete the setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Delete the setup cell
+    actions.deleteCell({ cellId: SETUP_CELL_ID });
+
+    // Check that setup cell was deleted
+    expect(state.cellData[SETUP_CELL_ID]).toBeDefined(); // we keep old state
+    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
+
+    // Undo delete the setup cell
+    actions.undoDeleteCell();
+
+    // Check that setup cell was restored
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
 });
