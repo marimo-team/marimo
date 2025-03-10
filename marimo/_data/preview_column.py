@@ -61,7 +61,12 @@ def get_column_preview_dataframe(
         if not DependencyManager.altair.has():
             error = (
                 "Altair is required to render charts. "
-                "Install it via the Manage packages side panel."
+                'Install it via the <a href="javascript:void(0)" '
+                'class="text-blue-500 underline font-medium" '
+                'onclick="(function() { '
+                "const event = new CustomEvent('marimo:open-packages-panel'); "
+                "document.dispatchEvent(event); "
+                '})();return false;">Manage packages</a> side panel.'
             )
         else:
             # Check for special characters that can't be escaped easily
