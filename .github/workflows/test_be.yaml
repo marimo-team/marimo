@@ -144,7 +144,7 @@ jobs:
       - name: Test with optional dependencies
         run: |
           hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
-          --cov=marimo --junitxml=junit.xml -o junit_family=legacy
+          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
       # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
@@ -152,6 +152,8 @@ jobs:
       - name: Upload coverage reports to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
