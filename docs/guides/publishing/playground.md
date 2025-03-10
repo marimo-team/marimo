@@ -243,6 +243,18 @@ the notebook file's code), using the `code` query parameter:
 https://marimo.app?embed=true&show-chrome=false&code=<encoded-uri-component>
 ```
 
+#### Using lz compression for large notebooks
+
+When using the `code` query parameter, your notebooks must no greater than `14 KB`.
+For large notebooks, `marimo.app` supports lz-compressed notebook code with a URL hash.
+For example, in JavaScript, you can use the [`lz-string`](https://www.npmjs.com/package/lz-string) package:
+
+```javascript
+import { compressToEncodedURIComponent } from "lz-string";
+
+const url = `https://marimo.app/#code=${compressToEncodedURIComponent(code)}`
+```
+
 #### MDX
 
 For example, if you are using MDX, you can use the following snippet:
