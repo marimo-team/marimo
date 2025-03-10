@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import base64
+import builtins
 import inspect
 import sys
 import threading
@@ -162,18 +163,26 @@ class _SetupContext(SkipContext):
         self._cell = cell
 
     def trace(self, _frame: Any) -> None:
-        # Call self.skip() to skip the block
-        return
+        if self._cell.refs - set(builtins.__dict__.keys()):
+            self.skip()
 
     def __exit__(
         self,
         exception: Optional[type[BaseException]],
         instance: Optional[BaseException],
         _tracebacktype: Optional[TracebackType],
-    ) -> Literal[False]:  # type: ignore
-        self.teardown()
+    ) -> Literal[False]:
         # Must be a Literal[False], for linters.
         # Whether to suppress a given exception.
+        self.teardown()
+
+        if exception is not None:
+            LOGGER.warning(
+                "The setup cell was unable to execute, your notebook may not "
+                "work as expected."
+            )
+            LOGGER.debug("Exception: %s", exception)
+            return True  # type: ignore
         return False
 
 
@@ -420,7 +429,11 @@ class App:
             CONSTANT = "my constant"
         ```
         """
-        cell = self._cell_manager.cell_context(app=InternalApp(self))
+        # Get the calling context to extract the location of the cell
+        frame = inspect.stack()[1].frame
+        cell = self._cell_manager.cell_context(
+            app=InternalApp(self), frame=frame
+        )
         return _SetupContext(cell)
 
     def _unparsable_cell(

@@ -30,6 +30,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from types import FrameType
 
     from marimo._ast.app import InternalApp
 
@@ -140,13 +141,14 @@ class CellManager:
 
     def cell_context(
         self,
-        frame_offset: int = 2,
+        frame: FrameType,
         app: InternalApp | None = None,
     ) -> Cell:
         """Registers cells when called through a context block."""
         cell = context_cell_factory(
             cell_id=self.create_cell_id(),
-            frame_offset=frame_offset + 1,
+            # NB. carry along the frame from the initial call.
+            frame=frame,
         )
         cell._cell.configure(CellConfig())
         self._register_cell(cell, app=app)

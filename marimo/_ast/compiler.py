@@ -30,6 +30,7 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from types import FrameType
 
 
 def code_key(code: str) -> int:
@@ -300,16 +301,16 @@ def get_source_position(
 
 def context_cell_factory(
     cell_id: CellId_t,
-    frame_offset: int = 3,
+    frame: FrameType,
     anonymous_file: bool = False,
 ) -> Cell:
-    frame = inspect.stack()[frame_offset].frame
+    # Frame is from the initiating context block.
     _, lnum = inspect.getsourcelines(frame)
-
     source = inspect.getsource(frame)
     lines = source.split("\n")
 
     entry_line = frame.f_lineno
+    # Offset needed when called from within a function (e.g. for tests)
     if lnum > 0:
         entry_line += 1 - lnum
 
@@ -328,7 +329,7 @@ def context_cell_factory(
     if not anonymous_file:
         source_position = SourcePosition(
             filename=frame.f_code.co_filename,
-            lineno=start_node.lineno,
+            lineno=start_node.lineno - 1,
             col_offset=col_offset,
         )
 
