@@ -237,10 +237,10 @@ You can optionally render embedded notebooks in read-only mode by appending
 ### Embedding from code
 
 You can also embed marimo notebook from its string representation (i.e.,
-the notebook file's code), with the URL
+the notebook file's code), using the `code` query parameter:
 
 ```
-https://marimo.app?embed=true&show-chrome=false#code/<encoded-uri-component>
+https://marimo.app?embed=true&show-chrome=false&code=<encoded-uri-component>
 ```
 
 #### MDX
@@ -250,12 +250,12 @@ For example, if you are using MDX, you can use the following snippet:
 ```jsx
 const MdxNotebook = (props: { code: string }) => {
   return (
-    <iframe src={`https://marimo.app?embed=true&show-chrome=false#code/${encodeURIComponent(props.code)}`} />
+    <iframe src={`https://marimo.app?embed=true&show-chrome=false&code=${encodeURIComponent(props.code)}`} />
   );
 };
 
 <MdxNotebook code={`
-import marimo as mo
+import marimo
 
 app = marimo.App()
 
