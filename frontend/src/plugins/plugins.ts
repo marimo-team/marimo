@@ -49,6 +49,7 @@ import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 import { ChatPlugin } from "./impl/chat/ChatPlugin";
 import { DataEditorPlugin } from "./impl/DataEditorPlugin";
 import { PanelPlugin } from "./impl/panel/PanelPlugin";
+import { initPackagesPanelEventListener } from "@/core/event-listeners/packages-panel";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -106,6 +107,9 @@ export function initializePlugins() {
   // Initialize custom DOM elements
   initializeUIElement();
   initializeSidebarElement();
+
+  // Initialize event listeners
+  initPackagesPanelEventListener();
 
   // Initialize all the plugins.
   UI_PLUGINS.forEach(registerReactComponent);
