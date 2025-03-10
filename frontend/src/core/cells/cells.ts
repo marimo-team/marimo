@@ -51,6 +51,7 @@ import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
+export const SETUP_CELL_ID = "setup" as CellId;
 
 /**
  * The state of the notebook.
@@ -1192,6 +1193,40 @@ const {
     return {
       ...state,
       cellRuntime: newCellRuntime,
+    };
+  },
+  upsertSetupCell: (state, action: { code: string }) => {
+    const { code } = action;
+
+    // First check if setup cell already exists
+    if (SETUP_CELL_ID in state.cellData) {
+      // Update existing setup cell
+      return updateCellData(state, SETUP_CELL_ID, (cell) => ({
+        ...cell,
+        code,
+        edited: code.trim() !== cell.lastCodeRun?.trim(),
+      }));
+    }
+
+    return {
+      ...state,
+      cellData: {
+        ...state.cellData,
+        [SETUP_CELL_ID]: createCell({
+          id: SETUP_CELL_ID,
+          name: SETUP_CELL_ID,
+          code,
+          edited: Boolean(code),
+        }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [SETUP_CELL_ID]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [SETUP_CELL_ID]: createRef(),
+      },
     };
   },
 });
