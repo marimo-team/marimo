@@ -22,11 +22,15 @@ from typing import (
     overload,
 )
 
+from marimo._ast.transformers import (
+    ARG_PREFIX,
+    CacheExtractWithBlock,
+    strip_function,
+)
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
 from marimo._runtime.state import State
-from marimo._save.ast import ARG_PREFIX, ExtractWithBlock, strip_function
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
     DEFAULT_HASH,
@@ -43,6 +47,7 @@ from marimo._save.loaders import (
     MemoryLoader,
 )
 from marimo._types.ids import CellId_t
+from marimo._utils.with_skip import SkipContext
 
 # Many assertions are for typing and should always pass. This message is a
 # catch all to motive users to report if something does fail.
@@ -56,14 +61,7 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
-    from _typeshed import TraceFunction
-    from typing_extensions import Self
-
     from marimo._runtime.dataflow import DirectedGraph
-
-
-class SkipWithBlock(Exception):
-    """Special exception to get around executing the with block body."""
 
 
 class _cache_call:
@@ -215,7 +213,7 @@ class _cache_call:
         return response
 
 
-class _cache_context:
+class _cache_context(SkipContext):
     def __init__(
         self,
         name: str,
@@ -224,47 +222,25 @@ class _cache_context:
         pin_modules: bool = False,
         hash_type: str = DEFAULT_HASH,
     ) -> None:
-        # For an implementation sibling regarding the block skipping, see
-        # `withhacks` in pypi.
+        super().__init__()
         self.name = name
 
-        self._skipped = True
         self._cache: Optional[Cache] = None
-        self._entered_trace = False
-        self._old_trace: Optional[TraceFunction] = None
-        self._frame: Optional[FrameType] = None
         self._body_start: int = MAXINT
         # TODO: Consider having a user level setting.
         self.pin_modules = pin_modules
         self.hash_type = hash_type
         self._loader = loader
 
-    def __enter__(self) -> Self:
-        sys.settrace(lambda *_args, **_keys: None)
-        frame = sys._getframe(1)
-        # Hold on to the previous trace.
-        self._old_trace = frame.f_trace
-        # Setting the frametrace, will cause the function to be run on _every_
-        # single context call until the trace is cleared.
-        frame.f_trace = self._trace
-        return self
-
-    def _trace(
-        self, with_frame: FrameType, _event: str, _arg: Any
-    ) -> Union[TraceFunction, None]:
+    def trace(self, with_frame: FrameType) -> None:
         # General flow is as follows:
         #   1) Follow the stack trace backwards to the first instance of a
         # "<module>" function call, which corresponds to a cell level block.
         #   2) Run static analysis to determine whether the call meets our
         # criteria. The procedure is a little brittle as such, certain contexts
-        # are not allow (e.g. called within a function or a loop).
+        # are not allowed (e.g. called within a function or a loop).
         #  3) Hash the execution and lookup the cache, and return!
         #  otherwise) Set _skipped such that the block continues to execute.
-
-        self._entered_trace = True
-
-        if not self._skipped:
-            return self._old_trace
 
         # This is possible if `With` spans multiple lines.
         # This behavior arguably a python bug.
@@ -272,7 +248,7 @@ class _cache_context:
         # captured by this check.
         if self._cache and self._cache.hit:
             if with_frame.f_lineno >= self._body_start:
-                raise SkipWithBlock()
+                self.skip()
 
         stack = traceback.extract_stack()
 
@@ -294,7 +270,9 @@ class _cache_context:
                     )
                 graph = ctx.graph
                 cell_id = ctx.cell_id or ctx.execution_context.cell_id
-                pre_module, save_module = ExtractWithBlock(lineno - 1).visit(
+                pre_module, save_module = CacheExtractWithBlock(
+                    lineno - 1
+                ).visit(
                     ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
                 )
 
@@ -315,13 +293,11 @@ class _cache_context:
                 self._body_start = save_module.body[0].lineno
                 if self._cache and self._cache.hit:
                     if lineno >= self._body_start:
-                        raise SkipWithBlock()
-                    return self._old_trace
-                self._skipped = False
-                return self._old_trace
-            elif i > 1:
+                        self.skip()
+                return
+            elif i > 2:
                 raise CacheException(
-                    "`persistent_cache` must be invoked from cell level "
+                    "`cache` must be invoked from cell level "
                     "(cannot be in a function or class)"
                 )
         raise CacheException(
@@ -335,8 +311,8 @@ class _cache_context:
         instance: Optional[BaseException],
         _tracebacktype: Optional[TracebackType],
     ) -> bool:
-        sys.settrace(self._old_trace)  # Clear to previous set trace.
-        if not self._entered_trace:
+        self.teardown()
+        if not self.entered_trace:
             raise CacheException(
                 f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
@@ -350,9 +326,6 @@ class _cache_context:
 
         # NB: exception is a type.
         if exception:
-            assert not isinstance(instance, SkipWithBlock), (
-                f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
-            )
             if isinstance(instance, BaseException):
                 raise instance from CacheException("Failure during save.")
             raise exception

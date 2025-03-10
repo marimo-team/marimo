@@ -425,7 +425,13 @@ def test_function_with_defaults() -> None:
     assert v.refs == set(["x", "y", "a"])
     # TODO: Are these required refs?
     assert v.variable_data == {
-        "foo": [VariableData(kind="function", required_refs={"x", "y", "a"})],
+        "foo": [
+            VariableData(
+                kind="function",
+                required_refs={"x", "y", "a"},
+                unbounded_refs={"x", "y", "a"},
+            )
+        ],
     }
 
 
