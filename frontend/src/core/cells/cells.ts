@@ -735,7 +735,6 @@ const {
         ...cell,
         edited: false,
         lastCodeRun: cell.code.trim(),
-        lastExecutionTime: cell.lastExecutionTime,
       };
     });
   },

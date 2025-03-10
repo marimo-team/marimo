@@ -110,7 +110,6 @@ describe("cell reducer", () => {
       if (!handle.current) {
         const handle: CellHandle = {
           editorView: createEditor(state.cellData[cellId as CellId].code),
-          registerRun: vi.fn(),
         };
         state.cellHandles[cellId as CellId] = { current: handle };
       }

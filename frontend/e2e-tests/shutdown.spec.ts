@@ -17,7 +17,7 @@ test("can resume a session", async ({ page }) => {
   await page.keyboard.press("Meta+Enter");
 
   // wait for the output to appear
-  let secondCell = await page.locator(".Cell").nth(1);
+  let secondCell = await page.locator(".marimo-cell").nth(1);
   await expect(secondCell.getByText("12345")).toBeVisible();
   await expect(secondCell.getByText("54321")).toBeVisible();
 
@@ -27,7 +27,7 @@ test("can resume a session", async ({ page }) => {
   await expect(
     page.getByText("You have reconnected to an existing session."),
   ).toBeVisible();
-  secondCell = await page.locator(".Cell").nth(1);
+  secondCell = await page.locator(".marimo-cell").nth(1);
   await expect(page.getByText("12345")).toBeVisible();
   await expect(page.getByText("54321")).toBeVisible();
 });
