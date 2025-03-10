@@ -15,7 +15,7 @@ import { saveCellConfig, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import type { UserConfig } from "../../core/config/config-schema";
 import type { CellData, CellRuntimeState } from "../../core/cells/types";
-import type { CellActions } from "../../core/cells/cells";
+import { SETUP_CELL_ID, type CellActions } from "../../core/cells/cells";
 import { isUninstantiated } from "../../core/cells/utils";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
@@ -49,7 +49,7 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { StopButton } from "@/components/editor/cell/StopButton";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
-import { MoreHorizontalIcon } from "lucide-react";
+import { HelpCircleIcon, MoreHorizontalIcon } from "lucide-react";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { cn } from "@/utils/cn";
 import { isErrorMime } from "@/core/mime";
@@ -57,8 +57,9 @@ import { HideCodeButton } from "./code/readonly-python-code";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { Events } from "@/utils/events";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { useRunCell } from "./cell/useRunCells";
+import type { Milliseconds, Seconds } from "@/utils/time";
 
 /**
  * Hook for handling cell completion logic
@@ -410,6 +411,19 @@ const CellComponent = (
     edited,
   );
 
+  if (id === SETUP_CELL_ID) {
+    return (
+      <SetupCellComponent
+        {...props}
+        editorView={editorView}
+        setEditorView={(ev) => {
+          editorView.current = ev;
+        }}
+        outputStale={outputStale}
+      />
+    );
+  }
+
   if (mode === "edit") {
     return (
       <EditableCellComponent
@@ -555,13 +569,6 @@ const EditableCellComponent = ({
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
-  const createBelow = useEvent((opts: { code?: string } = {}) =>
-    actions.createNewCell({ cellId, before: false, ...opts }),
-  );
-  const createAbove = useEvent((opts: { code?: string } = {}) =>
-    actions.createNewCell({ cellId, before: true, ...opts }),
-  );
-
   // Use the extracted hooks
   const { closeCompletionHandler, resumeCompletionHandler } = useCellCompletion(
     cellRef,
@@ -693,7 +700,7 @@ const EditableCellComponent = ({
   // TODO(akshayka): Move to our own Tooltip component once it's easier
   // to get the tooltip to show next to the cursor ...
   // https://github.com/radix-ui/primitives/discussions/1090
-  const cellTitle = () => {
+  const renderCellTitle = () => {
     if (cellConfig.disabled) {
       return "This cell is disabled";
     }
@@ -702,21 +709,6 @@ const EditableCellComponent = ({
     }
     return undefined;
   };
-
-  const cellStatusComponent = (
-    <CellStatusComponent
-      status={status}
-      staleInputs={staleInputs}
-      interrupted={interrupted}
-      editing={true}
-      edited={edited}
-      disabled={cellConfig.disabled ?? false}
-      elapsedTime={runElapsedTimeMs}
-      runStartTimestamp={runStartTimestamp}
-      uninstantiated={uninstantiated}
-      lastRunStartTimestamp={lastRunStartTimestamp}
-    />
-  );
 
   return (
     <TooltipProvider>
@@ -737,7 +729,7 @@ const EditableCellComponent = ({
           onKeyDown={resumeCompletionHandler}
           cellId={cellId}
           canMoveX={canMoveX}
-          title={cellTitle()}
+          title={renderCellTitle()}
         >
           <div
             className={className}
@@ -764,28 +756,18 @@ const EditableCellComponent = ({
                   onRun={runCell}
                 />
               </div>
-              <div
+              <CellLeftSideActions
+                cellId={cellId}
                 className={cn(
-                  "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
                   isMarkdownCodeHidden && hasOutputAbove && "-top-7",
                   isMarkdownCodeHidden && hasOutputBelow && "-bottom-8",
                   isMarkdownCodeHidden &&
                     isCellButtonsInline &&
                     "-left-[3.8rem]",
                 )}
-              >
-                <CreateCellButton
-                  tooltipContent={renderShortcut("cell.createAbove")}
-                  appClosed={appClosed}
-                  onClick={appClosed ? undefined : createAbove}
-                />
-                <div className="flex-1" />
-                <CreateCellButton
-                  tooltipContent={renderShortcut("cell.createBelow")}
-                  appClosed={appClosed}
-                  onClick={appClosed ? undefined : createBelow}
-                />
-              </div>
+                appClosed={appClosed}
+                actions={actions}
+              />
               <CellEditor
                 theme={theme}
                 showPlaceholder={showPlaceholder}
@@ -806,18 +788,21 @@ const EditableCellComponent = ({
                 languageAdapter={languageAdapter}
                 setLanguageAdapter={setLanguageAdapter}
               />
-              <div
+              <CellRightSideActions
                 className={cn(
-                  "shoulder-right z-20",
                   isMarkdownCodeHidden && cellOutput === "below" && "top-14",
                 )}
-              >
-                {!isCellStatusInline && cellStatusComponent}
-                <div className="flex gap-2 items-end">
-                  <CellDragHandle />
-                  {isCellStatusInline && cellStatusComponent}
-                </div>
-              </div>
+                edited={edited}
+                status={status}
+                isCellStatusInline={isCellStatusInline}
+                uninstantiated={uninstantiated}
+                disabled={cellConfig.disabled}
+                runElapsedTimeMs={runElapsedTimeMs}
+                runStartTimestamp={runStartTimestamp}
+                lastRunStartTimestamp={lastRunStartTimestamp}
+                staleInputs={staleInputs}
+                interrupted={interrupted}
+              />
               <div className="shoulder-bottom hover-action">
                 {canDelete && isCellCodeShown && (
                   <DeleteButton
@@ -860,6 +845,96 @@ const EditableCellComponent = ({
         </SortableCell>
       </CellActionsContextMenu>
     </TooltipProvider>
+  );
+};
+
+const CellRightSideActions = (props: {
+  className?: string;
+  disabled: boolean | undefined;
+  edited: boolean;
+  interrupted: boolean;
+  isCellStatusInline: boolean;
+  lastRunStartTimestamp: Seconds | null;
+  runElapsedTimeMs: Milliseconds | null;
+  runStartTimestamp: Seconds | null;
+  staleInputs: boolean;
+  status: RuntimeState;
+  uninstantiated: boolean;
+}) => {
+  const {
+    className,
+    disabled = false,
+    edited,
+    interrupted,
+    isCellStatusInline,
+    lastRunStartTimestamp,
+    runElapsedTimeMs,
+    runStartTimestamp,
+    staleInputs,
+    status,
+    uninstantiated,
+  } = props;
+
+  const cellStatusComponent = (
+    <CellStatusComponent
+      status={status}
+      staleInputs={staleInputs}
+      interrupted={interrupted}
+      editing={true}
+      edited={edited}
+      disabled={disabled}
+      elapsedTime={runElapsedTimeMs}
+      runStartTimestamp={runStartTimestamp}
+      uninstantiated={uninstantiated}
+      lastRunStartTimestamp={lastRunStartTimestamp}
+    />
+  );
+
+  return (
+    <div className={cn("shoulder-right z-20", className)}>
+      {!isCellStatusInline && cellStatusComponent}
+      <div className="flex gap-2 items-end">
+        <CellDragHandle />
+        {isCellStatusInline && cellStatusComponent}
+      </div>
+    </div>
+  );
+};
+
+const CellLeftSideActions = (props: {
+  className?: string;
+  cellId: CellId;
+  appClosed: boolean;
+  actions: CellComponentActions;
+}) => {
+  const { className, appClosed, actions, cellId } = props;
+
+  const createBelow = useEvent((opts: { code?: string } = {}) =>
+    actions.createNewCell({ cellId, before: false, ...opts }),
+  );
+  const createAbove = useEvent((opts: { code?: string } = {}) =>
+    actions.createNewCell({ cellId, before: true, ...opts }),
+  );
+
+  return (
+    <div
+      className={cn(
+        "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+        className,
+      )}
+    >
+      <CreateCellButton
+        tooltipContent={renderShortcut("cell.createAbove")}
+        appClosed={appClosed}
+        onClick={appClosed ? undefined : createAbove}
+      />
+      <div className="flex-1" />
+      <CreateCellButton
+        tooltipContent={renderShortcut("cell.createBelow")}
+        appClosed={appClosed}
+        onClick={appClosed ? undefined : createBelow}
+      />
+    </div>
   );
 };
 
@@ -938,190 +1013,158 @@ const CellToolbar = ({
  * A cell that is not allowed to be deleted or moved.
  * It also has no outputs.
  */
-export const SetupCell = memo(
-  forwardRef<CellHandle, CellProps>((props, ref) => {
-    const {
-      theme,
-      showPlaceholder,
-      allowFocus,
-      id: cellId,
-      code,
-      status,
-      edited,
-      interrupted,
-      staleInputs,
-      serializedEditorState,
-      mode,
-      appClosed,
-      updateCellCode,
-      prepareForRun,
-      focusCell,
-      updateCellConfig,
-      clearSerializedEditorState,
-      userConfig,
-      config: cellConfig,
-      name,
-      runElapsedTimeMs,
-      runStartTimestamp,
-      lastRunStartTimestamp,
-      errored,
-      stopped,
-      consoleOutputs,
-    } = props;
+const SetupCellComponent = ({
+  theme,
+  showPlaceholder,
+  allowFocus,
+  id: cellId,
+  code,
+  output,
+  consoleOutputs,
+  status,
+  runStartTimestamp,
+  lastRunStartTimestamp,
+  runElapsedTimeMs,
+  edited,
+  interrupted,
+  errored,
+  stopped,
+  staleInputs,
+  serializedEditorState,
+  debuggerActive,
+  appClosed,
+  canDelete,
+  actions,
+  deleteCell,
+  userConfig,
+  config: cellConfig,
+  canMoveX,
+  name,
+  editorView,
+  setEditorView,
+}: CellProps & {
+  editorView: React.RefObject<EditorView>;
+  setEditorView: (view: EditorView) => void;
+  outputStale: boolean;
+}) => {
+  const cellRef = useRef<HTMLDivElement>(null);
+  const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
+  // DOM node where the editorView will be mounted
+  const editorViewParentRef = useRef<HTMLDivElement>(null);
 
-    const uninstantiated = isUninstantiated({
-      executionTime: runElapsedTimeMs,
-      status,
-      errored,
-      interrupted,
-      stopped,
-    });
+  const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
+  const runCell = useRunCell(cellId);
 
-    const consoleOutputStale =
-      (status === "queued" || edited || staleInputs) && !interrupted;
+  const disabledOrAncestorDisabled =
+    cellConfig.disabled || status === "disabled-transitively";
 
-    const cellRef = useRef<HTMLDivElement>(null);
-    const editorView = useRef<EditorView | null>(null);
-    const [isFocused, setIsFocused] = useState(false);
+  const uninstantiated = isUninstantiated({
+    executionTime: runElapsedTimeMs,
+    status,
+    errored,
+    interrupted,
+    stopped,
+  });
 
-    const disabledOrAncestorDisabled =
-      cellConfig.disabled || status === "disabled-transitively";
+  const needsRun =
+    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
+  const loading = status === "running" || status === "queued";
 
-    const needsRun =
-      edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
-    const loading = status === "running" || status === "queued";
-    const editing = mode === "edit";
+  // console output is cleared immediately on run, so check for queued instead
+  // of loading to determine staleness
+  const consoleOutputStale =
+    (status === "queued" || edited || staleInputs) && !interrupted;
 
-    // Performs side-effects that must run whenever the cell is run, but doesn't
-    // actually run the cell.
-    //
-    // Returns the code to run.
-    const prepareToRunEffects = useCallback(() => {
-      const ev = derefNotNull(editorView);
-      const code = getEditorCodeAsPython(ev);
-      prepareForRun({ cellId });
-      return code;
-    }, [cellId, editorView, prepareForRun]);
+  // Callback to get the editor view.
+  const getEditorView = useCallback(() => editorView.current, [editorView]);
 
-    // An imperative interface to the code editor
-    useImperativeHandle(
-      ref,
-      () => ({
-        get editorView() {
-          return derefNotNull(editorView);
-        },
-        registerRun: prepareToRunEffects,
-      }),
-      [editorView, prepareToRunEffects],
-    );
+  // Use the extracted hooks
+  const { closeCompletionHandler, resumeCompletionHandler } = useCellCompletion(
+    cellRef,
+    editorView,
+  );
 
-    // Callback to get the editor view.
-    const getEditorView = useCallback(() => editorView.current, [editorView]);
+  // Hotkey listeners
+  useCellHotkeys(
+    cellRef,
+    cellId,
+    runCell,
+    actions,
+    canMoveX,
+    cellConfig,
+    editorView,
+    setAiCompletionCell,
+    cellActionDropdownRef,
+  );
 
-    const handleRun = useEvent(async () => {
-      if (loading) {
-        return;
-      }
+  // Other keyboard listeners
+  useCellKeyboardListener(
+    cellRef,
+    cellId,
+    actions,
+    Functions.NOOP,
+    userConfig,
+    true,
+  );
 
-      const code = prepareToRunEffects();
+  const hasOutput = !isOutputEmpty(output);
+  const hasConsoleOutput = consoleOutputs.length > 0;
+  const isErrorOutput = isErrorMime(output?.mimetype);
 
-      await sendRun({ cellIds: [cellId], codes: [code] }).catch((error) => {
-        Logger.error("Error running cell", error);
-      });
-    });
-
-    // Close completion when focus leaves the cell's subtree.
-    const closeCompletionHandler = useCallback((e: FocusEvent) => {
-      if (
-        cellRef.current !== null &&
-        !cellRef.current.contains(e.relatedTarget) &&
-        editorView.current !== null
-      ) {
-        closeCompletion(editorView.current);
-      }
-      setIsFocused(false);
-    }, []);
-
-    const handleFocus = useCallback(() => {
-      setIsFocused(true);
-    }, []);
-
-    // Clicking on the completion info causes the editor view to lose focus,
-    // because the completion is not a child of the editable editor DOM;
-    // as a workaround, when a completion is active, we refocus the editor
-    // on any keypress.
-    const resumeCompletionHandler = useCallback(
-      (e: KeyboardEvent) => {
-        if (
-          cellRef.current !== document.activeElement ||
-          editorView.current === null ||
-          completionStatus(editorView.current.state) !== "active"
-        ) {
-          return;
-        }
-
-        for (const keymap of autocompletionKeymap) {
-          if (e.key === keymap.key && keymap.run) {
-            keymap.run(editorView.current);
-            // preventDefault/stopPropagation: Don't process the keystrokes as
-            // typing into the editor, e.g., Enter should only select the
-            // completion, not also add a newline.
-            e.preventDefault();
-            e.stopPropagation();
-            break;
-          }
-        }
-        editorView.current.focus();
-        return;
-      },
-      [cellRef, editorView],
-    );
-
-    const className = clsx("Cell", "hover-actions-parent z-10", {
-      published: !editing,
-      interactive: editing,
+  const className = clsx(
+    "marimo-cell",
+    "hover-actions-parent z-10 border shadow-sm",
+    "!border-[var(--purple-7)] !rounded-sm",
+    {
       "needs-run": needsRun,
       "has-error": errored,
       stopped: stopped,
-    });
+    },
+  );
 
-    const cellStatusComponent = (
-      <CellStatusComponent
+  const HTMLId = HTMLCellId.create(cellId);
+
+  const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
+    setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
+  });
+
+  // TODO(akshayka): Move to our own Tooltip component once it's easier
+  // to get the tooltip to show next to the cursor ...
+  // https://github.com/radix-ui/primitives/discussions/1090
+  const renderCellTitle = () => {
+    if (cellConfig.disabled) {
+      return "This cell is disabled";
+    }
+    if (status === "disabled-transitively") {
+      return "This cell has a disabled ancestor";
+    }
+    return undefined;
+  };
+
+  return (
+    <TooltipProvider>
+      <CellActionsContextMenu
+        cellId={cellId}
+        config={cellConfig}
         status={status}
-        staleInputs={staleInputs}
-        interrupted={interrupted}
-        editing={editing}
-        edited={edited}
-        disabled={cellConfig.disabled ?? false}
-        elapsedTime={runElapsedTimeMs}
-        runStartTimestamp={runStartTimestamp}
-        uninstantiated={uninstantiated}
-        lastRunStartTimestamp={lastRunStartTimestamp}
-      />
-    );
-
-    const HTMLId = HTMLCellId.create(cellId);
-
-    return (
-      <TooltipProvider>
+        getEditorView={getEditorView}
+        hasOutput={hasOutput}
+        hasConsoleOutput={hasConsoleOutput}
+        name={name}
+      >
         <div
-          tabIndex={-1}
-          ref={cellRef}
-          id={HTMLId}
+          className={className}
           data-status={status}
+          id={HTMLId}
+          ref={cellRef}
           onBlur={closeCompletionHandler}
-          onFocus={handleFocus}
           onKeyDown={resumeCompletionHandler}
-          className={cn(
-            className,
-            "relative border border-border rounded-md transition-all",
-            isFocused ? "shadow-sm" : "opacity-90 !shadow-none",
-            "hover:opacity-100",
-          )}
+          title={renderCellTitle()}
           data-cell-id={cellId}
           data-cell-name={name}
+          data-setup-cell={true}
         >
-          <div className="relative">
+          <div className={cn("tray")} data-hidden={false}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={edited}
@@ -1129,14 +1172,14 @@ export const SetupCell = memo(
                 status={status}
                 cellConfig={cellConfig}
                 needsRun={needsRun}
-                hasOutput={false}
-                hasConsoleOutput={false}
-                cellActionDropdownRef={{ current: null }}
+                hasOutput={hasOutput}
+                hasConsoleOutput={hasConsoleOutput}
+                cellActionDropdownRef={cellActionDropdownRef}
                 cellId={cellId}
                 name={name}
-                includeCellActions={false}
                 getEditorView={getEditorView}
-                onRun={handleRun}
+                onRun={runCell}
+                includeCellActions={false}
               />
             </div>
             <CellEditor
@@ -1148,43 +1191,94 @@ export const SetupCell = memo(
               config={cellConfig}
               status={status}
               serializedEditorState={serializedEditorState}
-              runCell={handleRun}
-              updateCellCode={updateCellCode}
-              setEditorView={(ev) => {
-                editorView.current = ev;
-              }}
-              createNewCell={Functions.NOOP}
-              deleteCell={Functions.NOOP}
-              focusCell={focusCell}
-              moveCell={Functions.NOOP}
-              moveToNextCell={undefined}
-              updateCellConfig={updateCellConfig}
-              clearSerializedEditorState={clearSerializedEditorState}
+              runCell={runCell}
+              setEditorView={setEditorView}
               userConfig={userConfig}
               editorViewRef={editorView}
-              hasOutput={false}
+              editorViewParentRef={editorViewParentRef}
+              hidden={false}
+              hasOutput={hasOutput}
               temporarilyShowCode={Functions.NOOP}
               languageAdapter={"python"}
               setLanguageAdapter={Functions.NOOP}
               showLanguageToggles={false}
             />
-            <div className="shoulder-right bottom-2 z-10">
-              {cellStatusComponent}
+            <CellRightSideActions
+              edited={edited}
+              status={status}
+              isCellStatusInline={false}
+              uninstantiated={uninstantiated}
+              disabled={cellConfig.disabled}
+              runElapsedTimeMs={runElapsedTimeMs}
+              runStartTimestamp={runStartTimestamp}
+              lastRunStartTimestamp={lastRunStartTimestamp}
+              staleInputs={staleInputs}
+              interrupted={interrupted}
+            />
+            <div className="shoulder-bottom hover-action">
+              {canDelete && (
+                <DeleteButton
+                  appClosed={appClosed}
+                  status={status}
+                  onClick={() => {
+                    if (!loading && !appClosed) {
+                      deleteCell({ cellId });
+                    }
+                  }}
+                />
+              )}
             </div>
           </div>
-          {/* No debugger or renaming cells */}
+          <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
+            <span className="text-muted-foreground text-xs font-bold">
+              setup cell
+            </span>
+            <Tooltip
+              content={
+                <span>
+                  This is a <b>setup cell</b>. <br />
+                  Setup cells are run first and used to initialize the notebook.
+                </span>
+              }
+            >
+              <HelpCircleIcon
+                size={16}
+                strokeWidth={1.5}
+                className="rounded-lg text-muted-foreground"
+              />
+            </Tooltip>
+          </div>
+          {isErrorOutput && (
+            <OutputArea
+              allowExpand={true}
+              forceExpand={true}
+              output={output}
+              className="output-area"
+              cellId={cellId}
+              stale={false}
+            />
+          )}
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={consoleOutputStale}
-            cellName={name}
-            onSubmitDebugger={Functions.NOOP}
+            // Don't show name
+            cellName={"_"}
+            onRefactorWithAI={handleRefactorWithAI}
+            onSubmitDebugger={(text, index) => {
+              actions.setStdinResponse({
+                cellId,
+                response: text,
+                outputIndex: index,
+              });
+              sendStdin({ text });
+            }}
             cellId={cellId}
-            debuggerActive={false}
+            debuggerActive={debuggerActive}
           />
         </div>
-      </TooltipProvider>
-    );
-  }),
-);
+      </CellActionsContextMenu>
+    </TooltipProvider>
+  );
+};
 
 export const Cell = memo(forwardRef<CellHandle, CellProps>(CellComponent));

@@ -53,6 +53,10 @@ import { isErrorMime } from "../mime";
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
 
+export function isSetupCell(cellId: CellId): boolean {
+  return cellId === SETUP_CELL_ID;
+}
+
 /**
  * The state of the notebook.
  */
@@ -1210,6 +1214,11 @@ const {
 
     return {
       ...state,
+      cellIds: state.cellIds.insertId(
+        SETUP_CELL_ID,
+        state.cellIds.atOrThrow(0).id,
+        0,
+      ),
       cellData: {
         ...state.cellData,
         [SETUP_CELL_ID]: createCell({

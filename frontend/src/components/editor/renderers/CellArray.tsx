@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
-import { Cell, SetupCell } from "@/components/editor/Cell";
+import { Cell } from "@/components/editor/Cell";
 import {
   type ConnectionStatus,
   WebSocketState,
@@ -214,8 +214,9 @@ const CellColumn: React.FC<{
         items={column.topLevelIds}
         strategy={verticalListSortingStrategy}
       >
+        {/* Render the setup cell first, always */}
         {index === 0 && notebook.cellData[SETUP_CELL_ID] && (
-          <SetupCell
+          <Cell
             key={SETUP_CELL_ID}
             theme={theme}
             showPlaceholder={false}
@@ -228,7 +229,7 @@ const CellColumn: React.FC<{
               (notebook.cellData[SETUP_CELL_ID]
                 .lastExecutionTime as Milliseconds)
             }
-            canDelete={!hasOnlyOneCell}
+            canDelete={true}
             mode={mode}
             appClosed={appClosed}
             ref={notebook.cellHandles[SETUP_CELL_ID]}
@@ -236,12 +237,17 @@ const CellColumn: React.FC<{
             isCollapsed={false}
             collapseCount={0}
             canMoveX={false}
-            {...actions}
+            actions={actions}
             deleteCell={onDeleteCell}
           />
         )}
 
         {column.topLevelIds.map((cellId) => {
+          // Skip the setup cell later
+          if (cellId === SETUP_CELL_ID) {
+            return null;
+          }
+
           const cellData = notebook.cellData[cellId];
           const cellRuntime = notebook.cellRuntime[cellId];
           return (

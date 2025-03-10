@@ -1925,7 +1925,7 @@ describe("cell reducer", () => {
     expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
     expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
 
     // Update the setup cell
     actions.upsertSetupCell({ code: "# Updated setup code" });
@@ -1933,6 +1933,6 @@ describe("cell reducer", () => {
     // Check that the same setup cell was updated, not duplicated
     expect(state.cellData[SETUP_CELL_ID].code).toBe("# Updated setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
-    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
 });

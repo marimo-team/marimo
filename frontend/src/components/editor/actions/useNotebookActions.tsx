@@ -82,6 +82,7 @@ import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { Constants } from "@/core/constants";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -377,9 +378,10 @@ export function useNotebookActions() {
     {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
+      hidden: !getFeatureFlag("setup_cell"),
       handle: () => {
         upsertSetupCell({
-          code: "# Setup code goes here\n",
+          code: "# Setup code goes here",
         });
       },
     },
