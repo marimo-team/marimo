@@ -8,6 +8,7 @@ import type { OutputMessage } from "@/core/kernel/messages";
 import type { UserConfig } from "@/core/config/config-schema";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppMode } from "@/core/mode";
+import { Functions } from "@/utils/functions";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
@@ -92,6 +93,7 @@ describe("Cell data attributes", () => {
             outline={null}
             isCollapsed={false}
             collapseCount={0}
+            deleteCell={Functions.NOOP}
             config={{
               disabled: false,
               hide_code: false,
