@@ -13,7 +13,12 @@ from marimo._runtime.context.types import ContextNotInitializedError
 
 def substitute_show_code_with_arg(code: str) -> str:
     pattern = r"mo\.show_code\((.*)\)"
-    return re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
+    modified_code = re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
+    # Remove code_first=True or code_first=False from the end
+    modified_code = re.sub(
+        r",\s*code_first\s*=\s*(True|False)$", "", modified_code
+    ).strip()
+    return modified_code
 
 
 def show_code(output: object = None, code_first: bool = False) -> Html:
