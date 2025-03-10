@@ -149,6 +149,8 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             project_config = read_pyproject_marimo_config(self.start_path)
             if project_config is None:
                 return {}
+            project_config = self._resolve_pythonpath(project_config)
+            project_config = self._resolve_dotenv(project_config)
         except Exception as e:
             LOGGER.warning("Failed to read project config: %s", e)
             return {}
@@ -156,6 +158,49 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(project_config)
         return project_config
+
+    def _resolve_pythonpath(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        if "runtime" not in config:
+            return config
+
+        if "pythonpath" not in config["runtime"]:
+            return config
+
+        pythonpath = config["runtime"]["pythonpath"]
+
+        if not isinstance(pythonpath, list):
+            return config
+
+        pythonpath = [
+            os.path.abspath(os.path.join(self.start_path, path))
+            for path in pythonpath
+        ]
+        return {
+            **config,
+            "runtime": {**config["runtime"], "pythonpath": pythonpath},
+        }
+
+    def _resolve_dotenv(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        if "runtime" not in config:
+            return config
+
+        if "dotenv" not in config["runtime"]:
+            return config
+
+        dotenv = config["runtime"]["dotenv"]
+
+        if not isinstance(dotenv, list):
+            return config
+
+        dotenv = [
+            os.path.abspath(os.path.join(self.start_path, path))
+            for path in dotenv
+        ]
+        return {**config, "runtime": {**config["runtime"], "dotenv": dotenv}}
 
 
 class ScriptConfigManager(PartialMarimoConfigReader):

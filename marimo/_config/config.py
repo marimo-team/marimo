@@ -121,6 +121,7 @@ class RuntimeConfig(TypedDict):
     output_max_bytes: int
     std_stream_max_bytes: int
     pythonpath: list[str]
+    dotenv: list[str]
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -339,6 +340,7 @@ DEFAULT_CONFIG: MarimoConfig = {
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
         "pythonpath": [],
+        "dotenv": [".env"],
     },
     "save": {
         "autosave": "after_delay",

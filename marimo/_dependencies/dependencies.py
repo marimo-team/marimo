@@ -188,6 +188,7 @@ class DependencyManager:
     groq = Dependency("groq")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
+    dotenv = Dependency("dotenv")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

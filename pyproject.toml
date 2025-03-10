@@ -235,6 +235,7 @@ extra-dependencies = [
     "pytest-asyncio~=0.25.2",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
+    "python-dotenv>=1.0.0",
     "pyarrow",
     "pyarrow_hotfix",
     "altair>=5.4.0",
