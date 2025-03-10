@@ -766,7 +766,10 @@ const DatasetColumnPreview: React.FC<{
   }
 
   const error = preview.error && (
-    <span className="text-xs text-muted-foreground">{preview.error}</span>
+    <span
+      className="text-xs text-muted-foreground p-2 block border border-muted rounded"
+      dangerouslySetInnerHTML={{ __html: preview.error }}
+    />
   );
 
   const summary = preview.summary && (
