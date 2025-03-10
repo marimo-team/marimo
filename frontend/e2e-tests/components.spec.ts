@@ -20,7 +20,7 @@ test.describe.configure({ mode: "parallel" });
 const pageHelper = (page: Page) => {
   return {
     cell(index: number) {
-      return page.locator(".Cell").nth(index);
+      return page.locator(".marimo-cell").nth(index);
     },
     async selectBasicComponent(type: string) {
       const select = await this.cell(1).locator("select");

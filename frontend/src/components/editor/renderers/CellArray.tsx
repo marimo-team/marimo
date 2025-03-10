@@ -244,7 +244,7 @@ const SortableColumn: React.FC<{
               isCollapsed={column.isCollapsed(cellId)}
               collapseCount={column.getCount(cellId)}
               canMoveX={appConfig.width === "columns"}
-              {...actions}
+              actions={actions}
               deleteCell={onDeleteCell}
             />
           );

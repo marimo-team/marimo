@@ -9,7 +9,7 @@
 
 /* No margin in edit mode, where we already have separation
  * between cells. */
-.Cell.published .output-area .output {
+.marimo-cell.published .output-area .output {
   margin-top: 1rem;
   margin-bottom: 1rem;
 }

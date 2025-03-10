@@ -5,7 +5,7 @@
  * - error
  * - disabled
  * */
-.Cell {
+.marimo-cell {
   position: relative;
   border-radius: 10px;
   max-width: inherit;
@@ -237,7 +237,7 @@
   }
 }
 
-.dark .Cell {
+.dark .marimo-cell {
   @apply border-border;
 
   &.borderless {
@@ -247,12 +247,12 @@
 
 #App.disconnected {
   /* Background determined by disconnected gradient/noise. */
-  .Cell,
+  .marimo-cell,
   .console-output-area,
   .cm .cm-gutters,
-  .Cell .cm-editor.cm-focused .cm-activeLineGutter,
-  .Cell .cm-editor.cm-focused .cm-activeLine,
-  .Cell .shoulder-button {
+  .marimo-cell .cm-editor.cm-focused .cm-activeLineGutter,
+  .marimo-cell .cm-editor.cm-focused .cm-activeLine,
+  .marimo-cell .shoulder-button {
     background-color: transparent;
   }
 
@@ -304,7 +304,7 @@
 }
 
 /* Hide tray when dragging a cell, to prevent messing up the measurements. */
-.Cell.is-moving {
+.marimo-cell.is-moving {
   .tray::before,
   .tray::after {
     display: none;
@@ -326,8 +326,8 @@
   font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
-/* .Cell is needed to take precedence over codemirror's generated class ... */
-.Cell .cm-editor {
+/* .marimo-cell is needed to take precedence over codemirror's generated class ... */
+.marimo-cell .cm-editor {
   border: 1px solid transparent;
   padding: 3px;
   padding-right: 24px;
@@ -359,11 +359,11 @@
   }
 }
 
-.dark .Cell .cm-editor.cm-focused .cm-activeLineGutter {
+.dark .marimo-cell .cm-editor.cm-focused .cm-activeLineGutter {
   background: #0e1e25;
 }
 
-.dark .Cell .cm-editor.cm-focused .cm-activeLine {
+.dark .marimo-cell .cm-editor.cm-focused .cm-activeLine {
   background: hsl(210deg 100% 2% / 20%);
 }
 
@@ -385,8 +385,8 @@
 }
 
 .marimo-output-stale,
-.Cell.stale .output-area.marimo-output-stale,
-.Cell.stale .console-output-area.marimo-output-stale {
+.marimo-cell.stale .output-area.marimo-output-stale,
+.marimo-cell.stale .console-output-area.marimo-output-stale {
   opacity: 0.8;
   filter: grayscale(50%);
   transition: 300ms;

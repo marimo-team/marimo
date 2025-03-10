@@ -6,6 +6,8 @@ import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { Logger } from "@/utils/Logger";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
+import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
+import { closeCompletion } from "@codemirror/autocomplete";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
@@ -52,15 +54,27 @@ function useRunCells() {
     const codes: string[] = [];
     for (const cellId of cellIds) {
       const ref = cellHandles[cellId];
-      if (ref.current) {
-        codes.push(getEditorCodeAsPython(ref.current.editorView));
-        ref.current.registerRun();
+      const ev = ref.current?.editorView;
+      let code: string;
+      // Performs side-effects that must run whenever the cell is run, but doesn't
+      // actually run the cell.
+      if (ev) {
+        // Skip close on markdown, since we autorun, otherwise we'll close the
+        // completion each time.
+        if (getCurrentLanguageAdapter(ev) !== "markdown") {
+          closeCompletion(ev);
+        }
+        // Prefer code from editor
+        code = getEditorCodeAsPython(ev);
       } else {
-        prepareForRun({ cellId });
-        codes.push(cellData[cellId].code);
+        code = cellData[cellId].code;
       }
+
+      codes.push(code);
+      prepareForRun({ cellId });
     }
 
+    // Send the run request to the Kernel
     await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
       Logger.error(error);
     });
