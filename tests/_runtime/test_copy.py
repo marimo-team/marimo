@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from marimo._runtime.copy import (
@@ -25,6 +27,10 @@ def test_shadow_wrap() -> None:
     assert 1 + shadow == 2
 
 
+@pytest.mark.xfail(
+    sys.version_info >= (3, 13),
+    reason="__slots__ conflicts with class variable in Python 3.13",
+)
 def test_shadow_wrap_ro_attr() -> None:
     class namespace: ...
 
@@ -51,6 +57,10 @@ def test_shadow_wrap_ro_get() -> None:
         shadow[0] = 2
 
 
+@pytest.mark.xfail(
+    sys.version_info >= (3, 13),
+    reason="__slots__ conflicts with class variable in Python 3.13",
+)
 def test_shadow_wrap_mutable_ref() -> None:
     class namespace: ...
 
