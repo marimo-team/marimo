@@ -252,7 +252,7 @@ encodeURIComponent(notebookCode)
 
 #### Using lz compression for large notebooks
 
-When using the `code` query parameter, your notebooks must no greater than `14 KB`.
+When using the `code` query parameter, your notebooks must be no greater than `14 KB`.
 For large notebooks, `marimo.app` supports lz-compressed notebook code with a URL hash.
 For example, in JavaScript, you can use the [`lz-string`](https://www.npmjs.com/package/lz-string) package:
 
