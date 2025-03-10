@@ -100,9 +100,6 @@ class _AppConfig:
         default_factory=list
     )
 
-    # Experimental top-level cell support
-    _toplevel_fn: bool = False
-
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
         config = _AppConfig()

@@ -1,11 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import sys
 from typing import Callable
 
+import marimo
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
+from marimo._ast.toplevel import TopLevelExtraction
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
@@ -47,6 +50,151 @@ LOGGER = _loggers.marimo_logger()
 PostExecutionHookType = Callable[
     [CellImpl, cell_runner.Runner, cell_runner.RunResult], None
 ]
+
+
+# TODO: Move. Just in here while messing around
+def parse_signature(func_def_str: str) -> str:
+    """
+    Parse the signature from a Python function definition provided as a string.
+
+    The signature includes:
+      - The function name.
+      - All parameters (with their type annotations and default values if provided).
+      - The return type annotation if present.
+
+    Args:
+        func_def_str (str): A string containing a Python function definition.
+
+    Returns:
+        str: The reconstructed function signature ending with a colon.
+
+    Raises:
+        ValueError: If no function definition is found in the provided string.
+    """
+    tree = ast.parse(func_def_str)
+    func_node = None
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            func_node = node
+            break
+    if func_node is None:
+        raise ValueError(
+            "No function definition found in the provided string."
+        )
+
+    # Start building the signature
+    sig_parts = [f"def {func_node.name}("]
+    params = []
+
+    # Positional and keyword arguments
+    for arg in func_node.args.args:
+        param = arg.arg
+        if arg.annotation:
+            # Using ast.unparse to get a string for the annotation (Python 3.9+)
+            param += f": {ast.unparse(arg.annotation)}"
+        params.append(param)
+
+    # Vararg (*args)
+    if func_node.args.vararg:
+        vararg = func_node.args.vararg
+        vararg_str = f"*{vararg.arg}"
+        if vararg.annotation:
+            vararg_str += f": {ast.unparse(vararg.annotation)}"
+        params.append(vararg_str)
+
+    # Keyword-only arguments with possible defaults
+    for i, arg in enumerate(func_node.args.kwonlyargs):
+        param = arg.arg
+        if arg.annotation:
+            param += f": {ast.unparse(arg.annotation)}"
+        default = func_node.args.kw_defaults[i]
+        if default is not None:
+            param += f"={ast.unparse(default)}"
+        params.append(param)
+
+    # Var-keyword (**kwargs)
+    if func_node.args.kwarg:
+        kwarg = func_node.args.kwarg
+        kwarg_str = f"**{kwarg.arg}"
+        if kwarg.annotation:
+            kwarg_str += f": {ast.unparse(kwarg.annotation)}"
+        params.append(kwarg_str)
+
+    # Insert default values for positional parameters
+    # Note: ast stores defaults for the last N positional parameters.
+    if func_node.args.defaults:
+        # Number of parameters that have defaults.
+        num_defaults = len(func_node.args.defaults)
+        # Only adjust the last num_defaults parameters.
+        for i in range(-num_defaults, 0):
+            default_value = ast.unparse(func_node.args.defaults[i])
+            params[i] += f"={default_value}"
+
+    sig_parts.append(", ".join(params))
+    sig_parts.append(")")
+    if func_node.returns:
+        sig_parts.append(f" -> {ast.unparse(func_node.returns)}")
+    sig_parts.append(":")
+    return "".join(sig_parts)
+
+
+def parse_docstring(func_def_str: str) -> str:
+    """
+    Extract the docstring from a Python function definition provided as a string.
+
+    Args:
+        func_def_str (str): A string containing a Python function definition.
+
+    Returns:
+        str: The function's docstring if found; otherwise, an empty string.
+
+    Raises:
+        ValueError: If no function definition is found in the provided string.
+    """
+    tree = ast.parse(func_def_str)
+    func_node = None
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            func_node = node
+            break
+    if func_node is None:
+        raise ValueError(
+            "No function definition found in the provided string."
+        )
+
+    # Extract and return the docstring; if none exists, return an empty string.
+    return ast.get_docstring(func_node) or ""
+
+
+# Extract function signature and docstring
+def build_markdown(signature: str, docstring: str, hint: str) -> str:
+    """Constructs the markdown string conditionally based on the presence of details and hint."""
+    # If docstring (details) exists, use a details block with summary; otherwise, use a normal code block.
+    # TODO: Probably bes to send up data and do things properly in react
+    if docstring:
+        md_content = f"""
+            <details>
+              <summary>
+              ```python
+              {signature}
+              ```
+              </summary>
+              ```python
+              '''{docstring}'''
+              ```
+            </details>
+          """
+    else:
+        md_content = f"""
+        ```python
+        {signature}
+        ```"""
+
+    # Append hint only if provided.
+    if hint:
+        md_content += f"\n<span>{hint}</span>"
+
+    return marimo.md(md_content)
 
 
 @kernel_tracer.start_as_current_span("set_imported_defs")
@@ -337,6 +485,42 @@ def _broadcast_outputs(
             ],
             clear_console=False,
             cell_id=cell.cell_id,
+        )
+
+
+@kernel_tracer.start_as_current_span("render_toplevel_defs")
+def _render_toplevel_defs(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    variable = cell.toplevel_variable
+    if variable is not None:
+        # TODO: Actually needs to run full extractor on graph extraction.
+
+        ancestors = runner.graph.ancestors(cell.cell_id)
+        path = [cell] + [runner.graph.cells[cid] for cid in ancestors]
+        extractor = TopLevelExtraction.from_cells(path)
+        status = next(iter(extractor))
+
+        tree = ast.parse(cell.code)
+        docstring = ast.get_docstring(tree)
+        tree.body[:] = [ast.Expr(value=ast.Constant(value=docstring))]
+        formatted_output = formatting.try_format(
+            build_markdown(
+                parse_signature(cell.code),
+                parse_docstring(cell.code),
+                status.hint,
+            )
+        )
+
+        CellOp.broadcast_output(
+            channel=CellChannel.OUTPUT,
+            mimetype=formatted_output.mimetype,
+            data=formatted_output.data,
+            cell_id=cell.cell_id,
+            status=None,
         )
 
 
