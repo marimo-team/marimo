@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -14,7 +15,14 @@ from marimo._runtime.context.types import ContextNotInitializedError
 def substitute_show_code_with_arg(code: str) -> str:
     pattern = r"mo\.show_code\((.*)\)"
     modified_code = re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
-    # Remove code_first=True or code_first=False from the end
+    # Remove position=above or position=below from the end
+    modified_code = re.sub(
+        r",?\s*position\s*=\s*[\"']?(above|below)[\"']?,?\s*\)?$",
+        "",
+        modified_code,
+        flags=re.DOTALL,
+    ).strip()
+    # For backward compatibility, also handle code_first
     modified_code = re.sub(
         r",?\s*code_first\s*=\s*(True|False),?\s*\)?$",
         "",
@@ -24,7 +32,9 @@ def substitute_show_code_with_arg(code: str) -> str:
     return modified_code
 
 
-def show_code(output: object = None, code_first: bool = False) -> Html:
+def show_code(
+    output: object = None, *, position: Literal["above", "below"] = "below"
+) -> Html:
     """Display an output along with the code of the current cell.
 
     Use `mo.show_code` to show the code of the current cell along with
@@ -61,15 +71,20 @@ def show_code(output: object = None, code_first: bool = False) -> Html:
 
     **Args:**
 
-    - `output`: the output to display above the cell's code; omit the output
-      to just show the cell's code, without an output.
-    - `code_first` : If `True`, the code will be displayed above the output.
-      If `False` (default), the output appears above the code.
+    - `output`: the output to display with the cell's code; omit the output
+      to just show the cell's code.
+    - `position`: Where to display the code relative to the output.
+      Use "above" to show code above the output, or "below" (default) to show
+      code below the output.
 
     **Returns:**
 
     HTML of the `output` arg displayed with its code.
     """
+    assert position in ["above", "below"], (
+        "position must be 'above' or 'below'"
+    )
+
     try:
         context = get_context()
     except ContextNotInitializedError:
@@ -83,7 +98,7 @@ def show_code(output: object = None, code_first: bool = False) -> Html:
     code = substitute_show_code_with_arg(cell.code)
 
     if output is not None:
-        if code_first:
+        if position == "above":
             return vstack(
                 [
                     code_editor(value=code, disabled=True, min_height=1),
