@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import CellOp, KernelCapabilities, KernelReady
 from marimo._server.sessions import Session
+from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header
@@ -67,7 +68,9 @@ def assert_kernel_ready_response(
     assert data.capabilities == expected.capabilities
 
 
-def get_session(client: TestClient, session_id: str) -> Optional[Session]:
+def get_session(
+    client: TestClient, session_id: SessionId
+) -> Optional[Session]:
     return get_session_manager(client).get_session(session_id)
 
 
@@ -77,7 +80,7 @@ def test_refresh_session(client: TestClient) -> None:
         assert_kernel_ready_response(data, create_response({}))
 
     # Check the session still exists after closing the websocket
-    session = get_session(client, "123")
+    session = get_session(client, SessionId("123"))
     assert session
     session_view = session.session_view
 

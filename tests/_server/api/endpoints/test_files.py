@@ -56,7 +56,7 @@ def test_read_code(client: TestClient) -> None:
         json={},
     )
     assert response.status_code == 200, response.text
-    assert response.json()["contents"].startswith("import marimo")
+    assert response.json()["contents"].strip().startswith("import marimo")
 
 
 @with_session(SESSION_ID)

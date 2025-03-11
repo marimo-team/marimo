@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
@@ -104,13 +105,13 @@ def _set_tracer_provider() -> None:
 
     class FileExporter(SpanExporter):
         def __init__(self, file_path: str) -> None:
-            self.file_path: str = file_path
+            self.file_path = Path(file_path)
             # Clear file
-            open(self.file_path, "w").close()
+            self.file_path.write_bytes(b"")
 
         def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
             try:
-                with open(self.file_path, "a") as f:
+                with self.file_path.open("a", encoding="utf-8") as f:
                     for span in spans:
                         f.write(span.to_json(cast(Any, None)))
                         f.write("\n")

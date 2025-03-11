@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import {
   type NotebookState,
+  SETUP_CELL_ID,
   exportedForTesting,
   flattenTopLevelNotebookCells,
 } from "../cells";
@@ -21,7 +22,6 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import type { CellHandle } from "@/components/editor/Cell";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
-import type { MovementCallbacks } from "@/core/codemirror/cells/extensions";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
@@ -80,15 +80,14 @@ function createEditor(content: string) {
     extensions: [
       python(),
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           activate_on_typing: true,
           copilot: false,
           codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
-        showPlaceholder: true,
-        enableAI: true,
-        cellMovementCallbacks: {} as MovementCallbacks,
+        placeholderType: "marimo-import",
       }),
     ],
   });
@@ -112,7 +111,6 @@ describe("cell reducer", () => {
       if (!handle.current) {
         const handle: CellHandle = {
           editorView: createEditor(state.cellData[cellId as CellId].code),
-          registerRun: vi.fn(),
         };
         state.cellHandles[cellId as CellId] = { current: handle };
       }
@@ -1331,6 +1329,51 @@ describe("cell reducer", () => {
     });
   });
 
+  it("can can add a new cell with/without stale code", () => {
+    actions.setCellCodes({
+      codes: ["new code"],
+      ids: ["2"] as CellId[],
+      codeIsStale: false,
+    });
+
+    expect(state.cellData["2" as CellId].code).toBe("new code");
+    expect(state.cellData["2" as CellId].edited).toBe(false);
+    expect(state.cellData["2" as CellId].lastCodeRun).toBe("new code");
+
+    actions.setCellCodes({
+      codes: ["new code 2"],
+      ids: ["9"] as CellId[],
+      codeIsStale: true,
+    });
+
+    expect(state.cellData["9" as CellId].code).toBe("new code 2");
+    expect(state.cellData["9" as CellId].edited).toBe(true);
+    expect(state.cellData["9" as CellId].lastCodeRun).toBe(null);
+  });
+
+  it("can partial update cell codes", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    expect(state.cellIds.inOrderIds).toEqual(["0", "1", "2"]);
+    expect(state.cellData["0" as CellId].code).toBe("");
+    expect(state.cellData["1" as CellId].code).toBe("");
+    expect(state.cellData["2" as CellId].code).toBe("");
+
+    // Update cell 1
+    actions.setCellCodes({
+      codes: ["new code 2"],
+      ids: ["1"] as CellId[],
+      codeIsStale: false,
+    });
+
+    expect(state.cellIds.inOrderIds).toEqual(["0", "1", "2"]);
+    expect(state.cellData["0" as CellId].code).toBe("");
+    expect(state.cellData["1" as CellId].code).toBe("new code 2");
+    expect(state.cellData["1" as CellId].edited).toBe(false);
+    expect(state.cellData["2" as CellId].code).toBe("");
+  });
+
   it("can set cell codes with new cell ids, while preserving the old cell data", () => {
     actions.setCellCodes({
       codes: ["code1", "code2", "code3"],
@@ -1871,5 +1914,54 @@ describe("cell reducer", () => {
       [1] 'import pandas as pd'
       "
     `);
+  });
+
+  it("can create and update a setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Update the setup cell
+    actions.upsertSetupCell({ code: "# Updated setup code" });
+
+    // Check that the same setup cell was updated, not duplicated
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Updated setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
+
+  it("can delete and undelete the setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Delete the setup cell
+    actions.deleteCell({ cellId: SETUP_CELL_ID });
+
+    // Check that setup cell was deleted
+    expect(state.cellData[SETUP_CELL_ID]).toBeDefined(); // we keep old state
+    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
+
+    // Undo delete the setup cell
+    actions.undoDeleteCell();
+
+    // Check that setup cell was restored
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
 });

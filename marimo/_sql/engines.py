@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
@@ -247,9 +247,9 @@ class SQLAlchemyEngine(SQLEngine):
     def get_databases(
         self,
         *,
-        include_schemas: bool = False,
-        include_tables: bool = False,
-        include_table_details: bool = False,
+        include_schemas: Union[bool, Literal["auto"]],
+        include_tables: Union[bool, Literal["auto"]],
+        include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
         """Get all databases from the engine.
 
@@ -271,10 +271,14 @@ class SQLAlchemyEngine(SQLEngine):
 
         schemas = (
             self._get_schemas(
-                include_tables=include_tables,
-                include_table_details=include_table_details,
+                include_tables=self._resolve_should_auto_discover(
+                    include_tables
+                ),
+                include_table_details=self._resolve_should_auto_discover(
+                    include_table_details
+                ),
             )
-            if include_schemas
+            if self._resolve_should_auto_discover(include_schemas)
             else []
         )
         databases.append(
@@ -308,7 +312,7 @@ class SQLAlchemyEngine(SQLEngine):
             schemas.append(
                 Schema(
                     name=schema,
-                    tables=self._get_tables_in_schema(
+                    tables=self.get_tables_in_schema(
                         schema=schema,
                         include_table_details=include_table_details,
                     )
@@ -319,7 +323,7 @@ class SQLAlchemyEngine(SQLEngine):
 
         return schemas
 
-    def _get_tables_in_schema(
+    def get_tables_in_schema(
         self, *, schema: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
@@ -459,6 +463,17 @@ class SQLAlchemyEngine(SQLEngine):
         except Exception:
             LOGGER.debug("Failed to get generic type", exc_info=True)
             return None
+
+    def _resolve_should_auto_discover(
+        self,
+        value: Union[bool, Literal["auto"]],
+    ) -> bool:
+        if value == "auto":
+            return self._is_cheap_discovery()
+        return value
+
+    def _is_cheap_discovery(self) -> bool:
+        return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
 
 
 def _sql_type_to_data_type(type_str: str) -> DataType:

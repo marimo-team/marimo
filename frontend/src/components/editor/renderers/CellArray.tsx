@@ -11,6 +11,7 @@ import {
   columnIdsAtom,
   type NotebookState,
   useCellActions,
+  SETUP_CELL_ID,
 } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
@@ -63,6 +64,8 @@ interface CellArrayProps {
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
   const columnIds = useAtomValue(columnIdsAtom);
+
+  // Setup context for sorting
   return (
     <SortableCellsProvider multiColumn={props.appConfig.width === "columns"}>
       <SortableContext
@@ -95,7 +98,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   useHotkey("global.foldCode", actions.foldAll);
   useHotkey("global.unfoldCode", actions.unfoldAll);
   useHotkey("global.formatAll", () => {
-    formatAll(actions.updateCellCode);
+    formatAll();
   });
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window
@@ -114,6 +117,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
 
   const columns = notebook.cellIds.getColumns();
   const hasOnlyOneCell = notebook.cellIds.hasOnlyOneId();
+  const hasSetupCell = notebook.cellIds.inOrderIds.includes(SETUP_CELL_ID);
 
   return (
     <VerticalLayoutWrapper
@@ -132,7 +136,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
         )}
       >
         {columns.map((column, index) => (
-          <SortableColumn
+          <CellColumn
             key={column.id}
             column={column}
             index={index}
@@ -146,6 +150,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             theme={theme}
             hasOnlyOneCell={hasOnlyOneCell}
             invisible={invisible}
+            hasSetupCell={hasSetupCell}
             onDeleteCell={onDeleteCell}
           />
         ))}
@@ -155,7 +160,10 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   );
 };
 
-const SortableColumn: React.FC<{
+/**
+ * A single column of cells.
+ */
+const CellColumn: React.FC<{
   column: CollapsibleTree<CellId>;
   index: number;
   columnsLength: number;
@@ -168,6 +176,7 @@ const SortableColumn: React.FC<{
   theme: Theme;
   hasOnlyOneCell: boolean;
   invisible: boolean;
+  hasSetupCell: boolean;
   onDeleteCell: (payload: { cellId: CellId }) => void;
 }> = ({
   column,
@@ -182,8 +191,11 @@ const SortableColumn: React.FC<{
   theme,
   hasOnlyOneCell,
   invisible,
+  hasSetupCell,
   onDeleteCell,
 }) => {
+  const appClosed = connStatus.state !== WebSocketState.OPEN;
+
   return (
     <Column
       columnId={column.id}
@@ -206,7 +218,40 @@ const SortableColumn: React.FC<{
         items={column.topLevelIds}
         strategy={verticalListSortingStrategy}
       >
+        {/* Render the setup cell first, always */}
+        {index === 0 && hasSetupCell && (
+          <Cell
+            key={SETUP_CELL_ID}
+            theme={theme}
+            showPlaceholder={false}
+            allowFocus={!invisible}
+            {...notebook.cellData[SETUP_CELL_ID]}
+            {...notebook.cellRuntime[SETUP_CELL_ID]}
+            {...actions}
+            runElapsedTimeMs={
+              notebook.cellRuntime[SETUP_CELL_ID].runElapsedTimeMs ??
+              (notebook.cellData[SETUP_CELL_ID]
+                .lastExecutionTime as Milliseconds)
+            }
+            canDelete={true}
+            mode={mode}
+            appClosed={appClosed}
+            ref={notebook.cellHandles[SETUP_CELL_ID]}
+            userConfig={userConfig}
+            isCollapsed={false}
+            collapseCount={0}
+            canMoveX={false}
+            actions={actions}
+            deleteCell={onDeleteCell}
+          />
+        )}
+
         {column.topLevelIds.map((cellId) => {
+          // Skip the setup cell later
+          if (cellId === SETUP_CELL_ID) {
+            return null;
+          }
+
           const cellData = notebook.cellData[cellId];
           const cellRuntime = notebook.cellRuntime[cellId];
           return (
@@ -235,7 +280,7 @@ const SortableColumn: React.FC<{
               serializedEditorState={cellData.serializedEditorState}
               canDelete={!hasOnlyOneCell}
               mode={mode}
-              appClosed={connStatus.state !== WebSocketState.OPEN}
+              appClosed={appClosed}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
               debuggerActive={cellRuntime.debuggerActive}
@@ -244,7 +289,7 @@ const SortableColumn: React.FC<{
               isCollapsed={column.isCollapsed(cellId)}
               collapseCount={column.getCount(cellId)}
               canMoveX={appConfig.width === "columns"}
-              {...actions}
+              actions={actions}
               deleteCell={onDeleteCell}
             />
           );

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
@@ -117,7 +118,7 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
         )
     ]
 
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=False
     )
     assert tables == []
@@ -170,7 +171,7 @@ def test_sqlalchemy_sql_types() -> None:
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=True
     )
 
@@ -276,7 +277,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=True
     )
 
@@ -285,7 +286,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert tables[0] == get_expected_table("test")
 
     # Test with other schema
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="my_schema", include_table_details=True
     )
     assert isinstance(tables, list)
@@ -294,14 +295,14 @@ def test_sqlalchemy_engine_get_tables_in_schema(
 
     # Test with non-existent schema
     assert (
-        engine._get_tables_in_schema(
+        engine.get_tables_in_schema(
             schema="non_existent", include_table_details=True
         )
         == []
     )
 
     # Test with include_table_details false
-    tables = engine._get_tables_in_schema(
+    tables = engine.get_tables_in_schema(
         schema="main", include_table_details=False
     )
     assert isinstance(tables, list)
@@ -441,6 +442,58 @@ def test_sqlalchemy_get_databases(sqlite_engine: sa.Engine) -> None:
             engine=VariableName("test_sqlite"),
         )
     ]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_get_databases_auto(sqlite_engine: sa.Engine) -> None:
+    """Test SQLAlchemyEngine get_databases method with 'auto' option."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+
+    # For SQLite, _is_cheap_discovery() returns True, so 'auto' should behave like True
+    databases = engine.get_databases(
+        include_schemas="auto",
+        include_tables="auto",
+        include_table_details="auto",
+    )
+
+    # Should be equivalent to setting all params to True since sqlite is a "cheap" dialect
+    tables_main = get_expected_table("test", include_table_details=True)
+    tables_my_schema = get_expected_table("test2", include_table_details=True)
+    assert tables_main.columns == tables_my_schema.columns
+    assert tables_main.primary_keys == tables_my_schema.primary_keys
+    assert databases == [
+        Database(
+            name=":memory:",
+            dialect="sqlite",
+            schemas=[
+                get_expected_schema("main", "test"),
+                get_expected_schema("my_schema", "test2"),
+            ],
+            engine=VariableName("test_sqlite"),
+        )
+    ]
+
+    # Test with a mock to simulate a non-cheap dialect
+    with mock.patch.object(
+        SQLAlchemyEngine, "_is_cheap_discovery", return_value=False
+    ):
+        # For a non-cheap dialect, 'auto' should behave like False
+        databases = engine.get_databases(
+            include_schemas="auto",
+            include_tables="auto",
+            include_table_details="auto",
+        )
+
+        assert databases == [
+            Database(
+                name=":memory:",
+                dialect="sqlite",
+                schemas=[],
+                engine=VariableName("test_sqlite"),
+            )
+        ]
 
 
 @pytest.mark.skipif(

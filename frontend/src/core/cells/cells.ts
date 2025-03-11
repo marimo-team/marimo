@@ -47,10 +47,15 @@ import {
   type CellIndex,
   MultiColumn,
 } from "@/utils/id-tree";
-import { isEqual } from "lodash-es";
+import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
+export const SETUP_CELL_ID = "setup" as CellId;
+
+export function isSetupCell(cellId: CellId): boolean {
+  return cellId === SETUP_CELL_ID;
+}
 
 /**
  * The state of the notebook.
@@ -83,6 +88,7 @@ export interface NotebookState {
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;
+    isSetupCell: boolean;
   }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
@@ -617,6 +623,7 @@ const {
           serializedEditorState: serializedEditorState,
           column: column.id,
           index: cellIndex,
+          isSetupCell: cellId === SETUP_CELL_ID,
         },
       ],
       scrollKey: scrollKey,
@@ -634,9 +641,10 @@ const {
       serializedEditorState = { doc: "" },
       column,
       index,
+      isSetupCell,
     } = mostRecentlyDeleted;
 
-    const cellId = CellId.create();
+    const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
     const undoCell = createCell({
       id: cellId,
       name,
@@ -735,7 +743,6 @@ const {
         ...cell,
         edited: false,
         lastCodeRun: cell.code.trim(),
-        lastExecutionTime: cell.lastExecutionTime,
       };
     });
   },
@@ -797,12 +804,30 @@ const {
       cellId: CellId,
     ) => {
       if (!cell) {
-        return createCell({ id: cellId, code });
+        return createCell({
+          id: cellId,
+          code,
+          lastCodeRun: action.codeIsStale ? null : code,
+          edited: action.codeIsStale && code.trim().length > 0,
+        });
       }
+
+      // If code is stale, we don't promote it to lastCodeRun
+      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
+
+      // Mark as edited if the code has changed
+      const edited = lastCodeRun
+        ? lastCodeRun.trim() !== code.trim()
+        : Boolean(code);
 
       // No change
       if (cell.code.trim() === code.trim()) {
-        return cell;
+        return {
+          ...cell,
+          code: code,
+          edited,
+          lastCodeRun,
+        };
       }
 
       // Update codemirror if mounted
@@ -811,24 +836,18 @@ const {
         updateEditorCodeFromPython(cellHandle.editorView, code);
       }
 
-      // If code is stale, we don't promote it to lastCodeRun
-      const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
-
       return {
         ...cell,
         code: code,
-        // Mark as edited if the code has changed
-        edited: lastCodeRun
-          ? lastCodeRun.trim() !== code.trim()
-          : Boolean(code),
+        edited,
         lastCodeRun,
       };
     };
 
-    for (let i = 0; i < action.codes.length; i++) {
-      const cellId = action.ids[i];
-      const code = action.codes[i];
-
+    for (const [cellId, code] of zip(action.ids, action.codes)) {
+      if (cellId === undefined || code === undefined) {
+        continue;
+      }
       nextState = {
         ...nextState,
         cellData: {
@@ -901,6 +920,12 @@ const {
     action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
+
+    // Can't move focus of scratch cell
+    if (cellId === SCRATCH_CELL_ID) {
+      return state;
+    }
+
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
@@ -1175,6 +1200,45 @@ const {
     return {
       ...state,
       cellRuntime: newCellRuntime,
+    };
+  },
+  upsertSetupCell: (state, action: { code: string }) => {
+    const { code } = action;
+
+    // First check if setup cell already exists
+    if (SETUP_CELL_ID in state.cellData) {
+      // Update existing setup cell
+      return updateCellData(state, SETUP_CELL_ID, (cell) => ({
+        ...cell,
+        code,
+        edited: code.trim() !== cell.lastCodeRun?.trim(),
+      }));
+    }
+
+    return {
+      ...state,
+      cellIds: state.cellIds.insertId(
+        SETUP_CELL_ID,
+        state.cellIds.atOrThrow(0).id,
+        0,
+      ),
+      cellData: {
+        ...state.cellData,
+        [SETUP_CELL_ID]: createCell({
+          id: SETUP_CELL_ID,
+          name: SETUP_CELL_ID,
+          code,
+          edited: Boolean(code),
+        }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [SETUP_CELL_ID]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [SETUP_CELL_ID]: createRef(),
+      },
     };
   },
 });

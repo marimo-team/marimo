@@ -52,6 +52,7 @@ from marimo._messaging.ops import (
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
+    SQLTableListPreview,
     SQLTablePreview,
     VariableDeclaration,
     Variables,
@@ -112,6 +113,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
     RenameRequest,
     SetCellConfigRequest,
@@ -141,6 +143,7 @@ from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
 from marimo._sql.engines import SQLAlchemyEngine
 from marimo._sql.get_engines import get_engines_from_variables
+from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
@@ -455,6 +458,13 @@ class Kernel:
         # timestamp, to save the user from having to spam the interrupt button
         self.last_interrupt_timestamp: Optional[float] = None
 
+        # Apply pythonpath from config at initialization
+        pythonpath = user_config["runtime"].get("pythonpath")
+        if pythonpath:
+            for path in pythonpath:
+                if path not in sys.path:
+                    sys.path.insert(0, path)
+
         self._preparation_hooks = (
             preparation_hooks
             if preparation_hooks is not None
@@ -475,7 +485,7 @@ class Kernel:
         )
 
         # Adds in a post_execution hook to run pytest immediately
-        if user_config.get("experimental", {}).get("reactive_pytest", False):
+        if user_config.get("experimental", {}).get("reactive_tests", False):
             from marimo._runtime.runner.hooks_post_execution import (
                 _attempt_pytest,
             )
@@ -2112,6 +2122,23 @@ class Kernel:
             ).broadcast()
         return
 
+    def _get_sql_engine(
+        self, engine_name: str
+    ) -> tuple[Optional[SQLEngine], Optional[str]]:
+        """Find the SQL engine associated with the given name. Returns the engine and the error message if any."""
+        engine_name = cast(VariableName, engine_name)
+
+        try:
+            # Should we find the existing engine instead?
+            engine_val = self.globals.get(engine_name)
+            engines = get_engines_from_variables([(engine_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                return None, "Engine not found"
+            return engines[0][1], None
+        except Exception as e:
+            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+            return None, str(e)
+
     @kernel_tracer.start_as_current_span("preview_sql_table")
     async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
         """Get table details for an SQL table.
@@ -2128,22 +2155,10 @@ class Kernel:
         schema_name = request.schema
         table_name = request.table_name
 
-        # TODO: Can we find the existing engine
-        engine_val = self.globals.get(engine_name)
-        try:
-            engines = get_engines_from_variables([(engine_name, engine_val)])
-            if engines is None or len(engines) == 0:
-                LOGGER.warning("Engine %s not found", engine_name)
-                SQLTablePreview(
-                    request_id=request.request_id,
-                    table=None,
-                    error="Engine not found",
-                ).broadcast()
-            engine = engines[0][1]
-        except Exception as e:
-            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+        engine, error = self._get_sql_engine(engine_name)
+        if error is not None or engine is None:
             SQLTablePreview(
-                request_id=request.request_id, table=None, error=str(e)
+                request_id=request.request_id, table=None, error=error
             ).broadcast()
             return
 
@@ -2158,6 +2173,43 @@ class Kernel:
             SQLTablePreview(
                 request_id=request.request_id,
                 table=None,
+                error="Not an SQLAlchemyEngine",
+            ).broadcast()
+
+    @kernel_tracer.start_as_current_span("preview_sql_table_list")
+    async def preview_sql_table_list(
+        self, request: PreviewSQLTableListRequest
+    ) -> None:
+        """Get a list of tables from an SQL schema
+
+        Args:
+            request (PreviewSQLTableListRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+                - schema: Name of the schema
+        """
+        engine_name = cast(VariableName, request.engine)
+        _database_name = request.database
+        schema_name = request.schema
+
+        engine, error = self._get_sql_engine(engine_name)
+        if error is not None or engine is None:
+            SQLTableListPreview(
+                request_id=request.request_id, tables=[], error=error
+            ).broadcast()
+            return
+
+        if isinstance(engine, SQLAlchemyEngine):
+            table_list = engine.get_tables_in_schema(
+                schema=schema_name, include_table_details=False
+            )
+            SQLTableListPreview(
+                request_id=request.request_id, tables=table_list
+            ).broadcast()
+        else:
+            SQLTableListPreview(
+                request_id=request.request_id,
+                tables=[],
                 error="Not an SQLAlchemyEngine",
             ).broadcast()
 
@@ -2214,6 +2266,8 @@ class Kernel:
                 await self.preview_dataset_column(request)
             elif isinstance(request, PreviewSQLTableRequest):
                 await self.preview_sql_table(request)
+            elif isinstance(request, PreviewSQLTableListRequest):
+                await self.preview_sql_table_list(request)
             elif isinstance(request, StopRequest):
                 return None
             else:

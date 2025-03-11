@@ -8,6 +8,29 @@ from marimo._plugins.stateless.status._progress import progress_bar
 from marimo._runtime.context.utils import running_in_notebook
 
 
+class ProgressBarTqdmPatch(progress_bar):
+    def __init__(self, *args: Any, **kwargs: Any):
+        # Partial translation from tqdm to our native progress bar;
+        # uses API of tqdm v4.66.4, likely backward compatible.
+        iterable: Any = kwargs.get("iterable", None)
+        desc: str | None = kwargs.get("desc", None)
+        total: int | None = kwargs.get("total", None)
+
+        # In case args were used
+        if args:
+            iterable = args[0]
+        if len(args) >= 2:
+            desc = args[1]
+        if len(args) >= 3:
+            total = args[2]
+
+        super().__init__(
+            collection=iterable,
+            title=desc or "Loading...",
+            total=total,
+        )
+
+
 class TqdmFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
@@ -17,27 +40,4 @@ class TqdmFormatter(FormatterFactory):
         if running_in_notebook():
             import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
 
-            def tqdm_to_progress_bar(
-                *args: Any, **kwargs: Any
-            ) -> progress_bar:
-                # Partial translation from tqdm to our native progress bar;
-                # uses API of tqdm v4.66.4, likely backward compatible.
-                iterable: Any = kwargs.get("iterable", None)
-                desc: str | None = kwargs.get("desc", None)
-                total: int | None = kwargs.get("total", None)
-
-                # In case args were used
-                if args:
-                    iterable = args[0]
-                if len(args) >= 2:
-                    desc = args[1]
-                if len(args) >= 3:
-                    total = args[2]
-
-                return progress_bar(
-                    collection=iterable,
-                    title=desc or "Loading...",
-                    total=total,
-                )
-
-            tqdm.notebook.tqdm = tqdm_to_progress_bar
+            tqdm.notebook.tqdm = ProgressBarTqdmPatch

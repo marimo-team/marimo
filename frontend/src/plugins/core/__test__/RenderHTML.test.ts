@@ -52,6 +52,27 @@ describe("RenderHTML", () => {
     `);
   });
 
+  test("codehilite with copy button", () => {
+    const html =
+      '<div class="codehilite"><pre><code>console.log("Hello");</code></pre></div>';
+    const result = renderHTML({ html });
+
+    // Check that the result is wrapped in a CopyableCode component
+    expect(result).toMatchInlineSnapshot(`
+      <CopyableCode>
+        <div
+          className="codehilite"
+        >
+          <pre>
+            <code>
+              console.log("Hello");
+            </code>
+          </pre>
+        </div>
+      </CopyableCode>
+    `);
+  });
+
   test("custom tags - valid", () => {
     let html = "<foobar></foobar>";
     expect(renderHTML({ html })).toMatchInlineSnapshot("<foobar />");

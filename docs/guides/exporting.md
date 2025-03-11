@@ -154,7 +154,7 @@ Options:
     cannot be opened directly from the filesystem (`file://`). Your server must
     also serve the assets in the `assets` directory, next to the HTML file. For
     a simpler publishing experience, publish to [GitHub
-    Pages](publishing/github_pages.md) or use the [online
+    Pages](publishing/github_pages.md), [Cloudflare Pages](publishing/cloudflare_pages.md) or use the [online
     playground](publishing/playground.md).
 
 ### Testing the export

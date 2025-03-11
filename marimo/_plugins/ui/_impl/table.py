@@ -36,6 +36,8 @@ from marimo._plugins.ui._impl.tables.selection import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    TableCell,
+    TableCoordinate,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -103,10 +105,18 @@ class SortArgs:
     descending: bool
 
 
+@dataclass
+class GetRowIdsResponse:
+    row_ids: list[int]
+    all_rows: bool
+    error: Optional[str] = None
+
+
 @mddoc
 class table(
     UIElement[
-        Union[list[str], list[int]], Union[list[JSONType], IntoDataFrame]
+        Union[list[str], list[int], list[dict[str, Any]]],
+        Union[list[JSONType], IntoDataFrame, list[TableCell]],
     ]
 ):
     """A table component with selectable rows.
@@ -196,7 +206,8 @@ class table(
             - as a single column: a list of values
         pagination (bool, optional): Whether to paginate; if False, all rows will be shown.
             Defaults to True when above 10 rows, False otherwise.
-        selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
+        selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
+            'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
         initial_selection (List[int], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
@@ -213,7 +224,7 @@ class table(
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
         label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame]], None], optional):
+        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[Cell]]], None], optional):
             Optional callback to run when this element's value changes.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
@@ -230,7 +241,9 @@ class table(
             IntoDataFrame,
         ],
         pagination: Optional[bool] = None,
-        selection: Optional[Literal["single", "multi"]] = "multi",
+        selection: Optional[
+            Literal["single", "multi", "single-cell", "multi-cell"]
+        ] = "multi",
         initial_selection: Optional[list[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
@@ -256,6 +269,7 @@ class table(
                         list[JSONType],
                         dict[str, ListOrTuple[JSONType]],
                         IntoDataFrame,
+                        list[TableCell],
                     ]
                 ],
                 None,
@@ -310,6 +324,7 @@ class table(
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
 
+        self._selection = selection
         initial_value = []
         if initial_selection and self._manager.supports_selection():
             if selection == "single" and len(initial_selection) > 1:
@@ -416,6 +431,11 @@ class table(
                     arg_cls=SearchTableArgs,
                     function=self._search,
                 ),
+                Function(
+                    name="get_row_ids",
+                    arg_cls=EmptyArgs,
+                    function=self._get_row_ids,
+                ),
             ),
         )
 
@@ -440,18 +460,31 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[list[int], list[str]]
-    ) -> Union[list[JSONType], IntoDataFrame]:
-        indices = [int(v) for v in value]
-        if self._has_stable_row_id:
-            # Search across the original data
-            self._selected_manager = self._manager.select_rows(indices)
+        self, value: Union[list[int], list[str], list[dict[str, Any]]]
+    ) -> Union[list[JSONType], IntoDataFrame, list[TableCell]]:
+        if self._selection in ["single-cell", "multi-cell"]:
+            coordinates = [
+                TableCoordinate(row_id=v["rowId"], column_name=v["columnName"])
+                for v in value
+                if isinstance(v, dict) and "rowId" in v and "columnName" in v
+            ]
+            self._has_any_selection = len(coordinates) > 0
+            return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
-            self._selected_manager = self._searched_manager.select_rows(
-                indices
-            )
-        self._has_any_selection = len(indices) > 0
-        return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+            indices = [
+                int(v)
+                for v in value
+                if isinstance(v, int) or isinstance(v, str)
+            ]
+            if self._has_stable_row_id:
+                # Search across the original data
+                self._selected_manager = self._manager.select_rows(indices)
+            else:
+                self._selected_manager = self._searched_manager.select_rows(
+                    indices
+                )
+                self._has_any_selection = len(indices) > 0
+            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.
@@ -648,6 +681,49 @@ class table(
             data=clamp_rows_and_columns(result),
             total_rows=result.get_num_rows(force=True) or 0,
         )
+
+    def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
+        """Get row IDs of a table. If searched, return searched rows else all rows."""
+        del args
+
+        total_rows = self._manager.get_num_rows()
+        num_rows_searched = self._searched_manager.get_num_rows()
+
+        if total_rows is None or num_rows_searched is None:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error="Failed to get row IDs: number of rows is unknown",
+            )
+
+        # If no search has been applied, return with all_rows=True to avoid passing row IDs
+        if total_rows == num_rows_searched:
+            return GetRowIdsResponse(row_ids=[], all_rows=True)
+
+        if num_rows_searched > 1_000_000:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error="Select all with search is not supported for large datasets. Please filter to less than 1,000,000 rows",
+            )
+
+        # For dictionary data, return sequential indices
+        if isinstance(self.data, dict):
+            return GetRowIdsResponse(
+                row_ids=list(range(num_rows_searched)),
+                all_rows=False,
+            )
+
+        # For dataframes
+        try:
+            row_ids = self._searched_manager.data[INDEX_COLUMN_NAME].to_list()
+            return GetRowIdsResponse(row_ids=row_ids, all_rows=False)
+        except Exception as e:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error=f"Failed to get row IDs: {str(e)}",
+            )
 
     def _repr_markdown_(self) -> str:
         """Return a markdown representation of the table.

@@ -37,6 +37,7 @@ import {
   GithubIcon,
   MessagesSquareIcon,
   YoutubeIcon,
+  DiamondPlusIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -81,6 +82,7 @@ import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { Constants } from "@/core/constants";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -96,8 +98,12 @@ export function useNotebookActions() {
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
 
-  const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
-    useCellActions();
+  const {
+    updateCellConfig,
+    undoDeleteCell,
+    clearAllCellOutputs,
+    upsertSetupCell,
+  } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
   const copyNotebook = useCopyNotebook(filename);
@@ -368,6 +374,16 @@ export function useNotebookActions() {
       icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
       label: "Hide all markdown code",
       handle: hideAllMarkdownCode,
+    },
+    {
+      icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
+      label: "Add setup cell",
+      hidden: !getFeatureFlag("setup_cell"),
+      handle: () => {
+        upsertSetupCell({
+          code: "# Initialization code that runs before all other cells",
+        });
+      },
     },
     {
       icon: <XCircleIcon size={14} strokeWidth={1.5} />,

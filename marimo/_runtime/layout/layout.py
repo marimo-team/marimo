@@ -36,7 +36,6 @@ def save_layout_config(
 
     Returns: the path to the layout file
     """
-
     # remove py extension
     app_name_without_ext = app_name.replace(".py", "")
     # relative file path
@@ -45,7 +44,7 @@ def save_layout_config(
     full_filepath = os.path.join(directory, filepath)
     # create directory if it doesn't exist
     os.makedirs(os.path.dirname(full_filepath), exist_ok=True)
-    with open(full_filepath, "w") as f:
+    with open(full_filepath, "w", encoding="utf-8") as f:
         json.dump(config.__dict__, f, indent=2)
     return filepath
 
@@ -77,6 +76,6 @@ def read_layout_config(
     if not filepath.endswith(".json"):
         LOGGER.warning("Layout file %s is not a JSON file", filepath)
         return None
-    with open(filepath) as f:
+    with open(filepath, encoding="utf-8") as f:
         data = json.load(f)
     return LayoutConfig(type=data["type"], data=data["data"])  # type: ignore[call-overload]

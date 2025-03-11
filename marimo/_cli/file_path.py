@@ -4,9 +4,9 @@ from __future__ import annotations
 import abc
 import json
 import os
-import pathlib
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
 from urllib.error import HTTPError
@@ -55,12 +55,12 @@ class LocalFileReader(FileReader):
         return not is_url(name)
 
     def read(self, name: str) -> tuple[str, str]:
+        file_path = Path(name)
         # Is directory
-        if os.path.isdir(name):
-            return "", os.path.basename(name)
-        with open(name, encoding="utf-8") as f:
-            content = f.read()
-        return content, os.path.basename(name)
+        if file_path.is_dir():
+            return "", file_path.name
+        content = file_path.read_text(encoding="utf-8")
+        return content, file_path.name
 
 
 class GitHubIssueReader(FileReader):
@@ -222,9 +222,9 @@ class LocalFileHandler(FileHandler):
         del temp_dir
         import click
 
-        path = pathlib.Path(name)
+        path = Path(name)
 
-        if self.allow_directory and os.path.isdir(name):
+        if self.allow_directory and path.is_dir():
             return name, None
 
         if path.suffix == ".ipynb":
@@ -243,7 +243,7 @@ class LocalFileHandler(FileHandler):
             )
 
         if not self.allow_new_file:
-            if not os.path.exists(name):
+            if not path.exists():
                 raise click.ClickException(
                     f"Invalid NAME - {name} does not exist"
                 )
@@ -281,14 +281,13 @@ class RemoteFileHandler(FileHandler):
         content: str, name: str, temp_dir: TemporaryDirectory[str]
     ) -> str:
         LOGGER.info("Creating temporary file")
-        path_to_app = os.path.join(temp_dir.name, name)
+        path_to_app = Path(temp_dir.name) / name
         # If doesn't end in .py, add it
-        if not path_to_app.endswith(".py"):
-            path_to_app += ".py"
-        with open(path_to_app, "w") as f:
-            f.write(content)
+        if not path_to_app.suffix == ".py":
+            path_to_app = path_to_app.with_suffix(".py")
+        path_to_app.write_text(content, encoding="utf-8")
         LOGGER.info("App saved to %s", path_to_app)
-        return path_to_app
+        return str(path_to_app)
 
 
 def validate_name(

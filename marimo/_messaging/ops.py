@@ -390,8 +390,8 @@ class SendUIElementMessage(Op):
 
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: str
-    message: dict[str, object]
-    buffers: Optional[Sequence[str]]
+    message: dict[str, Any]
+    buffers: Optional[list[str]]
 
 
 @dataclass
@@ -594,11 +594,21 @@ class Datasets(Op):
 
 @dataclass
 class SQLTablePreview(Op):
-    """Preview of a table in a dataset."""
+    """Preview of a table in a SQL database."""
 
     name: ClassVar[str] = "sql-table-preview"
     request_id: RequestId
     table: Optional[DataTable]
+    error: Optional[str] = None
+
+
+@dataclass
+class SQLTableListPreview(Op):
+    """Preview of a list of tables in a schema."""
+
+    name: ClassVar[str] = "sql-table-list-preview"
+    request_id: RequestId
+    tables: list[DataTable] = field(default_factory=list)
     error: Optional[str] = None
 
 
@@ -714,6 +724,7 @@ MessageOperation = Union[
     Datasets,
     DataColumnPreview,
     SQLTablePreview,
+    SQLTableListPreview,
     DataSourceConnections,
     # Kiosk specific
     FocusCell,

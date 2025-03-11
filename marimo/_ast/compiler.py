@@ -111,23 +111,23 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
             continue
 
         if "lineno" in child._attributes:
-            child.lineno = getattr(child, "lineno", 0) + line_offset
+            child.lineno = getattr(child, "lineno", 0) + line_offset  # type: ignore[attr-defined]
 
         if "col_offset" in child._attributes:
-            child.col_offset = getattr(child, "col_offset", 0) + col_offset
+            child.col_offset = getattr(child, "col_offset", 0) + col_offset  # type: ignore[attr-defined]
 
         if (
             "end_lineno" in child._attributes
             and (end_lineno := getattr(child, "end_lineno", 0)) is not None
         ):
-            child.end_lineno = end_lineno + line_offset
+            child.end_lineno = end_lineno + line_offset  # type: ignore[attr-defined]
 
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0))
             is not None
         ):
-            child.end_col_offset = end_col_offset + col_offset
+            child.end_col_offset = end_col_offset + col_offset  # type: ignore[attr-defined]
     return node
 
 
@@ -183,7 +183,7 @@ def compile_cell(
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
         expr = ast.Expression(module.body.pop().value)
-        expr.lineno = final_expr.lineno
+        expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)
         const.col_offset = final_expr.end_col_offset
@@ -191,10 +191,10 @@ def compile_cell(
         expr = ast.Expression(const)
         # use code over body since lineno corresponds to source
         const.lineno = len(code.splitlines()) + 1
-        expr.lineno = const.lineno
+        expr.lineno = const.lineno  # type: ignore[attr-defined]
     # Creating an expression clears source info, so it needs to be set back
-    expr.col_offset = final_expr.end_col_offset
-    expr.end_col_offset = final_expr.end_col_offset
+    expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
+    expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
     filename: str
     if source_position:

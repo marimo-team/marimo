@@ -1280,11 +1280,23 @@ components:
         datasources:
           properties:
             auto_discover_columns:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
             auto_discover_schemas:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
             auto_discover_tables:
-              type: boolean
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
           type: object
         display:
           properties:
@@ -1374,6 +1386,10 @@ components:
               type: string
             output_max_bytes:
               type: integer
+            pythonpath:
+              items:
+                type: string
+              type: array
             std_stream_max_bytes:
               type: integer
             watcher_on_save:
@@ -1388,6 +1404,7 @@ components:
           - watcher_on_save
           - output_max_bytes
           - std_stream_max_bytes
+          - pythonpath
           type: object
         save:
           properties:
@@ -1554,6 +1571,7 @@ components:
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/SQLTablePreview'
+      - $ref: '#/components/schemas/SQLTableListPreview'
       - properties:
           connections:
             items:
@@ -1703,6 +1721,22 @@ components:
       - source
       - tableName
       - columnName
+      type: object
+    PreviewSQLTableListRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
       type: object
     PreviewSQLTableRequest:
       properties:
@@ -1891,6 +1925,26 @@ components:
       - running
       - disabled-transitively
       type: string
+    SQLTableListPreview:
+      properties:
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - sql-table-list-preview
+          type: string
+        request_id:
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - request_id
+      - tables
+      - name
+      type: object
     SQLTablePreview:
       properties:
         error:
@@ -1978,9 +2032,7 @@ components:
           nullable: true
           type: array
         message:
-          additionalProperties:
-            additionalProperties: true
-            type: object
+          additionalProperties: {}
           type: object
         name:
           enum:
@@ -2227,7 +2279,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.12
+  version: 0.11.17
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2293,6 +2345,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a SQL table
+  /api/datasources/preview_sql_table_list:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableListRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a list of tables in an SQL schema
   /api/documentation/snippets:
     get:
       responses:

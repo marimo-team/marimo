@@ -4,7 +4,7 @@ import type { EditorView } from "@codemirror/view";
 import type { CellId } from "../cells/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";
-import { type CellActions, getNotebook } from "../cells/cells";
+import { getNotebook } from "../cells/cells";
 import { notebookCellEditorViews } from "../cells/utils";
 import {
   getEditorCodeAsPython,
@@ -12,6 +12,7 @@ import {
 } from "./language/utils";
 import { StateEffect } from "@codemirror/state";
 import { getResolvedMarimoConfig } from "../config/config";
+import { cellActionsState } from "./cells/state";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -19,10 +20,7 @@ export const formattingChangeEffect = StateEffect.define<boolean>();
  * Format the code in the editor views via the marimo server,
  * and update the editor views with the formatted code.
  */
-export async function formatEditorViews(
-  views: Record<CellId, EditorView>,
-  updateCellCode: CellActions["updateCellCode"],
-) {
+export async function formatEditorViews(views: Record<CellId, EditorView>) {
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
 
   const formatResponse = await sendFormat({
@@ -47,7 +45,12 @@ export async function formatEditorViews(
       continue;
     }
 
-    updateCellCode({ cellId, code: formattedCode, formattingChange: true });
+    const actions = view.state.facet(cellActionsState);
+    actions.updateCellCode({
+      cellId,
+      code: formattedCode,
+      formattingChange: true,
+    });
     updateEditorCodeFromPython(view, formattedCode);
   }
 }
@@ -55,7 +58,7 @@ export async function formatEditorViews(
 /**
  * Format all cells in the notebook.
  */
-export function formatAll(updateCellCode: CellActions["updateCellCode"]) {
+export function formatAll() {
   const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views, updateCellCode);
+  return formatEditorViews(views);
 }

@@ -9,6 +9,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import CellOp
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._server.export import (
     export_as_wasm,
     run_app_then_export_as_ipynb,
@@ -397,7 +398,7 @@ def _print_messages(messages: list[CellOp]) -> str:
                 "status": message.status,
             }
         )
-    return json.dumps(result, indent=2)
+    return json.dumps(result, indent=2, cls=WebComponentEncoder)
 
 
 def _as_list(data: Any) -> list[Any]:

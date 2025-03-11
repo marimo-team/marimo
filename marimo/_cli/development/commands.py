@@ -5,6 +5,7 @@ import ast
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
@@ -100,6 +101,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.Datasets,
         ops.DataColumnPreview,
         ops.SQLTablePreview,
+        ops.SQLTableListPreview,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -178,6 +180,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.InstallMissingPackagesRequest,
         requests.PreviewDatasetColumnRequest,
         requests.PreviewSQLTableRequest,
+        requests.PreviewSQLTableListRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,
@@ -334,7 +337,6 @@ def killall() -> None:
 
         marimo development ps killall
     """
-    import os
 
     for proc in get_marimo_processes():
         # Ignore self
@@ -352,9 +354,11 @@ def killall() -> None:
 @click.argument(
     "name",
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(
+        path_type=Path, exists=True, file_okay=True, dir_okay=False
+    ),
 )
-def inline_packages(name: str) -> None:
+def inline_packages(name: Path) -> None:
     """
     Example usage:
 
@@ -378,8 +382,8 @@ def inline_packages(name: str) -> None:
         )
 
     # Validate the file exists
-    if not os.path.exists(name):
-        raise click.FileError(name)
+    if not name.exists():
+        raise click.FileError(str(name))
 
     # Validate >=3.10 for sys.stdlib_module_names
     if sys.version_info < (3, 10):
@@ -391,8 +395,7 @@ def inline_packages(name: str) -> None:
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
-        with open(name) as file:
-            tree = ast.parse(file.read(), filename=name)
+        tree = ast.parse(name.read_text(encoding="utf-8"), filename=name)
 
         imported_modules = set[str]()
 
@@ -426,7 +429,7 @@ def inline_packages(name: str) -> None:
             "uv",
             "add",
             "--script",
-            name,
+            str(name),
         ]
         + pypi_names
     )

@@ -28,6 +28,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
     FieldTypes,
+    TableCell,
+    TableCoordinate,
     TableManager,
 )
 
@@ -135,6 +137,53 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 for row in self._normalize_data(self.data)
             ]
         )
+
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        selected_cells: list[TableCell] = []
+        if (
+            self.is_column_oriented
+            and isinstance(self.data, dict)
+            and all(isinstance(v, list) for v in self.data.values())
+        ):
+            for row_id, column_name in cells:
+                column = self.data[column_name]
+                if isinstance(column, Sequence):
+                    selected_cells.append(
+                        TableCell(
+                            row=row_id,
+                            column=column_name,
+                            value=column[int(row_id)],
+                        )
+                    )
+        elif isinstance(self.data, dict):
+            rows_of_dict = list(self.data.items())
+            for row_id, column_name in cells:
+                value = (
+                    rows_of_dict[int(row_id)][0]
+                    if column_name == "key"
+                    else rows_of_dict[int(row_id)][1]
+                )
+                selected_cells.append(
+                    TableCell(row=row_id, column=column_name, value=value)
+                )
+        elif isinstance(self.data, list):
+            rows_of_list = self.data
+            for row_id, column_name in cells:
+                row_index = int(row_id)
+                if row_index < 0 or row_index > len(rows_of_list) - 1:
+                    continue
+
+                row = rows_of_list[row_index]
+                if isinstance(row, dict) and column_name in row:
+                    selected_cells.append(
+                        TableCell(
+                            row=row_id,
+                            column=column_name,
+                            value=row[column_name],
+                        )
+                    )
+
+        return selected_cells
 
     def drop_columns(self, columns: list[str]) -> DefaultTableManager:
         return self.select_columns(

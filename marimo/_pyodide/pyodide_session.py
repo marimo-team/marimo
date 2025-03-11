@@ -6,6 +6,7 @@ import base64
 import dataclasses
 import json
 import signal
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from marimo import _loggers
@@ -290,8 +291,7 @@ class PyodideBridge:
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         try:
-            with open(body.path, "w") as file:
-                file.write(body.contents)
+            Path(body.path).write_text(body.contents)
             response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))

@@ -5,13 +5,13 @@ import unittest
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.api.endpoints.ai import make_stream_response
+from marimo._server.api.endpoints.ai import get_content, make_stream_response
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -634,3 +634,33 @@ class TestStreamResponse(unittest.TestCase):
                     "messages"
                 ][1]["content"]
                 assert prompt == "Help me create a dataframe"
+
+
+class TestGetContent(unittest.TestCase):
+    def test_get_content_with_none_delta(self) -> None:
+        # Create a mock response with choices but delta is None
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].delta = None
+
+        # Ensure text attribute doesn't exist to avoid fallback
+        type(mock_response).text = property(lambda _: None)
+
+        # Call get_content with the mock response
+        result = get_content(mock_response)
+
+        # Assert that the result is None
+        assert result is None
+
+    def test_get_content_with_delta_content(self) -> None:
+        # Create a mock response with choices and delta.content
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].delta = Mock()
+        mock_response.choices[0].delta.content = "Test content"
+
+        # Call get_content with the mock response
+        result = get_content(mock_response)
+
+        # Assert that the result is the expected content
+        assert result == "Test content"

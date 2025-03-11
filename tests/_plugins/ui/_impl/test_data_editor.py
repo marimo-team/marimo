@@ -30,6 +30,7 @@ def test_data_editor_initialization():
     assert editor._edits == {"edits": []}
     assert editor._component_args["pagination"] is True
     assert editor._component_args["page-size"] == 50
+    assert editor._component_args["column-sizing-mode"] == "auto"
 
 
 @pytest.mark.skipif(

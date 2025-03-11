@@ -108,6 +108,10 @@ class RuntimeConfig(TypedDict):
         values may affect frontend performance
     - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
       larger values may affect frontend performance
+    - `pythonpath`: a list of directories to add to the Python search path.
+        Directories will be added to the head of sys.path. Similar to the
+        `PYTHONPATH` environment variable, the directories will be included in
+        where Python will look for imported modules.
     """
 
     auto_instantiate: bool
@@ -116,6 +120,7 @@ class RuntimeConfig(TypedDict):
     watcher_on_save: Literal["lazy", "autorun"]
     output_max_bytes: int
     std_stream_max_bytes: int
+    pythonpath: list[str]
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -268,9 +273,9 @@ class DatasourcesConfig(TypedDict):
     - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
     """
 
-    auto_discover_schemas: NotRequired[bool]
-    auto_discover_tables: NotRequired[bool]
-    auto_discover_columns: NotRequired[bool]
+    auto_discover_schemas: NotRequired[Union[bool, Literal["auto"]]]
+    auto_discover_tables: NotRequired[Union[bool, Literal["auto"]]]
+    auto_discover_columns: NotRequired[Union[bool, Literal["auto"]]]
 
 
 @mddoc
@@ -333,6 +338,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "std_stream_max_bytes": int(
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
+        "pythonpath": [],
     },
     "save": {
         "autosave": "after_delay",
