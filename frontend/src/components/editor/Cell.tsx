@@ -1236,7 +1236,8 @@ const SetupCellComponent = ({
             <Tooltip
               content={
                 <span className="max-w-16">
-                  This <b>setup cell</b> is guaranteed to run before all other cells. Include <br/>
+                  This <b>setup cell</b> is guaranteed to run before all other
+                  cells. Include <br />
                   initialization or imports and constants required by top-level
                   functions.
                 </span>
