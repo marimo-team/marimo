@@ -115,7 +115,7 @@ class TestLoader:
             stateful_refs,
             "Pure",
             True,
-            {"version": 1}
+            {"version": 1},
         )
         loader.saved_caches["Pure_hash1"] = original_cache
 
@@ -133,6 +133,7 @@ class TestBasePersistenceLoader:
     def setup_method(self) -> None:
         """Set up a temporary directory for each test."""
         import tempfile
+
         self.temp_dir = tempfile.TemporaryDirectory()
         self.save_path = self.temp_dir.name
 
@@ -176,14 +177,7 @@ class TestBasePersistenceLoader:
         loader = MockPersistenceLoader("test", self.save_path)
 
         # Create and save a cache
-        cache = Cache(
-            {"var1": "value1"},
-            "hash1",
-            set(),
-            "Pure",
-            True,
-            {}
-        )
+        cache = Cache({"var1": "value1"}, "hash1", set(), "Pure", True, {})
         loader.saved_caches["Pure_hash1"] = cache
 
         # Create a placeholder file to trigger cache_hit
