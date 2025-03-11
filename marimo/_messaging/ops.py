@@ -613,6 +613,7 @@ class DataColumnPreview(Op):
     chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
+    missing_packages: Optional[list[str]] = None
     summary: Optional[ColumnSummary] = None
 
 
