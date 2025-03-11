@@ -229,7 +229,7 @@ class NarwhalsTableManager(
                 false=cast(int, total - col.sum()),
             )
         if (col.dtype == nw.Date) or (
-            getattr(nw, "Time", None) is not None and col.dtype == nw.Time
+            getattr(nw, "Time", None) is not None and col.dtype == nw.Time # type: ignore[attr-defined]
         ):
             return ColumnSummary(
                 total=total,
