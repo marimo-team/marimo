@@ -55,6 +55,8 @@ LOGGER = _loggers.marimo_logger()
 # Router for file ai
 router = APIRouter()
 
+DEFAULT_MAX_TOKENS = 4096
+
 
 def get_openai_client(config: MarimoConfig) -> OpenAI:
     try:
@@ -164,6 +166,14 @@ def get_model(config: MarimoConfig) -> str:
     if not model:
         model = "gpt-4-turbo"
     return model
+
+
+def get_max_tokens(config: MarimoConfig) -> int:
+    if "ai" not in config:
+        return DEFAULT_MAX_TOKENS
+    if "max_tokens" not in config["ai"]:
+        return DEFAULT_MAX_TOKENS
+    return config["ai"]["max_tokens"]
 
 
 def get_content(
@@ -362,7 +372,7 @@ async def ai_completion(
         anthropic_client = get_anthropic_client(config)
         anthropic_response = anthropic_client.messages.create(
             model=model,
-            max_tokens=1000,
+            max_tokens=get_max_tokens(config),
             messages=[
                 {
                     "role": "user",
@@ -448,7 +458,7 @@ async def ai_chat(
         anthropic_client = get_anthropic_client(config)
         response = anthropic_client.messages.create(
             model=model,
-            max_tokens=1000,
+            max_tokens=get_max_tokens(config),
             messages=cast(Any, convert_to_anthropic_messages(messages)),
             system=system_prompt,
             stream=True,
