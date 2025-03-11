@@ -64,6 +64,7 @@ import { PythonIcon } from "../editor/cell/code/icons";
 import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
+import { InstallPackageButton } from "./install-package-button";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -766,10 +767,12 @@ const DatasetColumnPreview: React.FC<{
   }
 
   const error = preview.error && (
-    <span
-      className="text-xs text-muted-foreground p-2 block border border-muted rounded"
-      dangerouslySetInnerHTML={{ __html: preview.error }}
-    />
+    <div className="text-xs text-muted-foreground p-2 block border border-muted rounded flex items-center">
+      <span>{preview.error}</span>
+      {preview.missing_packages && (
+        <InstallPackageButton packages={preview.missing_packages} />
+      )}
+    </div>
   );
 
   const summary = preview.summary && (
