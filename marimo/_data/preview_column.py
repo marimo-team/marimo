@@ -66,7 +66,7 @@ def get_column_preview_dataframe(
                 'onclick="(function() { '
                 "const event = new CustomEvent('marimo:open-packages-panel'); "
                 "document.dispatchEvent(event); "
-                '})();return false;">Manage packages</a> side panel.'
+                '})();return false;">package management</a> side panel.'
             )
         else:
             # Check for special characters that can't be escaped easily
