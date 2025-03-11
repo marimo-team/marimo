@@ -58,16 +58,10 @@ def get_column_preview_dataframe(
 
         # We require altair to render the chart
         error = None
+        missing_packages = None
         if not DependencyManager.altair.has():
-            error = (
-                "Altair is required to render charts. "
-                'Install it via the <a href="javascript:void(0)" '
-                'class="text-blue-500 underline font-medium" '
-                'onclick="(function() { '
-                "const event = new CustomEvent('marimo:open-packages-panel'); "
-                "document.dispatchEvent(event); "
-                '})();return false;">Manage packages</a> side panel.'
-            )
+            error = "Altair is required to render charts."
+            missing_packages = ["altair"]
         else:
             # Check for special characters that can't be escaped easily
             # (e.g. backslash, quotes)
@@ -106,6 +100,7 @@ def get_column_preview_dataframe(
             chart_code=chart_code,
             summary=summary,
             error=error,
+            missing_packages=missing_packages,
         )
     except Exception as e:
         LOGGER.warning(
@@ -118,6 +113,7 @@ def get_column_preview_dataframe(
             table_name=table_name,
             column_name=column_name,
             error=str(e),
+            missing_packages=None,
         )
 
 
@@ -133,13 +129,22 @@ def get_column_preview_for_sql(
     chart_spec = None
     chart_code = None
     chart_max_rows_errors = False
+    error = None
+    missing_packages = None
 
-    if histogram_data and DependencyManager.altair.has():
-        chart_builder = get_chart_builder(column_type, False)
-        try:
-            chart_spec = chart_builder.altair_json(histogram_data, column_name)
-        except Exception as e:
-            LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
+    if histogram_data:
+        if not DependencyManager.altair.has():
+            error = "Altair is required to render charts."
+            missing_packages = ["altair"]
+        else:
+            chart_builder = get_chart_builder(column_type, False)
+            try:
+                chart_spec = chart_builder.altair_json(
+                    histogram_data, column_name
+                )
+            except Exception as e:
+                error = str(e)
+                LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
     return DataColumnPreview(
         table_name=table_name,
@@ -148,7 +153,8 @@ def get_column_preview_for_sql(
         chart_spec=chart_spec,
         chart_code=chart_code,
         summary=summary,
-        error=None,
+        error=error,
+        missing_packages=missing_packages,
     )
 
 
