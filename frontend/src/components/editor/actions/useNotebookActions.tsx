@@ -381,7 +381,7 @@ export function useNotebookActions() {
       hidden: !getFeatureFlag("setup_cell"),
       handle: () => {
         upsertSetupCell({
-          code: "# Setup code goes here",
+          code: "# Initialization code that runs before all other cells",
         });
       },
     },

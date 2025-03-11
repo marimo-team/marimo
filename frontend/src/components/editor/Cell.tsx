@@ -1114,7 +1114,7 @@ const SetupCellComponent = ({
   const className = clsx(
     "marimo-cell",
     "hover-actions-parent z-10 border shadow-sm",
-    "!border-[var(--purple-7)] !rounded-sm",
+    "!border-[var(--blue-5)] !rounded-sm",
     {
       "needs-run": needsRun,
       "has-error": errored,
@@ -1235,9 +1235,10 @@ const SetupCellComponent = ({
             </span>
             <Tooltip
               content={
-                <span>
-                  This is a <b>setup cell</b>. <br />
-                  Setup cells are run first and used to initialize the notebook.
+                <span className="max-w-16">
+                  This <b>setup cell</b> is guaranteed to run before all other cells. Include <br/>
+                  initialization or imports and constants required by top-level
+                  functions.
                 </span>
               }
             >
