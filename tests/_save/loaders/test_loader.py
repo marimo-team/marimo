@@ -132,24 +132,23 @@ class TestLoader:
 class TestBasePersistenceLoader:
     def setup_method(self) -> None:
         """Set up a temporary directory for each test."""
-        self.temp_dir = Path("/tmp/marimo_test_loader")
-        self.temp_dir.mkdir(exist_ok=True)
-        self.save_path = str(self.temp_dir)
+        import tempfile
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.save_path = self.temp_dir.name
 
     def teardown_method(self) -> None:
         """Clean up the temporary directory."""
-        import shutil
-        shutil.rmtree(self.temp_dir)
+        self.temp_dir.cleanup()
 
     def test_init(self) -> None:
         """Test initialization."""
         loader = MockPersistenceLoader("test", self.save_path)
         assert loader.name == "test"
         assert loader.suffix == "mock"
-        assert str(loader.save_path).endswith("/test")
+        assert Path(str(loader.save_path)).name == "test"
 
         # Check that the directory was created
-        assert (Path(self.save_path) / "test").exists()
+        assert Path(self.save_path, "test").exists()
 
     def test_cache_hit(self) -> None:
         """Test cache hit detection."""

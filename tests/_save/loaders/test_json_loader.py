@@ -2,6 +2,7 @@
 import json
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -25,7 +26,7 @@ class TestJsonLoader:
         loader = JsonLoader("test", self.save_path)
         assert loader.name == "test"
         assert loader.suffix == "json"
-        assert str(loader.save_path).endswith("/test")
+        assert Path(str(loader.save_path)).name == "test"
 
         # Check that the directory was created
         assert os.path.exists(os.path.join(self.save_path, "test"))

@@ -2,6 +2,7 @@
 import os
 import pickle
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -25,7 +26,7 @@ class TestPickleLoader:
         loader = PickleLoader("test", self.save_path)
         assert loader.name == "test"
         assert loader.suffix == "pickle"
-        assert str(loader.save_path).endswith("/test")
+        assert Path(str(loader.save_path)).name == "test"
 
         # Check that the directory was created
         assert os.path.exists(os.path.join(self.save_path, "test"))
