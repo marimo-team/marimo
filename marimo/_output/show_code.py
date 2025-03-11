@@ -13,10 +13,18 @@ from marimo._runtime.context.types import ContextNotInitializedError
 
 def substitute_show_code_with_arg(code: str) -> str:
     pattern = r"mo\.show_code\((.*)\)"
-    return re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
+    modified_code = re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
+    # Remove code_first=True or code_first=False from the end
+    modified_code = re.sub(
+        r",?\s*code_first\s*=\s*(True|False),?\s*\)?$",
+        "",
+        modified_code,
+        flags=re.DOTALL,
+    ).strip()
+    return modified_code
 
 
-def show_code(output: object = None) -> Html:
+def show_code(output: object = None, code_first: bool = False) -> Html:
     """Display an output along with the code of the current cell.
 
     Use `mo.show_code` to show the code of the current cell along with
@@ -53,8 +61,10 @@ def show_code(output: object = None) -> Html:
 
     **Args:**
 
-    - output: the output to display above the cell's code; omit the output
+    - `output`: the output to display above the cell's code; omit the output
       to just show the cell's code, without an output.
+    - `code_first` : If `True`, the code will be displayed above the output.
+      If `False` (default), the output appears above the code.
 
     **Returns:**
 
@@ -73,11 +83,19 @@ def show_code(output: object = None) -> Html:
     code = substitute_show_code_with_arg(cell.code)
 
     if output is not None:
-        return vstack(
-            [
-                as_html(output),
-                code_editor(value=code, disabled=True, min_height=1),
-            ]
-        )
+        if code_first:
+            return vstack(
+                [
+                    code_editor(value=code, disabled=True, min_height=1),
+                    as_html(output),
+                ]
+            )
+        else:
+            return vstack(
+                [
+                    as_html(output),
+                    code_editor(value=code, disabled=True, min_height=1),
+                ]
+            )
     else:
         return code_editor(value=code, disabled=True, min_height=1)
