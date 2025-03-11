@@ -84,7 +84,7 @@ const MemoryUsageBar: React.FC<{
   kernel: UsageResponse["kernel"];
   server: UsageResponse["server"];
 }> = ({ memory, kernel, server }) => {
-  const { percent, total, used } = memory;
+  const { percent, total, available } = memory;
   const roundedPercent = Math.round(percent);
   return (
     <Tooltip
@@ -92,8 +92,8 @@ const MemoryUsageBar: React.FC<{
       content={
         <div className="flex flex-col gap-1">
           <span>
-            <b>computer memory:</b> {asGB(used)} / {asGB(total)} GB (
-            {roundedPercent}%)
+            <b>computer memory:</b> {asGB(total - available)} / {asGB(total)} GB
+            ({roundedPercent}%)
           </span>
           {server?.memory && (
             <span>
