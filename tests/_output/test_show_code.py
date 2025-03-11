@@ -93,7 +93,6 @@ async def test_show_code_code_first_true(
         ]
     )
     result = k.globals["x"].text
-    print("Debug Output (code_first=True):", result)  # Print actual output
     assert "<marimo-code-editor" in result, (
         "Expected '<marimo-code-editor>' in output but not found"
     )
@@ -116,7 +115,6 @@ async def test_show_code_code_first_false(
         ]
     )
     result = k.globals["x"].text
-    print("Debug Output (code_first=False):", result)  # Print actual output
     assert "<marimo-code-editor" in result, (
         "Expected '<marimo-code-editor>' in output but not found"
     )
@@ -133,7 +131,6 @@ async def test_show_code_code_first_default(
 ) -> None:
     await k.run([exec_req.get("import marimo as mo; x = mo.show_code(1)")])
     result = k.globals["x"].text
-    print("Debug Output (code_first=False):", result)  # Print actual output
     assert "<marimo-code-editor" in result, (
         "Expected '<marimo-code-editor>' in output but not found"
     )
@@ -216,3 +213,15 @@ def test_substitute_show_code_removes_code_first() -> None:
         substitute_show_code_with_arg(code)
         == "mo.show_code(42, code_first=True)"
     )
+
+    code = """mo.show_code(
+        42,
+        code_first=True,
+    )"""
+    assert substitute_show_code_with_arg(code) == "42"
+
+    code = """mo.show_code(
+        42,
+        code_first=True,
+    )"""
+    assert substitute_show_code_with_arg(code) == "42"

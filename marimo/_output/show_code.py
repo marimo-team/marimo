@@ -16,7 +16,10 @@ def substitute_show_code_with_arg(code: str) -> str:
     modified_code = re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
     # Remove code_first=True or code_first=False from the end
     modified_code = re.sub(
-        r",\s*code_first\s*=\s*(True|False)$", "", modified_code
+        r",?\s*code_first\s*=\s*(True|False),?\s*\)?$",
+        "",
+        modified_code,
+        flags=re.DOTALL,
     ).strip()
     return modified_code
 
@@ -58,8 +61,10 @@ def show_code(output: object = None, code_first: bool = False) -> Html:
 
     **Args:**
 
-    - output: the output to display above the cell's code; omit the output
+    - `output`: the output to display above the cell's code; omit the output
       to just show the cell's code, without an output.
+    - `code_first` : If `True`, the code will be displayed above the output.
+      If `False` (default), the output appears above the code.
 
     **Returns:**
 
