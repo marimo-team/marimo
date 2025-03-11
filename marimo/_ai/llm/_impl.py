@@ -235,7 +235,7 @@ class anthropic(ChatModel):
         response = client.messages.create(
             model=self.model,
             system=self.system_message,
-            max_tokens=config.max_tokens or 1000,
+            max_tokens=config.max_tokens or 4096,
             messages=cast(list[MessageParam], anthropic_messages),
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,

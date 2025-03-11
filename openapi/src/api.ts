@@ -2678,6 +2678,7 @@ export interface components {
         google?: {
           api_key?: string;
         };
+        max_tokens?: number;
         open_ai?: {
           api_key?: string;
           base_url?: string;

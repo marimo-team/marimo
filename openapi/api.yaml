@@ -1242,6 +1242,8 @@ components:
                 api_key:
                   type: string
               type: object
+            max_tokens:
+              type: integer
             open_ai:
               properties:
                 api_key:
