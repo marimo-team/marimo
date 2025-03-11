@@ -132,19 +132,12 @@ def get_column_preview_for_sql(
     error = None
     missing_packages = None
 
-    if histogram_data:
-        if not DependencyManager.altair.has():
-            error = "Altair is required to render charts."
-            missing_packages = ["altair"]
-        else:
-            chart_builder = get_chart_builder(column_type, False)
-            try:
-                chart_spec = chart_builder.altair_json(
-                    histogram_data, column_name
-                )
-            except Exception as e:
-                error = str(e)
-                LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
+    if histogram_data and DependencyManager.altair.has():
+        chart_builder = get_chart_builder(column_type, False)
+        try:
+            chart_spec = chart_builder.altair_json(histogram_data, column_name)
+        except Exception as e:
+            LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
     return DataColumnPreview(
         table_name=table_name,
