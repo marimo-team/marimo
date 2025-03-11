@@ -1,13 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { type AnyMark, Mark } from "./types";
 
+const NON_INTERACTIVE_MARKS = new Set(["boxplot", "errorband", "errorbar"]);
+
 export const Marks = {
   getMarkType(mark: AnyMark): Mark {
     const type = typeof mark === "string" ? mark : mark.type;
-    if (type === "boxplot" || type === "errorband" || type === "errorbar") {
+    if (NON_INTERACTIVE_MARKS.has(type)) {
       throw new Error("Not supported");
     }
-    return type;
+    return type as Mark;
+  },
+  isInteractive(mark: AnyMark): boolean {
+    const type = typeof mark === "string" ? mark : mark.type;
+    return !NON_INTERACTIVE_MARKS.has(type);
   },
   makeClickable(mark: AnyMark): AnyMark {
     const type = typeof mark === "string" ? mark : mark.type;

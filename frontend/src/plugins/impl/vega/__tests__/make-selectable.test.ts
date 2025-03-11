@@ -556,4 +556,16 @@ describe("makeSelectable", () => {
       ]
     `);
   });
+
+  it.each(["errorbar", "errorband", "boxplot"])(
+    "should return the same spec if mark is %s",
+    (mark) => {
+      const spec = {
+        mark,
+      } as unknown as VegaLiteSpec;
+      const newSpec = makeSelectable(spec, {});
+      expect(newSpec).toEqual(spec);
+      expect(getSelectionParamNames(newSpec)).toEqual([]);
+    },
+  );
 });
