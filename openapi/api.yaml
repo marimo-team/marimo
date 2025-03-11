@@ -365,6 +365,11 @@ components:
         error:
           nullable: true
           type: string
+        missing_packages:
+          nullable: true
+          type: array
+          items:
+            type: string
         name:
           enum:
           - data-column-preview
