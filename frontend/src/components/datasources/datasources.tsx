@@ -779,7 +779,6 @@ const DatasetColumnPreview: React.FC<{
   });
 
   // Do not fetch previews for custom SQL connections
-  // or if the table is In-Memory duckdb, but not in the main schema
   if (table.source_type === "connection") {
     return (
       <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">

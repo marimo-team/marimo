@@ -38,6 +38,7 @@ def cleanup() -> Generator[None, None, None]:
         DROP TABLE IF EXISTS datetime_tbl;
         DROP TABLE IF EXISTS time_tbl;
         DROP TABLE IF EXISTS bool_tbl;
+        DROP TABLE IF EXISTS large_tbl;
     """)
 
 
@@ -266,9 +267,7 @@ def test_get_column_preview_for_duckdb_date() -> None:
     assert result_date.summary.max == datetime.datetime(2023, 4, 10, 0, 0)
     assert result_date.chart_spec is not None
 
-    snapshot(
-        "column_preview_duckdb_date_chart_spec.txt", result_date.chart_spec
-    )
+    # No chart_spec snapshot because of date timezone
 
     # Not implemented yet
     assert result_date.chart_code is None
@@ -321,13 +320,10 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     assert result_datetime.summary.max == datetime.datetime(2023, 4, 10, 3, 39)
     assert result_datetime.chart_spec is not None
 
-    snapshot(
-        "column_preview_duckdb_datetime_chart_spec.txt",
-        result_datetime.chart_spec,
-    )
-
     # Not implemented yet
     assert result_datetime.chart_code is None
+
+    # No chart_spec snapshot because of date timezone
 
     # Test works when fully qualified
     assert (
