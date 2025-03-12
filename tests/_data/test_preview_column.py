@@ -124,10 +124,12 @@ def test_get_column_preview_dataframe(
     assert result_with_vegafusion.summary is not None
     assert result_with_vegafusion.error is None
 
-    snapshot(
-        f"{snapshot_prefix}_chart_spec_with_vegafusion.txt",
-        result_with_vegafusion.chart_spec,
-    )
+    # Skip date_col because of timezone
+    if column_name != "date_col":
+        snapshot(
+            f"{snapshot_prefix}_chart_spec_with_vegafusion.txt",
+            result_with_vegafusion.chart_spec,
+        )
     assert result_with_vegafusion.chart_code == result.chart_code
     assert result_with_vegafusion.chart_spec != result.chart_spec
 
