@@ -2296,6 +2296,7 @@ export interface components {
       chart_spec?: string | null;
       column_name: string;
       error?: string | null;
+      missing_packages?: string[] | null;
       /** @enum {string} */
       name: "data-column-preview";
       summary?: components["schemas"]["ColumnSummary"];

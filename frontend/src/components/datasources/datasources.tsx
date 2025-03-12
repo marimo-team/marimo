@@ -73,6 +73,7 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
+import { InstallPackageButton } from "./install-package-button";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -792,7 +793,12 @@ const DatasetColumnPreview: React.FC<{
   }
 
   const error = preview.error && (
-    <span className="text-xs text-muted-foreground">{preview.error}</span>
+    <div className="text-xs text-muted-foreground p-2 block border border-muted rounded flex items-center">
+      <span>{preview.error}</span>
+      {preview.missing_packages && (
+        <InstallPackageButton packages={preview.missing_packages} />
+      )}
+    </div>
   );
 
   const summary = preview.summary && (

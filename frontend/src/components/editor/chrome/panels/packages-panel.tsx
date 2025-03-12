@@ -29,6 +29,8 @@ import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
 import { PACKAGES_INPUT_ID } from "./constants";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
+import { packagesToInstallAtom } from "./packages-state";
+import { useAtomValue, useSetAtom } from "jotai";
 
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
@@ -64,6 +66,19 @@ const InstallPackageForm: React.FC<{
   const [input, setInput] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const { handleClick: openSettings } = useOpenSettingsToTab();
+
+  // Get the packages to install from the atom
+  const packagesToInstall = useAtomValue(packagesToInstallAtom);
+  const setPackagesToInstall = useSetAtom(packagesToInstallAtom);
+
+  // Set the input value when packagesToInstall changes
+  React.useEffect(() => {
+    if (packagesToInstall) {
+      setInput(packagesToInstall);
+      // Clear the atom after setting the input
+      setPackagesToInstall(null);
+    }
+  }, [packagesToInstall, setPackagesToInstall]);
 
   const handleAddPackage = async () => {
     try {
