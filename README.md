@@ -128,6 +128,13 @@ pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
 ```
 
+To install with additional dependencies that unlock SQL cells, AI completion, and more,
+run
+
+```bash
+pip install marimo[recommended]
+```
+
 **Create notebooks.**
 
 Create or edit notebooks with
