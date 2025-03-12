@@ -153,7 +153,7 @@ To install with additional dependencies that unlock SQL cells, AI completion, an
 run
 
 ```bash
-pip install marimo[recommended]  # or conda install -c conda-forge marimo[recommended]
+pip install marimo[recommended]
 ```
 
 **Create notebooks.**
