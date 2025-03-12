@@ -1,0 +1,242 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "y",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "x",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "title": "date_col",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelOverlap": true,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "title": "Count of Records",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "data": [
+    {
+      "name": "source_0",
+      "transform": [
+        {
+          "as": "date_col",
+          "expr": "toDate(datum['date_col'])",
+          "type": "formula"
+        }
+      ],
+      "values": [
+        {
+          "__count": 1,
+          "date_col": "2021-01-01T00:00:00.000"
+        },
+        {
+          "__count": 1,
+          "date_col": "2021-01-02T00:00:00.000"
+        },
+        {
+          "__count": 1,
+          "date_col": "2021-01-03T00:00:00.000"
+        }
+      ]
+    },
+    {
+      "name": "data_0",
+      "transform": [
+        {
+          "as": "date_col",
+          "expr": "toDate(datum['date_col'])",
+          "type": "formula"
+        }
+      ],
+      "values": [
+        {
+          "__count": 1,
+          "date_col": "2021-01-01T00:00:00.000"
+        },
+        {
+          "__count": 1,
+          "date_col": "2021-01-02T00:00:00.000"
+        },
+        {
+          "__count": 1,
+          "date_col": "2021-01-03T00:00:00.000"
+        }
+      ]
+    }
+  ],
+  "height": 300,
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "defined": {
+            "signal": "isValid(datum[\"date_col\"]) && isFinite(+datum[\"date_col\"])"
+          },
+          "stroke": {
+            "value": "#4c78a8"
+          },
+          "x": {
+            "field": "date_col",
+            "scale": "x"
+          },
+          "y": {
+            "field": "__count",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "source_0"
+      },
+      "name": "layer_0_marks",
+      "sort": {
+        "field": "x"
+      },
+      "style": [
+        "line"
+      ],
+      "type": "line"
+    },
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "white"
+          },
+          "opacity": {
+            "value": 1
+          },
+          "stroke": {
+            "value": "#4c78a8"
+          },
+          "x": {
+            "field": "date_col",
+            "scale": "x"
+          },
+          "y": {
+            "field": "__count",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_0"
+      },
+      "name": "layer_1_marks",
+      "style": [
+        "point"
+      ],
+      "type": "symbol"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "domain": {
+        "fields": [
+          {
+            "data": "source_0",
+            "field": "date_col"
+          },
+          {
+            "data": "data_0",
+            "field": "date_col"
+          }
+        ]
+      },
+      "name": "x",
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "time"
+    },
+    {
+      "domain": {
+        "fields": [
+          {
+            "data": "source_0",
+            "field": "__count"
+          },
+          {
+            "data": "data_0",
+            "field": "__count"
+          }
+        ]
+      },
+      "name": "y",
+      "nice": true,
+      "range": [
+        {
+          "signal": "height"
+        },
+        0
+      ],
+      "type": "linear",
+      "zero": true
+    }
+  ],
+  "signals": [
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    }
+  ],
+  "style": "cell"
+}

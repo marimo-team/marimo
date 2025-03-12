@@ -66,6 +66,12 @@
   },
   "encoding": {
     "x": {
+      "axis": {
+        "format": "%Y-%m-%d"
+      },
+      "bin": {
+        "maxbins": 20
+      },
       "field": "some_column",
       "type": "temporal"
     },
@@ -75,11 +81,7 @@
     }
   },
   "mark": {
-    "point": {
-      "fill": "white",
-      "filled": false
-    },
-    "type": "line"
+    "type": "bar"
   },
   "width": "container"
 }
@@ -111,6 +113,12 @@
   },
   "encoding": {
     "x": {
+      "axis": {
+        "format": "%Y-%m-%d"
+      },
+      "bin": {
+        "maxbins": 20
+      },
       "field": "some_column",
       "type": "temporal"
     },
@@ -120,11 +128,7 @@
     }
   },
   "mark": {
-    "point": {
-      "fill": "white",
-      "filled": false
-    },
-    "type": "line"
+    "type": "bar"
   },
   "width": "container"
 }
@@ -156,6 +160,12 @@
   },
   "encoding": {
     "x": {
+      "axis": {
+        "format": "%Y-%m-%d"
+      },
+      "bin": {
+        "maxbins": 20
+      },
       "field": "some_column",
       "type": "temporal"
     },
@@ -165,11 +175,7 @@
     }
   },
   "mark": {
-    "point": {
-      "fill": "white",
-      "filled": false
-    },
-    "type": "line"
+    "type": "bar"
   },
   "width": "container"
 }

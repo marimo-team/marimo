@@ -1,0 +1,10 @@
+_chart = (
+    alt.Chart(table)
+    .mark_bar()
+    .encode(
+        y=alt.Y("category_col", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart

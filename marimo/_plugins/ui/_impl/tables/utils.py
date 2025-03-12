@@ -45,7 +45,7 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
                 return manager(data)
 
     # Fallback to generic NarwhalsTableManager
-    if can_narwhalify(data):
+    if can_narwhalify(data, eager_only=False):
         return NarwhalsTableManager.from_dataframe(data)
 
     return None

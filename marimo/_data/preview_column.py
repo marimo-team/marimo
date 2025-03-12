@@ -187,27 +187,44 @@ def _get_altair_chart(
     )
 
     chart_max_rows_errors = False
-    try:
+
+    def get_chart_json() -> str:
+        # Filter the data to the column we want
         column_data = table.select_columns([request.column_name]).data
+
+        # If we have vegafusion and vl-convert-python, use it
+        if (
+            DependencyManager.vegafusion.has()
+            and DependencyManager.vl_convert_python.has()
+        ):
+            with alt.data_transformers.enable("vegafusion"):
+                return chart_builder.altair_json(
+                    column_data,
+                    request.column_name,
+                )
+
         # Date types don't serialize well to csv,
         # so we don't transform them
-        if (
+        dont_use_csv = (
             column_type == "date"
             or column_type == "datetime"
             or column_type == "time"
-        ):
+        )
+        if dont_use_csv:
             # Default max_rows is 5_000, but we can support more.
             with alt.data_transformers.enable("default", max_rows=20_000):
-                chart_json = chart_builder.altair_json(
+                return chart_builder.altair_json(
                     column_data,
                     request.column_name,
                 )
-        else:
-            with alt.data_transformers.enable("marimo_inline_csv"):
-                chart_json = chart_builder.altair_json(
-                    column_data,
-                    request.column_name,
-                )
+        with alt.data_transformers.enable("marimo_inline_csv"):
+            return chart_builder.altair_json(
+                column_data,
+                request.column_name,
+            )
+
+    try:
+        chart_json = get_chart_json()
     except MaxRowsError:
         chart_json = None
         chart_max_rows_errors = True
