@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { InstallPackageButton } from "../install-package-button";
 import { store } from "@/core/state/jotai";
 import { chromeAtom } from "@/components/editor/chrome/state";
+import type { ChromeState } from "@/components/editor/chrome/state";
 
 vi.mock("@/core/state/jotai", () => ({
   store: {
@@ -54,8 +55,8 @@ describe("InstallPackageButton", () => {
     expect(store.set).toHaveBeenCalledWith(chromeAtom, expect.any(Function));
 
     const updateFn = vi.mocked(store.set).mock.calls[0][1] as (
-      state: any,
-    ) => any;
+      state: ChromeState,
+    ) => ChromeState;
 
     const mockState = {
       isSidebarOpen: false,
