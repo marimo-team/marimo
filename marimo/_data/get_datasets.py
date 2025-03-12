@@ -242,5 +242,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "string"  # Representing bit as string
     if db_type == "enum":
         return "string"  # Representing enum as string
+
+    LOGGER.warning("Unknown DuckDB type: %s", db_type)
     # Unknown type
     return "unknown"

@@ -1,0 +1,277 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "x",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "format": "%Y-%m-%d",
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/10)"
+      },
+      "title": "datetime_col (binned)",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelOverlap": true,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "title": "Count of Records",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "data": [
+    {
+      "name": "data-eca9182ea7a372dd3a38114a97dad352"
+    },
+    {
+      "name": "data_0",
+      "transform": [
+        {
+          "as": "bin_maxbins_20_datetime_col_end",
+          "expr": "toDate(datum['bin_maxbins_20_datetime_col_end'])",
+          "type": "formula"
+        },
+        {
+          "as": "bin_maxbins_20_datetime_col",
+          "expr": "toDate(datum['bin_maxbins_20_datetime_col'])",
+          "type": "formula"
+        }
+      ],
+      "values": [
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2022-12-31T10:20:00.000",
+          "bin_maxbins_20_datetime_col_end": "2023-01-06T05:13:20.000"
+        },
+        {
+          "__count": 5,
+          "bin_maxbins_20_datetime_col": "2023-01-06T05:13:20.000",
+          "bin_maxbins_20_datetime_col_end": "2023-01-12T00:06:40.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-01-12T00:06:40.000",
+          "bin_maxbins_20_datetime_col_end": "2023-01-17T19:00:00.000"
+        },
+        {
+          "__count": 5,
+          "bin_maxbins_20_datetime_col": "2023-01-17T19:00:00.000",
+          "bin_maxbins_20_datetime_col_end": "2023-01-23T13:53:20.000"
+        },
+        {
+          "__count": 7,
+          "bin_maxbins_20_datetime_col": "2023-01-23T13:53:20.000",
+          "bin_maxbins_20_datetime_col_end": "2023-01-29T08:46:40.000"
+        },
+        {
+          "__count": 5,
+          "bin_maxbins_20_datetime_col": "2023-01-29T08:46:40.000",
+          "bin_maxbins_20_datetime_col_end": "2023-02-04T03:40:00.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-02-04T03:40:00.000",
+          "bin_maxbins_20_datetime_col_end": "2023-02-09T22:33:20.000"
+        },
+        {
+          "__count": 5,
+          "bin_maxbins_20_datetime_col": "2023-02-09T22:33:20.000",
+          "bin_maxbins_20_datetime_col_end": "2023-02-15T17:26:40.000"
+        },
+        {
+          "__count": 7,
+          "bin_maxbins_20_datetime_col": "2023-02-15T17:26:40.000",
+          "bin_maxbins_20_datetime_col_end": "2023-02-21T12:20:00.000"
+        },
+        {
+          "__count": 5,
+          "bin_maxbins_20_datetime_col": "2023-02-21T12:20:00.000",
+          "bin_maxbins_20_datetime_col_end": "2023-02-27T07:13:20.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-02-27T07:13:20.000",
+          "bin_maxbins_20_datetime_col_end": "2023-03-05T02:06:40.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-03-05T02:06:40.000",
+          "bin_maxbins_20_datetime_col_end": "2023-03-10T21:00:00.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-03-10T21:00:00.000",
+          "bin_maxbins_20_datetime_col_end": "2023-03-16T16:53:20.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-03-16T16:53:20.000",
+          "bin_maxbins_20_datetime_col_end": "2023-03-22T11:46:40.000"
+        },
+        {
+          "__count": 5,
+          "bin_maxbins_20_datetime_col": "2023-03-22T11:46:40.000",
+          "bin_maxbins_20_datetime_col_end": "2023-03-28T06:40:00.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-03-28T06:40:00.000",
+          "bin_maxbins_20_datetime_col_end": "2023-04-03T01:33:20.000"
+        },
+        {
+          "__count": 6,
+          "bin_maxbins_20_datetime_col": "2023-04-03T01:33:20.000",
+          "bin_maxbins_20_datetime_col_end": "2023-04-08T20:26:40.000"
+        },
+        {
+          "__count": 2,
+          "bin_maxbins_20_datetime_col": "2023-04-08T20:26:40.000",
+          "bin_maxbins_20_datetime_col_end": "2023-04-14T15:20:00.000"
+        }
+      ]
+    },
+    {
+      "name": "data_0_y_domain___count",
+      "values": [
+        {
+          "max": 7,
+          "min": 2
+        }
+      ]
+    }
+  ],
+  "height": 300,
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#4c78a8"
+          },
+          "x": {
+            "field": "bin_maxbins_20_datetime_col_end",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_20_datetime_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_datetime_col\"])) < 0.25 ? 0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_20_datetime_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_datetime_col\"])))) : -0.5)"
+            },
+            "scale": "x"
+          },
+          "x2": {
+            "field": "bin_maxbins_20_datetime_col",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_20_datetime_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_datetime_col\"])) < 0.25 ? -0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_20_datetime_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_datetime_col\"])))) : 0.5)"
+            },
+            "scale": "x"
+          },
+          "y": {
+            "field": "__count",
+            "scale": "y"
+          },
+          "y2": {
+            "scale": "y",
+            "value": 0
+          }
+        }
+      },
+      "from": {
+        "data": "data_0"
+      },
+      "name": "marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "bins": {
+        "signal": "bin_maxbins_20_datetime_col_bins"
+      },
+      "domain": {
+        "signal": "[bin_maxbins_20_datetime_col_bins.start, bin_maxbins_20_datetime_col_bins.stop]"
+      },
+      "name": "x",
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "time"
+    },
+    {
+      "domain": [
+        {
+          "signal": "(data(\"data_0_y_domain___count\")[0] || {}).min"
+        },
+        {
+          "signal": "(data(\"data_0_y_domain___count\")[0] || {}).max"
+        }
+      ],
+      "name": "y",
+      "nice": true,
+      "range": [
+        {
+          "signal": "height"
+        },
+        0
+      ],
+      "type": "linear",
+      "zero": true
+    }
+  ],
+  "signals": [
+    {
+      "name": "bin_maxbins_20_datetime_col_bins",
+      "value": {
+        "fields": [
+          "datetime_col"
+        ],
+        "fname": "bin_datetime_col",
+        "start": 1672500000000.0,
+        "step": 500000000.0,
+        "stop": 1681500000000.0
+      }
+    },
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    }
+  ],
+  "style": "cell"
+}
