@@ -77,7 +77,7 @@ Having installation issues? Reach out to us [at GitHub](https://github.com/marim
 
 ## Install with recommended dependencies
 
-marimo is lightweight, with few dependencies, to maximize compatiblity with
+marimo is lightweight, with few dependencies, to maximize compatibility with
 your own environments.
 
 To unlock additional features in the marimo editor, including SQL cells,
