@@ -24,6 +24,12 @@
   },
   "encoding": {
     "x": {
+      "axis": {
+        "format": "%Y-%m-%d %H"
+      },
+      "bin": {
+        "maxbins": 20
+      },
       "field": "date_col",
       "type": "temporal"
     },
@@ -33,11 +39,7 @@
     }
   },
   "mark": {
-    "point": {
-      "fill": "white",
-      "filled": false
-    },
-    "type": "line"
+    "type": "bar"
   },
   "width": "container"
 }

@@ -9,22 +9,6 @@
       "aria": false,
       "domain": false,
       "grid": true,
-      "gridScale": "y",
-      "labels": false,
-      "maxExtent": 0,
-      "minExtent": 0,
-      "orient": "bottom",
-      "scale": "x",
-      "tickCount": {
-        "signal": "ceil(width/40)"
-      },
-      "ticks": false,
-      "zindex": 0
-    },
-    {
-      "aria": false,
-      "domain": false,
-      "grid": true,
       "gridScale": "x",
       "labels": false,
       "maxExtent": 0,
@@ -38,15 +22,16 @@
       "zindex": 0
     },
     {
+      "format": "%Y-%m-%d %H",
       "grid": false,
       "labelFlush": true,
       "labelOverlap": true,
       "orient": "bottom",
       "scale": "x",
       "tickCount": {
-        "signal": "ceil(width/40)"
+        "signal": "ceil(width/10)"
       },
-      "title": "date_col",
+      "title": "date_col (binned)",
       "zindex": 0
     },
     {
@@ -67,47 +52,40 @@
       "name": "source_0",
       "transform": [
         {
-          "as": "date_col",
-          "expr": "toDate(datum['date_col'])",
+          "as": "bin_maxbins_20_date_col_end",
+          "expr": "toDate(datum['bin_maxbins_20_date_col_end'])",
+          "type": "formula"
+        },
+        {
+          "as": "bin_maxbins_20_date_col",
+          "expr": "toDate(datum['bin_maxbins_20_date_col'])",
           "type": "formula"
         }
       ],
       "values": [
         {
           "__count": 1,
-          "date_col": "2021-01-01T00:00:00.000"
+          "bin_maxbins_20_date_col": "2020-12-31T22:00:00.000",
+          "bin_maxbins_20_date_col_end": "2021-01-01T00:46:40.000"
         },
         {
           "__count": 1,
-          "date_col": "2021-01-02T00:00:00.000"
+          "bin_maxbins_20_date_col": "2021-01-01T23:00:00.000",
+          "bin_maxbins_20_date_col_end": "2021-01-02T01:46:40.000"
         },
         {
           "__count": 1,
-          "date_col": "2021-01-03T00:00:00.000"
+          "bin_maxbins_20_date_col": "2021-01-02T21:13:20.000",
+          "bin_maxbins_20_date_col_end": "2021-01-03T00:00:00.000"
         }
       ]
     },
     {
-      "name": "data_0",
-      "transform": [
-        {
-          "as": "date_col",
-          "expr": "toDate(datum['date_col'])",
-          "type": "formula"
-        }
-      ],
+      "name": "source_0_y_domain___count",
       "values": [
         {
-          "__count": 1,
-          "date_col": "2021-01-01T00:00:00.000"
-        },
-        {
-          "__count": 1,
-          "date_col": "2021-01-02T00:00:00.000"
-        },
-        {
-          "__count": 1,
-          "date_col": "2021-01-03T00:00:00.000"
+          "max": 1,
+          "min": 1
         }
       ]
     }
@@ -117,80 +95,51 @@
     {
       "encode": {
         "update": {
-          "defined": {
-            "signal": "isValid(datum[\"date_col\"]) && isFinite(+datum[\"date_col\"])"
-          },
-          "stroke": {
+          "fill": {
             "value": "#4c78a8"
           },
           "x": {
-            "field": "date_col",
+            "field": "bin_maxbins_20_date_col_end",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_20_date_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_date_col\"])) < 0.25 ? 0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_20_date_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_date_col\"])))) : -0.5)"
+            },
+            "scale": "x"
+          },
+          "x2": {
+            "field": "bin_maxbins_20_date_col",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_20_date_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_date_col\"])) < 0.25 ? -0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_20_date_col_end\"]) - scale(\"x\", datum[\"bin_maxbins_20_date_col\"])))) : 0.5)"
+            },
             "scale": "x"
           },
           "y": {
             "field": "__count",
             "scale": "y"
+          },
+          "y2": {
+            "scale": "y",
+            "value": 0
           }
         }
       },
       "from": {
         "data": "source_0"
       },
-      "name": "layer_0_marks",
-      "sort": {
-        "field": "x"
-      },
+      "name": "marks",
       "style": [
-        "line"
+        "bar"
       ],
-      "type": "line"
-    },
-    {
-      "encode": {
-        "update": {
-          "fill": {
-            "value": "white"
-          },
-          "opacity": {
-            "value": 1
-          },
-          "stroke": {
-            "value": "#4c78a8"
-          },
-          "x": {
-            "field": "date_col",
-            "scale": "x"
-          },
-          "y": {
-            "field": "__count",
-            "scale": "y"
-          }
-        }
-      },
-      "from": {
-        "data": "data_0"
-      },
-      "name": "layer_1_marks",
-      "style": [
-        "point"
-      ],
-      "type": "symbol"
+      "type": "rect"
     }
   ],
   "padding": 5,
   "scales": [
     {
+      "bins": {
+        "signal": "bin_maxbins_20_date_col_bins"
+      },
       "domain": {
-        "fields": [
-          {
-            "data": "source_0",
-            "field": "date_col"
-          },
-          {
-            "data": "data_0",
-            "field": "date_col"
-          }
-        ]
+        "signal": "[bin_maxbins_20_date_col_bins.start, bin_maxbins_20_date_col_bins.stop]"
       },
       "name": "x",
       "range": [
@@ -202,18 +151,14 @@
       "type": "time"
     },
     {
-      "domain": {
-        "fields": [
-          {
-            "data": "source_0",
-            "field": "__count"
-          },
-          {
-            "data": "data_0",
-            "field": "__count"
-          }
-        ]
-      },
+      "domain": [
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).min"
+        },
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).max"
+        }
+      ],
       "name": "y",
       "nice": true,
       "range": [
@@ -227,6 +172,18 @@
     }
   ],
   "signals": [
+    {
+      "name": "bin_maxbins_20_date_col_bins",
+      "value": {
+        "fields": [
+          "date_col"
+        ],
+        "fname": "bin_date_col",
+        "start": 1609470000000.0,
+        "step": 10000000.0,
+        "stop": 1609650000000.0
+      }
+    },
     {
       "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
       "name": "width",
