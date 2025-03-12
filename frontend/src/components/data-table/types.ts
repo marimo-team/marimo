@@ -38,3 +38,11 @@ export type DataTableSelection =
   | "single-cell"
   | "multi-cell"
   | null;
+
+export function shouldRenderDateInUTC(dtype: string | undefined): boolean {
+  if (!dtype) {
+    return false;
+  }
+  // Check for datetime[X,Y] format
+  return /^datetime\[[^,]+,[^,]+]$/.test(dtype);
+}

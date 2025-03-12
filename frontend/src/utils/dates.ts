@@ -34,8 +34,19 @@ export function prettyDate(
  * If the date has sub-second precision, it should say "2024-10-07 17:15:00.123".
  * Otherwise, it should say "2024-10-07 17:15:00".
  */
-export function exactDateTime(value: Date): string {
+export function exactDateTime(value: Date, renderInUTC: boolean): string {
   const hasSubSeconds = value.getUTCMilliseconds() !== 0;
+
+  if (renderInUTC) {
+    // convert to UTC
+    const offset = value.getTimezoneOffset();
+    const dateAsUTC = new Date(value.getTime() + offset * 60_000);
+    if (hasSubSeconds) {
+      return `${formatDate(dateAsUTC, "yyyy-MM-dd HH:mm:ss.SSS")} UTC`;
+    }
+    return `${formatDate(dateAsUTC, "yyyy-MM-dd HH:mm:ss")} UTC`;
+  }
+
   if (hasSubSeconds) {
     return formatDate(value, "yyyy-MM-dd HH:mm:ss.SSS");
   }
