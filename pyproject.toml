@@ -86,6 +86,7 @@ sql = [
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
+# This includes the `sql` deps
 recommended = [
     "duckdb>=1.0.0",            # SQL cells
     "altair>=5.4.0",            # Plotting in datasource viewer
@@ -94,6 +95,8 @@ recommended = [
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
+    "vegafusion>=2.0.0",        # Performant charting
+    "vl-convert-python>=1.0.0", # Required by vegafusion
 ]
 
 dev = [
@@ -235,6 +238,7 @@ extra-dependencies = [
     "pytest-asyncio~=0.25.2",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
+    "vegafusion",
     "pyarrow",
     "pyarrow_hotfix",
     "altair>=5.4.0",

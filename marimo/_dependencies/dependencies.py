@@ -188,6 +188,8 @@ class DependencyManager:
     groq = Dependency("groq")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
+    vegafusion = Dependency("vegafusion")
+    vl_convert_python = Dependency("vl_convert")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

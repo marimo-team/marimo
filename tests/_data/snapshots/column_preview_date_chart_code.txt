@@ -1,8 +1,13 @@
 _chart = (
     alt.Chart(table)
-    .mark_line(point={"filled": False, "fill": "white"})
+    .mark_bar()
     .encode(
-        x=alt.X("date_col", type="temporal"),
+        x=alt.X(
+            "date_col",
+            type="temporal",
+            bin=alt.Bin(maxbins=20),
+            axis=alt.Axis(format="%Y-%m-%d")
+        ),
         y=alt.Y("count()", type="quantitative"),
     )
     .properties(width="container")
