@@ -199,13 +199,18 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         "uhugeint",
     ]:
         return "integer"
-    if db_type in [
-        "float",
-        "real",
-        "double",
-        "decimal",
-        "numeric",
-    ] or db_type.startswith("decimal"):
+    if (
+        db_type
+        in [
+            "float",
+            "real",
+            "double",
+            "decimal",
+            "numeric",
+        ]
+        or db_type.startswith("decimal")
+        or db_type.startswith("float")
+    ):
         return "number"
     # Boolean type
     if db_type == "boolean":

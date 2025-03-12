@@ -18,8 +18,11 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.requests import PreviewDatasetColumnRequest
+from marimo._sql.utils import wrapped_sql
 
 LOGGER = _loggers.marimo_logger()
+
+CHART_MAX_ROWS = 20_000
 
 
 def get_column_preview_for_dataframe(
@@ -120,13 +123,16 @@ def get_column_preview_for_dataframe(
 
 
 def get_column_preview_for_duckdb(
-    table_name: str,
+    *,
+    fully_qualified_table_name: str,
     column_name: str,
 ) -> Optional[DataColumnPreview]:
     DependencyManager.duckdb.require(why="previewing DuckDB columns")
 
-    column_type = get_column_type(table_name, column_name)
-    summary = get_sql_summary(table_name, column_name, column_type)
+    column_type = get_column_type(fully_qualified_table_name, column_name)
+    summary = get_sql_summary(
+        fully_qualified_table_name, column_name, column_type
+    )
 
     # Generate Altair chart
     chart_spec = None
@@ -140,15 +146,24 @@ def get_column_preview_for_duckdb(
         from altair import MaxRowsError  # type: ignore[import-not-found]
 
         try:
-            import duckdb
+            total_rows: int = wrapped_sql(
+                f"SELECT COUNT(*) FROM {fully_qualified_table_name}",
+                connection=None,
+            ).fetchone()[0]  # type: ignore[index]
 
-            relation = duckdb.table(table_name).select(column_name)
-            chart_spec = _get_chart_spec(
-                column_data=relation,
-                column_type=column_type,
-                column_name=column_name,
-                should_limit_to_10_items=should_limit_to_10_items,
-            )
+            if total_rows <= CHART_MAX_ROWS:
+                relation = wrapped_sql(
+                    f"SELECT {column_name} FROM {fully_qualified_table_name}",
+                    connection=None,
+                )
+                chart_spec = _get_chart_spec(
+                    column_data=relation,
+                    column_type=column_type,
+                    column_name=column_name,
+                    should_limit_to_10_items=should_limit_to_10_items,
+                )
+            else:
+                chart_max_rows_errors = True
         except MaxRowsError:
             chart_spec = None
             chart_max_rows_errors = True
@@ -156,7 +171,7 @@ def get_column_preview_for_duckdb(
             LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
     return DataColumnPreview(
-        table_name=table_name,
+        table_name=fully_qualified_table_name,
         column_name=column_name,
         chart_max_rows_errors=chart_max_rows_errors,
         chart_spec=chart_spec,
@@ -248,7 +263,7 @@ def _get_chart_spec(
     )
     if dont_use_csv:
         # Default max_rows is 5_000, but we can support more.
-        with alt.data_transformers.enable("default", max_rows=20_000):
+        with alt.data_transformers.enable("default", max_rows=CHART_MAX_ROWS):
             return chart_builder.altair_json(
                 column_data,
                 column_name,

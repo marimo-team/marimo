@@ -295,10 +295,14 @@ class PreviewDatasetColumnRequest:
     # The source of the dataset
     source: str
     # The name of the dataset
-    # This currently corresponds to the variable name
+    # If this is a Python dataframe, this is the variable name
+    # If this is an SQL table, this is the table name
     table_name: str
     # The name of the column
     column_name: str
+    # The fully qualified name of the table
+    # This is the database.schema.table name
+    fully_qualified_table_name: Optional[str] = None
 
 
 @dataclass

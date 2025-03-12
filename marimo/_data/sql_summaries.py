@@ -128,18 +128,36 @@ def get_sql_summary(
         return ColumnSummary(total=count, unique=unique, nulls=null_count)
 
 
-def get_column_type(table_name: str, column_name: str) -> DataType:
+def get_column_type(
+    fully_qualified_table_name: str, column_name: str
+) -> DataType:
     """
     Get the type of a column in a SQL table.
     """
 
     # First, get the column info and data type
-    column_info_query = f"""
-    SELECT data_type
-    FROM information_schema.columns
-    WHERE table_name = '{table_name}'
-    AND column_name = '{column_name}'
-    """
+    if "." in fully_qualified_table_name:
+        # Fully qualified table name
+        db_name, schema_name, table_name = _parse_fully_qualified_table_name(
+            fully_qualified_table_name
+        )
+        column_info_query = f"""
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_name = '{table_name}'
+        AND table_schema = '{schema_name}'
+        AND table_catalog = '{db_name}'
+        AND column_name = '{column_name}'
+        """
+    else:
+        # Simple table name
+        table_name = fully_qualified_table_name
+        column_info_query = f"""
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_name = '{table_name}'
+        AND column_name = '{column_name}'
+        """
 
     column_info_result: tuple[str] | None = wrapped_sql(
         column_info_query, connection=None
@@ -163,3 +181,17 @@ def get_histogram_data(
     # TODO: Implement this
 
     return []
+
+
+def _parse_fully_qualified_table_name(
+    fully_qualified_table_name: str,
+) -> tuple[str, str, str]:
+    """
+    Parse a fully qualified table name into a database name, schema name, and table name.
+    """
+    parts = fully_qualified_table_name.split(".")
+    if len(parts) != 3:
+        raise ValueError(
+            f"Invalid fully qualified table name: {fully_qualified_table_name}"
+        )
+    return parts[0], parts[1], parts[2]

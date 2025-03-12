@@ -2084,7 +2084,8 @@ class Kernel:
         try:
             if source_type == "duckdb":
                 column_preview = get_column_preview_for_duckdb(
-                    table_name=table_name,
+                    fully_qualified_table_name=request.fully_qualified_table_name
+                    or table_name,
                     column_name=column_name,
                 )
             elif source_type == "local":

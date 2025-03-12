@@ -31,6 +31,7 @@ export interface SQLTableContext {
   database: string;
   schema: string;
   defaultSchema?: string | null;
+  defaultDatabase?: string | null;
 }
 
 function initialState(): DataSourceState {

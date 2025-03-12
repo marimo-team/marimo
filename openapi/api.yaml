@@ -366,10 +366,10 @@ components:
           nullable: true
           type: string
         missing_packages:
-          nullable: true
-          type: array
           items:
             type: string
+          nullable: true
+          type: array
         name:
           enum:
           - data-column-preview
@@ -1708,6 +1708,9 @@ components:
       properties:
         columnName:
           type: string
+        fullyQualifiedTableName:
+          nullable: true
+          type: string
         source:
           type: string
         sourceType:
@@ -2281,7 +2284,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.17
+  version: 0.11.18
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

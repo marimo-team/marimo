@@ -152,7 +152,7 @@ def test_get_column_preview_for_duckdb() -> None:
 
     # Test preview for the 'outcome' column (alternating 0 and 1)
     result = get_column_preview_for_duckdb(
-        table_name="tbl",
+        fully_qualified_table_name="tbl",
         column_name="outcome",
     )
     assert result is not None
@@ -167,7 +167,7 @@ def test_get_column_preview_for_duckdb() -> None:
 
     # Test preview for the 'id' column (for comparison)
     result_id = get_column_preview_for_duckdb(
-        table_name="tbl",
+        fully_qualified_table_name="tbl",
         column_name="id",
     )
     assert result_id is not None
@@ -200,7 +200,7 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     """)
 
     result_categorical = get_column_preview_for_duckdb(
-        table_name="tbl",
+        fully_qualified_table_name="tbl",
         column_name="category",
     )
     assert result_categorical is not None
@@ -221,6 +221,18 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     # Not implemented yet
     assert result_categorical.chart_code is None
 
+    # Test works when fully qualified
+    assert (
+        get_column_preview_for_duckdb(
+            fully_qualified_table_name="tbl",
+            column_name="category",
+        ).summary
+        == get_column_preview_for_duckdb(
+            fully_qualified_table_name="memory.main.tbl",
+            column_name="category",
+        ).summary
+    )
+
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
@@ -239,7 +251,7 @@ def test_get_column_preview_for_duckdb_date() -> None:
     """)
 
     result_date = get_column_preview_for_duckdb(
-        table_name="date_tbl",
+        fully_qualified_table_name="date_tbl",
         column_name="date_col",
     )
     assert result_date is not None
@@ -260,6 +272,18 @@ def test_get_column_preview_for_duckdb_date() -> None:
 
     # Not implemented yet
     assert result_date.chart_code is None
+
+    # Test works when fully qualified
+    assert (
+        get_column_preview_for_duckdb(
+            fully_qualified_table_name="date_tbl",
+            column_name="date_col",
+        ).summary
+        == get_column_preview_for_duckdb(
+            fully_qualified_table_name="memory.main.date_tbl",
+            column_name="date_col",
+        ).summary
+    )
 
 
 @pytest.mark.skipif(
@@ -282,7 +306,7 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     """)
 
     result_datetime = get_column_preview_for_duckdb(
-        table_name="datetime_tbl",
+        fully_qualified_table_name="datetime_tbl",
         column_name="datetime_col",
     )
     assert result_datetime is not None
@@ -305,6 +329,18 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     # Not implemented yet
     assert result_datetime.chart_code is None
 
+    # Test works when fully qualified
+    assert (
+        get_column_preview_for_duckdb(
+            fully_qualified_table_name="datetime_tbl",
+            column_name="datetime_col",
+        ).summary
+        == get_column_preview_for_duckdb(
+            fully_qualified_table_name="memory.main.datetime_tbl",
+            column_name="datetime_col",
+        ).summary
+    )
+
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
@@ -325,7 +361,7 @@ def test_get_column_preview_for_duckdb_time() -> None:
     """)
 
     result_time = get_column_preview_for_duckdb(
-        table_name="time_tbl",
+        fully_qualified_table_name="time_tbl",
         column_name="time_col",
     )
     assert result_time is not None
@@ -361,7 +397,7 @@ def test_get_column_preview_for_duckdb_bool() -> None:
     """)
 
     result_bool = get_column_preview_for_duckdb(
-        table_name="bool_tbl",
+        fully_qualified_table_name="bool_tbl",
         column_name="bool_col",
     )
     assert result_bool is not None
@@ -382,3 +418,37 @@ def test_get_column_preview_for_duckdb_bool() -> None:
 
     # Not implemented yet
     assert result_bool.chart_code is None
+
+
+@pytest.mark.skipif(
+    not HAS_SQL_DEPS, reason="optional dependencies not installed"
+)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+def test_get_column_preview_for_duckdb_over_limit() -> None:
+    import duckdb
+
+    from marimo._data.preview_column import CHART_MAX_ROWS
+
+    # Create a table with more rows than the chart limit
+    duckdb.execute(f"""
+        CREATE OR REPLACE TABLE large_tbl AS
+        SELECT
+            range AS id,
+            range % 5 AS category
+        FROM range({CHART_MAX_ROWS + 100})
+    """)
+
+    # Test preview for a column in a table that exceeds the row limit
+    result = get_column_preview_for_duckdb(
+        fully_qualified_table_name="large_tbl",
+        column_name="category",
+    )
+
+    assert result is not None
+    assert result.summary is not None
+    assert result.error is None
+    assert result.chart_max_rows_errors is True
+    assert result.chart_spec is None
+
+    # Not implemented yet
+    assert result.chart_code is None

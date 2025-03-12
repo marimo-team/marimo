@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.10.7"
+__generated_with = "0.11.18"
 app = marimo.App(width="medium")
 
 
@@ -70,7 +70,7 @@ def _(mo):
         -- or '/path/**/to/*.csv'
         SELECT * FROM "data.csv"
         """,
-        output=False,
+        output=False
     )
     return (result,)
 
