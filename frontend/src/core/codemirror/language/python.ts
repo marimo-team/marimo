@@ -53,12 +53,17 @@ const lspClient = once<any>((lspConfig: LSPConfig) => {
     // Notebooks are not really public modules and are better documented
     // by having a markdown cell with explanations instead
     "D100", // Missing docstring in public module
+    "D103", // Missing docstring in public function
   ];
   const ignoredFlakeRules = [
     // The final cell in the notebook is not required to have a new line
     "W292", // No newline at end of file
     // Modules can be imported in any cell
     "E402", // Module level import not at top of file
+  ];
+  const ignoredRuffRules = [
+    // Even ruff documentation of this rule explains it is not useful in notebooks
+    "B018", // Useless expression
   ];
   const settings = {
     pylsp: {
@@ -75,7 +80,8 @@ const lspClient = once<any>((lspConfig: LSPConfig) => {
         },
         pydocstyle: {
           enabled: config?.enable_pydocstyle,
-          addIgnore: ignoredStyleRules,
+          // not `addIgnore`, see https://github.com/python-lsp/python-lsp-server/issues/626
+          ignore: ignoredStyleRules,
         },
         pylint: {
           enabled: config?.enable_pylint,
@@ -89,7 +95,11 @@ const lspClient = once<any>((lspConfig: LSPConfig) => {
         },
         ruff: {
           enabled: config?.enable_ruff,
-          extendIgnore: [...ignoredFlakeRules, ...ignoredStyleRules],
+          extendIgnore: [
+            ...ignoredFlakeRules,
+            ...ignoredStyleRules,
+            ...ignoredRuffRules,
+          ],
         },
       },
     },
