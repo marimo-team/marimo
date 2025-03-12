@@ -218,6 +218,7 @@ const CellEditorInternal = ({
       },
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
+      lspConfig: userConfig.language_servers,
       theme,
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
     });

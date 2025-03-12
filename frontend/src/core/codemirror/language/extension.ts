@@ -13,7 +13,7 @@ import {
   showPanel,
 } from "@codemirror/view";
 import { clamp } from "@/utils/math";
-import type { CompletionConfig } from "@/core/config/config-schema";
+import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
 import {
   cellIdState,
   completionConfigState,
@@ -187,6 +187,7 @@ export function adaptiveLanguageConfiguration(
     | "enableAI"
     | "cellMovementCallbacks"
     | "cellId"
+    | "lspConfig"
   >,
 ) {
   const {
@@ -196,6 +197,7 @@ export function adaptiveLanguageConfiguration(
     hotkeys,
     cellMovementCallbacks,
     cellId,
+    lspConfig,
   } = opts;
 
   const placeholderType = showPlaceholder
@@ -220,6 +222,7 @@ export function adaptiveLanguageConfiguration(
         hotkeys,
         placeholderType,
         cellMovementCallbacks,
+        lspConfig,
       ),
     ),
     languageAdapterState,
@@ -277,6 +280,7 @@ export function reconfigureLanguageEffect(
   view: EditorView,
   completionConfig: CompletionConfig,
   hotkeysProvider: HotkeyProvider,
+  lspConfig: LSPConfig,
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
@@ -289,6 +293,7 @@ export function reconfigureLanguageEffect(
       hotkeysProvider,
       placeholderType,
       movementCallbacks,
+      lspConfig,
     ),
   );
 }
