@@ -44,5 +44,7 @@ export function shouldRenderDateInUTC(dtype: string | undefined): boolean {
     return false;
   }
   // Check for datetime[X,Y] format
+  // We do this for any timezone-aware datetime type
+  // not just UTC (as this is what Polars does by default)
   return /^datetime\[[^,]+,[^,]+]$/.test(dtype);
 }
