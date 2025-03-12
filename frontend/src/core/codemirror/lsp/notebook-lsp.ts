@@ -7,9 +7,11 @@ import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import type { CellId } from "@/core/cells/ids";
+import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
-  private readonly documentUri = "file:///__marimo_notebook__.py";
+  private readonly documentUri =
+    `file://${getFilenameFromDOM() ?? "/__marimo_notebook__.py"}`;
   private documentVersion = 0;
   private readonly client: ILanguageServerClient;
 
@@ -50,6 +52,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
                 auto_import_modules: ["marimo", "numpy"],
               },
             },
+          },
+          pylsp_mypy: {
+            live_mode: true,
           },
         },
       });

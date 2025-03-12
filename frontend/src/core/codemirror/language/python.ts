@@ -32,6 +32,8 @@ import { once } from "@/utils/once";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
+import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
+import { Paths } from "@/utils/paths";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -41,7 +43,7 @@ const pylspTransport = once(() => {
 const lspClient = once(() => {
   const lspClientOpts = {
     transport: pylspTransport(),
-    rootUri: "file:///",
+    rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
     languageId: "python",
     workspaceFolders: [],
   };
