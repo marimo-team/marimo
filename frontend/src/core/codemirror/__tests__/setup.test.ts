@@ -58,6 +58,11 @@ function getOpts() {
       preset: "default",
       overrides: {},
     },
+    lspConfig: {
+      pylsp: {
+        enabled: false,
+      },
+    },
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
   } as const;

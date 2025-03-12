@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CompletionConfig } from "@/core/config/config-schema";
+import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { Extension } from "@codemirror/state";
 import type { PlaceholderType } from "../config/extension";
@@ -23,6 +23,7 @@ export interface LanguageAdapter {
     hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
     movementCallbacks: MovementCallbacks,
+    lspConfig: LSPConfig,
   ): Extension[];
 }
 

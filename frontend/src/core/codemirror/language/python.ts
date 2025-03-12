@@ -11,7 +11,7 @@ import {
   foldInside,
   LanguageSupport,
 } from "@codemirror/language";
-import type { CompletionConfig } from "@/core/config/config-schema";
+import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { PlaceholderType } from "../config/extension";
 import {
@@ -32,18 +32,77 @@ import { once } from "@/utils/once";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
+import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
+import { Paths } from "@/utils/paths";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
   return transport;
 });
 
-const lspClient = once(() => {
+const lspClient = once<any>((lspConfig: LSPConfig) => {
   const lspClientOpts = {
     transport: pylspTransport(),
-    rootUri: "file:///",
+    rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
     languageId: "python",
     workspaceFolders: [],
+  };
+  const config = lspConfig?.pylsp;
+
+  const ignoredStyleRules = [
+    // Notebooks are not really public modules and are better documented
+    // by having a markdown cell with explanations instead
+    "D100", // Missing docstring in public module
+    "D103", // Missing docstring in public function
+  ];
+  const ignoredFlakeRules = [
+    // The final cell in the notebook is not required to have a new line
+    "W292", // No newline at end of file
+    // Modules can be imported in any cell
+    "E402", // Module level import not at top of file
+  ];
+  const ignoredRuffRules = [
+    // Even ruff documentation of this rule explains it is not useful in notebooks
+    "B018", // Useless expression
+  ];
+  const settings = {
+    pylsp: {
+      plugins: {
+        marimo_plugin: {
+          enabled: true,
+        },
+        jedi: {
+          auto_import_modules: ["marimo", "numpy"],
+        },
+        flake8: {
+          enabled: config?.enable_flake8,
+          extendIgnore: ignoredFlakeRules,
+        },
+        pydocstyle: {
+          enabled: config?.enable_pydocstyle,
+          // not `addIgnore`, see https://github.com/python-lsp/python-lsp-server/issues/626
+          ignore: ignoredStyleRules,
+        },
+        pylint: {
+          enabled: config?.enable_pylint,
+        },
+        pyflakes: {
+          enabled: config?.enable_pyflakes,
+        },
+        pylsp_mypy: {
+          enabled: config?.enable_mypy,
+          live_mode: true,
+        },
+        ruff: {
+          enabled: config?.enable_ruff,
+          extendIgnore: [
+            ...ignoredFlakeRules,
+            ...ignoredStyleRules,
+            ...ignoredRuffRules,
+          ],
+        },
+      },
+    },
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
@@ -54,6 +113,7 @@ const lspClient = once(() => {
       documentUri: "file:///unused.py", // Incorrect types
       autoClose: false,
     }),
+    settings,
   ) as unknown as LanguageServerClient;
 });
 
@@ -82,11 +142,12 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     _hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
     cellMovementCallbacks: MovementCallbacks,
+    lspConfig: LSPConfig,
   ): Extension[] {
     return [
       getFeatureFlag("lsp")
         ? languageServerWithTransport({
-            client: lspClient(),
+            client: lspClient(lspConfig),
             documentUri: CellDocumentUri.of(cellId),
             transport: pylspTransport(),
             rootUri: "file:///",

@@ -74,7 +74,7 @@ class BaseLspServer(LspServer):
                 cmd.split(),
                 stdout=file_out,
                 stderr=file_out,
-                stdin=file_out,
+                stdin=None,
             )
             LOGGER.debug(
                 "... process return code (`None` means success): %s",

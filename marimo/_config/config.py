@@ -232,6 +232,12 @@ class PythonLanguageServerConfig(TypedDict, total=False):
     """Configuration options for Python Language Server."""
 
     enabled: bool
+    enable_mypy: bool
+    enable_ruff: bool
+    enable_flake8: bool
+    enable_pydocstyle: bool
+    enable_pylint: bool
+    enable_pyflakes: bool
 
 
 @dataclass
@@ -323,7 +329,17 @@ DEFAULT_CONFIG: MarimoConfig = {
         "browser": "default",
         "follow_symlink": False,
     },
-    "language_servers": {"pylsp": {"enabled": True}},
+    "language_servers": {
+        "pylsp": {
+            "enabled": True,
+            "enable_mypy": True,
+            "enable_ruff": True,
+            "enable_flake8": False,
+            "enable_pydocstyle": False,
+            "enable_pylint": False,
+            "enable_pyflakes": False,
+        }
+    },
     "snippets": {
         "custom_paths": [],
         "include_default_snippets": True,

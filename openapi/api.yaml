@@ -1194,6 +1194,26 @@ components:
           required:
           - preset
           type: object
+        language_servers:
+          properties:
+            pylsp:
+              properties:
+                enable_flake8:
+                  type: boolean
+                enable_mypy:
+                  type: boolean
+                enable_pydocstyle:
+                  type: boolean
+                enable_pyflakes:
+                  type: boolean
+                enable_pylint:
+                  type: boolean
+                enable_ruff:
+                  type: boolean
+                enabled:
+                  type: boolean
+              type: object
+          type: object
         package_management:
           properties:
             manager:
@@ -2022,7 +2042,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.10.19
+  version: 0.11.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

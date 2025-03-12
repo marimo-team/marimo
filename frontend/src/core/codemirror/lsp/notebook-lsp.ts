@@ -7,9 +7,11 @@ import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import type { CellId } from "@/core/cells/ids";
+import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
-  private readonly documentUri = "file:///__marimo_notebook__.py";
+  private readonly documentUri =
+    `file://${getFilenameFromDOM() ?? "/__marimo_notebook__.py"}`;
   private documentVersion = 0;
   private readonly client: ILanguageServerClient;
 
@@ -27,7 +29,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<LSP.DocumentUri>();
 
-  constructor(client: ILanguageServerClient) {
+  constructor(client: ILanguageServerClient, initialSettings: any) {
     this.client = client;
     this.patchProcessNotification();
 
@@ -40,18 +42,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.client as any).notify("workspace/didChangeConfiguration", {
-        settings: {
-          pylsp: {
-            plugins: {
-              marimo_plugin: {
-                enabled: true,
-              },
-              jedi: {
-                auto_import_modules: ["marimo", "numpy"],
-              },
-            },
-          },
-        },
+        settings: initialSettings,
       });
     });
   }

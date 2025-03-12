@@ -37,7 +37,11 @@ import {
 } from "@codemirror/view";
 
 import { EditorState, type Extension, Prec } from "@codemirror/state";
-import type { CompletionConfig, KeymapConfig } from "../config/config-schema";
+import type {
+  CompletionConfig,
+  KeymapConfig,
+  LSPConfig,
+} from "../config/config-schema";
 import type { Theme } from "../../theme/useTheme";
 
 import { findReplaceBundle } from "./find-replace/extension";
@@ -77,6 +81,7 @@ export interface CodeMirrorSetupOpts {
   keymapConfig: KeymapConfig;
   theme: Theme;
   hotkeys: HotkeyProvider;
+  lspConfig: LSPConfig;
 }
 
 /**
