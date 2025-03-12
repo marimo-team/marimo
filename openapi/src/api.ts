@@ -2881,6 +2881,7 @@ export interface components {
     };
     PreviewDatasetColumnRequest: {
       columnName: string;
+      fullyQualifiedTableName?: string | null;
       source: string;
       /** @enum {string} */
       sourceType: "local" | "duckdb" | "connection";

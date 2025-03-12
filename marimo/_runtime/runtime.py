@@ -28,8 +28,8 @@ from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data.preview_column import (
-    get_column_preview_dataframe,
-    get_column_preview_for_sql,
+    get_column_preview_for_dataframe,
+    get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -2083,13 +2083,16 @@ class Kernel:
 
         try:
             if source_type == "duckdb":
-                column_preview = get_column_preview_for_sql(
-                    table_name=table_name,
+                column_preview = get_column_preview_for_duckdb(
+                    fully_qualified_table_name=request.fully_qualified_table_name
+                    or table_name,
                     column_name=column_name,
                 )
             elif source_type == "local":
                 dataset = self.globals[table_name]
-                column_preview = get_column_preview_dataframe(dataset, request)
+                column_preview = get_column_preview_for_dataframe(
+                    dataset, request
+                )
             elif source_type == "connection":
                 DataColumnPreview(
                     error="Column preview for connection data sources is not supported",
