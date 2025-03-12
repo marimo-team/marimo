@@ -1,5 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { SQLTableContext } from "@/core/datasets/data-source-connections";
+import {
+  DEFAULT_ENGINE,
+  type SQLTableContext,
+} from "@/core/datasets/data-source-connections";
 import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
 import { describe, it, expect } from "vitest";
 import { sqlCode } from "../utils";
@@ -15,7 +18,6 @@ describe("sqlCode", () => {
   const mockColumn = {
     name: "email" as const,
   } as DataTableColumn;
-  const DEFAULT_ENGINE = "default_engine"; // Ensure this matches your actual default engine constant
 
   it("should generate basic SQL without sqlTableContext", () => {
     const result = sqlCode(mockTable, mockColumn.name);
@@ -29,6 +31,7 @@ describe("sqlCode", () => {
       engine: DEFAULT_ENGINE,
       schema: "public",
       defaultSchema: "public",
+      defaultDatabase: "mydb",
       database: "mydb",
     };
 
@@ -41,12 +44,13 @@ describe("sqlCode", () => {
       engine: DEFAULT_ENGINE,
       schema: "analytics",
       defaultSchema: "public",
+      defaultDatabase: "mydb",
       database: "mydb",
     };
 
     const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
     expect(result).toBe(
-      '_df = mo.sql(f"SELECT email FROM mydb.analytics.users LIMIT 100")',
+      '_df = mo.sql(f"SELECT email FROM analytics.users LIMIT 100")',
     );
   });
 
@@ -55,6 +59,7 @@ describe("sqlCode", () => {
       engine: "snowflake",
       schema: "public",
       defaultSchema: "public",
+      defaultDatabase: "mydb",
       database: "mydb",
     };
 
@@ -69,12 +74,43 @@ describe("sqlCode", () => {
       engine: "bigquery",
       schema: "sales",
       defaultSchema: "public",
+      defaultDatabase: "mydb",
       database: "mydb",
     };
 
     const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
     expect(result).toBe(
-      '_df = mo.sql(f"SELECT email FROM mydb.sales.users LIMIT 100", engine=bigquery)',
+      '_df = mo.sql(f"SELECT email FROM sales.users LIMIT 100", engine=bigquery)',
+    );
+  });
+
+  it("should generate SQL with non-default database", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: DEFAULT_ENGINE,
+      schema: "public",
+      defaultSchema: "public",
+      defaultDatabase: "memory",
+      database: "remote",
+    };
+
+    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    expect(result).toBe(
+      '_df = mo.sql(f"SELECT email FROM remote.users LIMIT 100")',
+    );
+  });
+
+  it("should generate SQL with non-default database and non-default schema", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: "bigquery",
+      schema: "sales",
+      defaultSchema: "public",
+      defaultDatabase: "mydb",
+      database: "remote",
+    };
+
+    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    expect(result).toBe(
+      '_df = mo.sql(f"SELECT email FROM remote.sales.users LIMIT 100", engine=bigquery)',
     );
   });
 });
