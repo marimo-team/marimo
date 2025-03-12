@@ -21,7 +21,9 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 HAS_DF_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
-HAS_SQL_DEPS = DependencyManager.duckdb.has()
+HAS_SQL_DEPS = (
+    DependencyManager.duckdb.has() and DependencyManager.altair.has()
+)
 
 snapshot = snapshotter(__file__)
 
