@@ -146,7 +146,10 @@ export const OptionalFeatures: React.FC = () => {
                     <div className="flex items-center">
                       <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
                       <InstallButton
-                        packageSpecs={dep.packagesRequired}
+                        packageSpecs={[
+                          ...dep.packagesRequired,
+                          ...dep.additionalPackageInstalls,
+                        ]}
                         packageManager={packageManager}
                         onSuccess={reload}
                       />
