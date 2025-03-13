@@ -383,9 +383,10 @@ def create_asgi_app(
     import marimo._server.api.lifespans as lifespans
     from marimo._config.manager import get_default_config_manager
     from marimo._server.file_router import AppFileRouter
+    from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
-    from marimo._server.sessions import NoopLspServer, SessionManager
+    from marimo._server.sessions import SessionManager
     from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
     from marimo._utils.marimo_path import MarimoPath

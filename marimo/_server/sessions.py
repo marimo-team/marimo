@@ -18,9 +18,7 @@ import asyncio
 import multiprocessing as mp
 import os
 import queue
-import shutil
 import signal
-import subprocess
 import sys
 import threading
 import time
@@ -40,7 +38,6 @@ from marimo._config.manager import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
-    Alert,
     FocusCell,
     MessageOperation,
     Reload,
@@ -63,6 +60,7 @@ from marimo._runtime.requests import (
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
+from marimo._server.lsp import LspServer
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
@@ -73,7 +71,6 @@ from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
-from marimo._tracer import server_tracer
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
@@ -81,7 +78,6 @@ from marimo._utils.distributor import (
     QueueDistributor,
 )
 from marimo._utils.file_watcher import FileWatcherManager
-from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
 
@@ -1125,86 +1121,6 @@ class SessionManager:
                 if session.connection_state() == ConnectionState.OPEN
             ]
         )
-
-
-class LspServer:
-    def __init__(self, port: int) -> None:
-        self.port = port
-        self.process: Optional[subprocess.Popen[bytes]] = None
-
-    @server_tracer.start_as_current_span("lsp_server.start")
-    def start(self) -> Optional[Alert]:
-        if self.process is not None:
-            LOGGER.debug("LSP server already started")
-            return None
-
-        binpath = shutil.which("node")
-        if binpath is None:
-            LOGGER.error("Node.js not found; cannot start LSP server.")
-            return Alert(
-                title="GitHub Copilot: Connection Error",
-                description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
-                variant="danger",
-            )
-
-        cmd = None
-        try:
-            LOGGER.debug("Starting LSP server at port %s...", self.port)
-            lsp_bin = os.path.join(
-                str(import_files("marimo").joinpath("_lsp")),
-                "index.js",
-            )
-
-            # Check if the LSP binary exists
-            if not os.path.exists(lsp_bin):
-                # Only debug since this may not exist in conda environments
-                LOGGER.debug("LSP binary not found at %s", lsp_bin)
-                return None
-
-            cmd = f"node {lsp_bin} --port {self.port}"
-            LOGGER.debug("... running command: %s", cmd)
-            self.process = subprocess.Popen(
-                cmd.split(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
-            LOGGER.debug(
-                "... node process return code (`None` means success): %s",
-                self.process.returncode,
-            )
-            LOGGER.debug("Started LSP server at port %s", self.port)
-        except Exception as e:
-            LOGGER.error(
-                "When starting language server (%s), got error: %s",
-                cmd,
-                e,
-            )
-            self.process = None
-
-        return None
-
-    def is_running(self) -> bool:
-        return self.process is not None
-
-    def stop(self) -> None:
-        if self.process is not None:
-            self.process.terminate()
-            self.process = None
-            LOGGER.debug("Stopped LSP server at port %s", self.port)
-        else:
-            LOGGER.debug("LSP server not running")
-
-
-class NoopLspServer(LspServer):
-    def __init__(self) -> None:
-        super().__init__(0)
-
-    def start(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        pass
 
 
 def send_message_to_consumer(

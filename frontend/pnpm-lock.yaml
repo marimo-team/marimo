@@ -7,6 +7,9 @@ settings:
 pnpmfileChecksum: eqzj7c6t3bs5v7xcjer2wfwkp4
 
 patchedDependencies:
+  codemirror-extension-inline-suggestion:
+    hash: khbxbgrsjmwb5ecklr5ujxzp5i
+    path: patches/codemirror-extension-inline-suggestion.patch
   react-plotly.js:
     hash: bpeex744nmt6722etqry6essaq
     path: patches/react-plotly.js.patch
@@ -99,6 +102,9 @@ importers:
       '@marimo-team/codemirror-ai':
         specifier: ^0.1.9
         version: 0.1.9(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
+      '@marimo-team/codemirror-languageserver':
+        specifier: ^1.13.5
+        version: 1.13.5(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
       '@marimo-team/marimo-api':
         specifier: file:../openapi
         version: file:../openapi
@@ -263,10 +269,7 @@ importers:
         version: 1.0.4(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       codemirror-extension-inline-suggestion:
         specifier: ^0.0.3
-        version: 0.0.3(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
-      codemirror-languageserver:
-        specifier: ^1.12.1
-        version: 1.12.1
+        version: 0.0.3(patch_hash=khbxbgrsjmwb5ecklr5ujxzp5i)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
       compassql:
         specifier: ^0.21.2
         version: 0.21.2(vega@5.32.0)
@@ -1539,6 +1542,12 @@ packages:
 
   '@marimo-team/codemirror-ai@0.1.9':
     resolution: {integrity: sha512-Ti6KzKfwvceHuSSUoWyoALawALq/ftNUaxvLIfzsU0vwtNa23Et95btAisGLBCPQ0YxBPEPSI3anYY/o7T4cMQ==}
+    peerDependencies:
+      '@codemirror/state': ^6
+      '@codemirror/view': ^6
+
+  '@marimo-team/codemirror-languageserver@1.13.5':
+    resolution: {integrity: sha512-rinzDRfL0dyjcdfOLHq0hh0nbzhtB8XZ3kkLx/MRekJyNnsSfGklSrGno9hXSNhegtUpcT3sIss4u4dvEwpxdg==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -4364,9 +4373,6 @@ packages:
 
   codemirror-lang-mermaid@0.5.0:
     resolution: {integrity: sha512-Taw/2gPCyNArQJCxIP/HSUif+3zrvD+6Ugt7KJZ2dUKou/8r3ZhcfG8krNTZfV2iu8AuGnymKuo7bLPFyqsh/A==}
-
-  codemirror-languageserver@1.12.1:
-    resolution: {integrity: sha512-B71XofYRsVsyUpkiWtdTcHIwVoEpws01PqHpkr/o5k4EET9kQEpRqDH/G+f+hQI4eZxwONOx8n5Dz2fsf02PrA==}
 
   codemirror@6.0.1:
     resolution: {integrity: sha512-J8j+nZ+CdWmIeFIGXEFbFPtpiYacFMDR8GlHK3IyHQJMCaVRfGx9NT+Hxivv1ckLWPvNdZqndbr/7lVhrf/Svg==}
@@ -10199,6 +10205,20 @@ snapshots:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
 
+  '@marimo-team/codemirror-languageserver@1.13.5(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/lint': 6.8.4
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.36.4
+      '@open-rpc/client-js': 1.8.1
+      marked: 15.0.7
+      vscode-languageserver-protocol: 3.17.5
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
+
   '@marimo-team/marimo-api@file:../openapi':
     dependencies:
       openapi-fetch: 0.9.7
@@ -13770,7 +13790,7 @@ snapshots:
 
   code-point-at@1.1.0: {}
 
-  codemirror-extension-inline-suggestion@0.0.3(@codemirror/state@6.5.2)(@codemirror/view@6.36.4):
+  codemirror-extension-inline-suggestion@0.0.3(patch_hash=khbxbgrsjmwb5ecklr5ujxzp5i)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4):
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
@@ -13780,20 +13800,6 @@ snapshots:
       '@codemirror/language': 6.10.8
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
-
-  codemirror-languageserver@1.12.1:
-    dependencies:
-      '@codemirror/autocomplete': 6.18.6
-      '@codemirror/lint': 6.8.4
-      '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.4
-      '@open-rpc/client-js': 1.8.1
-      marked: 15.0.7
-      vscode-languageserver-protocol: 3.17.5
-    transitivePeerDependencies:
-      - bufferutil
-      - encoding
-      - utf-8-validate
 
   codemirror@6.0.1:
     dependencies:

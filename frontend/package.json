@@ -42,6 +42,7 @@
     "@lezer/python": "^1.1.16",
     "@marimo-team/codemirror-ai": "^0.1.9",
     "@marimo-team/marimo-api": "file:../openapi",
+    "@marimo-team/codemirror-languageserver": "^1.13.5",
     "@marimo-team/react-slotz": "^0.1.8",
     "@open-rpc/client-js": "^1.8.1",
     "@paralleldrive/cuid2": "^2.2.2",
@@ -96,7 +97,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "codemirror-extension-inline-suggestion": "^0.0.3",
-    "codemirror-languageserver": "^1.12.1",
     "compassql": "^0.21.2",
     "cssnano": "^7.0.6",
     "date-fns": "^4.1.0",
@@ -241,7 +241,8 @@
   "packageManager": "pnpm@9.15.6",
   "pnpm": {
     "patchedDependencies": {
-      "react-plotly.js": "patches/react-plotly.js.patch"
+      "react-plotly.js": "patches/react-plotly.js.patch",
+      "codemirror-extension-inline-suggestion": "patches/codemirror-extension-inline-suggestion.patch"
     }
   }
 }

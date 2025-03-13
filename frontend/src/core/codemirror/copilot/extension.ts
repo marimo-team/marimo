@@ -1,5 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { EditorState, Extension, Text } from "@codemirror/state";
+import {
+  Compartment,
+  type EditorState,
+  type Extension,
+  type Text,
+} from "@codemirror/state";
 import {
   COPILOT_FILENAME,
   LANGUAGE_ID,
@@ -20,6 +25,8 @@ import type {
   CopilotGetCompletionsResult,
 } from "./types";
 import { Logger } from "@/utils/Logger";
+
+const copilotCompartment = new Compartment();
 
 export const copilotBundle = (config: CompletionConfig): Extension => {
   if (process.env.NODE_ENV === "test") {
@@ -86,8 +93,9 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   return [
     ...extensions,
-    // pop off last 2 elements of the array which are tooltip and autocompletion
-    copilotServer().slice(0, -2),
+    // grab the first 4 elements of the array is the LSP without hover/autocompletion
+    // place in own compartment so it doesn't interfere with other LSP
+    copilotCompartment.of(copilotServer().slice(0, 4)),
   ];
 };
 

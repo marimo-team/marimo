@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CompletionConfig } from "@/core/config/config-schema";
+import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { Facet } from "@codemirror/state";
 import type { CellId } from "@/core/cells/ids";
@@ -40,17 +40,26 @@ export const cellIdState = Facet.define<CellId, CellId>({
 });
 
 /**
+ * State for LSP config
+ */
+export const lspConfigState = Facet.define<LSPConfig, LSPConfig>({
+  combine: (values) => values[0],
+});
+
+/**
  * Extension for cell config
  */
 export function cellConfigExtension(
   completionConfig: CompletionConfig,
   hotkeys: HotkeyProvider,
   placeholderType: PlaceholderType,
+  lspConfig: LSPConfig,
 ) {
   return [
     // Store state
     completionConfigState.of(completionConfig),
     hotkeysProviderState.of(hotkeys),
     placeholderState.of(placeholderType),
+    lspConfigState.of(lspConfig),
   ];
 }

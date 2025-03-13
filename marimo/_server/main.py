@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from starlette.applications import Starlette
@@ -26,11 +27,18 @@ from marimo._server.api.status import (
     HTTPException as MarimoHTTPException,
 )
 from marimo._server.errors import handle_error
+from marimo._server.lsp import LspServer
 
 if TYPE_CHECKING:
     from starlette.types import Lifespan
 
 LOGGER = _loggers.marimo_logger()
+
+
+@dataclass
+class LspPorts:
+    pylsp: Optional[int]
+    copilot: Optional[int]
 
 
 # Create app
@@ -42,7 +50,7 @@ def create_starlette_app(
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
-    lsp_port: Optional[int] = None,
+    lsp_servers: Optional[list[LspServer]] = None,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 
@@ -81,8 +89,10 @@ def create_starlette_app(
         ]
     )
 
-    if lsp_port is not None:
-        final_middlewares.append(_create_lsp_proxy_middleware(lsp_port))
+    if lsp_servers is not None:
+        final_middlewares.extend(
+            _create_lsps_proxy_middleware(servers=lsp_servers)
+        )
 
     if middleware:
         final_middlewares.extend(middleware)
@@ -119,11 +129,21 @@ def _create_mpl_proxy_middleware() -> Middleware:
     )
 
 
-def _create_lsp_proxy_middleware(lsp_port: int) -> Middleware:
-    return Middleware(
-        ProxyMiddleware,
-        proxy_path="/lsp",
-        target_url=f"http://localhost:{lsp_port}",
-        # Remove the /lsp prefix
-        path_rewrite=lambda path: path.replace("/lsp", ""),
-    )
+def _create_lsps_proxy_middleware(
+    *, servers: list[LspServer]
+) -> list[Middleware]:
+    middlewares: list[Middleware] = []
+    for server in servers:
+        to_replace = "/lsp" if server.id == "copilot" else f"/lsp/{server.id}"
+        middlewares.append(
+            Middleware(
+                ProxyMiddleware,
+                proxy_path=f"/lsp/{server.id}",
+                target_url=f"http://localhost:{server.port}",
+                path_rewrite=lambda path: path.replace(
+                    to_replace,  # noqa: B023
+                    "",
+                ),
+            )
+        )
+    return middlewares

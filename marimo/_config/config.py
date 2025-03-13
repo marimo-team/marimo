@@ -252,6 +252,31 @@ class GoogleAiConfig(TypedDict, total=False):
 
 
 @dataclass
+class PythonLanguageServerConfig(TypedDict, total=False):
+    """Configuration options for Python Language Server."""
+
+    enabled: bool
+    enable_mypy: bool
+    enable_ruff: bool
+    enable_flake8: bool
+    enable_pydocstyle: bool
+    enable_pylint: bool
+    enable_pyflakes: bool
+
+
+@dataclass
+class LanguageServersConfig(TypedDict, total=False):
+    """Configuration options for language servers.
+
+    **Keys.**
+
+    - `pylsp`: the pylsp config
+    """
+
+    pylsp: PythonLanguageServerConfig
+
+
+@dataclass
 class SnippetsConfig(TypedDict):
     """Configuration for snippets.
 
@@ -294,6 +319,7 @@ class MarimoConfig(TypedDict):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
+    language_servers: NotRequired[LanguageServersConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
@@ -313,6 +339,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
+    language_servers: NotRequired[LanguageServersConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
@@ -351,6 +378,17 @@ DEFAULT_CONFIG: MarimoConfig = {
     "server": {
         "browser": "default",
         "follow_symlink": False,
+    },
+    "language_servers": {
+        "pylsp": {
+            "enabled": True,
+            "enable_mypy": True,
+            "enable_ruff": True,
+            "enable_flake8": False,
+            "enable_pydocstyle": False,
+            "enable_pylint": False,
+            "enable_pyflakes": False,
+        }
     },
     "snippets": {
         "custom_paths": [],

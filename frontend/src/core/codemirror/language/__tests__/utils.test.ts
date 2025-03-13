@@ -24,8 +24,9 @@ function createEditor(doc: string) {
             codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
-          placeholderType: "marimo-import",
           cellId: "cell1" as CellId,
+          placeholderType: "marimo-import",
+          lspConfig: {},
         }),
         cellConfigExtension(
           {
@@ -35,6 +36,11 @@ function createEditor(doc: string) {
           },
           new OverridingHotkeyProvider({}),
           "marimo-import",
+          {
+            pylsp: {
+              enabled: true,
+            },
+          },
         ),
       ],
     }),

@@ -77,6 +77,9 @@ marimo = "marimo._cli.cli:main"
 [project.urls]
 homepage = "https://github.com/marimo-team/marimo"
 
+[project.entry-points."pylsp"]
+marimo_plugin = "marimo._server.lsp"
+
 [project.optional-dependencies]
 sql = [
     "duckdb>=1.0.0",
@@ -95,8 +98,6 @@ recommended = [
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
-    "vegafusion>=2.0.0",        # Performant charting
-    "vl-convert-python>=1.0.0", # Required by vegafusion
 ]
 
 dev = [
@@ -186,7 +187,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "pyarrow-stubs>=17.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.38",
+    "sqlalchemy>=2.0.0",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
@@ -236,6 +237,7 @@ extra-dependencies = [
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
     "pytest-asyncio~=0.25.2",
+    "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",
@@ -501,6 +503,8 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 chat_sidebar = true
+# Very experimental!
+lsp = true
 
 [tool.marimo.display]
 dataframes = "rich"

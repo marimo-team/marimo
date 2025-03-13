@@ -190,6 +190,7 @@ class DependencyManager:
     groq = Dependency("groq")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
+    pylsp = Dependency("pylsp")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
 

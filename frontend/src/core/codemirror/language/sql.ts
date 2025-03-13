@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
+// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";

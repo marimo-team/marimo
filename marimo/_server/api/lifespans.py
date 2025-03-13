@@ -7,6 +7,7 @@ import socket
 import sys
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager
+from typing import Any, cast
 
 from starlette.applications import Starlette
 
@@ -73,9 +74,23 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     user_config = state.config_manager.get_config()
     session_mgr = state.session_manager
     run = session_mgr.mode == SessionMode.RUN
-    if not run and user_config["completion"]["copilot"]:
-        LOGGER.debug("GitHub Copilot is enabled")
-        await session_mgr.start_lsp_server()
+
+    if not run:
+        # Check if any language servers or copilot are enabled
+        copilot_enabled = user_config["completion"]["copilot"]
+        language_servers = user_config.get("language_servers", {})
+        language_servers_enabled = any(
+            cast(dict[str, Any], server).get("enabled", False)
+            for server in language_servers.values()
+        )
+
+        if copilot_enabled:
+            LOGGER.debug("GitHub Copilot is enabled")
+
+        if copilot_enabled or language_servers_enabled:
+            LOGGER.debug("Language Servers are enabled")
+            await session_mgr.start_lsp_server()
+
     yield
 
 

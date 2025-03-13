@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
-import { languageServerWithTransport } from "codemirror-languageserver";
+import { languageServerWithTransport } from "@marimo-team/codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
@@ -12,7 +12,7 @@ import { Logger } from "@/utils/Logger";
 import { toast } from "@/components/ui/use-toast";
 
 // Dummy file for the copilot language server
-export const COPILOT_FILENAME = "/marimo.py";
+export const COPILOT_FILENAME = "/__marimo_copilot__.py";
 export const LANGUAGE_ID = "copilot";
 const FILE_URI = `file://${COPILOT_FILENAME}`;
 

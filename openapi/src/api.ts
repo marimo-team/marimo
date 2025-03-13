@@ -2720,6 +2720,17 @@ export interface components {
         /** @enum {string} */
         preset: "default" | "vim";
       };
+      language_servers?: {
+        pylsp?: {
+          enable_flake8?: boolean;
+          enable_mypy?: boolean;
+          enable_pydocstyle?: boolean;
+          enable_pyflakes?: boolean;
+          enable_pylint?: boolean;
+          enable_ruff?: boolean;
+          enabled?: boolean;
+        };
+      };
       package_management: {
         /** @enum {string} */
         manager: "pip" | "rye" | "uv" | "poetry" | "pixi";
