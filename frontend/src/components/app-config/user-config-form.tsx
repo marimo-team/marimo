@@ -1117,6 +1117,31 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.toplevel_defs"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Library Save Format
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="toplevel-defs-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable saving in an experimental file format for marimo.
+                    This will expose functions that are defined in their own cell
+                    for function resuse and import by other programs.
+                  </FormDescription>{" "}
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

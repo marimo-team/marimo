@@ -17,6 +17,7 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.visitor import Name
+from marimo._config.manager import get_default_config_manager
 from marimo._types.ids import CellId_t
 
 INDENT = "    "
@@ -236,7 +237,6 @@ def serialize(
         return generate_unparsable_cell(
             code=status.code, config=status.cell_config, name=status.name
         )
-
     cell = status._cell
     assert cell is not None
     if not toplevel_fn:
@@ -267,8 +267,6 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
         for key in default_config:
             if updates[key] == default_config[key]:
                 updates.pop(key)
-        if config._toplevel_fn:
-            updates["_toplevel_fn"] = True
 
     kwargs = tuple(
         f"{key}={_format_arg(value)}" for key, value in updates.items()
@@ -310,7 +308,12 @@ def generate_filecontents(
     """Translates a sequences of codes (cells) to a Python file"""
     # Until an appropriate means of controlling top-level functions exists,
     # Let's keep it disabled by default.
-    toplevel_fn = config is not None and config._toplevel_fn
+    toplevel_fn = (
+        get_default_config_manager(current_path=None)
+        .get_config()
+        .get("experimental", {})
+        .get("toplevel_defs", False)
+    )
 
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):
