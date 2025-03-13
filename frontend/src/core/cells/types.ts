@@ -105,6 +105,8 @@ export interface CellRuntimeState {
   lastRunStartTimestamp: Seconds | null;
   /** debugger active */
   debuggerActive: boolean;
+  /** serialization message */
+  serialization?: string;
 }
 
 export type WithResponse<T> = T & {

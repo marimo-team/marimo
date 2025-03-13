@@ -44,18 +44,16 @@ def subtraction(a: "int", b: "int") -> "int":
     return a - b
 
 
-@app.cell
-def multiply(d):
-    # Comments inbetween
-    def multiply(a, b) -> int:
-        return a * b + d
-    return (multiply,)
+@app.function
+# Comments inbetween
+def multiply(a, b) -> int:
+    return a * b
 
 
 @app.cell
 def _():
     d = 13
-    return (d,)
+    return
 
 
 @app.function(hide_code=True)
@@ -74,7 +72,7 @@ def bad_divide_curry(x):
 
 
 @app.cell
-def _(multiply):
+def _():
     # Should be be a regular cell
     print(addition(21, 56))
     print(multiply(21, 56))

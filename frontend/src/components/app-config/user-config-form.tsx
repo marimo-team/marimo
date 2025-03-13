@@ -1137,7 +1137,7 @@ export const UserConfigForm: React.FC = () => {
                   <FormDescription>
                     Enable saving in an experimental file format for marimo.
                     This will expose functions that are defined in their own cell
-                    for function resuse and import by other programs.
+                    for function reuse and import by other programs.
                   </FormDescription>{" "}
                 </div>
               )}

@@ -500,27 +500,15 @@ def _render_toplevel_defs(
         # TODO: Actually needs to run full extractor on graph extraction.
 
         ancestors = runner.graph.ancestors(cell.cell_id)
+        # TODO: Technically, order does matter incase there is a type definition
+        # or decorator.
         path = [cell] + [runner.graph.cells[cid] for cid in ancestors]
         extractor = TopLevelExtraction.from_cells(path)
-        status = next(iter(extractor))
+        serialization = next(iter(extractor))
 
-        tree = ast.parse(cell.code)
-        docstring = ast.get_docstring(tree)
-        tree.body[:] = [ast.Expr(value=ast.Constant(value=docstring))]
-        formatted_output = formatting.try_format(
-            build_markdown(
-                parse_signature(cell.code),
-                parse_docstring(cell.code),
-                status.hint,
-            )
-        )
-
-        CellOp.broadcast_output(
-            channel=CellChannel.OUTPUT,
-            mimetype=formatted_output.mimetype,
-            data=formatted_output.data,
+        CellOp.broadcast_serialization(
+            serialization=serialization,
             cell_id=cell.cell_id,
-            status=None,
         )
 
 
