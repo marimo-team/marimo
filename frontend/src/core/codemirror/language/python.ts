@@ -32,6 +32,10 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { Paths } from "@/utils/paths";
+import type { CellId } from "@/core/cells/ids";
+import { cellActionsState } from "../cells/state";
+import { openFile } from "@/core/network/requests";
+import { Logger } from "@/utils/Logger";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -112,11 +116,9 @@ const lspClient = once((lspConfig: LSPConfig) => {
       autoClose: false,
     }),
     settings,
-  ) as unknown as LanguageServerClient;
+  );
 });
 
-import type { CellId } from "@/core/cells/ids";
-import { cellActionsState } from "../cells/state";
 /**
  * Language adapter for Python.
  */
@@ -143,30 +145,48 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     placeholderType: PlaceholderType,
     lspConfig: LSPConfig,
   ): Extension[] {
+    const getCompletionsExtension = () => {
+      if (getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled) {
+        const client = lspClient(lspConfig);
+        return languageServerWithTransport({
+          client: client as unknown as LanguageServerClient,
+          documentUri: CellDocumentUri.of(cellId),
+          transport: pylspTransport(),
+          rootUri: "file:///",
+          languageId: "python",
+          workspaceFolders: [],
+          allowHTMLContent: true,
+          onGoToDefinition: (result) => {
+            Logger.debug("onGoToDefinition", result);
+            if (client.documentUri === result.uri) {
+              // Local definition
+              return;
+            }
+
+            openFile({
+              path: result.uri.replace("file://", ""),
+            });
+          },
+        });
+      }
+
+      // Whether or not to require keypress to activate autocompletion (default
+      // keymap is Ctrl+Space)
+      return autocompletion({
+        activateOnTyping: completionConfig.activate_on_typing,
+        // The Cell component handles the blur event. `closeOnBlur` is too
+        // aggressive and doesn't let the user click into the completion info
+        // element (which contains the docstring/type --- users might want to
+        // copy paste from the docstring). The main issue is that the completion
+        // tooltip is not part of the editable DOM tree:
+        // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
+        closeOnBlur: false,
+        override: [completer],
+      });
+    };
+
     return [
-      getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled
-        ? languageServerWithTransport({
-            client: lspClient(lspConfig),
-            documentUri: CellDocumentUri.of(cellId),
-            transport: pylspTransport(),
-            rootUri: "file:///",
-            languageId: "python",
-            workspaceFolders: [],
-            allowHTMLContent: true,
-          })
-        : // Whether or not to require keypress to activate autocompletion (default
-          // keymap is Ctrl+Space)
-          autocompletion({
-            activateOnTyping: completionConfig.activate_on_typing,
-            // The Cell component handles the blur event. `closeOnBlur` is too
-            // aggressive and doesn't let the user click into the completion info
-            // element (which contains the docstring/type --- users might want to
-            // copy paste from the docstring). The main issue is that the completion
-            // tooltip is not part of the editable DOM tree:
-            // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
-            closeOnBlur: false,
-            override: [completer],
-          }),
+      getCompletionsExtension(),
       customPythonLanguageSupport(),
       placeholderType === "marimo-import"
         ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
