@@ -15,7 +15,7 @@ import {
   type DataTableSelection,
   INDEX_COLUMN_NAME,
   type FieldTypesWithExternalType,
-  shouldRenderDateInUTC,
+  extractTimezone,
 } from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
@@ -239,9 +239,7 @@ export function generateColumns<T>({
           // e.g. 2010-10-07 17:15:00
           const type =
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
-          const renderInUTC = shouldRenderDateInUTC(
-            column.columnDef.meta?.dtype,
-          );
+          const timezone = extractTimezone(column.columnDef.meta?.dtype);
           return (
             <div
               onClick={selectCell}
@@ -253,7 +251,7 @@ export function generateColumns<T>({
               )}
             >
               <DatePopover date={value} type={type}>
-                {exactDateTime(value, renderInUTC)}
+                {exactDateTime(value, timezone)}
               </DatePopover>
             </div>
           );

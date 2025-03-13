@@ -13,13 +13,11 @@ def _():
     df = pl.DataFrame(
         {
             "tz_utc": [datetime(2010, 10, 7, 5, 15, tzinfo=pytz.UTC)],
-            "tz_america": [
-                datetime(
-                    2010, 10, 7, 5, 15, tzinfo=pytz.timezone("America/New_York")
-                )
-            ],
-            "no_tz": [datetime(2010, 10, 7, 5, 15)],
+            "no_tz": [datetime(2010, 10, 8, 5, 15)],
         }
+    ).with_columns(
+        tz_america=pl.col("no_tz").dt.replace_time_zone("America/New_York"),
+        tz_asia=pl.col("no_tz").dt.replace_time_zone("Asia/Tokyo"),
     )
     return datetime, df, pl, pytz
 

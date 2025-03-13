@@ -39,12 +39,13 @@ export type DataTableSelection =
   | "multi-cell"
   | null;
 
-export function shouldRenderDateInUTC(dtype: string | undefined): boolean {
+export function extractTimezone(dtype: string | undefined): string | undefined {
   if (!dtype) {
-    return false;
+    return undefined;
   }
   // Check for datetime[X,Y] format
   // We do this for any timezone-aware datetime type
   // not just UTC (as this is what Polars does by default)
-  return /^datetime\[[^,]+,[^,]+]$/.test(dtype);
+  const match = /^datetime\[[^,]+,([^,]+)]$/.exec(dtype);
+  return match?.[1]?.trim();
 }

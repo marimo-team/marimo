@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { prettyDate, exactDateTime, timeAgo } from "../dates";
+import { prettyDate, exactDateTime, timeAgo, getShortTimeZone } from "../dates";
 
 describe("dates", () => {
   // Save original timezone
@@ -44,22 +44,36 @@ describe("dates", () => {
   describe("exactDateTime", () => {
     it("formats date without milliseconds", () => {
       const date = new Date("2023-05-15T12:00:00.000Z");
-      expect(exactDateTime(date, false)).toBe("2023-05-15 12:00:00");
+      expect(exactDateTime(date, undefined)).toBe("2023-05-15 12:00:00");
     });
 
     it("formats date with milliseconds", () => {
       const date = new Date("2023-05-15T12:00:00.123Z");
-      expect(exactDateTime(date, false)).toBe("2023-05-15 12:00:00.123");
+      expect(exactDateTime(date, undefined)).toBe("2023-05-15 12:00:00.123");
     });
 
     it("formats date in UTC when renderInUTC is true", () => {
       const date = new Date("2023-05-15T12:00:00.000Z");
-      expect(exactDateTime(date, true)).toBe("2023-05-15 12:00:00 UTC");
+      expect(exactDateTime(date, "UTC")).toBe("2023-05-15 12:00:00 UTC");
     });
 
     it("formats date with milliseconds in UTC when renderInUTC is true", () => {
       const date = new Date("2023-05-15T12:00:00.123Z");
-      expect(exactDateTime(date, true)).toBe("2023-05-15 12:00:00.123 UTC");
+      expect(exactDateTime(date, "UTC")).toBe("2023-05-15 12:00:00.123 UTC");
+    });
+
+    it("formats date in America/New_York timezone", () => {
+      const date = new Date("2023-05-15T12:00:00.000Z");
+      expect(exactDateTime(date, "America/New_York")).toBe(
+        "2023-05-15 08:00:00 EDT",
+      );
+    });
+
+    it("formats date with milliseconds in America/New_York timezone", () => {
+      const date = new Date("2023-05-15T12:00:00.123Z");
+      expect(exactDateTime(date, "America/New_York")).toBe(
+        "2023-05-15 08:00:00.123 EDT",
+      );
     });
   });
 
@@ -91,6 +105,16 @@ describe("dates", () => {
 
     it("handles errors gracefully", () => {
       expect(timeAgo("invalid-date")).toBe("Invalid Date at Invalid Date");
+    });
+  });
+
+  describe("getShortTimeZone", () => {
+    it("returns the short timezone", () => {
+      expect(getShortTimeZone("America/New_York")).toBeOneOf(["EDT", "EST"]);
+    });
+
+    it("handles errors gracefully", () => {
+      expect(getShortTimeZone("MarimoLand")).toBe("MarimoLand");
     });
   });
 });
