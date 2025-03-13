@@ -19,6 +19,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { SettingSubtitle } from "./common";
+import { isWasm } from "@/core/wasm/utils";
 
 interface Package {
   name: string;
@@ -63,7 +64,7 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
   },
   {
     id: "formatting",
-    packagesRequired: [{ name: "ruff" }],
+    packagesRequired: [isWasm() ? { name: "ruff" } : { name: "black" }],
     additionalPackageInstalls: [],
     description: "Formatting",
   },
