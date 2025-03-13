@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -14,6 +14,9 @@ from marimo._server.lsp import (
     CopilotLspServer,
     PyLspServer,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture
