@@ -39,6 +39,12 @@ from marimo._runtime.functions import Function
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import FileInfo
 
+from marimo._runtime.runtime import raw_cli_args
+import argparse
+
+# 'resolve' to overwrite existing arguments with same name when we re-run cells
+parser = argparse.ArgumentParser(conflict_handler='resolve')
+
 LOGGER = _loggers.marimo_logger()
 
 Numeric = Union[int, float]
@@ -101,7 +107,15 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        cli_name: str = "",
     ) -> None:
+        if cli_name:
+            print(cli_name)
+            parser.add_argument(f'--{cli_name}', type=float)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            print(parsed_args)
+            if parsed_args[cli_name] is not None:
+                value = parsed_args[cli_name]
         validate_range(min_value=start, max_value=stop)
         validate_between_range(value, min_value=start, max_value=stop)
         warn_js_safe_number(start, stop, value)

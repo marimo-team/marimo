@@ -14,13 +14,29 @@ def _():
 
 @app.cell
 def _(mo):
-    import argparse
+    b = mo.ui.number(cli_name="test")
+    a = mo.ui.number(1, 10, 1, cli_name="number")
+    c = mo.ui.number()
+    mo.hstack([a, b, c])
+    return a, b, c
 
-    p = argparse.ArgumentParser()
-    p.add_argument("--arg", nargs=3, type=int)
-    p.add_argument("-v", action="count")
-    print(p.parse_args(mo.raw_cli_args()))
-    return argparse, p
+
+@app.cell
+def _(a, b, c):
+    print(a.value, b.value, c.value)
+    return
+
+
+@app.cell
+def _(mo):
+    print(mo.ui._impl.input.parser.format_help())
+    return
+
+
+@app.cell
+def _(mo):
+    mo.ui._impl.input.parser.add_help
+    return
 
 
 if __name__ == "__main__":
