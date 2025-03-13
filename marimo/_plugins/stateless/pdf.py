@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import marimo._output.data.data as mo_data
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 @mddoc
 def pdf(
-    src: Union[str, io.IOBase],
+    src: Union[Path, str, io.IOBase],
     initial_page: Optional[int] = None,
     width: Optional[Union[int, str]] = "100%",
     height: Optional[Union[int, str]] = "70vh",  # arbitrary, but good default
@@ -28,18 +29,21 @@ def pdf(
 
     Example:
         ```python3
+        # from a URL
         mo.pdf(
             src="https://arxiv.org/pdf/2104.00282.pdf",
             width="100%",
             height="50vh",
         )
 
-        with open("paper.pdf", "rb") as file:
-            mo.pdf(src=file)
+        # from a local file
+        from pathlib import Path
+
+        mo.pdf(src=Path("paper.pdf"))
         ```
 
     Args:
-        src: the URL of the pdf or a file-like object
+        src: the URL of the pdf, a file-like object, or a pathlib.Path object
         initial_page: the page to open the pdf to.
             only works if `src` is a URL
         width: the width of the pdf
@@ -50,7 +54,13 @@ def pdf(
     Returns:
         `Html` object
     """
-    resolved_src = src if isinstance(src, str) else mo_data.pdf(src.read()).url
+    if isinstance(src, str):
+        resolved_src = src
+    elif isinstance(src, Path):
+        resolved_src = mo_data.pdf(src.read_bytes()).url
+    else:
+        resolved_src = mo_data.pdf(src.read()).url
+
     if initial_page is not None and isinstance(src, str):
         # FitV is "fit to vertical"
         resolved_src += f"#page={initial_page}&view=FitV"
