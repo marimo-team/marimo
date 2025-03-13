@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import base64
+import builtins
 import inspect
 import sys
 import threading
@@ -57,9 +58,11 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
+from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from types import TracebackType
 
     from marimo._messaging.ops import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
@@ -147,6 +150,40 @@ class _Namespace(Mapping[str, object]):
         from marimo._plugins.stateless.tree import tree
 
         return tree(self._dict)._mime_()
+
+
+class _SetupContext(SkipContext):
+    """
+    A context manager that controls imports from being executed in top level code.
+    See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
+    """
+
+    def __init__(self, cell: Cell):
+        super().__init__()
+        self._cell = cell
+
+    def trace(self, _frame: Any) -> None:
+        if self._cell.refs - set(builtins.__dict__.keys()):
+            self.skip()
+
+    def __exit__(
+        self,
+        exception: Optional[type[BaseException]],
+        instance: Optional[BaseException],
+        _tracebacktype: Optional[TracebackType],
+    ) -> Literal[False]:
+        # Must be a Literal[False], for linters.
+        # Whether to suppress a given exception.
+        self.teardown()
+
+        if exception is not None:
+            LOGGER.warning(
+                "The setup cell was unable to execute, your notebook may not "
+                "work as expected."
+            )
+            LOGGER.debug("Exception: %s", exception)
+            return True  # type: ignore
+        return False
 
 
 @dataclass
@@ -376,6 +413,28 @@ class App:
                 top_level=True,
             ),
         )
+
+    @property
+    def setup(self) -> _SetupContext:
+        """Provides a context manager to initialize the setup cell.
+
+        This block should only be utilized at the start of a marimo notebook.
+        It's used as following:
+
+        ```
+        with app.setup:
+            import my_libraries
+            from typing import Any
+
+            CONSTANT = "my constant"
+        ```
+        """
+        # Get the calling context to extract the location of the cell
+        frame = inspect.stack()[1].frame
+        cell = self._cell_manager.cell_context(
+            app=InternalApp(self), frame=frame
+        )
+        return _SetupContext(cell)
 
     def _unparsable_cell(
         self,

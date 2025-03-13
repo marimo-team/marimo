@@ -208,7 +208,7 @@ class TestScriptCache:
 
     @staticmethod
     def test_cache_same_line_fails() -> None:
-        from marimo._save.ast import BlockException
+        from marimo._ast.transformers import BlockException
 
         app = App()
         app._anonymous_file = True
@@ -231,7 +231,7 @@ class TestScriptCache:
 
     @staticmethod
     def test_cache_in_fn_fails() -> None:
-        from marimo._save.ast import BlockException
+        from marimo._ast.transformers import BlockException
 
         app = App()
         app._anonymous_file = True
