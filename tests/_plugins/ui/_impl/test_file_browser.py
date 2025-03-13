@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 from pathlib import Path
 
@@ -84,6 +85,9 @@ def test_path_method() -> None:
     assert fb.path(1) is None
 
 
+@pytest.mark.skipif(
+    sys.version_info <= (3, 11), reason="Only works with Python 3.12+"
+)
 def test_extended_path_class(tmp_path: Path) -> None:
     class CustomPath(Path):
         pass
