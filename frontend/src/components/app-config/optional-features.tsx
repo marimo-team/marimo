@@ -59,7 +59,7 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
     id: "fast-charts",
     packagesRequired: [{ name: "vegafusion" }, { name: "vl-convert-python" }],
     additionalPackageInstalls: [],
-    description: "Fast serverside charts",
+    description: "Fast server-side charts",
   },
   {
     id: "formatting",
@@ -139,12 +139,12 @@ export const OptionalFeatures: React.FC = () => {
                 <TableCell>
                   {isInstalled ? (
                     <div className="flex items-center">
-                      <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                      <CheckCircleIcon className="h-4 w-4 text-[var(--grass-10)] mr-2" />
                       <span>Installed</span>
                     </div>
                   ) : (
                     <div className="flex items-center">
-                      <XCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                      <XCircleIcon className="h-4 w-4 text-[var(--red-10)] mr-2" />
                       <InstallButton
                         packageSpecs={[
                           ...dep.packagesRequired,
