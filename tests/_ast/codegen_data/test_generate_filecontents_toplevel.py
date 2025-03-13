@@ -7,7 +7,7 @@
 import marimo
 
 __generated_with = "0.0.0"
-app = marimo.App(_toplevel_fn=True)
+app = marimo.App()
 
 with app.setup:
     import io

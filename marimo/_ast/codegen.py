@@ -304,6 +304,7 @@ def generate_filecontents(
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
     header_comments: Optional[str] = None,
+    _toplevel_fn=False,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
     # Until an appropriate means of controlling top-level functions exists,
@@ -313,7 +314,7 @@ def generate_filecontents(
         .get_config()
         .get("experimental", {})
         .get("toplevel_defs", False)
-    )
+    ) or _toplevel_fn
 
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):
