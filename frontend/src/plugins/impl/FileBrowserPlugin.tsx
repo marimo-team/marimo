@@ -50,14 +50,12 @@ interface Data {
  * @param path - File path
  * @param name - File name
  * @param is_directory - Whether file is a directory or not
- * @param is_marimo_file - Whether file is a marimo file or not
  */
 interface FileInfo {
   id: string;
   path: string;
   name: string;
   is_directory: boolean;
-  is_marimo_file: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -95,7 +93,6 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
               path: z.string(),
               name: z.string(),
               is_directory: z.boolean(),
-              is_marimo_file: z.boolean(),
             }),
           ),
         }),
@@ -228,7 +225,6 @@ export const FileBrowser = ({
       name: name,
       path: path,
       is_directory: isDirectory,
-      is_marimo_file: false,
     };
   }
 
@@ -292,7 +288,7 @@ export const FileBrowser = ({
   );
 
   for (const file of files) {
-    let filePath = pathBuilder.join(path, file.name);
+    let filePath = file.path;
 
     if (filePath.startsWith("//")) {
       filePath = filePath.slice(1) as FilePath;
@@ -363,12 +359,18 @@ export const FileBrowser = ({
   //
   // Assumes that path contains at least one delimiter, which is true
   // only if this is an absolute path.
-  const directories = path.split(delimiter).filter((x) => x !== "");
-  directories.push(path);
+  const protocolMatch = path.match(/^[A-Za-z]+:\/\//);
+  const protocol = protocolMatch ? protocolMatch[0] : "/";
+  const pathWithoutProtocol = protocol ? path.slice(protocol.length) : path;
+
+  const directories = pathWithoutProtocol
+    .split(delimiter)
+    .filter((x) => x !== "");
+  directories.push(pathWithoutProtocol);
 
   let parentDirectories = directories.map((dir, index) => {
     const dirList = directories.slice(0, index);
-    return `/${dirList.join(delimiter)}`;
+    return `${protocol}${dirList.join(delimiter)}`;
   });
 
   if (restrictNavigation) {
@@ -384,6 +386,7 @@ export const FileBrowser = ({
       : selectionMode === "directory"
         ? PluralWords.of("folder")
         : PluralWords.of("file");
+
   const renderHeader = () => {
     label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
     const labelText = <Label>{renderHTML({ html: label })}</Label>;
