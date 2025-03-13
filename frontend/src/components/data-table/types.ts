@@ -38,3 +38,14 @@ export type DataTableSelection =
   | "single-cell"
   | "multi-cell"
   | null;
+
+export function extractTimezone(dtype: string | undefined): string | undefined {
+  if (!dtype) {
+    return undefined;
+  }
+  // Check for datetime[X,Y] format
+  // We do this for any timezone-aware datetime type
+  // not just UTC (as this is what Polars does by default)
+  const match = /^datetime\[[^,]+,([^,]+)]$/.exec(dtype);
+  return match?.[1]?.trim();
+}
