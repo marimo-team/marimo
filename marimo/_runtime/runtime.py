@@ -1327,7 +1327,17 @@ class Kernel:
         # from the errors
         for e in module_not_found_errors:
             if isinstance(e, ManyModulesNotFoundError):
-                missing_packages.update(e.package_names)
+                # filter out packages that we already attempted to install
+                # to prevent an infinite loop
+                missing_packages.update(
+                    {
+                        package
+                        for package in e.package_names
+                        if not self.package_manager.attempted_to_install(
+                            package
+                        )
+                    }
+                )
             elif e.name is not None:
                 missing_modules.add(e.name)
 
