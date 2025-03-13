@@ -340,7 +340,7 @@ async def test_broadcast_missing_packages(
                     "No module named 'ibis'", name="ibis"
                 ),
                 "cell3": ManyModulesNotFoundError(
-                    package_names=["grouped_one", "grouped_two"],
+                    package_names=["grouped-one", "grouped-two"],
                     msg="Missing one and two",
                 ),
             }
