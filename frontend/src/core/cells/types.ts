@@ -106,7 +106,7 @@ export interface CellRuntimeState {
   /** debugger active */
   debuggerActive: boolean;
   /** serialization message */
-  serialization?: string;
+  serialization?: string | null;
 }
 
 export type WithResponse<T> = T & {
