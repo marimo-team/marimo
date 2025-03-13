@@ -25,7 +25,7 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
-from marimo._ast.toplevel import TopLevelType
+from marimo._ast.toplevel import TopLevelStatus, TopLevelType
 from marimo._data.models import (
     ColumnSummary,
     DataSourceConnection,
@@ -327,7 +327,7 @@ class CellOp(Op):
     @staticmethod
     def broadcast_serialization(
         cell_id: CellId_t,
-        serialization: TopLevelType,
+        serialization: TopLevelStatus,
         stream: Stream | None = None,
     ) -> None:
         status = (
