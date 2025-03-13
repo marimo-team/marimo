@@ -1,13 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import (
     Any,
-    Dict,
-    List,
     Optional,
-    Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -31,15 +28,17 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
     FieldTypes,
+    TableCell,
+    TableCoordinate,
     TableManager,
 )
 
 JsonTableData = Union[
     Sequence[Union[str, int, float, bool, MIME, None]],
     Sequence[JSONType],
-    List[JSONType],
-    Dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
-    Dict[str, JSONType],
+    list[JSONType],
+    dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
+    dict[str, JSONType],
 ]
 
 
@@ -105,12 +104,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ).to_json()
         return self._as_table_manager().to_json()
 
-    def select_rows(self, indices: List[int]) -> DefaultTableManager:
+    def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):
             # Column major data
             if self.is_column_oriented:
-                new_data: Dict[Any, Any] = {
-                    key: [cast(List[JSONType], value)[i] for i in indices]
+                new_data: dict[Any, Any] = {
+                    key: [cast(list[JSONType], value)[i] for i in indices]
                     for key, value in self.data.items()
                 }
                 return DefaultTableManager(new_data)
@@ -121,21 +120,74 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # Row major data
         return DefaultTableManager([self.data[i] for i in indices])
 
-    def select_columns(self, columns: List[str]) -> DefaultTableManager:
+    def select_columns(self, columns: list[str]) -> DefaultTableManager:
+        column_set = set(columns)
         # Column major data
         if isinstance(self.data, dict):
-            new_data: Dict[str, Any] = {
+            new_data: dict[str, Any] = {
                 key: value
                 for key, value in self.data.items()
-                if key in columns
+                if key in column_set
             }
             return DefaultTableManager(new_data)
         # Row major data
         return DefaultTableManager(
             [
-                {key: row[key] for key in columns}
+                {key: row[key] for key in column_set}
                 for row in self._normalize_data(self.data)
             ]
+        )
+
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        selected_cells: list[TableCell] = []
+        if (
+            self.is_column_oriented
+            and isinstance(self.data, dict)
+            and all(isinstance(v, list) for v in self.data.values())
+        ):
+            for row_id, column_name in cells:
+                column = self.data[column_name]
+                if isinstance(column, Sequence):
+                    selected_cells.append(
+                        TableCell(
+                            row=row_id,
+                            column=column_name,
+                            value=column[int(row_id)],
+                        )
+                    )
+        elif isinstance(self.data, dict):
+            rows_of_dict = list(self.data.items())
+            for row_id, column_name in cells:
+                value = (
+                    rows_of_dict[int(row_id)][0]
+                    if column_name == "key"
+                    else rows_of_dict[int(row_id)][1]
+                )
+                selected_cells.append(
+                    TableCell(row=row_id, column=column_name, value=value)
+                )
+        elif isinstance(self.data, list):
+            rows_of_list = self.data
+            for row_id, column_name in cells:
+                row_index = int(row_id)
+                if row_index < 0 or row_index > len(rows_of_list) - 1:
+                    continue
+
+                row = rows_of_list[row_index]
+                if isinstance(row, dict) and column_name in row:
+                    selected_cells.append(
+                        TableCell(
+                            row=row_id,
+                            column=column_name,
+                            value=row[column_name],
+                        )
+                    )
+
+        return selected_cells
+
+    def drop_columns(self, columns: list[str]) -> DefaultTableManager:
+        return self.select_columns(
+            list(set(self.get_column_names()) - set(columns))
         )
 
     def take(self, count: int, offset: int) -> DefaultTableManager:
@@ -150,7 +202,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
                     cast(
                         JsonTableData,
                         {
-                            key: cast(List[Any], value)[
+                            key: cast(list[Any], value)[
                                 offset : offset + count
                             ]
                             for key, value in self.data.items()
@@ -165,16 +217,16 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def search(self, query: str) -> DefaultTableManager:
         query = query.lower()
         if isinstance(self.data, dict) and self.is_column_oriented:
-            mask: List[bool] = [
+            mask: list[bool] = [
                 any(
-                    query in str(cast(List[Any], self.data[key])[row]).lower()
+                    query in str(cast(list[Any], self.data[key])[row]).lower()
                     for key in self.data.keys()
                 )
                 for row in range(self.get_num_rows() or 0)
             ]
             results = {
                 key: [
-                    cast(List[Any], value)[i]
+                    cast(list[Any], value)[i]
                     for i, match in enumerate(mask)
                     if match
                 ]
@@ -194,7 +246,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         del column_name
         return ("unknown", "object")
 
@@ -231,7 +283,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         if isinstance(self.data, dict):
             if self.is_column_oriented:
                 first = next(iter(self.data.values()), None)
-                return len(cast(List[Any], first))
+                return len(cast(list[Any], first))
             else:
                 return len(self.data)
         return len(self.data)
@@ -239,7 +291,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_num_columns(self) -> int:
         return len(self.data) if isinstance(self.data, dict) else 1
 
-    def get_column_names(self) -> List[str]:
+    def get_column_names(self) -> list[str]:
         if isinstance(self.data, dict):
             return list(self.data.keys())
         first = next(iter(self.data), None)
@@ -256,6 +308,36 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> DefaultTableManager:
+        if isinstance(self.data, dict) and self.is_column_oriented:
+            # For column-oriented data, extract the sort column and get sorted indices
+            sort_column = cast(list[Any], self.data[by])
+            try:
+                sorted_indices = sorted(
+                    range(len(sort_column)),
+                    key=lambda i: sort_column[i],
+                    reverse=descending,
+                )
+            except TypeError:
+                # Handle when values are not comparable
+                sorted_indices = sorted(
+                    range(len(sort_column)),
+                    key=lambda i: str(sort_column[i]),
+                    reverse=descending,
+                )
+            # Apply sorted indices to each column while maintaining column orientation
+            return DefaultTableManager(
+                cast(
+                    JsonTableData,
+                    {
+                        col: [
+                            cast(list[Any], values)[i] for i in sorted_indices
+                        ]
+                        for col, values in self.data.items()
+                    },
+                )
+            )
+
+        # For row-major data, continue with existing logic
         normalized = self._normalize_data(self.data)
         try:
             data = sorted(normalized, key=lambda x: x[by], reverse=descending)
@@ -312,10 +394,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
             # we're going to assume that data has the right shape, after
             # having checked just the first entry
-            casted = cast(List[Union[str, int, float, bool, MIME, None]], data)
+            casted = cast(list[Union[str, int, float, bool, MIME, None]], data)
             return [{"value": datum} for datum in casted]
         # Sequence of dicts
-        return cast(List[Dict[str, Any]], data)
+        return cast(list[dict[str, Any]], data)
 
 
 def _is_column_oriented(data: JsonTableData) -> bool:

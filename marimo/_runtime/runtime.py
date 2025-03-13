@@ -16,24 +16,28 @@ import time
 import traceback
 from copy import copy, deepcopy
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.errors import ImportStarError
+from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data.preview_column import (
-    get_column_preview_dataframe,
-    get_column_preview_for_sql,
+    get_column_preview_for_dataframe,
+    get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
+    ImportStarError as MarimoImportStarError,
     MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -49,6 +53,8 @@ from marimo._messaging.ops import (
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
+    SQLTableListPreview,
+    SQLTablePreview,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -108,6 +114,8 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
+    PreviewSQLTableRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -134,16 +142,19 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
+from marimo._sql.engines import SQLAlchemyEngine
+from marimo._sql.get_engines import get_engines_from_variables
+from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
+from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
-from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     import queue
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -324,11 +335,14 @@ def notebook_dir() -> pathlib.Path | None:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return None
+        # If we are not running in a notebook (e.g. exported to Jupyter),
+        # return the current working directory
+        return pathlib.Path().absolute()
 
     filename = ctx.filename
     if filename is not None:
         return pathlib.Path(filename).parent.absolute()
+
     return None
 
 
@@ -380,10 +394,7 @@ def notebook_location() -> pathlib.PurePath | None:
         return URLPath(str(path_location))
 
     else:
-        nb_dir = notebook_dir()
-        if nb_dir is not None:
-            return nb_dir
-        return None
+        return notebook_dir()
 
 
 @dataclasses.dataclass
@@ -448,6 +459,13 @@ class Kernel:
         # timestamp, to save the user from having to spam the interrupt button
         self.last_interrupt_timestamp: Optional[float] = None
 
+        # Apply pythonpath from config at initialization
+        pythonpath = user_config["runtime"].get("pythonpath")
+        if pythonpath:
+            for path in pythonpath:
+                if path not in sys.path:
+                    sys.path.insert(0, path)
+
         self._preparation_hooks = (
             preparation_hooks
             if preparation_hooks is not None
@@ -466,6 +484,14 @@ class Kernel:
         self._on_finish_hooks = (
             on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
         )
+
+        # Adds in a post_execution hook to run pytest immediately
+        if user_config.get("experimental", {}).get("reactive_tests", False):
+            from marimo._runtime.runner.hooks_post_execution import (
+                _attempt_pytest,
+            )
+
+            self._post_execution_hooks.append(_attempt_pytest)
 
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
@@ -532,8 +558,14 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
+        # (e.g. in pyodide). Set default to just inject an iframe of the
+        # expected page to output.
+        patches.patch_webbrowser()
+        # micropip only patched in non-pyodide environments.
         if not is_pyodide():
             patches.patch_micropip(self.globals)
+
         exec("import marimo as __marimo__", self.globals)
 
     def teardown(self) -> None:
@@ -706,7 +738,12 @@ class Kernel:
                         reload=False,
                     )
 
-    def _register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+    def _register_cell(
+        self,
+        cell_id: CellId_t,
+        cell: CellImpl,
+        stale: bool,
+    ) -> None:
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -717,6 +754,8 @@ class Kernel:
             self.cell_metadata[cell_id] = CellMetadata()
 
         self.graph.register_cell(cell_id, cell)
+        if stale:
+            self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
         module_reloader = self.module_reloader
@@ -748,7 +787,10 @@ class Kernel:
                 syntax_error[0] = syntax_error[0][
                     syntax_error[0].find("line") :
                 ]
-                error = MarimoSyntaxError(msg="\n".join(syntax_error))
+                if isinstance(e, ImportStarError):
+                    error = MarimoImportStarError(msg=str(e))
+                else:
+                    error = MarimoSyntaxError(msg="\n".join(syntax_error))
             else:
                 tmpio = io.StringIO()
                 traceback.print_exc(file=tmpio)
@@ -757,7 +799,11 @@ class Kernel:
         return cell, error
 
     def _try_registering_cell(
-        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
+        self,
+        cell_id: CellId_t,
+        code: str,
+        carried_imports: list[ImportData],
+        stale: bool,
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -769,12 +815,12 @@ class Kernel:
         cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
         if cell is not None:
-            self._register_cell(cell_id, cell)
+            self._register_cell(cell_id, cell, stale)
 
         return error
 
     def _maybe_register_cell(
-        self, cell_id: CellId_t, code: str
+        self, cell_id: CellId_t, code: str, stale: bool
     ) -> tuple[set[CellId_t], Optional[Error]]:
         """Register a cell (given by id, code) if not already registered.
 
@@ -816,7 +862,7 @@ class Kernel:
                 previous_children = self._deactivate_cell(cell_id)
 
             error = self._try_registering_cell(
-                cell_id, code, carried_imports=carried_imports
+                cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is not None and previous_cell is not None:
                 # The frontend keeps the cell around in the case of a
@@ -1006,6 +1052,7 @@ class Kernel:
         self,
         execution_requests: Sequence[ExecutionRequest],
         deletion_requests: Sequence[DeleteCellRequest],
+        cells_starting_stale: set[CellId_t] | None = None,
     ) -> set[CellId_t]:
         """Add and remove cells to/from the graph.
 
@@ -1031,6 +1078,9 @@ class Kernel:
         cells_with_errors_before_mutation = set(self.errors.keys())
         edges_before = deepcopy(self.graph.children)
         definitions_before = set(self.graph.definitions.keys())
+        cells_starting_stale = (
+            set() if cells_starting_stale is None else cells_starting_stale
+        )
 
         # The set of cells that were successfully registered
         registered_cell_ids: set[CellId_t] = set()
@@ -1045,7 +1095,7 @@ class Kernel:
         # Register and delete cells
         for er in execution_requests:
             old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
+                er.cell_id, er.code, stale=er.cell_id in cells_starting_stale
             )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
@@ -1261,38 +1311,52 @@ class Kernel:
         module_not_found_errors = [
             e
             for e in runner.exceptions.values()
-            if isinstance(e, ModuleNotFoundError)
+            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
         ]
-        if (
-            len(module_not_found_errors) > 0
-            and self.package_manager is not None
-        ):
-            # Grab missing modules from module registry and from module not found errors
-            missing_modules = self.module_registry.missing_modules() | set(
-                e.name for e in module_not_found_errors if e.name is not None
+
+        if len(module_not_found_errors) == 0:
+            return
+
+        if self.package_manager is None:
+            return
+
+        missing_modules: set[str] = set()
+        missing_packages: set[str] = set()
+
+        # Populate missing_modules and missing_packages
+        # from the errors
+        for e in module_not_found_errors:
+            if isinstance(e, ManyModulesNotFoundError):
+                missing_packages.update(e.package_names)
+            elif e.name is not None:
+                missing_modules.add(e.name)
+
+        # Grab missing modules from module registry and from module not found errors
+        missing_modules = (
+            self.module_registry.missing_modules() | missing_modules
+        )
+
+        # Convert modules to packages
+        for mod in missing_modules:
+            pkg = self.package_manager.module_to_package(mod)
+            # filter out packages that we already attempted to install
+            # to prevent an infinite loop
+            if not self.package_manager.attempted_to_install(pkg):
+                missing_packages.add(pkg)
+
+        if not missing_packages:
+            return
+
+        packages = list(sorted(missing_packages))
+        if self.package_manager.should_auto_install():
+            self._execute_install_missing_packages_callback(
+                self.package_manager.name, packages
             )
-
-            missing_packages = [
-                pkg
-                for mod in missing_modules
-                # filter out packages that we already attempted to install
-                # to prevent an infinite loop
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
-                )
-            ]
-
-            if missing_packages:
-                packages = list(sorted(missing_packages))
-                if self.package_manager.should_auto_install():
-                    self._execute_install_missing_packages_callback(
-                        self.package_manager.name, packages
-                    )
-                else:
-                    MissingPackageAlert(
-                        packages=packages,
-                        isolated=is_python_isolated(),
-                    ).broadcast()
+        else:
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
     def _propagate_kernel_errors(
         self,
@@ -1417,12 +1481,16 @@ class Kernel:
                 er.cell_id for er in execution_requests
             }
             graph = dataflow.DirectedGraph()
+            # cells in execution_requests that should be initially marked as
+            # stale:
+            cells_starting_stale: set[CellId_t] = set()
             for cid, er in list(
                 self._uninstantiated_execution_requests.items()
             ):
                 if cid in execution_requests_cell_ids:
                     # Running a previously uninstantiated cell; just remove
                     # it from our cache of uninstantiated execution requests.
+                    cells_starting_stale.add(cid)
                     del self._uninstantiated_execution_requests[cid]
                     continue
 
@@ -1450,6 +1518,7 @@ class Kernel:
                     previously_uninstantiated_requests.append(
                         self._uninstantiated_execution_requests[ancestor_cid]
                     )
+                    cells_starting_stale.add(ancestor_cid)
                     del self._uninstantiated_execution_requests[ancestor_cid]
 
             await self._run_cells(
@@ -1457,6 +1526,7 @@ class Kernel:
                     list(execution_requests)
                     + previously_uninstantiated_requests,
                     deletion_requests=[],
+                    cells_starting_stale=cells_starting_stale,
                 )
             )
 
@@ -1550,6 +1620,7 @@ class Kernel:
             self.mutate_graph(
                 list(self._uninstantiated_execution_requests.values()),
                 deletion_requests=[],
+                cells_starting_stale=cells_to_run,
             )
             self._uninstantiated_execution_requests = {}
 
@@ -1613,7 +1684,7 @@ class Kernel:
         # interacting with a view triggers reactive execution through the
         # source (parent).
         ctx = get_context()
-        resolved_requests: dict[str, Any] = {}
+        resolved_requests: dict[UIElementId, Any] = {}
         referring_cells: set[CellId_t] = set()
         ui_element_registry = ctx.ui_element_registry
         for object_id, value in request.ids_and_values:
@@ -1827,15 +1898,13 @@ class Kernel:
                         return status, response, found
             found = False
             error_title = "Function not found"
-            error_message = (
-                "Could not find function given request: %s" % request
-            )
+            error_message = f"Could not find function given request: {request}"
             debug(error_title, error_message)
         elif function.cell_id is None:
             found = True
             error_title = "Function not associated with cell"
             error_message = (
-                "Attempted to call a function without a cell id: %s" % request
+                f"Attempted to call a function without a cell id: {request}"
             )
             debug(error_title, error_message)
         else:
@@ -1869,17 +1938,11 @@ class Kernel:
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
-                    error_message = (
-                        "Function call (%s) was interrupted by the user"
-                        % request.function_name
-                    )
+                    error_message = f"Function call ({request.function_name}) was interrupted by the user"
                     debug(error_title, error_message)
                 except Exception as e:
                     error_title = "Exception"
-                    error_message = (
-                        "Function call (name: %s, args: %s) failed with exception %s"  # noqa: E501
-                        % (request.function_name, request.args, str(e))
-                    )
+                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
                     debug(error_title, error_message)
 
         # Couldn't call function, or function call failed
@@ -1995,7 +2058,7 @@ class Kernel:
         )
 
     def _update_script_metadata(
-        self, import_namespaces_to_add: List[str]
+        self, import_namespaces_to_add: list[str]
     ) -> None:
         filename = self.app_metadata.filename
 
@@ -2035,13 +2098,16 @@ class Kernel:
 
         try:
             if source_type == "duckdb":
-                column_preview = get_column_preview_for_sql(
-                    table_name=table_name,
+                column_preview = get_column_preview_for_duckdb(
+                    fully_qualified_table_name=request.fully_qualified_table_name
+                    or table_name,
                     column_name=column_name,
                 )
             elif source_type == "local":
                 dataset = self.globals[table_name]
-                column_preview = get_column_preview_dataframe(dataset, request)
+                column_preview = get_column_preview_for_dataframe(
+                    dataset, request
+                )
             elif source_type == "connection":
                 DataColumnPreview(
                     error="Column preview for connection data sources is not supported",
@@ -2073,6 +2139,97 @@ class Kernel:
                 table_name=table_name,
             ).broadcast()
         return
+
+    def _get_sql_engine(
+        self, engine_name: str
+    ) -> tuple[Optional[SQLEngine], Optional[str]]:
+        """Find the SQL engine associated with the given name. Returns the engine and the error message if any."""
+        engine_name = cast(VariableName, engine_name)
+
+        try:
+            # Should we find the existing engine instead?
+            engine_val = self.globals.get(engine_name)
+            engines = get_engines_from_variables([(engine_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                return None, "Engine not found"
+            return engines[0][1], None
+        except Exception as e:
+            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+            return None, str(e)
+
+    @kernel_tracer.start_as_current_span("preview_sql_table")
+    async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
+        """Get table details for an SQL table.
+
+        Args:
+            request (PreviewSQLTableRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+                - schema: Name of the schema
+                - table_name: Name of the table
+        """
+        engine_name = cast(VariableName, request.engine)
+        _database_name = request.database
+        schema_name = request.schema
+        table_name = request.table_name
+
+        engine, error = self._get_sql_engine(engine_name)
+        if error is not None or engine is None:
+            SQLTablePreview(
+                request_id=request.request_id, table=None, error=error
+            ).broadcast()
+            return
+
+        if isinstance(engine, SQLAlchemyEngine):
+            table = engine.get_table_details(table_name, schema_name)
+            if table is None:
+                LOGGER.warning("Table %s not found", table_name)
+            SQLTablePreview(
+                request_id=request.request_id, table=table
+            ).broadcast()
+        else:
+            SQLTablePreview(
+                request_id=request.request_id,
+                table=None,
+                error="Not an SQLAlchemyEngine",
+            ).broadcast()
+
+    @kernel_tracer.start_as_current_span("preview_sql_table_list")
+    async def preview_sql_table_list(
+        self, request: PreviewSQLTableListRequest
+    ) -> None:
+        """Get a list of tables from an SQL schema
+
+        Args:
+            request (PreviewSQLTableListRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+                - schema: Name of the schema
+        """
+        engine_name = cast(VariableName, request.engine)
+        _database_name = request.database
+        schema_name = request.schema
+
+        engine, error = self._get_sql_engine(engine_name)
+        if error is not None or engine is None:
+            SQLTableListPreview(
+                request_id=request.request_id, tables=[], error=error
+            ).broadcast()
+            return
+
+        if isinstance(engine, SQLAlchemyEngine):
+            table_list = engine.get_tables_in_schema(
+                schema=schema_name, include_table_details=False
+            )
+            SQLTableListPreview(
+                request_id=request.request_id, tables=table_list
+            ).broadcast()
+        else:
+            SQLTableListPreview(
+                request_id=request.request_id,
+                tables=[],
+                error="Not an SQLAlchemyEngine",
+            ).broadcast()
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
@@ -2125,6 +2282,10 @@ class Kernel:
                 CompletedRun().broadcast()
             elif isinstance(request, PreviewDatasetColumnRequest):
                 await self.preview_dataset_column(request)
+            elif isinstance(request, PreviewSQLTableRequest):
+                await self.preview_sql_table(request)
+            elif isinstance(request, PreviewSQLTableListRequest):
+                await self.preview_sql_table_list(request)
             elif isinstance(request, StopRequest):
                 return None
             else:

@@ -9,12 +9,12 @@
 
 import marimo
 
-__generated_with = "0.8.14"
+__generated_with = "0.11.5"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     import polars as pl
@@ -22,7 +22,7 @@ def __():
 
 
 @app.cell
-def __(pd):
+def _(pd):
     data = {
         "A": [True, True, True],
         "B": [False, False, False],
@@ -30,18 +30,25 @@ def __(pd):
     }
 
     pd.DataFrame(data)
-    return data,
+    return (data,)
 
 
 @app.cell
-def __(data, pl):
+def _(data, pl):
     pl.DataFrame(data)
     return
 
 
 @app.cell
-def __(data, mo):
-    mo.ui.table(data)
+def _(data, mo):
+    t = mo.ui.table(data)
+    t
+    return (t,)
+
+
+@app.cell
+def _(t):
+    t.value
     return
 
 

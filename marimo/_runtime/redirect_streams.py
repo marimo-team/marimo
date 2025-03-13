@@ -4,13 +4,16 @@ from __future__ import annotations
 import contextlib
 import os
 import sys
-from typing import Iterator
+from typing import TYPE_CHECKING
 
-from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import (
     redirect,
 )
 from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
+from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:

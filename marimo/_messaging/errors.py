@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional, Union
 
-from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import EdgeWithVar
+from marimo._types.ids import CellId_t
 
 
 @dataclass
@@ -25,6 +25,15 @@ class MultipleDefinitionError:
 
     def describe(self) -> str:
         return f"The variable '{self.name}' was defined by another cell"
+
+
+@dataclass
+class ImportStarError:
+    msg: str
+    type: Literal["import-star"] = "import-star"
+
+    def describe(self) -> str:
+        return self.msg
 
 
 @dataclass
@@ -154,6 +163,7 @@ def is_sensitive_error(error: Error) -> bool:
 Error = Union[
     CycleError,
     MultipleDefinitionError,
+    ImportStarError,
     DeleteNonlocalError,
     MarimoAncestorStoppedError,
     MarimoAncestorPreventedError,

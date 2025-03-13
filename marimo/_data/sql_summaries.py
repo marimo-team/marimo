@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnSummary, DataType
 from marimo._sql.utils import wrapped_sql
@@ -66,7 +64,7 @@ def get_sql_summary(
         FROM {table_name}
         """  # noqa: E501
 
-    stats_result: Tuple[int, ...] | None = wrapped_sql(
+    stats_result: tuple[int, ...] | None = wrapped_sql(
         stats_query, connection=None
     ).fetchone()
     if stats_result is None:
@@ -130,20 +128,38 @@ def get_sql_summary(
         return ColumnSummary(total=count, unique=unique, nulls=null_count)
 
 
-def get_column_type(table_name: str, column_name: str) -> DataType:
+def get_column_type(
+    fully_qualified_table_name: str, column_name: str
+) -> DataType:
     """
     Get the type of a column in a SQL table.
     """
 
     # First, get the column info and data type
-    column_info_query = f"""
-    SELECT data_type
-    FROM information_schema.columns
-    WHERE table_name = '{table_name}'
-    AND column_name = '{column_name}'
-    """
+    if "." in fully_qualified_table_name:
+        # Fully qualified table name
+        db_name, schema_name, table_name = _parse_fully_qualified_table_name(
+            fully_qualified_table_name
+        )
+        column_info_query = f"""
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_name = '{table_name}'
+        AND table_schema = '{schema_name}'
+        AND table_catalog = '{db_name}'
+        AND column_name = '{column_name}'
+        """
+    else:
+        # Simple table name
+        table_name = fully_qualified_table_name
+        column_info_query = f"""
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_name = '{table_name}'
+        AND column_name = '{column_name}'
+        """
 
-    column_info_result: Tuple[str] | None = wrapped_sql(
+    column_info_result: tuple[str] | None = wrapped_sql(
         column_info_query, connection=None
     ).fetchone()
     if column_info_result is None:
@@ -157,7 +173,7 @@ def get_column_type(table_name: str, column_name: str) -> DataType:
 
 def get_histogram_data(
     table_name: str, column_name: str
-) -> List[Tuple[str, int]]:
+) -> list[tuple[str, int]]:
     """
     Get the histogram data for a column in a SQL table.
     """
@@ -165,3 +181,17 @@ def get_histogram_data(
     # TODO: Implement this
 
     return []
+
+
+def _parse_fully_qualified_table_name(
+    fully_qualified_table_name: str,
+) -> tuple[str, str, str]:
+    """
+    Parse a fully qualified table name into a database name, schema name, and table name.
+    """
+    parts = fully_qualified_table_name.split(".")
+    if len(parts) != 3:
+        raise ValueError(
+            f"Invalid fully qualified table name: {fully_qualified_table_name}"
+        )
+    return parts[0], parts[1], parts[2]

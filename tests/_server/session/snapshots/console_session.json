@@ -1,0 +1,25 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.0.0"
+  },
+  "cells": [
+    {
+      "id": "cell1",
+      "code_hash": "e40f72b0677eb645c19220134c129a00",
+      "outputs": [],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "stdout message"
+        },
+        {
+          "type": "stream",
+          "name": "stderr",
+          "text": "stderr message"
+        }
+      ]
+    }
+  ]
+}

@@ -76,6 +76,16 @@ export default defineConfig({
       output: {
         // Remove hash from entry file name, so it's easier to import
         entryFileNames: "[name].js",
+        // Ensure CSS is output as style.css instead of frontend.css
+        assetFileNames: (assetInfo) => {
+          if (
+            assetInfo.names.includes("frontend.css") ||
+            assetInfo.names.includes("islands.css")
+          ) {
+            return "style.css";
+          }
+          return assetInfo.names[0];
+        },
       },
     },
   },

@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, Coroutine, Generic, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
-from marimo._ast.cell import CellId_t
 from marimo._loggers import marimo_logger
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 LOGGER = marimo_logger()
 
@@ -27,14 +30,14 @@ class EmptyArgs:
 @dataclasses.dataclass
 class Function(Generic[S, T]):
     name: str
-    arg_cls: Type[S]
+    arg_cls: type[S]
     function: Callable[[S], T] | Callable[[S], Coroutine[Any, Any, T]]
     cell_id: CellId_t | None
 
     def __init__(
         self,
         name: str,
-        arg_cls: Type[S],
+        arg_cls: type[S],
         function: Callable[[S], T],
     ) -> None:
         from marimo._runtime.context import (

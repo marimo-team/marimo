@@ -18,19 +18,19 @@ import {
   cellIdState,
   completionConfigState,
   hotkeysProviderState,
-  movementCallbacksState,
+  lspConfigState,
   placeholderState,
+  type PlaceholderType,
 } from "../config/extension";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { CodeMirrorSetupOpts } from "../cm";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
 import { LanguagePanelComponent } from "./panel";
-
+import type { CellId } from "@/core/cells/ids";
 /**
  * Compartment to keep track of the current language and extension.
  * When the language changes, the extensions inside the compartment will be updated.
@@ -40,7 +40,7 @@ const languageCompartment = new Compartment();
 /**
  * State effect to set the language adapter.
  */
-const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
+export const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
 
 /**
  * State field to keep track of the current language adapter.
@@ -117,8 +117,8 @@ function updateLanguageAdapterAndCode(
   const completionConfig = view.state.facet(completionConfigState);
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
   const placeholderType = view.state.facet(placeholderState);
-  const movementCallbacks = view.state.facet(movementCallbacksState);
   const cellId = view.state.facet(cellIdState);
+  const lspConfig = view.state.facet(lspConfigState);
   let cursor = view.state.selection.main.head;
 
   // If keepCodeAsIs is true, we just keep the original code
@@ -149,7 +149,7 @@ function updateLanguageAdapterAndCode(
           completionConfig,
           hotkeysProvider,
           placeholderType,
-          movementCallbacks,
+          lspConfig,
         ),
       ),
       // Clear history
@@ -157,12 +157,14 @@ function updateLanguageAdapterAndCode(
       // Let downstream extensions know that this is a formatting change
       formattingChangeEffect.of(true),
     ],
-    changes: {
-      from: 0,
-      to: view.state.doc.length,
-      insert: finalCode,
-    },
-    selection: EditorSelection.cursor(cursor),
+    changes: opts.keepCodeAsIs
+      ? undefined
+      : {
+          from: 0,
+          to: view.state.doc.length,
+          insert: finalCode,
+        },
+    selection: opts.keepCodeAsIs ? undefined : EditorSelection.cursor(cursor),
   });
 
   // Add history back
@@ -178,41 +180,17 @@ function createLanguagePanel(view: EditorView): Panel {
 /**
  * Set of extensions to enable adaptive language configuration.
  */
-export function adaptiveLanguageConfiguration(
-  opts: Pick<
-    CodeMirrorSetupOpts,
-    | "completionConfig"
-    | "hotkeys"
-    | "showPlaceholder"
-    | "enableAI"
-    | "cellMovementCallbacks"
-    | "cellId"
-    | "lspConfig"
-  >,
-) {
-  const {
-    showPlaceholder,
-    enableAI,
-    completionConfig,
-    hotkeys,
-    cellMovementCallbacks,
-    cellId,
-    lspConfig,
-  } = opts;
-
-  const placeholderType = showPlaceholder
-    ? "marimo-import"
-    : enableAI
-      ? "ai"
-      : "none";
+export function adaptiveLanguageConfiguration(opts: {
+  placeholderType: PlaceholderType;
+  completionConfig: CompletionConfig;
+  hotkeys: HotkeyProvider;
+  lspConfig: LSPConfig;
+  cellId: CellId;
+}) {
+  const { placeholderType, completionConfig, hotkeys, cellId, lspConfig } =
+    opts;
 
   return [
-    // Store state
-    completionConfigState.of(completionConfig),
-    hotkeysProviderState.of(hotkeys),
-    placeholderState.of(placeholderType),
-    movementCallbacksState.of(cellMovementCallbacks),
-    cellIdState.of(cellId),
     // Language adapter
     languageToggle(),
     languageCompartment.of(
@@ -221,7 +199,6 @@ export function adaptiveLanguageConfiguration(
         completionConfig,
         hotkeys,
         placeholderType,
-        cellMovementCallbacks,
         lspConfig,
       ),
     ),
@@ -234,6 +211,13 @@ export function adaptiveLanguageConfiguration(
  */
 export function getInitialLanguageAdapter(state: EditorView["state"]) {
   const doc = getEditorCodeAsPython({ state }).trim();
+  return languageAdapterFromCode(doc);
+}
+
+/**
+ * Get the best language adapter given the editor's current code.
+ */
+export function languageAdapterFromCode(doc: string): LanguageAdapter {
   // Empty doc defaults to Python
   if (!doc) {
     return LanguageAdapters.python();
@@ -284,7 +268,6 @@ export function reconfigureLanguageEffect(
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
-  const movementCallbacks = view.state.facet(movementCallbacksState);
   const cellId = view.state.facet(cellIdState);
   return languageCompartment.reconfigure(
     language.getExtension(
@@ -292,7 +275,6 @@ export function reconfigureLanguageEffect(
       completionConfig,
       hotkeysProvider,
       placeholderType,
-      movementCallbacks,
       lspConfig,
     ),
   );

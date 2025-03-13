@@ -42,6 +42,7 @@ You can customize the following settings:
 - [VIM keybindings](../editor_features/overview.md#vim-keybindings)
 - Formatting settings
 - [AI assistance](../editor_features/ai_completion.md)
+- [Snippets](snippets.md)
 - Experimental features
 
 ### User configuration file
@@ -78,7 +79,7 @@ For example, the following `pyproject.toml` file overrides the `autosave` settin
 in the user configuration:
 
 ```toml title="pyproject.toml"
-[tool.marimo.format]
+[tool.marimo.formatting]
 line_length = 120
 
 [tool.marimo.display]
@@ -87,14 +88,37 @@ default_width = "full"
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.
 
+!!! note "Overridden settings"
+    Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
+
+### Script Metadata Configuration
+
+You can also configure marimo settings directly in your notebook files using script metadata (PEP 723). Add a `script` block at the top of your notebook:
+
+```python
+# /// script
+# [tool.marimo.runtime]
+# auto_instantiate = false
+# on_cell_change = "lazy"
+# [tool.marimo.display]
+# theme = "dark"
+# cell_output = "below"
+# ///
+```
+
+!!! note "Configuration precedence"
+    Script metadata configuration has the highest precedence, followed by `pyproject.toml` configuration, then user configuration:
+
+    **Script config > pyproject.toml config > user config**
+
 ## Environment Variables
 
 marimo supports the following environment variables for advanced configuration:
 
 | Environment Variable          | Description                                                                                                                  | Default Value   |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `MARIMO_OUTPUT_MAX_BYTES`     | Maximum size of output that marimo will display. Outputs larger than this will be truncated.                                 | 5,000,000 (5MB) |
-| `MARIMO_STD_STREAM_MAX_BYTES` | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
+| `MARIMO_OUTPUT_MAX_BYTES` (deprecated, use `pyproject.toml`)     | Maximum size of output that marimo will display. Outputs larger than this will be truncated.                                 | 8,000,000 (8MB) |
+| `MARIMO_STD_STREAM_MAX_BYTES` (deprecated, use `pyproject.toml`) | Maximum size of standard stream (stdout/stderr) output that marimo will display. Outputs larger than this will be truncated. | 1,000,000 (1MB) |
 | `MARIMO_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
 | `MARIMO_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
 

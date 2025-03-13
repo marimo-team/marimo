@@ -217,6 +217,7 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
 - ☁️ [加入我们的云服务器候补名单](https://marimo.io/cloud)
 - ✏️ [在 github 上开始一个讨论话题](https://github.com/marimo-team/marimo/discussions)
 - 🐦 [在推特上关注我们](https://twitter.com/marimo_io)
+- 🎥 [在 YouTube 上关注我们](https://www.youtube.com/@marimo-team)
 - 🕴️ [在领英上关注我们](https://www.linkedin.com/company/marimo-io)
 
 ## 愿景 ✨

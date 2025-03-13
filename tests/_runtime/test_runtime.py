@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pathlib
 import sys
 import textwrap
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -23,9 +24,7 @@ from marimo._messaging.ops import CellOp
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.kernel_context import (
-    initialize_kernel_context,
-)
+from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
@@ -37,14 +36,15 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
 )
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
+from marimo._utils import parse_dataclass
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
 
 if TYPE_CHECKING:
-    import pathlib
+    from collections.abc import Sequence
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
@@ -403,6 +403,74 @@ class TestExecution:
         assert k.globals["y"] == 1
         assert k.globals["z"] == 2
         assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_run_all(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
+                    er2 := ExecutionRequest(cell_id="1", code="y=x+1"),
+                    er3 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run([er1, er2, er3])
+        assert k.globals["y"] == 1
+        assert k.globals["z"] == 2
+        assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_set_not_stale(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Tests that cells are set to not stale before they start running."""
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run([er1])
+        cell_ops = [
+            parse_dataclass.parse_raw(msg[1], CellOp)
+            for msg in k.stream.messages
+            if msg[0] == "cell-op"
+        ]
+        er1_set_not_stale_before_run = False
+        for op in cell_ops:
+            if op.cell_id == er1.cell_id and op.status == "running":
+                break
+            if (
+                op.cell_id == er1.cell_id
+                and op.stale_inputs is not None
+                and not op.stale_inputs
+            ):
+                er1_set_not_stale_before_run = True
+        assert er1_set_not_stale_before_run
 
     async def test_instantiate_autorun_false_delete_cells(
         self, any_kernel: Kernel
@@ -1158,6 +1226,58 @@ class TestExecution:
         finally:
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
+
+    async def test_sys_path_updated_with_exec_req(
+        self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
+    ) -> None:
+        custom_path = pathlib.Path("some") / "path"
+        filename = tmp_path / "notebook.py"
+
+        try:
+            k = Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config={
+                    **DEFAULT_CONFIG,
+                    "runtime": {
+                        **DEFAULT_CONFIG["runtime"],
+                        "pythonpath": [str(custom_path)],
+                    },
+                },
+                app_metadata=AppMetadata(
+                    query_params={}, filename=str(filename), cli_args={}
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+            initialize_kernel_context(
+                kernel=k,
+                stream=k.stream,
+                stdout=k.stdout,
+                stderr=k.stderr,
+                virtual_files_supported=True,
+                mode=SessionMode.EDIT,
+            )
+
+            # Verify the path was added using exec_req
+            await k.run(
+                [
+                    exec_req.get("import sys"),
+                    exec_req.get("paths = list(sys.path)"),
+                ]
+            )
+
+            assert str(custom_path) in k.globals["paths"]
+            assert str(filename.parent) in k.globals["paths"]
+        finally:
+            teardown_context()
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+            if str(custom_path) in sys.path:
+                sys.path.remove(str(custom_path))
 
     async def test_set_config_before_registering_cell(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -2802,6 +2922,30 @@ class TestErrorHandling:
             assert len(errors) == 1
             assert errors[0].type == "internal"
             assert errors[0].msg.startswith("An internal error occurred: ")
+
+
+def test_notebook_dir_in_non_notebook_mode() -> None:
+    assert notebook_dir() == pathlib.Path().absolute()
+    assert notebook_location() == pathlib.Path().absolute()
+
+
+async def test_future_annotations_not_inherited(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+        class A: pass
+        def foo() -> A:
+            ...
+        anno = foo.__annotations__
+        """
+            )
+        ]
+    )
+    assert not k.errors
+    assert k.globals["A"] == k.globals["anno"]["return"]
 
 
 def _parse_error_output(cell_op: CellOp) -> list[Error]:

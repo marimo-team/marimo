@@ -15,19 +15,22 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from marimo import _loggers
 from marimo._ast.cell import (
     Cell,
-    CellId_t,
     CellImpl,
     ImportWorkspace,
     SourcePosition,
 )
+from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.transformers import ContainedExtractWithBlock
+from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
-from marimo._utils.variables import is_local
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from types import FrameType
 
 
 def code_key(code: str) -> int:
@@ -38,7 +41,7 @@ def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
     """Parse cell id from filename."""
     matches = re.findall(r"__marimo__cell_(.*?)_", filename)
     if matches:
-        return str(matches[0])
+        return CellId_t(matches[0])
     return None
 
 
@@ -46,6 +49,43 @@ def get_filename(cell_id: CellId_t, suffix: str = "") -> str:
     """Get a temporary Python filename that encodes the cell id in it."""
     basename = f"__marimo__cell_{cell_id}_"
     return os.path.join(get_tmpdir(), basename + suffix + ".py")
+
+
+def ends_with_semicolon(code: str) -> bool:
+    """Returns True if the cell's code ends with a semicolon, ignoring whitespace and comments.
+
+    Args:
+        code: The cell's source code
+    Returns:
+        bool: True if the last non-comment line ends with a semicolon
+    """
+    # Tokenize to check for semicolon
+    tokens = tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
+    for token in reversed(list(tokens)):
+        if token.type in (
+            token_types.ENDMARKER,
+            token_types.NEWLINE,
+            token_types.NL,
+            token_types.COMMENT,
+        ):
+            continue
+        return token.string == ";"
+    return False
+
+
+def contains_only_tests(tree: ast.Module) -> bool:
+    """Returns True if the module contains only test functions."""
+    scope = tree.body
+    for node in scope:
+        if isinstance(node, ast.Return):
+            return True
+        if not isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            return False
+        if not node.name.lower().startswith("test"):
+            return False
+    return bool(scope)
 
 
 def cache(filename: str, code: str) -> None:
@@ -74,23 +114,23 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
             continue
 
         if "lineno" in child._attributes:
-            child.lineno = getattr(child, "lineno", 0) + line_offset
+            child.lineno = getattr(child, "lineno", 0) + line_offset  # type: ignore[attr-defined]
 
         if "col_offset" in child._attributes:
-            child.col_offset = getattr(child, "col_offset", 0) + col_offset
+            child.col_offset = getattr(child, "col_offset", 0) + col_offset  # type: ignore[attr-defined]
 
         if (
             "end_lineno" in child._attributes
             and (end_lineno := getattr(child, "end_lineno", 0)) is not None
         ):
-            child.end_lineno = end_lineno + line_offset
+            child.end_lineno = end_lineno + line_offset  # type: ignore[attr-defined]
 
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0))
             is not None
         ):
-            child.end_col_offset = end_col_offset + col_offset
+            child.end_col_offset = end_col_offset + col_offset  # type: ignore[attr-defined]
     return node
 
 
@@ -111,6 +151,8 @@ def compile_cell(
         code,
         "<unknown>",
         mode="exec",
+        # don't inherit compiler flags, in particular future annotations
+        dont_inherit=True,
         flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
     )
     if not module.body:
@@ -130,6 +172,7 @@ def compile_cell(
             cell_id=cell_id,
         )
 
+    is_test = contains_only_tests(module)
     is_import_block = all(
         isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
     )
@@ -139,9 +182,11 @@ def compile_cell(
 
     expr: ast.Expression
     final_expr = module.body[-1]
-    if isinstance(final_expr, ast.Expr):
+    # Use final expression if it exists doesn't end in a
+    # semicolon. Evaluates expression to "None" otherwise.
+    if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
         expr = ast.Expression(module.body.pop().value)
-        expr.lineno = final_expr.lineno
+        expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)
         const.col_offset = final_expr.end_col_offset
@@ -149,10 +194,10 @@ def compile_cell(
         expr = ast.Expression(const)
         # use code over body since lineno corresponds to source
         const.lineno = len(code.splitlines()) + 1
-        expr.lineno = const.lineno
+        expr.lineno = const.lineno  # type: ignore[attr-defined]
     # Creating an expression clears source info, so it needs to be set back
-    expr.col_offset = final_expr.end_col_offset
-    expr.end_col_offset = final_expr.end_col_offset
+    expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
+    expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
     filename: str
     if source_position:
@@ -168,7 +213,7 @@ def compile_cell(
         cache(filename, code)
 
     # pytest assertion rewriting, gives more context for assertion failures.
-    if test_rewrite:
+    if is_test or test_rewrite:
         # pytest is not required, so fail gracefully if needed
         try:
             from _pytest.assertion.rewrite import (  # type: ignore
@@ -183,8 +228,12 @@ def compile_cell(
             )
 
     flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
-    body = compile(module, filename, mode="exec", flags=flags)
-    last_expr = compile(expr, filename, mode="eval", flags=flags)
+    body = compile(
+        module, filename, mode="exec", dont_inherit=True, flags=flags
+    )
+    last_expr = compile(
+        expr, filename, mode="eval", dont_inherit=True, flags=flags
+    )
 
     nonlocals = {name for name in v.defs if not is_local(name)}
     temporaries = v.defs - nonlocals
@@ -226,6 +275,122 @@ def compile_cell(
         body=body,
         last_expr=last_expr,
         cell_id=cell_id,
+        _test=is_test,
+    )
+
+
+def get_source_position(
+    f: Callable[..., Any], lineno: int, col_offset: int
+) -> Optional[SourcePosition]:
+    # Fallback won't capture embedded scripts
+    is_script = f.__globals__["__name__"] == "__main__"
+    # TODO: spec is None for markdown notebooks, which is fine for now
+    if module := inspect.getmodule(f):
+        spec = module.__spec__
+        is_script = spec is None or spec.name != "marimo_app"
+
+    if not is_script:
+        return None
+
+    return SourcePosition(
+        filename=f.__code__.co_filename,
+        lineno=lineno,
+        col_offset=col_offset,
+    )
+
+
+def context_cell_factory(
+    cell_id: CellId_t,
+    frame: FrameType,
+    anonymous_file: bool = False,
+) -> Cell:
+    # Frame is from the initiating context block.
+    _, lnum = inspect.getsourcelines(frame)
+    source = inspect.getsource(frame)
+    lines = source.split("\n")
+
+    entry_line = frame.f_lineno
+    # Offset needed when called from within a function (e.g. for tests)
+    if lnum > 0:
+        entry_line += 1 - lnum
+
+    _, with_block = ContainedExtractWithBlock(entry_line).visit(
+        ast.parse(textwrap.dedent(source)).body  # type: ignore[arg-type]
+    )
+
+    start_node = with_block.body[0]
+    end_node = with_block.body[-1]
+    col_offset = start_node.col_offset
+    cell_code = textwrap.dedent(
+        "\n".join(lines[entry_line : end_node.end_lineno + 1])
+    ).rstrip()
+
+    source_position = None
+    if not anonymous_file:
+        source_position = SourcePosition(
+            filename=frame.f_code.co_filename,
+            lineno=start_node.lineno - 1,
+            col_offset=col_offset,
+        )
+
+    return Cell(
+        _name=SETUP_CELL_NAME,
+        _cell=compile_cell(
+            cell_code,
+            cell_id=cell_id,
+            source_position=source_position,
+            test_rewrite=False,
+        ),
+    )
+
+
+def toplevel_cell_factory(
+    f: Callable[..., Any],
+    cell_id: CellId_t,
+    anonymous_file: bool = False,
+    test_rewrite: bool = False,
+) -> Cell:
+    """Creates a cell containing a function.
+
+    NB: Unlike cell_factory, this utilizes the function itself as the cell
+    definition. As such, signature and return type are important.
+    """
+    code, lnum = inspect.getsourcelines(f)
+    function_code = textwrap.dedent("".join(code))
+
+    # We need to scrub through the initial decorator. Since we don't care about
+    # indentation etc, easiest just to use AST.
+
+    tree = ast.parse(function_code, type_comments=True)
+    try:
+        decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
+        # NB. We don't unparse from the AST because it strips comments.
+        cell_code = textwrap.dedent(
+            "".join(code[decorator.end_lineno :])
+        ).strip()
+    except (IndexError, AttributeError) as e:
+        raise ValueError(
+            "Unexpected usage (expected decorated function)"
+        ) from e
+
+    source_position = None
+    if not anonymous_file:
+        source_position = get_source_position(
+            f,
+            lnum + decorator.end_lineno - 1,  # Scrub the decorator
+            0,
+        )
+
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
+    return Cell(
+        _name=f.__name__,
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )
 
 
@@ -309,11 +474,17 @@ def cell_factory(
     # last statement of the function body, so we use the ast, which lets us
     # easily find the last statement of the function body;
     tree = ast.parse(function_code)
-    return_node = (
-        tree.body[0].body[-1]  # type: ignore
-        if isinstance(tree.body[0].body[-1], ast.Return)  # type: ignore
-        else None
-    )
+    return_node: Optional[ast.Return]
+    first_stmt = tree.body[0]
+    # Handle case where first statement does not have a body
+    if not hasattr(first_stmt, "body"):
+        return_node = None
+    else:
+        return_node = (
+            first_stmt.body[-1]  # type: ignore
+            if isinstance(first_stmt.body[-1], ast.Return)  # type: ignore
+            else None
+        )
 
     end_line, return_offset = (
         (return_node.lineno - 1, return_node.col_offset)
@@ -338,31 +509,20 @@ def cell_factory(
             cell_code += "\n" + lines[end_line][:return_offset]
 
     # anonymous file is required for deterministic testing.
+    source_position = None
     if not anonymous_file:
-        # Fallback won't capture embedded scripts
-        is_script = f.__globals__["__name__"] == "__main__"
-        # TODO: spec is None for markdown notebooks, which is fine for now
-        if module := inspect.getmodule(f):
-            spec = module.__spec__
-            is_script = spec is None or spec.name != "marimo_app"
-    else:
-        is_script = False
-    source_position = (
-        SourcePosition(
-            filename=f.__code__.co_filename,
-            lineno=lnum + start_line - 1,
-            col_offset=col_offset,
+        source_position = get_source_position(
+            f, lnum + start_line - 1, col_offset
         )
-        if is_script
-        else None
-    )
 
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
     return Cell(
         _name=f.__name__,
-        _cell=compile_cell(
-            cell_code,
-            cell_id=cell_id,
-            source_position=source_position,
-            test_rewrite=test_rewrite,
-        ),
+        _cell=cell,
+        _test_allowed=cell._test or f.__name__.startswith("test_"),
     )

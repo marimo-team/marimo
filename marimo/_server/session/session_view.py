@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional
 
-from marimo._ast.cell import CellId_t
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
@@ -27,7 +26,32 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
+from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
+from marimo._types.ids import CellId_t
+from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
+
+ExportType = Literal["html", "md", "ipynb", "session"]
+
+
+@dataclass
+class AutoExportState:
+    html: bool = False
+    md: bool = False
+    ipynb: bool = False
+    session: bool = False
+
+    def mark_all_stale(self) -> None:
+        self.html = False
+        self.md = False
+        self.ipynb = False
+        self.session = False
+
+    def is_stale(self, export_type: ExportType) -> bool:
+        return not getattr(self, export_type)
+
+    def mark_exported(self, export_type: ExportType) -> None:
+        setattr(self, export_type, True)
 
 
 class SessionView:
@@ -60,9 +84,7 @@ class SessionView:
         self.stale_code: Optional[UpdateCellCodes] = None
 
         # Auto-saving
-        self.has_auto_exported_html = False
-        self.has_auto_exported_md = False
-        self.has_auto_exported_ipynb = False
+        self.auto_export_state = AutoExportState()
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
@@ -115,6 +137,7 @@ class SessionView:
 
     def add_operation(self, operation: MessageOperation) -> None:
         self._touch()
+        self.auto_export_state.mark_all_stale()
 
         """Add an operation to the session view."""
 
@@ -162,9 +185,13 @@ class SessionView:
             self.datasets = Datasets(tables=list(next_tables.values()))
 
             # Remove any data source connections that are no longer in scope.
+            # Keep the default duckdb connection if it exists
             next_connections: dict[str, DataSourceConnection] = {}
             for connection in self.data_connectors.connections:
-                if connection.name in variable_names:
+                if (
+                    connection.name in variable_names
+                    or connection.name == INTERNAL_DUCKDB_ENGINE
+                ):
                     next_connections[connection.name] = connection
             self.data_connectors = DataSourceConnections(
                 connections=list(next_connections.values())
@@ -274,18 +301,22 @@ class SessionView:
         return all_ops
 
     def mark_auto_export_html(self) -> None:
-        self.has_auto_exported_html = True
+        self.auto_export_state.mark_exported("html")
 
     def mark_auto_export_md(self) -> None:
-        self.has_auto_exported_md = True
+        self.auto_export_state.mark_exported("md")
 
     def mark_auto_export_ipynb(self) -> None:
-        self.has_auto_exported_ipynb = True
+        self.auto_export_state.mark_exported("ipynb")
+
+    def mark_auto_export_session(self) -> None:
+        self.auto_export_state.mark_exported("session")
+
+    def needs_export(self, export_type: ExportType) -> bool:
+        return self.auto_export_state.is_stale(export_type)
 
     def _touch(self) -> None:
-        self.has_auto_exported_html = False
-        self.has_auto_exported_md = False
-        self.has_auto_exported_ipynb = False
+        self.auto_export_state.mark_all_stale()
 
 
 def merge_cell_operation(
@@ -317,9 +348,3 @@ def merge_cell_operation(
         next_.output = previous.output
 
     return next_
-
-
-def as_list(value: Union[Any, Optional[Any], list[Any]]) -> list[Any]:
-    if value is None:
-        return []
-    return value if isinstance(value, list) else [value]

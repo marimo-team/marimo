@@ -2,17 +2,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
-from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from marimo import _loggers
 from marimo._server.api.auth import (
     RANDOM_SECRET,
+    CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
     on_auth_error,
 )
@@ -46,13 +46,13 @@ def create_starlette_app(
     *,
     base_url: str,
     host: Optional[str] = None,
-    middleware: Optional[List[Middleware]] = None,
+    middleware: Optional[list[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
-    lsp_servers: Optional[List[LspServer]] = None,
+    lsp_servers: Optional[list[LspServer]] = None,
 ) -> Starlette:
-    final_middlewares: List[Middleware] = []
+    final_middlewares: list[Middleware] = []
 
     if allow_origins is None:
         allow_origins = ("localhost", "127.0.0.1") + (
@@ -73,7 +73,7 @@ def create_starlette_app(
         [
             Middleware(OpenTelemetryMiddleware),
             Middleware(
-                AuthenticationMiddleware,
+                CustomAuthenticationMiddleware,
                 backend=AuthBackend(should_authenticate=enable_auth),
                 on_error=on_auth_error,
             ),
@@ -130,9 +130,9 @@ def _create_mpl_proxy_middleware() -> Middleware:
 
 
 def _create_lsps_proxy_middleware(
-    *, servers: List[LspServer]
-) -> List[Middleware]:
-    middlewares: List[Middleware] = []
+    *, servers: list[LspServer]
+) -> list[Middleware]:
+    middlewares: list[Middleware] = []
     for server in servers:
         to_replace = "/lsp" if server.id == "copilot" else f"/lsp/{server.id}"
         middlewares.append(

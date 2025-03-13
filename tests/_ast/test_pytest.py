@@ -8,13 +8,57 @@ app = marimo.App()
 
 
 @app.cell
+async def _(pytest, x, y, Z):
+    @pytest.mark.xfail(
+        reason=("To ensure this doesn't just eval."),
+        raises=AssertionError,
+        strict=True,
+    )
+    def test_independence():
+        assert x + y == 0
+
+    def test_another_dependent_cell():
+        assert x + y == Z
+
+    class TestClass:
+        @pytest.mark.xfail(
+            reason=("To ensure this doesn't just eval."),
+            raises=AssertionError,
+            strict=True,
+        )
+        def test_method(self):
+            assert x + y == 0
+
+        @staticmethod
+        @pytest.mark.xfail(
+            reason=("To ensure this doesn't just eval."),
+            raises=AssertionError,
+            strict=True,
+        )
+        def test_static_method() -> None:
+            assert x + y == 0
+
+        def test_normal(self):
+            assert x + y == Z
+
+        @staticmethod
+        def test_static() -> None:
+            assert x + y == Z
+
+    async def test_async_cell():
+        assert True
+
+
+@app.cell
 def imports():
     import marimo as mo
 
     # Suffixed with _fixture should have corresponding definitions in conftest.py
     mo_fixture = None
 
-    return mo, mo_fixture
+    import pytest
+
+    return mo, mo_fixture, pytest
 
 
 @app.cell
@@ -25,6 +69,21 @@ def test_cell_is_invoked():
 @app.cell
 async def test_async_cell():
     assert True
+
+
+@app.function
+def test_top_level_function():
+    assert True
+
+
+@pytest.mark.xfail(
+    reason=("To ensure this doesn't just eval as a cell defining a function."),
+    raises=AssertionError,
+    strict=True,
+)
+@app.function
+def test_top_level_function_fails():
+    raise AssertionError("Function called")
 
 
 @app.cell
@@ -84,9 +143,7 @@ def test_cell_args_resolved_by_name(mo):  # noqa: ARG001
 
 
 @app.cell
-def test_cell_assert_rewritten():
-    import pytest
-
+def test_cell_assert_rewritten(pytest):
     a = 1
     b = 2
 
@@ -96,3 +153,11 @@ def test_cell_assert_rewritten():
     # Check expansion works. Without rewrite, this just produces
     # "AssertionError", without showing the expanded expression.
     assert "assert (1 + 2) == (1 * 2)" in str(exc_info.value)
+
+
+@app.cell
+def cell_with_multiple_deps():
+    x = 1
+    y = 2
+    Z = 3
+    return x, y, Z

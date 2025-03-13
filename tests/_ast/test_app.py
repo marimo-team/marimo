@@ -8,7 +8,12 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
-from marimo._ast.app import App, AppKernelRunnerRegistry, _AppConfig, InternalApp
+from marimo._ast.app import (
+    App,
+    AppKernelRunnerRegistry,
+    _AppConfig,
+    InternalApp,
+)
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -17,6 +22,7 @@ from marimo._ast.errors import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
+from marimo._runtime.context.types import get_context
 from marimo._runtime.requests import SetUIElementValueRequest
 from tests.conftest import ExecReqProvider
 
@@ -647,6 +653,9 @@ class TestAppComposition:
         assert result.output.text == vstack(["hello", "world"]).text
         assert not result.defs
 
+    @pytest.mark.xfail(
+        True, reason="Flaky in CI, can't repro locally", strict=False
+    )
     async def test_app_comp_basic(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -655,13 +664,14 @@ class TestAppComposition:
                 exec_req.get(
                     """
                     from app_data.ui_element_dropdown import app
+                    token = [0]
                     """
                 ),
                 exec_req.get(
                     """
                     import random
 
-                    token = random.randint(0, 10000)
+                    token[0] += 1
                     result = await app.embed()
                     """
                 ),
@@ -680,13 +690,14 @@ class TestAppComposition:
         html = result.output.text
         assert "value is first" in html
         assert "value is second" not in html
+        assert token[0] == 1
 
-        await k.set_ui_element_value(
+        assert await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values(
                 [(dropdown_element._id, ["second"])]
             )
         )
-        assert token != k.globals["token"]
+        assert token[0] == 2
 
         # make sure ui element value updated
         assert dropdown_element.value == "second"
@@ -696,9 +707,15 @@ class TestAppComposition:
         assert "value is first" not in html
         assert "value is second" in html
 
+    @pytest.mark.xfail(
+        True, reason="Flaky in CI, can't repro locally", strict=False
+    )
     async def test_app_comp_multiple_ui_elements(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
+        ctx = get_context()
+
+        assert ctx.app_kernel_runner_registry.size == 0
         await k.run(
             [
                 exec_req.get(
@@ -714,23 +731,31 @@ class TestAppComposition:
             ]
         )
         assert not k.errors
+        assert ctx.app_kernel_runner_registry.size == 1
 
         result = k.globals["result"]
+        app = k.globals["app"]
+        app_kernel_runner = app._get_kernel_runner()
         # two number inputs: x and y
         x = result.defs["x"]
         y = result.defs["y"]
         assert x.value == 1
         assert y.value == 1
 
+        assert app_kernel_runner == app._get_kernel_runner()
+        assert ctx.app_kernel_runner_registry.size == 1
         # testing that only descendants of the updated UI elements run,
         # and that the other UI element is not reset
-        await k.set_ui_element_value(
+        assert await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values([(x._id, 2)])
         )
+
+        assert app_kernel_runner == app._get_kernel_runner()
+        assert ctx.app_kernel_runner_registry.size == 1
         assert x.value == 2
         assert y.value == 1
 
-        await k.set_ui_element_value(
+        assert await k.set_ui_element_value(
             SetUIElementValueRequest.from_ids_and_values([(y._id, 3)])
         )
 

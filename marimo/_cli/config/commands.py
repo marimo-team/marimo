@@ -104,6 +104,10 @@ def describe() -> None:
                             "  " * indent_level,
                         )
                     )
+                elif indent_level == 0:
+                    output.append(f"[{green(key)}]")
+                    output.append(muted(f"# {type_hint}"))
+                    output.append("")
                 else:
                     output.append(
                         indent(

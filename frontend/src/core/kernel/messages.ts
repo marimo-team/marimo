@@ -16,6 +16,9 @@ export const DATA_TYPES = [
 export type Banner = OperationMessageData<"banner">;
 export type DataTableColumn = schemas["DataTableColumn"];
 export type DataTable = schemas["DataTable"];
+export type Database = schemas["Database"];
+export type DatabaseSchema = schemas["Schema"];
+export type DataSourceConnection = schemas["DataSourceConnection"];
 export type OutputChannel = schemas["CellChannel"];
 export type MarimoError = schemas["Error"];
 export type OutputMessage = schemas["CellOutput"];
@@ -27,6 +30,9 @@ export type FunctionCallResultMessage =
 export type PackageInstallationStatus =
   schemas["InstallingPackageAlert"]["packages"];
 export type DataColumnPreview = OperationMessageData<"data-column-preview">;
+export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
+export type SQLTableListPreview =
+  OperationMessageData<"sql-table-list-preview">;
 
 export type OperationMessageType = schemas["MessageOperation"]["name"];
 export type OperationMessage = {

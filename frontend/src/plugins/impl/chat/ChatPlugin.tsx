@@ -8,12 +8,16 @@ import type { ChatMessage, SendMessageRequest } from "./types";
 import { Arrays } from "@/utils/arrays";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-type PluginFunctions = {
-  get_chat_history: () => Promise<{ messages: ChatMessage[] }>;
+export type PluginFunctions = {
+  get_chat_history: (req: {}) => Promise<{ messages: ChatMessage[] }>;
+  delete_chat_history: (req: {}) => Promise<null>;
+  delete_chat_message: (req: { index: number }) => Promise<null>;
   send_prompt: (req: SendMessageRequest) => Promise<string>;
 };
 
-export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
+export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
+  "marimo-chatbot",
+)
   .withData(
     z.object({
       prompts: z.array(z.string()).default(Arrays.EMPTY),
@@ -41,6 +45,10 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
         ),
       }),
     ),
+    delete_chat_history: rpc.input(z.object({})).output(z.null()),
+    delete_chat_message: rpc
+      .input(z.object({ index: z.number() }))
+      .output(z.null()),
     send_prompt: rpc
       .input(
         z.object({
@@ -79,9 +87,12 @@ export const ChatPlugin = createPlugin<ChatMessage[]>("marimo-chatbot")
         maxHeight={props.data.maxHeight}
         allowAttachments={props.data.allowAttachments}
         config={props.data.config}
-        sendPrompt={props.functions.send_prompt}
-        value={props.value || Arrays.EMPTY}
-        setValue={props.setValue}
+        get_chat_history={props.functions.get_chat_history}
+        delete_chat_history={props.functions.delete_chat_history}
+        delete_chat_message={props.functions.delete_chat_message}
+        send_prompt={props.functions.send_prompt}
+        value={props.value?.messages || Arrays.EMPTY}
+        setValue={(messages) => props.setValue({ messages })}
       />
     </TooltipProvider>
   ));

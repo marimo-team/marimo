@@ -2,13 +2,8 @@
 from __future__ import annotations
 
 import abc
-from typing import (
-    Any,
-    Generic,
-    Optional,
-    Tuple,
-    TypeVar,
-)
+from dataclasses import dataclass
+from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
@@ -19,7 +14,25 @@ T = TypeVar("T")
 
 ColumnName = str
 FieldType = DataType
-FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
+FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
+
+
+class TableCoordinate(NamedTuple):
+    row_id: Union[int, str]
+    column_name: str
+
+
+@dataclass
+class TableCell:
+    row: Union[int, str]
+    column: str
+    value: Any | None
+
+    def __getitem__(self, key: str) -> Any:
+        """Allow dictionary-style access to cell values."""
+        if key not in ["row", "column", "value"]:
+            raise KeyError(f"Invalid key: {key}")
+        return getattr(self, key)
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -64,46 +77,57 @@ class TableManager(abc.ABC, Generic[T]):
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
     ) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def supports_filters(self) -> bool:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
-        raise NotImplementedError
+        pass
+
+    def to_arrow_ipc(self) -> bytes:
+        raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
     def to_json(self) -> bytes:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
+
+    @abc.abstractmethod
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        pass
+
+    @abc.abstractmethod
+    def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        pass
 
     @abc.abstractmethod
     def get_row_headers(self) -> list[str]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
-        raise NotImplementedError
+    ) -> tuple[FieldType, ExternalDataType]:
+        pass
 
     def get_field_types(self) -> FieldTypes:
         return [
@@ -113,42 +137,42 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def search(self, query: str) -> TableManager[Any]:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     @abc.abstractmethod
     def is_type(value: Any) -> bool:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_summary(self, column: str) -> ColumnSummary:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # This can be expensive to compute,
         # so we allow optionals
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_num_columns(self) -> int:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_column_names(self) -> list[str]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def get_sample_values(self, column: str) -> list[Any]:
-        raise NotImplementedError
+        pass
 
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
@@ -162,9 +186,9 @@ class TableManagerFactory(abc.ABC):
     @staticmethod
     @abc.abstractmethod
     def package_name() -> str:
-        raise NotImplementedError
+        pass
 
     @staticmethod
     @abc.abstractmethod
     def create() -> type[TableManager[Any]]:
-        raise NotImplementedError
+        pass

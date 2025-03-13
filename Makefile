@@ -72,11 +72,12 @@ py-test:
 	cd marimo && typos && cd - && hatch run +py=3.12 test-optional:test
 
 .PHONY: py-snapshots
-# update html snapshots
+# update snapshots
 py-snapshots:
 	hatch run +py=3.12 test:test \
 		tests/_server/templates/test_templates.py \
-		tests/_server/api/endpoints/test_export.py
+		tests/_server/api/endpoints/test_export.py \
+		tests/test_api.py
 
 .PHONY: install-all
 # install everything; takes a long time due to editable install

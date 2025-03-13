@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from functools import cached_property
-from typing import Any, Optional, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
@@ -13,9 +13,12 @@ from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
+from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    TableCell,
+    TableCoordinate,
     TableManager,
 )
 from marimo._utils.narwhals_utils import (
@@ -88,10 +91,41 @@ class NarwhalsTableManager(
 
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
         df = self.as_frame()
+        # Prefer the index column for selections
+        if INDEX_COLUMN_NAME in df.columns:
+            # Drop the index column before returning
+            return self.with_new_data(
+                df.filter(nw.col(INDEX_COLUMN_NAME).is_in(indices))
+            )
         return self.with_new_data(df[indices])
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.select(columns))
+
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        df = self.as_frame()
+        if INDEX_COLUMN_NAME in df.columns:
+            selection: list[TableCell] = []
+            for row, col in cells:
+                filtered: nw.DataFrame[Any] = df.filter(
+                    nw.col(INDEX_COLUMN_NAME) == int(row)
+                )
+                if filtered.is_empty():
+                    continue
+
+                selection.append(
+                    TableCell(row, col, filtered.get_column(col)[0])
+                )
+
+            return selection
+        else:
+            return [
+                TableCell(row, col, df.item(row=int(row), column=col))
+                for row, col in cells
+            ]
+
+    def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        return self.with_new_data(self.data.drop(columns, strict=False))
 
     def get_row_headers(
         self,
@@ -108,7 +142,7 @@ class NarwhalsTableManager(
 
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         dtype = self.nw_schema[column_name]
         dtype_string = str(dtype)
         if is_narwhals_string_type(dtype):
@@ -138,6 +172,8 @@ class NarwhalsTableManager(
 
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
+            if column == INDEX_COLUMN_NAME:
+                continue
             if dtype == nw.String:
                 expressions.append(nw.col(column).str.contains(f"(?i){query}"))
             elif dtype == nw.List(nw.String):
@@ -280,10 +316,13 @@ class NarwhalsTableManager(
             return None
 
     def get_num_columns(self) -> int:
-        return len(self.nw_schema.names())
+        return len(self.get_column_names())
 
     def get_column_names(self) -> list[str]:
-        return self.nw_schema.names()
+        column_names = self.nw_schema.names()
+        if INDEX_COLUMN_NAME in column_names:
+            column_names.remove(INDEX_COLUMN_NAME)
+        return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
         try:

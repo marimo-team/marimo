@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Callable, Coroutine, Final, Union
+from typing import TYPE_CHECKING, Callable, Final, Union
 
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import EmptyArgs, Function
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 
 @dataclass

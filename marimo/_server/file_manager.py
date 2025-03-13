@@ -4,7 +4,8 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -22,15 +23,18 @@ from marimo._server.models.models import (
     SaveNotebookRequest,
 )
 from marimo._server.utils import canonicalize_filename
+from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
 
 class AppFileManager:
     def __init__(
-        self, filename: Optional[str], default_width: WidthType | None = None
+        self,
+        filename: Optional[Union[str, Path]],
+        default_width: WidthType | None = None,
     ) -> None:
-        self.filename = filename
+        self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
         self.app = self._load_app(self.path)
 
@@ -40,11 +44,27 @@ class AppFileManager:
         manager.app = app
         return manager
 
-    def reload(self) -> None:
-        """Reload the app from the file."""
+    def reload(self) -> set[CellId_t]:
+        """
+        Reload the app from the file.
+
+        Return any new cell IDs that were added or code that was changed.
+        """
         prev_cell_manager = self.app.cell_manager
         self.app = self._load_app(self.path)
         self.app.cell_manager.sort_cell_ids_by_similarity(prev_cell_manager)
+
+        # Return the changes cell IDs
+        prev_cell_ids = set(prev_cell_manager.cell_ids())
+        changed_cell_ids: set[CellId_t] = set()
+        for cell_id in self.app.cell_manager.cell_ids():
+            if cell_id not in prev_cell_ids:
+                changed_cell_ids.add(cell_id)
+            new_code = self.app.cell_manager.get_cell_code(cell_id)
+            prev_code = prev_cell_manager.get_cell_code(cell_id)
+            if new_code != prev_code:
+                changed_cell_ids.add(cell_id)
+        return changed_cell_ids
 
     def _is_same_path(self, filename: str) -> bool:
         if self.filename is None:
@@ -55,7 +75,7 @@ class AppFileManager:
         if os.path.exists(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(filename),
+                detail=f"File {filename} already exists",
             )
 
     def _assert_path_is_the_same(self, filename: str) -> None:
@@ -78,25 +98,25 @@ class AppFileManager:
     ) -> None:
         self._create_parent_directories(filename)
         try:
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(contents)
+            Path(filename).write_text(contents, encoding="utf-8")
         except Exception as err:
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail="Failed to save file {0}".format(filename),
+                detail=f"Failed to save file {filename}",
             ) from err
 
     def _rename_file(self, new_filename: str) -> None:
         assert self.filename is not None
         self._create_parent_directories(new_filename)
         try:
-            os.rename(self.filename, new_filename)
+            # Use pathlib.Path for cross-platform path handling
+            src_path = pathlib.Path(self.filename)
+            dst_path = pathlib.Path(new_filename)
+            src_path.rename(dst_path)
         except Exception as err:
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail="Failed to rename from {0} to {1}".format(
-                    self.filename, new_filename
-                ),
+                detail=f"Failed to rename from {self.filename} to {new_filename}",
             ) from err
 
     def _save_file(
@@ -173,7 +193,7 @@ class AppFileManager:
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
-        if self._is_named() and self.filename is not None:
+        if self.is_notebook_named and self.filename is not None:
             # Force a save after rename in case filetype changed.
             need_save = self.filename[-3:] != new_filename[-3:]
             self._rename_file(new_filename)
@@ -222,7 +242,7 @@ class AppFileManager:
         except AttributeError:
             return None
 
-    def save_app_config(self, config: Dict[str, Any]) -> str:
+    def save_app_config(self, config: dict[str, Any]) -> str:
         """Save the app configuration."""
         # Update the file with the latest app config
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
@@ -257,7 +277,7 @@ class AppFileManager:
             configs=configs,
         )
 
-        if self._is_named() and not self._is_same_path(filename):
+        if self.is_notebook_named and not self._is_same_path(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Save handler cannot rename files.",
@@ -303,7 +323,9 @@ class AppFileManager:
     def _is_unnamed(self) -> bool:
         return self.filename is None
 
-    def _is_named(self) -> bool:
+    @property
+    def is_notebook_named(self) -> bool:
+        """Whether the notebook has a name."""
         return self.filename is not None
 
     def read_file(self) -> str:
@@ -313,23 +335,20 @@ class AppFileManager:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Cannot read code from an unnamed notebook",
             )
-        with open(self.filename, "r", encoding="utf-8") as f:
-            contents = f.read().strip()
-        return contents
+        return Path(self.filename).read_text(encoding="utf-8")
 
 
 def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
     if not css_file or not filename:
         return None
 
-    app_dir = os.path.dirname(filename)
-    filepath = os.path.join(app_dir, css_file)
-    if not os.path.exists(filepath):
+    app_dir = Path(filename).parent
+    filepath = app_dir / css_file
+    if not filepath.exists():
         LOGGER.error("CSS file %s does not exist", css_file)
         return None
     try:
-        with open(filepath) as f:
-            return f.read()
+        return filepath.read_text(encoding="utf-8")
     except OSError as e:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
@@ -345,14 +364,13 @@ def read_html_head_file(
     if not html_head_file or not filename:
         return None
 
-    app_dir = os.path.dirname(filename)
-    filepath = os.path.join(app_dir, html_head_file)
-    if not os.path.exists(filepath):
+    app_dir = Path(filename).parent
+    filepath = app_dir / html_head_file
+    if not filepath.exists():
         LOGGER.error("HTML head file %s does not exist", html_head_file)
         return None
     try:
-        with open(filepath) as f:
-            return f.read()
+        return filepath.read_text(encoding="utf-8")
     except OSError as e:
         LOGGER.warning(
             "Failed to open HTML head file %s for reading: %s",

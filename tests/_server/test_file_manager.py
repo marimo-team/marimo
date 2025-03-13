@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,6 +13,10 @@ from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveNotebookRequest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from pathlib import Path
 
 save_request = SaveNotebookRequest(
     cell_ids=["1"],
@@ -31,7 +36,7 @@ def app_file_manager() -> Generator[AppFileManager, None, None]:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
-        """
+        b"""
 import marimo
 __generated_with = "0.0.1"
 app = marimo.App()
@@ -42,7 +47,7 @@ def __():
     return mo,
 if __name__ == "__main__":
     app.run()
-""".encode()
+"""
     )
 
     temp_file.close()
@@ -129,7 +134,7 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     initial_filename = app_file_manager.filename
     assert initial_filename
     assert initial_filename.endswith(".py")
-    with open(initial_filename, "r") as f:
+    with open(initial_filename) as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
         assert "marimo-version" not in contents
@@ -137,7 +142,7 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     next_filename = app_file_manager.filename
     assert next_filename
     assert next_filename.endswith(".md")
-    with open(next_filename, "r") as f:
+    with open(next_filename) as f:
         contents = f.read()
         assert "marimo-version" in contents
         assert "app = marimo.App()" not in contents
@@ -147,7 +152,7 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "app_config.py"
     try:
         app_file_manager.save_app_config({})
-        with open(app_file_manager.filename, "r", encoding="utf-8") as f:
+        with open(app_file_manager.filename, encoding="utf-8") as f:
             contents = f.read()
         assert "app = marimo.App" in contents
     finally:
@@ -304,13 +309,13 @@ if __name__ == "__main__":
         f.write(modified_content)
 
     # Reload the file
-    manager.reload()
+    changed_cell_ids = manager.reload()
 
     # The cell IDs should be reordered to match the original code
     reloaded_cell_ids = list(manager.app.cell_manager.cell_ids())
     assert len(reloaded_cell_ids) == len(original_cell_ids)
     assert reloaded_cell_ids == ["MJUe", "Hbol"]
-
+    assert changed_cell_ids == set()
     # Clean up
     os.remove(temp_file.name)
 
@@ -358,13 +363,13 @@ if __name__ == "__main__":
         f.write(modified_content)
 
     # Reload the file
-    manager.reload()
+    changed_cell_ids = manager.reload()
 
     # Check that the code was updated
     reloaded_code = list(manager.app.cell_manager.codes())[0]
     assert "x = 42" in reloaded_code
     assert "x = 1" not in reloaded_code
-
+    assert changed_cell_ids == {"Hbol"}
     # Clean up
     os.remove(temp_file.name)
 
@@ -417,7 +422,7 @@ if __name__ == "__main__":
         f.write(modified_content)
 
     # Reload the file
-    manager.reload()
+    changed_cell_ids = manager.reload()
 
     # Check that the new cell was added
     codes = list(manager.app.cell_manager.codes())
@@ -426,6 +431,147 @@ if __name__ == "__main__":
     assert "x = 1" in codes[1]
     next_cell_ids = list(manager.app.cell_manager.cell_ids())
     assert next_cell_ids == ["MJUe", "Hbol"]
-
+    assert changed_cell_ids == {"MJUe"}
     # Clean up
     os.remove(temp_file.name)
+
+
+def test_rename_with_special_chars(app_file_manager: AppFileManager) -> None:
+    """Test that renaming files with special characters works."""
+    # Create a temporary file
+    temp_dir = tempfile.mkdtemp()
+    try:
+        initial_path = os.path.join(temp_dir, "test.py")
+        with open(initial_path, "w") as f:
+            f.write("import marimo")
+        app_file_manager.filename = initial_path
+
+        # Try to rename to path with special characters
+        new_path = os.path.join(temp_dir, "test & space.py")
+        app_file_manager.rename(new_path)
+        assert app_file_manager.filename == new_path
+        assert os.path.exists(new_path)
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+def test_reload_reinitializes_graph(tmp_path: Path) -> None:
+    """Test that reload() properly reinitializes the graph with new cells."""
+    # Create a temporary file
+    tmp_file = tmp_path / "test.py"
+
+    # Initial content with one cell
+    tmp_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    cell_one = "Hbol"
+    cell_two = "MJUe"
+
+    # Create the file manager and load the app
+    manager = AppFileManager(tmp_file)
+
+    # Force initialization to create the graph
+    assert manager.app._app._initialized is False
+    assert manager.app.graph is not None
+    assert manager.app._app._initialized is True
+
+    # Check initial graph state
+    cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert len(cell_ids) == 1
+    assert cell_ids[0] == cell_one
+
+    # Check the graph has the correct cells
+    assert manager.app.graph.cells.keys() == {cell_one}
+    assert manager.app.graph.get_defining_cells("x") == {cell_one}
+
+    # Modify file with an additional cell
+    tmp_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = x + 1
+    return y
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Reload the app
+    changed_cell_ids = manager.reload()
+    assert changed_cell_ids == {cell_two}
+
+    # Check that the graph was updated
+    assert manager.app._app._initialized is False
+    assert manager.app.graph is not None
+    assert manager.app._app._initialized is True
+
+    # Verify graph has both cells
+    assert len(list(manager.app.graph.cells)) == 2
+
+    # Verify edge exists between cell1 and cell2 (dependency)
+    cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert cell_ids == [cell_two, cell_one]
+    assert manager.app.cell_manager.get_cell_code(cell_one) == "x = 1"
+    assert manager.app.cell_manager.get_cell_code(cell_two) == "y = x + 1"
+
+    # Check that cell2 depends on cell1 in the graph
+    assert manager.app.graph.get_defining_cells("x") == {cell_one}
+    assert manager.app.graph.get_defining_cells("y") == {cell_two}
+
+    # Modify the file to remove the dependency
+    tmp_file.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def cell2():
+    y = 2 + 1
+    return y
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Reload the app
+    changed_cell_ids = manager.reload()
+    assert changed_cell_ids == {cell_one}
+
+    # Verify cell_manager has only one cell
+    cell_ids = list(manager.app.cell_manager.cell_ids())
+    assert cell_ids == [cell_one]
+
+    # Verify graph has only one cell
+    graph_ids = list(manager.app.graph.cells)
+    assert graph_ids == [cell_one]
+
+    # Check that the graph was updated
+    assert manager.app.graph.get_defining_cells("y") == {cell_one}
+
+    # Clean up
+    os.remove(tmp_file)

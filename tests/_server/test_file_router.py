@@ -39,7 +39,7 @@ class TestAppFileRouter(unittest.TestCase):
         self.test_file1.close()
         self.test_file2.write(file_contents.encode())
         self.test_file2.close()
-        self.test_file_3.write("marimo-version: 0.0.0".encode())
+        self.test_file_3.write(b"marimo-version: 0.0.0")
         self.test_file_3.close()
 
         # Create a nested directory and file

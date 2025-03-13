@@ -9,17 +9,14 @@ from __future__ import annotations
 import json
 import sys
 import time
+from collections.abc import Sequence  # noqa: TC003
 from dataclasses import asdict, dataclass, field
 from types import ModuleType
 from typing import (
     Any,
     ClassVar,
-    Dict,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -27,14 +24,13 @@ from uuid import uuid4
 
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig, CellId_t, RuntimeStateType
+from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._data.models import (
     ColumnSummary,
     DataSourceConnection,
     DataTable,
     DataTableSource,
 )
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
@@ -44,7 +40,7 @@ from marimo._messaging.errors import (
     is_sensitive_error,
 )
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.streams import OUTPUT_MAX_BYTES
+from marimo._messaging.streams import output_max_bytes
 from marimo._messaging.types import Stream
 from marimo._messaging.variables import get_variable_preview
 from marimo._output.hypertext import Html
@@ -52,27 +48,29 @@ from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._types.ids import CellId_t, RequestId
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
 
 
-def serialize(datacls: Any) -> Dict[str, JSONType]:
+def serialize(datacls: Any) -> dict[str, JSONType]:
     # TODO(akshayka): maybe serialize as bytes (JSON), not objects ...,
     # then `send_bytes` over connection ... to try to avoid pickling
     # issues
     try:
         # Try to serialize as a dataclass
         return cast(
-            Dict[str, JSONType],
+            dict[str, JSONType],
             asdict(datacls),
         )
     except Exception:
         # If that fails, try to serialize using the WebComponentEncoder
         return cast(
-            Dict[str, JSONType],
+            dict[str, JSONType],
             json.loads(WebComponentEncoder.json_dumps(datacls)),
         )
 
@@ -83,8 +81,6 @@ class Op:
 
     # TODO(akshayka): fix typing once mypy has stricter typing for asdict
     def broadcast(self, stream: Optional[Stream] = None) -> None:
-        from marimo._runtime.context.types import ContextNotInitializedError
-
         if stream is None:
             try:
                 ctx = get_context()
@@ -131,7 +127,7 @@ class CellOp(Op):
     name: ClassVar[str] = "cell-op"
     cell_id: CellId_t
     output: Optional[CellOutput] = None
-    console: Optional[Union[CellOutput, List[CellOutput]]] = None
+    console: Optional[Union[CellOutput, list[CellOutput]]] = None
     status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
     run_id: Optional[RunId_t] = None
@@ -160,7 +156,7 @@ class CellOp(Op):
     def maybe_truncate_output(
         mimetype: KnownMimeType, data: str
     ) -> tuple[KnownMimeType, str]:
-        if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
+        if (size := sys.getsizeof(data)) > output_max_bytes():
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
 
@@ -171,9 +167,15 @@ class CellOp(Op):
                 of {size} bytes. Did you output this object by accident?
 
                 If this limitation is a problem for you, you can configure
-                the max output size with the environment variable
-                `MARIMO_OUTPUT_MAX_BYTES`. For example, to increase
-                the max output to 10 MB, use:
+                the max output size by adding (eg)
+
+                ```
+                [tool.marimo.runtime]
+                output_max_bytes = 10_000_000
+                ```
+
+                to your pyproject.toml, or with the environment variable
+                `MARIMO_OUTPUT_MAX_BYTES`:
 
                 ```
                 export MARIMO_OUTPUT_MAX_BYTES=10_000_000
@@ -334,7 +336,7 @@ class FunctionCallResult(Op):
 
     name: ClassVar[str] = "function-call-result"
 
-    function_call_id: str
+    function_call_id: RequestId
     return_value: JSONType
     status: HumanReadableStatus
 
@@ -387,8 +389,8 @@ class SendUIElementMessage(Op):
 
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: str
-    message: Dict[str, object]
-    buffers: Optional[Sequence[str]]
+    message: dict[str, Any]
+    buffers: Optional[list[str]]
 
 
 @dataclass
@@ -407,11 +409,9 @@ class CompletedRun(Op):
 
 @dataclass
 class KernelCapabilities:
-    sql: bool = False
     terminal: bool = False
 
     def __post_init__(self) -> None:
-        self.sql = DependencyManager.duckdb.has_at_version(min_version="1.0.0")
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
 
@@ -421,19 +421,19 @@ class KernelReady(Op):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: Tuple[CellId_t, ...]
-    codes: Tuple[str, ...]
-    names: Tuple[str, ...]
+    cell_ids: tuple[CellId_t, ...]
+    codes: tuple[str, ...]
+    names: tuple[str, ...]
     layout: Optional[LayoutConfig]
-    configs: Tuple[CellConfig, ...]
+    configs: tuple[CellConfig, ...]
     # Whether the kernel was resumed from a previous session
     resumed: bool
     # If the kernel was resumed, the values of the UI elements
-    ui_values: Optional[Dict[str, JSONType]]
+    ui_values: Optional[dict[str, JSONType]]
     # If the kernel was resumed, the last executed code for each cell
-    last_executed_code: Optional[Dict[CellId_t, str]]
+    last_executed_code: Optional[dict[CellId_t, str]]
     # If the kernel was resumed, the last execution time for each cell
-    last_execution_time: Optional[Dict[CellId_t, float]]
+    last_execution_time: Optional[dict[CellId_t, float]]
     # App config
     app_config: _AppConfig
     # Whether the kernel is kiosk mode
@@ -449,7 +449,7 @@ class CompletionResult(Op):
     name: ClassVar[str] = "completion-result"
     completion_id: str
     prefix_length: int
-    options: List[CompletionOption]
+    options: list[CompletionOption]
 
 
 @dataclass
@@ -464,12 +464,12 @@ class Alert(Op):
 @dataclass
 class MissingPackageAlert(Op):
     name: ClassVar[str] = "missing-package-alert"
-    packages: List[str]
+    packages: list[str]
     isolated: bool
 
 
 # package name => installation status
-PackageStatusType = Dict[
+PackageStatusType = dict[
     str, Literal["queued", "installing", "installed", "failed"]
 ]
 
@@ -503,8 +503,8 @@ class Reload(Op):
 @dataclass
 class VariableDeclaration:
     name: str
-    declared_by: List[CellId_t]
-    used_by: List[CellId_t]
+    declared_by: list[CellId_t]
+    used_by: list[CellId_t]
 
 
 @dataclass
@@ -569,7 +569,7 @@ class Variables(Op):
     """List of variable declarations."""
 
     name: ClassVar[str] = "variables"
-    variables: List[VariableDeclaration]
+    variables: list[VariableDeclaration]
 
 
 @dataclass
@@ -577,7 +577,7 @@ class VariableValues(Op):
     """List of variables and their types/values."""
 
     name: ClassVar[str] = "variable-values"
-    variables: List[VariableValue]
+    variables: list[VariableValue]
 
 
 @dataclass
@@ -585,8 +585,28 @@ class Datasets(Op):
     """List of datasets."""
 
     name: ClassVar[str] = "datasets"
-    tables: List[DataTable]
+    tables: list[DataTable]
     clear_channel: Optional[DataTableSource] = None
+
+
+@dataclass
+class SQLTablePreview(Op):
+    """Preview of a table in a SQL database."""
+
+    name: ClassVar[str] = "sql-table-preview"
+    request_id: RequestId
+    table: Optional[DataTable]
+    error: Optional[str] = None
+
+
+@dataclass
+class SQLTableListPreview(Op):
+    """Preview of a list of tables in a schema."""
+
+    name: ClassVar[str] = "sql-table-list-preview"
+    request_id: RequestId
+    tables: list[DataTable] = field(default_factory=list)
+    error: Optional[str] = None
 
 
 @dataclass
@@ -600,13 +620,14 @@ class DataColumnPreview(Op):
     chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
+    missing_packages: Optional[list[str]] = None
     summary: Optional[ColumnSummary] = None
 
 
 @dataclass
 class DataSourceConnections(Op):
     name: ClassVar[str] = "data-source-connections"
-    connections: List[DataSourceConnection]
+    connections: list[DataSourceConnection]
 
 
 @dataclass
@@ -615,7 +636,7 @@ class QueryParamsSet(Op):
 
     name: ClassVar[str] = "query-params-set"
     key: str
-    value: Union[str, List[str]]
+    value: Union[str, list[str]]
 
 
 @dataclass
@@ -649,8 +670,8 @@ class FocusCell(Op):
 @dataclass
 class UpdateCellCodes(Op):
     name: ClassVar[str] = "update-cell-codes"
-    cell_ids: List[CellId_t]
-    codes: List[str]
+    cell_ids: list[CellId_t]
+    codes: list[str]
     # If true, this means the code was not run on the backend when updating
     # the cell codes.
     code_is_stale: bool
@@ -666,7 +687,7 @@ class UpdateCellIdsRequest(Op):
     """
 
     name: ClassVar[str] = "update-cell-ids"
-    cell_ids: List[CellId_t]
+    cell_ids: list[CellId_t]
 
 
 MessageOperation = Union[
@@ -699,6 +720,8 @@ MessageOperation = Union[
     # Datasets
     Datasets,
     DataColumnPreview,
+    SQLTablePreview,
+    SQLTableListPreview,
     DataSourceConnections,
     # Kiosk specific
     FocusCell,

@@ -5,9 +5,10 @@ import inspect
 import re
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo._ast.cell import CellImpl, _is_coroutine
+from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._runtime.copy import (
     CloneError,
     ShallowCopy,
@@ -25,13 +26,12 @@ from marimo._runtime.primitives import (
     from_unclonable_module,
     is_unclonable_type,
 )
-from marimo._utils.variables import is_mangled_local, unmangle_local
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
 
 
-EXECUTION_TYPES: dict[str, Type[Executor]] = {}
+EXECUTION_TYPES: dict[str, type[Executor]] = {}
 
 
 def raise_name_error(
@@ -50,9 +50,9 @@ def raise_name_error(
 
 def register_execution_type(
     key: str,
-) -> Callable[[Type[Executor]], Type[Executor]]:
+) -> Callable[[type[Executor]], type[Executor]]:
     # Potentially expose as part of custom kernel API
-    def wrapper(cls: Type[Executor]) -> Type[Executor]:
+    def wrapper(cls: type[Executor]) -> type[Executor]:
         EXECUTION_TYPES[key] = cls
         return cls
 

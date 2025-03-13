@@ -451,6 +451,31 @@ Bob.Jones,25
       ]
     `);
   });
+
+  it.skip("should handle arrow files", async () => {
+    // Create a small arrow file with schema and one empty record batch
+    const arrowData = new Uint8Array([
+      0x41,
+      0x52,
+      0x52,
+      0x4f,
+      0x57,
+      0x31,
+      0x00,
+      0x00, // "ARROW1\0\0"
+    ]);
+    global.fetch = vi.fn().mockResolvedValue({
+      arrayBuffer: () => Promise.resolve(arrowData.buffer),
+    });
+    const data = await vegaLoadData(
+      "data.arrow",
+      {
+        type: "arrow",
+      },
+      { handleBigIntAndNumberLike: true },
+    );
+    expect(data).toBe([]);
+  });
 });
 
 describe("uniquifyColumnNames", () => {

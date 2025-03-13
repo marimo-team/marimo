@@ -31,7 +31,7 @@ def log_level_string_to_int(level: str) -> int:
     elif level == "CRITICAL":
         return logging.CRITICAL
     else:
-        raise ValueError("Unrecognized log level %s" % level)
+        raise ValueError(f"Unrecognized log level {level}")
 
 
 def set_level(level: str | int = logging.WARNING) -> None:
@@ -45,7 +45,7 @@ def set_level(level: str | int = logging.WARNING) -> None:
         logging.ERROR,
         logging.CRITICAL,
     ]:
-        raise ValueError("Unrecognized log level %s" % level)
+        raise ValueError(f"Unrecognized log level {level}")
     else:
         _LOG_LEVEL = level
 

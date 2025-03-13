@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import textwrap
+import types
 from collections.abc import Awaitable
 
 from marimo._ast.app import App
@@ -85,6 +87,73 @@ async def test_decorator_async() -> None:
     result = cell.run(asyncio=asyncio)
     assert isinstance(result, Awaitable)
     assert await result == (None, {"z": 6})
+
+
+def test_function_decorator_called() -> None:
+    app = App()
+
+    @app.function()
+    def mock_func(x) -> tuple[int]:
+        return x + x
+
+    assert isinstance(mock_func, types.FunctionType)
+
+    (cell,) = app._cell_manager.cells()
+    assert not isinstance(cell, types.FunctionType)
+
+    assert cell.name == "mock_func"
+    assert (
+        cell.run()[1]["mock_func"].__code__.co_code
+        == mock_func.__code__.co_code
+    )
+
+
+def test_function_decorator_uncalled() -> None:
+    app = App()
+
+    @app.function
+    def mock_func(x) -> tuple[int]:
+        return x + x
+
+    assert isinstance(mock_func, types.FunctionType)
+
+    (cell,) = app._cell_manager.cells()
+    assert not isinstance(cell, types.FunctionType)
+
+    assert cell.name == "mock_func"
+    assert (
+        cell.run()[1]["mock_func"].__code__.co_code
+        == mock_func.__code__.co_code
+    )
+
+
+def test_function_decorator_with_args() -> None:
+    app = App()
+
+    @app.function(disabled=True)
+    def mock_func(x: int) -> int:
+        y = x + 2
+        return y
+
+    assert isinstance(mock_func, types.FunctionType)
+
+    (cell,) = app._cell_manager.cells()
+    assert cell is not None
+
+    assert (
+        cell._cell.code
+        == textwrap.dedent("""
+    def mock_func(x: int) -> int:
+        y = x + 2
+        return y
+    """).strip()
+    )
+    assert cell._cell.config.disabled is True
+    assert cell.name == "mock_func"
+    assert (
+        cell.run()[1]["mock_func"].__code__.co_code
+        == mock_func.__code__.co_code
+    )
 
 
 # TODO(akshayka): test cell.run() with multiple cells in graph, outputs, ...

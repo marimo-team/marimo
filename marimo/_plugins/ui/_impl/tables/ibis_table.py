@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from marimo._data.models import (
     ColumnSummary,
@@ -20,6 +20,8 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    TableCell,
+    TableCoordinate,
     TableManager,
     TableManagerFactory,
 )
@@ -71,6 +73,16 @@ class IbisTableManagerFactory(TableManagerFactory):
                 self, columns: list[str]
             ) -> TableManager[ibis.Table]:
                 return IbisTableManager(self.data.select(columns))
+
+            def select_cells(
+                self, _cells: list[TableCoordinate]
+            ) -> list[TableCell]:
+                raise NotImplementedError("Cell selection not supported")
+
+            def drop_columns(
+                self, columns: list[str]
+            ) -> TableManager[ibis.Table]:
+                return IbisTableManager(self.data.drop(columns))
 
             def get_row_headers(
                 self,
@@ -178,7 +190,7 @@ class IbisTableManagerFactory(TableManagerFactory):
 
             def get_field_type(
                 self, column_name: str
-            ) -> Tuple[FieldType, ExternalDataType]:
+            ) -> tuple[FieldType, ExternalDataType]:
                 column = self.data[column_name]
                 dtype = column.type()
                 if dtype.is_string():

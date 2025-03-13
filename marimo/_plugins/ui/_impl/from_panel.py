@@ -7,11 +7,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    List,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     cast,
 )
@@ -29,21 +25,21 @@ LOGGER = _loggers.marimo_logger()
 
 COMM_MANAGER = MarimoCommManager()
 
-comm_class: Optional[Type[Any]] = None
+comm_class: Optional[type[Any]] = None
 loaded_extension: int = 0
 loaded_extensions: list[str] = []
 
-T = TypeVar("T", bound=Dict[str, Any])
+T = TypeVar("T", bound=dict[str, Any])
 
 
 @dataclass
 class SendToWidgetArgs:
     message: Any
-    buffers: Optional[List[Any]] = None
+    buffers: Optional[list[Any]] = None
 
 
 # Singleton, we only create one instance of this class
-def _get_comm_class() -> Type[Any]:
+def _get_comm_class() -> type[Any]:
     global comm_class
     if comm_class:
         return comm_class
@@ -65,7 +61,7 @@ def _get_comm_class() -> Type[Any]:
 
         @classmethod
         def decode(cls, msg: SendToWidgetArgs) -> dict[str, Any]:
-            buffers: Dict[int, Any] = {
+            buffers: dict[int, Any] = {
                 i: memoryview(base64.b64decode(v))
                 for i, v in enumerate(msg.buffers or [])
             }
@@ -94,6 +90,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     Returns:
         JavaScript code for Panel extension
     """
+    # See panel.io.notebook.py
     from panel.config import panel_extension
 
     new_exts: list[str] = [
@@ -106,26 +103,22 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
 
     from bokeh.io.notebook import curstate  # type: ignore
     from bokeh.resources import CDN, INLINE
-    from bokeh.settings import settings
     from panel.config import config
     from panel.io.notebook import (  # type: ignore
         Resources,
         _autoload_js,
-        _Unset,
         bundle_resources,
         require_components,
         state,
     )
+    from panel.io.resources import set_resource_mode  # type: ignore
 
     curstate().output_notebook()
 
     resources = INLINE if config.inline else CDN
-    prev_resources = settings.resources(default="server")
-    user_resources = settings.resources._user_value is not _Unset
     nb_endpoint = not state._is_pyodide
-    resources = Resources.from_bokeh(resources, notebook=nb_endpoint)  # type: ignore[no-untyped-call]
-
-    try:
+    with set_resource_mode(resources.mode):
+        resources = Resources.from_bokeh(resources, notebook=nb_endpoint)  # type: ignore[no-untyped-call]
         bundle = bundle_resources(  # type: ignore[no-untyped-call]
             None,
             resources,
@@ -145,18 +138,13 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             reloading=loaded,
             load_timeout=load_timeout,
         )
-    finally:
-        if user_resources:
-            settings.resources = prev_resources
-        else:
-            settings.resources.unset_value()
     loaded_extensions.extend(new_exts)
     return bokeh_js  # type: ignore[no-any-return]
 
 
 def render_component(
     obj: Viewable,
-) -> Tuple[str, dict[str, Any], dict[str, Any]]:
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
     """
     Render a Panel component.
 

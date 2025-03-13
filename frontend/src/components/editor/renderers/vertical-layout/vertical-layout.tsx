@@ -285,13 +285,17 @@ const VerticalCell = memo(
 
     const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
     const published = !showCode && !kioskFull;
-    const className = cn("Cell", "hover-actions-parent empty:invisible", {
-      published: published,
-      interactive: mode === "edit",
-      "has-error": errored,
-      stopped: stopped,
-      borderless: isPureMarkdown && !published,
-    });
+    const className = cn(
+      "marimo-cell",
+      "hover-actions-parent empty:invisible",
+      {
+        published: published,
+        interactive: mode === "edit",
+        "has-error": errored,
+        stopped: stopped,
+        borderless: isPureMarkdown && !published,
+      },
+    );
 
     const HTMLId = HTMLCellId.create(cellId);
 

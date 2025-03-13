@@ -1,10 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
-from marimo._config.utils import read_toml
+from marimo._utils.toml import read_toml
 
 LOGGER = _loggers.marimo_logger()
 
@@ -14,15 +16,28 @@ def read_marimo_config(path: str) -> PartialMarimoConfig:
     return cast(PartialMarimoConfig, read_toml(path))
 
 
-def read_pyproject_config(
+def read_pyproject_marimo_config(
     start_path: Union[str, Path],
 ) -> Optional[PartialMarimoConfig]:
-    """Read the pyproject.toml configuration."""
+    """Find the nearest pyproject.toml file, then read the marimo tool config."""
     path = find_nearest_pyproject_toml(start_path)
     if path is None:
         return None
     pyproject_config = read_toml(path)
-    marimo_tool_config = pyproject_config.get("tool", {}).get("marimo", None)
+    marimo_tool_config = get_marimo_config_from_pyproject_dict(
+        pyproject_config
+    )
+    if marimo_tool_config is None:
+        return None
+    LOGGER.debug("Found marimo config in pyproject.toml at %s", path)
+    return marimo_tool_config
+
+
+def get_marimo_config_from_pyproject_dict(
+    pyproject_dict: dict[str, Any],
+) -> Optional[PartialMarimoConfig]:
+    """Get the marimo config from a pyproject.toml dictionary."""
+    marimo_tool_config = pyproject_dict.get("tool", {}).get("marimo", None)
     if marimo_tool_config is None:
         return None
     if not isinstance(marimo_tool_config, dict):
@@ -31,7 +46,6 @@ def read_pyproject_config(
             marimo_tool_config,
         )
         return None
-    LOGGER.debug("Found marimo config in pyproject.toml at %s", path)
     return cast(PartialMarimoConfig, marimo_tool_config)
 
 

@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView, keymap } from "@codemirror/view";
-import type { CellId } from "../cells/ids";
 import { formatEditorViews, formattingChangeEffect } from "./format";
 import {
   getCurrentLanguageAdapter,
@@ -9,23 +8,19 @@ import {
 import { smartScrollIntoView } from "../../utils/scroll";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";
-import type { CodeCallbacks } from "./cells/extensions";
+import { cellActionsState, cellIdState } from "./cells/state";
 
 /**
  * Add a keymap to format the code in the editor.
  */
-export function formatKeymapExtension(
-  cellId: CellId,
-  callbacks: CodeCallbacks,
-  hotkeys: HotkeyProvider,
-) {
-  const { updateCellCode, afterToggleMarkdown } = callbacks;
+export function formatKeymapExtension(hotkeys: HotkeyProvider) {
   return keymap.of([
     {
       key: hotkeys.getHotkey("cell.format").key,
       preventDefault: true,
       run: (ev) => {
-        formatEditorViews({ [cellId]: ev }, updateCellCode);
+        const cellId = ev.state.facet(cellIdState);
+        formatEditorViews({ [cellId]: ev });
         return true;
       },
     },
@@ -34,17 +29,24 @@ export function formatKeymapExtension(
       preventDefault: true,
       run: (ev) => {
         const currentLanguage = getCurrentLanguageAdapter(ev);
+        // Early return if not a supported language
         if (currentLanguage !== "markdown" && currentLanguage !== "python") {
           return false;
         }
+
+        // Toggle between markdown and python
         const destinationLanguage =
           currentLanguage === "python" ? "markdown" : "python";
         const response = toggleToLanguage(ev, destinationLanguage, {
           force: true,
         });
+
+        // Handle post-toggle actions
         if (response === "markdown") {
-          afterToggleMarkdown();
+          const actions = ev.state.facet(cellActionsState);
+          actions.afterToggleMarkdown();
         }
+
         return response !== false;
       },
     },
@@ -60,7 +62,7 @@ export function formatKeymapExtension(
  */
 export function scrollActiveLineIntoView() {
   return EditorView.updateListener.of((update) => {
-    // Ignore the editor does not have focus, ignore
+    // Ignore if the editor does not have focus, ignore
     if (!update.view.hasFocus) {
       return;
     }

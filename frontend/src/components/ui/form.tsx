@@ -18,6 +18,22 @@ import { AlertCircleIcon } from "lucide-react";
 
 const Form = FormProvider;
 
+export const FormErrorsBanner = () => {
+  const ctx = useFormContext();
+  const errors = ctx.formState.errors;
+  if (Object.keys(errors).length === 0) {
+    return null;
+  }
+  return (
+    <div className="text-destructive p-2 rounded-md bg-red-500/10">
+      {Object.values(errors)
+        .map((error) => error?.message)
+        .filter(Boolean)
+        .join(", ")}
+    </div>
+  );
+};
+
 interface FormFieldContextValue<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,

@@ -6,9 +6,9 @@
     }
   },
   "data": {
-    "url": "data:text/csv;base64,dmFsdWVzCjEKMgozCg==",
+    "url": "_placeholder_",
     "format": {
-      "type": "csv"
+      "type": "arrow"
     }
   },
   "mark": {

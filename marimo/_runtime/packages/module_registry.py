@@ -4,8 +4,8 @@ from __future__ import annotations
 import importlib.util
 import sys
 
-from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import DirectedGraph
+from marimo._types.ids import CellId_t
 
 
 def _is_module_installed(module_name: str) -> bool:

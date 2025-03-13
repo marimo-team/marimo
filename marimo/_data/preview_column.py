@@ -8,19 +8,24 @@ from marimo._data.charts import get_chart_builder
 from marimo._data.models import ColumnSummary
 from marimo._data.sql_summaries import (
     get_column_type,
-    get_histogram_data,
     get_sql_summary,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import DataColumnPreview
-from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    FieldType,
+    TableManager,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.requests import PreviewDatasetColumnRequest
+from marimo._sql.utils import wrapped_sql
 
 LOGGER = _loggers.marimo_logger()
 
+CHART_MAX_ROWS = 20_000
 
-def get_column_preview_dataframe(
+
+def get_column_preview_for_dataframe(
     item: object,
     request: PreviewDatasetColumnRequest,
 ) -> DataColumnPreview | None:
@@ -58,11 +63,10 @@ def get_column_preview_dataframe(
 
         # We require altair to render the chart
         error = None
+        missing_packages = None
         if not DependencyManager.altair.has():
-            error = (
-                "Altair is required to render charts. "
-                "Install it with `pip install altair`."
-            )
+            error = "Altair is required to render charts."
+            missing_packages = ["altair"]
         else:
             # Check for special characters that can't be escaped easily
             # (e.g. backslash, quotes)
@@ -101,6 +105,7 @@ def get_column_preview_dataframe(
             chart_code=chart_code,
             summary=summary,
             error=error,
+            missing_packages=missing_packages,
         )
     except Exception as e:
         LOGGER.warning(
@@ -113,48 +118,67 @@ def get_column_preview_dataframe(
             table_name=table_name,
             column_name=column_name,
             error=str(e),
+            missing_packages=None,
         )
 
 
-def get_column_preview_for_sql(
-    table_name: str,
+def get_column_preview_for_duckdb(
+    *,
+    fully_qualified_table_name: str,
     column_name: str,
 ) -> Optional[DataColumnPreview]:
-    # Only show column previews for in-memory tables
-    # otherwise we could be making requests to postgres/mysql/etc
-    # that the user may not intend to do so.
-    if not table_name.startswith("memory.main."):
-        return DataColumnPreview(
-            table_name=table_name,
-            column_name=column_name,
-            error="Previews only supported for in-memory tables",
-        )
-    query_table_name = table_name.replace("memory.main.", "")
+    DependencyManager.duckdb.require(why="previewing DuckDB columns")
 
-    column_type = get_column_type(query_table_name, column_name)
-    summary = get_sql_summary(query_table_name, column_name, column_type)
-    histogram_data = get_histogram_data(query_table_name, column_name)
+    column_type = get_column_type(fully_qualified_table_name, column_name)
+    summary = get_sql_summary(
+        fully_qualified_table_name, column_name, column_type
+    )
 
     # Generate Altair chart
     chart_spec = None
     chart_code = None
     chart_max_rows_errors = False
+    error = None
+    missing_packages = None
+    should_limit_to_10_items = True
 
-    if histogram_data and DependencyManager.altair.has():
-        chart_builder = get_chart_builder(column_type, False)
+    if DependencyManager.altair.has():
+        from altair import MaxRowsError  # type: ignore[import-not-found]
+
         try:
-            chart_spec = chart_builder.altair_json(histogram_data, column_name)
+            total_rows: int = wrapped_sql(
+                f"SELECT COUNT(*) FROM {fully_qualified_table_name}",
+                connection=None,
+            ).fetchone()[0]  # type: ignore[index]
+
+            if total_rows <= CHART_MAX_ROWS:
+                relation = wrapped_sql(
+                    f"SELECT {column_name} FROM {fully_qualified_table_name}",
+                    connection=None,
+                )
+                chart_spec = _get_chart_spec(
+                    column_data=relation,
+                    column_type=column_type,
+                    column_name=column_name,
+                    should_limit_to_10_items=should_limit_to_10_items,
+                )
+            else:
+                chart_max_rows_errors = True
+        except MaxRowsError:
+            chart_spec = None
+            chart_max_rows_errors = True
         except Exception as e:
             LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
     return DataColumnPreview(
-        table_name=table_name,
+        table_name=fully_qualified_table_name,
         column_name=column_name,
         chart_max_rows_errors=chart_max_rows_errors,
         chart_spec=chart_spec,
         chart_code=chart_code,
         summary=summary,
-        error=None,
+        error=error,
+        missing_packages=missing_packages,
     )
 
 
@@ -167,10 +191,7 @@ def _get_altair_chart(
     if not DependencyManager.altair.has() or not table.supports_altair():
         return None, None, False
 
-    import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    from altair import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        MaxRowsError,
-    )
+    from altair import MaxRowsError  # type: ignore[import-not-found]
 
     (column_type, _external_type) = table.get_field_type(request.column_name)
 
@@ -194,29 +215,61 @@ def _get_altair_chart(
     )
 
     chart_max_rows_errors = False
+
     try:
+        # Filter the data to the column we want
         column_data = table.select_columns([request.column_name]).data
-        # Date types don't serialize well to csv,
-        # so we don't transform them
-        if (
-            column_type == "date"
-            or column_type == "datetime"
-            or column_type == "time"
-        ):
-            # Default max_rows is 5_000, but we can support more.
-            with alt.data_transformers.enable("default", max_rows=20_000):
-                chart_json = chart_builder.altair_json(
-                    column_data,
-                    request.column_name,
-                )
-        else:
-            with alt.data_transformers.enable("marimo_inline_csv"):
-                chart_json = chart_builder.altair_json(
-                    column_data,
-                    request.column_name,
-                )
+        chart_spec = _get_chart_spec(
+            column_data=column_data,
+            column_type=column_type,
+            column_name=request.column_name,
+            should_limit_to_10_items=should_limit_to_10_items,
+        )
     except MaxRowsError:
-        chart_json = None
+        chart_spec = None
         chart_max_rows_errors = True
 
-    return chart_json, code, chart_max_rows_errors
+    return chart_spec, code, chart_max_rows_errors
+
+
+def _get_chart_spec(
+    *,
+    column_data: Any,
+    column_type: FieldType,
+    column_name: str,
+    should_limit_to_10_items: bool,
+) -> str:
+    import altair as alt  # type: ignore[import-not-found]
+
+    chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
+
+    # If we have vegafusion and vl-convert-python, use it
+    if (
+        DependencyManager.vegafusion.has()
+        and DependencyManager.vl_convert_python.has()
+    ):
+        with alt.data_transformers.enable("vegafusion"):
+            return chart_builder.altair_json(
+                column_data,
+                column_name,
+            )
+
+    # Date types don't serialize well to csv,
+    # so we don't transform them
+    dont_use_csv = (
+        column_type == "date"
+        or column_type == "datetime"
+        or column_type == "time"
+    )
+    if dont_use_csv:
+        # Default max_rows is 5_000, but we can support more.
+        with alt.data_transformers.enable("default", max_rows=CHART_MAX_ROWS):
+            return chart_builder.altair_json(
+                column_data,
+                column_name,
+            )
+    with alt.data_transformers.enable("marimo_inline_csv"):
+        return chart_builder.altair_json(
+            column_data,
+            column_name,
+        )

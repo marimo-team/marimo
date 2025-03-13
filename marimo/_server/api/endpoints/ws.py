@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
@@ -31,7 +31,6 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState
 from marimo._server.file_router import MarimoFileKey
-from marimo._server.ids import ConsumerId
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
@@ -39,6 +38,7 @@ from marimo._server.model import (
 )
 from marimo._server.router import APIRouter
 from marimo._server.sessions import Session, SessionManager
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
 if TYPE_CHECKING:
     from pycrdt import Doc, Text, TransactionEvent
@@ -68,12 +68,14 @@ async def websocket_endpoint(
             description: Websocket endpoint
     """
     app_state = AppState(websocket)
-    session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
-    if session_id is None:
+    raw_session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
+    if raw_session_id is None:
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
         )
         return
+
+    session_id = SessionId(raw_session_id)
 
     file_key: Optional[MarimoFileKey] = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
@@ -88,11 +90,10 @@ async def websocket_endpoint(
 
     kiosk = app_state.query_params(KIOSK_QUERY_PARAM_KEY) == "true"
 
-    rtc_enabled: bool = (
-        app_state.config_manager.get_config()
-        .get("experimental", {})
-        .get("rtc", False)
-    )
+    config = app_state.config_manager_at_file(file_key).get_config()
+
+    rtc_enabled: bool = config.get("experimental", {}).get("rtc_v2", False)
+    auto_instantiate = config["runtime"]["auto_instantiate"]
 
     await WebsocketHandler(
         websocket=websocket,
@@ -102,12 +103,15 @@ async def websocket_endpoint(
         mode=app_state.mode,
         file_key=file_key,
         kiosk=kiosk,
+        auto_instantiate=auto_instantiate,
     ).start()
 
 
 @dataclass
 class YCell:
     ydoc: Doc[Text]
+    code_text: Text
+    language_text: Text
     clients: int
     cleaner: asyncio.Task[None] | None = None
 
@@ -146,25 +150,38 @@ async def send_updates(
             update = await update_queue.get()
             message = create_update_message(update)
             await websocket.send_bytes(message)
-    except Exception:
-        LOGGER.debug(
-            f"Could not send Y update to client for cell with ID {cell_id}",
+    except Exception as e:
+        LOGGER.warning(
+            f"RTC: Could not send Y update to client for cell with ID {cell_id}: {str(e)}",
         )
 
 
 async def clean_cell(
     cell_id_and_file_key: CellIdAndFileKey, timeout: float = 60
 ) -> None:
-    # Clients disconnect/reconnect to keep the WebSocket connection alive,
-    # or because of network issues.
-    # Keep the ycell in memory for one minute after client disconnects,
-    # so that it can be synchronized and to prevent content duplication.
-    # This task will be cancelled when any client reconnets.
-    await asyncio.sleep(timeout)
-    async with ycell_lock:
-        ycell = ycells[cell_id_and_file_key]
-        if not ycell.clients:
-            del ycells[cell_id_and_file_key]
+    try:
+        await asyncio.sleep(timeout)
+        async with ycell_lock:
+            if cell_id_and_file_key in ycells:
+                ycell = ycells[cell_id_and_file_key]
+                # Double-check client count before removing
+                if not ycell.clients:
+                    LOGGER.debug(
+                        f"RTC: Removing cell {cell_id_and_file_key.cell_id} as it has no clients"
+                    )
+                    # Store the YDoc state before removing it
+                    # This could be used to restore state for quick reconnects if needed
+                    del ycells[cell_id_and_file_key]
+            else:
+                LOGGER.warning(
+                    f"RTC: Cell {cell_id_and_file_key.cell_id} not found in ycells dict during cleanup"
+                )
+    except asyncio.CancelledError:
+        # Task was cancelled due to client reconnection
+        LOGGER.debug(
+            f"RTC: clean_cell task cancelled for cell {cell_id_and_file_key.cell_id} - likely due to reconnection"
+        )
+        pass
 
 
 @router.websocket("/ws/{cell_id}")
@@ -186,6 +203,7 @@ async def ycell_provider(
     )
 
     if file_key is None:
+        LOGGER.warning("RTC: Closing websocket - no file key")
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_FILE_KEY"
         )
@@ -194,10 +212,13 @@ async def ycell_provider(
     manager = app_state.session_manager
     session = manager.get_session_by_file_key(file_key)
     if session is None:
+        LOGGER.warning(
+            f"RTC: Closing websocket - no session found for file key {file_key}"
+        )
         await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
         return
     await websocket.accept()
-    cell_id: str = websocket.path_params["cell_id"]
+    cell_id = CellId_t(websocket.path_params["cell_id"])
     key = CellIdAndFileKey(cell_id, file_key)
     async with ycell_lock:
         if key in ycells:
@@ -205,6 +226,9 @@ async def ycell_provider(
             ydoc = ycell.ydoc
             ycell.clients += 1
             if ycell.cleaner is not None:
+                LOGGER.debug(
+                    f"RTC: Cancelling existing cleaner for cell {cell_id}"
+                )
                 ycell.cleaner.cancel()
                 ycell.cleaner = None
         else:
@@ -212,12 +236,21 @@ async def ycell_provider(
             mgr = file_manager.app.cell_manager
             if mgr.has_cell(cell_id):
                 code = mgr.cell_data_at(cell_id).code
+                LOGGER.debug(
+                    f"RTC: Creating new ydoc for existing cell {cell_id} with code length {len(code)}"
+                )
             else:
                 code = ""
+                LOGGER.debug(
+                    f"RTC: Creating new ydoc for new cell {cell_id} with empty code"
+                )
             ydoc = Doc[Text]()
             ytext = ydoc.get("code", type=Text)
+            ylang = ydoc.get("language", type=Text)
             ytext += code
-            ycell = YCell(ydoc=ydoc, clients=1)
+            ycell = YCell(
+                ydoc=ydoc, code_text=ytext, language_text=ylang, clients=1
+            )
             ycells[key] = ycell
     update_queue: asyncio.Queue[bytes] = asyncio.Queue()
     task = asyncio.create_task(send_updates(websocket, update_queue, cell_id))
@@ -232,18 +265,30 @@ async def ycell_provider(
                 reply = handle_sync_message(message[1:], ydoc)
                 if reply is not None:
                     await websocket.send_bytes(reply)
-    except Exception:
+    except WebSocketDisconnect:
+        # Normal disconnection
+        pass
+    except Exception as e:
+        LOGGER.warning(
+            f"RTC: Exception in websocket loop for cell {cell_id}: {str(e)}"
+        )
         pass
     finally:
+        # Cleanup cell resources
+        # Start the cleanup task timer
         task.cancel()
         ydoc.unobserve(subscription)
         async with ycell_lock:
             ycell.clients -= 1
             if not ycell.clients:
                 if ycell.cleaner is not None:
+                    LOGGER.warning(
+                        f"RTC: Cancelling existing cleaner for cell {cell_id}"
+                    )
                     ycell.cleaner.cancel()
                     ycell.cleaner = None
-                ycell.cleaner = asyncio.create_task(clean_cell(key))
+                # Timeout of 60 seconds to allow for client reconnection
+                ycell.cleaner = asyncio.create_task(clean_cell(key, 60.0))
 
 
 KIOSK_ONLY_OPERATIONS = {
@@ -267,10 +312,11 @@ class WebsocketHandler(SessionConsumer):
         websocket: WebSocket,
         manager: SessionManager,
         rtc_enabled: bool,
-        session_id: str,
+        session_id: SessionId,
         mode: SessionMode,
         file_key: MarimoFileKey,
         kiosk: bool,
+        auto_instantiate: bool,
     ):
         self.websocket = websocket
         self.manager = manager
@@ -280,11 +326,13 @@ class WebsocketHandler(SessionConsumer):
         self.mode = mode
         self.status: ConnectionState
         self.kiosk = kiosk
+        self.auto_instantiate = auto_instantiate
         self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
         self.heartbeat_task: Optional[asyncio.Task[None]] = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
+        self.ws_future: asyncio.Future[tuple[None, None]] | None = None
 
         super().__init__(consumer_id=ConsumerId(session_id))
 
@@ -359,7 +407,7 @@ class WebsocketHandler(SessionConsumer):
             )
         )
 
-    def _reconnect_session(self, session: "Session", replay: bool) -> None:
+    def _reconnect_session(self, session: Session, replay: bool) -> None:
         """Reconnect to an existing session (kernel).
 
         A websocket can be closed when a user's computer goes to sleep,
@@ -385,12 +433,6 @@ class WebsocketHandler(SessionConsumer):
             )
             return
 
-        operations = session.get_current_state().operations
-        # Replay the current session view
-        LOGGER.debug(
-            f"Replaying {len(operations)} operations to the consumer",
-        )
-
         self._write_kernel_ready(
             session=session,
             resumed=True,
@@ -407,9 +449,7 @@ class WebsocketHandler(SessionConsumer):
             )
         )
 
-        for op in operations:
-            LOGGER.debug("Replaying operation %s", serialize(op))
-            self.write_operation(op)
+        self._replay_previous_session(session)
 
     def _connect_kiosk(self, session: Session) -> None:
         """Connect to a kiosk session.
@@ -436,14 +476,17 @@ class WebsocketHandler(SessionConsumer):
             kiosk=True,
         )
         self.status = ConnectionState.OPEN
+        self._replay_previous_session(session)
 
+    def _replay_previous_session(self, session: Session) -> None:
+        """Replay the previous session view."""
         operations = session.get_current_state().operations
-        # Replay the current session view
-        LOGGER.debug(
-            f"Replaying {len(operations)} operations to the kiosk consumer",
-        )
+        if len(operations) == 0:
+            LOGGER.debug("No operations to replay")
+            return
+        LOGGER.debug(f"Replaying {len(operations)} operations")
         for op in operations:
-            LOGGER.debug("Replaying operation %s", serialize(op))
+            LOGGER.debug("Replaying operation %s", op)
             self.write_operation(op)
 
     def _on_disconnect(
@@ -614,6 +657,10 @@ class WebsocketHandler(SessionConsumer):
                 kiosk=False,
             )
             self.status = ConnectionState.OPEN
+            # if auto-instantiate if false, replay the previous session
+            if not self.auto_instantiate:
+                new_session.sync_session_view_from_cache()
+                self._replay_previous_session(new_session)
             return new_session
 
         get_session()
@@ -687,11 +734,11 @@ class WebsocketHandler(SessionConsumer):
         )
 
         try:
-            self.future = asyncio.gather(
+            self.ws_future = asyncio.gather(
                 listen_for_messages_task,
                 listen_for_disconnect_task,
             )
-            await self.future
+            await self.ws_future
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
             pass
@@ -723,7 +770,8 @@ class WebsocketHandler(SessionConsumer):
                 )
             )
 
-        self.future.cancel()
+        if self.ws_future:
+            self.ws_future.cancel()
 
     def connection_state(self) -> ConnectionState:
         return self.status
@@ -771,10 +819,7 @@ class WebsocketHandler(SessionConsumer):
         self.status = ConnectionState.OPEN
 
         # Replay all operations
-        operations = session.get_current_state().operations
-        for op in operations:
-            LOGGER.debug("Replaying operation %s", serialize(op))
-            self.write_operation(op)
+        self._replay_previous_session(session)
 
 
 HAS_TOASTED = False

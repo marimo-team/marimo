@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class CellLifecycleItem(abc.ABC):
     @abc.abstractmethod
-    def create(self, context: "RuntimeContext") -> None:
+    def create(self, context: RuntimeContext) -> None:
         """Create this item
 
         This method is executed at the beginning of a cell's lifecycle.
@@ -19,7 +19,7 @@ class CellLifecycleItem(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
+    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         """Dispose this item
 
         This method is executed at the end of a cell's lifecycle. Use

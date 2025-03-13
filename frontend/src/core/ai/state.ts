@@ -9,7 +9,7 @@ export const aiCompletionCellAtom = atom<{
 export const includeOtherCellsAtom = atom<boolean>(false);
 
 export interface Message {
-  role: "user" | "assistant" | "function" | "data" | "system" | "tool";
+  role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;
 }

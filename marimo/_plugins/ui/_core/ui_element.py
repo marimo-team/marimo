@@ -15,10 +15,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Generic,
     Optional,
-    Sequence,
     TypeVar,
     cast,
 )
@@ -34,8 +32,11 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.functions import Function
+from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from marimo._plugins.ui._impl.input import form as form_plugin
 
 # S: Type of frontend value
@@ -64,7 +65,7 @@ class Lens:
     id of its parent UI element, and the key at which its parent stores it.
     """
 
-    parent_id: str
+    parent_id: UIElementId
     key: str
 
 
@@ -113,7 +114,14 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
     _value_frontend: S
     _value: T
 
-    _random_seed = random.Random(42)
+    # We want this to be fully random in production,
+    # otherwise cached session state could use incorrect object-ids.
+    # And changing object-ids are a way to force a re-render.
+    #
+    # This does mean that snapshotting exports in CI will produce
+    # different object-ids. If this is a problem, we can allow a
+    # fixed seed via an environment variable.
+    _random_seed = random.Random()
 
     def __init__(
         self,
@@ -214,9 +222,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         # created by each cell is deterministic; this fact is used to
         # optionally override the element's initial value.
         try:
-            self._id = get_context().take_id()
+            self._id = UIElementId(get_context().take_id())
         except (ids.NoIDProviderException, ContextNotInitializedError):
-            self._id = self._random_id
+            self._id = UIElementId(self._random_id)
 
         self._ctx: RuntimeContext | None
         try:
@@ -420,7 +428,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         )
 
     def send_message(
-        self, message: Dict[str, object], buffers: Optional[Sequence[bytes]]
+        self, message: dict[str, object], buffers: Optional[Sequence[bytes]]
     ) -> None:
         """
         Send a message to the element rendered on the frontend

@@ -19,8 +19,11 @@ import { Button } from "../../../components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import type { z } from "zod";
-import { ZodForm } from "./forms/form";
-import { getDefaults, getUnionLiteral } from "./forms/form-utils";
+import { ZodForm } from "../../../components/forms/form";
+import {
+  getDefaults,
+  getUnionLiteral,
+} from "../../../components/forms/form-utils";
 import {
   ArrowUpDownIcon,
   ColumnsIcon,
@@ -46,6 +49,7 @@ import useEvent from "react-use-event-hook";
 import type { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
 import { Strings } from "@/utils/strings";
+import { DATAFRAME_FORM_RENDERERS } from "./forms/renderers";
 
 interface Props {
   columns: ColumnDataTypes;
@@ -151,6 +155,7 @@ export const TransformPanel: React.FC<Props> = ({
                 form={form}
                 schema={selectedTransformSchema}
                 path={`transforms.${selectedTransform}`}
+                renderers={DATAFRAME_FORM_RENDERERS}
               />
             )}
             {(selectedTransform === undefined || !selectedTransformSchema) && (

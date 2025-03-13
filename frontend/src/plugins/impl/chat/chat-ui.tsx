@@ -6,7 +6,6 @@ import React, { useEffect, useRef } from "react";
 import type {
   ChatMessage,
   ChatConfig,
-  SendMessageRequest,
   ChatAttachment,
   ChatRole,
 } from "./types";
@@ -54,14 +53,15 @@ import {
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useTheme } from "@/theme/useTheme";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
+import type { PluginFunctions } from "./ChatPlugin";
+import { useAsyncData } from "@/hooks/useAsyncData";
 
-interface Props {
+interface Props extends PluginFunctions {
   prompts: string[];
   config: ChatConfig;
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
-  sendPrompt(req: SendMessageRequest): Promise<string>;
   value: ChatMessage[];
   setValue: (messages: ChatMessage[]) => void;
 }
@@ -74,6 +74,17 @@ export const Chatbot: React.FC<Props> = (props) => {
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+
+  const { data: initialMessages } = useAsyncData(async () => {
+    const chatMessages = await props.get_chat_history({});
+    const messages: Message[] = chatMessages.messages.map((message, idx) => ({
+      id: idx.toString(),
+      role: message.role,
+      content: message.content,
+      experimental_attachments: message.attachments,
+    }));
+    return messages;
+  }, []);
 
   const {
     messages,
@@ -93,7 +104,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         messages: Message[];
       };
       try {
-        const response = await props.sendPrompt({
+        const response = await props.send_prompt({
           messages: body.messages.map((m) => ({
             role: m.role as ChatRole,
             content: m.content,
@@ -118,6 +129,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         return new Response(strippedError, { status: 400 });
       }
     },
+    initialMessages: initialMessages,
     onFinish: (message, { usage, finishReason }) => {
       setFiles(undefined);
 
@@ -137,7 +149,11 @@ export const Chatbot: React.FC<Props> = (props) => {
   });
 
   const handleDelete = (id: string) => {
-    setMessages(messages.filter((message) => message.id !== id));
+    const index = messages.findIndex((message) => message.id === id);
+    if (index !== -1) {
+      props.delete_chat_message({ index });
+      setMessages((prev) => prev.filter((message) => message.id !== id));
+    }
   };
 
   const renderAttachment = (attachment: ChatAttachment) => {
@@ -232,7 +248,15 @@ export const Chatbot: React.FC<Props> = (props) => {
       style={{ maxHeight: props.maxHeight }}
     >
       <div className="absolute top-0 right-0 flex justify-end z-10 border border-[var(--slate-6)] bg-inherit rounded-bl-lg">
-        <Button variant="text" size="icon" onClick={() => setMessages([])}>
+        <Button
+          variant="text"
+          size="icon"
+          onClick={() => {
+            setMessages([]);
+            props.setValue([]);
+            props.delete_chat_history({});
+          }}
+        >
           <Trash2Icon className="h-3 w-3" />
         </Button>
       </div>

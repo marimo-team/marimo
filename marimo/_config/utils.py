@@ -2,24 +2,13 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import Any, Optional
 
 from marimo import _loggers
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 LOGGER = _loggers.marimo_logger()
 
 CONFIG_FILENAME = ".marimo.toml"
-
-
-def read_toml(file_path: Union[str, Path]) -> Dict[str, Any]:
-    """Read and parse a TOML file."""
-    import tomlkit
-
-    with open(file_path, "rb") as file:
-        return tomlkit.load(file)
 
 
 def _is_parent(parent_path: str, child_path: str) -> bool:

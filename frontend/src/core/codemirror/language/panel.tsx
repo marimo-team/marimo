@@ -10,13 +10,13 @@ import {
 } from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
 import { AlertCircle, CircleHelpIcon } from "lucide-react";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -46,6 +46,16 @@ export const LanguagePanelComponent: React.FC<{
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
     showDivider = true;
+    const sanitizeAndTriggerUpdate = (
+      e: React.SyntheticEvent<HTMLInputElement>,
+    ) => {
+      // Normalize the name to a valid variable name
+      const name = normalizeName(e.currentTarget.value, false);
+      languageAdapter.setDataframeName(name);
+      e.currentTarget.value = name;
+
+      triggerUpdate();
+    };
     actions = (
       <div className="flex flex-1 gap-2 relative items-center">
         <label className="flex gap-2 items-center">
@@ -57,13 +67,11 @@ export const LanguagePanelComponent: React.FC<{
               languageAdapter.setDataframeName(e.target.value);
               inputProps.onChange?.(e);
             }}
-            onBlur={(e) => {
-              // Normalize the name to a valid variable name
-              const name = normalizeName(e.target.value, false);
-              languageAdapter.setDataframeName(name);
-              e.target.value = name;
-
-              triggerUpdate();
+            onBlur={sanitizeAndTriggerUpdate}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.shiftKey) {
+                sanitizeAndTriggerUpdate(e);
+              }
             }}
             className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
@@ -117,6 +125,11 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
     selectedEngine && !connectionsMap.has(selectedEngine);
 
   const handleSelectEngine = (value: string) => {
+    if (value === HELP_KEY) {
+      window.open(HELP_URL, "_blank");
+      return;
+    }
+
     const nextEngine = connectionsMap.get(value as ConnectionName);
     if (nextEngine) {
       languageAdapter.selectEngine(nextEngine.name);
@@ -154,23 +167,25 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
                 </div>
               </SelectItem>
             ))}
+            <SelectSeparator />
+            <SelectItem className="text-muted-foreground" value={HELP_KEY}>
+              <a
+                className="flex items-center gap-1"
+                href={HELP_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <CircleHelpIcon className="h-3 w-3" />
+                <span>How to add a database connection</span>
+              </a>
+            </SelectItem>
           </SelectGroup>
         </SelectContent>
       </Select>
-      <TooltipProvider>
-        <Tooltip content="How to add a database connection" delayDuration={200}>
-          <a
-            href="http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <CircleHelpIcon
-              size={12}
-              className="text-[var(--sky-11)] opacity-60 hover:opacity-100"
-            />
-          </a>
-        </Tooltip>
-      </TooltipProvider>
     </div>
   );
 };
+
+const HELP_KEY = "__help__";
+const HELP_URL =
+  "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";

@@ -9,6 +9,7 @@ We're building a community. Come hang out with us!
 - ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
 - 🦋 [Follow us on Bluesky](https://bsky.app/profile/marimo.io)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
+- 🎥 [Subscribe on YouTube](https://www.youtube.com/@marimo-team)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
 ## Shields

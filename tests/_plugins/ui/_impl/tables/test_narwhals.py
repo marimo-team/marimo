@@ -6,6 +6,7 @@ import unittest
 from math import isnan
 from typing import Any
 
+import narwhals.stable.v1 as nw
 import pytest
 
 from marimo._data.models import ColumnSummary
@@ -14,7 +15,11 @@ from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
 )
-from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    TableCell,
+    TableCoordinate,
+    TableManager,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
 from tests._data.mocks import create_dataframes
@@ -113,10 +118,9 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
-        import polars as pl
 
         complex_data = self.get_complex_data()
-        with pytest.raises(pl.exceptions.ComputeError):
+        with pytest.raises(nw.exceptions.NarwhalsError):
             # Polars doesn't support writing nested lists to csv
             complex_data.to_csv()
 
@@ -129,7 +133,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             schema={"a": pl.Array(pl.Int64, 5)},
         )
         manager = NarwhalsTableManager.from_dataframe(df)
-        with pytest.raises(pl.exceptions.ComputeError):
+        with pytest.raises(nw.exceptions.NarwhalsError):
             # Polars doesn't support writing nested lists to csv
             manager.to_csv()
 
@@ -175,6 +179,30 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         selected_manager = self.manager.select_columns(columns)
         expected_data = self.data.select(columns)
         assert_frame_equal(selected_manager.data, expected_data)
+
+    def test_select_cells(self) -> None:
+        cells = [
+            TableCoordinate(column_name="A", row_id=0),
+            TableCoordinate(column_name="B", row_id=1),
+            TableCoordinate(column_name="C", row_id=2),
+            TableCoordinate(column_name="D", row_id=1),
+            TableCoordinate(column_name="E", row_id=0),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            TableCell(column="A", row=0, value=1),
+            TableCell(column="B", row=1, value="b"),
+            TableCell(column="C", row=2, value=3.0),
+            TableCell(column="D", row=1, value=False),
+            TableCell(column="E", row=0, value=datetime.datetime(2021, 1, 1)),
+        ]
+        assert selected_cells == expected_cells
+
+    def test_drop_columns(self) -> None:
+        columns = ["A"]
+        dropped_manager = self.manager.drop_columns(columns)
+        expected_data = self.data.drop(columns)
+        assert_frame_equal(dropped_manager.data, expected_data)
 
     def test_get_row_headers(self) -> None:
         expected_headers = []

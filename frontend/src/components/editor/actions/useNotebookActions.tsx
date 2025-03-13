@@ -30,6 +30,14 @@ import {
   XCircleIcon,
   FilePlus2Icon,
   FastForwardIcon,
+  DatabaseIcon,
+  EyeOffIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
+  GithubIcon,
+  MessagesSquareIcon,
+  YoutubeIcon,
+  DiamondPlusIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -71,6 +79,10 @@ import { copyToClipboard } from "@/utils/copy";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
+import { AddDatabaseDialogContent } from "../database/add-database-form";
+import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
+import { Constants } from "@/core/constants";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -84,9 +96,14 @@ export function useNotebookActions() {
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
+  const hideAllMarkdownCode = useHideAllMarkdownCode();
 
-  const { updateCellConfig, undoDeleteCell, clearAllCellOutputs } =
-    useCellActions();
+  const {
+    updateCellConfig,
+    undoDeleteCell,
+    clearAllCellOutputs,
+    upsertSetupCell,
+  } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
   const copyNotebook = useCopyNotebook(filename);
@@ -354,6 +371,21 @@ export function useNotebookActions() {
       },
     },
     {
+      icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
+      label: "Hide all markdown code",
+      handle: hideAllMarkdownCode,
+    },
+    {
+      icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
+      label: "Add setup cell",
+      hidden: !getFeatureFlag("setup_cell"),
+      handle: () => {
+        upsertSetupCell({
+          code: "# Initialization code that runs before all other cells",
+        });
+      },
+    },
+    {
       icon: <XCircleIcon size={14} strokeWidth={1.5} />,
       label: "Clear all outputs",
       handle: () => {
@@ -374,6 +406,13 @@ export function useNotebookActions() {
       hidden: !canUndoDeletes || kioskMode,
       handle: () => {
         undoDeleteCell();
+      },
+    },
+    {
+      icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
+      label: "Add database connection",
+      handle: () => {
+        openModal(<AddDatabaseDialogContent onClose={closeModal} />);
       },
     },
 
@@ -402,8 +441,51 @@ export function useNotebookActions() {
       icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
       label: "Open documentation",
       handle: () => {
-        window.open("https://docs.marimo.io", "_blank");
+        window.open(Constants.docsPage, "_blank");
       },
+    },
+
+    {
+      icon: <ExternalLinkIcon size={14} strokeWidth={1.5} />,
+      label: "Resources",
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
+          label: "Documentation",
+          handle: () => {
+            window.open(Constants.docsPage, "_blank");
+          },
+        },
+        {
+          icon: <GithubIcon size={14} strokeWidth={1.5} />,
+          label: "GitHub",
+          handle: () => {
+            window.open(Constants.githubPage, "_blank");
+          },
+        },
+        {
+          icon: <MessagesSquareIcon size={14} strokeWidth={1.5} />,
+          label: "Discord Community",
+          handle: () => {
+            window.open(Constants.discordLink, "_blank");
+          },
+        },
+        {
+          icon: <YoutubeIcon size={14} strokeWidth={1.5} />,
+          label: "YouTube",
+          handle: () => {
+            window.open(Constants.youtube, "_blank");
+          },
+        },
+        {
+          icon: <FileTextIcon size={14} strokeWidth={1.5} />,
+          label: "Changelog",
+          handle: () => {
+            window.open(Constants.releasesPage, "_blank");
+          },
+        },
+      ],
     },
 
     {

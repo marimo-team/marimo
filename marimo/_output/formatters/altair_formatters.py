@@ -83,7 +83,10 @@ class AltairFormatter(FormatterFactory):
             chart = _apply_embed_options(chart)
 
             # Return the chart as a vega-lite chart with embed options
-            return ("application/vnd.vegalite.v5+json", chart.to_json())
+            return (
+                "application/vnd.vegalite.v5+json",
+                chart.to_json(validate=False),
+            )
 
     def apply_theme(self, theme: Theme) -> None:
         del theme

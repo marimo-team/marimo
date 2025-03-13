@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import ast
 import base64
+import builtins
 import inspect
+import sys
 import threading
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from textwrap import dedent
@@ -12,17 +15,26 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
-    Iterator,
-    List,
     Literal,
-    Mapping,
     Optional,
+    TypeVar,
+    Union,
+    cast,
+    overload,
 )
 from uuid import uuid4
 
+from marimo._types.ids import CellId_t
+
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec, TypeAlias
+else:
+    from typing import ParamSpec, TypeAlias
+
+from collections.abc import Sequence  # noqa: TC003
+
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
     CycleError,
@@ -46,14 +58,20 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
+from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from types import TracebackType
 
     from marimo._messaging.ops import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
+
+P = ParamSpec("P")
+R = TypeVar("R")
+Fn: TypeAlias = Callable[P, R]
 LOGGER = _loggers.marimo_logger()
 
 
@@ -78,9 +96,12 @@ class _AppConfig:
     html_head_file: Optional[str] = None
 
     # Whether to automatically download the app as HTML and Markdown
-    auto_download: List[Literal["html", "markdown"]] = field(
+    auto_download: list[Literal["html", "markdown"]] = field(
         default_factory=list
     )
+
+    # Experimental top-level cell support
+    _toplevel_fn: bool = False
 
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
@@ -95,7 +116,10 @@ class _AppConfig:
         return config
 
     def asdict(self) -> dict[str, Any]:
-        return asdict(self)
+        # Used for experimental hooks which start with _
+        return {
+            k: v for (k, v) in asdict(self).items() if not k.startswith("_")
+        }
 
     def update(self, updates: dict[str, Any]) -> _AppConfig:
         config_dict = asdict(self)
@@ -128,6 +152,40 @@ class _Namespace(Mapping[str, object]):
         return tree(self._dict)._mime_()
 
 
+class _SetupContext(SkipContext):
+    """
+    A context manager that controls imports from being executed in top level code.
+    See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
+    """
+
+    def __init__(self, cell: Cell):
+        super().__init__()
+        self._cell = cell
+
+    def trace(self, _frame: Any) -> None:
+        if self._cell.refs - set(builtins.__dict__.keys()):
+            self.skip()
+
+    def __exit__(
+        self,
+        exception: Optional[type[BaseException]],
+        instance: Optional[BaseException],
+        _tracebacktype: Optional[TracebackType],
+    ) -> Literal[False]:
+        # Must be a Literal[False], for linters.
+        # Whether to suppress a given exception.
+        self.teardown()
+
+        if exception is not None:
+            LOGGER.warning(
+                "The setup cell was unable to execute, your notebook may not "
+                "work as expected."
+            )
+            LOGGER.debug("Exception: %s", exception)
+            return True  # type: ignore
+        return False
+
+
 @dataclass
 class AppEmbedResult:
     output: Html
@@ -139,6 +197,10 @@ class AppKernelRunnerRegistry:
         # Mapping from thread to its kernel runners, so that app.embed() calls are
         # isolated across run sessions.
         self._runners: dict[int, dict[App, AppKernelRunner]] = {}
+
+    @property
+    def size(self) -> int:
+        return len(self._runners)
 
     def get_runner(self, app: App) -> AppKernelRunner:
         app_runners = self._runners.setdefault(threading.get_ident(), {})
@@ -251,13 +313,13 @@ class App:
 
     def cell(
         self,
-        func: Callable[..., Any] | None = None,
+        func: Fn[P, R] | None = None,
         *,
         column: Optional[int] = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
-    ) -> Cell | Callable[[Callable[..., Any]], Cell]:
+    ) -> Cell | Callable[[Fn[P, R]], Cell]:
         """A decorator to add a cell to the app.
 
         This decorator can be called with or without parentheses. Each of the
@@ -286,9 +348,93 @@ class App:
         """
         del kwargs
 
-        return self._cell_manager.cell_decorator(
-            func, column, disabled, hide_code, app=InternalApp(self)
+        return cast(
+            Union[Cell, Callable[[Fn[P, R]], Cell]],
+            self._cell_manager.cell_decorator(
+                func, column, disabled, hide_code, app=InternalApp(self)
+            ),
         )
+
+    # Overloads are required to preserve the wrapped function's signature.
+    # mypy is not smart enough to carry transitive typing in this case.
+    @overload
+    def function(self, func: Fn[P, R]) -> Fn[P, R]: ...
+
+    @overload
+    def function(self, **kwargs: Any) -> Callable[[Fn[P, R]], Fn[P, R]]: ...
+
+    def function(
+        self,
+        func: Fn[P, R] | None = None,
+        *,
+        column: Optional[int] = None,
+        disabled: bool = False,
+        hide_code: bool = False,
+        **kwargs: Any,
+    ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
+        """A decorator to wrap a callable function into a cell in the app.
+
+        This decorator can be called with or without parentheses. Each of the
+        following is valid:
+
+        ```
+        @app.function
+        def add(a: int, b: int) -> int:
+            return a + b
+
+
+        @app.function()
+        def subtract(a: int, b: int):
+            return a - b
+
+
+        @app.function(disabled=True)
+        def multiply(a: int, b: int) -> int:
+            return a * b
+        ```
+
+        Args:
+            func: The decorated function.
+            column: The column number to place this cell in.
+            disabled: Whether to disable the cell.
+            hide_code: Whether to hide the cell's code.
+            **kwargs: For forward-compatibility with future arguments.
+        """
+        del kwargs
+
+        return cast(
+            Union[Fn[P, R], Callable[[Fn[P, R]], Fn[P, R]]],
+            self._cell_manager.cell_decorator(
+                func,
+                column,
+                disabled,
+                hide_code,
+                app=InternalApp(self),
+                top_level=True,
+            ),
+        )
+
+    @property
+    def setup(self) -> _SetupContext:
+        """Provides a context manager to initialize the setup cell.
+
+        This block should only be utilized at the start of a marimo notebook.
+        It's used as following:
+
+        ```
+        with app.setup:
+            import my_libraries
+            from typing import Any
+
+            CONSTANT = "my constant"
+        ```
+        """
+        # Get the calling context to extract the location of the cell
+        frame = inspect.stack()[1].frame
+        cell = self._cell_manager.cell_context(
+            app=InternalApp(self), frame=frame
+        )
+        return _SetupContext(cell)
 
     def _unparsable_cell(
         self,
@@ -488,6 +634,8 @@ class App:
             # that defined the name bound to this App, if any
             app_kernel_runner = self._get_kernel_runner()
 
+            outputs: dict[CellId_t, Any]
+            glbls: dict[str, Any]
             if not app_kernel_runner.outputs:
                 outputs, glbls = await app_kernel_runner.run(
                     set(self._execution_order)

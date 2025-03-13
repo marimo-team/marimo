@@ -7,11 +7,16 @@ import {
   DataTableColumnHeaderWithSummary,
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
-import { MimeCell } from "./mime-cell";
+import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
-import type { FieldTypesWithExternalType } from "./types";
+import {
+  type DataTableSelection,
+  INDEX_COLUMN_NAME,
+  type FieldTypesWithExternalType,
+  extractTimezone,
+} from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
@@ -89,7 +94,7 @@ export function generateColumns<T>({
   showDataTypes,
 }: {
   rowHeaders: string[];
-  selection: "single" | "multi" | null;
+  selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
@@ -121,6 +126,13 @@ export function generateColumns<T>({
     ...rowHeaders,
     ...fieldTypes.map(([columnName]) => columnName),
   ];
+
+  // Remove the index column if it exists
+  const indexColumnIdx = columnKeys.indexOf(INDEX_COLUMN_NAME);
+  if (indexColumnIdx !== -1) {
+    columnKeys.splice(indexColumnIdx, 1);
+  }
+
   const columns = columnKeys.map(
     (key, idx): ColumnDef<T> => ({
       id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
@@ -160,7 +172,7 @@ export function generateColumns<T>({
         );
       },
 
-      cell: ({ column, renderValue, getValue }) => {
+      cell: ({ column, renderValue, getValue, cell }) => {
         // Row headers are bold
         if (rowHeadersSet.has(key)) {
           return <b>{String(renderValue())}</b>;
@@ -170,10 +182,31 @@ export function generateColumns<T>({
         const justify = textJustifyColumns?.[key];
         const wrapped = wrappedColumns?.includes(key);
 
+        function selectCell() {
+          if (selection !== "single-cell" && selection !== "multi-cell") {
+            return;
+          }
+
+          cell.toggleSelected?.();
+        }
+
+        const isCellSelected = cell?.getIsSelected?.() || false;
+        const canSelectCell =
+          (selection === "single-cell" || selection === "multi-cell") &&
+          !isCellSelected;
+
         const format = column.getColumnFormatting?.();
         if (format) {
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
               {column.applyColumnFormatting(value)}
             </div>
           );
@@ -182,7 +215,15 @@ export function generateColumns<T>({
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
               {rendered == null ? (
                 ""
               ) : typeof rendered === "string" ? (
@@ -198,18 +239,51 @@ export function generateColumns<T>({
           // e.g. 2010-10-07 17:15:00
           const type =
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
+          const timezone = extractTimezone(column.columnDef.meta?.dtype);
           return (
-            <div className={getCellStyleClass(justify, wrapped)}>
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
               <DatePopover date={value} type={type}>
-                {exactDateTime(value)}
+                {exactDateTime(value, timezone)}
               </DatePopover>
             </div>
           );
         }
 
+        if (isMimeValue(value)) {
+          return (
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
+              <MimeCell value={value} />
+            </div>
+          );
+        }
+
         return (
-          <div className={getCellStyleClass(justify, wrapped)}>
-            <MimeCell value={value} />
+          <div
+            onClick={selectCell}
+            className={getCellStyleClass(
+              justify,
+              wrapped,
+              canSelectCell,
+              isCellSelected,
+            )}
+          >
+            {renderAny(getValue())}
           </div>
         );
       },
@@ -292,12 +366,29 @@ function getFilterTypeForFieldType(
 function getCellStyleClass(
   justify: "left" | "center" | "right" | undefined,
   wrapped: boolean | undefined,
+  canSelectCell: boolean,
+  isSelected: boolean,
 ): string {
   return cn(
+    canSelectCell && "cursor-pointer",
+    isSelected &&
+      "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
     wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
   );
+}
+
+function renderAny(value: unknown): React.ReactNode {
+  if (value == null) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }

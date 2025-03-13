@@ -262,6 +262,7 @@ export const DataFrameComponent = memo(
           label={null}
           className="rounded-b border-x border-b"
           data={url || ""}
+          hasStableRowId={false}
           totalRows={total_rows ?? 0}
           totalColumns={Object.keys(columns).length}
           pageSize={pageSize}

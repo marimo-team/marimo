@@ -1,140 +1,23 @@
-"""Tests for SQL engines."""
+"""General tests for the SQL engines."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator
 from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._data.models import DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines import (
     DuckDBEngine,
     SQLAlchemyEngine,
+    _sql_type_to_data_type,
     raise_df_import_error,
 )
-from marimo._sql.sql import sql
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
-HAS_POLARS = DependencyManager.polars.has()
 HAS_PANDAS = DependencyManager.pandas.has()
-
-if TYPE_CHECKING:
-    import duckdb
-    import sqlalchemy as sa
-
-
-@pytest.fixture
-def sqlite_engine() -> sa.Engine:
-    """Create a temporary SQLite database for testing."""
-
-    import sqlalchemy as sa
-    from sqlalchemy import text
-
-    engine = sa.create_engine("sqlite:///:memory:")
-
-    # Test if standard syntax works
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE test (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                INSERT INTO test (id, name) VALUES
-                (1, 'Alice'),
-                (2, 'Bob'),
-                (3, 'Charlie')
-                """
-            )
-        )
-
-    # Test if mo.sql works
-    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=engine)
-    return engine
-
-
-@pytest.fixture
-def duckdb_connection() -> Generator[duckdb.DuckDBPyConnection, None, None]:
-    """Create a DuckDB connection for testing."""
-
-    import duckdb
-
-    conn = duckdb.connect(":memory:")
-    conn.execute(
-        """
-        CREATE TABLE test (
-            id INTEGER PRIMARY KEY,
-            name TEXT
-        );
-        """
-    )
-    conn.execute(
-        """
-        INSERT INTO test VALUES
-        (1, 'Alice'),
-        (2, 'Bob'),
-        (3, 'Charlie');
-        """
-    )
-    sql("INSERT INTO test (id, name) VALUES (4, 'Rose')", engine=conn)
-    yield conn
-    conn.close()
-
-
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_duckdb_engine_dialect() -> None:
-    """Test DuckDBEngine dialect property."""
-    engine = DuckDBEngine(None)
-    assert engine.dialect == "duckdb"
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
-    """Test SQLAlchemyEngine dialect property."""
-    engine = SQLAlchemyEngine(sqlite_engine)
-    assert engine.dialect == "sqlite"
-
-
-@pytest.mark.skipif(
-    not HAS_DUCKDB or not HAS_PANDAS, reason="DuckDB and Pandas not installed"
-)
-def test_duckdb_engine_execute(
-    duckdb_connection: duckdb.DuckDBPyConnection,
-) -> None:
-    """Test DuckDBEngine execute with both connection and no connection."""
-    import pandas as pd
-    import polars as pl
-
-    # Test with explicit connection
-    engine = DuckDBEngine(duckdb_connection)
-    result = engine.execute("SELECT * FROM test ORDER BY id")
-    assert isinstance(result, (pd.DataFrame, pl.DataFrame))
-    assert len(result) == 4
-
-
-@pytest.mark.skipif(
-    not HAS_SQLALCHEMY or not HAS_PANDAS,
-    reason="SQLAlchemy and Pandas not installed",
-)
-def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
-    """Test SQLAlchemyEngine execute."""
-    import pandas as pd
-    import polars as pl
-
-    engine = SQLAlchemyEngine(sqlite_engine)
-    result = engine.execute("SELECT * FROM test ORDER BY id")
-    assert isinstance(result, (pd.DataFrame, pl.DataFrame))
-    assert len(result) == 4
+HAS_POLARS = DependencyManager.polars.has()
 
 
 @pytest.mark.skipif(
@@ -159,49 +42,6 @@ def test_raise_df_import_error() -> None:
     """Test raise_df_import_error function."""
     with pytest.raises(ImportError):
         raise_df_import_error("test_pkg")
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_sqlalchemy_engine_get_tables(sqlite_engine: sa.Engine) -> None:
-    """Test SQLAlchemyEngine get_tables method."""
-    engine = SQLAlchemyEngine(sqlite_engine, engine_name="test_sqlite")
-    tables = engine.get_tables()
-
-    assert isinstance(tables, list)
-    assert len(tables) == 1
-
-    table = tables[0]
-    assert isinstance(table, DataTable)
-    assert table.name == "test"
-    assert table.engine == "test_sqlite"
-    assert len(table.columns) == 2
-    assert table.columns[0].name == "id"
-    assert table.columns[0].type == "integer"
-    assert table.columns[1].name == "name"
-    assert table.columns[1].type == "string"
-
-
-@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_duckdb_engine_get_tables(
-    duckdb_connection: duckdb.DuckDBPyConnection,
-) -> None:
-    """Test DuckDBEngine get_tables method."""
-    engine = DuckDBEngine(duckdb_connection, engine_name="test_duckdb")
-    tables = engine.get_tables()
-
-    assert isinstance(tables, list)
-    assert len(tables) == 1
-
-    table = tables[0]
-    assert isinstance(table, DataTable)
-    assert table.name == "memory.main.test"
-    assert table.engine == "test_duckdb"
-    assert table.source_type == "connection"
-    assert len(table.columns) == 2
-    assert table.columns[0].name == "id"
-    assert table.columns[0].type == "integer"
-    assert table.columns[1].name == "name"
-    assert table.columns[1].type == "string"
 
 
 @pytest.mark.skipif(
@@ -230,3 +70,276 @@ def test_engine_name_initialization() -> None:
     assert sql_engine_default._engine_name is None
 
     duckdb_conn.close()
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="Duckdb not installed")
+def test_duckdb_source_and_dialect() -> None:
+    """Test DuckDBEngine source and dialect properties."""
+    import duckdb
+
+    duckdb_conn = duckdb.connect(":memory:")
+    engine = DuckDBEngine(duckdb_conn)
+
+    assert engine.source == "duckdb"
+    assert engine.dialect == "duckdb"
+
+    duckdb_conn.close()
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_source_and_dialect() -> None:
+    """Test SQLAlchemyEngine source and dialect properties."""
+    import sqlalchemy as sa
+
+    # Test with SQLite
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    assert engine.source == "sqlite"
+    assert engine.dialect == "sqlite"
+
+    # We can test multiple dialects without mocking by creating different engines
+    # Test with PostgreSQL dialect using a direct instance
+    mock_engine = MagicMock()
+    mock_engine.dialect.name = "postgresql"
+    pg_engine = SQLAlchemyEngine(mock_engine)
+    assert pg_engine.source == "postgresql"
+    assert pg_engine.dialect == "postgresql"
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="Duckdb not installed")
+def test_duckdb_get_current_database_and_schema() -> None:
+    """Test DuckDBEngine get_current_database and get_current_schema methods."""
+    import duckdb
+
+    duckdb_conn = duckdb.connect(":memory:")
+    engine = DuckDBEngine(duckdb_conn)
+
+    # These should return values for an in-memory database
+    assert engine.get_current_database() is not None
+    assert engine.get_current_schema() is not None
+
+    # Test error handling by closing the connection before calling methods
+    duckdb_conn.close()
+    assert engine.get_current_database() is None
+    assert engine.get_current_schema() is None
+    # Connection already closed, no need to close again
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_get_databases() -> None:
+    """Test SQLAlchemyEngine get_databases method."""
+    import sqlalchemy as sa
+
+    # Create a SQLite engine
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+
+    # Create a test table
+    with sqlite_engine.connect() as conn:
+        conn.execute(
+            sa.text("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+        )
+        conn.commit()
+
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    # Test with different include parameters
+    databases_minimal = engine.get_databases(
+        include_schemas=False,
+        include_tables=False,
+        include_table_details=False,
+    )
+    assert len(databases_minimal) > 0
+    # SQLite in-memory database name can be ':memory:' or empty depending on the SQLAlchemy version
+    assert databases_minimal[0].name in ["", ":memory:"]
+    assert databases_minimal[0].dialect == "sqlite"
+
+    # Test with schemas included
+    databases_with_schemas = engine.get_databases(
+        include_schemas=True, include_tables=False, include_table_details=False
+    )
+    assert len(databases_with_schemas) > 0
+    assert len(databases_with_schemas[0].schemas) > 0
+
+    # Test with tables included
+    databases_with_tables = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=False
+    )
+    assert len(databases_with_tables) > 0
+    assert len(databases_with_tables[0].schemas) > 0
+
+    # At least one schema should have tables
+    has_tables = False
+    for schema in databases_with_tables[0].schemas:
+        if len(schema.tables) > 0:
+            has_tables = True
+            break
+    assert has_tables
+
+    # Test auto discovery resolution
+    assert engine._resolve_should_auto_discover(True) is True
+    assert engine._resolve_should_auto_discover(False) is False
+    assert (
+        engine._resolve_should_auto_discover("auto") is True
+    )  # SQLite is cheap discovery
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_get_table_details() -> None:
+    """Test SQLAlchemyEngine get_table_details method."""
+    import sqlalchemy as sa
+    from sqlalchemy import Column, Integer, MetaData, String, Table
+
+    # Create a SQLite engine
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+
+    # Create a test table with schema
+    metadata = MetaData()
+    Table(
+        "test_table",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("name", String),
+    )
+
+    metadata.create_all(sqlite_engine)
+
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    # Get table details
+    table_details = engine.get_table_details(
+        "test_table", "main"
+    )  # main is default schema in SQLite
+
+    assert table_details is not None
+    assert table_details.name == "test_table"
+    assert table_details.num_columns == 2
+    assert len(table_details.columns) == 2
+    assert table_details.primary_keys == ["id"]
+
+    # Test column types
+    column_names = [col.name for col in table_details.columns]
+    assert "id" in column_names
+    assert "name" in column_names
+
+
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not (HAS_PANDAS or HAS_POLARS),
+    reason="Duckdb and either pandas or polars not installed",
+)
+def test_duckdb_execute() -> None:
+    """Test DuckDBEngine execute method."""
+    import duckdb
+
+    duckdb_conn = duckdb.connect(":memory:")
+    engine = DuckDBEngine(duckdb_conn)
+
+    # Create a test table
+    engine.execute("CREATE TABLE test (id INTEGER, name VARCHAR)")
+    engine.execute("INSERT INTO test VALUES (1, 'test1'), (2, 'test2')")
+
+    # Query the table
+    result = engine.execute("SELECT * FROM test ORDER BY id")
+
+    # Check result type based on available libraries
+    if HAS_POLARS:
+        import polars as pl
+
+        assert isinstance(result, pl.DataFrame)
+    elif HAS_PANDAS:
+        import pandas as pd
+
+        assert isinstance(result, pd.DataFrame)
+
+    # Test with invalid query
+    assert engine.execute("") is None
+
+    duckdb_conn.close()
+
+
+@pytest.mark.skipif(
+    not HAS_SQLALCHEMY or not (HAS_PANDAS or HAS_POLARS),
+    reason="SQLAlchemy and either pandas or polars not installed",
+)
+def test_sqlalchemy_execute() -> None:
+    """Test SQLAlchemyEngine execute method."""
+    import sqlalchemy as sa
+
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    # Create a test table
+    engine.execute("CREATE TABLE test (id INTEGER, name TEXT)")
+    engine.execute("INSERT INTO test VALUES (1, 'test1'), (2, 'test2')")
+
+    # Query the table
+    result = engine.execute("SELECT * FROM test ORDER BY id")
+
+    # Check result type based on available libraries
+    if HAS_POLARS:
+        import polars as pl
+
+        assert isinstance(result, pl.DataFrame)
+    elif HAS_PANDAS:
+        import pandas as pd
+
+        assert isinstance(result, pd.DataFrame)
+
+    # Test with a query that doesn't return a result set
+    assert engine.execute("PRAGMA journal_mode=WAL") is not None
+
+
+def test_sql_type_to_data_type() -> None:
+    """Test _sql_type_to_data_type function."""
+    # Now that the raise statement is removed, we can test directly
+    # Test integer types
+    for int_type in ["INTEGER", "INT", "BIGINT", "SERIAL"]:
+        assert _sql_type_to_data_type(int_type) == "integer"
+
+    # Test float types
+    for float_type in ["FLOAT", "DOUBLE", "DECIMAL", "NUMERIC"]:
+        assert _sql_type_to_data_type(float_type) == "number"
+
+    # Test datetime types
+    for dt_type in ["TIMESTAMP", "DATETIME"]:
+        assert _sql_type_to_data_type(dt_type) == "datetime"
+
+    # Test date type
+    assert _sql_type_to_data_type("DATE") == "date"
+
+    # Test boolean type
+    assert _sql_type_to_data_type("BOOLEAN") == "boolean"
+
+    # Test string types
+    for str_type in ["VARCHAR", "CHAR", "TEXT"]:
+        assert _sql_type_to_data_type(str_type) == "string"
+
+    # Test unknown type
+    assert _sql_type_to_data_type("UNKNOWN_TYPE") == "string"
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_type_conversion() -> None:
+    """Test SQLAlchemyEngine _get_python_type and _get_generic_type methods."""
+    import sqlalchemy as sa
+    from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String
+
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    # Test with various SQLAlchemy types
+    assert engine._get_python_type(Integer()) == "integer"
+    assert engine._get_python_type(String()) == "string"
+    assert engine._get_python_type(Float()) == "number"
+    assert engine._get_python_type(Boolean()) == "boolean"
+    assert engine._get_python_type(DateTime()) == "datetime"
+    # SQLAlchemy's Date type might be mapped to 'datetime' in some versions
+    assert engine._get_python_type(Date()) in ["date", "datetime"]
+
+    # Test with a custom type that raises NotImplementedError
+    class CustomType(sa.types.TypeEngine):
+        @property
+        def python_type(self) -> None:
+            raise NotImplementedError("Not implemented")
+
+    assert engine._get_python_type(CustomType()) is None

@@ -1,17 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { KnownQueryParams } from "@/core/constants";
-import { getSessionId } from "@/core/kernel/session";
 import { yCollab } from "y-codemirror.next";
-import * as Y from "yjs";
-import { WebsocketProvider } from "y-websocket";
 import type { CellId } from "@/core/cells/ids";
 import { isWasm } from "@/core/wasm/utils";
 import type { Extension } from "@codemirror/state";
-
-const cellProviders = new Map<CellId, WebsocketProvider>();
+import { CellProviderManager } from "./cell-manager";
+import { EditorView, ViewPlugin } from "@codemirror/view";
+import {
+  languageAdapterState,
+  setLanguageAdapter,
+  switchLanguage,
+} from "../language/extension";
+import { LanguageAdapters } from "../language/LanguageAdapters";
+import type { LanguageAdapterType } from "../language/types";
+import { Logger } from "@/utils/Logger";
 
 export function realTimeCollaboration(
   cellId: CellId,
+  updateCellCode: (code: string) => void,
   initialCode = "",
 ): { extension: Extension; code: string } {
   if (isWasm()) {
@@ -21,32 +26,92 @@ export function realTimeCollaboration(
     };
   }
 
-  let wsProvider = cellProviders.get(cellId);
-  let ytext: Y.Text;
+  const manager = CellProviderManager.getInstance();
+  const { ytext, ylanguage, provider } = manager.getOrCreateProvider(
+    cellId,
+    initialCode,
+  );
 
-  if (wsProvider) {
-    ytext = wsProvider.doc.getText("code");
-  } else {
-    const ydoc = new Y.Doc();
-    ytext = ydoc.getText("code");
-    if (initialCode) {
-      ytext.insert(0, initialCode);
-    }
-    // Add file and session_id to the params
-    const params: Record<string, string> = {};
-    params.session_id = getSessionId();
-    const searchParams = new URLSearchParams(window.location.search);
-    const filePath = searchParams.get(KnownQueryParams.filePath);
-    if (filePath) {
-      params.file = filePath;
-    }
-    wsProvider = new WebsocketProvider("ws", cellId, ydoc, {
-      params,
-    });
-    cellProviders.set(cellId, wsProvider);
-  }
+  // Code sync plugin
+  const codeSync = ViewPlugin.define((view) => {
+    const handleSync = (isSynced: boolean) => {
+      Logger.debug(`RTC: sync=${isSynced}, ytext.length=${ytext.toJSON()}`);
 
-  const extension = yCollab(ytext, null);
+      // If it's not synced, update the editor code
+      if (!isSynced) {
+        const code = ytext.toJSON();
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: code,
+          },
+        });
+      }
+
+      // If it's synced, update the cell code
+      if (isSynced) {
+        updateCellCode(ytext.toJSON());
+      }
+    };
+
+    // Wait for provider to connect before initializing with local code
+    provider.on("sync", handleSync);
+    return {
+      destroy() {
+        provider.off("sync", handleSync);
+      },
+    };
+  });
+
+  // Create a view plugin to observe language changes
+  const languageObserver = ViewPlugin.define((view) => {
+    const observer = () => {
+      const newLang = ylanguage.toJSON() as LanguageAdapterType;
+      const currentLang = view.state.field(languageAdapterState).type;
+      if (newLang !== currentLang) {
+        Logger.debug(
+          `[debug] Received language change: ${currentLang} -> ${newLang}`,
+        );
+        const adapter = LanguageAdapters[newLang]();
+        switchLanguage(view, adapter.type, { keepCodeAsIs: true });
+      }
+    };
+
+    ylanguage.observe(observer);
+    return {
+      destroy() {
+        ylanguage.unobserve(observer);
+      },
+    };
+  });
+
+  // Listen for language changes
+  const languageListener = EditorView.updateListener.of((update) => {
+    for (const tr of update.transactions) {
+      for (const e of tr.effects) {
+        if (e.is(setLanguageAdapter)) {
+          const currentLang = ylanguage.toJSON();
+          if (currentLang !== e.value.type) {
+            Logger.debug(
+              `[debug] Setting language: ${currentLang} -> ${e.value.type}`,
+            );
+            ylanguage.doc?.transact(() => {
+              ylanguage.delete(0, ylanguage.length);
+              ylanguage.insert(0, e.value.type);
+            });
+          }
+        }
+      }
+    }
+  });
+
+  const extension = [
+    languageObserver,
+    languageListener,
+    codeSync,
+    yCollab(ytext, null),
+  ];
 
   return {
     code: ytext.toJSON(),

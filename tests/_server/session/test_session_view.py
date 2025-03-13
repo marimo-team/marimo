@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
-from marimo._ast.cell import CellId_t, RuntimeStateType
+from marimo._ast.cell import RuntimeStateType
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
@@ -27,9 +27,11 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
-cell_id: CellId_t = "cell_1"
+cell_id = CellId_t("cell_1")
 
 initial_output = CellOutput(
     channel=CellChannel.OUTPUT,
@@ -445,15 +447,22 @@ def test_add_data_source_connections() -> None:
                         name="pg1",
                         display_name="postgresql (pg1)",
                     ),
+                    DataSourceConnection(
+                        source="duckdb",
+                        dialect="default",
+                        name=INTERNAL_DUCKDB_ENGINE,
+                        display_name="duckdb internal",
+                    ),
                 ]
             )
         )
     )
 
-    assert len(session_view.data_connectors.connections) == 2
+    assert len(session_view.data_connectors.connections) == 3
     names = [c.name for c in session_view.data_connectors.connections]
     assert "db1" in names
     assert "pg1" in names
+    assert INTERNAL_DUCKDB_ENGINE in names
 
     # Add new connection and update existing
     session_view.add_raw_operation(
@@ -477,7 +486,7 @@ def test_add_data_source_connections() -> None:
         )
     )
 
-    assert len(session_view.data_connectors.connections) == 3
+    assert len(session_view.data_connectors.connections) == 4
     conns = {c.name: c for c in session_view.data_connectors.connections}
 
     # Check updated connection
@@ -489,6 +498,7 @@ def test_add_data_source_connections() -> None:
     assert conns["mysql1"].dialect == "mysql"
     # Check existing connection
     assert "pg1" in conns
+    assert INTERNAL_DUCKDB_ENGINE in names
 
     # Check connectors in operations
     assert session_view.data_connectors in session_view.operations
@@ -505,8 +515,12 @@ def test_add_data_source_connections() -> None:
             )
         )
     )
-    assert len(session_view.data_connectors.connections) == 1
-    assert session_view.data_connectors.connections[0].name == "mysql1"
+    assert len(session_view.data_connectors.connections) == 2
+    session_view_names = [
+        c.name for c in session_view.data_connectors.connections
+    ]
+    assert "mysql1" in session_view_names
+    assert INTERNAL_DUCKDB_ENGINE in session_view_names
 
 
 def test_add_cell_op() -> None:
@@ -715,18 +729,18 @@ def test_get_cell_console_outputs(time_mock: Any) -> None:
 
 def test_mark_auto_export():
     session_view = SessionView()
-    assert not session_view.has_auto_exported_html
-    assert not session_view.has_auto_exported_md
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
 
     session_view.mark_auto_export_html()
-    assert session_view.has_auto_exported_html
+    assert not session_view.needs_export("html")
 
     session_view.mark_auto_export_md()
-    assert session_view.has_auto_exported_md
+    assert not session_view.needs_export("md")
 
     session_view._touch()
-    assert not session_view.has_auto_exported_html
-    assert not session_view.has_auto_exported_md
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
 
     session_view.mark_auto_export_html()
     session_view.mark_auto_export_md()
@@ -737,8 +751,14 @@ def test_mark_auto_export():
             status=initial_status,
         ),
     )
-    assert not session_view.has_auto_exported_html
-    assert not session_view.has_auto_exported_md
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
+
+    session_view.mark_auto_export_session()
+    assert not session_view.needs_export("session")
+
+    session_view._touch()
+    assert session_view.needs_export("session")
 
 
 def test_stale_code() -> None:

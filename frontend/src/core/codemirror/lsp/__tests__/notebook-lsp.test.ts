@@ -153,7 +153,7 @@ describe("NotebookLanguageServerClient", () => {
       notify: vi.fn(),
       request: vi.fn(),
     } as unknown as Mocked<ILanguageServerClient>;
-    notebookClient = new NotebookLanguageServerClient(mockClient);
+    notebookClient = new NotebookLanguageServerClient(mockClient, {});
     (notebookClient as any).getNotebookCode = vi.fn().mockReturnValue({
       cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
       codes: {
@@ -484,26 +484,17 @@ describe("NotebookLanguageServerClient", () => {
         });
 
       // Create a new client to trigger initialization
-      const client = new NotebookLanguageServerClient(mockClient);
+      const client = new NotebookLanguageServerClient(mockClient, {});
       await client.initialize();
 
-      expect(configNotifications).toContainEqual({
-        method: "workspace/didChangeConfiguration",
-        params: {
-          settings: {
-            pylsp: {
-              plugins: {
-                marimo_plugin: {
-                  enabled: true,
-                },
-                jedi: {
-                  auto_import_modules: ["marimo", "numpy"],
-                },
-              },
-            },
+      expect(configNotifications[0]).toMatchInlineSnapshot(`
+        {
+          "method": "workspace/didChangeConfiguration",
+          "params": {
+            "settings": {},
           },
-        },
-      });
+        }
+      `);
     });
   });
 });

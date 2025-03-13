@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from pathlib import Path
 from typing import Callable, Literal, Optional
 
@@ -10,6 +9,7 @@ import click
 
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
+from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import (
     ExportResult,
@@ -32,6 +32,11 @@ _watch_message = (
     "Otherwise, file watcher will poll the file every 1s."
 )
 
+_sandbox_message = (
+    "Run the command in an isolated virtual environment using "
+    "`uv run --isolated`. Requires `uv`."
+)
+
 
 @click.group(help="""Export a notebook to various formats.""")
 def export() -> None:
@@ -40,7 +45,7 @@ def export() -> None:
 
 def watch_and_export(
     marimo_path: MarimoPath,
-    output: Optional[str],
+    output: Optional[Path],
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
 ) -> None:
@@ -54,12 +59,15 @@ def watch_and_export(
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(data)
-                f.close()
+            output.write_text(data, encoding="utf-8")
         else:
             echo(data)
         return
+
+    if output:
+        output_path = Path(output)
+        if not prompt_to_overwrite(output_path):
+            return
 
     # No watch, just run once
     if not watch:
@@ -74,7 +82,7 @@ def watch_and_export(
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
-                f"File {str(file_path)} changed. Re-exporting to {green(output)}"
+                f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
             )
         result = export_callback(MarimoPath(file_path))
         write_data(result.contents)
@@ -123,7 +131,7 @@ Optionally pass CLI args to the notebook:
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the HTML to. "
@@ -131,15 +139,12 @@ Optionally pass CLI args to the notebook:
     ),
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
-    help=(
-        "Run the command in an isolated virtual environment using "
-        "`uv run --isolated`. Requires `uv`."
-    ),
+    help=_sandbox_message,
 )
 @click.argument(
     "name",
@@ -150,17 +155,21 @@ Optionally pass CLI args to the notebook:
 def html(
     name: str,
     include_code: bool,
-    output: str,
+    output: Path,
     watch: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
     args: tuple[str],
 ) -> None:
     """Run a notebook and export it as an HTML file."""
     import sys
 
-    from marimo._cli.sandbox import prompt_run_in_sandbox
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
-    if sandbox or prompt_run_in_sandbox(name):
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -203,12 +212,20 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the script to. "
         "If not provided, the script will be printed to stdout."
     ),
+)
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
 )
 @click.argument(
     "name",
@@ -217,12 +234,26 @@ Watch for changes and regenerate the script on modification:
 )
 def script(
     name: str,
-    output: str,
+    output: Path,
     watch: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """
     Export a marimo notebook as a flat script, in topological order.
     """
+    import sys
+
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_script(file_path)
@@ -253,12 +284,20 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the markdown to. "
         "If not provided, markdown will be printed to stdout."
     ),
+)
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
 )
 @click.argument(
     "name",
@@ -267,12 +306,26 @@ Watch for changes and regenerate the script on modification:
 )
 def md(
     name: str,
-    output: str,
+    output: Path,
     watch: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
     """
+    import sys
+
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_md(file_path)
@@ -312,7 +365,7 @@ Requires nbformat to be installed.
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the ipynb file to. "
@@ -327,15 +380,12 @@ Requires nbformat to be installed.
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
-    help=(
-        "Run the command in an isolated virtual environment using "
-        "`uv run --isolated`. Requires `uv`."
-    ),
+    help=_sandbox_message,
 )
 @click.argument(
     "name",
@@ -344,11 +394,11 @@ Requires nbformat to be installed.
 )
 def ipynb(
     name: str,
-    output: str,
+    output: Path,
     watch: bool,
     sort: Literal["top-down", "topological"],
     include_outputs: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
@@ -359,13 +409,17 @@ def ipynb(
 
     import sys
 
-    from marimo._cli.sandbox import prompt_run_in_sandbox
+    if include_outputs:
+        # Set default, if not provided
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
-    if include_outputs and (sandbox or prompt_run_in_sandbox(name)):
-        from marimo._cli.sandbox import run_in_sandbox
+        if sandbox is None:
+            sandbox = maybe_prompt_run_in_sandbox(name)
 
-        run_in_sandbox(sys.argv[1:], name)
-        return
+        if sandbox:
+            from marimo._cli.sandbox import run_in_sandbox
+
+            run_in_sandbox(sys.argv[1:], name)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
@@ -402,7 +456,7 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     required=True,
     help="Output directory to save the HTML to.",
 )
@@ -429,6 +483,14 @@ and cannot be opened directly from the file system (e.g. file://).
         "only relevant for run mode."
     ),
 )
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
+)
 @click.argument(
     "name",
     required=True,
@@ -436,19 +498,34 @@ and cannot be opened directly from the file system (e.g. file://).
 )
 def html_wasm(
     name: str,
-    output: str,
+    output: Path,
     mode: Literal["edit", "run"],
     watch: bool,
     show_code: bool,
+    sandbox: Optional[bool],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
+    import sys
+
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name)
+        return
+
     out_dir = output
     filename = "index.html"
     ignore_index_html = False
     # If ends with .html, get the directory
-    if output.endswith(".html"):
-        out_dir = os.path.dirname(output)
-        filename = os.path.basename(output)
+    if output.suffix == ".html":
+        out_dir = output.parent
+        filename = output.name
         ignore_index_html = True
 
     marimo_file = MarimoPath(name)
@@ -464,7 +541,7 @@ def html_wasm(
     (Path(out_dir) / ".nojekyll").touch()
 
     echo(
-        f"Assets copied to {green(out_dir)}. These assets are required for the "
+        f"Assets copied to {green(str(out_dir))}. These assets are required for the "
         "notebook to run in the browser."
     )
 
@@ -472,7 +549,7 @@ def html_wasm(
     if did_export_public:
         echo(
             f"The public folder next to your notebook was copied to "
-            f"{green(out_dir)}."
+            f"{green(str(out_dir))}."
         )
 
     echo(
@@ -481,7 +558,7 @@ def html_wasm(
         "Then open the URL that is printed to your terminal."
     )
 
-    outfile = os.path.join(out_dir, filename)
+    outfile = out_dir / filename
     return watch_and_export(MarimoPath(name), outfile, watch, export_callback)
 
 

@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import time
+from contextlib import contextmanager
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
+from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import CellOp, KernelCapabilities, KernelReady
 from marimo._server.sessions import Session
+from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header
@@ -65,7 +68,9 @@ def assert_kernel_ready_response(
     assert data.capabilities == expected.capabilities
 
 
-def get_session(client: TestClient, session_id: str) -> Optional[Session]:
+def get_session(
+    client: TestClient, session_id: SessionId
+) -> Optional[Session]:
     return get_session_manager(client).get_session(session_id)
 
 
@@ -75,7 +80,7 @@ def test_refresh_session(client: TestClient) -> None:
         assert_kernel_ready_response(data, create_response({}))
 
     # Check the session still exists after closing the websocket
-    session = get_session(client, "123")
+    session = get_session(client, SessionId("123"))
     assert session
     session_view = session.session_view
 
@@ -316,13 +321,14 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         assert data == {
             "op": "update-cell-codes",
             "data": {
-                "cell_ids": ["MJUe", "Hbol"],
-                "code_is_stale": True,
-                "codes": ["x=10; x", "import marimo as mo"],
+                "cell_ids": ["MJUe"],
+                "code_is_stale": False,
+                "codes": ["x=10; x"],
             },
         }
 
     # Resume session with new ID (simulates refresh)
+    # watcher_on_save is 'autorun', so we should expect the cell to be run
     with client.websocket_connect("/ws?session_id=456") as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
@@ -337,32 +343,33 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         while True:
             data = websocket.receive_json()
             messages.append(data)
-            if data["op"] == "update-cell-codes":
+            if data["op"] == "update-cell-ids":
                 break
 
         # 3 messages:
         # 1. banner
         # 2. update-cell-ids
-        # 3. update-cell-codes
-        assert len(messages) == 3
+        assert len(messages) == 2
         assert messages[0]["op"] == "banner"
         assert messages[1] == {
             "op": "update-cell-ids",
             "data": {"cell_ids": ["MJUe", "Hbol"]},
         }
-        assert messages[2] == {
-            "op": "update-cell-codes",
-            "data": {
-                "cell_ids": ["MJUe", "Hbol"],
-                "code_is_stale": True,
-                "codes": ["x=10; x", "import marimo as mo"],
-            },
-        }
 
     session = get_session(client, "456")
     assert session
     session_view = session.session_view
-    assert session_view.last_executed_code == {}
+    assert session_view.last_executed_code == {"MJUe": "x=10; x"}
 
     session_manager.watch = False
     client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+@contextmanager
+def without_autorun_on_save(config: UserConfigManager):
+    prev_config = config.get_config()
+    try:
+        config.save_config({"runtime": {"watcher_on_save": "lazy"}})
+        yield
+    finally:
+        config.save_config(prev_config)

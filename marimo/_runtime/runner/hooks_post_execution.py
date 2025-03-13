@@ -1,12 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._data.get_datasets import (
-    get_datasets_from_duckdb,
     get_datasets_from_variables,
     has_updates_to_datasource,
 )
@@ -32,14 +32,17 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
+from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
 )
 from marimo._tracer import kernel_tracer
+from marimo._types.ids import VariableName
 from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
+
 
 PostExecutionHookType = Callable[
     [CellImpl, cell_runner.Runner, cell_runner.RunResult], None
@@ -126,7 +129,7 @@ def _broadcast_datasets(
     del run_result
     tables = get_datasets_from_variables(
         [
-            (variable, runner.glbls[variable])
+            (VariableName(variable), runner.glbls[variable])
             for variable in cell.defs
             if variable in runner.glbls
         ]
@@ -149,7 +152,7 @@ def _broadcast_data_source_connection(
     del run_result
     engines = get_engines_from_variables(
         [
-            (variable, runner.glbls[variable])
+            (VariableName(variable), runner.glbls[variable])
             for variable in cell.defs
             if variable in runner.glbls
         ]
@@ -164,15 +167,9 @@ def _broadcast_data_source_connection(
             ]
         ).broadcast()
 
-    for variable, engine in engines:
-        tables = engine.get_tables()
-        if tables:
-            LOGGER.debug(f"Broadcasting engine tables for {variable}")
-            Datasets(tables=tables).broadcast()
 
-
-@kernel_tracer.start_as_current_span("broadcast_duckdb_tables")
-def _broadcast_duckdb_tables(
+@kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
+def _broadcast_duckdb_datasource(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -196,12 +193,14 @@ def _broadcast_duckdb_tables(
         if not modifies_datasources:
             return
 
-        tables = get_datasets_from_duckdb(connection=None)
-        if not tables:
-            return
-
-        LOGGER.debug("Broadcasting duckdb tables")
-        Datasets(tables=tables, clear_channel="duckdb").broadcast()
+        LOGGER.debug("Broadcasting internal duckdb datasource")
+        DataSourceConnections(
+            connections=[
+                engine_to_data_source_connection(
+                    INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
+                )
+            ]
+        ).broadcast()
     except Exception:
         return
 
@@ -324,8 +323,7 @@ def _broadcast_outputs(
         CellOp.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
-                    msg="This cell raised an exception: %s%s"
-                    % (
+                    msg="This cell raised an exception: {}{}".format(
                         exception_type,
                         (
                             f"('{str(run_result.exception)}')"
@@ -340,6 +338,26 @@ def _broadcast_outputs(
             clear_console=False,
             cell_id=cell.cell_id,
         )
+
+
+@kernel_tracer.start_as_current_span("run_pytest")
+def _attempt_pytest(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    if cell._test:
+        try:
+            import marimo._runtime.pytest as marimo_pytest
+
+            if runner.execution_context is not None:
+                with runner.execution_context(cell.cell_id):
+                    result = marimo_pytest.run_pytest(cell.defs, runner.glbls)
+                    if result.output:
+                        sys.stdout.write(result.output)
+        except ImportError:
+            pass
 
 
 @kernel_tracer.start_as_current_span("reset_matplotlib_context")
@@ -371,7 +389,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _broadcast_variables,
     _broadcast_datasets,
     _broadcast_data_source_connection,
-    _broadcast_duckdb_tables,
+    _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
     # set status to idle after all post-processing is done, in case the

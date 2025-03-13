@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 import click
 
@@ -18,28 +18,74 @@ from marimo._cli.file_path import FileContentReader
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.scripts import read_pyproject_from_script
 from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
 
-REGEX = (
-    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$"
-)
 
+class PyProjectReader:
+    def __init__(self, project: dict[str, Any]):
+        self.project = project
 
-def _get_dependencies(script: str) -> List[str] | None:
-    """Get dependencies from string representation of script."""
-    try:
-        pyproject = _read_pyproject(script) or {}
-        return _pyproject_toml_to_requirements_txt(pyproject)
-    except Exception as e:
-        LOGGER.warning(f"Failed to parse dependencies: {e}")
-        return None
+    @staticmethod
+    def from_filename(name: str) -> PyProjectReader:
+        return PyProjectReader(_get_pyproject_from_filename(name) or {})
+
+    @staticmethod
+    def from_script(script: str) -> PyProjectReader:
+        return PyProjectReader(read_pyproject_from_script(script) or {})
+
+    @property
+    def extra_index_urls(self) -> list[str]:
+        # See https://docs.astral.sh/uv/reference/settings/#pip_extra-index-url
+        return (  # type: ignore[no-any-return]
+            self.project.get("tool", {})
+            .get("uv", {})
+            .get("extra-index-url", [])
+        )
+
+    @property
+    def index_configs(self) -> list[dict[str, str]]:
+        # See https://docs.astral.sh/uv/reference/settings/#index
+        return self.project.get("tool", {}).get("uv", {}).get("index", [])  # type: ignore[no-any-return]
+
+    @property
+    def index_url(self) -> str | None:
+        # See https://docs.astral.sh/uv/reference/settings/#pip_index-url
+        return (  # type: ignore[no-any-return]
+            self.project.get("tool", {}).get("uv", {}).get("index-url", None)
+        )
+
+    @property
+    def python_version(self) -> str | None:
+        try:
+            version = self.project.get("requires-python")
+            # Only return string version requirements
+            if not isinstance(version, str):
+                return None
+            return version
+        except Exception as e:
+            LOGGER.warning(f"Failed to parse Python version requirement: {e}")
+            return None
+
+    @property
+    def dependencies(self) -> list[str]:
+        return self.project.get("dependencies", [])  # type: ignore[no-any-return]
+
+    @property
+    def requirements_txt_lines(self) -> list[str]:
+        """Get dependencies from string representation of script."""
+        try:
+            return _pyproject_toml_to_requirements_txt(self.project)
+        except Exception as e:
+            LOGGER.warning(f"Failed to parse dependencies: {e}")
+            return []
 
 
 def _pyproject_toml_to_requirements_txt(
-    pyproject: Dict[str, Any],
-) -> List[str]:
+    pyproject: dict[str, Any],
+) -> list[str]:
     """
     Convert a pyproject.toml file to a requirements.txt file.
 
@@ -53,7 +99,7 @@ def _pyproject_toml_to_requirements_txt(
     # [tool.uv.sources]
     # python-gcode = { git = "https://github.com/fetlab/python_gcode", rev = "new" }
     """  # noqa: E501
-    dependencies = cast(List[str], pyproject.get("dependencies", []))
+    dependencies = cast(list[str], pyproject.get("dependencies", []))
     if not dependencies:
         return []
 
@@ -107,73 +153,26 @@ def _pyproject_toml_to_requirements_txt(
     return dependencies
 
 
-def get_dependencies_from_filename(name: str) -> List[str]:
-    if not name:
-        return []
-
+def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
     try:
         contents, _ = FileContentReader().read_file(name)
-        return _get_dependencies(contents) or []
+        return read_pyproject_from_script(contents)
     except FileNotFoundError:
-        return []
+        return None
     except Exception:
-        LOGGER.warning(f"Failed to read dependencies from {name}")
-        return []
-
-
-def _read_pyproject(script: str) -> Dict[str, Any] | None:
-    """
-    Read the pyproject.toml file from the script.
-
-    Adapted from https://peps.python.org/pep-0723/#reference-implementation
-    """
-    name = "script"
-    matches = list(
-        filter(lambda m: m.group("type") == name, re.finditer(REGEX, script))
-    )
-    if len(matches) > 1:
-        raise ValueError(f"Multiple {name} blocks found")
-    elif len(matches) == 1:
-        content = "".join(
-            line[2:] if line.startswith("# ") else line[1:]
-            for line in matches[0].group("content").splitlines(keepends=True)
-        )
-        import tomlkit
-
-        pyproject = tomlkit.parse(content)
-
-        return pyproject
-    else:
+        LOGGER.warning(f"Failed to read pyproject.toml from {name}")
         return None
 
 
-def _get_python_version_requirement(
-    pyproject: Dict[str, Any] | None,
-) -> str | None:
-    """Extract Python version requirement from pyproject metadata."""
-    if pyproject is None:
-        return None
-
-    try:
-        version = pyproject.get("requires-python")
-        # Only return string version requirements
-        if not isinstance(version, str):
-            return None
-        return version
-    except Exception as e:
-        LOGGER.warning(f"Failed to parse Python version requirement: {e}")
-        return None
-
-
-def prompt_run_in_sandbox(name: str | None) -> bool:
+def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         return False
 
     if name is None:
         return False
 
-    dependencies = get_dependencies_from_filename(name)
-    if not dependencies:
+    pyproject = PyProjectReader.from_filename(name)
+    if not pyproject.dependencies:
         return False
 
     # Notebook has inlined dependencies.
@@ -219,8 +218,8 @@ def _is_versioned(dependency: str) -> bool:
 
 
 def _normalize_sandbox_dependencies(
-    dependencies: List[str], marimo_version: str
-) -> List[str]:
+    dependencies: list[str], marimo_version: str
+) -> list[str]:
     """Normalize marimo dependencies to have only one version.
 
     If multiple marimo dependencies exist, prefer the one with brackets.
@@ -262,10 +261,14 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
 
-    # If name if a filepath, parse the dependencies from the file
-    dependencies = (
-        get_dependencies_from_filename(name) if name is not None else []
+    pyproject = (
+        PyProjectReader.from_filename(name)
+        if name is not None
+        else PyProjectReader({})
     )
+
+    # If name if a filepath, parse the dependencies from the file
+    dependencies = pyproject.requirements_txt_lines
 
     # If there are no dependencies, which can happen for marimo new or
     # on marimo edit a_new_file.py, uv may use a cached venv, even though
@@ -284,18 +287,6 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     # Clean up the temporary file after the subprocess has run
     atexit.register(lambda: os.unlink(temp_file_path))
 
-    # Get Python version requirement if available
-    if name is not None and os.path.exists(name):
-        contents, _ = FileContentReader().read_file(name)
-        pyproject = _read_pyproject(contents)
-        python_version = (
-            _get_python_version_requirement(pyproject)
-            if pyproject is not None
-            else None
-        )
-    else:
-        python_version = None
-
     # Construct base UV command
     uv_cmd = [
         "uv",
@@ -306,11 +297,35 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
         "--no-project",
         "--with-requirements",
         temp_file_path,
-    ] + (["--refresh"] if uv_needs_refresh else [])
+    ]
+
+    # Add refresh
+    if uv_needs_refresh:
+        uv_cmd.append("--refresh")
 
     # Add Python version if specified
+    python_version = pyproject.python_version
     if python_version:
         uv_cmd.extend(["--python", python_version])
+
+    # Add index URL if specified
+    index_url = pyproject.index_url
+    if index_url:
+        uv_cmd.extend(["--index-url", index_url])
+
+    # Add extra-index-urls if specified
+    extra_index_urls = pyproject.extra_index_urls
+    if extra_index_urls:
+        for url in extra_index_urls:
+            uv_cmd.extend(["--extra-index-url", url])
+
+    # Add index configs if specified
+    index_configs = pyproject.index_configs
+    if index_configs:
+        for config in index_configs:
+            if "url" in config:
+                # Looks like: https://docs.astral.sh/uv/guides/scripts/#using-alternative-package-indexes
+                uv_cmd.extend(["--index", config["url"]])
 
     # Final command assembly: combine the uv prefix with the original marimo
     # command.

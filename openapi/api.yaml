@@ -365,6 +365,11 @@ components:
         error:
           nullable: true
           type: string
+        missing_packages:
+          items:
+            type: string
+          nullable: true
+          type: array
         name:
           enum:
           - data-column-preview
@@ -382,6 +387,42 @@ components:
       type: object
     DataSourceConnection:
       properties:
+        databases:
+          items:
+            properties:
+              dialect:
+                type: string
+              engine:
+                nullable: true
+                type: string
+              name:
+                type: string
+              schemas:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    tables:
+                      items:
+                        $ref: '#/components/schemas/DataTable'
+                      type: array
+                  required:
+                  - name
+                  - tables
+                  type: object
+                type: array
+            required:
+            - name
+            - dialect
+            - schemas
+            type: object
+          type: array
+        default_database:
+          nullable: true
+          type: string
+        default_schema:
+          nullable: true
+          type: string
         dialect:
           type: string
         display_name:
@@ -395,6 +436,7 @@ components:
       - dialect
       - name
       - display_name
+      - databases
       type: object
     DataSourceConnections:
       properties:
@@ -419,6 +461,11 @@ components:
         engine:
           nullable: true
           type: string
+        indexes:
+          items:
+            type: string
+          nullable: true
+          type: array
         name:
           type: string
         num_columns:
@@ -427,6 +474,11 @@ components:
         num_rows:
           nullable: true
           type: integer
+        primary_keys:
+          items:
+            type: string
+          nullable: true
+          type: array
         source:
           type: string
         source_type:
@@ -434,6 +486,11 @@ components:
           - local
           - duckdb
           - connection
+          type: string
+        type:
+          enum:
+          - table
+          - view
           type: string
         variable_name:
           nullable: true
@@ -443,6 +500,7 @@ components:
       - source
       - name
       - columns
+      - type
       type: object
     DataTableColumn:
       properties:
@@ -472,6 +530,24 @@ components:
       - time
       - unknown
       type: string
+    Database:
+      properties:
+        dialect:
+          type: string
+        engine:
+          nullable: true
+          type: string
+        name:
+          type: string
+        schemas:
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+      required:
+      - name
+      - dialect
+      - schemas
+      type: object
     Datasets:
       properties:
         clear_channel:
@@ -521,6 +597,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
+      - $ref: '#/components/schemas/ImportStarError'
       - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
@@ -755,6 +832,13 @@ components:
       required:
       - success
       type: object
+    FileOpenRequest:
+      properties:
+        path:
+          type: string
+      required:
+      - path
+      type: object
     FileUpdateRequest:
       properties:
         contents:
@@ -837,7 +921,21 @@ components:
           - function-call-result
           type: string
         return_value:
-          $ref: '#/components/schemas/JSONType'
+          nullable: true
+          oneOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/JSONType'
+            type: object
+          - items:
+              $ref: '#/components/schemas/JSONType'
+            type: array
+          - type: string
+          - type: integer
+          - type: number
+          - type: boolean
+          - additionalProperties: true
+            type: object
+          - $ref: '#/components/schemas/MIME'
         status:
           $ref: '#/components/schemas/HumanReadableStatus'
       required:
@@ -862,6 +960,18 @@ components:
           type: string
       required:
       - code
+      type: object
+    ImportStarError:
+      properties:
+        msg:
+          type: string
+        type:
+          enum:
+          - import-star
+          type: string
+      required:
+      - msg
+      - type
       type: object
     InstallMissingPackagesRequest:
       properties:
@@ -931,6 +1041,8 @@ components:
       properties:
         app_config:
           properties:
+            _toplevel_fn:
+              type: boolean
             app_title:
               nullable: true
               type: string
@@ -960,15 +1072,13 @@ components:
           required:
           - width
           - auto_download
+          - _toplevel_fn
           type: object
         capabilities:
           properties:
-            sql:
-              type: boolean
             terminal:
               type: boolean
           required:
-          - sql
           - terminal
           type: object
         cell_ids:
@@ -1022,10 +1132,38 @@ components:
             nullable: true
             oneOf:
             - additionalProperties:
-                $ref: '#/components/schemas/JSONType'
+                nullable: true
+                oneOf:
+                - additionalProperties:
+                    $ref: '#/components/schemas/JSONType'
+                  type: object
+                - items:
+                    $ref: '#/components/schemas/JSONType'
+                  type: array
+                - type: string
+                - type: integer
+                - type: number
+                - type: boolean
+                - additionalProperties: true
+                  type: object
+                - $ref: '#/components/schemas/MIME'
               type: object
             - items:
-                $ref: '#/components/schemas/JSONType'
+                nullable: true
+                oneOf:
+                - additionalProperties:
+                    $ref: '#/components/schemas/JSONType'
+                  type: object
+                - items:
+                    $ref: '#/components/schemas/JSONType'
+                  type: array
+                - type: string
+                - type: integer
+                - type: number
+                - type: boolean
+                - additionalProperties: true
+                  type: object
+                - $ref: '#/components/schemas/MIME'
               type: array
             - type: string
             - type: integer
@@ -1106,6 +1244,8 @@ components:
                 api_key:
                   type: string
               type: object
+            max_tokens:
+              type: integer
             open_ai:
               properties:
                 api_key:
@@ -1135,6 +1275,27 @@ components:
           required:
           - activate_on_typing
           - copilot
+          type: object
+        datasources:
+          properties:
+            auto_discover_columns:
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
+            auto_discover_schemas:
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
+            auto_discover_tables:
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
           type: object
         display:
           properties:
@@ -1242,10 +1403,27 @@ components:
               - lazy
               - autorun
               type: string
+            output_max_bytes:
+              type: integer
+            pythonpath:
+              items:
+                type: string
+              type: array
+            std_stream_max_bytes:
+              type: integer
+            watcher_on_save:
+              enum:
+              - lazy
+              - autorun
+              type: string
           required:
           - auto_instantiate
           - auto_reload
           - on_cell_change
+          - watcher_on_save
+          - output_max_bytes
+          - std_stream_max_bytes
+          - pythonpath
           type: object
         save:
           properties:
@@ -1411,6 +1589,8 @@ components:
       - $ref: '#/components/schemas/QueryParamsClear'
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
+      - $ref: '#/components/schemas/SQLTablePreview'
+      - $ref: '#/components/schemas/SQLTableListPreview'
       - properties:
           connections:
             items:
@@ -1500,13 +1680,6 @@ components:
       - type: boolean
       - format: byte
         type: string
-    OpenFileRequest:
-      properties:
-        path:
-          type: string
-      required:
-      - path
-      type: object
     OpenTutorialRequest:
       properties:
         tutorialId:
@@ -1552,6 +1725,9 @@ components:
       properties:
         columnName:
           type: string
+        fullyQualifiedTableName:
+          nullable: true
+          type: string
         source:
           type: string
         sourceType:
@@ -1567,6 +1743,41 @@ components:
       - source
       - tableName
       - columnName
+      type: object
+    PreviewSQLTableListRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
+      type: object
+    PreviewSQLTableRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+        tableName:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
+      - tableName
       type: object
     QueryParamsAppend:
       properties:
@@ -1736,6 +1947,44 @@ components:
       - running
       - disabled-transitively
       type: string
+    SQLTableListPreview:
+      properties:
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - sql-table-list-preview
+          type: string
+        request_id:
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - request_id
+      - tables
+      - name
+      type: object
+    SQLTablePreview:
+      properties:
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - sql-table-preview
+          type: string
+        request_id:
+          type: string
+        table:
+          $ref: '#/components/schemas/DataTable'
+          nullable: true
+      required:
+      - request_id
+      - name
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -1785,6 +2034,18 @@ components:
       required:
       - config
       type: object
+    Schema:
+      properties:
+        name:
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - name
+      - tables
+      type: object
     SendUIElementMessage:
       properties:
         buffers:
@@ -1793,9 +2054,7 @@ components:
           nullable: true
           type: array
         message:
-          additionalProperties:
-            additionalProperties: true
-            type: object
+          additionalProperties: {}
           type: object
         name:
           enum:
@@ -2042,7 +2301,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.0
+  version: 0.11.19
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2094,6 +2353,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
+  /api/datasources/preview_sql_table:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a SQL table
+  /api/datasources/preview_sql_table_list:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableListRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a list of tables in an SQL schema
   /api/documentation/snippets:
     get:
       responses:
@@ -2269,6 +2556,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileMoveResponse'
           description: Move a file or directory
+  /api/files/open:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileOpenRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Open a file in the system editor
   /api/files/update:
     post:
       requestBody:
@@ -2450,22 +2751,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
-  /api/kernel/open:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OpenFileRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Open a file
-        400:
-          description: File does not exist
   /api/kernel/read_code:
     post:
       responses:

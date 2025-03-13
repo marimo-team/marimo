@@ -7,7 +7,7 @@
   ["date", ["date", "Date"]],
   ["struct", ["unknown", "Struct({'a': Int64, 'b': Int64})"]],
   ["list", ["unknown", "List(Int64)"]],
-  ["array", ["unknown", "Array(Int64, 1)"]],
+  ["array", ["unknown", "Array(Int64, shape=(1,))"]],
   ["nulls", ["string", "String"]],
   ["category", ["string", "Categorical"]],
   ["set", ["unknown", "Object"]],

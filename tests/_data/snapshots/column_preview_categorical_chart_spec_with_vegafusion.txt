@@ -1,0 +1,174 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "y",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "title": "Count of Records",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "orient": "left",
+      "scale": "y",
+      "title": "category_col",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "data": [
+    {
+      "name": "source_0",
+      "values": [
+        {
+          "__count": 2,
+          "category_col": "cat1"
+        },
+        {
+          "__count": 1,
+          "category_col": "cat2"
+        }
+      ]
+    },
+    {
+      "name": "source_0_x_domain___count",
+      "values": [
+        {
+          "max": 2,
+          "min": 1
+        }
+      ]
+    },
+    {
+      "name": "source_0_y_domain_category_col",
+      "values": [
+        {
+          "category_col": "cat1"
+        },
+        {
+          "category_col": "cat2"
+        }
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#4c78a8"
+          },
+          "height": {
+            "signal": "max(0.25, bandwidth('y'))"
+          },
+          "x": {
+            "field": "__count",
+            "scale": "x"
+          },
+          "x2": {
+            "scale": "x",
+            "value": 0
+          },
+          "y": {
+            "field": "category_col",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "source_0"
+      },
+      "name": "marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "domain": [
+        {
+          "signal": "(data(\"source_0_x_domain___count\")[0] || {}).min"
+        },
+        {
+          "signal": "(data(\"source_0_x_domain___count\")[0] || {}).max"
+        }
+      ],
+      "name": "x",
+      "nice": true,
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "linear",
+      "zero": true
+    },
+    {
+      "domain": {
+        "data": "source_0_y_domain_category_col",
+        "field": "category_col",
+        "sort": true
+      },
+      "name": "y",
+      "paddingInner": 0.1,
+      "paddingOuter": 0.05,
+      "range": {
+        "step": {
+          "signal": "y_step"
+        }
+      },
+      "type": "band"
+    }
+  ],
+  "signals": [
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    },
+    {
+      "name": "y_step",
+      "value": 20
+    },
+    {
+      "name": "height",
+      "update": "bandspace(domain('y').length, 0.1, 0.05) * y_step"
+    }
+  ],
+  "style": "cell"
+}

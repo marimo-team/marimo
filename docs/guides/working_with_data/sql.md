@@ -133,10 +133,26 @@ SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 
 ## Connecting to a custom database
 
-marimo supports bringing your own database via a **connection engine** created with a library like [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage), [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine), or a [custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options). By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+There are two ways to connect to a database in marimo:
 
-First, you need to define the engine as a Python variable in a cell.
-marimo will auto-discover the engine and let you select it in a dropdown in the SQL cell. 
+### 1. Using the UI
+
+Click the "Add Database Connection" button in your notebook to connect to PostgreSQL, MySQL, SQLite, DuckDB, Snowflake, or BigQuery databases. The UI will guide you through entering your connection details securely.
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-sql-choose-database.png"/>
+    <figcaption>Add a database connection through the UI</figcaption>
+  </figure>
+</div>
+
+If you'd like to connect to a database that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=New%20database%20connection:&labels=enhancement&template=feature_request.yaml).
+
+### 2. Using Code
+
+You can also bring your own database via a **connection engine** created with a library like [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage), [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine), or a [custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options). By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+
+Define the engine as a Python variable in a cell:
 
 ```python
 import sqlalchemy
@@ -151,12 +167,36 @@ postgres_engine = sqlmodel.create_engine("postgresql://username:password@server:
 duckdb_conn = duckdb.connect("file.db")
 ```
 
+marimo will auto-discover the engine and let you select it in the SQL cell's connection dropdown.
+
 <div align="center">
   <figure>
     <img width="750" src="/_static/docs-sql-engine-dropdown.png"/>
     <figcaption>Choose a custom database connection</figcaption>
   </figure>
 </div>
+
+## Database, schema, and table auto-discovery
+
+marimo will automatically discover the database connection and display the database, schemas, tables, and columns in the Data Sources panel. This panels lets you quickly navigate your database schema and reference tables and columns to pull in your SQL queries.
+
+<div align="center">
+  <figure>
+    <img src="/_static/docs-sql-datasources-panel.png"/>
+    <figcaption>Data Sources panel</figcaption>
+  </figure>
+</div>
+
+???+ note
+
+    By default, marimo auto-discovers databases and schemas, but not tables and columns (to avoid performance issues with large databases). You can configure this behavior in your `pyproject.toml` file. Options are `true`, `false`, or `"auto"`. `"auto"` will determine whether to auto-discover based on the type of database (e.g. when the value is `"auto"`, Snowflake and BigQuery will not auto-discover tables and columns while SQLite, Postgres, and MySQL will):
+
+    ```toml title="pyproject.toml"
+    [tool.marimo.datasources]
+    auto_discover_schemas = true   # Default: true
+    auto_discover_tables = "auto"   # Default: "auto"
+    auto_discover_columns = "auto"  # Default: false
+    ```
 
 ## Interactive tutorial
 

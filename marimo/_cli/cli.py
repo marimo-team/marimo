@@ -35,7 +35,8 @@ from marimo._tutorials import (
     create_temp_tutorial_file,
     tutorial_order,
 )
-from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
+from marimo._utils.platform import is_windows
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -43,7 +44,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         file = click.get_text_stream("stderr")
     color = None
     click.echo(
-        red("Error") + ": %s\n" % self.format_message(),
+        red("Error") + f": {self.format_message()}\n",
         file=file,
         color=color,
     )
@@ -294,10 +295,10 @@ edit_help_msg = "\n".join(
     help="Don't check if a new version of marimo is available for download.",
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -310,7 +311,11 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Watch the file for changes and reload the code when saved in another editor.",
 )
-@click.argument("name", required=False, type=click.Path())
+@click.argument(
+    "name",
+    required=False,
+    type=click.Path(),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
@@ -322,13 +327,39 @@ def edit(
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import prompt_run_in_sandbox
+    # We support unix-style piping, e.g. cat notebook.py | marimo edit
+    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
+    #
+    # This check is complicated, because we need to support running
+    #
+    #   marimo edit
+    #
+    # without a filename as well. To distinguish between `marimo edit` and
+    # `... | marimo edit`, we need to check if sys.stdin() has data on it in a
+    # nonblocking way. This does not seem to be possible on Windows, but it
+    # is possible on unix-like systems with select.
+    if name is None and not is_windows():
+        import select
+
+        try:
+            if (
+                not sys.stdin.isatty()
+                and select.select([sys.stdin], [], [], 0)[0]
+                and (contents := sys.stdin.read().strip())
+            ):
+                temp_dir = tempfile.TemporaryDirectory()
+                path = create_temp_notebook_file(
+                    "notebook.py", "py", contents, temp_dir
+                )
+                name = path.absolute_name
+        except Exception:
+            pass
 
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,
@@ -343,7 +374,13 @@ def edit(
         )
         return
 
-    if sandbox or prompt_run_in_sandbox(name):
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)
@@ -371,7 +408,7 @@ def edit(
         elif not is_dir:
             # write empty file
             try:
-                with open(name, "w"):
+                with open(name, "w", encoding="utf-8"):
                     pass
             except OSError as e:
                 if isinstance(e, FileNotFoundError):
@@ -457,10 +494,10 @@ def edit(
     callback=validators.base_url,
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -472,7 +509,7 @@ def new(
     token: bool,
     token_password: Optional[str],
     base_url: str,
-    sandbox: bool,
+    sandbox: Optional[bool],
 ) -> None:
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -602,14 +639,18 @@ Example:
     help="Redirect console logs to the browser console.",
 )
 @click.option(
-    "--sandbox",
+    "--sandbox/--no-sandbox",
     is_flag=True,
-    default=False,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=bool,
     help=sandbox_message,
 )
-@click.argument("name", required=True, type=click.Path())
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     port: Optional[int],
@@ -624,12 +665,10 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
-    sandbox: bool,
+    sandbox: Optional[bool],
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import prompt_run_in_sandbox
-
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,
     # but later we can make this a CLI flag
@@ -643,7 +682,13 @@ def run(
         )
         return
 
-    if sandbox or prompt_run_in_sandbox(name):
+    # Set default, if not provided
+    if sandbox is None:
+        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+        sandbox = maybe_prompt_run_in_sandbox(name)
+
+    if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name)

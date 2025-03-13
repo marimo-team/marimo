@@ -4,10 +4,10 @@ from __future__ import annotations
 import os
 from dataclasses import asdict
 from tempfile import TemporaryDirectory
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
-from marimo._config.utils import read_toml
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.toml import read_toml
 
 ROOT_DIR = ".marimo"
 
@@ -21,7 +21,7 @@ class ConfigReader:
         self.filepath = filepath
 
     @staticmethod
-    def for_filename(filename: str) -> Optional["ConfigReader"]:
+    def for_filename(filename: str) -> Optional[ConfigReader]:
         home_expansion = ConfigReader._get_home_directory()
         if home_expansion == "~":
             # path expansion failed
@@ -30,7 +30,7 @@ class ConfigReader:
         filepath = os.path.join(home_directory, ROOT_DIR, filename)
         return ConfigReader(filepath)
 
-    def read_toml(self, cls: Type[T], *, fallback: T) -> T:
+    def read_toml(self, cls: type[T], *, fallback: T) -> T:
         import tomlkit
 
         try:

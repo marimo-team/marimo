@@ -1,19 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
+import type {
+  DataSourceConnection as DataSourceConnectionType,
+  DataTable,
+} from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
 import type { VariableName } from "../variables/types";
 import { atom } from "jotai";
 import { store } from "../state/jotai";
+import { datasetTablesAtom } from "./state";
+import { Logger } from "@/utils/Logger";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
-export const DEFAULT_ENGINE = "_marimo_duckdb" as ConnectionName;
+export const DEFAULT_ENGINE = "__marimo_duckdb" as ConnectionName;
 
-export interface DataSourceConnection {
+// Extend the backend type but override the name property with the strongly typed ConnectionName
+export interface DataSourceConnection
+  extends Omit<DataSourceConnectionType, "name"> {
   name: ConnectionName;
-  source: string;
-  display_name: string;
-  dialect: string;
 }
 
 export interface DataSourceState {
@@ -21,14 +26,23 @@ export interface DataSourceState {
   connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
 }
 
+export interface SQLTableContext {
+  engine: string;
+  database: string;
+  schema: string;
+  defaultSchema?: string | null;
+  defaultDatabase?: string | null;
+}
+
 function initialState(): DataSourceState {
   return {
     latestEngineSelected: DEFAULT_ENGINE,
     connectionsMap: new Map().set(DEFAULT_ENGINE, {
       name: DEFAULT_ENGINE,
-      source: "duckdb",
       dialect: "duckdb",
+      source: "duckdb",
       display_name: "DuckDB In-Memory",
+      databases: [],
     }),
   };
 }
@@ -107,6 +121,108 @@ const {
       connectionsMap: newMap,
     };
   },
+
+  // Add table list to a specific schema in a connection
+  addTableList: (
+    state: DataSourceState,
+    opts: {
+      tables: DataTable[];
+      sqlTableContext: SQLTableContext;
+    },
+  ): DataSourceState => {
+    const { tables, sqlTableContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlTableContext.engine as ConnectionName;
+    const conn = connectionsMap.get(connectionName);
+
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlTableContext.database) {
+          return db;
+        }
+        return {
+          ...db,
+          schemas: db.schemas.map((schema) => {
+            if (schema.name !== sqlTableContext.schema) {
+              return schema;
+            }
+            return {
+              ...schema,
+              tables: tables,
+            };
+          }),
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
+      connectionsMap: newMap,
+    };
+  },
+
+  // Add table to a specific connection
+  addTable: (
+    state: DataSourceState,
+    opts: {
+      table: DataTable;
+      sqlTableContext: SQLTableContext;
+    },
+  ): DataSourceState => {
+    const { table, sqlTableContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlTableContext.engine as ConnectionName;
+    const tableName = table.name;
+
+    const conn = connectionsMap.get(connectionName);
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlTableContext.database) {
+          return db;
+        }
+
+        return {
+          ...db,
+          schemas: db.schemas.map((schema) => {
+            if (schema.name !== sqlTableContext.schema) {
+              return schema;
+            }
+
+            // If tables array is empty, add the table
+            // Otherwise, replace existing table or keep unchanged tables
+            const tables =
+              schema.tables.length === 0
+                ? [table]
+                : schema.tables.map((t) => (t.name === tableName ? table : t));
+
+            return {
+              ...schema,
+              tables,
+            };
+          }),
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
+      connectionsMap: newMap,
+    };
+  },
 });
 
 export { dataSourceConnectionsAtom, useDataSourceActions };
@@ -131,3 +247,58 @@ export const exportedForTesting = {
   createActions,
   initialState,
 };
+
+// If you need to get table names from all connections & local datasets, use this atom
+// When a table name is used in multiple connections, we need to use a more qualified name
+export const allTablesAtom = atom((get) => {
+  const datasets = store.get(datasetTablesAtom);
+  const connections = get(dataSourceConnectionsAtom).connectionsMap;
+  const tableNames = new Map<string, DataTable>();
+
+  for (const dataset of datasets) {
+    tableNames.set(dataset.name, dataset);
+  }
+
+  for (const conn of connections.values()) {
+    for (const database of conn.databases) {
+      // If there is only one database, it is the default
+      const isDefaultDb =
+        database.name === conn.default_database || conn.databases.length === 1;
+
+      for (const schema of database.schemas) {
+        const isDefaultSchema = schema.name === conn.default_schema;
+
+        for (const table of schema.tables) {
+          let nameToSave: string;
+
+          // If the database and schema are default, we can use the table name directly
+          // Otherwise, we need to qualify the table name
+          // We also need to use the more qualified name if there are collisions
+          nameToSave = table.name;
+
+          if (isDefaultDb && isDefaultSchema && !tableNames.has(nameToSave)) {
+            tableNames.set(nameToSave, table);
+            continue;
+          }
+
+          nameToSave = `${schema.name}.${table.name}`;
+
+          if (isDefaultDb && !tableNames.has(nameToSave)) {
+            tableNames.set(nameToSave, table);
+            continue;
+          }
+
+          nameToSave = `${database.name}.${schema.name}.${table.name}`;
+
+          if (tableNames.has(nameToSave)) {
+            Logger.warn(`Table name collision for ${nameToSave}. Skipping.`);
+          } else {
+            tableNames.set(nameToSave, table);
+          }
+        }
+      }
+    }
+  }
+
+  return tableNames;
+});

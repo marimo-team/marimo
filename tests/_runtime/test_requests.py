@@ -56,6 +56,7 @@ def test_http_request_like_basic_mapping():
         path_params={},
         cookies={},
         user={"is_authenticated": True},
+        meta={},
     )
 
     assert request["url"] == {"path": "/test"}
@@ -67,6 +68,7 @@ def test_http_request_like_basic_mapping():
         "path_params",
         "cookies",
         "user",
+        "meta",
     }
 
 
@@ -137,6 +139,7 @@ def test_display():
         path_params={},
         cookies={},
         user={"is_authenticated": True},
+        meta={},
     )
 
     display_dict = request._display_()

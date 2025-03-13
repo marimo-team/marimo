@@ -84,7 +84,7 @@ def test_update_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json()["success"] is True
-    with open(test_file_path, "r") as f:
+    with open(test_file_path) as f:
         assert f.read() == "new content"
     with open(test_file_path, "w") as f:
         f.write(test_content)
@@ -102,3 +102,14 @@ def test_move_file_or_directory(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json()["success"] is True
+
+
+def test_open_file(client: TestClient) -> None:
+    response = client.post(
+        "/api/files/open",
+        headers=HEADERS,
+        json={"path": test_file_path},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    assert "success" in response.json()

@@ -15,7 +15,11 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import CellIdAndFileKey, WebSocketCodes
+from marimo._server.api.endpoints.ws import (
+    CellIdAndFileKey,
+    WebSocketCodes,
+    clean_cell,
+)
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
@@ -359,7 +363,7 @@ def flush_messages(
 def rtc_enabled(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"experimental": {"rtc": True}})
+        config.save_config({"experimental": {"rtc_v2": True}})
         yield
     finally:
         config.save_config(prev_config)
@@ -487,11 +491,11 @@ async def test_ycell_persistence(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-async def test_ycell_cleanup_after_timeout(
+async def test_ycell_cleanup_after_close(
     client: TestClient, temp_marimo_file: str
 ) -> None:
     """Test that cell data is cleaned up after all clients disconnect"""
-    from marimo._server.api.endpoints.ws import clean_cell, ycells
+    from marimo._server.api.endpoints.ws import ycells
 
     cell_id = "Hbol"
 

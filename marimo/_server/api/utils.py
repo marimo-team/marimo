@@ -6,7 +6,7 @@ import subprocess
 import sys
 import webbrowser
 from shutil import which
-from typing import TYPE_CHECKING, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -31,7 +31,7 @@ def require_header(header: list[str] | None) -> str:
 
 
 async def parse_request(
-    request: Request, cls: Type[T], allow_unknown_keys: bool = False
+    request: Request, cls: type[T], allow_unknown_keys: bool = False
 ) -> T:
     """Parse the request body as a dataclass of type `cls`"""
     return parse_raw(

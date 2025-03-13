@@ -6,8 +6,10 @@ import {
   type DataSourceState,
   DEFAULT_ENGINE,
   exportedForTesting,
+  type SQLTableContext,
 } from "../data-source-connections";
 import type { VariableName } from "@/core/variables/types";
+import type { DataTable } from "@/core/kernel/messages";
 
 const { reducer, initialState } = exportedForTesting;
 
@@ -31,8 +33,9 @@ describe("data source connections", () => {
     state = initialState();
   });
 
-  it("starts with empty connections map", () => {
+  it("starts with default connections map", () => {
     expect(initialState().connectionsMap.size).toBe(1);
+    expect(initialState().connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 
   it("can add new connections", () => {
@@ -42,6 +45,7 @@ describe("data source connections", () => {
         source: "sqlite",
         display_name: "SQLite DB",
         dialect: "sqlite",
+        databases: [],
       },
     ];
 
@@ -58,6 +62,7 @@ describe("data source connections", () => {
       source: "sqlite",
       display_name: "SQLite DB",
       dialect: "sqlite",
+      databases: [],
     };
 
     const updatedConnection = {
@@ -81,12 +86,14 @@ describe("data source connections", () => {
         source: "sqlite",
         display_name: "SQLite DB",
         dialect: "sqlite",
+        databases: [],
       },
       {
         name: "conn2" as ConnectionName,
         source: "postgres",
         dialect: "postgres",
         display_name: "Postgres DB",
+        databases: [],
       },
     ];
 
@@ -108,12 +115,14 @@ describe("data source connections", () => {
         source: "sqlite",
         display_name: "SQLite DB",
         dialect: "sqlite",
+        databases: [],
       },
       {
         name: "conn2" as ConnectionName,
         source: "postgres",
         display_name: "Postgres DB",
         dialect: "postgres",
+        databases: [],
       },
     ];
 
@@ -143,12 +152,14 @@ describe("filtering data sources", () => {
       source: "sqlite",
       display_name: "SQLite DB",
       dialect: "sqlite",
+      databases: [],
     },
     {
       name: "conn2" as ConnectionName,
       source: "postgres",
       display_name: "Postgres DB",
       dialect: "postgres",
+      databases: [],
     },
   ];
 
@@ -177,7 +188,6 @@ describe("filtering data sources", () => {
       "non_existent" as unknown as VariableName,
     ]);
     expect(filtered.connectionsMap.size).toBe(1);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
   });
 
   it("handles mix of matching and non-matching variables", () => {
@@ -188,5 +198,255 @@ describe("filtering data sources", () => {
     expect(filtered.connectionsMap.size).toBe(2);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
     expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+  });
+});
+
+describe("add table list", () => {
+  const connections: DataSourceConnection[] = [
+    {
+      name: "conn1" as ConnectionName,
+      source: "sqlite",
+      display_name: "SQLite DB",
+      dialect: "sqlite",
+      databases: [
+        {
+          name: "db1",
+          schemas: [
+            {
+              name: "public",
+              tables: [],
+            },
+          ],
+          dialect: "sqlite",
+        },
+      ],
+    },
+  ];
+
+  // Helper function to add table list
+  const addTableList = (
+    tables: DataTable[],
+    sqlTableContext: SQLTableContext,
+  ) => {
+    return reducer(baseState, {
+      type: "addTableList",
+      payload: {
+        tables: tables,
+        sqlTableContext: sqlTableContext,
+      },
+    });
+  };
+
+  let baseState: DataSourceState;
+
+  beforeEach(() => {
+    baseState = addConnection(connections, baseState);
+    expect(baseState.connectionsMap.size).toBe(2);
+  });
+
+  it("adds table list to a specific connection", () => {
+    const tableList: DataTable[] = [
+      {
+        name: "table1",
+        columns: [],
+        source: "",
+        source_type: "local",
+        type: "table",
+      },
+    ];
+    const newState = addTableList(tableList, {
+      engine: "conn1" as ConnectionName,
+      database: "db1",
+      schema: "public",
+    });
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    const schema = db1?.schemas.find((schema) => schema.name === "public");
+    expect(schema?.tables).toEqual(tableList);
+  });
+
+  it("updates table list for a connection", () => {
+    const sqlTableContext = {
+      engine: "conn1" as ConnectionName,
+      database: "db1",
+      schema: "public",
+    };
+
+    const tableList: DataTable[] = [
+      {
+        name: "table2",
+        columns: [],
+        source: "",
+        source_type: "local",
+        type: "table",
+      },
+    ];
+    const newState = addTableList(tableList, sqlTableContext);
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    const schema = db1?.schemas.find((schema) => schema.name === "public");
+    expect(schema?.tables).toEqual(tableList);
+
+    // update with new table list
+    const newTableList: DataTable[] = [
+      {
+        name: "table1",
+        columns: [],
+        source: "",
+        source_type: "local",
+        type: "table",
+      },
+    ];
+    const updatedState = addTableList(newTableList, sqlTableContext);
+
+    const newConn = updatedState.connectionsMap.get("conn1" as ConnectionName);
+    const newDb1 = newConn?.databases.find((db) => db.name === "db1");
+    const newSchema = newDb1?.schemas.find(
+      (schema) => schema.name === "public",
+    );
+    expect(newSchema?.tables).toEqual(newTableList);
+  });
+
+  it("does not add table list if schema does not exist", () => {
+    const tableList: DataTable[] = [
+      {
+        name: "table2",
+        columns: [],
+        source: "",
+        source_type: "local",
+        type: "table",
+      },
+    ];
+    const newState = addTableList(tableList, {
+      engine: "conn1" as ConnectionName,
+      database: "db1",
+      schema: "non_existent",
+    });
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    expect(db1?.schemas.length).toBe(1);
+  });
+});
+
+describe("add table", () => {
+  const connections: DataSourceConnection[] = [
+    {
+      name: "conn1" as ConnectionName,
+      source: "sqlite",
+      display_name: "SQLite DB",
+      dialect: "sqlite",
+      databases: [
+        {
+          name: "db1",
+          schemas: [
+            {
+              name: "public",
+              tables: [],
+            },
+          ],
+          dialect: "sqlite",
+        },
+      ],
+    },
+  ];
+
+  // Helper function to add table
+  const addTable = (table: DataTable, sqlTableContext: SQLTableContext) => {
+    return reducer(baseState, {
+      type: "addTable",
+      payload: {
+        table: table,
+        sqlTableContext: sqlTableContext,
+      },
+    });
+  };
+
+  let baseState: DataSourceState;
+
+  beforeEach(() => {
+    baseState = addConnection(connections, baseState);
+    expect(baseState.connectionsMap.size).toBe(2);
+  });
+
+  it("adds table to a specific connection", () => {
+    const table: DataTable = {
+      name: "table1",
+      columns: [],
+      source: "",
+      source_type: "local",
+      type: "table",
+    };
+    const newState = addTable(table, {
+      engine: "conn1" as ConnectionName,
+      database: "db1",
+      schema: "public",
+    });
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    const schema = db1?.schemas.find((schema) => schema.name === "public");
+    expect(schema?.tables).toEqual([table]);
+  });
+
+  it("updates table for a connection", () => {
+    const sqlTableContext = {
+      engine: "conn1" as ConnectionName,
+      database: "db1",
+      schema: "public",
+    };
+
+    const table: DataTable = {
+      name: "table1",
+      columns: [],
+      source: "",
+      source_type: "local",
+      type: "table",
+    };
+    const newState = addTable(table, sqlTableContext);
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    const schema = db1?.schemas.find((schema) => schema.name === "public");
+    expect(schema?.tables).toEqual([table]);
+
+    // update details of same table
+    const updatedTable: DataTable = {
+      name: "table1",
+      columns: [],
+      source: "new_source",
+      source_type: "local",
+      type: "table",
+    };
+
+    const updatedState = addTable(updatedTable, sqlTableContext);
+
+    const newConn = updatedState.connectionsMap.get("conn1" as ConnectionName);
+    const newDb1 = newConn?.databases.find((db) => db.name === "db1");
+    const newSchema = newDb1?.schemas.find(
+      (schema) => schema.name === "public",
+    );
+    expect(newSchema?.tables).toEqual([updatedTable]);
+  });
+
+  it("does not add table if schema does not exist", () => {
+    const table: DataTable = {
+      name: "table2",
+      columns: [],
+      source: "",
+      source_type: "local",
+      type: "table",
+    };
+    const newState = addTable(table, {
+      engine: "conn1" as ConnectionName,
+      database: "db1",
+      schema: "non_existent",
+    });
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    expect(db1?.schemas.length).toBe(1);
   });
 });

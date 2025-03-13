@@ -5,7 +5,8 @@ import ast
 import os
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Any, Dict
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     import psutil
 
 
-def _generate_schema() -> dict[str, Any]:
+def _generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
     import marimo._data.models as data
@@ -57,6 +58,7 @@ def _generate_schema() -> dict[str, Any]:
         # Errors
         errors.CycleError,
         errors.MultipleDefinitionError,
+        errors.ImportStarError,
         errors.DeleteNonlocalError,
         errors.MarimoInterruptionError,
         errors.MarimoInternalError,
@@ -74,6 +76,8 @@ def _generate_schema() -> dict[str, Any]:
         data.DataTable,
         data.ColumnSummary,
         data.DataSourceConnection,
+        data.Schema,
+        data.Database,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -96,6 +100,8 @@ def _generate_schema() -> dict[str, Any]:
         ops.VariableValues,
         ops.Datasets,
         ops.DataColumnPreview,
+        ops.SQLTablePreview,
+        ops.SQLTableListPreview,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -134,6 +140,7 @@ def _generate_schema() -> dict[str, Any]:
         files.FileListResponse,
         files.FileMoveRequest,
         files.FileMoveResponse,
+        files.FileOpenRequest,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
         packages.AddPackageRequest,
@@ -151,7 +158,6 @@ def _generate_schema() -> dict[str, Any]:
         models.FormatRequest,
         models.FormatResponse,
         models.InstantiateRequest,
-        models.OpenFileRequest,
         models.ReadCodeResponse,
         models.RenameFileRequest,
         models.RunRequest,
@@ -173,16 +179,18 @@ def _generate_schema() -> dict[str, Any]:
         requests.FunctionCallRequest,
         requests.InstallMissingPackagesRequest,
         requests.PreviewDatasetColumnRequest,
+        requests.PreviewSQLTableRequest,
+        requests.PreviewSQLTableListRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,
         requests.StopRequest,
     ]
 
-    processed_classes: Dict[Any, str] = {
+    processed_classes: dict[Any, str] = {
         JSONType: "JSONType",
     }
-    component_schemas: Dict[str, Any] = {
+    component_schemas: dict[str, Any] = {
         # Hand-written schema to avoid circular dependencies
         "JSONType": {
             "oneOf": [
@@ -198,7 +206,7 @@ def _generate_schema() -> dict[str, Any]:
     }
     # We must override the names of some Union Types,
     # otherwise, their __name__ is "Union"
-    name_overrides: Dict[Any, str] = {
+    name_overrides: dict[Any, str] = {
         JSONType: "JSONType",
         errors.Error: "Error",
         KnownMimeType: "MimeType",
@@ -264,7 +272,9 @@ def openapi() -> None:
     """
     import yaml
 
-    click.echo(yaml.dump(_generate_schema(), default_flow_style=False))
+    click.echo(
+        yaml.dump(_generate_server_api_schema(), default_flow_style=False)
+    )
 
 
 @click.group(help="Various commands for the marimo processes", hidden=True)
@@ -272,7 +282,7 @@ def ps() -> None:
     pass
 
 
-def get_marimo_processes() -> list["psutil.Process"]:
+def get_marimo_processes() -> list[psutil.Process]:
     import psutil
 
     def is_marimo_process(proc: psutil.Process) -> bool:
@@ -327,7 +337,6 @@ def killall() -> None:
 
         marimo development ps killall
     """
-    import os
 
     for proc in get_marimo_processes():
         # Ignore self
@@ -345,9 +354,11 @@ def killall() -> None:
 @click.argument(
     "name",
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(
+        path_type=Path, exists=True, file_okay=True, dir_okay=False
+    ),
 )
-def inline_packages(name: str) -> None:
+def inline_packages(name: Path) -> None:
     """
     Example usage:
 
@@ -371,8 +382,8 @@ def inline_packages(name: str) -> None:
         )
 
     # Validate the file exists
-    if not os.path.exists(name):
-        raise click.FileError(name)
+    if not name.exists():
+        raise click.FileError(str(name))
 
     # Validate >=3.10 for sys.stdlib_module_names
     if sys.version_info < (3, 10):
@@ -384,8 +395,7 @@ def inline_packages(name: str) -> None:
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
-        with open(name, "r") as file:
-            tree = ast.parse(file.read(), filename=name)
+        tree = ast.parse(name.read_text(encoding="utf-8"), filename=name)
 
         imported_modules = set[str]()
 
@@ -419,7 +429,7 @@ def inline_packages(name: str) -> None:
             "uv",
             "add",
             "--script",
-            name,
+            str(name),
         ]
         + pypi_names
     )

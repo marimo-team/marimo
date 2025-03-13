@@ -3,21 +3,16 @@ from __future__ import annotations
 
 import base64
 import dataclasses
-import os
-import pathlib
 import sys
 import traceback
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -39,8 +34,6 @@ from marimo._plugins.validators import (
     warn_js_safe_number,
 )
 from marimo._runtime.functions import Function
-from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.files import FileInfo
 
 LOGGER = _loggers.marimo_logger()
 
@@ -137,7 +130,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "number":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> number:
         """Create a number picker from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -209,7 +202,7 @@ class slider(UIElement[Numeric, Numeric]):
     """
 
     _name: Final[str] = "marimo-slider"
-    _mapping: Optional[Dict[int, Numeric]] = None
+    _mapping: Optional[dict[int, Numeric]] = None
 
     def __init__(
         self,
@@ -337,7 +330,7 @@ class slider(UIElement[Numeric, Numeric]):
             )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "slider":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
         """Create a slider from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -352,7 +345,7 @@ class slider(UIElement[Numeric, Numeric]):
 
 
 @mddoc
-class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
+class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     """
     A numeric slider for specifying a range over an interval.
 
@@ -536,7 +529,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "range_slider":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
         """Create a range slider from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -544,7 +537,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         label = kwargs.pop("label", info.label)
         return range_slider(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
+    def _convert_value(self, value: list[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
             return cast(
                 Sequence[Numeric],
@@ -673,7 +666,7 @@ class radio(UIElement[Optional[str], Any]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "radio":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> radio:
         """Create a radio group from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -887,13 +880,21 @@ class code_editor(UIElement[str, str]):
 
 
 @mddoc
-class dropdown(UIElement[List[str], Any]):
+class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
 
     Examples:
         ```python
         dropdown = mo.ui.dropdown(
             options=["a", "b", "c"], value="a", label="choose one"
+        )
+
+        # With search functionality
+        dropdown = mo.ui.dropdown(
+            options=["a", "b", "c"],
+            value="a",
+            label="choose one",
+            searchable=True,
         )
         ```
 
@@ -922,6 +923,8 @@ class dropdown(UIElement[List[str], Any]):
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
             Defaults to None.
+        searchable (bool, optional): Whether to enable search functionality.
+            Defaults to False.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Any], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
@@ -938,6 +941,7 @@ class dropdown(UIElement[List[str], Any]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
         allow_select_none: Optional[bool] = None,
+        searchable: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
@@ -980,13 +984,14 @@ class dropdown(UIElement[List[str], Any]):
             args={
                 "options": list(self.options.keys()),
                 "allow-select-none": allow_select_none,
+                "searchable": searchable,
                 "full-width": full_width,
             },
             on_change=on_change,
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "dropdown":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> dropdown:
         """Create a dropdown from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -1009,7 +1014,7 @@ class dropdown(UIElement[List[str], Any]):
 
 
 @mddoc
-class multiselect(UIElement[List[str], List[object]]):
+class multiselect(UIElement[list[str], list[object]]):
     """A multiselect input.
 
     Examples:
@@ -1051,7 +1056,7 @@ class multiselect(UIElement[List[str], List[object]]):
         value: Optional[Sequence[str]] = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[List[object]], None]] = None,
+        on_change: Optional[Callable[[list[object]], None]] = None,
         full_width: bool = False,
         max_selections: Optional[int] = None,
     ) -> None:
@@ -1093,7 +1098,7 @@ class multiselect(UIElement[List[str], List[object]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "multiselect":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> multiselect:
         """Create a multiselect from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -1188,11 +1193,10 @@ class button(UIElement[Any, Any]):
             # frontend will send is 1
             return self._initial_value
         try:
-            return self._on_click(self._value)
+            return self._on_click(self._value)  # type: ignore[no-untyped-call]
         except Exception:
             sys.stderr.write(
-                "on_click handler for button (%s) raised an Exception:\n %s\n"
-                % (str(self), traceback.format_exc())
+                f"on_click handler for button ({str(self)}) raised an Exception:\n {traceback.format_exc()}\n"
             )
             return None
 
@@ -1210,7 +1214,7 @@ class FileUploadResults:
 
 
 @mddoc
-class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
+class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
     """A button or drag-and-drop area to upload a file.
 
     Once a file is uploaded, the UI element's value is a list of namedtuples
@@ -1356,195 +1360,6 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             return None
         else:
             return self.value[index].contents
-
-
-@dataclass
-class ListDirectoryArgs:
-    path: str
-
-
-@dataclass
-class ListDirectoryResponse:
-    files: List[FileInfo]
-
-
-@mddoc
-class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
-    """File browser for browsing and selecting server-side files.
-
-    Examples:
-        Selecting multiple files:
-        ```python
-        file_browser = mo.ui.file_browser(
-            initial_path="path/to/dir", multiple=True
-        )
-
-        # Access the selected file path(s):
-        file_browser.path(index)
-
-        # Get name of selected file(s)
-        file_browser.name(index)
-        ```
-
-    Attributes:
-        value (Sequence[FileInfo]): A sequence of file paths representing selected
-            files.
-
-    Args:
-        initial_path (str, optional): Starting directory. Defaults to current
-            working directory.
-        filetypes (Sequence[str], optional): The file types to display in each
-            directory; for example, filetypes=[".txt", ".csv"]. If None, all
-            files are displayed. Defaults to None.
-        selection_mode (str, optional): Either "file" or "directory". Defaults to
-            "file".
-        multiple (bool, optional): If True, allow the user to select multiple
-            files. Defaults to True.
-        restrict_navigation (bool, optional): If True, prevent the user from
-            navigating any level above the given path. Defaults to False.
-        label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Sequence[FileInfo]], None], optional): Optional
-            callback to run when this element's value changes. Defaults to None.
-    """
-
-    _name: Final[str] = "marimo-file-browser"
-
-    def __init__(
-        self,
-        initial_path: str = "",
-        filetypes: Optional[Sequence[str]] = None,
-        selection_mode: str = "file",
-        multiple: bool = True,
-        restrict_navigation: bool = False,
-        *,
-        label: str = "",
-        on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
-    ) -> None:
-        self.filetypes = filetypes
-
-        if (
-            selection_mode != "file"
-            and selection_mode != "directory"
-            and selection_mode != "all"
-        ):
-            raise ValueError(
-                "Invalid argument for selection_mode. "
-                + "Must be either 'file' or 'directory'."
-            )
-        else:
-            self.selection_mode = selection_mode
-
-        if not initial_path:
-            initial_path = os.getcwd()
-
-        # frontend plugin can't handle relative paths
-        initial_path = os.path.realpath(os.path.expanduser(initial_path))
-        # initial path must be a directory
-        if not os.path.isdir(initial_path):
-            raise ValueError(
-                f"Initial path {initial_path} is not a directory."
-            )
-
-        self.restrict_navigation = restrict_navigation
-        self.initial_path = initial_path
-        super().__init__(
-            component_name=file_browser._name,
-            initial_value=[],
-            label=label,
-            args={
-                "initial-path": initial_path,
-                "selection-mode": selection_mode,
-                "filetypes": filetypes if filetypes is not None else [],
-                "multiple": multiple,
-                "restrict-navigation": restrict_navigation,
-            },
-            functions=(
-                Function(
-                    name="list_directory",
-                    arg_cls=ListDirectoryArgs,
-                    function=self._list_directory,
-                ),
-            ),
-            on_change=on_change,
-        )
-
-    def _list_directory(
-        self, args: ListDirectoryArgs
-    ) -> ListDirectoryResponse:
-        # When navigation is restricted, the navigated-to path cannot be
-        # be a parent of the initial path
-        if (
-            self.restrict_navigation
-            and pathlib.Path(args.path)
-            in pathlib.Path(self.initial_path).parents
-        ):
-            raise RuntimeError(
-                "Navigation is restricted; navigating to a "
-                "parent of initial path is not allowed."
-            )
-
-        files = []
-        files_in_path = OSFileSystem().list_files(args.path)
-
-        for file in files_in_path:
-            _, extension = os.path.splitext(file.name)
-
-            if self.selection_mode == "directory" and not file.is_directory:
-                continue
-
-            if self.filetypes and not file.is_directory:
-                if extension not in self.filetypes:
-                    continue
-
-            files.append(file)
-
-        return ListDirectoryResponse(files)
-
-    def _convert_value(
-        self, value: list[Dict[str, Any]]
-    ) -> Sequence[FileInfo]:
-        return tuple(
-            FileInfo(
-                id=file["id"],
-                name=file["name"],
-                path=file["path"],
-                is_directory=file["is_directory"],
-                is_marimo_file=file["is_marimo_file"],
-            )
-            for file in value
-        )
-
-    def name(self, index: int = 0) -> Optional[str]:
-        """Get file name at index.
-
-        Args:
-            index (int, optional): Index of the file to get the name from.
-                Defaults to 0.
-
-        Returns:
-            Optional[str]: The name of the file at the specified index,
-                or None if index is out of range.
-        """
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].name
-
-    def path(self, index: int = 0) -> Optional[str]:
-        """Get file path at index.
-
-        Args:
-            index (int, optional): Index of the file to get the path from.
-                Defaults to 0.
-
-        Returns:
-            Optional[str]: The path of the file at the specified index,
-                or None if index is out of range.
-        """
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].path
 
 
 T = TypeVar("T")

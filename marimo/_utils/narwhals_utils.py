@@ -42,7 +42,9 @@ def assert_narwhals_series(series: nw.Series) -> None:
         raise ValueError(f"Unsupported series type. Got {type(series)}")
 
 
-def can_narwhalify(obj: Any, eager_only: bool = False) -> TypeGuard[IntoFrame]:
+def can_narwhalify(
+    obj: Any, *, eager_only: bool = False
+) -> TypeGuard[IntoFrame]:
     """
     Check if the given object can be narwhalified.
     """

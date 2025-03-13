@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import sys
 from tempfile import TemporaryDirectory
-from typing import Generator, Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 import uvicorn
@@ -12,10 +12,14 @@ from starlette.testclient import TestClient
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._config.utils import CONFIG_FILENAME
+from marimo._server.api.deps import AppState
 from marimo._server.main import create_starlette_app
 from marimo._server.sessions import SessionManager
 from marimo._server.utils import initialize_asyncio
 from tests._server.mocks import get_mock_session_manager
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
 
 app = create_starlette_app(base_url="", enable_auth=True)
 
@@ -72,6 +76,15 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
 
 def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
+
+
+def get_session_config_manager(client: TestClient) -> UserConfigManager:
+    """Assumes only one active session."""
+    sessions = list(
+        AppState.from_app(client.app).session_manager.sessions.values()
+    )
+    assert len(sessions) == 1
+    return sessions[0].config_manager  # type: ignore
 
 
 def get_user_config_manager(client: TestClient) -> UserConfigManager:

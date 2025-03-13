@@ -20,8 +20,14 @@ from marimo._server.models.files import (
     FileListResponse,
     FileMoveRequest,
     FileMoveResponse,
+    FileOpenRequest,
     FileUpdateRequest,
     FileUpdateResponse,
+)
+from marimo._server.models.models import (
+    BaseResponse,
+    ErrorResponse,
+    SuccessResponse,
 )
 from marimo._server.router import APIRouter
 
@@ -213,3 +219,33 @@ async def update_file(
     except Exception as e:
         LOGGER.error(f"Error updating file or directory: {e}")
         return FileUpdateResponse(success=False, message=str(e))
+
+
+@router.post("/open")
+@requires("edit")
+async def open_file(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FileOpenRequest"
+    responses:
+        200:
+            description: Open a file in the system editor
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/BaseResponse"
+    """
+    body = await parse_request(request, cls=FileOpenRequest)
+    try:
+        file_system.get_details(body.path)
+        success = file_system.open_in_editor(body.path)
+        return SuccessResponse(success=success)
+    except Exception as e:
+        LOGGER.error(f"Error opening file: {e}")
+        return ErrorResponse(success=False, message=str(e))

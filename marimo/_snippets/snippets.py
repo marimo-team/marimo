@@ -1,7 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
+from collections.abc import Awaitable, Generator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Generator, List, Optional
+from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._ast.codegen import get_app
@@ -21,21 +24,21 @@ class SnippetSection:
 @dataclass
 class Snippet:
     title: str
-    sections: List[SnippetSection]
+    sections: list[SnippetSection]
 
 
 @dataclass
 class Snippets:
-    snippets: List[Snippet]
+    snippets: list[Snippet]
 
 
 async def read_snippets() -> Snippets:
-    snippets: List[Snippet] = []
+    snippets: list[Snippet] = []
 
     for file in read_snippet_filenames_from_config():
         app = get_app(file)
         assert app is not None
-        sections: List[SnippetSection] = []
+        sections: list[SnippetSection] = []
         title = ""
 
         for cell in app._cell_manager.cells():
@@ -75,18 +78,30 @@ def should_ignore_code(code: str) -> bool:
 
 
 def get_title_from_code(code: str) -> str:
+    # We intentionally avoid AST parsing here to avoid the overhead
     if not code:
         return ""
-    if "# " in code:
-        # title is the start of # and end of \n
-        start = code.find("#")
-        end = code[start:].find("\n")
-        return code[start : end + start].replace("#", "", 1).strip()
-    return ""
+    code = code.strip()
+    if not (code.startswith("mo.md") or code.startswith("#")):
+        return ""
+
+    start = code.find("#")
+    if start == -1:
+        return ""
+
+    # Skip the # character
+    start += 1
+
+    # Find end of title
+    for end_char in ("\n", '"', "'"):
+        if (end := code.find(end_char, start)) != -1:
+            return code[start:end].strip()
+
+    return code[start:].strip()
 
 
 def is_markdown(code: str) -> bool:
-    return code.startswith("mo.md")
+    return code.strip().startswith("mo.md")
 
 
 def read_snippet_filenames_from_config() -> Generator[str, Any, None]:
@@ -100,9 +115,9 @@ def read_snippet_filenames_from_config() -> Generator[str, Any, None]:
 
 
 def read_snippet_filenames(
-    include_default_snippets: bool, custom_paths: List[str]
+    include_default_snippets: bool, custom_paths: list[str]
 ) -> Generator[str, Any, None]:
-    paths = []
+    paths: list[Path] = []
     if include_default_snippets:
         paths.append(import_files("marimo") / "_snippets" / "data")
     if custom_paths:

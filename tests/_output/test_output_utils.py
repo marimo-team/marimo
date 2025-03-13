@@ -43,6 +43,41 @@ def test_uri_encode_component() -> None:
     assert utils.uri_encode_component("~.!'()") == "~.!'()"
 
 
+def test_uri_decode_component() -> None:
+    assert utils.uri_decode_component("hello%20world") == "hello world"
+    assert utils.uri_decode_component("!@#$%^&*()") == "!@#$%^&*()"
+    assert utils.uri_decode_component("~.!'()") == "~.!'()"
+
+
+def test_uri_encode_decode_component_not_lossy() -> None:
+    test_cases = [
+        "hello world",
+        "!@#$%^&*()",
+        "~.!'()",
+        "hello%20world",
+        "https://example.com/path?query=value&other=123",
+        "email+address@example.com",
+        "unicode_symbols_✨🌟⭐",
+        "spaces    and   tabs\t\t",
+        r"backslashes\and/slashes/",
+        'quotes\'and"double"quotes',
+        "<>[]{}|",
+        "control\n\r\tcharacters",
+        "math±∞≠≈∫",
+        "currency¢£¥€$",
+        "accents éèêë àâäã ñ",
+        "chinese 你好 japanese こんにちは",
+        "emojis 👋🌍🎉🎨🚀",
+        "mixed_case_TEST_123",
+    ]
+
+    for item in test_cases:
+        assert (
+            utils.uri_decode_component(utils.uri_encode_component(item))
+            == item
+        )
+
+
 def test_normalize_dimension() -> None:
     # Test None
     assert utils.normalize_dimension(None) is None

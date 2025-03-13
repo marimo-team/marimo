@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    TableCell,
+    TableCoordinate,
+)
 
 HAS_DEPS = DependencyManager.pandas.has()
 
@@ -47,6 +51,32 @@ class TestDefaultTable(unittest.TestCase):
             {"birth_year": date(2002, 1, 30)},
         ]
         assert selected_manager.data == expected_data
+
+    def test_select_cells(self) -> None:
+        cells = [
+            TableCoordinate(row_id=0, column_name="name"),
+            TableCoordinate(row_id=1, column_name="age"),
+            TableCoordinate(row_id=2, column_name="birth_year"),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            TableCell(row=0, column="name", value="Alice"),
+            TableCell(row=1, column="age", value=25),
+            TableCell(row=2, column="birth_year", value=date(1989, 12, 1)),
+        ]
+        assert selected_cells == expected_cells
+
+    def test_drop_columns(self) -> None:
+        columns = ["name"]
+        dropped_manager = self.manager.drop_columns(columns)
+        expected_data = [
+            {"age": 30, "birth_year": date(1994, 5, 24)},
+            {"age": 25, "birth_year": date(1999, 7, 14)},
+            {"age": 35, "birth_year": date(1989, 12, 1)},
+            {"age": 28, "birth_year": date(1996, 3, 5)},
+            {"age": 22, "birth_year": date(2002, 1, 30)},
+        ]
+        assert dropped_manager.data == expected_data
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
@@ -280,7 +310,7 @@ class TestDefaultTable(unittest.TestCase):
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
-        self.data: Dict[str, Any] = {
+        self.data: dict[str, Any] = {
             "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
             "age": [30, 25, 35, 28, 22],
             "birth_year": [
@@ -322,6 +352,28 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert selected_manager.data == expected_data
 
+    def test_select_cells(self) -> None:
+        cells = [
+            TableCoordinate(row_id=0, column_name="name"),
+            TableCoordinate(row_id=1, column_name="age"),
+            TableCoordinate(row_id=2, column_name="birth_year"),
+        ]
+        selected_cells = self.manager.select_cells(cells)
+        expected_cells = [
+            TableCell(row=0, column="name", value="Alice"),
+            TableCell(row=1, column="age", value=25),
+            TableCell(row=2, column="birth_year", value=date(1989, 12, 1)),
+        ]
+        assert selected_cells == expected_cells
+
+    def test_drop_columns(self) -> None:
+        columns = ["name", "birth_year"]
+        dropped_manager = self.manager.drop_columns(columns)
+        expected_data = {
+            "age": [30, 25, 35, 28, 22],
+        }
+        assert dropped_manager.data == expected_data
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
@@ -354,13 +406,17 @@ class TestColumnarDefaultTable(unittest.TestCase):
 
     def test_sort(self) -> None:
         sorted_data = self.manager.sort_values(by="name", descending=True).data
-        expected_data = [
-            {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
-            {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
-            {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
-            {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
-            {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
-        ]
+        expected_data = {
+            "name": ["Eve", "Dave", "Charlie", "Bob", "Alice"],
+            "age": [22, 28, 35, 25, 30],
+            "birth_year": [
+                date(2002, 1, 30),
+                date(1996, 3, 5),
+                date(1989, 12, 1),
+                date(1999, 7, 14),
+                date(1994, 5, 24),
+            ],
+        }
         assert sorted_data == expected_data
 
     @pytest.mark.skipif(
@@ -581,6 +637,22 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     def test_select_columns(self) -> None:
         selected_manager = self.manager.select_columns(["a"])
         assert selected_manager.data == {"a": 1}
+
+    def test_select_cells(self) -> None:
+        selected_cells = self.manager.select_cells(
+            [
+                TableCoordinate(row_id=0, column_name="key"),
+                TableCoordinate(row_id=1, column_name="value"),
+            ]
+        )
+        assert selected_cells == [
+            TableCell(row=0, column="key", value="a"),
+            TableCell(row=1, column="value", value=2),
+        ]
+
+    def test_drop_columns(self) -> None:
+        dropped_manager = self.manager.drop_columns(["a"])
+        assert dropped_manager.data == {"b": 2}
 
     def test_get_rows_headers(self) -> None:
         headers = self.manager.get_row_headers()

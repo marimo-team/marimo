@@ -4,7 +4,6 @@ from __future__ import annotations
 import itertools
 from collections import defaultdict
 
-from marimo._ast.cell import CellId_t
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -12,6 +11,7 @@ from marimo._messaging.errors import (
     MultipleDefinitionError,
 )
 from marimo._runtime.dataflow import DirectedGraph
+from marimo._types.ids import CellId_t
 
 
 def check_for_multiple_definitions(

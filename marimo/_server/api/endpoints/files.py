@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -9,15 +8,12 @@ from starlette.exceptions import HTTPException
 from starlette.responses import PlainTextResponse
 
 from marimo import _loggers
-from marimo._ast import codegen
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
-from marimo._server.ids import ConsumerId
 from marimo._server.models.models import (
     BaseResponse,
     CopyNotebookRequest,
-    OpenFileRequest,
     ReadCodeResponse,
     RenameFileRequest,
     SaveAppConfigurationRequest,
@@ -25,6 +21,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -107,58 +104,8 @@ async def rename_file(
     if new_path:
         # Handle rename for watch
         app_state.session_manager.handle_file_rename_for_watch(
-            app_state.require_current_session_id(), new_path
+            app_state.require_current_session_id(), prev_path, new_path
         )
-
-    return SuccessResponse()
-
-
-@router.post("/open")
-@requires("edit")
-async def open_file(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/OpenFileRequest"
-    responses:
-        200:
-            description: Open a file
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-        400:
-            description: File does not exist
-    """
-    body = await parse_request(request, cls=OpenFileRequest)
-
-    # Validate file exists
-    if not os.path.exists(body.path):
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"File {body.path} does not exist",
-        )
-
-    # Get relative path
-    filename = os.path.relpath(body.path)
-
-    try:
-        app = codegen.get_app(filename)
-        if app is None:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"File {filename} is not a valid marimo app",
-            )
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.SERVER_ERROR,
-            detail=f"Failed to read file: {str(e)}",
-        ) from e
 
     return SuccessResponse()
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._cli.parse_args import args_from_argv
@@ -28,9 +28,11 @@ from marimo._runtime.patches import (
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._ast.app import InternalApp
-    from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
+    from marimo._types.ids import CellId_t
 
 
 @dataclass

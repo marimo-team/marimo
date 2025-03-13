@@ -1,34 +1,67 @@
 from __future__ import annotations
 
-import sys
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
 from marimo._data.preview_column import (
-    get_column_preview_dataframe,
-    get_column_preview_for_sql,
+    get_column_preview_for_dataframe,
+    get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     register_transformers,
 )
 from marimo._runtime.requests import PreviewDatasetColumnRequest
+from marimo._utils.platform import is_windows
 from tests.mocks import snapshotter
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 HAS_DF_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
-HAS_SQL_DEPS = DependencyManager.duckdb.has()
+HAS_SQL_DEPS = (
+    DependencyManager.duckdb.has() and DependencyManager.altair.has()
+)
 
 snapshot = snapshotter(__file__)
+
+
+# Run cleanup after all tests are done
+@pytest.fixture(scope="module", autouse=True)
+def cleanup() -> Generator[None, None, None]:
+    import duckdb
+
+    yield
+    duckdb.execute("""
+        DROP TABLE IF EXISTS tbl;
+        DROP TABLE IF EXISTS date_tbl;
+        DROP TABLE IF EXISTS datetime_tbl;
+        DROP TABLE IF EXISTS time_tbl;
+        DROP TABLE IF EXISTS bool_tbl;
+        DROP TABLE IF EXISTS large_tbl;
+    """)
 
 
 @pytest.mark.skipif(
     not HAS_DF_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+@pytest.mark.parametrize(
+    ("column_name", "snapshot_prefix"),
+    [
+        ("A", "column_preview_int"),
+        ("B", "column_preview_str"),
+        ("date_col", "column_preview_date"),
+        ("float_col", "column_preview_float"),
+        ("bool_col", "column_preview_bool"),
+        ("category_col", "column_preview_categorical"),
+    ],
 )
-def test_get_column_preview_dataframe() -> None:
+def test_get_column_preview_for_dataframe(
+    column_name: str, snapshot_prefix: str
+) -> None:
     import pandas as pd
 
     register_transformers()
@@ -42,54 +75,72 @@ def test_get_column_preview_dataframe() -> None:
                 pd.Timestamp("2021-01-02"),
                 pd.Timestamp("2021-01-03"),
             ],
+            "float_col": [1.1, 2.2, 3.3],
+            "bool_col": [True, False, True],
+            "category_col": pd.Categorical(["cat1", "cat2", "cat1"]),
         }
     )
-    result = get_column_preview_dataframe(
+
+    # Patch DependencyManager to simulate vegafusion not being available
+    with patch("marimo._data.preview_column.DependencyManager") as mock_dm:
+        # Keep altair available but make vegafusion unavailable
+        mock_dm.altair.has.return_value = True
+        mock_dm.vegafusion.has.return_value = False
+        mock_dm.vl_convert_python.has.return_value = True
+
+        result = get_column_preview_for_dataframe(
+            df,
+            request=PreviewDatasetColumnRequest(
+                source="source",
+                table_name="table",
+                column_name=column_name,
+                source_type="local",
+            ),
+        )
+        assert result is not None
+        assert result.chart_code is not None
+        assert result.chart_spec is not None
+        assert result.summary is not None
+        assert result.error is None
+
+        snapshot(f"{snapshot_prefix}_chart_code.txt", result.chart_code)
+        # Skip date_col because of timezone
+        if column_name != "date_col":
+            snapshot(f"{snapshot_prefix}_chart_spec.txt", result.chart_spec)
+
+        # Verify vegafusion was checked
+        mock_dm.vegafusion.has.assert_called_once()
+
+    result_with_vegafusion = get_column_preview_for_dataframe(
         df,
         request=PreviewDatasetColumnRequest(
             source="source",
             table_name="table",
-            column_name="A",
+            column_name=column_name,
             source_type="local",
         ),
     )
 
-    assert result is not None
-    assert result.chart_code is not None
-    assert result.chart_spec is not None
-    assert result.summary is not None
-    assert result.error is None
+    assert result_with_vegafusion is not None
+    assert result_with_vegafusion.chart_code is not None
+    assert result_with_vegafusion.chart_spec is not None
+    assert result_with_vegafusion.summary is not None
+    assert result_with_vegafusion.error is None
 
-    snapshot("column_preview_chart_code.txt", result.chart_code)
-    snapshot("column_preview_chart_spec.txt", result.chart_spec)
-
-    result = get_column_preview_dataframe(
-        df,
-        request=PreviewDatasetColumnRequest(
-            source="source",
-            table_name="table",
-            column_name="date_col",
-            source_type="local",
-        ),
-    )
-
-    assert result is not None
-    assert result.chart_code is not None
-    assert result.chart_spec is not None
-    assert result.summary is not None
-    assert result.error is None
-
-    snapshot("column_preview_date_chart_code.txt", result.chart_code)
-    snapshot("column_preview_date_chart_spec.txt", result.chart_spec)
+    # Skip date_col because of timezone
+    if column_name != "date_col":
+        snapshot(
+            f"{snapshot_prefix}_chart_spec_with_vegafusion.txt",
+            result_with_vegafusion.chart_spec,
+        )
+    assert result_with_vegafusion.chart_code == result.chart_code
+    assert result_with_vegafusion.chart_spec != result.chart_spec
 
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
-)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb() -> None:
     import duckdb
 
@@ -103,8 +154,8 @@ def test_get_column_preview_for_duckdb() -> None:
     """)
 
     # Test preview for the 'outcome' column (alternating 0 and 1)
-    result = get_column_preview_for_sql(
-        table_name="memory.main.tbl",
+    result = get_column_preview_for_duckdb(
+        fully_qualified_table_name="tbl",
         column_name="outcome",
     )
     assert result is not None
@@ -115,28 +166,26 @@ def test_get_column_preview_for_duckdb() -> None:
     assert result.summary.total == 100
     assert result.summary.unique == 2
     assert result.summary.mean == 0.5  # Exactly 0.5 due to alternating pattern
+    assert result.chart_spec is not None
 
     # Test preview for the 'id' column (for comparison)
-    result_id = get_column_preview_for_sql(
-        table_name="memory.main.tbl",
+    result_id = get_column_preview_for_duckdb(
+        fully_qualified_table_name="tbl",
         column_name="id",
     )
     assert result_id is not None
     assert result_id.summary is not None
     assert result_id.error is None
+    assert result_id.chart_spec is not None
 
     # Not implemented yet
     assert result.chart_code is None
-    assert result.chart_spec is None
 
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
-)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_categorical() -> None:
     import duckdb
 
@@ -153,8 +202,8 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
         FROM range(100)
     """)
 
-    result_categorical = get_column_preview_for_sql(
-        table_name="memory.main.tbl",
+    result_categorical = get_column_preview_for_duckdb(
+        fully_qualified_table_name="tbl",
         column_name="category",
     )
     assert result_categorical is not None
@@ -165,19 +214,33 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
     assert result_categorical.summary.total == 100
     assert result_categorical.summary.unique == 4
     assert result_categorical.summary.nulls == 0
+    assert result_categorical.chart_spec is not None
+
+    snapshot(
+        "column_preview_duckdb_categorical_chart_spec.txt",
+        result_categorical.chart_spec,
+    )
 
     # Not implemented yet
     assert result_categorical.chart_code is None
-    assert result_categorical.chart_spec is None
+
+    # Test works when fully qualified
+    assert (
+        get_column_preview_for_duckdb(
+            fully_qualified_table_name="tbl",
+            column_name="category",
+        ).summary
+        == get_column_preview_for_duckdb(
+            fully_qualified_table_name="memory.main.tbl",
+            column_name="category",
+        ).summary
+    )
 
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
-)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_date() -> None:
     import datetime
 
@@ -190,8 +253,8 @@ def test_get_column_preview_for_duckdb_date() -> None:
         FROM range(100)
     """)
 
-    result_date = get_column_preview_for_sql(
-        table_name="memory.main.date_tbl",
+    result_date = get_column_preview_for_duckdb(
+        fully_qualified_table_name="date_tbl",
         column_name="date_col",
     )
     assert result_date is not None
@@ -204,19 +267,30 @@ def test_get_column_preview_for_duckdb_date() -> None:
     assert result_date.summary.nulls == 0
     assert result_date.summary.min == datetime.datetime(2023, 1, 1, 0, 0)
     assert result_date.summary.max == datetime.datetime(2023, 4, 10, 0, 0)
+    assert result_date.chart_spec is not None
+
+    # No chart_spec snapshot because of date timezone
 
     # Not implemented yet
     assert result_date.chart_code is None
-    assert result_date.chart_spec is None
+
+    # Test works when fully qualified
+    assert (
+        get_column_preview_for_duckdb(
+            fully_qualified_table_name="date_tbl",
+            column_name="date_col",
+        ).summary
+        == get_column_preview_for_duckdb(
+            fully_qualified_table_name="memory.main.date_tbl",
+            column_name="date_col",
+        ).summary
+    )
 
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
-)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_datetime() -> None:
     import datetime
 
@@ -232,8 +306,8 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
         FROM range(100)
     """)
 
-    result_datetime = get_column_preview_for_sql(
-        table_name="memory.main.datetime_tbl",
+    result_datetime = get_column_preview_for_duckdb(
+        fully_qualified_table_name="datetime_tbl",
         column_name="datetime_col",
     )
     assert result_datetime is not None
@@ -246,19 +320,30 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     assert result_datetime.summary.nulls == 0
     assert result_datetime.summary.min == datetime.datetime(2023, 1, 1, 0, 0)
     assert result_datetime.summary.max == datetime.datetime(2023, 4, 10, 3, 39)
+    assert result_datetime.chart_spec is not None
 
     # Not implemented yet
     assert result_datetime.chart_code is None
-    assert result_datetime.chart_spec is None
+
+    # No chart_spec snapshot because of date timezone
+
+    # Test works when fully qualified
+    assert (
+        get_column_preview_for_duckdb(
+            fully_qualified_table_name="datetime_tbl",
+            column_name="datetime_col",
+        ).summary
+        == get_column_preview_for_duckdb(
+            fully_qualified_table_name="memory.main.datetime_tbl",
+            column_name="datetime_col",
+        ).summary
+    )
 
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
-)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_time() -> None:
     import datetime
 
@@ -273,8 +358,8 @@ def test_get_column_preview_for_duckdb_time() -> None:
         FROM range(100)
     """)
 
-    result_time = get_column_preview_for_sql(
-        table_name="memory.main.time_tbl",
+    result_time = get_column_preview_for_duckdb(
+        fully_qualified_table_name="time_tbl",
         column_name="time_col",
     )
     assert result_time is not None
@@ -288,18 +373,17 @@ def test_get_column_preview_for_duckdb_time() -> None:
     assert result_time.summary.min == datetime.time(0, 0)
     assert result_time.summary.max == datetime.time(23, 47)
 
+    # Time is not handled yet
+    assert result_time.chart_spec is None
+
     # Not implemented yet
     assert result_time.chart_code is None
-    assert result_time.chart_spec is None
 
 
 @pytest.mark.skipif(
     not HAS_SQL_DEPS, reason="optional dependencies not installed"
 )
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows encodes base64 differently",
-)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_bool() -> None:
     import duckdb
 
@@ -310,8 +394,8 @@ def test_get_column_preview_for_duckdb_bool() -> None:
         FROM range(100)
     """)
 
-    result_bool = get_column_preview_for_sql(
-        table_name="memory.main.bool_tbl",
+    result_bool = get_column_preview_for_duckdb(
+        fully_qualified_table_name="bool_tbl",
         column_name="bool_col",
     )
     assert result_bool is not None
@@ -324,7 +408,45 @@ def test_get_column_preview_for_duckdb_bool() -> None:
     assert result_bool.summary.nulls == 0
     assert result_bool.summary.true == 50
     assert result_bool.summary.false == 50
+    assert result_bool.chart_spec is not None
+
+    snapshot(
+        "column_preview_duckdb_bool_chart_spec.txt", result_bool.chart_spec
+    )
 
     # Not implemented yet
     assert result_bool.chart_code is None
-    assert result_bool.chart_spec is None
+
+
+@pytest.mark.skipif(
+    not HAS_SQL_DEPS, reason="optional dependencies not installed"
+)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+def test_get_column_preview_for_duckdb_over_limit() -> None:
+    import duckdb
+
+    from marimo._data.preview_column import CHART_MAX_ROWS
+
+    # Create a table with more rows than the chart limit
+    duckdb.execute(f"""
+        CREATE OR REPLACE TABLE large_tbl AS
+        SELECT
+            range AS id,
+            range % 5 AS category
+        FROM range({CHART_MAX_ROWS + 100})
+    """)
+
+    # Test preview for a column in a table that exceeds the row limit
+    result = get_column_preview_for_duckdb(
+        fully_qualified_table_name="large_tbl",
+        column_name="category",
+    )
+
+    assert result is not None
+    assert result.summary is not None
+    assert result.error is None
+    assert result.chart_max_rows_errors is True
+    assert result.chart_spec is None
+
+    # Not implemented yet
+    assert result.chart_code is None

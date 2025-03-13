@@ -56,6 +56,13 @@ async def export_as_html(
     body = await parse_request(request, cls=ExportAsHTMLRequest)
     session = app_state.require_current_session()
 
+    # Check if the file is named
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
     # Only include the code and console if we are in edit mode
     if app_state.mode != SessionMode.EDIT:
         body.include_code = False
@@ -63,9 +70,7 @@ async def export_as_html(
     html, filename = Exporter().export_as_html(
         file_manager=session.app_file_manager,
         session_view=session.session_view,
-        display_config=app_state.session_manager.user_config_manager.get_config()[
-            "display"
-        ],
+        display_config=session.config_manager.get_config()["display"],
         request=body,
     )
 
@@ -108,8 +113,14 @@ async def auto_export_as_html(
     session = app_state.require_current_session()
     session_view = session.session_view
 
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
     # If we have already exported to HTML, don't do it again
-    if session_view.has_auto_exported_html:
+    if not session_view.needs_export("html"):
         LOGGER.debug("Already auto-exported to HTML")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -119,9 +130,7 @@ async def auto_export_as_html(
     html, _filename = Exporter().export_as_html(
         file_manager=session.app_file_manager,
         session_view=session_view,
-        display_config=app_state.session_manager.user_config_manager.get_config()[
-            "display"
-        ],
+        display_config=session.config_manager.get_config()["display"],
         request=body,
     )
 
@@ -253,8 +262,14 @@ async def auto_export_as_markdown(
     session = app_state.require_current_session()
     session_view = session.session_view
 
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
     # If we have already exported to Markdown, don't do it again
-    if session_view.has_auto_exported_md:
+    if not session_view.needs_export("md"):
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -301,8 +316,14 @@ async def auto_export_as_ipynb(
     session = app_state.require_current_session()
     session_view = session.session_view
 
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
     # If we have already exported to IPYNB, don't do it again
-    if session_view.has_auto_exported_ipynb:
+    if not session_view.needs_export("ipynb"):
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 

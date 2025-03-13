@@ -25,13 +25,17 @@ import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._cli.print import red
-from marimo._config.manager import MarimoConfigReader
+from marimo._config.manager import (
+    MarimoConfigManager,
+    MarimoConfigReader,
+    ScriptConfigManager,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
     FocusCell,
@@ -56,15 +60,18 @@ from marimo._runtime.requests import (
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
-from marimo._server.ids import ConsumerId, SessionId
 from marimo._server.lsp import LspServer
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
+from marimo._server.session.serialize import (
+    SessionCacheManager,
+)
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
     ConnectionDistributor,
@@ -159,7 +166,7 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
@@ -168,7 +175,7 @@ class KernelManager:
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
-        self.user_config_manager = user_config_manager
+        self.config_manager = config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
 
         # Only used in edit mode
@@ -197,7 +204,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.get_config(hide_secrets=False),
+                    self.config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -222,9 +229,7 @@ class KernelManager:
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
-            register_formatters(
-                theme=self.user_config_manager.get_config()["display"]["theme"]
-            )
+            register_formatters(theme=self.config_manager.theme)
 
             assert self.queue_manager.stream_queue is not None
             # Make threads daemons so killing the server immediately brings
@@ -242,7 +247,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.get_config(hide_secrets=False),
+                    self.config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
@@ -344,8 +349,8 @@ class Room:
 
     def __init__(self) -> None:
         self.main_consumer: Optional[SessionConsumer] = None
-        self.consumers: Dict[SessionConsumer, ConsumerId] = {}
-        self.disposables: Dict[SessionConsumer, Disposable] = {}
+        self.consumers: dict[SessionConsumer, ConsumerId] = {}
+        self.disposables: dict[SessionConsumer, Disposable] = {}
 
     @property
     def size(self) -> int:
@@ -414,15 +419,18 @@ class Session:
     and its own websocket, for sending messages to the client.
     """
 
+    SESSION_CACHE_INTERVAL_SECONDS = 2
+
     @classmethod
     def create(
         cls,
+        *,
         initialization_id: str,
         session_consumer: SessionConsumer,
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
@@ -430,6 +438,12 @@ class Session:
         """
         Create a new session.
         """
+        # Inherit config from the session manager
+        # and override with any script-level config
+        config_manager = config_manager.with_overrides(
+            ScriptConfigManager(app_file_manager.path).get_config()
+        )
+
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
@@ -438,17 +452,19 @@ class Session:
             mode,
             configs,
             app_metadata,
-            user_config_manager,
+            config_manager,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
         )
+
         return cls(
-            initialization_id,
-            session_consumer,
-            queue_manager,
-            kernel_manager,
-            app_file_manager,
-            ttl_seconds,
+            initialization_id=initialization_id,
+            session_consumer=session_consumer,
+            queue_manager=queue_manager,
+            kernel_manager=kernel_manager,
+            app_file_manager=app_file_manager,
+            config_manager=config_manager,
+            ttl_seconds=ttl_seconds,
         )
 
     def __init__(
@@ -458,6 +474,7 @@ class Session:
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
+        config_manager: MarimoConfigManager,
         ttl_seconds: Optional[int],
     ) -> None:
         """Initialize kernel and client connection to it."""
@@ -473,7 +490,8 @@ class Session:
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
         self.session_view = SessionView()
-
+        self.session_cache_manager: SessionCacheManager | None = None
+        self.config_manager = config_manager
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
@@ -646,6 +664,8 @@ class Session:
         self.message_distributor.stop()
         if self.heartbeat_task:
             self.heartbeat_task.cancel()
+        if self.session_cache_manager:
+            self.session_cache_manager.stop()
         self.kernel_manager.close_kernel()
 
     def instantiate(
@@ -679,6 +699,21 @@ class Session:
             from_consumer_id=None,
         )
 
+    def sync_session_view_from_cache(self) -> None:
+        """Sync the session view from a file.
+
+        Overwrites the existing session view.
+        Mutates the existing session.
+        """
+        LOGGER.debug("Syncing session view from cache")
+        self.session_cache_manager = SessionCacheManager(
+            session_view=self.session_view,
+            path=self.app_file_manager.path,
+            interval=self.SESSION_CACHE_INTERVAL_SECONDS,
+        )
+        self.session_view = self.session_cache_manager.read_session_view()
+        self.session_cache_manager.start()
+
     def __repr__(self) -> str:
         return format_repr(
             self,
@@ -704,13 +739,14 @@ class SessionManager:
 
     def __init__(
         self,
+        *,
         file_router: AppFileRouter,
         mode: SessionMode,
         development_mode: bool,
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         cli_args: SerializedCLIArgs,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
@@ -728,9 +764,12 @@ class SessionManager:
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
         self.recents = RecentFilesManager()
-        self.user_config_manager = user_config_manager
         self.cli_args = cli_args
         self.redirect_console_to_browser = redirect_console_to_browser
+
+        # We should access the config_manager from the session if possible
+        # since this will contain config-level overrides
+        self._config_manager = config_manager
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -743,9 +782,7 @@ class SessionManager:
             self.skew_protection_token = SkewProtectionToken.random()
         else:
             app = file_router.get_single_app_file_manager(
-                default_width=user_config_manager.get_config()["display"][
-                    "default_width"
-                ]
+                default_width=self._config_manager.default_width
             ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
@@ -760,9 +797,7 @@ class SessionManager:
         """
         return self.file_router.get_file_manager(
             key,
-            default_width=self.user_config_manager.get_config()["display"][
-                "default_width"
-            ],
+            default_width=self._config_manager.default_width,
         )
 
     def create_session(
@@ -777,9 +812,7 @@ class SessionManager:
         if session_id not in self.sessions:
             app_file_manager = self.file_router.get_file_manager(
                 file_key,
-                default_width=self.user_config_manager.get_config()["display"][
-                    "default_width"
-                ],
+                default_width=self._config_manager.default_width,
             )
 
             if app_file_manager.path:
@@ -795,7 +828,7 @@ class SessionManager:
                     cli_args=self.cli_args,
                 ),
                 app_file_manager=app_file_manager,
-                user_config_manager=self.user_config_manager,
+                config_manager=self._config_manager,
                 virtual_files_supported=True,
                 redirect_console_to_browser=self.redirect_console_to_browser,
                 ttl_seconds=self.ttl_seconds,
@@ -821,7 +854,7 @@ class SessionManager:
 
             # Reload the file manager to get the latest code
             try:
-                session.app_file_manager.reload()
+                changed_cell_ids = session.app_file_manager.reload()
             except Exception as e:
                 # If there are syntax errors, we just skip
                 # and don't send the changes
@@ -842,17 +875,42 @@ class SessionManager:
                 UpdateCellIdsRequest(cell_ids=cell_ids),
                 from_consumer_id=None,
             )
-            session.write_operation(
-                UpdateCellCodes(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    # The code is considered stale
-                    # because it has not been run yet.
-                    # In the future, we may add auto-run here.
-                    code_is_stale=True,
-                ),
-                from_consumer_id=None,
+
+            # Check if we should auto-run cells based on config
+            should_autorun = (
+                self._config_manager.get_config()["runtime"]["watcher_on_save"]
+                == "autorun"
             )
+
+            # Auto-run cells if configured
+            if should_autorun:
+                changed_cell_ids_list = list(changed_cell_ids)
+                cell_ids_to_idx = {
+                    cell_id: idx for idx, cell_id in enumerate(cell_ids)
+                }
+                changed_codes = [
+                    codes[cell_ids_to_idx[cell_id]]
+                    for cell_id in changed_cell_ids_list
+                ]
+
+                # This runs the request and also runs UpdateCellCodes
+                session.put_control_request(
+                    ExecuteMultipleRequest(
+                        cell_ids=changed_cell_ids_list,
+                        codes=changed_codes,
+                        request=None,
+                    ),
+                    from_consumer_id=None,
+                )
+            else:
+                session.write_operation(
+                    UpdateCellCodes(
+                        cell_ids=cell_ids,
+                        codes=codes,
+                        code_is_stale=not should_autorun,
+                    ),
+                    from_consumer_id=None,
+                )
 
         session._unsubscribe_file_watcher_ = on_file_changed  # type: ignore
 
@@ -861,7 +919,7 @@ class SessionManager:
         )
 
     def handle_file_rename_for_watch(
-        self, session_id: SessionId, new_path: str
+        self, session_id: SessionId, prev_path: Optional[str], new_path: str
     ) -> tuple[bool, Optional[str]]:
         """Handle renaming a file for a session.
 
@@ -878,18 +936,20 @@ class SessionManager:
         if not session.app_file_manager.path:
             return False, "Session has no associated file"
 
-        old_path = session.app_file_manager.path
+        # Handle rename for session cache
+        if session.session_cache_manager:
+            session.session_cache_manager.rename_path(new_path)
 
         try:
-            # Remove the old file watcher if it exists
             if self.watch:
-                self.watcher_manager.remove_callback(
-                    Path(old_path),
-                    session._unsubscribe_file_watcher_,  # type: ignore
-                )
+                # Remove the old file watcher if it exists
+                if prev_path:
+                    self.watcher_manager.remove_callback(
+                        Path(prev_path),
+                        session._unsubscribe_file_watcher_,  # type: ignore
+                    )
 
-            # Add a watcher for the new path if needed
-            if self.watch:
+                # Add a watcher for the new path if needed
                 self._start_file_watcher_for_session(session)
 
             return True, None
@@ -908,7 +968,7 @@ class SessionManager:
 
         # Search for kiosk sessions
         for session in self.sessions.values():
-            if session_id in session.room.consumers.values():
+            if ConsumerId(session_id) in session.room.consumers.values():
                 return session
 
         return None
@@ -978,7 +1038,7 @@ class SessionManager:
             # Set new session and remove old session
             self.sessions[new_session_id] = session
             # If the ID is the same, we don't need to delete the old session
-            if new_session_id != session_id:
+            if new_session_id != session_id and session_id in self.sessions:
                 del self.sessions[session_id]
             return session
 
@@ -1031,7 +1091,8 @@ class SessionManager:
             )
 
         session.close()
-        del self.sessions[session_id]
+        if session_id in self.sessions:
+            del self.sessions[session_id]
         return True
 
     def close_all_sessions(self) -> None:

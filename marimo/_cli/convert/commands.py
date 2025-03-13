@@ -8,6 +8,7 @@ import click
 from marimo._cli.convert.markdown import convert_from_md
 from marimo._cli.convert.utils import load_external_file
 from marimo._cli.print import echo
+from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.ipynb import convert_from_ipynb
 from marimo._utils.paths import maybe_make_dirs
 
@@ -16,7 +17,7 @@ from marimo._utils.paths import maybe_make_dirs
 @click.option(
     "-o",
     "--output",
-    type=click.Path(),
+    type=click.Path(path_type=Path),
     default=None,
     help=(
         "Output file to save the converted notebook to. "
@@ -25,7 +26,7 @@ from marimo._utils.paths import maybe_make_dirs
 )
 def convert(
     filename: str,
-    output: str,
+    output: Path,
 ) -> None:
     r"""Convert a Jupyter notebook or Markdown file to a marimo notebook.
 
@@ -50,6 +51,7 @@ def convert(
     you may need to fix errors like multiple definition errors or cycle
     errors.
     """
+
     ext = Path(filename).suffix
     if ext not in (".ipynb", ".md", ".qmd"):
         raise click.UsageError("File must be an .ipynb or .md file")
@@ -62,10 +64,11 @@ def convert(
         notebook = convert_from_md(text)
 
     if output:
-        # Make dirs if needed
-        maybe_make_dirs(output)
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(notebook)
-        echo(f"Converted notebook saved to {output}")
+        output_path = Path(output)
+        if prompt_to_overwrite(output_path):
+            # Make dirs if needed
+            maybe_make_dirs(output)
+            Path(output).write_text(notebook, encoding="utf-8")
+            echo(f"Converted notebook saved to {output}")
     else:
         echo(notebook)

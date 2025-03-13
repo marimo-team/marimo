@@ -8,7 +8,11 @@ import {
   copilotSignedInState,
 } from "@/core/codemirror/copilot/state";
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { aiEnabledAtom, resolvedMarimoConfigAtom } from "@/core/config/config";
+import {
+  aiAtom,
+  aiEnabledAtom,
+  resolvedMarimoConfigAtom,
+} from "@/core/config/config";
 import { GitHubCopilotIcon } from "@/components/icons/github-copilot";
 import { SparklesIcon } from "lucide-react";
 import { FooterItem } from "./footer-item";
@@ -18,6 +22,7 @@ import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
+
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -53,9 +58,6 @@ export const AIStatusIcon: React.FC = () => {
 
 const copilotAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).completion.copilot;
-});
-const aiAtom = atom((get) => {
-  return get(resolvedMarimoConfigAtom).ai;
 });
 
 export const CopilotStatusIcon: React.FC = () => {

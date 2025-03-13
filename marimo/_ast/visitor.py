@@ -5,19 +5,21 @@ import ast
 import itertools
 import sys
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Set, Union
+from typing import Callable, Literal, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
     find_sql_defs,
     find_sql_refs,
     normalize_sql_f_string,
 )
+from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils.variables import is_local
 
 LOGGER = _loggers.marimo_logger()
 
@@ -68,6 +70,9 @@ class VariableData:
     # x has the required refs foo and bar, and ref_stack holds that context
     # while traversing the tree.
     required_refs: set[Name] = field(default_factory=set)
+
+    # A reference needed for function/ class definition
+    unbounded_refs: set[Name] = field(default_factory=set)
 
     # For kind == import
     import_data: Optional[ImportData] = None
@@ -220,8 +225,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     if hasattr(node, "lineno")
                     else "line ..."
                 )
-                raise SyntaxError(
-                    f"{line} SyntaxError: `import *` is not allowed in marimo."
+                raise ImportStarError(
+                    f"{line} SyntaxError: Importing symbols with `import *` "
+                    "is not allowed in marimo."
                 )
             return basename
         else:
@@ -326,6 +332,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 # `U` should not be a ref
                 for child in node.type_params:
                     self.visit(child)
+
             # This will revisit the type_params, but that's okay because
             # visiting is idempotent
             super().generic_visit(node)
@@ -377,11 +384,27 @@ class ScopedVisitor(ast.NodeVisitor):
             super().generic_visit(node)
         return node
 
-    def _visit_and_get_refs(self, node: ast.AST) -> set[Name]:
+    def _visit_and_get_refs(
+        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef]
+    ) -> tuple[set[Name], set[Name]]:
         """Create a ref scope for the variable to be declared (e.g. function,
         class), visit the children the node, propagate the refs to the higher
-        scope and then return the refs."""
+        scope and then return the body refs and unbounded refs."""
+
         self.ref_stack.append(set())
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # Handle function refs that are evaluated in the outer scope
+            # Remove the body, which keeps signature and non-scoped parts.
+            mock = deepcopy(node)
+            mock.body.clear()
+            self.generic_visit(mock)
+            # Collect the unbounded refs
+            unbounded_refs = set(self.ref_stack[-1])
+        else:
+            # TODO: Update for class_definition toplevel decorator.
+            unbounded_refs = set()
+
+        # Process the function body
         self.generic_visit(node)
         refs = self.ref_stack.pop()
         # The scope a level up from the one just investigated also is dependent
@@ -393,12 +416,13 @@ class ScopedVisitor(ast.NodeVisitor):
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
         self.ref_stack[-1].update(refs)
-        return refs
+        # Return both sets of refs
+        return refs, unbounded_refs
 
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, _ = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
@@ -410,21 +434,29 @@ class ScopedVisitor(ast.NodeVisitor):
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
-            VariableData(kind="function", required_refs=refs),
+            VariableData(
+                kind="function",
+                required_refs=refs,
+                unbounded_refs=unbounded_refs,
+            ),
         )
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
-            VariableData(kind="function", required_refs=refs),
+            VariableData(
+                kind="function",
+                required_refs=refs,
+                unbounded_refs=unbounded_refs,
+            ),
         )
         return node
 
@@ -490,7 +522,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    tables: Set[str] = set()
+                    tables: set[str] = set()
                     from_targets: list[str] = []
                     # Parse the refs and defs of each statement
                     try:

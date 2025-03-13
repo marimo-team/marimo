@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
-import { sql, StandardSQL, schemaCompletionSource } from "@codemirror/lang-sql";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import type { CompletionConfig } from "@/core/config/config-schema";
@@ -12,11 +11,10 @@ import {
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
-import { datasetsAtom } from "@/core/datasets/state";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
+  dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
   DEFAULT_ENGINE,
   setLatestEngineSelected,
@@ -27,6 +25,18 @@ import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
 import { Logger } from "@/utils/Logger";
 import type { CellId } from "@/core/cells/ids";
+import {
+  sql,
+  StandardSQL,
+  type SQLConfig,
+  schemaCompletionSource,
+  type SQLDialect,
+  PostgreSQL,
+  MySQL,
+  SQLite,
+} from "@codemirror/lang-sql";
+import { LRUCache } from "@/utils/lru";
+import type { DataSourceConnection } from "@/core/kernel/messages";
 
 /**
  * Language adapter for SQL.
@@ -106,11 +116,6 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
-    const sqlCapabilities = store.get(capabilitiesAtom).sql;
-    if (!sqlCapabilities) {
-      return false;
-    }
-
     if (pythonCode.trim() === "") {
       return true;
     }
@@ -154,27 +159,123 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
       }),
       StandardSQL.language.data.of({
-        autocomplete: tablesCompletionSource(),
+        autocomplete: tablesCompletionSource(this),
       }),
     ];
   }
 }
 
-function tablesCompletionSource(): CompletionSource {
-  return (ctx) => {
-    const schema: Record<string, string[]> = {};
-    const datasets = store.get(datasetsAtom);
-    for (const table of datasets.tables) {
-      schema[table.name] = table.columns.map((column) => column.name);
+type TableToCols = Record<string, string[]>;
+type Schemas = Record<string, TableToCols>;
+
+export class SQLCompletionStore {
+  private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
+
+  getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
+    const dataConnectionsMap = store.get(dataConnectionsMapAtom);
+    const connection = dataConnectionsMap.get(connectionName);
+    if (!connection) {
+      return null;
     }
 
-    return schemaCompletionSource({
-      schema,
-    })(ctx);
+    let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
+    if (!cacheConfig) {
+      const schemaMap: Record<string, TableToCols> = {};
+      const databaseMap: Record<string, Schemas> = {};
+
+      // When there is only one database, it is the default
+      const defaultDb = connection.databases.find(
+        (db) =>
+          db.name === connection.default_database ||
+          connection.databases.length === 1,
+      );
+
+      // For default db, we can use the schema name directly
+      for (const schema of defaultDb?.schemas ?? []) {
+        schemaMap[schema.name] = {};
+        for (const table of schema.tables) {
+          const columns = table.columns.map((col) => col.name);
+          schemaMap[schema.name][table.name] = columns;
+        }
+      }
+
+      // Otherwise, we need to use the fully qualified name
+      for (const database of connection.databases) {
+        if (database.name === defaultDb?.name) {
+          continue;
+        }
+        databaseMap[database.name] = {};
+
+        for (const schema of database.schemas) {
+          databaseMap[database.name][schema.name] = {};
+
+          for (const table of schema.tables) {
+            const columns = table.columns.map((col) => col.name);
+            databaseMap[database.name][schema.name][table.name] = columns;
+          }
+        }
+      }
+
+      cacheConfig = {
+        dialect: guessDialect(connection),
+        schema: { ...databaseMap, ...schemaMap },
+        defaultSchema: connection.default_schema ?? undefined,
+        defaultTable: getSingleTable(connection),
+      };
+      this.cache.set(connection, cacheConfig);
+    }
+
+    return cacheConfig;
+  }
+}
+
+const SCHEMA_CACHE = new SQLCompletionStore();
+
+function tablesCompletionSource(adapter: SQLLanguageAdapter): CompletionSource {
+  return (ctx) => {
+    const connectionName = adapter.engine;
+    const config = SCHEMA_CACHE.getCompletionSource(connectionName);
+
+    if (!config) {
+      return null;
+    }
+
+    return schemaCompletionSource(config)(ctx);
   };
 }
 
-interface SQLConfig {
+function getSingleTable(connection: DataSourceConnection): string | undefined {
+  if (connection.databases.length !== 1) {
+    return undefined;
+  }
+  const database = connection.databases[0];
+  if (database.schemas.length !== 1) {
+    return undefined;
+  }
+  const schema = database.schemas[0];
+  if (schema.tables.length !== 1) {
+    return undefined;
+  }
+  return schema.tables[0].name;
+}
+
+function guessDialect(
+  connection: DataSourceConnection,
+): SQLDialect | undefined {
+  switch (connection.dialect) {
+    case "postgresql":
+    case "postgres":
+      return PostgreSQL;
+    case "mysql":
+      return MySQL;
+    case "sqlite":
+      return SQLite;
+    default:
+      return undefined;
+  }
+}
+
+interface SQLParseInfo {
   dfName: string;
   sqlString: string;
   engine: string | undefined;
@@ -219,7 +320,7 @@ function getStringContent(node: SyntaxNode, code: string): string | null {
  * @param code - The Python code string to parse.
  * @returns The parsed SQL statement or null if parsing fails.
  */
-export function parseSQLStatement(code: string): SQLConfig | null {
+export function parseSQLStatement(code: string): SQLParseInfo | null {
   try {
     const tree = parser.parse(code);
     const cursor = tree.cursor();
@@ -227,6 +328,13 @@ export function parseSQLStatement(code: string): SQLConfig | null {
     // Find assignment statement
     const assignStmt = findAssignment(cursor);
     if (!assignStmt) {
+      return null;
+    }
+
+    // Code outside of the assignment statement is not allowed
+    const outsideCode =
+      code.slice(0, assignStmt.from) + code.slice(assignStmt.to);
+    if (outsideCode.trim().length > 0) {
       return null;
     }
 

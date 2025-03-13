@@ -4,11 +4,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers as loggers
-from marimo._config.manager import MarimoConfigManager
-from marimo._server.ids import SessionId
+from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager
 from marimo._server.tokens import SkewProtectionToken
+from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
@@ -108,7 +108,8 @@ class AppState(AppStateBase):
 
     def get_current_session_id(self) -> Optional[SessionId]:
         """Get the current session."""
-        return self.request.headers.get("Marimo-Session-Id")
+        session_id = self.request.headers.get("Marimo-Session-Id")
+        return SessionId(session_id) if session_id is not None else None
 
     def require_current_session_id(self) -> SessionId:
         """Get the current session or raise an error."""
@@ -148,3 +149,18 @@ class AppState(AppStateBase):
         if param not in self.request.query_params:
             return None
         return self.request.query_params[param]
+
+    # Config manager for the marimo file that we are running.
+    # This could have custom config in the script metadata.
+    @property
+    def app_config_manager(self) -> MarimoConfigManager:
+        session = self.require_current_session()
+        return session.config_manager
+
+    # We may have not created a session yet, but we know the file where we will
+    # create one.
+    # Use this file to override the config manager.
+    def config_manager_at_file(self, path: str) -> MarimoConfigManager:
+        return super().config_manager.with_overrides(
+            ScriptConfigManager(path).get_config()
+        )

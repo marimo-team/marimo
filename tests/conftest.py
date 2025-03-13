@@ -8,13 +8,12 @@ import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from _pytest import runner
 
 from marimo._ast.app import App, CellManager
-from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
@@ -34,13 +33,26 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 from marimo._server.model import SessionMode
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
 
 # register import hooks for third-party module formatters
 register_formatters()
+
+
+@pytest.fixture(autouse=True)
+def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch UIElement._random_seed to use a fixed seed for testing"""
+    import random
+
+    from marimo._plugins.ui._core.ui_element import UIElement
+
+    # Patch the random seed to be deterministic for testing
+    monkeypatch.setattr(UIElement, "_random_seed", random.Random(42))
 
 
 @dataclasses.dataclass
@@ -616,18 +628,54 @@ def app() -> Generator[App, None, None]:
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
     report = runner.pytest_make_collect_report(collector)
+    # If it's not a module, we can return early.
+    if not isinstance(collector, pytest.Module):
+        return report
+
     # Defined within the file does not seem to hook correctly, as such filter
     # for the test_pytest specific file here.
-    if "test_pytest" in str(collector.path):
-        collected = {fn.name: fn for fn in collector.collect()}
-        from tests._ast.test_pytest import app
+    if "test_pytest" in str(collector.path) and "_ast" in str(collector.path):
+        # Classes may also be registered, but they will be hidden behind a cell.
+        # As such, let's just collect functions.
+        collected = {
+            fn.originalname
+            for fn in collector.collect()
+            if isinstance(fn, pytest.Function)
+        }
+        classes = {
+            cls.name
+            for cls in collector.collect()
+            if isinstance(cls, pytest.Class)
+        }
+        from tests._ast.test_pytest import app as app_pytest
+        from tests._ast.test_pytest_toplevel import app as app_toplevel
 
+        app = {
+            "test_pytest": app_pytest,
+            "test_pytest_toplevel": app_toplevel,
+        }[collector.path.stem]
+
+        # Just a quick check to make sure the class is actually exported.
+        if app == app_pytest:
+            if len(classes) == 0:
+                report.outcome = "failed"
+                report.longrepr = (
+                    f"Expected class in {collector.path}, found none."
+                )
+                return report
+        for cls in classes:
+            if not cls.startswith("MarimoTestBlock"):
+                report.outcome = "failed"
+                report.longrepr = f"Unknown class '{cls}' in {collector.path}"
+                return report
+
+        # Check the functions match cells in the app.
         invalid = []
         for name in app._cell_manager.names():
             if name.startswith("test_") and name not in collected:
                 invalid.append(f"'{name}'")
         if invalid:
-            tests = ", ".join([f"'{test}'" for test in collected.keys()])
+            tests = ", ".join([f"'{test}'" for test in collected])
             report.outcome = "failed"
             report.longrepr = (
                 f"Cannot collect test(s) {', '.join(invalid)} from {tests}"

@@ -1,26 +1,42 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import functools
 import os
 import random
 import string
+import sys
 from typing import (
     TYPE_CHECKING,
-    Any,
     Callable,
-    Iterable,
     Optional,
+    TypeVar,
 )
 
-from marimo._ast.cell import Cell, CellConfig, CellId_t
-from marimo._ast.compiler import cell_factory
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec, TypeAlias
+else:
+    from typing import ParamSpec, TypeAlias
+
+from marimo._ast.cell import Cell, CellConfig
+from marimo._ast.compiler import (
+    cell_factory,
+    context_cell_factory,
+    toplevel_cell_factory,
+)
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.pytest import wrap_fn_for_pytest
+from marimo._ast.pytest import process_for_pytest
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from types import FrameType
+
     from marimo._ast.app import InternalApp
+
+P = ParamSpec("P")
+R = TypeVar("R")
+Fn: TypeAlias = Callable[P, R]
 
 
 class CellManager:
@@ -65,31 +81,34 @@ class CellManager:
             _id = self.prefix + "".join(
                 self.random_seed.choices(string.ascii_letters, k=4)
             )
-        self.seen_ids.add(_id)
-        return _id
+        self.seen_ids.add(CellId_t(_id))
+        return CellId_t(_id)
 
     # TODO: maybe remove this, it is leaky
     def cell_decorator(
         self,
-        func: Callable[..., Any] | None,
+        func: Fn[P, R] | None,
         column: Optional[int],
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
-    ) -> Cell | Callable[..., Cell]:
+        *,
+        top_level: bool = False,
+    ) -> Cell | Fn[P, R] | Callable[[Fn[P, R]], Cell | Fn[P, R]]:
         """Create a cell decorator for marimo notebook cells."""
         cell_config = CellConfig(
             column=column, disabled=disabled, hide_code=hide_code
         )
 
-        def _register(func: Callable[..., Any]) -> Cell:
+        def _register(func: Fn[P, R]) -> Cell | Fn[P, R]:
             # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
             # order to allow execution during test collection.
             is_top_level_pytest = (
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
             )
-            cell = cell_factory(
+            factory = toplevel_cell_factory if top_level else cell_factory
+            cell = factory(
                 func,
                 cell_id=self.create_cell_id(),
                 anonymous_file=app._app._anonymous_file if app else False,
@@ -98,23 +117,42 @@ class CellManager:
             )
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
+
+            # Top level functions are exposed as the function itself.
+            if top_level:
+                return func
+
             # Manually set the signature for pytest.
             if is_top_level_pytest:
-                func = wrap_fn_for_pytest(func, cell)
-            # NB. in place metadata update.
-            functools.wraps(func)(cell)
+                # NB. in place metadata update.
+                process_for_pytest(func, cell)
             return cell
 
         if func is None:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
             # argument
-            def decorator(func: Callable[..., Any]) -> Cell:
+            def decorator(func: Fn[P, R]) -> Cell | Fn[P, R]:
                 return _register(func)
 
             return decorator
         else:
             return _register(func)
+
+    def cell_context(
+        self,
+        frame: FrameType,
+        app: InternalApp | None = None,
+    ) -> Cell:
+        """Registers cells when called through a context block."""
+        cell = context_cell_factory(
+            cell_id=self.create_cell_id(),
+            # NB. carry along the frame from the initial call.
+            frame=frame,
+        )
+        cell._cell.configure(CellConfig())
+        self._register_cell(cell, app=app)
+        return cell
 
     def _register_cell(
         self, cell: Cell, app: InternalApp | None = None
@@ -328,6 +366,11 @@ class CellManager:
         """
         return self._cell_data[cell_id]
 
+    def get_cell_code(self, cell_id: CellId_t) -> Optional[str]:
+        if cell_id not in self._cell_data:
+            return None
+        return self._cell_data[cell_id].code
+
     def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
         """Find a cell ID by its code content.
 
@@ -363,10 +406,13 @@ class CellManager:
         id_mapping = dict(zip(sorted_ids, current_ids))
 
         # Update the cell data in place
-        self._cell_data = {
-            new_id: self._cell_data[old_id]
-            for new_id, old_id in id_mapping.items()
-        }
+        new_cell_data: dict[CellId_t, CellData] = {}
+        for new_id, old_id in id_mapping.items():
+            prev_cell_data = self._cell_data[old_id]
+            prev_cell_data.cell_id = new_id
+            new_cell_data[new_id] = prev_cell_data
+
+        self._cell_data = new_cell_data
 
         # Add the new ids to the set, so we don't reuse them in the future
         for _id in sorted_ids:

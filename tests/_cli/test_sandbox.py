@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
 
 from marimo._cli.sandbox import (
-    _get_dependencies,
-    _get_python_version_requirement,
+    PyProjectReader,
     _is_marimo_dependency,
     _normalize_sandbox_dependencies,
     _pyproject_toml_to_requirements_txt,
-    _read_pyproject,
     construct_uv_command,
-    get_dependencies_from_filename,
 )
+from marimo._utils.scripts import read_pyproject_from_script
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_get_dependencies():
@@ -35,7 +36,7 @@ import marimo
 __generated_with = "0.8.2"
 app = marimo.App(width="medium")
 """
-    assert _get_dependencies(SCRIPT) == [
+    assert PyProjectReader.from_script(SCRIPT).dependencies == [
         "polars",
         "marimo>=0.8.0",
         "quak",
@@ -45,7 +46,7 @@ app = marimo.App(width="medium")
 
 def test_get_dependencies_github():
     url = "https://github.com/marimo-team/marimo/blob/a1e1be3190023a86650904249f911b2e6ffb8fac/examples/third_party/leafmap/leafmap_example.py"
-    assert get_dependencies_from_filename(url) == [
+    assert PyProjectReader.from_filename(url).dependencies == [
         "leafmap==0.41.0",
         "marimo",
     ]
@@ -58,7 +59,7 @@ import marimo
 __generated_with = "0.8.2"
 app = marimo.App(width="medium")
 """
-    assert _get_dependencies(SCRIPT) == []
+    assert PyProjectReader.from_script(SCRIPT).dependencies == []
 
 
 def test_pyproject_toml_to_requirements_txt_git_sources():
@@ -200,15 +201,15 @@ def test_pyproject_toml_to_requirements_txt_with_versioned_dependencies(
 
 def test_get_python_version_requirement():
     pyproject = {"requires-python": ">=3.11"}
-    assert _get_python_version_requirement(pyproject) == ">=3.11"
+    assert PyProjectReader(pyproject).python_version == ">=3.11"
 
     pyproject = {"dependencies": ["polars"]}
-    assert _get_python_version_requirement(pyproject) is None
+    assert PyProjectReader(pyproject).python_version is None
 
-    assert _get_python_version_requirement(None) is None
+    assert PyProjectReader({}).python_version is None
 
     pyproject = {"requires-python": {"invalid": "type"}}
-    assert _get_python_version_requirement(pyproject) is None
+    assert PyProjectReader(pyproject).python_version is None
 
 
 def test_get_dependencies_with_python_version():
@@ -220,11 +221,11 @@ def test_get_dependencies_with_python_version():
 
 import marimo
 """
-    assert _get_dependencies(SCRIPT) == ["polars"]
+    assert PyProjectReader.from_script(SCRIPT).dependencies == ["polars"]
 
-    pyproject = _read_pyproject(SCRIPT)
+    pyproject = read_pyproject_from_script(SCRIPT)
     assert pyproject is not None
-    assert _get_python_version_requirement(pyproject) == ">=3.11"
+    assert PyProjectReader(pyproject).python_version == ">=3.11"
 
     SCRIPT_NO_PYTHON = """
 # /// script
@@ -233,18 +234,22 @@ import marimo
 
 import marimo
 """
-    pyproject_no_python = _read_pyproject(SCRIPT_NO_PYTHON)
+    pyproject_no_python = read_pyproject_from_script(SCRIPT_NO_PYTHON)
     assert pyproject_no_python is not None
-    assert _get_python_version_requirement(pyproject_no_python) is None
-    assert _get_dependencies(SCRIPT_NO_PYTHON) == ["polars"]
+    assert PyProjectReader(pyproject_no_python).python_version is None
+    assert PyProjectReader.from_script(SCRIPT_NO_PYTHON).dependencies == [
+        "polars"
+    ]
 
 
 def test_get_dependencies_with_nonexistent_file():
     # Test with a non-existent file
-    assert get_dependencies_from_filename("nonexistent_file.py") == []
+    assert (
+        PyProjectReader.from_filename("nonexistent_file.py").dependencies == []
+    )
 
-    # Test with None
-    assert get_dependencies_from_filename(None) == []  # type: ignore
+    # Test with empty
+    assert PyProjectReader.from_filename("").dependencies == []
 
 
 @patch("marimo._cli.sandbox.is_editable", return_value=False)
@@ -362,3 +367,108 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
     assert "--refresh" not in uv_cmd
     assert uv_cmd[0] == "uv"
     assert uv_cmd[1] == "run"
+
+
+def test_construct_uv_cmd_with_python_version(tmp_path: Path) -> None:
+    # Test Python version requirement is passed through
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["numpy"]
+# ///
+import marimo
+    """
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path), "--sandbox"], str(script_path)
+    )
+    assert "--python" in uv_cmd
+    assert ">=3.11" in uv_cmd
+    assert "--isolated" in uv_cmd
+    assert "--no-project" in uv_cmd
+    assert "--sandbox" not in uv_cmd
+
+
+def test_construct_uv_cmd_with_index_urls() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index-url": "https://custom.pypi.org/simple",
+                "extra-index-url": [
+                    "https://extra1.pypi.org/simple",
+                    "https://extra2.pypi.org/simple",
+                ],
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"], "test.py"
+        )
+        assert "--index-url" in uv_cmd
+        assert "https://custom.pypi.org/simple" in uv_cmd
+        assert "--extra-index-url" in uv_cmd
+        assert "https://extra1.pypi.org/simple" in uv_cmd
+        assert "https://extra2.pypi.org/simple" in uv_cmd
+
+
+def test_construct_uv_cmd_with_index_configs() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "name": "torch-gpu",
+                        "url": "https://download.pytorch.org/whl/cu124",
+                    }
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"], "test.py"
+        )
+        assert "--index" in uv_cmd
+        assert "https://download.pytorch.org/whl/cu124" in uv_cmd
+
+
+def test_construct_uv_cmd_with_sandbox_flag() -> None:
+    # Test --sandbox flag is removed
+    uv_cmd = construct_uv_command(["edit", "test.py", "--sandbox"], "test.py")
+    assert "--sandbox" not in uv_cmd
+
+
+def test_construct_uv_cmd_empty_dependencies() -> None:
+    # Test empty dependencies triggers refresh
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader({})
+        uv_cmd = construct_uv_command(["edit", "test.py"], "test.py")
+        assert "--refresh" in uv_cmd
+        assert "--isolated" in uv_cmd
+        assert "--no-project" in uv_cmd
+
+
+def test_construct_uv_cmd_with_complex_args() -> None:
+    # Test complex command arguments are preserved
+    args = [
+        "edit",
+        "test.py",
+        "--theme",
+        "dark",
+        "--port",
+        "8000",
+        "--sandbox",
+    ]
+    uv_cmd = construct_uv_command(args, "test.py")
+    assert "edit" in uv_cmd
+    assert "test.py" in uv_cmd
+    assert "--theme" in uv_cmd
+    assert "dark" in uv_cmd
+    assert "--port" in uv_cmd
+    assert "8000" in uv_cmd
+    assert "--sandbox" not in uv_cmd

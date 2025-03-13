@@ -5,9 +5,9 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections import deque

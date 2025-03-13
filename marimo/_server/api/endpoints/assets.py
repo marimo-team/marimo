@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import mimetypes
-import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -14,6 +13,7 @@ from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
+from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
@@ -33,20 +33,35 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 # Root directory for static assets
-root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+root = Path(import_files("marimo").joinpath("_static")).resolve()
 
-config = (
+server_config = (
     get_default_config_manager(current_path=None)
     .get_config()
     .get("server", {})
 )
 
+assets_dir = root / "assets"
+follow_symlinks = server_config.get("follow_symlink", False)
+
+if not follow_symlinks and assets_dir.is_symlink():
+    LOGGER.error(
+        "Assets directory is a symlink but follow_symlink=false.\n"
+        "To fix this:\n"
+        "1. Run 'marimo config show' to see your current config\n"
+        "2. Add 'follow_symlink = true' under the [server] section in your config\n"
+        "3. Restart marimo\n\n"
+        "Example config:\n"
+        "[server]\n"
+        "follow_symlink = true"
+    )
+
 try:
     router.mount(
         "/assets",
         app=StaticFiles(
-            directory=os.path.join(root, "assets"),
-            follow_symlink=config.get("follow_symlink", False),
+            directory=assets_dir,
+            follow_symlink=follow_symlinks,
         ),
         name="assets",
     )
@@ -60,15 +75,14 @@ FILE_QUERY_PARAM_KEY = "file"
 @requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
-    index_html = os.path.join(root, "index.html")
+    index_html = root / "index.html"
 
     file_key = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
-    with open(index_html, "r") as f:  # noqa: ASYNC101 ASYNC230
-        html = f.read()
+    html = index_html.read_text()
 
     if not file_key:
         # We don't know which file to use, so we need to render a homepage
@@ -81,6 +95,8 @@ async def index(request: Request) -> HTMLResponse:
             server_token=app_state.skew_protection_token,
         )
     else:
+        config_manager = app_state.config_manager_at_file(file_key)
+
         # We have a file key, so we can render the app with the file
         LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
@@ -89,8 +105,8 @@ async def index(request: Request) -> HTMLResponse:
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
-            user_config=app_state.config_manager.get_user_config(),
-            config_overrides=app_state.config_manager.get_config_overrides(),
+            user_config=config_manager.get_user_config(),
+            config_overrides=config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=app_manager.filename,
@@ -98,20 +114,36 @@ async def index(request: Request) -> HTMLResponse:
         )
 
         # Inject service worker registration with the notebook ID
-        html = inject_script(
-            html,
-            f"""
+        html = _inject_service_worker(html, file_key)
+
+    return HTMLResponse(html)
+
+
+def _inject_service_worker(html: str, file_key: str) -> str:
+    return inject_script(
+        html,
+        # Register service worker with the notebook ID
+        # Potentially update the service worker and send the notebook ID again.
+        f"""
             if ('serviceWorker' in navigator) {{
-                const notebookId = '{file_key}';
-                navigator.serviceWorker.register('./public-files-sw.js')
+                const notebookId = '{uri_encode_component(file_key)}';
+                navigator.serviceWorker.register('./public-files-sw.js?v=2')
                     .then(registration => {{
                         registration.active.postMessage({{ notebookId }});
+                    }})
+                    .catch(error => {{
+                        console.error('Error registering service worker:', error);
+                    }});
+                navigator.serviceWorker.ready
+                    .then(registration => {{
+                        registration.update().then(() => registration.active.postMessage({{ notebookId }}));
+                    }})
+                    .catch(error => {{
+                        console.error('Error updating service worker:', error);
                     }});
             }}
             """,
-        )
-
-    return HTMLResponse(html)
+    )
 
 
 STATIC_FILES = [
@@ -186,21 +218,23 @@ async def public_files_service_worker(request: Request) -> Response:
     del request
     return Response(
         content="""
-        let currentNotebookId = null;
-
-        self.addEventListener('message', (event) => {
-            if (event.data.notebookId) {
-                currentNotebookId = event.data.notebookId;
-            }
+        let notebookIdPromise = new Promise((resolve) => {
+            self.addEventListener('message', (event) => {
+                if (event.data.notebookId) {
+                    resolve(event.data.notebookId);
+                }
+            });
         });
 
         self.addEventListener('fetch', function(event) {
             if (event.request.url.includes('/public/')) {
                 event.respondWith(
-                    fetch(event.request.url, {
-                        headers: {
-                            'X-Notebook-Id': currentNotebookId
-                        }
+                    notebookIdPromise.then(notebookId => {
+                        return fetch(event.request.url, {
+                            headers: {
+                                'X-Notebook-Id': notebookId
+                            }
+                        });
                     })
                 );
             }
@@ -215,10 +249,12 @@ async def public_files_service_worker(request: Request) -> Response:
 async def serve_public_file(request: Request) -> Response:
     """Serve files from the notebook's directory under /public/"""
     app_state = AppState(request)
-    filepath = request.path_params["filepath"]
+    filepath = str(request.path_params["filepath"])
     # Get notebook ID from header
     notebook_id = request.headers.get("X-Notebook-Id")
     if notebook_id:
+        # Decode notebook ID
+        notebook_id = uri_decode_component(notebook_id)
         app_manager = app_state.session_manager.app_manager(notebook_id)
         if app_manager.filename:
             notebook_dir = Path(app_manager.filename).parent
@@ -233,7 +269,7 @@ async def serve_public_file(request: Request) -> Response:
         except ValueError:
             return Response(status_code=403, content="Access denied")
 
-        if file_path.is_file() and not os.path.islink(str(file_path)):
+        if file_path.is_file() and not file_path.is_symlink():
             return FileResponse(file_path)
 
     raise HTTPException(status_code=404, detail="File not found")
@@ -242,8 +278,8 @@ async def serve_public_file(request: Request) -> Response:
 # Catch all for serving static files
 @router.get("/{path:path}")
 async def serve_static(request: Request) -> FileResponse:
-    path = request.path_params["path"]
+    path = str(request.path_params["path"])
     if any(re.match(pattern, path) for pattern in STATIC_FILES):
-        return FileResponse(os.path.join(root, path))
+        return FileResponse(root / path)
 
     raise HTTPException(status_code=404, detail="Not Found")

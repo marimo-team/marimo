@@ -14,9 +14,9 @@ from marimo._server.api.status import (
     HTTPException as MarimoHTTPException,
     is_client_error,
 )
-from marimo._server.ids import ConsumerId
 from marimo._server.model import SessionMode
 from marimo._server.sessions import send_message_to_consumer
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request

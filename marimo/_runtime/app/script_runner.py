@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 
-from marimo._ast.cell import CellId_t, CellImpl
+from marimo._ast.cell import CellImpl
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
 from marimo._runtime.app.common import RunOutput
@@ -25,8 +25,11 @@ from marimo._runtime.patches import (
     create_main_module,
     patch_main_module_context,
 )
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._ast.app import InternalApp
 
 

@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import base64
-from typing import List
 
 import pytest
 
-from marimo._ai.convert import (
+from marimo._ai._convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_groq_messages,
     convert_to_openai_messages,
 )
-from marimo._ai.types import (
+from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,
 )
@@ -19,7 +18,7 @@ from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 
 
 @pytest.fixture
-def sample_messages() -> List[ChatMessage]:
+def sample_messages() -> list[ChatMessage]:
     return [
         ChatMessage(
             role="user",
@@ -28,7 +27,7 @@ def sample_messages() -> List[ChatMessage]:
                 ChatAttachment(
                     name="image.png",
                     content_type="image/png",
-                    url=f"data:image/png;base64,{base64.b64encode('hello'.encode())}",
+                    url=f"data:image/png;base64,{base64.b64encode(b'hello')}",
                 ),
                 ChatAttachment(
                     name="text.txt",
@@ -45,7 +44,7 @@ def sample_messages() -> List[ChatMessage]:
     ]
 
 
-def test_convert_to_openai_messages(sample_messages: List[ChatMessage]):
+def test_convert_to_openai_messages(sample_messages: list[ChatMessage]):
     result = convert_to_openai_messages(sample_messages)
 
     assert len(result) == 2
@@ -74,7 +73,7 @@ def test_convert_to_openai_messages(sample_messages: List[ChatMessage]):
     )
 
 
-def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
+def test_convert_to_anthropic_messages(sample_messages: list[ChatMessage]):
     result = convert_to_anthropic_messages(sample_messages)
 
     assert len(result) == 2
@@ -107,7 +106,7 @@ def test_convert_to_anthropic_messages(sample_messages: List[ChatMessage]):
     )
 
 
-def test_convert_to_google_messages(sample_messages: List[ChatMessage]):
+def test_convert_to_google_messages(sample_messages: list[ChatMessage]):
     result = convert_to_google_messages(sample_messages)
 
     assert len(result) == 2
@@ -133,7 +132,7 @@ def test_convert_to_google_messages(sample_messages: List[ChatMessage]):
     ]
 
 
-def test_convert_to_groq_messages(sample_messages: List[ChatMessage]):
+def test_convert_to_groq_messages(sample_messages: list[ChatMessage]):
     result = convert_to_groq_messages(sample_messages)
 
     assert len(result) == 2

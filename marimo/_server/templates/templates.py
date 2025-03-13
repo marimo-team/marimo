@@ -5,11 +5,11 @@ import base64
 import json
 import os
 from textwrap import dedent
-from typing import Any, List, Literal, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
@@ -17,6 +17,7 @@ from marimo._server.api.utils import parse_title
 from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
+from marimo._types.ids import CellId_t
 from marimo._utils.versions import is_editable
 
 
@@ -77,7 +78,7 @@ def notebook_page_template(
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
         if css_contents:
-            css_contents = f"<style>{css_contents}</style>"
+            css_contents = _custom_css_block(css_contents)
             # Append to head
             html = html.replace("</head>", f"{css_contents}</head>")
 
@@ -102,12 +103,12 @@ def static_notebook_template(
     filepath: Optional[str],
     code: str,
     code_hash: str,
-    cell_ids: list[str],
+    cell_ids: list[CellId_t],
     cell_names: list[str],
     cell_codes: list[str],
     cell_configs: list[CellConfig],
     cell_outputs: dict[CellId_t, CellOutput],
-    cell_console_outputs: dict[CellId_t, List[CellOutput]],
+    cell_console_outputs: dict[CellId_t, list[CellOutput]],
     files: dict[str, str],
     asset_url: Optional[str] = None,
 ) -> str:
@@ -195,13 +196,7 @@ def static_notebook_template(
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filepath)
         if css_contents:
-            static_block += dedent(
-                f"""
-            <style>
-                {css_contents}
-            </style>
-            """
-            )
+            static_block += _custom_css_block(css_contents)
 
     code_block = dedent(
         f"""
@@ -256,7 +251,12 @@ def wasm_notebook_template(
         body = re.sub(r'="./assets/', f'="{asset_url}/assets/', body)
 
     body = body.replace("{{ base_url }}", "")
-    body = body.replace("{{ title }}", "marimo")
+    body = body.replace(
+        "{{ title }}",
+        parse_title(filename)
+        if app_config.app_title is None
+        else app_config.app_title,
+    )
     body = body.replace("{{ user_config }}", json.dumps(user_config))
     body = body.replace(
         "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))
@@ -297,7 +297,7 @@ def wasm_notebook_template(
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
         if css_contents:
-            css_contents = f"<style>{css_contents}</style>"
+            css_contents = _custom_css_block(css_contents)
             # Append to head
             body = body.replace("</head>", f"{css_contents}</head>")
 
@@ -352,3 +352,9 @@ def get_version() -> str:
     return (
         f"{__version__} (editable)" if is_editable("marimo") else __version__
     )
+
+
+def _custom_css_block(css_contents: str) -> str:
+    # marimo-custom is used by the frontend to identify this stylesheet
+    # comes from marimo
+    return f"<style title='marimo-custom'>{css_contents}</style>"

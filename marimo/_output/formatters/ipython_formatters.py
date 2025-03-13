@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -29,15 +30,32 @@ class IPythonFormatter(FormatterFactory):
             # IPython.display.display returns a DisplayHandle, which
             # can be used to update the displayed object. We don't support
             # that yet ...
+
+            # If clear is True, clear the output before displaying
             if kwargs.pop("clear", False):
                 _output.clear()
+
+            raw = kwargs.pop("raw", False)
             for value in objs:
-                _output.append(value)
+                # raw means it's a mimebundle, with the key (mime) and value (raw data)
+                if raw and isinstance(value, dict):
+                    _output.append(ReprMimeBundle(value))
+                else:
+                    _output.append(value)
 
         IPython.display.display = display
+        # Patching display_functions handles display_markdown, display_x, etc.
+        try:
+            IPython.core.display_functions.display = display  # type: ignore
+        except AttributeError:
+            pass
 
         def unpatch() -> None:
-            IPython.display.display = old_display
+            IPython.display.display = old_display  # type: ignore
+            try:
+                IPython.core.display_functions.display = old_display  # type: ignore
+            except AttributeError:
+                pass
 
         @formatting.formatter(
             IPython.display.HTML  # type:ignore
@@ -58,3 +76,16 @@ class IPythonFormatter(FormatterFactory):
             return ("text/html", data)
 
         return unpatch
+
+
+@dataclass
+class ReprMimeBundle:
+    data: dict[str, Any]
+
+    def _repr_mimebundle_(
+        self,
+        include: Any = None,
+        exclude: Any = None,
+    ) -> dict[str, Any]:
+        del include, exclude
+        return self.data

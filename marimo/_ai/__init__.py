@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 """AI utilities."""
 
-from __future__ import annotations
-
 __all__ = [
     "ChatMessage",
     "ChatModelConfig",
@@ -10,8 +8,8 @@ __all__ = [
     "llm",
 ]
 
-from marimo._ai import llm
-from marimo._ai.types import (
+import marimo._ai.llm as llm
+from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,
     ChatModelConfig,

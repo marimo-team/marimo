@@ -19,7 +19,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
-from marimo._server.models.base import deep_to_camel_case
+from marimo._utils.case import deep_to_camel_case
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -66,11 +66,17 @@ class APIRouter(Router):
                     return response
 
                 if dataclasses.is_dataclass(response):
-                    return JSONResponse(
-                        content=deep_to_camel_case(
-                            dataclasses.asdict(response)
+                    # Handle both dataclass instance and dataclass type
+                    if isinstance(response, type):
+                        # If it's a type, we can't call asdict on it
+                        return JSONResponse(content=deep_to_camel_case({}))
+                    else:
+                        # If it's an instance, we can call asdict
+                        return JSONResponse(
+                            content=deep_to_camel_case(
+                                dataclasses.asdict(response)
+                            )
                         )
-                    )
 
                 return JSONResponse(content=json.dumps(response))
 
@@ -112,11 +118,17 @@ class APIRouter(Router):
                     return response
 
                 if dataclasses.is_dataclass(response):
-                    return JSONResponse(
-                        content=deep_to_camel_case(
-                            dataclasses.asdict(response)
+                    # Handle both dataclass instance and dataclass type
+                    if isinstance(response, type):
+                        # If it's a type, we can't call asdict on it
+                        return JSONResponse(content=deep_to_camel_case({}))
+                    else:
+                        # If it's an instance, we can call asdict
+                        return JSONResponse(
+                            content=deep_to_camel_case(
+                                dataclasses.asdict(response)
+                            )
                         )
-                    )
 
                 return response  # type: ignore[no-any-return]
 

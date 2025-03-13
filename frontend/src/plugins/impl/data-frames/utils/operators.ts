@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
-import { FieldOptions } from "../forms/options";
+import { FieldOptions } from "../../../../components/forms/options";
 import type { DataType } from "@/core/kernel/messages";
 
 const Schema = {

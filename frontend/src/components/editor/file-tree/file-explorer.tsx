@@ -65,7 +65,7 @@ import type { RequestingTree } from "./requesting-tree";
 import type { FilePath } from "@/utils/paths";
 import useEvent from "react-use-event-hook";
 import { copyToClipboard } from "@/utils/copy";
-import { sendFileDetails } from "@/core/network/requests";
+import { openFile, sendFileDetails } from "@/core/network/requests";
 import { downloadBlob } from "@/utils/download";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
@@ -428,6 +428,16 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           <DropdownMenuItem onSelect={() => node.select()}>
             <ViewIcon {...iconProps} />
             Open file
+          </DropdownMenuItem>
+        )}
+        {!node.data.isDirectory && !isWasm() && (
+          <DropdownMenuItem
+            onSelect={() => {
+              openFile({ path: node.data.path });
+            }}
+          >
+            <ExternalLinkIcon {...iconProps} />
+            Open file in external editor
           </DropdownMenuItem>
         )}
         {node.data.isDirectory && (

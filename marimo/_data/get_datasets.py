@@ -1,11 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
-from marimo._data.models import DataTable, DataTableColumn, DataType
+from marimo._data.models import (
+    Database,
+    DataTable,
+    DataTableColumn,
+    DataType,
+    Schema,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
+from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
@@ -14,9 +21,9 @@ if TYPE_CHECKING:
 
 
 def get_datasets_from_variables(
-    variables: List[tuple[str, object]],
-) -> List[DataTable]:
-    tables: List[DataTable] = []
+    variables: list[tuple[VariableName, object]],
+) -> list[DataTable]:
+    tables: list[DataTable] = []
     for variable_name, value in variables:
         table = _get_data_table(value, variable_name)
         if table is not None:
@@ -25,7 +32,9 @@ def get_datasets_from_variables(
     return tables
 
 
-def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
+def _get_data_table(
+    value: object, variable_name: VariableName
+) -> Optional[DataTable]:
     try:
         table = get_table_manager_or_none(value)
         if table is None:
@@ -77,21 +86,22 @@ def has_updates_to_datasource(query: str) -> bool:
     )
 
 
-def get_datasets_from_duckdb(
+def get_databases_from_duckdb(
     connection: Optional[duckdb.DuckDBPyConnection],
-    engine_name: Optional[str] = None,
-) -> List[DataTable]:
+    engine_name: Optional[VariableName] = None,
+) -> list[Database]:
     try:
-        return _get_datasets_from_duckdb_internal(connection, engine_name)
-    except Exception as e:
-        LOGGER.error(e)
+        return _get_databases_from_duckdb_internal(connection, engine_name)
+    except Exception:
+        LOGGER.exception("Failed to get databases from DuckDB")
         return []
 
 
-def _get_datasets_from_duckdb_internal(
+def _get_databases_from_duckdb_internal(
     connection: Optional[duckdb.DuckDBPyConnection],
-    engine_name: Optional[str] = None,
-) -> List[DataTable]:
+    engine_name: Optional[VariableName] = None,
+) -> list[Database]:
+    """Get database information from DuckDB."""
     # Columns
     # 0:"database"
     # 1:"schema"
@@ -109,7 +119,9 @@ def _get_datasets_from_duckdb_internal(
         # No tables
         return []
 
-    tables: list[DataTable] = []
+    # Group tables by database and schema
+    # databases_dict[database][schema] = [table1, table2, ...]
+    databases_dict: dict[str, dict[str, list[DataTable]]] = {}
 
     for (
         database,
@@ -136,20 +148,39 @@ def _get_datasets_from_duckdb_internal(
             )
         ]
 
-        tables.append(
-            DataTable(
-                source_type="duckdb" if engine_name is None else "connection",
-                source=database,
-                name=f"{database}.{schema}.{name}",
-                num_rows=None,
-                num_columns=len(columns),
-                variable_name=None,
-                columns=columns,
+        table = DataTable(
+            source_type="duckdb" if engine_name is None else "connection",
+            source=database,
+            name=name,
+            num_rows=None,
+            num_columns=len(columns),
+            variable_name=None,
+            columns=columns,
+            engine=engine_name,
+        )
+
+        if database not in databases_dict:
+            databases_dict[database] = {}
+        if schema not in databases_dict[database]:
+            databases_dict[database][schema] = []
+
+        databases_dict[database][schema].append(table)
+
+    # Convert grouped data into Database objects
+    databases = []
+    for database, schemas_dict in databases_dict.items():
+        schema_list = []
+        for schema_name, tables in schemas_dict.items():
+            schema_list.append(Schema(name=schema_name, tables=tables))
+        databases.append(
+            Database(
+                name=database,
+                dialect="duckdb",
+                schemas=schema_list,
                 engine=engine_name,
             )
         )
-
-    return tables
+    return databases
 
 
 def _db_type_to_data_type(db_type: str) -> DataType:
@@ -168,13 +199,18 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         "uhugeint",
     ]:
         return "integer"
-    if db_type in [
-        "float",
-        "real",
-        "double",
-        "decimal",
-        "numeric",
-    ] or db_type.startswith("decimal"):
+    if (
+        db_type
+        in [
+            "float",
+            "real",
+            "double",
+            "decimal",
+            "numeric",
+        ]
+        or db_type.startswith("decimal")
+        or db_type.startswith("float")
+    ):
         return "number"
     # Boolean type
     if db_type == "boolean":
@@ -211,5 +247,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "string"  # Representing bit as string
     if db_type == "enum":
         return "string"  # Representing enum as string
+
+    LOGGER.warning("Unknown DuckDB type: %s", db_type)
     # Unknown type
     return "unknown"

@@ -1,22 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { KeymapConfig } from "@/core/config/config-schema";
 import { logNever } from "@/utils/assertNever";
-import { defaultKeymap } from "@codemirror/commands";
+import { defaultKeymap, insertNewlineAndIndent } from "@codemirror/commands";
 import { type Extension, Prec } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
-import { vim } from "@replit/codemirror-vim";
+import { getCM, vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
+import { once } from "@/utils/once";
+import { cellActionsState } from "../cells/state";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
-export function keymapBundle(
-  config: KeymapConfig,
-  callbacks: {
-    focusUp: () => void;
-    focusDown: () => void;
-    deleteCell: () => void;
-  },
-): Extension[] {
+export function keymapBundle(config: KeymapConfig): Extension[] {
   switch (config.preset) {
     case "default":
       return [
@@ -34,7 +29,21 @@ export function keymapBundle(
       ];
     case "vim":
       return [
-        keymap.of(defaultKeymap),
+        // Filter out Enter from defaultKeymap
+        keymap.of(defaultVimKeymap()),
+        // Add Enter back for insert mode only
+        keymap.of([
+          {
+            key: "Enter",
+            run: (view) => {
+              const cm = getCM(view);
+              if (!cm?.state.vim?.insertMode) {
+                return false;
+              }
+              return insertNewlineAndIndent(view);
+            },
+          },
+        ]),
         // delete the cell on double press of "d", if the cell is empty
         Prec.high(
           doubleCharacterListener(
@@ -42,7 +51,8 @@ export function keymapBundle(
             (view) => view.state.doc.toString() === "",
             (view) => {
               if (view.state.doc.toString() === "") {
-                callbacks.deleteCell();
+                const actions = view.state.facet(cellActionsState);
+                actions.deleteCell();
                 return true;
               }
               return false;
@@ -52,13 +62,25 @@ export function keymapBundle(
         // Base vim mode
         vim({ status: false }),
         // Custom vim keymaps for cell navigation
-        Prec.high(vimKeymapExtension(callbacks)),
+        Prec.high(vimKeymapExtension()),
       ];
     default:
       logNever(config.preset);
       return [];
   }
 }
+
+const defaultVimKeymap = once(() => {
+  const toRemove = new Set(["Enter", "Ctrl-v"]);
+  // Remove conflicting keys from the keymap
+  // Enter (<CR>) adds a new line
+  //   - it should just go to the next line
+  // Ctrl-v goes to the bottom of the cell
+  //   - should enter blockwise visual mode
+  return defaultKeymap.filter(
+    (k) => !toRemove.has(k.key || k.mac || k.linux || k.win || ""),
+  );
+});
 
 /**
  * Listen for a double keypress of a character and call a callback.

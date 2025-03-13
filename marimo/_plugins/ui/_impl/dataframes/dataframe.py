@@ -7,9 +7,7 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Optional,
     Union,
 )
@@ -51,7 +49,7 @@ class GetDataFrameResponse:
     total_rows: int
     # List of column names that are actually row headers
     # This really only applies to Pandas, that has special index columns
-    row_headers: List[str]
+    row_headers: list[str]
     field_types: FieldTypes
     python_code: Optional[str] = None
     sql_code: Optional[str] = None
@@ -64,7 +62,7 @@ class GetColumnValuesArgs:
 
 @dataclass
 class GetColumnValuesResponse:
-    values: List[str | int | float]
+    values: list[str | int | float]
     too_many_values: bool
 
 
@@ -81,7 +79,7 @@ class GetDataFrameError(Exception):
 
 
 @mddoc
-class dataframe(UIElement[Dict[str, Any], DataFrameType]):
+class dataframe(UIElement[dict[str, Any], DataFrameType]):
     """Run transformations on a DataFrame or series.
 
     Currently only Pandas or Polars DataFrames are supported.
@@ -178,7 +176,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             ),
         )
 
-    def _get_column_types(self) -> List[List[Union[str, int]]]:
+    def _get_column_types(self) -> list[list[Union[str, int]]]:
         return [
             [name, dtype[0], dtype[1]]
             for name, dtype in self._manager.get_field_types()
@@ -229,7 +227,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
                 too_many_values=True,
             )
 
-    def _convert_value(self, value: Dict[str, Any]) -> DataFrameType:
+    def _convert_value(self, value: dict[str, Any]) -> DataFrameType:
         if value is None:
             self._error = None
             return self._data
@@ -241,7 +239,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             self._last_transforms = transformations
             return result
         except Exception as e:
-            error = "Error applying dataframe transform: %s\n\n" % str(e)
+            error = f"Error applying dataframe transform: {str(e)}\n\n"
             sys.stderr.write(error)
             self._error = error
             return self._data

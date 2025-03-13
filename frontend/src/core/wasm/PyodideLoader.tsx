@@ -10,6 +10,7 @@ import { hasAnyOutputAtom, wasmInitializationAtom } from "./state";
 import { initialMode } from "../mode";
 import { hasQueryParam } from "@/utils/urls";
 import { KnownQueryParams } from "../constants";
+import { getMarimoShowCode } from "../dom/marimo-tag";
 
 /**
  * HOC to load Pyodide before rendering children, if necessary.
@@ -35,16 +36,12 @@ const PyodideLoaderInner: React.FC<PropsWithChildren> = ({ children }) => {
     return <WasmSpinner />;
   }
 
-  // If we:
+  // If ALL are true:
   // - are in read mode
   // - we are not showing the code
   // - and there is no output
   // then show the spinner
-  if (
-    !hasOutput &&
-    initialMode === "read" &&
-    hasQueryParam(KnownQueryParams.showCode, "false")
-  ) {
+  if (!hasOutput && initialMode === "read" && isCodeHidden()) {
     return <WasmSpinner />;
   }
 
@@ -55,6 +52,15 @@ const PyodideLoaderInner: React.FC<PropsWithChildren> = ({ children }) => {
 
   return children;
 };
+
+function isCodeHidden() {
+  // Code is hidden if ANY are true:
+  // - the query param is set to false
+  // - the marimo-code html-tag has data-show-code="false"
+  return (
+    hasQueryParam(KnownQueryParams.showCode, "false") || !getMarimoShowCode()
+  );
+}
 
 export const WasmSpinner: React.FC<PropsWithChildren> = ({ children }) => {
   const wasmInitialization = useAtomValue(wasmInitializationAtom);

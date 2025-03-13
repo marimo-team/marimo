@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { reloadSafe } from "@/utils/reload-safe";
 import { API, marimoClient } from "./api";
 import type { RunRequests, EditRequests } from "./types";
 
@@ -159,16 +158,26 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    openFile: async (request) => {
-      await marimoClient
-        .POST("/api/kernel/open", {
+    previewSQLTable: (request) => {
+      return marimoClient
+        .POST("/api/datasources/preview_sql_table", {
           body: request,
         })
         .then(handleResponseReturnNull);
-      await marimoClient
-        .POST("/api/kernel/restart_session")
+    },
+    previewSQLTableList: (request) => {
+      return marimoClient
+        .POST("/api/datasources/preview_sql_table_list", {
+          body: request,
+        })
         .then(handleResponseReturnNull);
-      reloadSafe();
+    },
+    openFile: async (request) => {
+      await marimoClient
+        .POST("/api/files/open", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
       return null;
     },
     getUsageStats: () => {

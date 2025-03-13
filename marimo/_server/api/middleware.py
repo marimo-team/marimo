@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterable,
     Callable,
     Optional,
     Union,
@@ -53,9 +53,7 @@ class AuthBackend(AuthenticationBackend):
 
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> Optional[tuple["AuthCredentials", "BaseUser"]]:
-        mode = AppStateBase(conn.app.state).session_manager.mode
-
+    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
         # We may not need to authenticate. This can be disabled
         # because the user is running in a trusted environment
         # or authentication is handled by a layer above us
@@ -66,6 +64,8 @@ class AuthBackend(AuthenticationBackend):
             valid = validate_auth(conn)
             if not valid:
                 return None
+
+        mode = AppStateBase(conn.app.state).session_manager.mode
 
         # User's get Read access in Run mode
         if mode == SessionMode.RUN:

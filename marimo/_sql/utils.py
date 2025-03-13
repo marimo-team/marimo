@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def wrapped_sql(
     query: str,
     connection: Optional[duckdb.DuckDBPyConnection],
-) -> "duckdb.DuckDBPyRelation":
+) -> duckdb.DuckDBPyRelation:
     DependencyManager.duckdb.require("to execute sql")
 
     # In Python globals() are scoped to modules; since this function

@@ -38,6 +38,8 @@ HAS_DEPS = (
     and DependencyManager.altair.has()
     # altair produces different output on windows
     and sys.platform != "win32"
+    # skip 3.9
+    and sys.version_info >= (3, 10)
 )
 
 if HAS_DEPS:
@@ -659,6 +661,8 @@ def test_parse_spec_pandas() -> None:
     data = pd.DataFrame({"values": [1, 2, 3]})
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
+    # Replace data.url with a placeholder
+    spec["data"]["url"] = "_placeholder_"
     snapshot("parse_spec_pandas.txt", json.dumps(spec, indent=2))
 
 
@@ -669,7 +673,36 @@ def test_parse_spec_narwhal() -> None:
     data = nw.from_native(pd.DataFrame({"values": [1, 2, 3]}))
     chart = alt.Chart(data).mark_point().encode(x="values:Q")
     spec = _parse_spec(chart)
+    # Replace data.url with a placeholder
+    spec["data"]["url"] = "_placeholder_"
     snapshot("parse_spec_narwhal.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_parse_spec_polars() -> None:
+    import altair as alt
+    import polars as pl
+
+    data = pl.DataFrame({"values": [1, 2, 3]})
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    # Replace data.url with a placeholder
+    spec["data"]["url"] = "_placeholder_"
+    snapshot("parse_spec_polars.txt", json.dumps(spec, indent=2))
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.duckdb.has(),
+    reason="optional dependencies not installed",
+)
+def test_parse_spec_duckdb() -> None:
+    import altair as alt
+    import duckdb
+
+    data = duckdb.from_df(pd.DataFrame({"values": [1, 2, 3]}))
+    chart = alt.Chart(data).mark_point().encode(x="values:Q")
+    spec = _parse_spec(chart)
+    snapshot("parse_spec_duckdb.txt", json.dumps(spec, indent=2))
 
 
 @pytest.mark.skipif(

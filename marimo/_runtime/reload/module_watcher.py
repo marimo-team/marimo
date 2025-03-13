@@ -19,7 +19,7 @@ from marimo._runtime.reload.autoreload import (
 if TYPE_CHECKING:
     import types
 
-    from marimo._ast.cell import CellId_t
+    from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 

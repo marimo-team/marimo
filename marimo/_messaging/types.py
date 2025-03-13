@@ -1,14 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import abc
 import io
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
-from marimo._ast.cell import CellId_t
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._types.ids import CellId_t
 
 # The message from the kernel is a tuple of message type
 # and a json representation of the message
-KernelMessage = Tuple[str, Any]
+KernelMessage = tuple[str, Any]
 
 
 class Stream(abc.ABC):
@@ -21,7 +23,7 @@ class Stream(abc.ABC):
     cell_id: Optional[CellId_t] = None
 
     @abc.abstractmethod
-    def write(self, op: str, data: Dict[Any, Any]) -> None:
+    def write(self, op: str, data: dict[Any, Any]) -> None:
         pass
 
     def stop(self) -> None:
@@ -30,7 +32,7 @@ class Stream(abc.ABC):
 
 
 class NoopStream(Stream):
-    def write(self, op: str, data: Dict[Any, Any]) -> None:
+    def write(self, op: str, data: dict[Any, Any]) -> None:
         pass
 
 

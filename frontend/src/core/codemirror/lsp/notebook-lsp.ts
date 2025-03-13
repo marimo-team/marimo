@@ -29,7 +29,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<LSP.DocumentUri>();
 
-  constructor(client: ILanguageServerClient, initialSettings: any) {
+  constructor(
+    client: ILanguageServerClient,
+    initialSettings: Record<string, unknown>,
+  ) {
     this.client = client;
     this.patchProcessNotification();
 

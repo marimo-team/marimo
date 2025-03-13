@@ -6,9 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Optional,
     cast,
 )
@@ -36,11 +34,11 @@ if TYPE_CHECKING:
 #   },
 #  "indices": int[],
 # }
-PlotlySelection = Dict[str, JSONType]
+PlotlySelection = dict[str, JSONType]
 
 
 @mddoc
-class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
+class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     """Make reactive plots with Plotly.
 
     Use `mo.ui.plotly` to make plotly plots reactive: select data with your
@@ -104,7 +102,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
     def __init__(
         self,
         figure: go.Figure,
-        config: Optional[Dict[str, Any]] = None,
+        config: Optional[dict[str, Any]] = None,
         renderer_name: Optional[str] = None,
         *,
         label: str = "",
@@ -116,7 +114,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
 
         json_str = pio.to_json(figure)
 
-        resolved_config: Dict[str, Any] = {}
+        resolved_config: dict[str, Any] = {}
         if config is not None:
             resolved_config = config
         else:
@@ -149,7 +147,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         )
 
     @property
-    def ranges(self) -> Dict[str, List[float]]:
+    def ranges(self) -> dict[str, list[float]]:
         """Get the range selection of the plot.
 
         Returns:
@@ -164,7 +162,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         return self._selection_data["range"]  # type:ignore
 
     @property
-    def points(self) -> List[Dict[str, Any]]:
+    def points(self) -> list[dict[str, Any]]:
         """Get the selected points data from the plot.
 
         Returns:
@@ -178,7 +176,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         return self._selection_data["points"]  # type:ignore
 
     @property
-    def indices(self) -> List[int]:
+    def indices(self) -> list[int]:
         """Get the indices of selected points in the plot.
 
         Returns:

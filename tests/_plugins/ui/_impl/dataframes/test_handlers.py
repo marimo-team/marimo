@@ -604,6 +604,103 @@ class TestTransformHandler:
 
     @staticmethod
     @pytest.mark.parametrize(
+        "df",
+        [
+            (
+                pd.DataFrame({"column_a": ["alpha", "beta", "gamma"]}).astype(
+                    {"column_a": "category"}
+                )
+            ),
+            (
+                pl.DataFrame(
+                    {"column_a": ["alpha", "beta", "gamma"]},
+                    schema_overrides={"column_a": pl.Categorical},
+                )
+            ),
+            (ibis.memtable({"column_a": ["alpha", "beta", "gamma"]})),
+        ],
+    )
+    def test_handle_filter_rows_categorical(df: DataFrameType) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="column_a",
+                    operator="equals",
+                    value="alpha",
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert df_size(result) == 1
+
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="column_a",
+                    operator="does_not_equal",
+                    value="alpha",
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert df_size(result) == 2
+
+        ends_with_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="column_a", operator="ends_with", value="mma"
+                )
+            ],
+        )
+        result = apply(df, ends_with_transform)
+        assert df_size(result) == 1
+
+        contains_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="column_a", operator="contains", value="mma"
+                )
+            ],
+        )
+        result = apply(df, contains_transform)
+        assert df_size(result) == 1
+
+        does_not_contain_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="remove_rows",
+            where=[
+                Condition(
+                    column_id="column_a",
+                    operator="contains",
+                    value="mma",
+                )
+            ],
+        )
+        result = apply(df, does_not_contain_transform)
+        assert df_size(result) == 2
+
+        starts_with_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="column_a", operator="starts_with", value="alp"
+                )
+            ],
+        )
+        result = apply(df, starts_with_transform)
+        assert df_size(result) == 1
+
+    @staticmethod
+    @pytest.mark.parametrize(
         ("df", "expected"),
         [
             (

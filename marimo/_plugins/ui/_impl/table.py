@@ -4,14 +4,12 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Literal,
     Optional,
-    Sequence,
     Union,
 )
 
@@ -32,8 +30,14 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterRowsTransform,
     TransformType,
 )
+from marimo._plugins.ui._impl.tables.selection import (
+    INDEX_COLUMN_NAME,
+    add_selection_column,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    TableCell,
+    TableCoordinate,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -44,6 +48,9 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -70,7 +77,7 @@ class ColumnSummary:
 @dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
-    summaries: List[ColumnSummary]
+    summaries: list[ColumnSummary]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -82,7 +89,7 @@ class SearchTableArgs:
     page_number: int
     query: Optional[str] = None
     sort: Optional[SortArgs] = None
-    filters: Optional[List[Condition]] = None
+    filters: Optional[list[Condition]] = None
     limit: Optional[int] = None
 
 
@@ -98,10 +105,18 @@ class SortArgs:
     descending: bool
 
 
+@dataclass
+class GetRowIdsResponse:
+    row_ids: list[int]
+    all_rows: bool
+    error: Optional[str] = None
+
+
 @mddoc
 class table(
     UIElement[
-        Union[List[str], List[int]], Union[List[JSONType], IntoDataFrame]
+        Union[list[str], list[int], list[dict[str, Any]]],
+        Union[list[JSONType], IntoDataFrame, list[TableCell]],
     ]
 ):
     """A table component with selectable rows.
@@ -191,7 +206,8 @@ class table(
             - as a single column: a list of values
         pagination (bool, optional): Whether to paginate; if False, all rows will be shown.
             Defaults to True when above 10 rows, False otherwise.
-        selection (Literal["single", "multi"], optional): 'single' or 'multi' to enable row selection,
+        selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
+            'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
         initial_selection (List[int], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
@@ -208,7 +224,7 @@ class table(
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
         label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame]], None], optional):
+        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[Cell]]], None], optional):
             Optional callback to run when this element's value changes.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
@@ -220,26 +236,28 @@ class table(
         self,
         data: Union[
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
-            ListOrTuple[Dict[str, JSONType]],
-            Dict[str, ListOrTuple[JSONType]],
-            "IntoDataFrame",
+            ListOrTuple[dict[str, JSONType]],
+            dict[str, ListOrTuple[JSONType]],
+            IntoDataFrame,
         ],
         pagination: Optional[bool] = None,
-        selection: Optional[Literal["single", "multi"]] = "multi",
-        initial_selection: Optional[List[int]] = None,
+        selection: Optional[
+            Literal["single", "multi", "single-cell", "multi-cell"]
+        ] = "multi",
+        initial_selection: Optional[list[int]] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
         ] = None,
         format_mapping: Optional[
-            Dict[str, Union[str, Callable[..., Any]]]
+            dict[str, Union[str, Callable[..., Any]]]
         ] = None,
         freeze_columns_left: Optional[Sequence[str]] = None,
         freeze_columns_right: Optional[Sequence[str]] = None,
         text_justify_columns: Optional[
-            Dict[str, Literal["left", "center", "right"]]
+            dict[str, Literal["left", "center", "right"]]
         ] = None,
-        wrapped_columns: Optional[List[str]] = None,
+        wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
         max_columns: Optional[int] = 50,
         *,
@@ -248,9 +266,10 @@ class table(
             Callable[
                 [
                     Union[
-                        List[JSONType],
-                        Dict[str, ListOrTuple[JSONType]],
-                        "IntoDataFrame",
+                        list[JSONType],
+                        dict[str, ListOrTuple[JSONType]],
+                        IntoDataFrame,
+                        list[TableCell],
                     ]
                 ],
                 None,
@@ -264,6 +283,11 @@ class table(
     ) -> None:
         validate_no_integer_columns(data)
         validate_page_size(page_size)
+
+        has_stable_row_id = False
+        if selection is not None:
+            data, has_stable_row_id = add_selection_column(data)
+        self._has_stable_row_id = has_stable_row_id
 
         # The original data passed in
         self._data = data
@@ -300,6 +324,7 @@ class table(
         # Holds the data after user selecting from the component
         self._selected_manager: Optional[TableManager[Any]] = None
 
+        self._selection = selection
         initial_value = []
         if initial_selection and self._manager.supports_selection():
             if selection == "single" and len(initial_selection) > 1:
@@ -350,57 +375,18 @@ class table(
             )
         )
 
-        # Validate frozen columns
-        if (
-            freeze_columns_left is not None
-            and freeze_columns_right is not None
-        ):
-            for column in freeze_columns_left:
-                if column not in freeze_columns_right:
-                    continue
-                raise ValueError(
-                    "The same column cannot be frozen on both sides."
-                )
-        else:
-            column_names = self._manager.get_column_names()
-            if freeze_columns_left is not None:
-                for column in freeze_columns_left:
-                    if column not in column_names:
-                        raise ValueError(
-                            f"Column '{column}' not found in table."
-                        )
-            if freeze_columns_right is not None:
-                for column in freeze_columns_right:
-                    if column not in column_names:
-                        raise ValueError(
-                            f"Column '{column}' not found in table."
-                        )
+        column_names_set = set(self._manager.get_column_names())
 
-        if text_justify_columns:
-            valid_justifications = {"left", "center", "right"}
-            column_names = self._manager.get_column_names()
-
-            for column, justify in text_justify_columns.items():
-                if column not in column_names:
-                    raise ValueError(f"Column '{column}' not found in table.")
-                if justify not in valid_justifications:
-                    raise ValueError(
-                        f"Invalid justification '{justify}' for column '{column}'. "
-                        f"Must be one of: {', '.join(valid_justifications)}."
-                    )
-
-        if wrapped_columns:
-            column_names = self._manager.get_column_names()
-            for column in wrapped_columns:
-                if column not in column_names:
-                    raise ValueError(f"Column '{column}' not found in table.")
+        # Validate column configurations
+        _validate_frozen_columns(
+            freeze_columns_left, freeze_columns_right, column_names_set
+        )
+        _validate_column_formatting(
+            text_justify_columns, wrapped_columns, column_names_set
+        )
 
         # Clamp field types to max columns
-        if (
-            self._max_columns is not None
-            and len(field_types) > self._max_columns
-        ):
-            field_types = field_types[: self._max_columns]
+        field_types = _get_clamped_field_types(field_types, self._max_columns)
 
         super().__init__(
             component_name=table._name,
@@ -426,6 +412,7 @@ class table(
                 "freeze-columns-right": freeze_columns_right,
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
+                "has-stable-row-id": self._has_stable_row_id,
             },
             on_change=on_change,
             functions=(
@@ -443,6 +430,11 @@ class table(
                     name="search",
                     arg_cls=SearchTableArgs,
                     function=self._search,
+                ),
+                Function(
+                    name="get_row_ids",
+                    arg_cls=EmptyArgs,
+                    function=self._get_row_ids,
                 ),
             ),
         )
@@ -468,12 +460,31 @@ class table(
         return ""
 
     def _convert_value(
-        self, value: Union[List[int] | List[str]]
-    ) -> Union[List[JSONType], "IntoDataFrame"]:
-        indices = [int(v) for v in value]
-        self._selected_manager = self._searched_manager.select_rows(indices)
-        self._has_any_selection = len(indices) > 0
-        return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
+        self, value: Union[list[int], list[str], list[dict[str, Any]]]
+    ) -> Union[list[JSONType], IntoDataFrame, list[TableCell]]:
+        if self._selection in ["single-cell", "multi-cell"]:
+            coordinates = [
+                TableCoordinate(row_id=v["rowId"], column_name=v["columnName"])
+                for v in value
+                if isinstance(v, dict) and "rowId" in v and "columnName" in v
+            ]
+            self._has_any_selection = len(coordinates) > 0
+            return self._searched_manager.select_cells(coordinates)  # type: ignore
+        else:
+            indices = [
+                int(v)
+                for v in value
+                if isinstance(v, int) or isinstance(v, str)
+            ]
+            if self._has_stable_row_id:
+                # Search across the original data
+                self._selected_manager = self._manager.select_rows(indices)
+            else:
+                self._selected_manager = self._searched_manager.select_rows(
+                    indices
+                )
+                self._has_any_selection = len(indices) > 0
+            return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def _download_as(self, args: DownloadAsArgs) -> str:
         """Download the table data in the specified format.
@@ -496,6 +507,9 @@ class table(
             if self._selected_manager and self._has_any_selection
             else self._searched_manager
         )
+
+        # Remove the selection column before downloading
+        manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
         ext = args.format
         if ext == "csv":
@@ -542,7 +556,7 @@ class table(
             )
 
         # Get column summaries if not chart-only mode
-        summaries: List[ColumnSummary] = []
+        summaries: list[ColumnSummary] = []
         if self._show_column_summaries != "chart":
             for column in self._manager.get_column_names():
                 try:
@@ -584,7 +598,7 @@ class table(
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort(
         self,
-        filters: Optional[List[Condition]],
+        filters: Optional[list[Condition]],
         query: Optional[str],
         sort: Optional[SortArgs],
     ) -> TableManager[Any]:
@@ -668,6 +682,49 @@ class table(
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
+    def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
+        """Get row IDs of a table. If searched, return searched rows else all rows."""
+        del args
+
+        total_rows = self._manager.get_num_rows()
+        num_rows_searched = self._searched_manager.get_num_rows()
+
+        if total_rows is None or num_rows_searched is None:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error="Failed to get row IDs: number of rows is unknown",
+            )
+
+        # If no search has been applied, return with all_rows=True to avoid passing row IDs
+        if total_rows == num_rows_searched:
+            return GetRowIdsResponse(row_ids=[], all_rows=True)
+
+        if num_rows_searched > 1_000_000:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error="Select all with search is not supported for large datasets. Please filter to less than 1,000,000 rows",
+            )
+
+        # For dictionary data, return sequential indices
+        if isinstance(self.data, dict):
+            return GetRowIdsResponse(
+                row_ids=list(range(num_rows_searched)),
+                all_rows=False,
+            )
+
+        # For dataframes
+        try:
+            row_ids = self._searched_manager.data[INDEX_COLUMN_NAME].to_list()
+            return GetRowIdsResponse(row_ids=row_ids, all_rows=False)
+        except Exception as e:
+            return GetRowIdsResponse(
+                row_ids=[],
+                all_rows=False,
+                error=f"Failed to get row IDs: {str(e)}",
+            )
+
     def _repr_markdown_(self) -> str:
         """Return a markdown representation of the table.
 
@@ -685,3 +742,85 @@ class table(
 
     def __hash__(self) -> int:
         return id(self)
+
+
+def _get_clamped_field_types(
+    field_types: list[Any], max_columns: Optional[int]
+) -> list[Any]:
+    if max_columns is not None and len(field_types) > max_columns:
+        return field_types[:max_columns]
+    return field_types
+
+
+def _validate_frozen_columns(
+    freeze_columns_left: Optional[Sequence[str]],
+    freeze_columns_right: Optional[Sequence[str]],
+    column_names_set: set[str],
+) -> None:
+    """Validate frozen column configurations.
+
+    Validates that:
+    1. The same column is not frozen on both sides
+    2. All frozen columns exist in the table
+    """
+
+    freeze_columns_left_set = (
+        set(freeze_columns_left) if freeze_columns_left else None
+    )
+    freeze_columns_right_set = (
+        set(freeze_columns_right) if freeze_columns_right else None
+    )
+
+    # Convert sequences to sets for O(1) lookups
+    if freeze_columns_left_set and freeze_columns_right_set:
+        if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
+            raise ValueError("The same column cannot be frozen on both sides.")
+
+    # Check all frozen columns exist
+    if freeze_columns_left_set:
+        invalid = freeze_columns_left_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+    if freeze_columns_right_set:
+        invalid = freeze_columns_right_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )
+
+
+def _validate_column_formatting(
+    text_justify_columns: Optional[
+        dict[str, Literal["left", "center", "right"]]
+    ],
+    wrapped_columns: Optional[list[str]],
+    column_names_set: set[str],
+) -> None:
+    """Validate text justification and wrapped column configurations.
+
+    Validates that:
+    1. All columns specified in text_justify_columns exist in the table
+    2. All justification values are valid ('left', 'center', 'right')
+    3. All columns specified in wrapped_columns exist in the table
+    """
+    if text_justify_columns:
+        valid_justifications = {"left", "center", "right"}
+        for column, justify in text_justify_columns.items():
+            if column not in column_names_set:
+                raise ValueError(f"Column '{column}' not found in table.")
+            if justify not in valid_justifications:
+                raise ValueError(
+                    f"Invalid justification '{justify}' for column '{column}'. "
+                    f"Must be one of: {', '.join(valid_justifications)}."
+                )
+
+    if wrapped_columns:
+        wrapped_columns_set = set(wrapped_columns)
+        invalid = wrapped_columns_set - column_names_set
+        if invalid:
+            raise ValueError(
+                f"Column '{next(iter(invalid))}' not found in table."
+            )

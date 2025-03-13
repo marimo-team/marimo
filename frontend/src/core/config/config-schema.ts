@@ -45,6 +45,7 @@ export const UserConfigSchema = z
           }),
         codeium_api_key: z.string().nullish(),
       })
+      .passthrough()
       .default({}),
     save: z
       .object({
@@ -57,6 +58,7 @@ export const UserConfigSchema = z
           .default(1000),
         format_on_save: z.boolean().default(false),
       })
+      .passthrough()
       .default({}),
     formatting: z
       .object({
@@ -66,19 +68,23 @@ export const UserConfigSchema = z
           .default(79)
           .transform((n) => Math.min(n, 1000)),
       })
+      .passthrough()
       .default({}),
     keymap: z
       .object({
         preset: z.enum(["default", "vim"]).default("default"),
         overrides: z.record(z.string()).default({}),
       })
+      .passthrough()
       .default({}),
     runtime: z
       .object({
         auto_instantiate: z.boolean().default(true),
         on_cell_change: z.enum(["lazy", "autorun"]).default("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
+        watcher_on_save: z.enum(["lazy", "autorun"]).default("lazy"),
       })
+      .passthrough()
       .default({}),
     display: z
       .object({
@@ -96,11 +102,13 @@ export const UserConfigSchema = z
             return width;
           }),
       })
+      .passthrough()
       .default({}),
     package_management: z
       .object({
         manager: z.enum(PackageManagerNames).default("pip"),
       })
+      .passthrough()
       .default({ manager: "pip" }),
     ai: z
       .object({
@@ -123,6 +131,7 @@ export const UserConfigSchema = z
           })
           .optional(),
       })
+      .passthrough()
       .default({}),
     experimental: z
       .object({
@@ -155,10 +164,9 @@ export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
+export type LSPConfig = UserConfig["language_servers"];
 
-export const AppTitleSchema = z.string().regex(/^[\w '-]*$/, {
-  message: "Invalid application title",
-});
+export const AppTitleSchema = z.string();
 export const AppConfigSchema = z
   .object({
     width: z

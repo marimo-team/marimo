@@ -7,7 +7,7 @@ import tempfile
 from functools import partial
 from inspect import cleandoc
 from textwrap import dedent
-from typing import Optional
+from typing import Any, Optional
 
 import codegen_data.test_main as mod
 import pytest
@@ -24,7 +24,7 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def get_expected_filecontents(name: str) -> str:
-    with open(os.path.join(DIR_PATH, f"codegen_data/{name}.py"), "r") as f:
+    with open(os.path.join(DIR_PATH, f"codegen_data/{name}.py")) as f:
         contents = f.read()
     lines = contents.split("\n")
     break_index = None
@@ -44,11 +44,15 @@ def get_filepath(name: str) -> str:
     return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
 
 
+def sanitized_version(output: str) -> str:
+    return output.replace(__version__, "0.0.0")
+
+
 def wrap_generate_filecontents(
     codes: list[str],
     names: list[str],
     cell_configs: Optional[list[CellConfig]] = None,
-    config: Optional[_AppConfig] = None,
+    **kwargs: Any,
 ) -> str:
     """
     Wraps codegen.generate_filecontents to make the
@@ -58,8 +62,42 @@ def wrap_generate_filecontents(
     else:
         resolved_configs = cell_configs
     return codegen.generate_filecontents(
-        codes, names, cell_configs=resolved_configs, config=config
+        codes, names, cell_configs=resolved_configs, **kwargs
     )
+
+
+def strip_blank_lines(text: str) -> str:
+    return "\n".join([line for line in text.splitlines() if line.strip()])
+
+
+def get_idempotent_marimo_source(name: str) -> str:
+    from marimo._utils.formatter import Formatter
+
+    path = get_filepath(name)
+    app = codegen.get_app(path)
+    header_comments = codegen.get_header_comments(path)
+    generated_contents = codegen.generate_filecontents(
+        list(app._cell_manager.codes()),
+        list(app._cell_manager.names()),
+        list(app._cell_manager.configs()),
+        app._config,
+        header_comments,
+    )
+    generated_contents = sanitized_version(generated_contents)
+
+    with open(path) as f:
+        python_source = sanitized_version(f.read())
+
+    # TODO(dmadisetti): not totally idempotent for now. Revise; seems to strip
+    # on imports (possibly during compile?).
+    formatted = Formatter(codegen.MAX_LINE_LENGTH).format(
+        {"source": python_source, "generated": generated_contents}
+    )
+
+    assert strip_blank_lines(formatted["source"]) == strip_blank_lines(
+        formatted["generated"]
+    )
+    return formatted["generated"]
 
 
 class TestGeneration:
@@ -274,6 +312,23 @@ class TestGeneration:
         assert "is_named" in contents
         assert "def _" in contents
         assert "def __" not in contents
+
+    @staticmethod
+    def test_generate_filecontents_toplevel() -> None:
+        source = get_idempotent_marimo_source(
+            "test_generate_filecontents_toplevel"
+        )
+        assert "import marimo" in source
+        split = source.split("import marimo")
+        # The default one, the as mo in top level, in as mo in cell
+        assert len(split) == 3
+
+    @staticmethod
+    def test_generate_filecontents_toplevel_pytest() -> None:
+        source = get_idempotent_marimo_source(
+            "test_generate_filecontents_toplevel_pytest"
+        )
+        assert "import marimo" in source
 
 
 class TestGetCodes:
@@ -565,6 +620,22 @@ class TestToFunctionDef:
         )
         assert fndef == expected
 
+    def test_fn_with_empty_config(self) -> None:
+        code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig())
+        fndef = codegen.to_top_functiondef(cell)
+        expected = "@app.function\n" + code
+        assert fndef == expected
+
+    def test_fn_with_all_config(self) -> None:
+        code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
+        cell = compile_cell(code)
+        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        fndef = codegen.to_top_functiondef(cell)
+        expected = "@app.function(disabled=True, hide_code=True)\n" + code
+        assert fndef == expected
+
 
 def test_recover() -> None:
     cells = {
@@ -640,3 +711,56 @@ def test_is_internal_cell_name() -> None:
     assert not is_internal_cell_name("___")
     assert not is_internal_cell_name("__1213123123")
     assert not is_internal_cell_name("foo")
+
+
+def test_format_tuple_elements() -> None:
+    kv_case = codegen.format_tuple_elements(
+        "@app.fn(...)",
+        tuple(["a", "b", "c"]),
+    )
+    assert kv_case == "@app.fn(a, b, c)"
+
+    indent_case = codegen.format_tuple_elements(
+        "def fn(...):", tuple(["a", "b", "c"]), indent=True
+    )
+    assert indent_case == "    def fn(a, b, c):"
+
+    multiline_case = codegen.format_tuple_elements(
+        "return (...)",
+        (
+            "very",
+            "long",
+            "arglist",
+            "that",
+            "exceeds",
+            "maximum",
+            "characters",
+            "for",
+            "some",
+            "reason",
+            "or",
+            "the",
+            "other",
+            "wowza",
+        ),
+        allowed_naked=True,
+    )
+    assert multiline_case == (
+        "return (\n    "
+        "very,\n    long,\n    arglist,\n    that,\n    exceeds,\n    maximum,\n"
+        "    characters,\n    for,\n    some,\n    reason,\n"
+        "    or,\n    the,\n    other,\n    wowza,\n)"
+    )
+
+    long_case = codegen.format_tuple_elements(
+        "return (...)",
+        (
+            "very_long_name_that_exceeds_76_characters_for_some_reason_or_the_other_woowee",
+        ),
+        allowed_naked=True,
+    )
+    assert long_case == (
+        "return (\n    "
+        "very_long_name_that_exceeds_76_characters_for_some_reason_or_the_other_woowee,"
+        "\n)"
+    )

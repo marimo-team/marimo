@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tempfile
 import urllib.error
+from pathlib import Path
 from unittest.mock import mock_open, patch
 
 import click
@@ -80,9 +81,9 @@ def test_github_issue_reader() -> None:
 
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_response = mock_open(
-            read_data="""{
+            read_data=b"""{
                 "body": "Some content.```python\\nprint('Hello, world!')\\n```"}
-            """.encode()  # noqa: E501
+            """  # noqa: E501
         )
         mock_urlopen.return_value = mock_response()
 
@@ -108,7 +109,7 @@ def test_github_source_reader() -> None:
     assert reader.can_read(invalid_url) is False
 
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data="print('Hello, world!')".encode())
+        mock_response = mock_open(read_data=b"print('Hello, world!')")
         mock_urlopen.return_value = mock_response()
 
         content, filename = reader.read(valid_url)
@@ -116,15 +117,16 @@ def test_github_source_reader() -> None:
         assert filename == "example.py"
 
 
-def test_local_file_reader() -> None:
+def test_local_file_reader(tmp_path: Path) -> None:
     reader = LocalFileReader()
-    assert reader.can_read("local_file.py") is True
+    local_file = tmp_path / "local_file.py"
+    local_file.write_text("print('Hello, world!')")
+    assert reader.can_read(str(local_file)) is True
     assert reader.can_read("https://example.com/file.py") is False
 
-    with patch("builtins.open", mock_open(read_data="print('Hello, world!')")):
-        content, filename = reader.read("local_file.py")
-        assert content == "print('Hello, world!')"
-        assert filename == "local_file.py"
+    content, filename = reader.read(str(local_file))
+    assert content == "print('Hello, world!')"
+    assert filename == "local_file.py"
 
 
 def test_static_notebook_reader() -> None:
@@ -154,7 +156,7 @@ def test_generic_url_reader() -> None:
     assert reader.can_read("local_file.py") is False
 
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data="print('Hello, world!')".encode())
+        mock_response = mock_open(read_data=b"print('Hello, world!')")
         mock_urlopen.return_value = mock_response()
 
         content, filename = reader.read("https://example.com/file.py")
@@ -262,7 +264,7 @@ def test_generic_url_reader_with_query_params():
     url = "https://example.com/file.py?param=value"
     assert reader.can_read(url) is True
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data="print('Hello, world!')".encode())
+        mock_response = mock_open(read_data=b"print('Hello, world!')")
         mock_urlopen.return_value = mock_response()
         content, filename = reader.read(url)
         assert content == "print('Hello, world!')"
@@ -314,31 +316,39 @@ def test_github_source_reader_different_extensions():
     for url in urls:
         assert reader.can_read(url) is True
         with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_response = mock_open(read_data="content".encode())
+            mock_response = mock_open(read_data=b"content")
             mock_urlopen.return_value = mock_response()
             content, filename = reader.read(url)
             assert content == "content"
             assert filename in ["example.py", "README.md"]
 
 
-def test_local_file_reader_with_spaces():
+def test_local_file_reader_with_spaces(tmp_path: Path):
     reader = LocalFileReader()
     filename = "file with spaces.py"
-    assert reader.can_read(filename) is True
-    with patch("builtins.open", mock_open(read_data="print('Hello, world!')")):
-        content, read_filename = reader.read(filename)
-        assert content == "print('Hello, world!')"
-        assert read_filename == filename
+    file_path = tmp_path / filename
+    file_path.write_text("print('Hello, world!')")
+
+    assert reader.can_read(str(file_path)) is True
+
+    content, read_filename = reader.read(str(file_path))
+    assert content == "print('Hello, world!')"
+    assert read_filename == filename
 
 
 def test_validate_name_with_relative_and_absolute_paths():
-    relative_path = "relative/path/file.py"
-    absolute_path = "/absolute/path/file.py"
+    cwd = Path.cwd()
+    rel_file = cwd / "temp_relative_file.py"
+    abs_file = cwd / "temp_absolute_file.py"
+    try:
+        # Create relative path
+        rel_file.touch()
+        relative_path = str(rel_file.relative_to(cwd))
 
-    with (
-        patch("os.path.exists", return_value=True),
-        patch("pathlib.Path.is_file", return_value=True),
-    ):
+        # Create absolute path
+        abs_file.touch()
+        absolute_path = str(abs_file)
+
         assert (
             validate_name(
                 relative_path, allow_new_file=False, allow_directory=False
@@ -351,3 +361,6 @@ def test_validate_name_with_relative_and_absolute_paths():
             )[0]
             == absolute_path
         )
+    finally:
+        Path.unlink(rel_file)
+        Path.unlink(abs_file)

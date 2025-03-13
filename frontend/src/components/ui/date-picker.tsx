@@ -30,6 +30,7 @@ import { cn } from "@/utils/cn";
 import { FieldGroup, FieldError, Label } from "./field";
 import { DateInput } from "./date-input";
 import { Popover } from "./aria-popover";
+import { useState } from "react";
 
 const DatePickerContent = ({
   className,
@@ -65,17 +66,25 @@ const DatePicker = <T extends AriaDateValue>({
   className,
   ...props
 }: DatePickerProps<T>) => {
+  const [open, setOpen] = useState(false);
   return (
     <AriaDatePicker
+      isOpen={open}
       className={composeRenderProps(className, (className) =>
         cn("group flex flex-col gap-2", className),
       )}
+      onOpenChange={(open) => {
+        setOpen(open);
+      }}
       {...props}
     >
       {label && <Label>{label}</Label>}
       <FieldGroup>
         <DateInput aria-label="date input" className="flex-1" variant="ghost" />
         <AriaButton
+          onPressChange={() => {
+            setOpen(true);
+          }}
           className={cn(
             buttonVariants({ variant: "text", size: "icon" }),
             "ml-1 size-6 data-[focus-visible]:ring-offset-0",
@@ -121,11 +130,16 @@ const DateRangePicker = <T extends AriaDateValue>({
   className,
   ...props
 }: DateRangePickerProps<T>) => {
+  const [open, setOpen] = useState(false);
   return (
     <AriaDateRangePicker
+      isOpen={open}
       className={composeRenderProps(className, (className) =>
         cn("group flex flex-col gap-2", className),
       )}
+      onOpenChange={(open) => {
+        setOpen(open);
+      }}
       {...props}
     >
       <Label>{label}</Label>
@@ -137,6 +151,9 @@ const DateRangePicker = <T extends AriaDateValue>({
         <DateInput className="flex-1" variant="ghost" slot={"end"} />
 
         <AriaButton
+          onPressChange={() => {
+            setOpen(true);
+          }}
           className={cn(
             buttonVariants({ variant: "text", size: "icon" }),
             "ml-1 size-6 data-[focus-visible]:ring-offset-0",

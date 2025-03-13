@@ -11,6 +11,7 @@ from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
@@ -220,7 +221,10 @@ def test_value() -> None:
 def test_value_with_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
-    assert list(table._convert_value(["0", "2"])) == ["banana", "cherry"]
+    assert list(table._convert_value(["0", "2"])) == [
+        "banana",
+        "cherry",
+    ]
 
 
 def test_value_with_initial_selection() -> None:
@@ -291,7 +295,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     )
     value = table._convert_value(["0"])
     assert not isinstance(value, nw.DataFrame)
-    assert nw.from_native(value)["a"][0] == "z"
+    assert nw.from_native(value)["a"][0] == "x"
 
     table._search(
         SearchTableArgs(
@@ -331,6 +335,10 @@ def test_value_with_search_then_selection() -> None:
         {"value": "banana"},
     ]
 
+    # Rows not in the search are not selected
+    with pytest.raises(IndexError):
+        table._convert_value(["2"])
+
     # empty search
     table._search(
         SearchTableArgs(
@@ -358,7 +366,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value(["0"])
+    value = table._convert_value(["1"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "bar"
 
@@ -369,10 +377,11 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
             page_number=0,
         )
     )
-    value = table._convert_value(["0"])
+    # Can still select rows not in the search
+    value = table._convert_value(["0", "1"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "foo"
-
+    assert nw.from_native(value)["a"][1] == "bar"
     # empty search
     table._search(
         SearchTableArgs(
@@ -383,6 +392,146 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     value = table._convert_value(["2"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "baz"
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+    ),
+)
+def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
+    import narwhals as nw
+
+    table = ui.table(df, selection="multi-cell")
+    table._search(
+        SearchTableArgs(
+            query="bar",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value([{"rowId": "1", "columnName": "a"}])
+    assert not isinstance(value, nw.DataFrame)
+    assert value[0].value == "bar"
+
+    table._search(
+        SearchTableArgs(
+            query="foo",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    # Can still select rows not in the search
+    value = table._convert_value(
+        [{"rowId": 0, "columnName": "a"}, {"rowId": 1, "columnName": "a"}]
+    )
+    assert not isinstance(value, nw.DataFrame)
+    assert value[0].value == "foo"
+    assert len(value) == 1
+
+    # empty search
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    value = table._convert_value([{"rowId": "2", "columnName": "a"}])
+    assert not isinstance(value, nw.DataFrame)
+    assert value[0].value == "baz"
+
+
+def test_value_with_selection_then_sorting_dict_of_lists() -> None:
+    data = {
+        "company": [
+            "Company A",
+            "Company B",
+            "Company C",
+            "Company D",
+            "Company E",
+        ],
+        "type": ["Tech", "Finance", "Health", "Tech", "Finance"],
+        "net_worth": [1000, 2000, 1500, 1800, 1700],
+    }
+    table = ui.table(data)
+
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(["0", "2"])["company"] == [
+        "Company A",
+        "Company C",
+    ]
+
+    table._search(
+        SearchTableArgs(
+            sort=SortArgs("net_worth", descending=True),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(["0", "2"])["company"] == [
+        "Company B",
+        "Company E",
+    ]
+
+
+def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
+    data = {
+        "company": [
+            "Company A",
+            "Company B",
+            "Company C",
+            "Company D",
+            "Company E",
+        ],
+        "type": ["Tech", "Finance", "Health", "Tech", "Finance"],
+        "net_worth": [1000, 2000, 1500, 1800, 1700],
+    }
+    table = ui.table(data, selection="multi-cell")
+
+    table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(
+        [
+            {"rowId": "0", "columnName": "company"},
+            {"rowId": "2", "columnName": "company"},
+        ]
+    ) == [
+        TableCell(row="0", column="company", value="Company A"),
+        TableCell(row="2", column="company", value="Company C"),
+    ]
+
+    table._search(
+        SearchTableArgs(
+            sort=SortArgs("net_worth", descending=True),
+            page_size=10,
+            page_number=0,
+        )
+    )
+    assert table._convert_value(
+        [
+            {"rowId": "0", "columnName": "company"},
+            {"rowId": "2", "columnName": "company"},
+        ]
+    ) == [
+        TableCell(row="0", column="company", value="Company B"),
+        TableCell(row="2", column="company", value="Company E"),
+    ]
+
+
+@pytest.mark.parametrize("df", create_dataframes({"a": [1, 2, 3]}, ["ibis"]))
+def test_value_with_cell_selection_unsupported_for_ibis(df: Any) -> None:
+    with pytest.raises(NotImplementedError):
+        _table = ui.table(df, selection="multi-cell")
 
 
 def test_search_sort_nonexistent_columns() -> None:
@@ -399,6 +548,82 @@ def test_search_sort_nonexistent_columns() -> None:
     )
 
     assert table._convert_value(["0"]) == ["banana"]
+
+
+def test_get_row_ids() -> None:
+    data = {
+        "id": [1, 2, 3] * 3,
+        "fruits": ["banana", "apple", "cherry"] * 3,
+        "quantity": [10, 20, 30] * 3,
+    }
+    table = ui.table(data)
+
+    initial_response = table._get_row_ids(EmptyArgs())
+    assert initial_response.all_rows is True
+    assert initial_response.row_ids == []
+    assert initial_response.error is None
+
+    table._search(
+        SearchTableArgs(
+            query="cherry",
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    response = table._get_row_ids(EmptyArgs())
+    # For dicts, we do not need to find row_id, we just return the index
+    assert response.row_ids == [0, 1, 2]
+    assert response.all_rows is False
+    assert response.error is None
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "id": [1, 2, 3] * 3,
+            "fruits": ["banana", "apple", "cherry"] * 3,
+            "quantity": [10, 20, 30] * 3,
+        },
+        exclude=["ibis", "duckdb", "pyarrow"],
+    ),
+)
+def test_get_row_ids_with_df(df: any) -> None:
+    table = ui.table(df)
+
+    initial_response = table._get_row_ids(EmptyArgs())
+    assert initial_response.all_rows is True
+    assert initial_response.row_ids == []
+    assert initial_response.error is None
+
+    # Test with search
+    table._search(
+        SearchTableArgs(
+            query="cherry",
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    response = table._get_row_ids(EmptyArgs())
+    assert response.row_ids == [2, 5, 8]
+    assert response.all_rows is False
+    assert response.error is None
+
+    # Test with no search
+    table._search(
+        SearchTableArgs(
+            query="",
+            page_size=10,
+            page_number=0,
+        )
+    )
+
+    response = table._get_row_ids(EmptyArgs())
+    assert response.all_rows is True
+    assert response.row_ids == []
+    assert response.error is None
 
 
 def test_table_with_too_many_columns_passes() -> None:
@@ -929,7 +1154,8 @@ def test_column_clamping_with_polars():
     assert table._component_args["total-columns"] == 60
     csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
     headers = csv.split("\n")[0].split(",")
-    assert len(headers) == 60  # 60 columns
+
+    assert len(headers) == 61  # 60 columns + 1 selection column
     assert len(table._component_args["field-types"]) == 60
 
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import tempfile
 from pathlib import Path
@@ -8,9 +10,9 @@ import pytest
 from marimo._config.reader import (
     find_nearest_pyproject_toml,
     read_marimo_config,
-    read_pyproject_config,
-    read_toml,
+    read_pyproject_marimo_config,
 )
+from marimo._utils.toml import read_toml
 
 
 def test_read_toml():
@@ -67,7 +69,7 @@ def test_read_pyproject_config_with_marimo_section():
             "marimo._config.reader.find_nearest_pyproject_toml"
         ) as mock_find:
             mock_find.return_value = Path("/some/path/pyproject.toml")
-            result = read_pyproject_config("/some/path")
+            result = read_pyproject_marimo_config("/some/path")
             assert result == {
                 "formatting": {"line_length": 79},
                 "save": {
@@ -89,7 +91,7 @@ def test_read_pyproject_config_without_marimo_section():
             "marimo._config.reader.find_nearest_pyproject_toml"
         ) as mock_find:
             mock_find.return_value = Path("/some/path/pyproject.toml")
-            result = read_pyproject_config("/some/path")
+            result = read_pyproject_marimo_config("/some/path")
             assert result is None
 
 
@@ -103,13 +105,13 @@ def test_read_pyproject_config_invalid_marimo_section():
             "marimo._config.reader.find_nearest_pyproject_toml"
         ) as mock_find:
             mock_find.return_value = Path("/some/path/pyproject.toml")
-            result = read_pyproject_config("/some/path")
+            result = read_pyproject_marimo_config("/some/path")
             assert result is None
 
 
 def test_read_pyproject_config_no_file():
     with tempfile.TemporaryDirectory() as temp_dir:
-        result = read_pyproject_config(temp_dir)
+        result = read_pyproject_marimo_config(temp_dir)
         assert result is None
 
 

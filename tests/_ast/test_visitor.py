@@ -8,6 +8,7 @@ from textwrap import dedent
 import pytest
 
 from marimo._ast import visitor
+from marimo._ast.errors import ImportStarError
 from marimo._ast.visitor import (
     ImportData,
     VariableData,
@@ -424,7 +425,13 @@ def test_function_with_defaults() -> None:
     assert v.refs == set(["x", "y", "a"])
     # TODO: Are these required refs?
     assert v.variable_data == {
-        "foo": [VariableData(kind="function", required_refs={"x", "y", "a"})],
+        "foo": [
+            VariableData(
+                kind="function",
+                required_refs={"x", "y", "a"},
+                unbounded_refs={"x", "y", "a"},
+            )
+        ],
     }
 
 
@@ -798,7 +805,7 @@ def test_from_import_star() -> None:
     expr = "from a.b.c import *"
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
-    with pytest.raises(SyntaxError) as e:
+    with pytest.raises(ImportStarError) as e:
         v.visit(mod)
     assert "`import *` is not allowed in marimo." in str(e)
     assert v.defs == set()

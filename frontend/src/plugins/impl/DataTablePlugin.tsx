@@ -18,6 +18,7 @@ import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
 
 import {
+  type DataTableSelection,
   toFieldTypes,
   type ColumnHeaderSummary,
   type FieldTypesWithExternalType,
@@ -44,7 +45,8 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
-import { useEffectSkipFirstRender } from "../../hooks/useEffectSkipFirstRender";
+import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
+import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -53,6 +55,12 @@ interface ColumnSummaries<T = unknown> {
   summaries: ColumnHeaderSummary[];
   is_disabled?: boolean;
 }
+
+export type GetRowIds = (opts: {}) => Promise<{
+  row_ids: number[];
+  all_rows: boolean;
+  error: string | null;
+}>;
 
 /**
  * Arguments for a data table
@@ -66,7 +74,7 @@ interface Data<T> {
   totalRows: number | "too_many";
   pagination: boolean;
   pageSize: number;
-  selection: "single" | "multi" | null;
+  selection: DataTableSelection;
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
@@ -77,10 +85,11 @@ interface Data<T> {
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   totalColumns: number;
+  hasStableRowId: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-type Functions = {
+type DataTableFunctions = {
   download_as: (req: { format: "csv" | "json" }) => Promise<string>;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
@@ -96,9 +105,10 @@ type Functions = {
     data: TableData<T>;
     total_rows: number;
   }>;
+  get_row_ids?: GetRowIds;
 };
 
-type S = Array<string | number>;
+type S = Array<number | string | { rowId: string; columnName?: string }>;
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -109,7 +119,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       totalRows: z.union([z.number(), z.literal("too_many")]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
-      selection: z.enum(["single", "multi"]).nullable().default(null),
+      selection: z
+        .enum(["single", "multi", "single-cell", "multi-cell"])
+        .nullable()
+        .default(null),
       showDownload: z.boolean().default(false),
       showFilters: z.boolean().default(false),
       showColumnSummaries: z
@@ -131,9 +144,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
+      hasStableRowId: z.boolean().default(false),
     }),
   )
-  .withFunctions<Functions>({
+  .withFunctions<DataTableFunctions>({
     download_as: rpc
       .input(z.object({ format: z.enum(["csv", "json"]) }))
       .output(z.string()),
@@ -174,6 +188,13 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           total_rows: z.number(),
         }),
       ),
+    get_row_ids: rpc.input(z.object({}).passthrough()).output(
+      z.object({
+        row_ids: z.array(z.number()),
+        all_rows: z.boolean(),
+        error: z.string().nullable(),
+      }),
+    ),
   })
   .renderer((props) => {
     return (
@@ -190,7 +211,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     );
   });
 
-interface DataTableProps<T> extends Data<T>, Functions {
+interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   className?: string;
   // Selection
   value: S;
@@ -215,6 +236,7 @@ interface DataTableSearchProps {
   // Filters
   filters?: ColumnFiltersState;
   setFilters?: OnChangeFn<ColumnFiltersState>;
+  hasStableRowId: boolean;
 }
 
 export const LoadingDataTableComponent = memo(
@@ -234,12 +256,13 @@ export const LoadingDataTableComponent = memo(
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
 
     // We need to clear the selection when sort, query, or filters change
-    // Currently, our selection is index-based,
-    // so we can't rely on the data to be the same when these change
-    // We can remove this when we have a stable key for each row
+    // if we don't have a stable ID for each row, which is determined by
+    // _marimo_row_id.
     useEffectSkipFirstRender(() => {
-      setValue([]);
-    }, [setValue, filters, searchQuery, sorting]);
+      if (!props.hasStableRowId) {
+        setValue([]);
+      }
+    }, [setValue, filters, searchQuery, sorting, props.hasStableRowId]);
 
     // If pageSize changes, reset pagination state
     useEffect(() => {
@@ -451,6 +474,7 @@ const DataTableComponent = ({
   textJustifyColumns,
   wrappedColumns,
   totalColumns,
+  get_row_ids,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -477,26 +501,29 @@ const DataTableComponent = ({
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
   const shownColumns = fieldTypesOrInferred.length;
 
+  const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
+  const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
+  const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
+  const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
+  const showDataTypes = Boolean(fieldTypes);
   const columns = useMemo(
     () =>
       generateColumns({
-        rowHeaders: rowHeaders,
-        selection,
-        fieldTypes: fieldTypesOrInferred,
-        textJustifyColumns,
-        wrappedColumns,
+        rowHeaders: memoizedRowHeaders,
+        selection: selection,
+        fieldTypes: memoizedFieldTypes,
+        textJustifyColumns: memoizedTextJustifyColumns,
+        wrappedColumns: memoizedWrappedColumns,
         // Only show data types if they are explicitly set
-        showDataTypes: Boolean(fieldTypes),
+        showDataTypes: showDataTypes,
       }),
-    /* eslint-disable react-hooks/exhaustive-deps */
     [
-      useDeepCompareMemoize([
-        selection,
-        fieldTypesOrInferred,
-        rowHeaders,
-        textJustifyColumns,
-        wrappedColumns,
-      ]),
+      selection,
+      showDataTypes,
+      memoizedRowHeaders,
+      memoizedFieldTypes,
+      memoizedTextJustifyColumns,
+      memoizedWrappedColumns,
     ],
   );
 
@@ -515,6 +542,25 @@ const DataTableComponent = ({
       if (selection === "multi") {
         const nextValue = Functions.asUpdater(updater)(rowSelection);
         setValue(Object.keys(nextValue));
+      }
+    },
+  );
+
+  const cellSelection = value.filter(
+    (v) => v instanceof Object && v.columnName !== undefined,
+  ) as CellSelectionState;
+
+  const handleCellSelectionChange: OnChangeFn<CellSelectionState> = useEvent(
+    (updater) => {
+      if (selection === "single-cell") {
+        const nextValue = Functions.asUpdater(updater)(cellSelection);
+        // This maps to the _value in marimo/_plugins/ui/_impl/table.py I think
+        setValue(nextValue.slice(0, 1));
+      }
+
+      if (selection === "multi-cell") {
+        const nextValue = Functions.asUpdater(updater)(cellSelection);
+        setValue(nextValue);
       }
     },
   );
@@ -558,6 +604,7 @@ const DataTableComponent = ({
             paginationState={paginationState}
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}
+            cellSelection={cellSelection}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
@@ -569,6 +616,8 @@ const DataTableComponent = ({
             onRowSelectionChange={handleRowSelectionChange}
             freezeColumnsLeft={freezeColumnsLeft}
             freezeColumnsRight={freezeColumnsRight}
+            onCellSelectionChange={handleCellSelectionChange}
+            getRowIds={get_row_ids}
           />
         </Labeled>
       </ColumnChartContext.Provider>

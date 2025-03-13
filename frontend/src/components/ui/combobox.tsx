@@ -92,6 +92,7 @@ export const Combobox = <TValue,>({
   chips = false,
   chipsClassName,
   keepPopoverOpenOnSelect,
+  ...rest
 }: ComboboxProps<TValue>) => {
   const [open = false, setOpen] = useControllableState({
     prop: openProp,
@@ -163,7 +164,7 @@ export const Combobox = <TValue,>({
   };
 
   return (
-    <div className={cn("relative")}>
+    <div className={cn("relative")} {...rest}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild={true}>
           <div

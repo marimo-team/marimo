@@ -18,7 +18,6 @@ import {
   smartPlaceholderExtension,
   clickablePlaceholderExtension,
 } from "../placeholder/extensions";
-import type { MovementCallbacks } from "../cells/extensions";
 import {
   LanguageServerClient,
   languageServerWithTransport,
@@ -26,7 +25,6 @@ import {
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { CellDocumentUri } from "../lsp/types";
-import type { CellId } from "@/core/cells/ids";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -40,7 +38,7 @@ const pylspTransport = once(() => {
   return transport;
 });
 
-const lspClient = once<any>((lspConfig: LSPConfig) => {
+const lspClient = once((lspConfig: LSPConfig) => {
   const lspClientOpts = {
     transport: pylspTransport(),
     rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
@@ -117,6 +115,8 @@ const lspClient = once<any>((lspConfig: LSPConfig) => {
   ) as unknown as LanguageServerClient;
 });
 
+import type { CellId } from "@/core/cells/ids";
+import { cellActionsState } from "../cells/state";
 /**
  * Language adapter for Python.
  */
@@ -141,11 +141,10 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
-    cellMovementCallbacks: MovementCallbacks,
     lspConfig: LSPConfig,
   ): Extension[] {
     return [
-      getFeatureFlag("lsp")
+      getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled
         ? languageServerWithTransport({
             client: lspClient(lspConfig),
             documentUri: CellDocumentUri.of(cellId),
@@ -176,7 +175,10 @@ export class PythonLanguageAdapter implements LanguageAdapter {
               beforeText: "Start coding or ",
               linkText: "generate",
               afterText: " with AI.",
-              onClick: cellMovementCallbacks.aiCellCompletion,
+              onClick: (ev) => {
+                const cellActions = ev.state.facet(cellActionsState);
+                cellActions.aiCellCompletion();
+              },
             })
           : [],
     ];

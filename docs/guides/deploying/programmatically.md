@@ -99,6 +99,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "username": "example_user",
             # Add any other user data
         }
+
+        # Optional add metadata to the request
+        request.scope["meta"] = {
+            "some_key": "some_value",
+        }
+
         response = await call_next(request)
         return response
 
@@ -114,3 +120,4 @@ The `request` object provides access to:
 - `request.path_params`: Path parameters
 - `request.user`: User data added by authentication middleware
 - `request.url`: URL information including path, query parameters
+- `request.meta`: Metadata added by your custom middleware

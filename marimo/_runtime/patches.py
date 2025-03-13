@@ -6,9 +6,12 @@ import functools
 import sys
 import textwrap
 import types
-from typing import Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 
-from marimo._runtime import marimo_pdb
+from marimo._runtime import marimo_browser, marimo_pdb
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
@@ -17,6 +20,25 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
     # Patch Pdb so manually instantiated debuggers create our debugger
     pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
     pdb.set_trace = functools.partial(marimo_pdb.set_trace, debugger=debugger)
+
+
+def patch_webbrowser() -> None:
+    import webbrowser
+
+    try:
+        _ = webbrowser.get()
+    # pyodide doesn't have a webbrowser.get() method
+    # (nor a webbrowser.Error, so careful)
+    except AttributeError:
+        webbrowser.open = marimo_browser.browser_open_fallback
+    except webbrowser.Error:
+        MarimoBrowser = marimo_browser.build_browser_fallback()
+        webbrowser.register(
+            "marimo-output",
+            None,
+            MarimoBrowser(),
+            preferred=True,
+        )
 
 
 def patch_sys_module(module: types.ModuleType) -> None:

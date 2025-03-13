@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from textwrap import dedent
 from typing import Any, cast
 
+import narwhals.stable.v1 as nw
+
 from marimo._data.models import DataType
 from marimo._utils import assert_never
+from marimo._utils.narwhals_utils import can_narwhalify
 
 
 @abc.abstractmethod
@@ -17,7 +20,12 @@ class ChartBuilder:
         raise NotImplementedError
 
     def altair_json(self, data: Any, column: str) -> str:
-        return cast(str, self.altair(data, column).to_json())
+        import altair as alt  # type: ignore[import-not-found]
+
+        if alt.data_transformers.active.startswith("vegafusion"):
+            return cast(str, self.altair(data, column).to_json(format="vega"))
+        else:
+            return cast(str, self.altair(data, column).to_json())
 
     @abc.abstractmethod
     def altair_code(self, data: str, column: str) -> str:
@@ -32,7 +40,7 @@ class ChartParams:
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair as alt  # type: ignore[import-not-found]
 
         return (
             alt.Chart(data)
@@ -136,14 +144,53 @@ class StringChartBuilder(ChartBuilder):
 
 
 class DateChartBuilder(ChartBuilder):
+    DEFAULT_DATE_FORMAT = "%Y-%m-%d"
+
+    def _guess_date_format(self, data: Any, column: str) -> str:
+        """Guess the appropriate date format based on the range of dates in the column."""
+        if not can_narwhalify(data, eager_only=True):
+            return "%Y-%m-%d"
+
+        df = nw.from_native(data, eager_only=True)
+
+        # Get min and max dates using narwhals
+        min_date = df[column].min()
+        max_date = df[column].max()
+
+        # Calculate the difference in days
+        time_diff = max_date - min_date
+        if not hasattr(time_diff, "days"):
+            return self.DEFAULT_DATE_FORMAT
+
+        days_diff = time_diff.days
+
+        # Choose format based on the range
+        if days_diff > 365 * 10:  # More than 10 years
+            return "%Y"  # Year only
+        elif days_diff > 365:  # More than a year
+            return "%Y-%m"  # Year and month
+        elif days_diff > 31:  # More than a month
+            return "%Y-%m-%d"  # Full date
+        elif days_diff > 1:  # More than a day
+            return "%Y-%m-%d %H"  # Date and time (hours)
+        else:
+            return "%Y-%m-%d %H:%M"  # Date and time (hours, minutes)
+
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
-            .mark_line(point={"filled": False, "fill": "white"})
+            .mark_bar()
             .encode(
-                x=alt.X(column, type="temporal"),
+                x=alt.X(
+                    column,
+                    type="temporal",
+                    bin=alt.Bin(maxbins=20),
+                    axis=alt.Axis(
+                        format=self._guess_date_format(data, column)
+                    ),
+                ),
                 y=alt.Y("count()", type="quantitative"),
             )
             .properties(width="container")
@@ -153,9 +200,14 @@ class DateChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_line(point={{"filled": False, "fill": "white"}})
+            .mark_bar()
             .encode(
-                x=alt.X("{column}", type="temporal"),
+                x=alt.X(
+                    "{column}",
+                    type="temporal",
+                    bin=alt.Bin(maxbins=20),
+                    axis=alt.Axis(format="%Y-%m-%d")
+                ),
                 y=alt.Y("count()", type="quantitative"),
             )
             .properties(width="container")

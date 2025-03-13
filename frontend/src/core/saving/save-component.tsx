@@ -5,7 +5,7 @@ import { sendSave } from "@/core/network/requests";
 
 import { FilenameInput } from "@/components/editor/header/filename-input";
 import { WebSocketState } from "../websocket/types";
-import { useCellActions, useNotebook, getCellConfigs } from "../cells/cells";
+import { useNotebook, getCellConfigs } from "../cells/cells";
 import { notebookCells } from "../cells/utils";
 import type { AppConfig } from "../config/config-schema";
 import { useImperativeModal } from "../../components/modal/ImperativeModal";
@@ -75,9 +75,8 @@ export const SaveComponent = ({ kioskMode, appConfig }: SaveNotebookProps) => {
   );
 };
 
-export function useSaveNotebook({ kioskMode, appConfig }: SaveNotebookProps) {
+export function useSaveNotebook({ kioskMode }: SaveNotebookProps) {
   const autoSaveConfig = useAtomValue(autoSaveConfigAtom);
-  const { updateCellCode } = useCellActions();
   const notebook = useNotebook();
   const [connection] = useAtom(connectionAtom);
   const filename = useFilename();
@@ -121,7 +120,7 @@ export function useSaveNotebook({ kioskMode, appConfig }: SaveNotebookProps) {
       persist: true,
     }).then(() => {
       if (userInitiated && autoSaveConfig.format_on_save) {
-        formatAll(updateCellCode);
+        formatAll();
       }
       setLastSavedNotebook({
         names: cellNames,

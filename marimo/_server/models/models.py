@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._runtime.requests import (
     ExecuteMultipleRequest,
@@ -13,18 +13,17 @@ from marimo._runtime.requests import (
     HTTPRequest,
     RenameRequest,
 )
-
-UIElementId = str
+from marimo._types.ids import CellId_t, UIElementId
 
 
 @dataclass
 class UpdateComponentValuesRequest:
-    object_ids: List[UIElementId]
-    values: List[Any]
+    object_ids: list[UIElementId]
+    values: list[Any]
 
     def zip(
         self,
-    ) -> List[tuple[UIElementId, Any]]:
+    ) -> list[tuple[UIElementId, Any]]:
         return list(zip(self.object_ids, self.values))
 
     # Validate same length
@@ -50,14 +49,20 @@ class SuccessResponse(BaseResponse):
 
 
 @dataclass
+class ErrorResponse(BaseResponse):
+    success: bool = False
+    message: Optional[str] = None
+
+
+@dataclass
 class FormatRequest:
-    codes: Dict[CellId_t, str]
+    codes: dict[CellId_t, str]
     line_length: int
 
 
 @dataclass
 class FormatResponse:
-    codes: Dict[CellId_t, str]
+    codes: dict[CellId_t, str]
 
 
 @dataclass
@@ -74,16 +79,11 @@ class RenameFileRequest:
 
 
 @dataclass
-class OpenFileRequest:
-    path: str
-
-
-@dataclass
 class RunRequest:
     # ids of cells to run
-    cell_ids: List[CellId_t]
+    cell_ids: list[CellId_t]
     # code to register/run for each cell
-    codes: List[str]
+    codes: list[str]
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
 
@@ -117,17 +117,17 @@ class RunScratchpadRequest:
 @dataclass
 class SaveNotebookRequest:
     # id of each cell
-    cell_ids: List[CellId_t]
+    cell_ids: list[CellId_t]
     # code for each cell
-    codes: List[str]
+    codes: list[str]
     # name of each cell
-    names: List[str]
+    names: list[str]
     # config for each cell
-    configs: List[CellConfig]
+    configs: list[CellConfig]
     # path to app
     filename: str
     # layout of app
-    layout: Optional[Dict[str, Any]] = None
+    layout: Optional[dict[str, Any]] = None
     # persist the file to disk
     persist: bool = True
 
@@ -167,7 +167,7 @@ class CopyNotebookRequest:
 @dataclass
 class SaveAppConfigurationRequest:
     # partial app config
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
 
 @dataclass

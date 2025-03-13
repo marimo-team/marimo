@@ -18,9 +18,16 @@ will open your notebook in the browser and watch the underlying notebook
 file for changes. When you make changes to the notebook file, they will be
 streamed to the marimo editor in the browser.
 
-Synced code will not be executed automatically, with cells marked as stale instead.
+By default, synced code will not be executed automatically, with cells marked as stale instead.
 Run all stale cells with the marimo editor's "Run" button, or the [`runStale`
 hotkey](hotkeys.md), to see the new outputs.
+
+If you want to run all affected cells automatically when you save, change the `runtime` config in your `pyproject.toml` file.
+
+```toml
+[tool.marimo.runtime]
+watcher_on_save = "autorun"
+```
 
 !!! note "Cell signature and returns"
     Don't worry about maintaining the signatures of cells and their return

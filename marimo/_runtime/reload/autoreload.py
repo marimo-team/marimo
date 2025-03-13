@@ -22,7 +22,7 @@ import weakref
 from dataclasses import dataclass
 from importlib import reload
 from importlib.util import source_from_cache
-from typing import Any, Callable, Dict, Generic, List, Tuple, Type, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -47,8 +47,8 @@ class ModuleMTime:
 
 
 # (module-name, name) -> weakref, for replacing old code objects
-OldObjectsMapping = Dict[
-    Tuple[str, str], List[weakref.ref]  # type:ignore[type-arg]
+OldObjectsMapping = dict[
+    tuple[str, str], list[weakref.ref]  # type:ignore[type-arg]
 ]
 
 
@@ -340,8 +340,8 @@ def update_property(old: object, new: object) -> None:
     update_generic(old.fset, new.fset)  # type:ignore[attr-defined]
 
 
-def isinstance2(a: object, b: object, typ: Type[Any]) -> bool:
-    return isinstance(a, typ) and isinstance(b, typ)
+def isinstance2(a: object, b: object, typo: type[Any]) -> bool:
+    return isinstance(a, typo) and isinstance(b, typo)
 
 
 UPDATE_RULES: list[

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import dataclasses
 
-from marimo._ast.cell import CellId_t
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._types.ids import CellId_t
 
 
 @dataclasses.dataclass

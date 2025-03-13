@@ -7,6 +7,8 @@ import shutil
 import sys
 from dataclasses import dataclass
 
+from marimo._dependencies.errors import ManyModulesNotFoundError
+
 
 @dataclass
 class Dependency:
@@ -189,6 +191,8 @@ class DependencyManager:
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
+    vegafusion = Dependency("vegafusion")
+    vl_convert_python = Dependency("vl_convert")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
@@ -213,3 +217,12 @@ class DependencyManager:
         Checks if a CLI command is installed.
         """
         return shutil.which(pkg) is not None
+
+    @staticmethod
+    def require_many(why: str, *dependencies: Dependency) -> None:
+        missing = [dep.pkg for dep in dependencies if not dep.has()]
+        if missing:
+            raise ManyModulesNotFoundError(
+                missing,
+                f"The following packages are required {why}: {', '.join(missing)}",
+            )

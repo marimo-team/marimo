@@ -5,18 +5,21 @@ import asyncio
 import os
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Coroutine
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, Optional, Set
+from typing import Any, Callable, Optional
 
-from marimo._ast.app import LOGGER
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+
+LOGGER = _loggers.marimo_logger()
 
 Callback = Callable[[Path], Coroutine[None, None, None]]
 
 
 class FileWatcher(ABC):
     @staticmethod
-    def create(path: Path, callback: Callback) -> "FileWatcher":
+    def create(path: Path, callback: Callback) -> FileWatcher:
         if DependencyManager.watchdog.has():
             LOGGER.debug("Using watchdog file watcher")
             return _create_watchdog(path, callback, asyncio.get_event_loop())
@@ -59,7 +62,7 @@ class PollingFileWatcher(FileWatcher):
         super().__init__(path, callback)
         self._running = False
         self.loop = loop
-        self.last_modified: Optional[float] = None
+        self.last_modified: Optional[float] = self._get_modified()
 
     def start(self) -> None:
         self._running = True
@@ -68,6 +71,12 @@ class PollingFileWatcher(FileWatcher):
     def stop(self) -> None:
         self._running = False
 
+    def _get_modified(self) -> Optional[float]:
+        try:
+            return os.path.getmtime(self.path)
+        except FileNotFoundError:
+            return None
+
     async def _poll(self) -> None:
         while self._running:
             if not os.path.exists(self.path):
@@ -75,7 +84,7 @@ class PollingFileWatcher(FileWatcher):
                 raise FileNotFoundError(f"File at {self.path} does not exist.")
 
             # Check for file changes
-            modified = os.path.getmtime(self.path)
+            modified = self._get_modified()
             if self.last_modified is None:
                 self.last_modified = modified
             elif modified != self.last_modified:
@@ -129,9 +138,9 @@ class FileWatcherManager:
 
     def __init__(self) -> None:
         # Map of file paths to their watchers
-        self._watchers: Dict[str, FileWatcher] = {}
+        self._watchers: dict[str, FileWatcher] = {}
         # Map of file paths to their callbacks
-        self._callbacks: Dict[str, Set[Callback]] = defaultdict(set)
+        self._callbacks: dict[str, set[Callback]] = defaultdict(set)
 
     def add_callback(self, path: Path, callback: Callback) -> None:
         """Add a callback for a file path. Creates watcher if needed."""
@@ -154,6 +163,7 @@ class FileWatcherManager:
         """Remove a callback for a file path. Removes watcher if no more callbacks."""
         path_str = str(path)
         if path_str not in self._callbacks:
+            LOGGER.warning(f"Callback for {path_str} not found")
             return
 
         self._callbacks[path_str].discard(callback)

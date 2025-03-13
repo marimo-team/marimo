@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo._server.api.deps import AppState
+from marimo._server.api.endpoints.assets import _inject_service_worker
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
 from tests._server.mocks import token_header, with_file_router
@@ -205,3 +206,14 @@ def test_public_file_security(client: TestClient) -> None:
         # Cleanup
         shutil.rmtree(public_dir, ignore_errors=True)
         shutil.rmtree(secret_dir, ignore_errors=True)
+
+
+def test_inject_service_worker() -> None:
+    assert (
+        "const notebookId = 'path%2Fto%2Fnotebook.py';"
+        in _inject_service_worker("<body></body>", "path/to/notebook.py")
+    )
+    assert (
+        "const notebookId = 'c%3A%5Cpath%5Cto%5Cnotebook.py';"
+        in _inject_service_worker("<body></body>", r"c:\path\to\notebook.py")
+    )

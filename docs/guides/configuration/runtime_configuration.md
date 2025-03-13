@@ -83,3 +83,17 @@ Autoreloading comes in two types:
 <video controls loop width="100%" height="100%" align="center" src="/_static/docs-module-reloading-lazy.mp4"> </video>
 <figcaption align="center">When set to lazy, marimo's reloader marks cells as stale when you edit Python files.</figcaption>
 </figure>
+
+## Python path
+
+By default, marimo will not add any additional directories to the Python path. This keeps the behavior of `marimo edit nb.py` and `python nb.py` consistent.
+
+You can add directories to the Python path by setting the `pythonpath` key in the
+runtime configuration. These directories will be added to the head of `sys.path`,
+similar to how the `PYTHONPATH` environment variable works. This allows Python to
+find and import modules from these directories.
+
+```toml title="pyproject.toml"
+[tool.marimo.runtime]
+pythonpath = ["project/src"]
+```

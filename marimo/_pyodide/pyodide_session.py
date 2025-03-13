@@ -6,10 +6,11 @@ import base64
 import dataclasses
 import json
 import signal
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.streams import (
@@ -39,7 +40,6 @@ from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode
-from marimo._server.models.base import deep_to_camel_case
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCreateRequest,
@@ -63,6 +63,8 @@ from marimo._server.models.models import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
+from marimo._types.ids import CellId_t
+from marimo._utils.case import deep_to_camel_case
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -289,8 +291,7 @@ class PyodideBridge:
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         try:
-            with open(body.path, "w") as file:
-                file.write(body.contents)
+            Path(body.path).write_text(body.contents)
             response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))

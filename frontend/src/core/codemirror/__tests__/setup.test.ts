@@ -7,7 +7,16 @@ import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { PythonLanguageAdapter } from "../language/python";
+import type { CodemirrorCellActions } from "../cells/state";
 
+vi.mock("@/core/config/config", async (importOriginal) => {
+  const original = await importOriginal<{}>();
+  return {
+    ...original,
+    parseAppConfig: () => ({}),
+    parseUserConfig: () => ({}),
+  };
+});
 vi.mock("@/core/config/config", async (importOriginal) => {
   const original = await importOriginal<{}>();
   return {
@@ -28,27 +37,14 @@ function getOpts() {
     cellId: "0" as CellId,
     showPlaceholder: false,
     enableAI: false,
-    cellMovementCallbacks: {
-      onRun: namedFunction("onRun"),
-      aiCellCompletion: namedFunction("aiCellCompletion"),
-      deleteCell: namedFunction("deleteCell"),
-      createAbove: namedFunction("createAbove"),
-      createBelow: namedFunction("createBelow"),
-      createManyBelow: namedFunction("createManyBelow"),
-      moveUp: namedFunction("moveUp"),
-      moveDown: namedFunction("moveDown"),
-      focusUp: namedFunction("focusUp"),
-      focusDown: namedFunction("focusDown"),
-      sendToTop: namedFunction("sendToTop"),
-      sendToBottom: namedFunction("sendToBottom"),
-      splitCell: namedFunction("splitCell"),
-      moveToNextCell: namedFunction("moveToNextCell"),
+    cellActions: {
       toggleHideCode: namedFunction("toggleHideCode"),
-    },
-    cellCodeCallbacks: {
-      updateCellCode: namedFunction("updateCellCode"),
+      aiCellCompletion: namedFunction("aiCellCompletion"),
+      createManyBelow: namedFunction("createManyBelow"),
+      onRun: namedFunction("onRun"),
+      deleteCell: namedFunction("deleteCell"),
       afterToggleMarkdown: namedFunction("afterToggleMarkdown"),
-    },
+    } as unknown as CodemirrorCellActions,
     completionConfig: {
       activate_on_typing: false,
       copilot: false,
@@ -137,7 +133,7 @@ test("placeholder adds another extension", () => {
       opts.completionConfig,
       opts.hotkeys,
       "marimo-import",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   const withoutAI = new PythonLanguageAdapter()
@@ -146,7 +142,7 @@ test("placeholder adds another extension", () => {
       opts.completionConfig,
       opts.hotkeys,
       "none",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   expect(withAI.length - 1).toBe(withoutAI.length);
@@ -160,7 +156,7 @@ test("ai adds more extensions", () => {
       opts.completionConfig,
       opts.hotkeys,
       "ai",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   const withoutAI = new PythonLanguageAdapter()
@@ -169,7 +165,7 @@ test("ai adds more extensions", () => {
       opts.completionConfig,
       opts.hotkeys,
       "none",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);

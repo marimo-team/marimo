@@ -1,0 +1,124 @@
+name: Schema Breaking Changes Check
+
+on:
+  pull_request:
+    paths:
+      - '**/*.yaml'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      openapi: ${{ steps.filter.outputs.openapi }}
+      session: ${{ steps.filter.outputs.session }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            openapi:
+              - 'openapi/api.yaml'
+            session:
+              - 'marimo/_schemas/generated/session.yaml'
+
+  check-openapi:
+    needs: changes
+    if: ${{ needs.changes.outputs.openapi == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      SCHEMA_PATH: openapi/api.yaml
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          path: current
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Install oasdiff
+        run: |
+          curl -sSL https://raw.githubusercontent.com/tufin/oasdiff/master/install.sh | sh
+
+      - name: Compare OpenAPI specs
+        id: compare
+        run: |
+          BREAKING_CHANGES=$(oasdiff breaking main/${{ env.SCHEMA_PATH }} current/${{ env.SCHEMA_PATH }})
+          if [ -n "$BREAKING_CHANGES" ]; then
+            echo "breaking_changes=$BREAKING_CHANGES" >> $GITHUB_OUTPUT
+            echo "Breaking changes detected:"
+            echo "$BREAKING_CHANGES"
+            exit 1
+          else
+            echo "No breaking changes detected"
+          fi
+
+      - name: Comment on PR
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `Breaking changes detected in the OpenAPI specification!
+
+            ${{ steps.compare.outputs.breaking_changes }}`
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  check-session:
+    needs: changes
+    if: ${{ needs.changes.outputs.session == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      SCHEMA_PATH: marimo/_schemas/generated/session.yaml
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          path: current
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Install oasdiff
+        run: |
+          curl -sSL https://raw.githubusercontent.com/tufin/oasdiff/master/install.sh | sh
+
+      - name: Compare Session Schema
+        id: compare
+        run: |
+          BREAKING_CHANGES=$(oasdiff breaking main/${{ env.SCHEMA_PATH }} current/${{ env.SCHEMA_PATH }})
+          if [ -n "$BREAKING_CHANGES" ]; then
+            echo "Breaking changes detected:"
+            echo "$BREAKING_CHANGES"
+            exit 1
+          else
+            echo "No breaking changes detected"
+          fi
+
+      - name: Comment on PR
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `Breaking changes detected in the Session Schema!
+
+            ${process.env.BREAKING_CHANGES}`
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })

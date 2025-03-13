@@ -18,10 +18,7 @@ import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
 import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
-import {
-  markdownAutoRunExtension,
-  type MovementCallbacks,
-} from "../cells/extensions";
+import { markdownAutoRunExtension } from "../cells/extensions";
 import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
 
@@ -164,7 +161,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
     _: PlaceholderType,
-    movementCallbacks: MovementCallbacks,
   ): Extension[] {
     return [
       markdown({
@@ -204,7 +200,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
         override: [emojiCompletionSource, lucideIconCompletionSource],
       }),
       // Markdown autorun
-      markdownAutoRunExtension(movementCallbacks),
+      markdownAutoRunExtension(),
       python().support,
     ];
   }

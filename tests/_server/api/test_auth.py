@@ -5,15 +5,18 @@ from typing import Any
 
 import pytest
 from starlette.applications import Starlette
+from starlette.authentication import SimpleUser
 from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.api.auth import (
     AppState,
+    CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
     validate_auth,
 )
+from marimo._server.api.middleware import AuthBackend
 from marimo._server.main import create_starlette_app
 from tests._server.mocks import get_mock_session_manager
 
@@ -129,7 +132,7 @@ async def test_validate_auth_with_missing_password_in_basic_auth(
     conn = create_connection(app)
     # Run all middleware
     await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
-    basic_auth_header = f"Basic {base64.b64encode('test:'.encode()).decode()}"
+    basic_auth_header = f"Basic {base64.b64encode(b'test:').decode()}"
     conn._headers = Headers({"Authorization": basic_auth_header})
 
     assert validate_auth(conn) is False
@@ -140,3 +143,53 @@ async def test_validate_auth_with_no_auth(app: Starlette):
     # Run all middleware
     await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
     assert validate_auth(conn) is False
+
+
+async def test_custom_auth_middleware_preserves_user():
+    app = Starlette()
+    app.state.session_manager = get_mock_session_manager()
+
+    async def test_app(scope: Any, receive: Any, send: Any) -> None:
+        del receive, send
+        # Verify the user was swapped during middleware execution
+        assert scope["user"].username == "test_user"
+        assert (
+            scope[CustomAuthenticationMiddleware.KEY].username == "test_user"
+        )
+
+    middleware = CustomAuthenticationMiddleware(
+        test_app, backend=AuthBackend(should_authenticate=False)
+    )
+    scope = {
+        "type": "http",
+        "user": SimpleUser("test_user"),
+        "app": app,
+        "path": "/",
+    }
+
+    await middleware(scope, mock_receive, mock_send)
+    # Verify original user was restored and temp key was cleaned up
+    assert scope["user"].username == "test_user"
+    assert CustomAuthenticationMiddleware.KEY not in scope
+
+
+async def test_custom_auth_middleware_without_user():
+    app = Starlette()
+    app.state.session_manager = get_mock_session_manager()
+
+    async def test_app(scope: Any, receive: Any, send: Any) -> None:
+        del receive, send
+        # Fallbacks to SimpleUser("user")
+        assert scope["user"].username == "user"
+
+    middleware = CustomAuthenticationMiddleware(
+        test_app, backend=AuthBackend(should_authenticate=False)
+    )
+    scope = {
+        "type": "http",
+        "app": app,
+        "path": "/",
+    }
+
+    await middleware(scope, mock_receive, mock_send)
+    assert CustomAuthenticationMiddleware.KEY not in scope

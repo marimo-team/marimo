@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 
@@ -12,7 +13,14 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired
 
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
+from typing import (
+    Any,
+    Literal,
+    Optional,
+    TypedDict,
+    Union,
+    cast,
+)
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -67,7 +75,7 @@ class KeymapConfig(TypedDict):
     """
 
     preset: Literal["default", "vim"]
-    overrides: NotRequired[Dict[str, str]]
+    overrides: NotRequired[dict[str, str]]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -94,11 +102,25 @@ class RuntimeConfig(TypedDict):
     - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
       if `strict` marimo will clone cell declarations by default, avoiding
       hidden potential state build up.
+    - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
+        affected cells as stale, `"autorun"` automatically runs affected cells.
+    - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
+        values may affect frontend performance
+    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
+      larger values may affect frontend performance
+    - `pythonpath`: a list of directories to add to the Python search path.
+        Directories will be added to the head of sys.path. Similar to the
+        `PYTHONPATH` environment variable, the directories will be included in
+        where Python will look for imported modules.
     """
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
     on_cell_change: OnCellChangeType
+    watcher_on_save: Literal["lazy", "autorun"]
+    output_max_bytes: int
+    std_stream_max_bytes: int
+    pythonpath: list[str]
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -175,12 +197,14 @@ class AiConfig(TypedDict, total=False):
     **Keys.**
 
     - `rules`: custom rules to include in all AI completion prompts
+    - `max_tokens`: the maximum number of tokens to use in AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
     """
 
     rules: NotRequired[str]
+    max_tokens: NotRequired[int]
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
@@ -261,8 +285,24 @@ class SnippetsConfig(TypedDict):
     - `custom_path`: the path to the custom snippets directory
     """
 
-    custom_paths: NotRequired[List[str]]
+    custom_paths: NotRequired[list[str]]
     include_default_snippets: NotRequired[bool]
+
+
+@dataclass
+class DatasourcesConfig(TypedDict):
+    """Configuration for datasources panel.
+
+    **Keys.**
+
+    - `auto_discover_schemas`: if `True`, include schemas in the datasource
+    - `auto_discover_tables`: if `True`, include tables in the datasource
+    - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
+    """
+
+    auto_discover_schemas: NotRequired[Union[bool, Literal["auto"]]]
+    auto_discover_tables: NotRequired[Union[bool, Literal["auto"]]]
+    auto_discover_columns: NotRequired[Union[bool, Literal["auto"]]]
 
 
 @mddoc
@@ -279,9 +319,10 @@ class MarimoConfig(TypedDict):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
-    experimental: NotRequired[Dict[str, Any]]
     language_servers: NotRequired[LanguageServersConfig]
+    experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
+    datasources: NotRequired[DatasourcesConfig]
 
 
 @mddoc
@@ -298,9 +339,10 @@ class PartialMarimoConfig(TypedDict, total=False):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
-    experimental: NotRequired[Dict[str, Any]]
     language_servers: NotRequired[LanguageServersConfig]
+    experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
+    datasources: NotRequired[DatasourcesConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -318,6 +360,14 @@ DEFAULT_CONFIG: MarimoConfig = {
         "auto_instantiate": True,
         "auto_reload": "off",
         "on_cell_change": "autorun",
+        "watcher_on_save": "lazy",
+        "output_max_bytes": int(
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
+        ),
+        "std_stream_max_bytes": int(
+            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+        ),
+        "pythonpath": [],
     },
     "save": {
         "autosave": "after_delay",
@@ -368,7 +418,7 @@ def merge_config(
     merged = cast(
         MarimoConfig,
         deep_merge(
-            cast(Dict[Any, Any], config), cast(Dict[Any, Any], new_config)
+            cast(dict[Any, Any], config), cast(dict[Any, Any], new_config)
         ),
     )
 

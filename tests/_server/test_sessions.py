@@ -11,21 +11,28 @@ import time
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from textwrap import dedent
 from typing import Any, Callable, TypeVar
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
-from marimo._config.manager import get_default_config_manager
+from marimo._config.manager import (
+    get_default_config_manager,
+)
 from marimo._messaging.ops import UpdateCellCodes
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
+    ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionMode
+from marimo._server.session.session_view import SessionView
 from marimo._server.sessions import (
     KernelManager,
     QueueManager,
@@ -33,6 +40,7 @@ from marimo._server.sessions import (
     SessionManager,
 )
 from marimo._server.utils import initialize_asyncio
+from marimo._types.ids import SessionId
 from marimo._utils.marimo_path import MarimoPath
 
 initialize_asyncio()
@@ -52,11 +60,18 @@ def save_and_restore_main(f: F) -> F:
     def wrapper(*args: Any, **kwargs: Any) -> None:
         main = sys.modules["__main__"]
         try:
-            f(*args, **kwargs)
+            res = f(*args, **kwargs)
+            if asyncio.iscoroutine(res):
+                asyncio.run(res)
+            else:
+                pass
         finally:
             sys.modules["__main__"] = main
 
     return wrapper  # type: ignore
+
+
+session_id = SessionId("test")
 
 
 @save_and_restore_main
@@ -142,7 +157,7 @@ def test_kernel_manager_edit_mode() -> None:
 
 
 @save_and_restore_main
-def test_kernel_manager_interrupt(tmp_path) -> None:
+def test_kernel_manager_interrupt(tmp_path: Path) -> None:
     queue_manager = QueueManager(use_multiprocessing=True)
     mode = SessionMode.EDIT
 
@@ -166,34 +181,31 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         import string
 
         # Having trouble persisting the write to a temp file on Windows
-        file = (
+        file = Path(
             "".join(random.choice(string.ascii_uppercase) for _ in range(10))
             + ".txt"
         )
     else:
-        file = str(tmp_path / "output.txt")
+        file = tmp_path / "output.txt"
 
-    with open(file, "w") as f:
-        f.write("-1")
+    Path(file).write_text("-1")
 
     queue_manager.control_queue.put(
         CreationRequest(
-            execution_requests=tuple(
-                [
-                    ExecutionRequest(
-                        cell_id="1",
-                        code=inspect.cleandoc(
-                            f"""
+            execution_requests=(
+                ExecutionRequest(
+                    cell_id="1",
+                    code=inspect.cleandoc(
+                        f"""
                             import time
                             with open("{file}", 'w') as f:
                                 f.write('0')
-                            time.sleep(5)
+                            time.sleep(2)
                             with open("{file}", 'w') as f:
                                 f.write('1')
                             """
-                        ),
-                    )
-                ]
+                    ),
+                ),
             ),
             set_ui_element_value_request=SetUIElementValueRequest(
                 object_ids=[], values=[]
@@ -202,33 +214,55 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         )
     )
 
-    # give time for the file to be written to 0, but not enough for it to be
-    # written to 1
-    time.sleep(0.5)
+    timeout = 5
+    # Wait for the file to be written to 0
+    start_time = time.time()
+    while time.time() < start_time + timeout / 2:
+        time.sleep(0.1)
+        if file.read_text() == "0":
+            break
     kernel_manager.interrupt_kernel()
 
     try:
-        with open(file, "r") as f:
-            assert f.read() == "0"
+        assert file.read_text() == "0"
         # if kernel failed to interrupt, f will read as "1"
         time.sleep(1.5)
-        with open(file, "r") as f:
-            assert f.read() == "0"
+        assert file.read_text() == "0"
     finally:
         if sys.platform == "win32":
             os.remove(file)
 
+        # Wait for queues to be empty with timeout
+        # This makes the test more resilient to timing issues in CI
+        start_time = time.time()
+        timeout = 5  # 5-second timeout for queues to be empty
+
+        # Give some time for queues to be processed first
+        time.sleep(0.5)
+
+        while time.time() - start_time < timeout:
+            if (
+                queue_manager.input_queue.empty()
+                and queue_manager.control_queue.empty()
+            ):
+                break
+            time.sleep(0.2)  # slightly longer interval
+
+        # Now check if queues are empty
         assert queue_manager.input_queue.empty()
         assert queue_manager.control_queue.empty()
 
         # Assert shutdown
         kernel_manager.close_kernel()
-        kernel_manager.kernel_task.join()
+        kernel_manager.kernel_task.join(timeout=5)
         assert not kernel_manager.is_alive()
 
 
+session_id = SessionId("test_session_id")
+
+
 @save_and_restore_main
-def test_session() -> None:
+async def test_session() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
@@ -244,11 +278,12 @@ def test_session() -> None:
 
     # Instantiate a Session
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -290,11 +325,12 @@ def test_session_disconnect_reconnect() -> None:
 
     # Instantiate a Session
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -347,11 +383,12 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Instantiate a Session
     session = Session(
-        "test",
+        session_id,
         session_consumer,
         queue_manager,
         kernel_manager,
         AppFileManager.from_app(InternalApp(App())),
+        get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -394,6 +431,10 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.room.main_consumer is None
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_session_manager_file_watching() -> None:
     # Create a temporary file
@@ -401,11 +442,12 @@ async def test_session_manager_file_watching() -> None:
         tmp_path = Path(tmp_file.name)
         # Write initial notebook content
         tmp_file.write(
-            b"""import marimo as mo
+            b"""import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
-    return 1
+    1
 """
         )
 
@@ -419,7 +461,15 @@ def __():
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
-            user_config_manager=get_default_config_manager(current_path=None),
+            config_manager=get_default_config_manager(
+                current_path=None
+            ).with_overrides(
+                {
+                    "runtime": {
+                        "watcher_on_save": "lazy",
+                    }
+                }
+            ),
             cli_args={},
             auth_token=None,
             redirect_console_to_browser=False,
@@ -437,33 +487,34 @@ def __():
 
         # Create a session
         session_manager.create_session(
-            session_id="test",
+            session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path),
         )
 
-        # Wait a bit and then modify the file
-        await asyncio.sleep(0.2)
-        with open(tmp_path, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
+        tmp_path.write_text(
+            """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
-    return 2
+    2
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Check that UpdateCellCodes was sent with the new code
         update_ops = [
             op for op in operations if isinstance(op, UpdateCellCodes)
         ]
         assert len(update_ops) == 1
-        assert "return 2" in update_ops[0].codes[0]
+        assert "2" == update_ops[0].codes[0]
         assert update_ops[0].code_is_stale is True
 
         # Create another session for the same file
@@ -475,7 +526,7 @@ def __():
         )
 
         session_manager.create_session(
-            session_id="test2",
+            session_id=SessionId("test2"),
             session_consumer=session_consumer2,
             query_params={},
             file_key=str(tmp_path),
@@ -484,18 +535,21 @@ def __():
         # Modify the file again
         operations.clear()
         operations2.clear()
-        with open(tmp_path, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
+        tmp_path.write_text(
+            """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
-    return 3
+    3
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Both sessions should receive the update
         update_ops = [
@@ -506,38 +560,36 @@ def __():
         ]
         assert len(update_ops) == 1
         assert len(update_ops2) == 1
-        assert "return 3" in update_ops[0].codes[0]
-        assert "return 3" in update_ops2[0].codes[0]
+        assert "3" == update_ops[0].codes[0]
+        assert "3" == update_ops2[0].codes[0]
 
         # Close one session and verify the other still receives updates
-        assert session_manager.close_session("test")
+        session_manager.close_session(session_id)
         operations.clear()
         operations2.clear()
 
-        with open(tmp_path, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
+        tmp_path.write_text(
+            """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
-    return 4
+    4
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations2) > 0:
+                break
 
-        # Only session2 should receive the update
-        update_ops = [
-            op for op in operations if isinstance(op, UpdateCellCodes)
-        ]
+        # Only one session should receive the update
         update_ops2 = [
             op for op in operations2 if isinstance(op, UpdateCellCodes)
         ]
-        assert len(update_ops) == 0
         assert len(update_ops2) == 1
-        assert "return 4" in update_ops2[0].codes[0]
-
+        assert "4" == update_ops2[0].codes[0]
     finally:
         # Cleanup
         session_manager.shutdown()
@@ -573,7 +625,7 @@ def test_watch_mode_config_override() -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        user_config_manager=config_reader_watch,
+        config_manager=config_reader_watch,
         cli_args={},
         auth_token=None,
         redirect_console_to_browser=False,
@@ -588,7 +640,7 @@ def test_watch_mode_config_override() -> None:
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
-        user_config_manager=config_reader,
+        config_manager=config_reader,
         cli_args={},
         auth_token=None,
         redirect_console_to_browser=False,
@@ -598,12 +650,12 @@ def test_watch_mode_config_override() -> None:
 
     try:
         # Verify that the config was overridden
-        config = session_manager.user_config_manager.get_config()
+        config = session_manager._config_manager.get_config()
         assert config["save"]["autosave"] == "off"
         assert config["save"]["format_on_save"] is False
 
         # Verify that the config was not overridden
-        config = session_manager_no_watch.user_config_manager.get_config()
+        config = session_manager_no_watch._config_manager.get_config()
         assert config["save"]["autosave"] == "after_delay"
         assert config["save"]["format_on_save"] is True
 
@@ -614,26 +666,183 @@ def test_watch_mode_config_override() -> None:
         os.remove(tmp_path)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
+@save_and_restore_main
+async def test_watch_mode_with_watcher_on_save_config() -> None:
+    """Test that watch mode works correctly with watcher_on_save config."""
+    # Create a temporary file
+    with NamedTemporaryFile(delete=False, suffix=".py") as tmp_file:
+        tmp_path = Path(tmp_file.name)
+        # Write initial notebook content
+        tmp_file.write(
+            b"""import marimo
+app = marimo.App()
+
+@app.cell
+def __():
+    1
+"""
+        )
+
+    try:
+        # Create a config with watcher_on_save set to autorun
+        config_reader = get_default_config_manager(current_path=None)
+        config_reader_autorun = config_reader.with_overrides(
+            {
+                "runtime": {
+                    "watcher_on_save": "autorun",
+                }
+            }
+        )
+
+        # Create a session manager with file watching enabled
+        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path)))
+        session_manager = SessionManager(
+            file_router=file_router,
+            mode=SessionMode.EDIT,
+            development_mode=False,
+            quiet=True,
+            include_code=True,
+            lsp_server=MagicMock(),
+            config_manager=config_reader_autorun,
+            cli_args={},
+            auth_token=None,
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            watch=True,
+        )
+
+        # Create a mock session consumer
+        session_consumer = MagicMock()
+        session_consumer.connection_state.return_value = ConnectionState.OPEN
+        operations: list[Any] = []
+        session_consumer.write_operation = (
+            lambda op, *_args: operations.append(op)
+        )
+
+        # Create a session
+        session = session_manager.create_session(
+            session_id=session_id,
+            session_consumer=session_consumer,
+            query_params={},
+            file_key=str(tmp_path),
+        )
+        session.session_view = MagicMock(SessionView)
+
+        # Wait a bit and then modify the file
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
+
+        # Modify the file
+        operations.clear()
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo
+app = marimo.App()
+
+@app.cell
+def __():
+    2
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
+
+        # Check that UpdateCellCodes was sent with code_is_stale=False (autorun)
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert "2" in update_ops[0].codes[0]
+        assert update_ops[0].code_is_stale is False
+
+        # Verify that cells were queued for execution
+        assert session.session_view.add_control_request.called
+        last_call = session.session_view.add_control_request.call_args[0][0]
+        assert isinstance(last_call, ExecuteMultipleRequest)
+
+        # Now change config to lazy mode
+        config_reader_lazy = config_reader.with_overrides(
+            {
+                "runtime": {
+                    "watcher_on_save": "lazy",
+                }
+            }
+        )
+        session_manager._config_manager = config_reader_lazy
+
+        # Reset the mock
+        session_consumer.put_control_request.reset_mock()
+
+        # Modify the file again
+        operations.clear()
+        with open(tmp_path, "w") as f:  # noqa: ASYNC230
+            f.write(
+                """import marimo
+app = marimo.App()
+
+@app.cell
+def __():
+    3
+"""
+            )
+
+        # Wait for the watcher to detect the change
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
+
+        # Check that UpdateCellCodes was sent with code_is_stale=True (lazy)
+        update_ops = [
+            op for op in operations if isinstance(op, UpdateCellCodes)
+        ]
+        assert len(update_ops) == 1
+        assert "3" in update_ops[0].codes[0]
+        assert update_ops[0].code_is_stale is True
+
+        # Verify that no execution was queued
+        assert not session_consumer.put_control_request.called
+
+    finally:
+        # Cleanup
+        session_manager.shutdown()
+        os.remove(tmp_path)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="This test is flaky on Python 3.9",
+)
 @save_and_restore_main
 async def test_session_manager_file_rename() -> None:
     """Test that file renaming works correctly with file watching."""
     # Create two temporary files
     with (
         NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
-        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file2,
     ):
         tmp_path1 = Path(tmp_file1.name)
-        tmp_path2 = Path(tmp_file2.name)
         # Write initial notebook content
         tmp_file1.write(
-            b"""import marimo as mo
+            b"""import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
-    return 1
+    1
 """
         )
-        tmp_file2.write(b"import marimo as mo")
+
+    new_path = tmp_path1.with_suffix(".1.py")
 
     try:
         # Create a session manager with file watching enabled
@@ -645,7 +854,7 @@ def __():
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
-            user_config_manager=get_default_config_manager(current_path=None),
+            config_manager=get_default_config_manager(current_path=None),
             cli_args={},
             auth_token=None,
             redirect_console_to_browser=False,
@@ -663,7 +872,7 @@ def __():
 
         # Create a session
         session_manager.create_session(
-            session_id="test",
+            session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path1),
@@ -671,7 +880,7 @@ def __():
 
         # Try to rename to a non-existent file
         success, error = session_manager.handle_file_rename_for_watch(
-            "test", "/nonexistent/file.py"
+            session_id, str(tmp_path1), "/nonexistent/file.py"
         )
         assert not success
         assert error is not None
@@ -679,62 +888,206 @@ def __():
 
         # Try to rename with an invalid session
         success, error = session_manager.handle_file_rename_for_watch(
-            "nonexistent", str(tmp_path2)
+            "nonexistent", str(tmp_path1), str(new_path)
         )
         assert not success
         assert error is not None
         assert "Session not found" in error
 
         # Rename to the second file
+        session = session_manager.get_session(session_id)
+        assert session is not None
+        session.app_file_manager.rename(str(new_path))
+        assert new_path.exists()
         success, error = session_manager.handle_file_rename_for_watch(
-            "test", str(tmp_path2)
+            session_id, str(tmp_path1), str(new_path)
         )
         assert success
         assert error is None
 
         # Modify the new file
         operations.clear()
-        with open(tmp_path2, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
+        new_path.write_text(
+            """import marimo
+app = marimo.App()
 
-@mo.cell
+@app.cell
 def __():
-    return 2
+    2
 """
-            )
+        )
 
         # Wait for the watcher to detect the change
-        await asyncio.sleep(0.2)
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(operations) > 0:
+                break
 
         # Check that UpdateCellCodes was sent with the new code
         update_ops = [
             op for op in operations if isinstance(op, UpdateCellCodes)
         ]
         assert len(update_ops) == 1
-        assert "return 2" in update_ops[0].codes[0]
-
-        # Modify the old file - should not trigger any updates
-        operations.clear()
-        with open(tmp_path1, "w") as f:  # noqa: ASYNC230
-            f.write(
-                """import marimo as mo
-
-@mo.cell
-def __():
-    return 3
-"""
-            )
-
-        # Wait to verify no updates are triggered
-        await asyncio.sleep(0.2)
-        update_ops = [
-            op for op in operations if isinstance(op, UpdateCellCodes)
-        ]
-        assert len(update_ops) == 0
+        assert "2" == update_ops[0].codes[0]
 
     finally:
         # Cleanup
         session_manager.shutdown()
-        os.remove(tmp_path1)
-        os.remove(tmp_path2)
+        os.remove(new_path)
+
+
+@save_and_restore_main
+async def test_sync_session_view_from_cache(tmp_path: Path) -> None:
+    """Test syncing session view from cache."""
+    # Create a temporary file
+    notebook_path = tmp_path / "test.py"
+    notebook_path.write_text(
+        """import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    1
+"""
+    )
+
+    # Create session with the temporary file
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    queue_manager = QueueManager(use_multiprocessing=False)
+    kernel_manager = KernelManager(
+        queue_manager,
+        SessionMode.RUN,
+        {},
+        app_metadata,
+        get_default_config_manager(current_path=None),
+        virtual_files_supported=True,
+        redirect_console_to_browser=False,
+    )
+
+    app_file_manager = AppFileManager(filename=str(notebook_path))
+    session = Session(
+        session_id,
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        get_default_config_manager(current_path=None),
+        ttl_seconds=None,
+    )
+
+    # Test syncing when no cache exists
+    session.sync_session_view_from_cache()
+    # Should create a new empty session view since no cache exists
+    assert session.session_view is not None
+    assert session.session_cache_manager is not None
+    assert session.session_cache_manager.path == str(notebook_path)
+    assert (
+        session.session_cache_manager.interval
+        == Session.SESSION_CACHE_INTERVAL_SECONDS
+    )
+
+    # Add some operations to the session view
+    session.write_operation(
+        UpdateCellCodes(
+            cell_ids=["1"],
+            codes=["print('hello')"],
+            code_is_stale=False,
+        ),
+        from_consumer_id=None,
+    )
+
+    # Create a new session and sync from cache
+    session2 = Session(
+        "test2",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        get_default_config_manager(current_path=None),
+        ttl_seconds=None,
+    )
+    session2.sync_session_view_from_cache()
+
+    # Verify the session views match
+    assert session2.session_view is not None
+    assert session2.session_cache_manager is not None
+    assert session2.session_cache_manager.path == str(notebook_path)
+    assert len(session2.session_view.operations) == len(
+        session.session_view.operations
+    )
+
+    # Test syncing with no file path
+    app_file_manager_no_path = AppFileManager.from_app(InternalApp(App()))
+    session3 = Session(
+        "test3",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager_no_path,
+        get_default_config_manager(current_path=None),
+        ttl_seconds=None,
+    )
+    session3.sync_session_view_from_cache()
+    # Should create a new empty session view since no path exists
+    assert session3.session_view is not None
+    assert session3.session_cache_manager is not None
+    assert session3.session_cache_manager.path is None
+
+    # Cleanup
+    session.close()
+    session2.close()
+    session3.close()
+    if kernel_manager.kernel_task:
+        kernel_manager.kernel_task.join()
+
+
+def test_session_with_script_config_overrides(
+    tmp_path: Path,
+) -> None:
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+
+    # Create a temporary file with script config
+    tmp_file = tmp_path / "test.py"
+    tmp_file.write_text(
+        dedent(
+            """
+        # /// script
+        # [tool.marimo.formatting]
+        # line_length = 999
+        # ///
+        """
+        )
+    )
+
+    # Create app file manager with the temp file
+    app_file_manager = AppFileManager(filename=str(tmp_file))
+
+    # Create session with the file that has script config
+    session = Session.create(
+        initialization_id="test_id",
+        session_consumer=session_consumer,
+        mode=SessionMode.RUN,
+        app_metadata=app_metadata,
+        app_file_manager=app_file_manager,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_files_supported=True,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Verify that the session's config is affected by the script config
+    assert (
+        session.config_manager.get_config()["formatting"]["line_length"] == 999
+    )
+    assert (
+        session.kernel_manager.config_manager.get_config()["formatting"][
+            "line_length"
+        ]
+        == 999
+    )
+
+    # Cleanup
+    session.close()

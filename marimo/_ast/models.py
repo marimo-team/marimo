@@ -4,7 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from marimo._ast.cell import Cell, CellConfig, CellId_t
+from marimo._ast.cell import Cell, CellConfig
+from marimo._types.ids import CellId_t
 
 
 @dataclass

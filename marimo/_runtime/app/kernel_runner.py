@@ -4,7 +4,7 @@ from __future__ import annotations
 import weakref
 from typing import TYPE_CHECKING, Any
 
-from marimo._ast.cell import CellId_t, CellImpl
+from marimo._ast.cell import CellImpl
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.app.common import RunOutput
 from marimo._runtime.context.types import get_context
@@ -17,6 +17,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
@@ -38,7 +39,7 @@ class AppKernelRunner:
         from marimo._runtime.runtime import Kernel
 
         self.app = app
-        self._outputs: dict[str, Any] = {}
+        self._outputs: dict[CellId_t, Any] = {}
 
         ctx = get_context()
         if not isinstance(ctx, KernelRuntimeContext):
@@ -92,21 +93,22 @@ class AppKernelRunner:
             parent=ctx,
         )
         ctx.add_child(self._runtime_context)
-        weakref.finalize(
+        finalizer = weakref.finalize(
             self, ctx.remove_child, self._runtime_context
-        ).atexit = False
+        )
+        finalizer.atexit = False
 
         # Register cells through the kernel runner, so that compilation only
         # occurs once.
         for cell_id, cell in app.cell_manager.valid_cells():
-            self._kernel._register_cell(cell_id, cell._cell)
+            self._kernel._register_cell(cell_id, cell._cell, stale=False)
 
     @property
     def outputs(self) -> dict[CellId_t, Any]:
         return self._outputs
 
     @property
-    def globals(self) -> dict[CellId_t, Any]:
+    def globals(self) -> dict[str, Any]:
         return self._kernel.globals
 
     async def run(self, cells_to_run: set[CellId_t]) -> RunOutput:

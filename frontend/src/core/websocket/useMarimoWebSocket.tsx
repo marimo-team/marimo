@@ -14,7 +14,11 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import {
+  FUNCTIONS_REGISTRY,
+  PreviewSQLTable,
+  PreviewSQLTableList,
+} from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
@@ -41,7 +45,10 @@ import { capabilitiesAtom } from "../config/capabilities";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useRunsActions } from "../cells/runs";
-import { useDataSourceActions } from "../datasets/data-source-connections";
+import {
+  type ConnectionName,
+  useDataSourceActions,
+} from "../datasets/data-source-connections";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -195,8 +202,19 @@ export function useMarimoWebSocket(opts: {
       case "data-column-preview":
         addColumnPreview(msg.data);
         return;
+      case "sql-table-preview":
+        PreviewSQLTable.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "sql-table-list-preview":
+        PreviewSQLTableList.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
       case "data-source-connections":
-        addDataSourceConnection(msg.data);
+        addDataSourceConnection({
+          connections: msg.data.connections.map((conn) => ({
+            ...conn,
+            name: conn.name as ConnectionName,
+          })),
+        });
         return;
 
       case "reconnected":

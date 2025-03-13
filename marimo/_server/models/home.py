@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
-from marimo._server.ids import SessionId
 from marimo._server.models.files import FileInfo
 from marimo._tutorials import Tutorial
+from marimo._types.ids import SessionId
 
 
 @dataclass
@@ -26,12 +26,12 @@ class MarimoFile:
 
 @dataclass
 class RecentFilesResponse:
-    files: List[MarimoFile]
+    files: list[MarimoFile]
 
 
 @dataclass
 class RunningNotebooksResponse:
-    files: List[MarimoFile]
+    files: list[MarimoFile]
 
 
 @dataclass
@@ -47,7 +47,7 @@ class WorkspaceFilesRequest:
 @dataclass
 class WorkspaceFilesResponse:
     root: str
-    files: List[FileInfo]
+    files: list[FileInfo]
 
 
 @dataclass

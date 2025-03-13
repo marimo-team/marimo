@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Final, List, Optional, Union, cast
+from typing import Any, Callable, Final, Optional, Union, cast
 
-from marimo._ai.types import (
+from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
     ChatModelConfigDict,
@@ -16,7 +16,6 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
-from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
@@ -24,17 +23,22 @@ from marimo._runtime.requests import SetUIElementValueRequest
 
 @dataclass
 class SendMessageRequest:
-    messages: List[ChatMessage]
+    messages: list[ChatMessage]
     config: ChatModelConfig
 
 
 @dataclass
 class GetChatHistoryResponse:
-    messages: List[ChatMessage]
+    messages: list[ChatMessage]
+
+
+@dataclass
+class DeleteChatMessageRequest:
+    index: int
 
 
 @mddoc
-class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
+class chat(UIElement[dict[str, Any], list[ChatMessage]]):
     """A chatbot UI element for interactive conversations.
 
     Define a chatbot by implementing a function that takes a list of ChatMessages and
@@ -127,17 +131,17 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     def __init__(
         self,
-        model: Callable[[List[ChatMessage], ChatModelConfig], object],
+        model: Callable[[list[ChatMessage], ChatModelConfig], object],
         *,
-        prompts: Optional[List[str]] = None,
-        on_message: Optional[Callable[[List[ChatMessage]], None]] = None,
+        prompts: Optional[list[str]] = None,
+        on_message: Optional[Callable[[list[ChatMessage]], None]] = None,
         show_configuration_controls: bool = False,
         config: Optional[ChatModelConfigDict] = None,
-        allow_attachments: Union[bool, List[str]] = False,
+        allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
     ) -> None:
         self._model = model
-        self._chat_history: List[ChatMessage] = []
+        self._chat_history: list[ChatMessage] = []
 
         super().__init__(
             component_name=chat._name,
@@ -158,6 +162,16 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
                     function=self._get_chat_history,
                 ),
                 Function(
+                    name="delete_chat_history",
+                    arg_cls=EmptyArgs,
+                    function=self._delete_chat_history,
+                ),
+                Function(
+                    name="delete_chat_message",
+                    arg_cls=DeleteChatMessageRequest,
+                    function=self._delete_chat_message,
+                ),
+                Function(
                     name="send_prompt",
                     arg_cls=SendMessageRequest,
                     function=self._send_prompt,
@@ -167,6 +181,17 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
 
     def _get_chat_history(self, _args: EmptyArgs) -> GetChatHistoryResponse:
         return GetChatHistoryResponse(messages=self._chat_history)
+
+    def _delete_chat_history(self, _args: EmptyArgs) -> None:
+        self._value = self._chat_history = []
+
+    def _delete_chat_message(self, args: DeleteChatMessageRequest) -> None:
+        index = args.index
+        if index < 0 or index >= len(self._chat_history):
+            raise ValueError("Invalid message index")
+
+        del self._chat_history[index]
+        self._value = self._chat_history
 
     async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
@@ -215,6 +240,10 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             if self._on_change is not None:
                 self._on_change(self._value)
         else:
+            from marimo._runtime.context.kernel_context import (
+                KernelRuntimeContext,
+            )
+
             if isinstance(ctx, KernelRuntimeContext):
                 ctx._kernel.enqueue_control_request(
                     SetUIElementValueRequest(
@@ -230,7 +259,7 @@ class chat(UIElement[Dict[str, Any], List[ChatMessage]]):
             return md(response).text
         return as_html(response).text
 
-    def _convert_value(self, value: Dict[str, Any]) -> List[ChatMessage]:
+    def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:
         if not isinstance(value, dict) or "messages" not in value:
             raise ValueError("Invalid chat history format")
 

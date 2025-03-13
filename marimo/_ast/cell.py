@@ -5,15 +5,14 @@ import ast
 import dataclasses
 import inspect
 import os
-from collections.abc import Awaitable
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
+from collections.abc import Awaitable, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._runtime.exceptions import MarimoRuntimeException
+from marimo._types.ids import CellId_t
 from marimo._utils.deep_merge import deep_merge
-
-CellId_t = str
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -182,6 +181,8 @@ class CellImpl:
     _raw_sqls: ParsedSQLStatements = dataclasses.field(
         default_factory=ParsedSQLStatements
     )
+    # Whether this cell can be executed as a test cell.
+    _test: bool = False
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
@@ -289,6 +290,35 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
+    @property
+    def toplevel_variable(self) -> Optional[VariableData]:
+        """Return the single, scoped, toplevel variable defined if found."""
+        try:
+            tree = ast.parse(self.code)
+        except SyntaxError:
+            return None
+
+        if len(self.defs) != 1:
+            return None
+
+        if not (
+            len(tree.body) == 1
+            and isinstance(
+                tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)
+            )
+        ):
+            return None
+
+        # Check that def matches the single definition
+        name = tree.body[0].name
+        if not (name == list(self.defs)[0] and name in self.variable_data):
+            return None
+
+        if len(variable_data := self.variable_data[name]) != 1:
+            return None
+
+        return list(variable_data)[0]
+
     def set_runtime_state(
         self, status: RuntimeStateType, stream: Stream | None = None
     ) -> None:
@@ -320,13 +350,16 @@ class CellImpl:
     ) -> None:
         self._run_result_status.state = run_result_status
 
-    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
+    def set_stale(
+        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
+    ) -> None:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(
-            cell_id=self.cell_id, stale=stale, stream=stream
-        )
+        if broadcast:
+            CellOp.broadcast_stale(
+                cell_id=self.cell_id, stale=stale, stream=stream
+            )
 
     def set_output(self, output: Any) -> None:
         self._output.output = output
@@ -371,6 +404,9 @@ class Cell:
 
     # Number of reserved arguments for pytest
     _pytest_reserved: set[str] = dataclasses.field(default_factory=set)
+
+    # Whether to expose this cell as a test cell.
+    _test_allowed: bool = False
 
     @property
     def name(self) -> str:
@@ -439,6 +475,14 @@ class Cell:
             {as_html(list(self.defs))}
             """
         )
+
+    # The property __test__ is picked up by nose and pytest.
+    # We have the compiler mark if the cell name starts with test_
+    # _or_, is comprised of only tests; allowing for testing suites to
+    # collect this cell.
+    @property
+    def __test__(self) -> bool:
+        return self._test_allowed
 
     def _register_app(self, app: InternalApp) -> None:
         self._app = app
@@ -559,7 +603,7 @@ class Cell:
             raise e.__cause__ from None  # type: ignore
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        # TODO: Expand for top level modules when/ if the time comes.
+        # TODO: Expand for toplevel modules when the time comes.
         arg_names = sorted(
             self._cell.refs - set(globals()["__builtins__"].keys())
         )

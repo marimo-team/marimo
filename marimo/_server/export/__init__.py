@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, Union, cast
 
 from marimo._cli.print import echo
+from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
@@ -23,6 +25,7 @@ from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
+from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -182,9 +185,7 @@ async def run_app_then_export_as_reactive_html(
     path: MarimoPath,
     include_code: bool,
 ) -> ExportResult:
-    import os
-
-    from marimo._islands.island_generator import MarimoIslandGenerator
+    from marimo._islands._island_generator import MarimoIslandGenerator
 
     generator = MarimoIslandGenerator.from_file(
         path.absolute_name, display_code=include_code
@@ -211,7 +212,7 @@ async def run_app_until_completion(
     class DefaultSessionConsumer(SessionConsumer):
         def __init__(self) -> None:
             self.did_error = False
-            super().__init__(consumer_id="default")
+            super().__init__(consumer_id=ConsumerId("default"))
 
         def on_start(
             self,
@@ -258,11 +259,17 @@ async def run_app_until_completion(
         current_path=file_manager.path
     ).with_overrides(
         {
-            "runtime": {
-                "on_cell_change": "autorun",
-                "auto_instantiate": True,
-                "auto_reload": "off",
-            }
+            "runtime": cast(
+                RuntimeConfig,
+                {
+                    "on_cell_change": "autorun",
+                    "auto_instantiate": True,
+                    "auto_reload": "off",
+                    "watcher_on_save": "lazy",
+                    # We cast because we don't want to override the other
+                    # config values
+                },
+            ),
         }
     )
 
@@ -280,7 +287,7 @@ async def run_app_until_completion(
             cli_args=cli_args,
         ),
         app_file_manager=file_manager,
-        user_config_manager=config_manager,
+        config_manager=config_manager,
         virtual_files_supported=False,
         redirect_console_to_browser=False,
         ttl_seconds=None,

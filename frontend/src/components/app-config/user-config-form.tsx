@@ -48,9 +48,10 @@ import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
+import { getMarimoVersion } from "@/core/dom/marimo-tag";
+import { OptionalFeatures } from "./optional-features";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
-
 const categories = [
   {
     id: "editor",
@@ -81,6 +82,12 @@ const categories = [
     label: "AI",
     Icon: BrainIcon,
     className: "bg-[linear-gradient(45deg,var(--purple-5),var(--cyan-5))]",
+  },
+  {
+    id: "optionalDeps",
+    label: "Optional Dependencies",
+    Icon: FolderCog2,
+    className: "bg-[var(--orange-4)]",
   },
   {
     id: "labs",
@@ -1060,6 +1067,8 @@ export const UserConfigForm: React.FC = () => {
             </SettingGroup>
           </>
         );
+      case "optionalDeps":
+        return <OptionalFeatures />;
       case "labs":
         return (
           <SettingGroup title="Experimental Features">
@@ -1067,28 +1076,6 @@ export const UserConfigForm: React.FC = () => {
               ⚠️ These features are experimental and may require restarting your
               notebook to take effect.
             </p>
-            <FormField
-              control={form.control}
-              name="experimental.chat_sidebar"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Chat sidebar</FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="chat-sidebar-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental chat sidebar to ask questions with an AI
-                    assistant.
-                  </FormDescription>
-                </div>
-              )}
-            />
             <FormField
               control={form.control}
               name="experimental.inline_ai_tooltip"
@@ -1168,6 +1155,31 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             )}
+            <FormField
+              control={form.control}
+              name="experimental.reactive_tests"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Autorun Unit Tests
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="reactive-test-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental reactive pytest tests in notebook. When
+                    a cell contains only test functions and classes, marimo will
+                    automatically run relevant tests.
+                  </FormDescription>{" "}
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
@@ -1195,7 +1207,7 @@ export const UserConfigForm: React.FC = () => {
             setActiveCategory(value as SettingCategoryId)
           }
           orientation="vertical"
-          className="w-1/3 pr-4 border-r h-full overflow-auto p-6"
+          className="w-1/3 border-r h-full overflow-auto p-3"
         >
           <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
             {categories.map((category) => (
@@ -1204,19 +1216,24 @@ export const UserConfigForm: React.FC = () => {
                 value={category.id}
                 className="w-full text-left p-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground justify-start"
               >
-                <div className="flex gap-4 items-center text-lg">
+                <div className="flex gap-4 items-center text-lg overflow-hidden">
                   <span
                     className={cn(
                       category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground",
+                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground flex-shrink-0",
                     )}
                   >
                     <category.Icon className="w-4 h-4" />
                   </span>
-                  {category.label}
+                  <span className="truncate">{category.label}</span>
                 </div>
               </TabsTrigger>
             ))}
+
+            <div className="p-2 text-xs text-muted-foreground self-start">
+              <span>Version: {getMarimoVersion()}</span>
+            </div>
+
             <div className="flex-1" />
             {!isWasm() && configMessage}
           </TabsList>
@@ -1235,7 +1252,7 @@ const SettingGroup = ({
 }: { title: string; children: React.ReactNode }) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <SettingSubtitle className="text-base">{title}</SettingSubtitle>
+      <SettingSubtitle>{title}</SettingSubtitle>
       {children}
     </div>
   );

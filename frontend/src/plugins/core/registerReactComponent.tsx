@@ -380,7 +380,8 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
           sheet.href ??
           (sheet.ownerNode instanceof HTMLElement
             ? sheet.ownerNode.dataset.viteDevId
-            : undefined);
+            : undefined) ??
+          sheet.title;
         if (!sheetUniqueKey) {
           continue;
         }
@@ -474,16 +475,25 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 
 // Copy the stylesheet to the shadow root if it is local
 // or from our assetUrl (in the case of a static notebook)
+//
+// This logic is not for security reasons, but rather to
+// avoid pollution of various 3rd party stylesheets
 function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
+  // Copy local stylesheets owned by marimo
+  if (sheet.title?.startsWith("marimo")) {
+    return true;
+  }
+
   if (!sheet.href) {
     return false;
   }
 
-  // Must end with .css
+  // Must stylesheet must end with .css
   if (!sheet.href.endsWith(".css")) {
     return false;
   }
 
+  // Copy stylesheets from localhost in development mode
   if (
     sheet.href.includes("127.0.0.1") &&
     (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
@@ -491,10 +501,12 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
     return true;
   }
 
+  // Copy stylesheets from our NPM package
   if (sheet.href.includes("/@marimo-team/")) {
     return true;
   }
 
+  // Copy stylesheets served from the same origin
   return sheet.href.startsWith(window.location.origin);
 }
 

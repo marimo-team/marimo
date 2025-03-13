@@ -8,8 +8,14 @@ import inspect
 import struct
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Callable, Iterable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
+from marimo._ast.transformers import DeprivateVisitor, strip_function
+from marimo._ast.variables import (
+    get_cell_from_local,
+    if_local_then_mangle,
+    unmangle_local,
+)
 from marimo._ast.visitor import Name, ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -22,18 +28,14 @@ from marimo._runtime.primitives import (
     is_pure_function,
 )
 from marimo._runtime.state import SetFunctor, State
-from marimo._save.ast import DeprivateVisitor, strip_function
 from marimo._save.cache import Cache, CacheType
-from marimo._utils.variables import (
-    get_cell_from_local,
-    if_local_then_mangle,
-    unmangle_local,
-)
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from types import CodeType
 
-    from marimo._ast.cell import CellId_t, CellImpl
+    from marimo._ast.cell import CellImpl
     from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.loaders import Loader

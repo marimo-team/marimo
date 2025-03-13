@@ -95,6 +95,13 @@ def test_get_cell_id_by_code(cell_manager: CellManager) -> None:
     assert cell_manager.get_cell_id_by_code("nonexistent") is None
 
 
+def test_get_cell_code(cell_manager: CellManager) -> None:
+    code = "print('hello')"
+    cell_manager.register_cell("test_cell1", code, CellConfig())
+    assert cell_manager.get_cell_code("test_cell1") == code
+    assert cell_manager.get_cell_code("nonexistent") is None
+
+
 def test_register_unparsable_cell(cell_manager: CellManager) -> None:
     code = """
     def unparsable():

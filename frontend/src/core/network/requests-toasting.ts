@@ -31,6 +31,8 @@ export function createErrorToastingRequests(
     readCode: "Failed to read code",
     readSnippets: "Failed to fetch snippets",
     previewDatasetColumn: "Failed to fetch data sources",
+    previewSQLTable: "Failed to fetch SQL table",
+    previewSQLTableList: "Failed to fetch SQL table list",
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
     sendListFiles: "Failed to list files",

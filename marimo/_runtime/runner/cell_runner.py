@@ -9,10 +9,12 @@ import signal
 import threading
 import traceback
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from marimo._ast.cell import CellId_t, CellImpl
+from marimo._ast.cell import CellImpl
+from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     Error,
@@ -33,12 +35,12 @@ from marimo._runtime.executor import (
     execute_cell_async,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._utils.variables import unmangle_local
+from marimo._types.ids import CellId_t
 
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from marimo._runtime.context.types import ExecutionContext
     from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
@@ -99,16 +101,16 @@ class Runner:
 
         # injected context and hooks
         self.execution_context = execution_context
-        self.preparation_hooks: Sequence[Callable[["Runner"], Any]] = (
+        self.preparation_hooks: Sequence[Callable[[Runner], Any]] = (
             preparation_hooks or []
         )
         self.pre_execution_hooks: Sequence[
-            Callable[[CellImpl, "Runner"], Any]
+            Callable[[CellImpl, Runner], Any]
         ] = pre_execution_hooks or []
         self.post_execution_hooks: Sequence[
-            Callable[[CellImpl, "Runner", RunResult], Any]
+            Callable[[CellImpl, Runner, RunResult], Any]
         ] = post_execution_hooks or []
-        self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
+        self.on_finish_hooks: Sequence[Callable[[Runner], Any]] = (
             on_finish_hooks or []
         )
 
@@ -423,7 +425,10 @@ class Runner:
                     exception = unwrapped_exception
 
             # Handle other special runtime errors.
-            elif isinstance(unwrapped_exception, ModuleNotFoundError):
+            elif isinstance(
+                unwrapped_exception,
+                (ModuleNotFoundError, ManyModulesNotFoundError),
+            ):
                 self.missing_packages = True
 
             elif isinstance(unwrapped_exception, MarimoStopError):

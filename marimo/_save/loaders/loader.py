@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Type
+from typing import TYPE_CHECKING, Any
 
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
@@ -230,4 +230,4 @@ class BasePersistenceLoader(Loader):
         """May throw FileNotFoundError"""
 
 
-LoaderType = Type[Loader]
+LoaderType = type[Loader]

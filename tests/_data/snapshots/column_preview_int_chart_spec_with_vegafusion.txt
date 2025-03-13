@@ -1,0 +1,187 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "x",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/10)"
+      },
+      "title": "A (binned)",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelOverlap": true,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "title": "Count of Records",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "data": [
+    {
+      "name": "source_0",
+      "values": [
+        {
+          "__count": 1,
+          "bin_maxbins_10_A": 1.0,
+          "bin_maxbins_10_A_end": 1.2
+        },
+        {
+          "__count": 1,
+          "bin_maxbins_10_A": 2.0,
+          "bin_maxbins_10_A_end": 2.2
+        },
+        {
+          "__count": 1,
+          "bin_maxbins_10_A": 2.8,
+          "bin_maxbins_10_A_end": 3.0
+        }
+      ]
+    },
+    {
+      "name": "source_0_y_domain___count",
+      "values": [
+        {
+          "max": 1,
+          "min": 1
+        }
+      ]
+    }
+  ],
+  "height": 300,
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#4c78a8"
+          },
+          "x": {
+            "field": "bin_maxbins_10_A_end",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_10_A_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_A\"])) < 0.25 ? 0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_10_A_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_A\"])))) : -0.5)"
+            },
+            "scale": "x"
+          },
+          "x2": {
+            "field": "bin_maxbins_10_A",
+            "offset": {
+              "signal": "0.5 + (abs(scale(\"x\", datum[\"bin_maxbins_10_A_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_A\"])) < 0.25 ? -0.5 * (0.25 - (abs(scale(\"x\", datum[\"bin_maxbins_10_A_end\"]) - scale(\"x\", datum[\"bin_maxbins_10_A\"])))) : 0.5)"
+            },
+            "scale": "x"
+          },
+          "y": {
+            "field": "__count",
+            "scale": "y"
+          },
+          "y2": {
+            "scale": "y",
+            "value": 0
+          }
+        }
+      },
+      "from": {
+        "data": "source_0"
+      },
+      "name": "marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "bins": {
+        "signal": "bin_maxbins_10_A_bins"
+      },
+      "domain": {
+        "signal": "[bin_maxbins_10_A_bins.start, bin_maxbins_10_A_bins.stop]"
+      },
+      "name": "x",
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "linear",
+      "zero": false
+    },
+    {
+      "domain": [
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).min"
+        },
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).max"
+        }
+      ],
+      "name": "y",
+      "nice": true,
+      "range": [
+        {
+          "signal": "height"
+        },
+        0
+      ],
+      "type": "linear",
+      "zero": true
+    }
+  ],
+  "signals": [
+    {
+      "name": "bin_maxbins_10_A_bins",
+      "value": {
+        "fields": [
+          "A"
+        ],
+        "fname": "bin_A",
+        "start": 1.0,
+        "step": 0.2,
+        "stop": 3.0
+      }
+    },
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    }
+  ],
+  "style": "cell"
+}

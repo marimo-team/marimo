@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.14"
+__generated_with = "0.11.5"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import polars as pl
     from datetime import datetime, date, time
     import marimo as mo
@@ -69,27 +69,27 @@ def __():
 
 
 @app.cell
-def __(df):
+def _(df):
     pandas = df.to_pandas()
     pandas
     return (pandas,)
 
 
 @app.cell
-def __(df):
-    arrow = df.to_arrow()
-    arrow
-    return (arrow,)
+def _():
+    # arrow = df.to_arrow()
+    # arrow
+    return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     mo.ui.dataframe(df)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     import pandas as pd
 
     pandas_with_timestamp = pd.DataFrame(

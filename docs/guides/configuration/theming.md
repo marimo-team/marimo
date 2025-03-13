@@ -47,6 +47,17 @@ You can further customize your notebook by adding custom HTML in the `<head>` se
 
 See the [Custom HTML Head](html_head.md) guide for more details.
 
+## Forcing dark mode
+
+In order to force a theme for an application, you can override the marimo configuration specifically for an application using the script metadata. See the [Script Configuration](../configuration/index.md#script-metadata-configuration) for more details.
+
+```python
+# /// script
+# [tool.marimo.display]
+# theme = "dark"
+# ///
+```
+
 ## Targeting cells
 
 You can target a cell's styles from the `data-cell-name` attribute. You can also target a cell's output with the `data-cell-role="output"` attribute.

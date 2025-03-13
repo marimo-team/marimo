@@ -2,27 +2,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal, Optional
 
-from marimo._ai.types import ChatMessage
+from marimo._ai._types import ChatMessage
 
 
 @dataclass
 class SchemaColumn:
     name: str
     type: str
-    sample_values: List[Any]
+    sample_values: list[Any]
 
 
 @dataclass
 class SchemaTable:
     name: str
-    columns: List[SchemaColumn]
+    columns: list[SchemaColumn]
 
 
 @dataclass
 class AiCompletionContext:
-    schema: List[SchemaTable] = field(default_factory=list)
+    schema: list[SchemaTable] = field(default_factory=list)
 
 
 Language = Literal["python", "markdown", "sql"]
@@ -41,6 +41,6 @@ class AiCompletionRequest:
 class ChatRequest:
     context: AiCompletionContext
     include_other_code: str
-    messages: List[ChatMessage]
+    messages: list[ChatMessage]
     model: Optional[str] = None
-    variables: Optional[List[str]] = None
+    variables: Optional[list[str]] = None

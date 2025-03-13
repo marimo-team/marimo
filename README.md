@@ -8,7 +8,8 @@
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
   <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> ·
-  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
+  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a> ·
+  <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a>
 </p>
 
 <p align="center">
@@ -125,6 +126,13 @@ quality-of-life features.
 ```bash
 pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
+```
+
+To install with additional dependencies that unlock SQL cells, AI completion, and more,
+run
+
+```bash
+pip install marimo[recommended]
 ```
 
 **Create notebooks.**
@@ -262,6 +270,7 @@ We're building a community. Come hang out with us!
 - ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
 - 🦋 [Follow us on Bluesky](https://bsky.app/profile/marimo.io)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
+- 🎥 [Subscribe on YouTube](https://www.youtube.com/@marimo-team)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
 ## Inspiration ✨

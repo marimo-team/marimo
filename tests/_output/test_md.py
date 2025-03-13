@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from marimo._output.md import _md
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
+
+from marimo._output.md import _md, latex
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_md() -> None:
@@ -31,12 +37,34 @@ def test_md_code_blocks() -> None:
 
 
 def test_md_latex() -> None:
-    # Test LaTeX conversion
-    latex_input = "Here is an equation: ||(E=mc^2||)"
-    expected_output = (
-        '<span class="paragraph">Here is an equation: ||(E=mc^2||)</span>'  # noqa: E501
+    # Test inline LaTeX
+    inline_latex = "Here is an inline equation $||(E=mc^2||)$"
+    expected_inline = '<span class="paragraph">Here is an inline equation <marimo-tex class="arithmatex">||(||(E=mc^2||)||)</marimo-tex></span>'
+    assert (
+        _md(inline_latex, apply_markdown_class=False).text == expected_inline
     )
-    assert _md(latex_input, apply_markdown_class=False).text == expected_output
+
+    # Test display LaTeX
+    display_latex = "Here is a display equation:\n\n||[\nE = mc^2\n||]"
+    expected_display = '<span class="paragraph">Here is a display equation:</span>\n<span class="paragraph">||[\nE = mc^2\n||]</span>'
+    assert (
+        _md(display_latex, apply_markdown_class=False).text == expected_display
+    )
+
+    # Test multiple LaTeX expressions
+    multiple_latex = (
+        "Equation 1: ||(a^2 + b^2 = c^2||) and equation 2: ||(E=mc^2||)"
+    )
+    expected_multiple = '<span class="paragraph">Equation 1: ||(a^2 + b^2 = c^2||) and equation 2: ||(E=mc^2||)</span>'
+    assert (
+        _md(multiple_latex, apply_markdown_class=False).text
+        == expected_multiple
+    )
+
+    # Test LaTeX with markdown formatting
+    mixed_latex = "**Bold** ||(x^2||) and _italic_ ||[y = mx + b||]"
+    expected_mixed = '<span class="paragraph"><strong>Bold</strong> ||(x^2||) and <em>italic</em> ||[y = mx + b||]</span>'
+    assert _md(mixed_latex, apply_markdown_class=False).text == expected_mixed
 
 
 def test_md_links() -> None:
@@ -91,3 +119,28 @@ def test_md_repr_markdown():
     input_text = "This is **bold** and this is _italic_."
     md = _md(input_text)
     assert md._repr_markdown_() == input_text
+
+
+@patch("marimo._runtime.output")
+def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
+    filename = tmp_path / "macros.tex"
+    filename.write_text("\\newcommand{\\\foo}{bar}")
+    latex(filename=filename)
+    assert (
+        output.append.call_args[0][0].text
+        == '<span class="markdown prose dark:prose-invert"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\x0coo}{bar}\n||]</marimo-tex></span>'
+    )
+
+
+@patch("marimo._runtime.output")
+@patch("marimo._output.md.urlopen")
+def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
+    mock_response = MagicMock()
+    mock_response.read.return_value = b"\\newcommand{\\\foo}{bar}"
+    mock_urlopen.return_value.__enter__.return_value = mock_response
+
+    latex(filename="https://example.com/macros.tex")
+    assert (
+        output.append.call_args[0][0].text
+        == '<span class="markdown prose dark:prose-invert"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\foo}{bar}\n||]</marimo-tex></span>'
+    )

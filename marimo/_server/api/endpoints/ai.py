@@ -1,20 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generator, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 
 from marimo import _loggers
-from marimo._ai.convert import (
+from marimo._ai._convert import (
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_openai_messages,
 )
-from marimo._ai.types import ChatMessage
+from marimo._ai._types import ChatMessage
 from marimo._config.config import MarimoConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
@@ -26,6 +27,8 @@ from marimo._server.models.completion import (
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from anthropic import (  # type: ignore[import-not-found]
         Client,
         Stream as AnthropicStream,
@@ -53,28 +56,28 @@ LOGGER = _loggers.marimo_logger()
 # Router for file ai
 router = APIRouter()
 
+DEFAULT_MAX_TOKENS = 4096
 
-def get_openai_client(config: MarimoConfig) -> "OpenAI":
-    try:
-        from urllib.parse import parse_qs, urlparse
 
-        from openai import (  # type: ignore[import-not-found]
-            AzureOpenAI,
-            OpenAI,
-        )
-    except ImportError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="OpenAI not installed. Add 'openai' using the package installer in the sidebar.",
-        ) from None
+def get_openai_client(config: MarimoConfig) -> OpenAI:
+    DependencyManager.openai.require(why="for AI assistance with OpenAI")
+
+    from urllib.parse import parse_qs, urlparse
+
+    from openai import (  # type: ignore[import-not-found]
+        AzureOpenAI,
+        OpenAI,
+    )
 
     if "ai" not in config:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not configured"
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI API key not configured",
         )
     if "open_ai" not in config["ai"]:
         raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not configured"
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI API key not configured",
         )
     if "api_key" not in config["ai"]["open_ai"]:
         raise HTTPException(
@@ -117,14 +120,10 @@ def get_openai_client(config: MarimoConfig) -> "OpenAI":
         )
 
 
-def get_anthropic_client(config: MarimoConfig) -> "Client":
-    try:
-        from anthropic import Client  # type: ignore[import-not-found]
-    except ImportError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="Anthropic not installed. Add 'anthropic' using the package installer in the sidebar.",
-        ) from None
+def get_anthropic_client(config: MarimoConfig) -> Client:
+    DependencyManager.anthropic.require(why="for AI assistance with Anthropic")
+
+    from anthropic import Client  # type: ignore[import-not-found]
 
     if "ai" not in config:
         raise HTTPException(
@@ -162,12 +161,24 @@ def get_model(config: MarimoConfig) -> str:
     return model
 
 
+def get_max_tokens(config: MarimoConfig) -> int:
+    if "ai" not in config:
+        return DEFAULT_MAX_TOKENS
+    if "max_tokens" not in config["ai"]:
+        return DEFAULT_MAX_TOKENS
+    return config["ai"]["max_tokens"]
+
+
 def get_content(
-    response: RawMessageStreamEvent
-    | ChatCompletionChunk
-    | GenerateContentResponse,
+    response: (
+        RawMessageStreamEvent | ChatCompletionChunk | GenerateContentResponse
+    ),
 ) -> str | None:
-    if hasattr(response, "choices") and response.choices:
+    if (
+        hasattr(response, "choices")
+        and response.choices
+        and response.choices[0].delta
+    ):
         return response.choices[0].delta.content  # type: ignore
 
     if hasattr(response, "text"):
@@ -186,9 +197,11 @@ def get_content(
 
 
 def make_stream_response(
-    response: OpenAiStream[ChatCompletionChunk]
-    | AnthropicStream[RawMessageStreamEvent]
-    | GenerateContentResponse,
+    response: (
+        OpenAiStream[ChatCompletionChunk]
+        | AnthropicStream[RawMessageStreamEvent]
+        | GenerateContentResponse
+    ),
 ) -> Generator[str, None, None]:
     original_content = ""
     buffer = ""
@@ -242,9 +255,11 @@ def make_stream_response(
 
 
 def as_stream_response(
-    response: OpenAiStream[ChatCompletionChunk]
-    | AnthropicStream[RawMessageStreamEvent]
-    | GenerateContentResponse,
+    response: (
+        OpenAiStream[ChatCompletionChunk]
+        | AnthropicStream[RawMessageStreamEvent]
+        | GenerateContentResponse
+    ),
 ) -> Generator[str, None, None]:
     original_content = ""
     buffer = ""
@@ -263,17 +278,13 @@ def as_stream_response(
     LOGGER.debug(f"Completion content: {original_content}")
 
 
-def get_google_client(config: MarimoConfig, model: str) -> "GenerativeModel":
+def get_google_client(config: MarimoConfig, model: str) -> GenerativeModel:
     try:
         import google.generativeai as genai  # type: ignore[import-not-found]
     except ImportError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=(
-                "Google AI not installed. "
-                "Add 'google-generativeai' using the package installer in the sidebar."
-            ),
-        ) from None
+        DependencyManager.google_ai.require(
+            why="for AI assistance with Google AI"
+        )
 
     if "ai" not in config or "google" not in config["ai"]:
         raise HTTPException(
@@ -329,8 +340,10 @@ async def ai_completion(
     """
     app_state = AppState(request)
     app_state.require_current_session()
-    config = app_state.config_manager.get_config(hide_secrets=False)
-    body = await parse_request(request, cls=AiCompletionRequest)
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    body = await parse_request(
+        request, cls=AiCompletionRequest, allow_unknown_keys=True
+    )
     custom_rules = config.get("ai", {}).get("rules", None)
 
     prompter = Prompter(code=body.code)
@@ -348,7 +361,7 @@ async def ai_completion(
         anthropic_client = get_anthropic_client(config)
         anthropic_response = anthropic_client.messages.create(
             model=model,
-            max_tokens=1000,
+            max_tokens=get_max_tokens(config),
             messages=[
                 {
                     "role": "user",
@@ -391,7 +404,6 @@ async def ai_completion(
                 "content": prompt,
             },
         ],
-        temperature=0,
         stream=True,
         timeout=15,
     )
@@ -413,8 +425,10 @@ async def ai_chat(
     """
     app_state = AppState(request)
     app_state.require_current_session()
-    config = app_state.config_manager.get_config(hide_secrets=False)
-    body = await parse_request(request, cls=ChatRequest)
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    body = await parse_request(
+        request, cls=ChatRequest, allow_unknown_keys=True
+    )
 
     # Get the model from request or fallback to config
     model = body.model or get_model(config)
@@ -433,7 +447,7 @@ async def ai_chat(
         anthropic_client = get_anthropic_client(config)
         response = anthropic_client.messages.create(
             model=model,
-            max_tokens=1000,
+            max_tokens=get_max_tokens(config),
             messages=cast(Any, convert_to_anthropic_messages(messages)),
             system=system_prompt,
             stream=True,
@@ -469,7 +483,6 @@ async def ai_chat(
                 [ChatMessage(role="system", content=system_prompt)] + messages
             ),
         ),
-        temperature=0,
         stream=True,
         timeout=15,
     )

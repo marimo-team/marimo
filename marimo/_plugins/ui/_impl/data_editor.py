@@ -8,9 +8,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
+    Literal,
     Optional,
     TypedDict,
     Union,
@@ -41,7 +40,7 @@ class DataEditorValue:
         data (List[Dict[str, Any]]): Row-oriented data as a list of dictionaries.
     """
 
-    data: List[Dict[str, Any]]
+    data: list[dict[str, Any]]
 
 
 class PositionalEdit(TypedDict):
@@ -65,11 +64,11 @@ class DataEdits(TypedDict):
         edits (List[PositionalEdit]): List of individual cell edits.
     """
 
-    edits: List[PositionalEdit]
+    edits: list[PositionalEdit]
 
 
-RowOrientedData = List[Dict[str, Any]]
-ColumnOrientedData = Dict[str, List[Any]]
+RowOrientedData = list[dict[str, Any]]
+ColumnOrientedData = dict[str, list[Any]]
 
 
 @mddoc
@@ -123,6 +122,8 @@ class data_editor(
             Can be a Pandas dataframe, a list of dicts, or a dict of lists.
         label (str): Markdown label for the element.
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
+        column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
+            `auto` will size columns based on the content, `fit` will size columns to fit the view.
     """
 
     _name: Final[str] = "marimo-data-editor"
@@ -142,6 +143,7 @@ class data_editor(
                 None,
             ]
         ] = None,
+        column_sizing_mode: Literal["auto", "fit"] = "auto",
     ) -> None:
         validate_page_size(page_size)
         table_manager = get_table_manager(data)
@@ -165,6 +167,7 @@ class data_editor(
                 "field-types": field_types or None,
                 "pagination": pagination,
                 "page-size": page_size,
+                "column-sizing-mode": column_sizing_mode,
             },
             on_change=on_change,
         )

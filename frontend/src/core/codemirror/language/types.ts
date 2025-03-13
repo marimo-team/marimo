@@ -3,7 +3,6 @@ import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { Extension } from "@codemirror/state";
 import type { PlaceholderType } from "../config/extension";
-import type { MovementCallbacks } from "../cells/extensions";
 import type { CellId } from "@/core/cells/ids";
 
 /**
@@ -22,7 +21,6 @@ export interface LanguageAdapter {
     completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
-    movementCallbacks: MovementCallbacks,
     lspConfig: LSPConfig,
   ): Extension[];
 }

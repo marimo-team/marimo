@@ -10,14 +10,11 @@ from collections import deque
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterable,
-    Iterator,
     Optional,
     Protocol,
 )
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
 from marimo._messaging.mimetypes import KnownMimeType
@@ -29,13 +26,16 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._server.types import QueueType
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     import queue
+    from collections.abc import Iterable, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
-# Byte limits on outputs. Limits exist for two reasons:
+
+# Byte limits on outputs exist for two reasons
 #
 # 1. We use a multiprocessing.Connection object to send outputs from
 #    the kernel to the server (the server then sends the output to
@@ -53,12 +53,24 @@ LOGGER = _loggers.marimo_logger()
 # Usually users only output gigantic things accidentally, so refusing
 # to show large outputs should in most cases not bother the user too much.
 # In any case, it's better than breaking the frontend/kernel.
-#
-# Output not shown if larger than OUTPUT_MAX_BYTES=5MB
-OUTPUT_MAX_BYTES = int(os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000))
 
-# Standard stream truncated if larger than STD_STREAM_MAX_BYTES=1MB
-STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
+
+def output_max_bytes() -> int:
+    from marimo._runtime.context import ContextNotInitializedError, get_context
+
+    try:
+        return get_context().marimo_config["runtime"]["output_max_bytes"]
+    except ContextNotInitializedError:
+        return 5_000_000
+
+
+def std_stream_max_bytes() -> int:
+    from marimo._runtime.context import ContextNotInitializedError, get_context
+
+    try:
+        return get_context().marimo_config["runtime"]["std_stream_max_bytes"]
+    except ContextNotInitializedError:
+        return 1_000_000
 
 
 class PipeProtocol(Protocol):
@@ -228,13 +240,14 @@ class ThreadSafeStdout(Stdout):
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
-        if sys.getsizeof(data) > STD_STREAM_MAX_BYTES:
+        max_bytes = std_stream_max_bytes()
+        if sys.getsizeof(data) > max_bytes:
             sys.stderr.write(
                 "Warning: marimo truncated a very large console output.\n"
             )
-            data = data[: int(STD_STREAM_MAX_BYTES)] + " ... "
+            data = data[: int(max_bytes)] + " ... "
         self._stream.console_msg_queue.append(
             ConsoleMsg(
                 stream=CellChannel.STDOUT,
@@ -291,12 +304,13 @@ class ThreadSafeStderr(Stderr):
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
-        if sys.getsizeof(data) > STD_STREAM_MAX_BYTES:
+        max_bytes = std_stream_max_bytes()
+        if sys.getsizeof(data) > max_bytes:
             data = (
                 "Warning: marimo truncated a very large console output.\n"
-                + data[: int(STD_STREAM_MAX_BYTES)]
+                + data[: int(max_bytes)]
                 + " ... "
             )
 
@@ -342,12 +356,14 @@ class ThreadSafeStdin(Stdin):
         assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
-                "prompt must be a str, not %s" % type(prompt).__name__
+                f"prompt must be a str, not {type(prompt).__name__}"
             )
-        if sys.getsizeof(prompt) > STD_STREAM_MAX_BYTES:
+
+        max_bytes = std_stream_max_bytes()
+        if sys.getsizeof(prompt) > max_bytes:
             prompt = (
                 "Warning: marimo truncated a very large console output.\n"
-                + prompt[: int(STD_STREAM_MAX_BYTES)]
+                + prompt[: int(max_bytes)]
                 + " ... "
             )
 

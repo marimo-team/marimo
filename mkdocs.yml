@@ -22,6 +22,8 @@ extra:
       link: https://www.linkedin.com/company/marimo-io
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/marimo/
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/@marimo-team
 extra_css:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.9.0/katex.min.css
   - stylesheets/extra.css
@@ -110,6 +112,7 @@ nav:
           - Embedding: guides/publishing/embedding.md
           - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
+          - Cloudflare Pages: guides/publishing/cloudflare_pages.md
           - Online playground: guides/publishing/playground.md
           - Community Cloud: guides/publishing/community_cloud/index.md
           - Self-host WASM: guides/publishing/self_host_wasm.md
@@ -132,6 +135,7 @@ nav:
           - Runtime configuration: guides/configuration/runtime_configuration.md
           - HTML head: guides/configuration/html_head.md
           - Theming: guides/configuration/theming.md
+          - Snippets: guides/configuration/snippets.md
       - Coming from other tools:
           - Coming from other tools: guides/coming_from/index.md
           - Jupytext: guides/coming_from/jupytext.md

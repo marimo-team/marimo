@@ -2,8 +2,8 @@
 
 export const DEFAULT_CELL_NAME = "_";
 
-// Generated with `python scripts/print_banned_cell_names.py`
 const DISALLOWED_NAMES = new Set([
+  // Generated with `python scripts/print_banned_cell_names.py`
   "__*",
   "marimo",
   "app",
@@ -44,6 +44,8 @@ const DISALLOWED_NAMES = new Set([
   "with",
   "yield",
   "None",
+  // Special case for the setup cell
+  "setup",
 ]);
 
 /**

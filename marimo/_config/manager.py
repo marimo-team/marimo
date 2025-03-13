@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from abc import abstractmethod
+from pathlib import Path
 from typing import Optional, Union, cast
 
 from marimo import _loggers
@@ -10,11 +11,22 @@ from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
     PartialMarimoConfig,
+    Theme,
+    WidthType,
     merge_config,
     merge_default_config,
 )
-from marimo._config.reader import read_marimo_config, read_pyproject_config
-from marimo._config.secrets import mask_secrets, remove_secret_placeholders
+from marimo._config.packages import PackageManagerKind
+from marimo._config.reader import (
+    get_marimo_config_from_pyproject_dict,
+    read_marimo_config,
+    read_pyproject_marimo_config,
+)
+from marimo._config.secrets import (
+    mask_secrets,
+    mask_secrets_partial,
+    remove_secret_placeholders,
+)
 from marimo._config.utils import (
     get_or_create_user_config_path,
 )
@@ -25,21 +37,45 @@ LOGGER = _loggers.marimo_logger()
 def get_default_config_manager(
     *, current_path: Optional[str]
 ) -> MarimoConfigManager:
+    """
+    Get the default config manager
+
+    Args:
+        current_path: The current path of the notebook, or a directory.
+        If the current path is a notebook, the config manager will read the
+        project configuration from the notebook following PEP 723.
+    """
     # Current path should be the notebook file
     # If it's not known, use the current working directory
     if current_path is None:
         current_path = os.getcwd()
+
     return MarimoConfigManager(
-        UserConfigManager(), ProjectConfigManager(current_path)
+        UserConfigManager(),
+        ProjectConfigManager(current_path),
+        ScriptConfigManager(current_path),
     )
 
 
-@abstractmethod
 class MarimoConfigReader:
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, optionally hiding secrets"""
         pass
+
+    # Convenience methods for common access patterns
+
+    @property
+    def default_width(self) -> WidthType:
+        return self.get_config()["display"]["default_width"]
+
+    @property
+    def theme(self) -> Theme:
+        return self.get_config()["display"]["theme"]
+
+    @property
+    def package_manager(self) -> PackageManagerKind:
+        return self.get_config()["package_management"]["manager"]
 
 
 class MarimoConfigManager(MarimoConfigReader):
@@ -110,7 +146,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
 
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         try:
-            project_config = read_pyproject_config(self.start_path)
+            project_config = read_pyproject_marimo_config(self.start_path)
             if project_config is None:
                 return {}
         except Exception as e:
@@ -118,8 +154,48 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             return {}
 
         if hide_secrets:
-            return cast(PartialMarimoConfig, mask_secrets(project_config))
+            return mask_secrets_partial(project_config)
         return project_config
+
+
+class ScriptConfigManager(PartialMarimoConfigReader):
+    """Read the script configuration following PEP 723
+
+    This looks like a pyproject.toml serialized as a comment in the header
+    of the script.
+    """
+
+    def __init__(self, filename: Optional[str]) -> None:
+        self.filename = filename
+
+    def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
+        if self.filename is None:
+            return {}
+        try:
+            filepath = Path(self.filename)
+            if not filepath.is_file():
+                return {}
+
+            from marimo._utils.scripts import read_pyproject_from_script
+
+            script_content = filepath.read_text(encoding="utf-8")
+            script_config = read_pyproject_from_script(script_content)
+            if script_config is None:
+                return {}
+
+            marimo_config = get_marimo_config_from_pyproject_dict(
+                script_config
+            )
+            if marimo_config is None:
+                return {}
+
+        except Exception as e:
+            LOGGER.warning("Failed to read script config: %s", e)
+            return {}
+
+        if hide_secrets:
+            return mask_secrets_partial(marimo_config)
+        return marimo_config
 
 
 class UserConfigManager(MarimoConfigReader):
@@ -194,7 +270,5 @@ class MarimoConfigReaderWithOverrides(PartialMarimoConfigReader):
 
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         if hide_secrets:
-            return cast(
-                PartialMarimoConfig, mask_secrets(self.override_config)
-            )
+            return mask_secrets_partial(self.override_config)
         return self.override_config

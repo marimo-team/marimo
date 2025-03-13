@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from marimo._ast.transformers import NameTransformer
+from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 
 
 @pytest.mark.skipif(
@@ -81,3 +81,16 @@ def test_name_transformer_no_changes() -> None:
 
     assert new_code.strip() == code.strip()
     assert not transformer.made_changes
+
+
+def test_import_transformer_strip() -> None:
+    code = """
+import thing.marimo # Only line that's reasonable.
+import marimo
+import thing as marimo
+from thing.thing import marimo
+from thing import m as marimo
+    """
+
+    stripped = RemoveImportTransformer("marimo").strip_imports(code)
+    assert stripped == "import thing.marimo"

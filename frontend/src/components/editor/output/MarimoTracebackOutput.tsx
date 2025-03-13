@@ -19,6 +19,7 @@ import {
   SearchIcon,
   MessageCircleIcon,
   HelpCircleIcon,
+  CopyIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
@@ -32,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { copyToClipboard } from "@/utils/copy";
 
 interface Props {
   traceback: string;
@@ -136,6 +138,18 @@ export const MarimoTracebackOutput = ({
                 <ExternalLinkIcon className="h-3 w-3 ml-auto" />
               </a>
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                // Strip HTML from the traceback
+                const div = document.createElement("div");
+                div.innerHTML = traceback;
+                const textContent = div.textContent || "";
+                copyToClipboard(textContent);
+              }}
+            >
+              <CopyIcon className="h-4 w-4 mr-2" />
+              Copy to clipboard
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -172,7 +186,7 @@ const elementContainsMarimoCellFile = (domNode: Element) => {
 export const replaceTracebackFilenames = (domNode: DOMNode) => {
   // The traceback can be manipulated either in output render or in the pygments
   // parser. pygments extracts tokens and maps them to tags, but has no
-  // inherient knowledge of the traceback structure, so the methodology would
+  // inherent knowledge of the traceback structure, so the methodology would
   // have to be similar. Moreover, the client side "cell-id" is particular to
   // frontend, so frontend handling would have to occur anyway.
   //

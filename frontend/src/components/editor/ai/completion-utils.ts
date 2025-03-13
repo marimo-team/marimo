@@ -1,11 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { datasetTablesAtom } from "@/core/datasets/state";
+import { allTablesAtom } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
-import { Maps } from "@/utils/maps";
 import {
   autocompletion,
   type Completion,
@@ -42,8 +41,7 @@ export function getAICompletionBody(
  * Datasets are referenced with @<dataset_name> in the input.
  */
 function extractDatasets(input: string): DataTable[] {
-  const datasets = store.get(datasetTablesAtom);
-  const existingDatasets = Maps.keyBy(datasets, (dataset) => dataset.name);
+  const allTables = store.get(allTablesAtom);
 
   // Extract dataset mentions from the input
   const mentionedDatasets = input.match(/@([\w.]+)/g) || [];
@@ -51,7 +49,7 @@ function extractDatasets(input: string): DataTable[] {
   // Filter to only include datasets that exist
   return mentionedDatasets
     .map((mention) => mention.slice(1))
-    .map((name) => existingDatasets.get(name))
+    .map((name) => allTables.get(name))
     .filter(Boolean);
 }
 

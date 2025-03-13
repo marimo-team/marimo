@@ -1,19 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 
 class _HTMLBuilder:
     @staticmethod
     def div(
-        children: Union[str, List[str]], *, style: Optional[str] = None
+        children: Union[str, list[str]], *, style: Optional[str] = None
     ) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if style:
             params.append(("style", style))
 
@@ -31,7 +31,7 @@ class _HTMLBuilder:
         alt: Optional[str] = None,
         style: Optional[str] = None,
     ) -> str:
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if alt:
@@ -54,7 +54,7 @@ class _HTMLBuilder:
         loop: bool = False,
         style: Optional[str] = None,
     ) -> str:
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if controls:
@@ -79,7 +79,7 @@ class _HTMLBuilder:
         src: Optional[str] = None,
         controls: bool = True,
     ) -> str:
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if controls:
@@ -103,7 +103,7 @@ class _HTMLBuilder:
         frameborder: Optional[str] = "0",
         **kwargs: str,
     ) -> str:
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if srcdoc:
@@ -128,7 +128,7 @@ class _HTMLBuilder:
 
     @staticmethod
     def pre(child: str, style: Optional[str] = None) -> str:
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if style is not None:
             params.append(("style", style))
 
@@ -140,7 +140,7 @@ class _HTMLBuilder:
     @staticmethod
     def component(
         component_name: str,
-        params: List[Tuple[str, Union[str, None]]],
+        params: list[tuple[str, Union[str, None]]],
     ) -> str:
         if len(params) == 0:
             return f"<{component_name}></{component_name}>"
@@ -151,13 +151,13 @@ class _HTMLBuilder:
 
     @staticmethod
     def figure(
-        children: Union[str, List[str]], *, style: Optional[str] = None
+        children: Union[str, list[str]], *, style: Optional[str] = None
     ) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if style:
             params.append(("style", style))
 
@@ -170,13 +170,13 @@ class _HTMLBuilder:
 
     @staticmethod
     def figcaption(
-        children: Union[str, List[str]], *, style: Optional[str] = None
+        children: Union[str, list[str]], *, style: Optional[str] = None
     ) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: List[Tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, Union[str, None]]] = []
         if style:
             params.append(("style", style))
 
@@ -188,7 +188,7 @@ class _HTMLBuilder:
             return f"<figcaption {_join_params(params)}>{children_html}</figcaption>"
 
 
-def _join_params(params: List[Tuple[str, Union[str, None]]]) -> str:
+def _join_params(params: list[tuple[str, Union[str, None]]]) -> str:
     # Filter None
     params = [(k, v) for k, v in params if v is not None]
 
