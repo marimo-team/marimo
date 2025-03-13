@@ -1,16 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  expect,
-  describe,
-  it,
-  beforeAll,
-  afterAll,
-  afterEach,
-  beforeEach,
-} from "vitest";
+import { expect, describe, it, afterAll, afterEach, beforeEach } from "vitest";
 import { SQLCompletionStore, SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import {
   dataSourceConnectionsAtom,
   DEFAULT_ENGINE,
@@ -22,13 +13,6 @@ import { PostgreSQL } from "@codemirror/lang-sql";
 const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
-  beforeAll(() => {
-    store.set(capabilitiesAtom, {
-      sql: true,
-      terminal: true,
-    });
-  });
-
   describe("transformIn", () => {
     afterAll(() => {
       adapter.engine = DEFAULT_ENGINE;
