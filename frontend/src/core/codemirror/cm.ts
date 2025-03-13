@@ -113,7 +113,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
-    lintGutter(),
+    getFeatureFlag("lsp") ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({
