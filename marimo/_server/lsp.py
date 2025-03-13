@@ -218,7 +218,7 @@ class CompositeLspServer(LspServer):
 
 
 if DependencyManager.pylsp.has():
-    from pylsp import hookimpl  # type: ignore[import-untyped]
+    from pylsp import hookimpl  # type: ignore[import-untyped,import-not-found]
 
     @hookimpl(tryfirst=True)  # type: ignore[misc]
     def pylsp_hover(
