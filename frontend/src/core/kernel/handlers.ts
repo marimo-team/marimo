@@ -18,7 +18,6 @@ import { AppConfigSchema, type AppConfig } from "../config/config-schema";
 import { type CellData, createCell } from "../cells/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type { CellId, UIElementId } from "../cells/ids";
-import { isWasm } from "../wasm/utils";
 
 export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,
@@ -95,11 +94,7 @@ export function handleKernelReady(
   if (parsedAppConfig.success) {
     setAppConfig(parsedAppConfig.data);
   }
-  setCapabilities({
-    ...capabilities,
-    // always enable sql if wasm
-    sql: capabilities.sql || isWasm(),
-  });
+  setCapabilities(capabilities);
 
   // If resumed, we don't need to instantiate the UI elements,
   // and we should read in th existing values from the kernel.

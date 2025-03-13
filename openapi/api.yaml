@@ -1076,12 +1076,9 @@ components:
           type: object
         capabilities:
           properties:
-            sql:
-              type: boolean
             terminal:
               type: boolean
           required:
-          - sql
           - terminal
           type: object
         cell_ids:

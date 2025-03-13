@@ -2584,7 +2584,6 @@ export interface components {
         width: "normal" | "compact" | "medium" | "full";
       };
       capabilities: {
-        sql: boolean;
         terminal: boolean;
       };
       cell_ids: string[];

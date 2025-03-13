@@ -19,7 +19,7 @@ export const SettingSubtitle: React.FC<HTMLProps<HTMLDivElement>> = ({
     <div
       {...props}
       className={cn(
-        "text-sm font-semibold underline-offset-2 text-accent-foreground uppercase tracking-wide",
+        "text-base font-semibold underline-offset-2 text-accent-foreground uppercase tracking-wide",
         className,
       )}
     >

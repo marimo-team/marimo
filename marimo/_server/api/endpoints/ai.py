@@ -15,6 +15,7 @@ from marimo._ai._convert import (
 )
 from marimo._ai._types import ChatMessage
 from marimo._config.config import MarimoConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.prompts import Prompter
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
@@ -59,18 +60,14 @@ DEFAULT_MAX_TOKENS = 4096
 
 
 def get_openai_client(config: MarimoConfig) -> OpenAI:
-    try:
-        from urllib.parse import parse_qs, urlparse
+    DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
-        from openai import (  # type: ignore[import-not-found]
-            AzureOpenAI,
-            OpenAI,
-        )
-    except ImportError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="OpenAI not installed. Add 'openai' using the package installer in the sidebar.",
-        ) from None
+    from urllib.parse import parse_qs, urlparse
+
+    from openai import (  # type: ignore[import-not-found]
+        AzureOpenAI,
+        OpenAI,
+    )
 
     if "ai" not in config:
         raise HTTPException(
@@ -124,13 +121,9 @@ def get_openai_client(config: MarimoConfig) -> OpenAI:
 
 
 def get_anthropic_client(config: MarimoConfig) -> Client:
-    try:
-        from anthropic import Client  # type: ignore[import-not-found]
-    except ImportError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="Anthropic not installed. Add 'anthropic' using the package installer in the sidebar.",
-        ) from None
+    DependencyManager.anthropic.require(why="for AI assistance with Anthropic")
+
+    from anthropic import Client  # type: ignore[import-not-found]
 
     if "ai" not in config:
         raise HTTPException(
@@ -289,13 +282,9 @@ def get_google_client(config: MarimoConfig, model: str) -> GenerativeModel:
     try:
         import google.generativeai as genai  # type: ignore[import-not-found]
     except ImportError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=(
-                "Google AI not installed. "
-                "Add 'google-generativeai' using the package installer in the sidebar."
-            ),
-        ) from None
+        DependencyManager.google_ai.require(
+            why="for AI assistance with Google AI"
+        )
 
     if "ai" not in config or "google" not in config["ai"]:
         raise HTTPException(

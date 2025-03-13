@@ -68,7 +68,7 @@ class DuckDBEngine(SQLEngine):
         elif DependencyManager.pandas.has():
             return relation.df()
         else:
-            raise_df_import_error("polars")
+            raise_df_import_error("polars[pyarrow]")
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
@@ -145,7 +145,7 @@ class SQLAlchemyEngine(SQLEngine):
         if not (
             DependencyManager.polars.has() or DependencyManager.pandas.has()
         ):
-            raise_df_import_error("polars")
+            raise_df_import_error("polars[pyarrow]")
 
         from sqlalchemy import text
 

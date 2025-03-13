@@ -11,7 +11,6 @@ import {
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
   dataConnectionsMapAtom,
@@ -116,11 +115,6 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
-    const sqlCapabilities = store.get(capabilitiesAtom).sql;
-    if (!sqlCapabilities) {
-      return false;
-    }
-
     if (pythonCode.trim() === "") {
       return true;
     }
