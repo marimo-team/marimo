@@ -36,7 +36,7 @@ const PyodideLoaderInner: React.FC<PropsWithChildren> = ({ children }) => {
     return <WasmSpinner />;
   }
 
-  // If we:
+  // If ALL are true:
   // - are in read mode
   // - we are not showing the code
   // - and there is no output
@@ -54,7 +54,7 @@ const PyodideLoaderInner: React.FC<PropsWithChildren> = ({ children }) => {
 };
 
 function isCodeHidden() {
-  // Code is hidden if:
+  // Code is hidden if ANY are true:
   // - the query param is set to false
   // - the marimo-code html-tag has data-show-code="false"
   return (
