@@ -49,7 +49,11 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { StopButton } from "@/components/editor/cell/StopButton";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
-import { HelpCircleIcon, MoreHorizontalIcon, SquareFunctionIcon } from "lucide-react";
+import {
+  HelpCircleIcon,
+  MoreHorizontalIcon,
+  SquareFunctionIcon,
+} from "lucide-react";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { cn } from "@/utils/cn";
 import { isErrorMime } from "@/core/mime";
@@ -559,7 +563,6 @@ const EditableCellComponent = ({
     stopped,
   });
 
-
   const needsRun =
     edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
@@ -823,24 +826,25 @@ const EditableCellComponent = ({
             {cellOutput === "below" && outputArea}
             {serialization && (
               <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
-              <Tooltip
-                content={
-                  <span className="max-w-16">
-                      {serialization}
-                  </span>
-                }
-              >
-              {serialization.toLowerCase() == "valid" && (<SquareFunctionIcon
-                  size={16}
-                  strokeWidth={1.5}
-                  className="rounded-lg text-muted-foreground"
-                />) || (<HelpCircleIcon
-                  size={16}
-                  strokeWidth={1.5}
-                  className="rounded-lg text-muted-foreground"
-                />)}
-              </Tooltip>
-            </div>)}
+                <Tooltip
+                  content={<span className="max-w-16">{serialization}</span>}
+                >
+                  {(serialization.toLowerCase() == "valid" && (
+                    <SquareFunctionIcon
+                      size={16}
+                      strokeWidth={1.5}
+                      className="rounded-lg text-muted-foreground"
+                    />
+                  )) || (
+                    <HelpCircleIcon
+                      size={16}
+                      strokeWidth={1.5}
+                      className="rounded-lg text-muted-foreground"
+                    />
+                  )}
+                </Tooltip>
+              </div>
+            )}
             <ConsoleOutput
               consoleOutputs={consoleOutputs}
               stale={consoleOutputStale}
