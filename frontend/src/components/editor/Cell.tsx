@@ -829,7 +829,7 @@ const EditableCellComponent = ({
                 <Tooltip
                   content={<span className="max-w-16">{serialization}</span>}
                 >
-                  {(serialization.toLowerCase() == "valid" && (
+                  {(serialization.toLowerCase() === "valid" && (
                     <SquareFunctionIcon
                       size={16}
                       strokeWidth={1.5}
