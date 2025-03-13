@@ -432,6 +432,7 @@ banned-module-level-imports = [
     "ipython",
     "anywidget",
     "packaging",
+    "typing_extensions",
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
