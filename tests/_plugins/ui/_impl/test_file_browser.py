@@ -86,7 +86,7 @@ def test_path_method() -> None:
 
 
 @pytest.mark.skipif(
-    sys.version_info <= (3, 11), reason="Only works with Python 3.12+"
+    sys.version_info <= (3, 12), reason="Only works with Python 3.12+"
 )
 def test_extended_path_class(tmp_path: Path) -> None:
     class CustomPath(Path):
