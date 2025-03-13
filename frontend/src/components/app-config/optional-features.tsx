@@ -106,7 +106,11 @@ export const OptionalFeatures: React.FC = () => {
     <div className="flex-1 flex flex-col overflow-hidden gap-2">
       <SettingSubtitle>Optional Features</SettingSubtitle>
       <p className="text-sm text-muted-foreground">
-        Install these packages to enable additional features in Marimo.
+        marimo is lightweight, with few dependencies, to maximize compatibility
+        with your own environments.
+        <br />
+        To unlock additional features in the marimo editor, you can install
+        these optional dependencies:
       </p>
       <Table>
         <TableHeader>
