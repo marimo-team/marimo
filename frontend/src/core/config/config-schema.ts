@@ -165,9 +165,7 @@ export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 
-export const AppTitleSchema = z.string().regex(/^[\w '-]*$/, {
-  message: "Invalid application title",
-});
+export const AppTitleSchema = z.string();
 export const AppConfigSchema = z
   .object({
     width: z
