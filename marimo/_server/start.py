@@ -9,7 +9,7 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import get_default_config_manager
-from marimo._config.settings import GlobalSettings
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer
@@ -131,7 +131,7 @@ def start(
         )
         LOGGER.info("Watch mode enabled, auto-save is disabled")
 
-    if GlobalSettings.MANAGE_SCRIPT_METADATA:
+    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         config_reader = config_reader.with_overrides(
             {
                 # Currently, only uv is supported for managing script metadata

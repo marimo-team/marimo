@@ -408,15 +408,6 @@ describe("NotebookLanguageServerClient", () => {
             },
             {
               range: {
-                start: { line: 1, character: 0 },
-                end: { line: 1, character: 4 },
-              },
-              code: "E402", // Skipped diagnostic
-              message: "Cell 1.b diagnostic",
-              severity: LSP.DiagnosticSeverity.Error,
-            },
-            {
-              range: {
                 start: { line: 2, character: 0 },
                 end: { line: 2, character: 4 },
               },

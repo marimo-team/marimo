@@ -8,7 +8,7 @@ from typing import Any, Optional, cast
 
 from marimo import _loggers
 from marimo._config.config import CompletionConfig, LanguageServersConfig
-from marimo._config.settings import GlobalSettings
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
     Alert,
@@ -67,7 +67,9 @@ class BaseLspServer(LspServer):
                 return None
 
             file_out = (
-                None if GlobalSettings.DEVELOPMENT_MODE else subprocess.DEVNULL
+                None
+                if GLOBAL_SETTINGS.DEVELOPMENT_MODE
+                else subprocess.DEVNULL
             )
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(

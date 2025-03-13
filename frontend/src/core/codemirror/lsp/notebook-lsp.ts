@@ -311,11 +311,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
           return previousProcessNotification(notification);
         }
 
-        // Filter out ignored diagnostics
-        // Keep it if there is no code
-        const diagnostics = notification.params.diagnostics.filter(
-          (diag) => !diag.code || !IGNORED_DIAGNOSTICS.has(diag.code),
-        );
+        const diagnostics = notification.params.diagnostics;
 
         // If diagnostics are empty, we can just clear them for all cells
         if (diagnostics.length === 0) {
@@ -380,7 +376,3 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     this.client.processNotification = processNotification;
   }
 }
-
-const IGNORED_DIAGNOSTICS = new Set<string | number>([
-  "E402", // Module level import not at top of file
-]);
