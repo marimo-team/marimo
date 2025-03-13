@@ -22,6 +22,7 @@ import { cn } from "@/utils/cn";
 import { Label } from "@/components/ui/label";
 import { PluralWords } from "@/utils/pluralize";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
+import { getProtocolAndParentDirectories } from "@/utils/pathUtils";
 
 /**
  * Arguments for a file browser component.
@@ -359,26 +360,12 @@ export const FileBrowser = ({
   //
   // Assumes that path contains at least one delimiter, which is true
   // only if this is an absolute path.
-  const protocolMatch = path.match(/^[A-Za-z]+:\/\//);
-  const protocol = protocolMatch ? protocolMatch[0] : "/";
-  const pathWithoutProtocol = protocol ? path.slice(protocol.length) : path;
-
-  const directories = pathWithoutProtocol
-    .split(delimiter)
-    .filter((x) => x !== "");
-  directories.push(pathWithoutProtocol);
-
-  let parentDirectories = directories.map((dir, index) => {
-    const dirList = directories.slice(0, index);
-    return `${protocol}${dirList.join(delimiter)}`;
-  });
-
-  if (restrictNavigation) {
-    parentDirectories = parentDirectories.filter((x) =>
-      x.startsWith(initialPath),
-    );
-  }
-  parentDirectories.reverse();
+  const { parentDirectories } = getProtocolAndParentDirectories(
+    path,
+    delimiter,
+    initialPath,
+    restrictNavigation,
+  );
 
   const selectionKindLabel =
     selectionMode === "all"
