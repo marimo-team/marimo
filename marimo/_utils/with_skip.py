@@ -11,12 +11,11 @@ from typing import (
     Union,
 )
 
-from typing_extensions import Self
-
 if TYPE_CHECKING:
     from types import FrameType
 
     from _typeshed import TraceFunction
+    from typing_extensions import Self
 
 
 class SkipContext(ABC):
