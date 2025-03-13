@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -100,26 +101,16 @@ def test_pylsp_server():
     assert "Python LSP" in alert.title
 
 
-@pytest.mark.skipif(
-    not DependencyManager.which("node"),
-    reason="node is not installed",
-)
 def test_copilot_server():
     server = CopilotLspServer(port=8000)
     assert server.binary_name() == "node"
-    assert "node" in server.get_command()
-    assert str(8000) in server.get_command()
+    if Path(server._lsp_bin()).exists():
+        assert "node" in server.get_command()
+        assert str(8000) in server.get_command()
+    else:
+        assert server.get_command() == ""
     alert = server.missing_binary_alert()
     assert "GitHub Copilot" in alert.title
-
-
-@pytest.mark.skipif(
-    DependencyManager.which("node"),
-    reason="Expected node to be missing",
-)
-def test_copilot_server_missing_binary():
-    server = CopilotLspServer(port=8000)
-    assert server.get_command() == ""
 
 
 def test_composite_server():

@@ -124,11 +124,15 @@ class CopilotLspServer(BaseLspServer):
     def binary_name(self) -> str:
         return "node"
 
-    def get_command(self) -> str:
+    def _lsp_bin(self) -> str:
         lsp_bin = os.path.join(
             str(import_files("marimo").joinpath("_lsp")),
             "index.js",
         )
+        return lsp_bin
+
+    def get_command(self) -> str:
+        lsp_bin = self._lsp_bin()
         # Check if the LSP binary exists
         if not os.path.exists(lsp_bin):
             # Only debug since this may not exist in conda environments
