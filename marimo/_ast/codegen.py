@@ -304,7 +304,7 @@ def generate_filecontents(
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
     header_comments: Optional[str] = None,
-    _toplevel_fn=False,
+    _toplevel_fn: bool = False,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
     # Until an appropriate means of controlling top-level functions exists,
