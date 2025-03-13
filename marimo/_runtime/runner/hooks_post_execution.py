@@ -1,11 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 import sys
 from typing import Callable
 
-import marimo
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._ast.toplevel import TopLevelExtraction
