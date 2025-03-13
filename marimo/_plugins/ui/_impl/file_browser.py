@@ -154,6 +154,7 @@ class file_browser(
         self.initial_path: Path = initial_path
         self.limit = limit
 
+        self.path_cls: type[Path]
         if isinstance(initial_path, str):
             self.path_cls = Path
         else:
@@ -253,7 +254,7 @@ class file_browser(
         else:
             return self.value[index].name
 
-    def path(self, index: int = 0) -> Optional[str]:
+    def path(self, index: int = 0) -> Optional[Path]:
         """Get file path at index.
 
         Args:
