@@ -7,6 +7,7 @@ from marimo._dependencies.dependencies import (
     DependencyManager,
     _version_check,
 )
+from marimo._dependencies.errors import ManyModulesNotFoundError
 
 
 def test_dependencies() -> None:
@@ -167,3 +168,39 @@ def test_version_check():
         str(excinfo.value)
         == "Mismatched version of test: expected <3.0.0, got 3.0.0"
     )
+
+
+def test_require_many() -> None:
+    """Test that require_many correctly raises ManyModulesNotFoundError."""
+
+    missing1 = Dependency("missing1")
+    missing2 = Dependency("missing2")
+
+    # Test with all missing dependencies
+    with pytest.raises(ManyModulesNotFoundError) as excinfo:
+        DependencyManager.require_many(
+            "for testing multiple dependencies",
+            missing1,
+            missing2,
+        )
+
+    assert excinfo.value.package_names == ["missing1", "missing2"]
+    assert "for testing multiple dependencies" in str(excinfo.value)
+
+    # Test with some dependencies available (if pandas is installed)
+    if DependencyManager.pandas.has():
+        with pytest.raises(ManyModulesNotFoundError) as excinfo:
+            DependencyManager.require_many(
+                "for testing mixed dependencies",
+                DependencyManager.pandas,
+                missing1,
+            )
+
+        assert excinfo.value.package_names == ["missing1"]
+        assert "for testing mixed dependencies" in str(excinfo.value)
+
+        # Test with all dependencies available
+        result = DependencyManager.require_many(
+            "for testing available dependencies", DependencyManager.pandas
+        )
+        assert result is None

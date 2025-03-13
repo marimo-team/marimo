@@ -32,6 +32,7 @@ from marimo._data.preview_column import (
     get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
@@ -1310,15 +1311,22 @@ class Kernel:
         module_not_found_errors = [
             e
             for e in runner.exceptions.values()
-            if isinstance(e, ModuleNotFoundError)
+            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
         ]
         if (
             len(module_not_found_errors) > 0
             and self.package_manager is not None
         ):
+            missing_modules: set[str] = set()
+            for e in module_not_found_errors:
+                if isinstance(e, ManyModulesNotFoundError):
+                    missing_modules.update(e.package_names)
+                elif e.name is not None:
+                    missing_modules.add(e.name)
+
             # Grab missing modules from module registry and from module not found errors
-            missing_modules = self.module_registry.missing_modules() | set(
-                e.name for e in module_not_found_errors if e.name is not None
+            missing_modules = (
+                self.module_registry.missing_modules() | missing_modules
             )
 
             missing_packages = [

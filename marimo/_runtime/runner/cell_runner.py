@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from marimo._ast.cell import CellImpl
 from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     Error,
@@ -424,7 +425,10 @@ class Runner:
                     exception = unwrapped_exception
 
             # Handle other special runtime errors.
-            elif isinstance(unwrapped_exception, ModuleNotFoundError):
+            elif isinstance(
+                unwrapped_exception,
+                (ModuleNotFoundError, ManyModulesNotFoundError),
+            ):
                 self.missing_packages = True
 
             elif isinstance(unwrapped_exception, MarimoStopError):
