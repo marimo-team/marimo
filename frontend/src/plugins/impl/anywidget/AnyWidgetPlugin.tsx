@@ -129,7 +129,15 @@ const AnyWidgetSlot = (props: Props) => {
   }
 
   return (
-    <LoadedSlot {...props} widget={module.default} value={valueWithBuffer} />
+    <LoadedSlot
+      // Use the jsUrl as a key to force a re-render when the jsUrl changes
+      // Plugins may be stateful and we cannot make assumptions that we won't be
+      // so it is safer to just re-render.
+      key={jsUrl}
+      {...props}
+      widget={module.default}
+      value={valueWithBuffer}
+    />
   );
 };
 
