@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import textwrap
 import warnings
 
@@ -15,8 +16,10 @@ from tests.conftest import ExecReqProvider
 
 class TestScriptCache:
     @staticmethod
-    @pytest.mark.xfail(reason="TODO: this fails when merged to main")
-    def test_cache_miss(app) -> None:
+    def test_cache_miss() -> None:
+        app = App()
+        app._anonymous_file = True
+
         @app.cell
         def one() -> tuple[int]:
             # Check top level import
@@ -31,6 +34,15 @@ class TestScriptCache:
             assert cache._loader._saved
             assert not cache._loader._loaded
             return X, Y, persistent_cache
+
+        # Coverage's trace override conflicts with cache introspection. Letting
+        # the first test fail seems to fix this issue.
+        # TODO: fix with_setup to properly manage both traces.
+        try:
+            app.run()
+        except Exception as e:
+            if "--cov=marimo" not in sys.argv:
+                raise e
 
     @staticmethod
     def test_cache_hit(app) -> None:
