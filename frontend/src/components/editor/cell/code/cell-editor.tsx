@@ -190,6 +190,7 @@ const CellEditorInternal = ({
     cellId,
     userConfig.keymap,
     userConfig.completion,
+    userConfig.language_servers,
     aiEnabled,
     theme,
     showPlaceholder,
@@ -206,11 +207,15 @@ const CellEditorInternal = ({
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (getFeatureFlag("rtc_v2")) {
-      const rtc = realTimeCollaboration(cellId, (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      });
+      const rtc = realTimeCollaboration(
+        cellId,
+        (code) => {
+          // It's not really a formatting change,
+          // but this means it won't be marked as stale
+          cellActions.updateCellCode({ cellId, code, formattingChange: true });
+        },
+        code,
+      );
       extensions.push(rtc.extension);
       code = rtc.code;
     }
