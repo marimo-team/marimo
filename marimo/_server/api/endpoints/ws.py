@@ -232,18 +232,10 @@ async def ycell_provider(
                 ycell.cleaner.cancel()
                 ycell.cleaner = None
         else:
-            file_manager = session.app_file_manager
-            mgr = file_manager.app.cell_manager
-            if mgr.has_cell(cell_id):
-                code = mgr.cell_data_at(cell_id).code
-                LOGGER.debug(
-                    f"RTC: Creating new ydoc for existing cell {cell_id} with code length {len(code)}"
-                )
-            else:
-                code = ""
-                LOGGER.debug(
-                    f"RTC: Creating new ydoc for new cell {cell_id} with empty code"
-                )
+            code = ""
+            LOGGER.debug(
+                f"RTC: Creating new ydoc for new cell {cell_id} with empty code"
+            )
             ydoc = Doc[Text]()
             ytext = ydoc.get("code", type=Text)
             ylang = ydoc.get("language", type=Text)
