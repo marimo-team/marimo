@@ -230,11 +230,7 @@ class CellOp(Op):
         assert cell_id is not None
         CellOp(
             cell_id=cell_id,
-            output=CellOutput(
-                channel=CellChannel.OUTPUT,
-                mimetype="text/plain",
-                data="",
-            ),
+            output=CellOutput.empty(),
             status=status,
         ).broadcast(stream=stream)
 
@@ -305,11 +301,7 @@ class CellOp(Op):
 
         CellOp(
             cell_id=cell_id,
-            output=CellOutput(
-                channel=CellChannel.MARIMO_ERROR,
-                mimetype="application/vnd.marimo+error",
-                data=safe_errors,
-            ),
+            output=CellOutput.errors(safe_errors),
             console=console,
             status=None,
         ).broadcast()

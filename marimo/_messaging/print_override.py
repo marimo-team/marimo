@@ -5,7 +5,7 @@ import functools
 import threading
 from typing import Any
 
-from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.ops import CellOp
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -52,9 +52,5 @@ def print_override(*args: Any, **kwargs: Any) -> None:
 
     CellOp(
         cell_id=cell_id,
-        console=CellOutput(
-            channel=CellChannel.STDOUT,
-            mimetype="text/plain",
-            data=msg,
-        ),
+        console=CellOutput.stdout(msg),
     ).broadcast(ctx.stream)
