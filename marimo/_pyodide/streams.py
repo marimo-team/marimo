@@ -6,8 +6,8 @@ import sys
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
-from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import CellOp
 from marimo._messaging.streams import std_stream_max_bytes
 from marimo._messaging.types import (
@@ -59,7 +59,9 @@ class PyodideStdout(Stdout):
     def seekable(self) -> bool:
         return False
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -73,11 +75,7 @@ class PyodideStdout(Stdout):
             data = data[: int(max_bytes)] + " ... "
         CellOp(
             cell_id=self.stream.cell_id,
-            console=CellOutput(
-                channel=CellChannel.STDOUT,
-                mimetype=mimetype,
-                data=data,
-            ),
+            console=CellOutput.stdout(data, mimetype),
         ).broadcast(self.stream)
         return len(data)
 
@@ -104,7 +102,9 @@ class PyodideStderr(Stderr):
     def seekable(self) -> bool:
         return False
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -120,11 +120,7 @@ class PyodideStderr(Stderr):
 
         CellOp(
             cell_id=self.stream.cell_id,
-            console=CellOutput(
-                channel=CellChannel.STDERR,
-                mimetype=mimetype,
-                data=data,
-            ),
+            console=CellOutput.stderr(data, mimetype),
         ).broadcast(self.stream)
         return len(data)
 
@@ -163,11 +159,7 @@ class PyodideStdin(Stdin):
 
         CellOp(
             cell_id=self.stream.cell_id,
-            console=CellOutput(
-                channel=CellChannel.STDIN,
-                mimetype="text/plain",
-                data=prompt,
-            ),
+            console=CellOutput.stdin(prompt),
         ).broadcast(self.stream)
 
         loop = asyncio.get_event_loop()

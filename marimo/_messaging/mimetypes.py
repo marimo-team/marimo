@@ -29,5 +29,11 @@ KnownMimeType = Literal[
     "text/csv",
 ]
 
+ConsoleMimeType = Literal[
+    "application/vnd.marimo+traceback",
+    "text/plain",
+    "image/png",
+]
+
 MimeBundle = dict[KnownMimeType, Any]
 MimeBundleOrTuple = Union[MimeBundle, tuple[MimeBundle, Any]]

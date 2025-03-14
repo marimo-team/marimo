@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Union
 
 from marimo._messaging.errors import Error
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType, KnownMimeType
 
 
 class CellChannel(str, Enum):
@@ -42,18 +42,22 @@ class CellOutput:
         return asdict(self)
 
     @staticmethod
-    def stdout(data: str) -> CellOutput:
+    def stdout(
+        data: str, mimetype: ConsoleMimeType = "text/plain"
+    ) -> CellOutput:
         return CellOutput(
             channel=CellChannel.STDOUT,
-            mimetype="text/plain",
+            mimetype=mimetype,
             data=data,
         )
 
     @staticmethod
-    def stderr(data: str) -> CellOutput:
+    def stderr(
+        data: str, mimetype: ConsoleMimeType = "text/plain"
+    ) -> CellOutput:
         return CellOutput(
             channel=CellChannel.STDERR,
-            mimetype="text/plain",
+            mimetype=mimetype,
             data=data,
         )
 
@@ -61,4 +65,20 @@ class CellOutput:
     def stdin(data: str) -> CellOutput:
         return CellOutput(
             channel=CellChannel.STDIN, mimetype="text/plain", data=data
+        )
+
+    @staticmethod
+    def empty() -> CellOutput:
+        return CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="",
+        )
+
+    @staticmethod
+    def errors(data: list[Error]) -> CellOutput:
+        return CellOutput(
+            channel=CellChannel.MARIMO_ERROR,
+            mimetype="application/vnd.marimo+error",
+            data=data,
         )

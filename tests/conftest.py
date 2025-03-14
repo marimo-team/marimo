@@ -15,7 +15,7 @@ from _pytest import runner
 
 from marimo._ast.app import App, CellManager
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
 from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
@@ -94,7 +94,9 @@ class MockStdout(ThreadSafeStdout):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         del mimetype
         self.messages.append(data)
         return len(data)
@@ -112,7 +114,9 @@ class MockStderr(ThreadSafeStderr):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         del mimetype
         self.messages.append(data)
         return len(data)

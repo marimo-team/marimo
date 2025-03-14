@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class ConsoleMsg:
     stream: StreamT
     cell_id: CellId_t
     data: str
-    mimetype: KnownMimeType
+    mimetype: ConsoleMimeType
 
 
 def _write_console_output(
@@ -35,7 +35,7 @@ def _write_console_output(
     stream_type: StreamT,
     cell_id: CellId_t,
     data: str,
-    mimetype: KnownMimeType,
+    mimetype: ConsoleMimeType,
 ) -> None:
     from marimo._messaging.ops import CellOp
 
