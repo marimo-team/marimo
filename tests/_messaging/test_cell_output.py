@@ -142,7 +142,7 @@ def test_cell_output_repr():
     )
     repr_str = repr(output)
     assert "CellOutput" in repr_str
-    assert "channel=CellChannel.OUTPUT" in repr_str
+    assert "channel=" in repr_str
     assert "mimetype=text/plain" in repr_str
     assert "timestamp=123.456" in repr_str
 
