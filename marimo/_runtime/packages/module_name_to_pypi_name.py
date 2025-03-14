@@ -6,6 +6,7 @@ from __future__ import annotations
 # on PyPI
 def module_name_to_pypi_name() -> dict[str, str]:
     return {
+        "agents": "openai-agents",
         "whisper": "openai-whisper",
         "cv2": "opencv-python",
         "shopify": "ShopifyAPI",
