@@ -123,7 +123,7 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                 cell_outputs.append(
                     CellOutput(
                         channel=CellChannel.MARIMO_ERROR,
-                        mimetype="text/plain",
+                        mimetype="application/vnd.marimo+error",
                         data=[
                             MarimoExceptionRaisedError(
                                 type="exception",
