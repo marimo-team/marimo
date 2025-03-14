@@ -6,7 +6,7 @@ from hashlib import md5
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.from_anywidget import anywidget
+from marimo._plugins.ui._impl.from_anywidget import anywidget, from_anywidget
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -389,3 +389,19 @@ x = as_marimo_element.count
         nested_state = {"y": {"key": "value"}}
         wrapped._update(nested_state)
         assert wrapped.value == {"x": 42, "y": {"key": "value"}}
+
+    @staticmethod
+    def test_unhashable_widget() -> None:
+        """Test that unhashable widgets can still be wrapped."""
+
+        # Create a widget with an unhashable trait (list)
+        class UnhashableWidget(_anywidget.AnyWidget):
+            _esm = ""
+
+            def __hash__(self) -> int:
+                raise TypeError("Unhashable widget")
+
+        # This should work without errors despite the widget being unhashable
+        widget = UnhashableWidget()
+        wrapped = from_anywidget(widget)
+        assert wrapped is not None
