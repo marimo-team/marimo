@@ -10,8 +10,7 @@ import type { CellId } from "@/core/cells/ids";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
-  private readonly documentUri =
-    `file://${getFilenameFromDOM() ?? "/__marimo_notebook__.py"}`;
+  public readonly documentUri: LSP.DocumentUri;
   private documentVersion = 0;
   private readonly client: ILanguageServerClient;
 
@@ -33,6 +32,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     client: ILanguageServerClient,
     initialSettings: Record<string, unknown>,
   ) {
+    this.documentUri = `file://${getFilenameFromDOM() ?? "/__marimo_notebook__.py"}`;
+
     this.client = client;
     this.patchProcessNotification();
 
@@ -52,7 +53,34 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   textDocumentDefinition(
     params: LSP.DefinitionParams,
   ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
-    return this.client.textDocumentDefinition(params);
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      return Promise.resolve(null);
+    }
+
+    // Find the lens for this cell
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+    const versionInfo = [...this.versionToCellNumberAndVersion.values()].find(
+      (info) => info.cellDocumentUri === cellDocumentUri,
+    );
+
+    if (!versionInfo) {
+      Logger.warn("No lens found for cell", cellId);
+      return Promise.resolve(null);
+    }
+
+    // Use the lens to transform the position
+    const { lens } = versionInfo;
+    const transformedPosition = lens.transformPosition(params.position, cellId);
+
+    return this.client.textDocumentDefinition({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: transformedPosition,
+    });
   }
 
   textDocumentCodeAction(
@@ -105,6 +133,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   set initializePromise(value: Promise<void>) {
     this.client.initializePromise = value;
+  }
+
+  get clientCapabilities() {
+    return this.client.clientCapabilities;
   }
 
   async initialize(): Promise<void> {
