@@ -36,9 +36,9 @@
 
 - 🚀 **baterias incluidas:** reemplaza `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill` y más
 - ⚡️ **reactive**: ejecuta una celda y marimo reactivamente [ejecuta las celdas dependientes](https://docs.marimo.io/guides/reactivity.html) o <a href="#expensive-notebooks">las mara omo desactualizadas</a>
-- 🖐️ **interactivo:** [vincula deslizadores, tablas, gráficas y más](https://docs.marimo.io/guides/interactivity.html) a Python — sin "callbacks" requeridos
+- 🖐️ **interaction:** [vincula deslizadores, tablas, gráficas y más](https://docs.marimo.io/guides/interactivity.html) a Python — sin "callbacks" requeridos
 - 🔬 **reproducible:** [sin estado oculto](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), ejecución determinística, [gestión de paquetes integrada](https://docs.marimo.io/guides/editor_features/package_management.html)
-- 🏃 **ejecutable:** [se ejecuta como script de Python](https://docs.marimo.io/guides/scripts.html), parametrizable mediante argumentos de la línea de comandos (CLI)
+- 🏃 **ejecutable:** [se ejecuta como script de Python](https://docs.marimo.io/guides/scripts.html), parametrizable mediante arguments de la línea de commandos (CLI)
 - 🛜 **compartible**: [se depsliega como una aplicación web interactiva](https://docs.marimo.io/guides/apps.html) o [diapositivas](https://docs.marimo.io/guides/apps.html#slides-layout), [ejecutar en navegador via WASM](https://docs.marimo.io/guides/wasm.html)
 - 🛢️ **diseñado para datos**: consulta marcos de datos y bases de datos [con SQL](https://docs.marimo.io/guides/working_with_data/sql.html), filtrar y buscar [marcos de datos](https://docs.marimo.io/guides/working_with_data/dataframes.html)
 - 🐍 **compatible con git:** cuadernos (notebooks) son almacenados como archivos `.py`
@@ -167,7 +167,7 @@ marimo convert your_notebook.ipynb > your_notebook.py
 
 or use our [web interface](https://marimo.io/convert).
 
-**Tutoriales.**
+**Tutorials.**
 List all tutorials:
 
 ```bash
