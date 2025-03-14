@@ -184,12 +184,13 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
 
     const { package: packageName } = opts;
+    const packageNameList = packageName.split(" ").map((name) => name.trim());
     const response = await self.pyodide.runPythonAsync(`
       import micropip
       import json
       response = None
       try:
-        await micropip.install("${packageName}")
+        await micropip.install(${JSON.stringify(packageNameList)})
         response = {"success": True}
       except Exception as e:
         response = {"success": False, "error": str(e)}
