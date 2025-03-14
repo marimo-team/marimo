@@ -80,7 +80,7 @@ describe("CellProviderManager", () => {
       },
     );
     expect(provider).toBe(mockProvider);
-    expect(ytext.toJSON()).toBe("initial code");
+    expect(ytext.toJSON()).toBe("");
   });
 
   it("should return existing provider if one exists", async () => {
