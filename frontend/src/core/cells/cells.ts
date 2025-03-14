@@ -781,7 +781,7 @@ const {
 
     return {
       ...state,
-      cellIds: MultiColumn.from([action.cellIds]),
+      cellIds: MultiColumn.fromWithPreviousShape(action.cellIds, state.cellIds),
       cellData: nextCellData,
       cellRuntime: nextCellRuntime,
       cellHandles: nextCellHandles,
