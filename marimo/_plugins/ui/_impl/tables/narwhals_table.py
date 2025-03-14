@@ -228,14 +228,16 @@ class NarwhalsTableManager(
                 true=cast(int, col.sum()),
                 false=cast(int, total - col.sum()),
             )
-        if col.dtype == nw.Date:
+        if (col.dtype == nw.Date) or (
+            getattr(nw, "Time", None) is not None and col.dtype == nw.Time  # type: ignore[attr-defined]
+        ):
             return ColumnSummary(
                 total=total,
                 nulls=col.null_count(),
                 min=col.min(),
                 max=col.max(),
                 mean=col.mean(),
-                # Quantile not supported on date type
+                # Quantile not supported on date and time types
                 # median=col.quantile(0.5, interpolation="nearest"),
             )
         if is_narwhals_temporal_type(col.dtype):
