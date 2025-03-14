@@ -37,5 +37,20 @@ body:
     id: reproduction-code
     attributes:
       label: Code to reproduce
-      description: If possible, paste a minimal reproducible example or link to a repository that reproduces the issue.
-      placeholder: import marimo
+      description: |
+        Help us help you!
+        If possible, paste a minimal reproducible example or link to a repository that reproduces the issue.
+        And use `marimo edit --sandbox` to include the package dependencies in the bug report.
+      placeholder: |
+        ```python
+        # /// script
+        # requires-python = ">=3.11"
+        # dependencies = [
+        #     "marimo",
+        # ]
+        # ///
+
+        import marimo
+        ...
+
+        ```
