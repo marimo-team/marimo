@@ -295,7 +295,8 @@ class _cache_context(SkipContext):
                     if lineno >= self._body_start:
                         self.skip()
                 return
-            elif i > 2:
+            # <module> -> _trace_wrapper -> _trace
+            elif i > 3:
                 raise CacheException(
                     "`cache` must be invoked from cell level "
                     "(cannot be in a function or class)"
