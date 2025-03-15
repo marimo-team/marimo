@@ -17,6 +17,10 @@ from marimo._plugins.core.media import (
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import EmptyArgs, Function
 
+from marimo._plugins.ui._impl.input import parser
+import pathlib
+from marimo._runtime.runtime import raw_cli_args
+
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 
@@ -85,6 +89,7 @@ class download(UIElement[None, None]):
         disabled: bool = False,
         *,
         label: str = "Download",
+        key: str = "",
     ) -> None:
         self._data = data
         self._filename = filename
@@ -140,6 +145,11 @@ class download(UIElement[None, None]):
                 )
             ),
         )
+        if key:
+            parser.add_argument(f'--{key}', type=pathlib.Path)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key]:
+                print('how to trigger download button programatically?')
 
     async def _load(self, _args: EmptyArgs) -> LoadResponse:
         if callable(self._data) and not isinstance(self._data, UIElement):

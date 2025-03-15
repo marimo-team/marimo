@@ -35,6 +35,12 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import Function
 
+from marimo._runtime.runtime import raw_cli_args
+import argparse
+
+# 'resolve' to overwrite existing arguments with same name when we re-run cells
+parser = argparse.ArgumentParser(conflict_handler='resolve')
+
 LOGGER = _loggers.marimo_logger()
 
 Numeric = Union[int, float]
@@ -82,6 +88,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `key`: TODO
     """
 
     _name: Final[str] = "marimo-number"
@@ -97,7 +104,15 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
+        if key:
+            print(key)
+            parser.add_argument(f'--{key}', type=float)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            print(parsed_args)
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
         validate_range(min_value=start, max_value=stop)
         validate_between_range(value, min_value=start, max_value=stop)
         warn_js_safe_number(start, stop, value)
@@ -218,7 +233,16 @@ class slider(UIElement[Numeric, Numeric]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
+        if key:
+            print(key)
+            parser.add_argument(f'--{key}', type=float)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            print(parsed_args)
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         self.start: Numeric
         self.stop: Numeric
         self.step: Optional[Numeric]
@@ -419,7 +443,15 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
+        if key:
+            print(key)
+            parser.add_argument(f'--{key}', type=float, nargs=2)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            print(parsed_args)
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
         self.start: Numeric
         self.stop: Numeric
         self.step: Optional[Numeric]
