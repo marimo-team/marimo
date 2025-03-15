@@ -25,7 +25,7 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
-from marimo._ast.toplevel import TopLevelStatus, TopLevelType
+from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (
     ColumnSummary,
     DataSourceConnection,
@@ -330,11 +330,7 @@ class CellOp(Op):
         serialization: TopLevelStatus,
         stream: Stream | None = None,
     ) -> None:
-        status = (
-            "Valid"
-            if serialization.type == TopLevelType.TOPLEVEL
-            else serialization.hint
-        )
+        status: Optional[TopLevelHints] = serialization.hint
         CellOp(cell_id=cell_id, serialization=status).broadcast(stream)
 
 

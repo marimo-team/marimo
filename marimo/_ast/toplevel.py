@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import builtins
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
@@ -15,21 +15,28 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 # Constant for easy reuse in tests
-HINT_UNPARSABLE = "Cannot parse cell."
-HINT_BAD_NAME = (
-    "Top level definitions cannot be named 'app', '__name__' or "
-    "'__generated_with'"
-)
-HINT_NOT_SINGLE = "Cell must contain exactly one function definition"
-HINT_ORDER_DEPENDENT = (
-    "Signature and decorators depend on {} defined out of correct cell order"
-)
-HINT_HAS_REFS = (
-    "Function contains references to variables {} which are not top level."
-)
-HINT_HAS_CLOSE_REFS = (
-    "Function contains references to variables {} which failed to be toplevel."
-)
+TopLevelInvalidHints = Literal[
+    "Cannot parse cell.",
+    (
+        "Top level definitions cannot be named 'app', '__name__' or "
+        "'__generated_with'"
+    ),
+    "Cell must contain exactly one function definition",
+    "Signature and decorators depend on {} defined out of correct cell order",
+    "Function contains references to variables {} which are not top level.",
+    "Function contains references to variables {} which failed to be toplevel.",
+]
+(
+    HINT_UNPARSABLE,
+    HINT_BAD_NAME,
+    HINT_NOT_SINGLE,
+    HINT_ORDER_DEPENDENT,
+    HINT_HAS_REFS,
+    HINT_HAS_CLOSE_REFS,
+) = get_args(TopLevelInvalidHints)
+
+TopLevelHints = Union[Literal["Valid"], TopLevelInvalidHints]
+HINT_VALID, *_ = get_args(TopLevelHints)
 
 
 class TopLevelType(Enum):
@@ -56,7 +63,7 @@ class TopLevelStatus:
         self._type: TopLevelType = TopLevelType.UNPARSABLE
         self.dependencies: set[Name] = set()
         self._cell: Optional[CellImpl] = None
-        self.hint: Optional[str] = None
+        self.hint: Optional[TopLevelHints] = None
 
         self.code = code
         self.cell_config = cell_config
@@ -125,7 +132,7 @@ class TopLevelStatus:
 
         self.demote(HINT_HAS_REFS.format(defined_refs))
 
-    def demote(self, hint: str) -> None:
+    def demote(self, hint: TopLevelInvalidHints) -> None:
         self.type = TopLevelType.CELL
         self.hint = hint
 
@@ -235,6 +242,9 @@ class TopLevelExtraction:
         # Don't change names of objects that are not toplevel.
         for status in self.cells.values():
             status.name = status._name
+        # Set the hint of all valid cells to HINT_VALID
+        for status in self.toplevel.values():
+            status.hint = HINT_VALID
 
     def _resolve_dependencies(self) -> None:
         """Resolve the dependencies of unresolved cells"""
