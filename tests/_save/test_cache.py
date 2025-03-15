@@ -43,6 +43,9 @@ class TestScriptCache:
         except Exception as e:
             if "--cov=marimo" not in sys.argv:
                 raise e
+            pytest.mark.xfail(
+                reason="Coverage conflict with cache introspection"
+            )
 
     @staticmethod
     def test_cache_hit(app) -> None:

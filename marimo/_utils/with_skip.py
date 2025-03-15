@@ -30,7 +30,7 @@ class SkipContext(ABC):
         self._skipped = True
 
     def __enter__(self) -> Self:
-        sys._sys_trace = sys.gettrace()
+        self._sys_trace = sys.gettrace()
         frame = sys._getframe(1)
         # Hold on to the previous trace.
         self._old_trace = frame.f_trace
@@ -46,13 +46,12 @@ class SkipContext(ABC):
         """Wrapper function that ensures we do not break existing traces (e.g., code coverage)."""
         result = None
         if self._sys_trace:
-            result = self._sys_trace(
-                frame, event, arg
-            )  # Call the original trace function
-        if not self._skipped:
-            return result
-        if not self.entered_trace:
+            result = self._sys_trace(frame, event, arg)
+        # Presumed to be skipped, but hasn't actually entered the frame yet.
+        # Call the original trace function
+        if self._skipped and not self.entered_trace:
             return self._trace(frame, event, arg)
+        return result
 
     def skip(self) -> NoReturn:
         raise SkipWithBlock()
