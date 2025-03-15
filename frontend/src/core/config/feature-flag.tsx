@@ -14,7 +14,7 @@ export interface ExperimentalFeatures {
   scratchpad: boolean;
   rtc_v2: boolean;
   reactive_tests: boolean;
-  setup_cell: boolean;
+  toplevel_defs: boolean;
   // Add new feature flags here
 }
 
@@ -26,7 +26,7 @@ const defaultValues: ExperimentalFeatures = {
   scratchpad: true,
   rtc_v2: false,
   reactive_tests: false,
-  setup_cell: false,
+  toplevel_defs: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
