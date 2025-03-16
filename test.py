@@ -8,29 +8,41 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
 
-    mo.raw_cli_args()
+    print(mo.raw_cli_args(), mo.cli_args())
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    b = mo.ui.number(key="number")
-    a = mo.ui.slider(1.1, 10.1, 1.0, key="slider", label="test a single slider value: ")
+    a = mo.ui.number(key="number")
+    b = mo.ui.slider(
+        1.1, 10.1, 1.0, key="slider", label="test a single slider value: "
+    )
     c = mo.ui.range_slider(0, 100, 4, key="range_slider")
-    mo.hstack([a, b, c])
-    return a, b, c
-
-
-@app.cell
-def _(a, b, c):
-    print(a.value, b.value, c.value)
-    return
+    d = mo.ui.checkbox(value=True, key="checkbox")
+    e = mo.ui.radio(options=list("def"), value="e", key="radio_tuple")
+    f = mo.ui.radio(options={"a": 1, "b": 2, "c": 3}, value="a", key="radio_dict")
+    mo.hstack([a, b, c, d, e, f])
+    return a, b, c, d, e, f
 
 
 @app.cell
 def _(mo):
-    mo.md("""how to collect all ui's help messages for `python test.py --help`?""")
-    return
+    g = mo.ui.text(value="abc", key="text")
+    h = mo.ui.text_area(value="abc", key="text")
+    i = mo.ui.dropdown(list("abc"), value="b", key="dropdown")
+    j = mo.ui.multiselect(list("abc"), value="b", key="multiselect")
+    k = mo.ui.file(key="file_single")
+    l = mo.ui.file(multiple=True, key="file_multi", kind="area")
+    mo.hstack([g, h, i, j, k, l])
+    return g, h, i, j, k, l
+
+
+@app.cell
+def _(l):
+    for file in l.value:
+        print(f"{file.name=}, {file.contents[:100]=}")
+    return (file,)
 
 
 @app.cell
@@ -41,10 +53,9 @@ def _(a, b, c, mo):
 
 
 @app.cell
-def _(mo):
-    func = lambda: b"callable data"
-    mo.download(func, key="download_callable", filename="data_callable.txt")
-    return (func,)
+def _(data, mo):
+    mo.download(data.encode, key="download_callable", filename="data_callable.txt")
+    return
 
 
 if __name__ == "__main__":
