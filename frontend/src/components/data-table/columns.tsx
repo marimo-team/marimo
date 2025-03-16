@@ -25,6 +25,10 @@ import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
 import { exactDateTime } from "@/utils/dates";
 import { JsonOutput } from "../editor/output/JsonOutput";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
+import { PopoverClose } from "@radix-ui/react-popover";
+import { Button } from "../ui/button";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -236,8 +240,8 @@ export function generateColumns<T>({
           );
         }
 
-        // how about nested dates
         if (Array.isArray(value) || typeof value === "object") {
+          const rawStringValue = JSON.stringify(renderValue());
           return (
             <div
               onClick={selectCell}
@@ -248,7 +252,23 @@ export function generateColumns<T>({
                 isCellSelected,
               )}
             >
-              <JsonOutput data={value} format="tree" />
+              <EmotionCacheProvider container={null}>
+                <Popover>
+                  <PopoverTrigger>
+                    <span className="cursor-pointer hover:text-link">
+                      {rawStringValue}
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <PopoverClose className="absolute top-2 right-2">
+                      <Button variant="link" size="xs">
+                        Close
+                      </Button>
+                    </PopoverClose>
+                    <JsonOutput data={value} format="tree" />
+                  </PopoverContent>
+                </Popover>
+              </EmotionCacheProvider>
             </div>
           );
         }
@@ -393,6 +413,7 @@ function getCellStyleClass(
       "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
+    "truncate",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
     wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
