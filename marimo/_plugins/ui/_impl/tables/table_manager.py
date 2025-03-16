@@ -62,6 +62,7 @@ class TableManager(abc.ABC, Generic[T]):
         By default, this method calls `to_json` and returns the result as
         a string. `to_json` supports most data types (e.g. nested lists)
         """
+        # TODO: Implement format_mapping for json
         return mo_data.json(self.to_json()).url
 
     def supports_download(self) -> bool:

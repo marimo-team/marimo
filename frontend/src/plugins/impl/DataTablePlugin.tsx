@@ -46,7 +46,6 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
-import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -198,18 +197,16 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <EmotionCacheProvider container={props.host.shadowRoot}>
-        <TooltipProvider>
-          <LoadingDataTableComponent
-            {...props.data}
-            {...props.functions}
-            enableSearch={true}
-            data={props.data.data}
-            value={props.value}
-            setValue={props.setValue}
-          />
-        </TooltipProvider>
-      </EmotionCacheProvider>
+      <TooltipProvider>
+        <LoadingDataTableComponent
+          {...props.data}
+          {...props.functions}
+          enableSearch={true}
+          data={props.data.data}
+          value={props.value}
+          setValue={props.setValue}
+        />
+      </TooltipProvider>
     );
   });
 

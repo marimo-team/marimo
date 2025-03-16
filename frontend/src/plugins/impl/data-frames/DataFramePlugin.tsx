@@ -25,7 +25,6 @@ import { Spinner } from "@/components/icons/spinner";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { isEqual } from "lodash-es";
 import { DATA_TYPES } from "@/core/kernel/messages";
-import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -130,16 +129,14 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       ),
   })
   .renderer((props) => (
-    <EmotionCacheProvider container={props.host.shadowRoot}>
-      <TooltipProvider>
-        <DataFrameComponent
-          {...props.data}
-          {...props.functions}
-          value={props.value}
-          setValue={props.setValue}
-        />
-      </TooltipProvider>
-    </EmotionCacheProvider>
+    <TooltipProvider>
+      <DataFrameComponent
+        {...props.data}
+        {...props.functions}
+        value={props.value}
+        setValue={props.setValue}
+      />
+    </TooltipProvider>
   ));
 
 interface DataTableProps extends Data, PluginFunctions {
