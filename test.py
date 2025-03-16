@@ -35,29 +35,16 @@ def _(mo):
 
 @app.cell
 def _(a, b, c, mo):
-    # user-level workaround for cli-driven file saving,
-    # would be nice to have this as mo.download(_download_txt, key='download')
+    data = f"{a.value=}, {b.value=}, {c.value=}"
+    mo.download(data.encode(), key="download_str", filename="data_str.txt")
+    return (data,)
 
-    _download_txt = f"{a.value=}, {b.value=}, {c.value=}"
-    _key = "download_values"
 
-    if mo.running_in_notebook() or True:
-        mo.output.append(
-            mo.download(_download_txt, key=_key, filename="download.py")
-        )
-    else:
-        import argparse
-        import pathlib
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            f"--{_key}", nargs="?", type=pathlib.Path, const="download.txt"
-        )
-        args = vars(parser.parse_known_args(mo.raw_cli_args())[0])
-        if args[_key]:
-            with open(args[_key], "w") as _f:
-                _f.write(_download_txt)
-    return argparse, args, parser, pathlib
+@app.cell
+def _(mo):
+    func = lambda: b"callable data"
+    mo.download(func, key="download_callable", filename="data_callable.txt")
+    return (func,)
 
 
 if __name__ == "__main__":
