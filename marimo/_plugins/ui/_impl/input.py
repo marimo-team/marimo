@@ -43,7 +43,7 @@ from marimo._runtime.runtime import raw_cli_args
 import argparse
 
 # 'resolve' to overwrite existing arguments with same name when we re-run cells
-parser = argparse.ArgumentParser(conflict_handler='resolve')
+parser = argparse.ArgumentParser(conflict_handler='resolve', add_help=False)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -240,11 +240,11 @@ class slider(UIElement[Numeric, Numeric]):
         key: str = "",
     ) -> None:
         if key:
-            print(key)
-            parser.add_argument(f'--{key}', type=float)
+            _help = f"{label} "
+            parser.add_argument(f'--{key}', type=float, help=_help)
             parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
-            print(parsed_args)
             if parsed_args[key] is not None:
+                # TODO how to check if value is allowed?
                 value = parsed_args[key]
 
         self.start: Numeric

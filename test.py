@@ -15,7 +15,7 @@ def _():
 @app.cell
 def _(mo):
     b = mo.ui.number(key="number")
-    a = mo.ui.slider(1, 10, 1, key="slider")
+    a = mo.ui.slider(1.1, 10.1, 1.0, key="slider", label="test a single slider value: ")
     c = mo.ui.range_slider(0, 100, 4, key="range_slider")
     mo.hstack([a, b, c])
     return a, b, c
