@@ -869,6 +869,7 @@ class TestExportIpynb:
         reason="This test requires both uv and nbformat.",
     )
     def test_cli_export_ipynb_sandbox(temp_marimo_file: str) -> None:
+        output_file = temp_marimo_file.replace(".py", "_sandbox.ipynb")
         p = subprocess.run(
             [
                 "marimo",
@@ -877,6 +878,8 @@ class TestExportIpynb:
                 temp_marimo_file,
                 "--sandbox",
                 "--include-outputs",
+                "--output",
+                output_file,
             ],
             capture_output=True,
         )
