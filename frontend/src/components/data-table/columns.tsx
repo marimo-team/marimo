@@ -24,6 +24,7 @@ import { DatePopover } from "./date-popover";
 import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
 import { exactDateTime } from "@/utils/dates";
+import { JsonOutput } from "../editor/output/JsonOutput";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -231,6 +232,23 @@ export function generateColumns<T>({
               ) : (
                 String(rendered)
               )}
+            </div>
+          );
+        }
+
+        // how about nested dates
+        if (Array.isArray(value) || typeof value === "object") {
+          return (
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
+              <JsonOutput data={value} format="tree" />
             </div>
           );
         }

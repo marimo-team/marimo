@@ -11,7 +11,6 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
-import { getVegaFieldTypes } from "./vega/utils";
 import { Banner } from "./common/error-banner";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
@@ -47,6 +46,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
+import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -198,16 +198,18 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <TooltipProvider>
-        <LoadingDataTableComponent
-          {...props.data}
-          {...props.functions}
-          enableSearch={true}
-          data={props.data.data}
-          value={props.value}
-          setValue={props.setValue}
-        />
-      </TooltipProvider>
+      <EmotionCacheProvider container={props.host.shadowRoot}>
+        <TooltipProvider>
+          <LoadingDataTableComponent
+            {...props.data}
+            {...props.functions}
+            enableSearch={true}
+            data={props.data.data}
+            value={props.value}
+            setValue={props.setValue}
+          />
+        </TooltipProvider>
+      </EmotionCacheProvider>
     );
   });
 
@@ -339,12 +341,10 @@ export const LoadingDataTableComponent = memo(
         };
       }
 
-      const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
-
       // Otherwise, load the data from the URL
       tableData = await vegaLoadData(
         tableData,
-        { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
+        { type: "json" },
         { handleBigIntAndNumberLike: true },
       );
 

@@ -59,10 +59,10 @@ class TableManager(abc.ABC, Generic[T]):
         """
         The best way to represent the data in a table as JSON.
 
-        By default, this method calls `to_csv` and returns the result as
-        a string.
+        By default, this method calls `to_json` and returns the result as
+        a string. `to_json` supports most data types (e.g. nested lists)
         """
-        return mo_data.csv(self.to_csv(format_mapping)).url
+        return mo_data.json(self.to_json()).url
 
     def supports_download(self) -> bool:
         return True
