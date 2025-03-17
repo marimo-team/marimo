@@ -97,12 +97,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         return self._as_table_manager().to_csv(format_mapping)
 
-    def to_json(self) -> bytes:
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
         if isinstance(self.data, dict) and not self.is_column_oriented:
             return DefaultTableManager(
                 self._normalize_data(self.data)
-            ).to_json()
-        return self._as_table_manager().to_json()
+            ).to_json(format_mapping)
+        return self._as_table_manager().to_json(format_mapping)
 
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):

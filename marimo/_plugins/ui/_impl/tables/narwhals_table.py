@@ -62,8 +62,8 @@ class NarwhalsTableManager(
         _data = self.apply_formatting(format_mapping).as_frame()
         return dataframe_to_csv(_data).encode("utf-8")
 
-    def to_json(self) -> bytes:
-        csv_str = self.to_csv().decode("utf-8")
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        csv_str = self.to_csv(format_mapping=format_mapping).decode("utf-8")
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
