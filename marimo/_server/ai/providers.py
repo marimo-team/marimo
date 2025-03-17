@@ -19,8 +19,6 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.status import HTTPStatus
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     from anthropic import (  # type: ignore[import-not-found]
         Client,
         Stream as AnthropicStream,
@@ -81,7 +79,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         original_content = ""
         buffer = ""
 
-        for chunk in response:
+        for chunk in cast(Generator[ResponseT, None, None], response):
             content = self.extract_content(chunk)
             if not content:
                 continue
@@ -106,7 +104,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         buffer = ""
         in_code_fence = False
 
-        for chunk in response:
+        for chunk in cast(Generator[ResponseT, None, None], response):
             content = self.extract_content(chunk)
             if not content:
                 continue
@@ -284,11 +282,11 @@ class AnthropicProvider(
         from anthropic.types import RawContentBlockDeltaEvent, TextDelta
 
         if isinstance(response, TextDelta):
-            return response.text
+            return response.text  # type: ignore
 
         if isinstance(response, RawContentBlockDeltaEvent):
             if isinstance(response.delta, TextDelta):
-                return response.delta.text
+                return response.delta.text  # type: ignore
 
         return None
 
@@ -305,7 +303,7 @@ class GoogleProvider(
             DependencyManager.google_ai.require(
                 why="for AI assistance with Google AI"
             )
-            import google.generativeai as genai
+            import google.generativeai as genai  # type: ignore
 
         if "google" not in config or "api_key" not in config["google"]:
             raise HTTPException(
