@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_pandas,
     python_print_polars,
+    python_print_ibis,
     python_print_transforms,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
@@ -463,6 +464,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         df: ibis.Table, transform: ColumnConversionTransform
     ) -> ibis.Table:
         import ibis
+        transform_data_type = transform.data_type.replace("_","")
 
         if transform.errors == "ignore":
             try:
@@ -470,7 +472,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
                 return df.mutate(
                     ibis.coalesce(
                         df[transform.column_id].cast(
-                            ibis.dtype(transform.data_type)
+                            ibis.dtype(transform_data_type)
                         ),
                         df[transform.column_id],
                     ).name(transform.column_id)
@@ -481,7 +483,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             # Default behavior (raise errors)
             return df.mutate(
                 df[transform.column_id]
-                .cast(ibis.dtype(transform.data_type))
+                .cast(ibis.dtype(transform_data_type))
                 .name(transform.column_id)
             )
 
@@ -642,14 +644,13 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     ) -> ibis.Table:
         return df.unpack(transform.column_id)
 
-    # TODO: support as_python_code for Ibis
-    # @staticmethod
-    # def as_python_code(
-    #     df_name: str, columns: List[str], transforms: List[Transform]
-    # ) -> str | None:
-    #     return python_print_transforms(
-    #         df_name, columns, transforms, python_print_ibis
-    #     )
+    @staticmethod
+    def as_python_code(
+        df_name: str, columns: List[str], transforms: List[Transform]
+    ) -> str | None:
+        return python_print_transforms(
+            df_name, columns, transforms, python_print_ibis
+        )
 
     @staticmethod
     def as_sql_code(transformed_df: ibis.Table) -> str | None:
