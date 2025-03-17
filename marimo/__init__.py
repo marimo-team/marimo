@@ -81,7 +81,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.11.20"
+__version__ = "0.11.21"
 
 import marimo._ai as ai
 import marimo._islands as islands
