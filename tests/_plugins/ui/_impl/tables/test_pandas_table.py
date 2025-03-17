@@ -152,8 +152,59 @@ class TestPandasTableManager(unittest.TestCase):
         snapshot("pandas.csv", data.decode("utf-8"))
 
     def test_to_json(self) -> None:
-        expected_json = self.data.to_json(orient="records").encode("utf-8")
+        expected_json = self.data.to_json(
+            orient="records", date_format="iso"
+        ).encode("utf-8")
         assert self.manager.to_json() == expected_json
+
+    def test_to_json_format_mapping(self) -> None:
+        expected_json = (
+            self.data.assign(A=self.data["A"] * 2)
+            .to_json(orient="records", date_format="iso")
+            .encode("utf-8")
+        )
+        format_mapping = {"A": lambda x: x * 2}
+        assert self.manager.to_json(format_mapping) == expected_json, (
+            "Format mapping not applied"
+        )
+
+    def test_to_json_datetime_handling(self) -> None:
+        timestamps = pd.DataFrame(
+            {
+                "timestamp": [pd.to_datetime("2024-12-17")],
+                "timestamp_with_timezone": [
+                    pd.to_datetime("2024-12-17").tz_localize("UTC")
+                ],
+            }
+        )
+        manager = self.factory.create()(timestamps)
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+
+        assert json_data[0]["timestamp"] == "2024-12-17T00:00:00.000"
+        assert (
+            json_data[0]["timestamp_with_timezone"]
+            == "2024-12-17T00:00:00.000Z"
+        )
+
+    def test_to_json_complex_number_handling(self) -> None:
+        df = pd.DataFrame({"complex": [1 + 2j]})
+        manager = self.factory.create()(df)
+
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data[0]["complex"] == "(1+2j)"
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="numpy not installed",
+    )
+    def test_to_json_numpy_complex_handling(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame({"complex": np.array([1 + 2j])})
+        manager = self.factory.create()(df)
+
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data[0]["complex"] == "(1+2j)"
 
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()

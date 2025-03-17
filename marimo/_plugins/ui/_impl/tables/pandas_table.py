@@ -61,10 +61,22 @@ class PandasTableManagerFactory(TableManagerFactory):
                     .encode("utf-8")
                 )
 
-            def to_json(self) -> bytes:
-                return self._original_data.to_json(orient="records").encode(
-                    "utf-8"
-                )
+            def to_json(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
+                from pandas.api.types import is_complex_dtype
+
+                _data = self.apply_formatting(format_mapping)._original_data
+                for col in _data.columns:
+                    # Complex dtypes are converted to {'imag': num, 'real': num} by default
+                    # We want to preserve the original display
+                    if is_complex_dtype(_data[col].dtype):
+                        _data[col] = _data[col].apply(str)
+
+                return _data.to_json(
+                    orient="records",
+                    date_format="iso",
+                ).encode("utf-8")
 
             def to_arrow_ipc(self) -> bytes:
                 out = io.BytesIO()

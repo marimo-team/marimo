@@ -62,8 +62,7 @@ class TableManager(abc.ABC, Generic[T]):
         By default, this method calls `to_json` and returns the result as
         a string. `to_json` supports most data types (e.g. nested lists)
         """
-        # TODO: Implement format_mapping for json
-        return mo_data.json(self.to_json()).url
+        return mo_data.json(self.to_json(format_mapping)).url
 
     def supports_download(self) -> bool:
         return True
@@ -101,7 +100,7 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
-    def to_json(self) -> bytes:
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
         pass
 
     @abc.abstractmethod

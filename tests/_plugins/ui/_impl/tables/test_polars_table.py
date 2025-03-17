@@ -142,6 +142,18 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
+    def test_to_json_apply_format_mapping(self) -> None:
+        import polars as pl
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+        }
+        json_bytes = self.manager.to_json(format_mapping)
+        assert isinstance(json_bytes, bytes)
+
+        formatted_data = pl.read_json(json_bytes)
+        assert formatted_data["A"].to_list() == [2, 4, 6]
+
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
         # pl.Time and pl.Object are not supported in JSON

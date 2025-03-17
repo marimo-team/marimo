@@ -241,7 +241,7 @@ export function generateColumns<T>({
         }
 
         if (Array.isArray(value) || typeof value === "object") {
-          const rawStringValue = JSON.stringify(renderValue());
+          const rawStringValue = renderAny(value);
           return (
             <div
               onClick={selectCell}
@@ -255,7 +255,10 @@ export function generateColumns<T>({
               <EmotionCacheProvider container={null}>
                 <Popover>
                   <PopoverTrigger>
-                    <span className="cursor-pointer hover:text-link">
+                    <span
+                      className="cursor-pointer hover:text-link"
+                      title={rawStringValue}
+                    >
                       {rawStringValue}
                     </span>
                   </PopoverTrigger>
@@ -420,7 +423,7 @@ function getCellStyleClass(
   );
 }
 
-function renderAny(value: unknown): React.ReactNode {
+function renderAny(value: unknown): string {
   if (value == null) {
     return "";
   }
