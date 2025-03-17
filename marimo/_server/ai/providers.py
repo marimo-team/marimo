@@ -282,11 +282,11 @@ class AnthropicProvider(
         from anthropic.types import RawContentBlockDeltaEvent, TextDelta
 
         if isinstance(response, TextDelta):
-            return response.text  # type: ignore
+            return response.text  # type: ignore[no-any-return]
 
         if isinstance(response, RawContentBlockDeltaEvent):
             if isinstance(response.delta, TextDelta):
-                return response.delta.text  # type: ignore
+                return response.delta.text  # type: ignore[no-any-return]
 
         return None
 
@@ -345,7 +345,7 @@ class GoogleProvider(
 
     def extract_content(self, response: GenerateContentResponse) -> str | None:
         if hasattr(response, "text"):
-            return response.text
+            return response.text  # type: ignore[no-any-return]
         return None
 
 
