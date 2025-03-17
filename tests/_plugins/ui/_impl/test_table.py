@@ -9,7 +9,11 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
-from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
+from marimo._plugins.ui._impl.table import (
+    DownloadAsArgs,
+    SearchTableArgs,
+    SortArgs,
+)
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
@@ -974,6 +978,96 @@ def test_show_download():
 
     table_false = ui.table(data, show_download=False)
     assert table_false._component_args["show-download"] is False
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_download_as_pandas() -> None:
+    """Test downloading table data as different formats with pandas DataFrame."""
+    import io
+
+    import pandas as pd
+    from pandas.testing import assert_frame_equal
+
+    data = pd.DataFrame({"cities": ["Newark", "New York", "Los Angeles"]})
+    table = ui.table(data)
+
+    def download_and_convert(
+        format_type: str, table_instance: ui.table
+    ) -> pd.DataFrame:
+        """Helper to download and convert table data to DataFrame."""
+        download_str = table_instance._download_as(
+            DownloadAsArgs(format=format_type)
+        )
+        data_bytes = from_data_uri(download_str)[1]
+
+        if format_type == "json":
+            return pd.read_json(io.BytesIO(data_bytes))
+        return pd.read_csv(io.BytesIO(data_bytes))
+
+    # Test base downloads (full data)
+    for format_type in ["csv", "json"]:
+        downloaded_df = download_and_convert(format_type, table)
+        assert_frame_equal(data, downloaded_df)
+
+    # Test downloads with search filter
+    table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
+    for format_type in ["csv", "json"]:
+        filtered_df = download_and_convert(format_type, table)
+        assert len(filtered_df) == 2
+        assert all(filtered_df["cities"].isin(["Newark", "New York"]))
+
+    # Test downloads with selection (includes search from before)
+    table._convert_value(["1"])
+    for format_type in ["csv", "json"]:
+        selected_df = download_and_convert(format_type, table)
+        assert len(selected_df) == 1
+        assert selected_df["cities"].iloc[0] == "New York"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_download_as_polars() -> None:
+    """Test downloading table data as different formats with polars DataFrame."""
+    import polars as pl
+    from polars.testing import assert_frame_equal
+
+    data = pl.DataFrame({"cities": ["Newark", "New York", "Los Angeles"]})
+    table = ui.table(data)
+
+    def download_and_convert(
+        format_type: str, table_instance: ui.table
+    ) -> pl.DataFrame:
+        """Helper to download and convert table data to DataFrame."""
+        download_str = table_instance._download_as(
+            DownloadAsArgs(format=format_type)
+        )
+        data_bytes = from_data_uri(download_str)[1]
+
+        if format_type == "json":
+            return pl.read_json(data_bytes)
+        return pl.read_csv(data_bytes)
+
+    # Test base downloads (full data)
+    for format_type in ["csv", "json"]:
+        downloaded_df = download_and_convert(format_type, table)
+        assert_frame_equal(data, downloaded_df)
+
+    # Test downloads with search filter
+    table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
+    for format_type in ["csv", "json"]:
+        filtered_df = download_and_convert(format_type, table)
+        assert len(filtered_df) == 2
+        assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
+
+    # Test downloads with selection (includes search from before)
+    table._convert_value(["1"])
+    for format_type in ["csv", "json"]:
+        selected_df = download_and_convert(format_type, table)
+        assert len(selected_df) == 1
+        assert selected_df["cities"][0] == "New York"
 
 
 def test_pagination_behavior() -> None:
