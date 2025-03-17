@@ -11,7 +11,7 @@ This plan builds upon and synthesizes discussions from [#3176](https://github.co
 The key improvements include:
 
 *   **Content-Addressed Storage:**  Both entries and their contents will be stored using content-addressed filenames to ensure data integrity (and, secondarily, to enable deduplication), similarly to [Git's object database](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects), [git-annex](https://git-annex.branchable.com/internals/key_format/), and many backup systems.
-*   **Separation between _entries_ and _contents_:** Multiple entries can reference the same contents (deduplication). In the initial implementation, both entires and contents are stored in the local file-system, in separate folders. This permits using different mechanisms for their synching/sharing and versioning, such as Git (for entries) and Dropbox (for contents).
+*   **Separation between _entries_ and _contents_:** Multiple entries can reference the same contents (deduplication). In the initial implementation, both entries and contents are stored in the local file-system, in separate folders. This permits using different mechanisms for their synching/sharing and versioning, such as Git (for entries) and Dropbox (for contents).
     *   In the future, this separation will also enable **configuring different storage backends for entries and contents**, such as storing the entries in a server database such as PostgreSQL, and contents in object storage such as Amazon S3. This is inspired by [`jj`'s storage-independent backend APIs](https://jj-vcs.github.io/jj/latest/technical/architecture/#storage-independent-apis).
 *   **Cleanup:**  A configurable cleanup mechanism will manage disk space usage, removing outdated or unnecessary persisted entries and contents.
 *   **`Persister` Abstraction:**  A new `Persister` abstraction will encapsulate the storage logic, providing a clean interface for interacting with the persistent cache "facade" (Marimo's use-case; another possible future "facade" for the persistence subsystem would be persistent cell execution) and allowing for future extensions (e.g., SQLite entry storage, remote entry or content storage).
@@ -29,7 +29,7 @@ This implementation plan focuses on the following core components of the persist
 
 *   **`Persister` Abstraction:** The core `Persister` abstract class is used instead of the legacy `Loader` when in *persistent caching* logic of the Marimo core. However, `MemoryLoader` is **not** replaced for *in-memory caching* (`mo.cache()`), although all loaders are changed to use `Entry` abstraction instead of `Cache`.
 *   **`Entry` Abstraction:** The `Entry` class is defined and integrated into the Marimo core as a replacement of `Cache`.
-*   **Filesystem-Based Storage via `FsPersister`:**  A concrete implementation of `Persister` that uses local filesystem-based storage for both entries and content. `FsPersister` is designed to be highly configurable in the future, but currently implements only a few concrete choices regaring entry and content storage.
+*   **Filesystem-Based Storage via `FsPersister`:**  A concrete implementation of `Persister` that uses local filesystem-based storage for both entries and content. `FsPersister` is designed to be highly configurable in the future, but currently implements only a few concrete choices regarding entry and content storage.
 *   **Entries stored in TOML:**  In the initial version of `FsPersister`, entries are stored as plain text, in TOML files.
 *   **Cleanup Mechanisms:**  Cleanup mechanisms are implemented, allowing for the removal of entries (and, later, the contents referenced by these entries) based on a user-provided *cleanup strategy* function.
 *   **Backward Compatibility via `LegacyPersister`:** `LegacyPersister` provides support for *existing* persistent cache "deployments" in `__marimo__/cache/` directories.
@@ -40,7 +40,7 @@ The following features are explicitly **out of scope** for this initial implemen
 
 *   *SQLite storage for entries and other metadata*
 *   *SQLite storage for small contents*, to alleviate the burden on synchronization systems like Dropbox that can become bottlenecked by a large number of small files to sync that are also churned rapidly. A single SQLite file whose content is changed is less demanding of synchronization systems like Dropbox.
-*   *Alterantive `Persister` implementations* that use *remote databases* (like `PostgreSQL` or `Apache Cassandra`) and/or *object storage* (e.g., Amazon S3) for parts or all persistence, stage management, and synchronization that `FsPersister` currently does using local file system only, delegating cross-machine synchronization and/or backup to external mechanisms, ranging from Git to BorgBackup to Dropbox.
+*   *Alternative `Persister` implementations* that use *remote databases* (like `PostgreSQL` or `Apache Cassandra`) and/or *object storage* (e.g., Amazon S3) for parts or all persistence, stage management, and synchronization that `FsPersister` currently does using local file system only, delegating cross-machine synchronization and/or backup to external mechanisms, ranging from Git to BorgBackup to Dropbox.
 *   *Watched Files and integration of the persistence subsystem with them.* The [`mo.watched_file()` API](https://github.com/marimo-team/marimo/issues/3258) should make Marimo reactively respond to changes in the watched files.
 *   *UI integration:* adding UI elements to manage persisted entries or select alternative, "non-deterministic" contents (cf. [#3270](https://github.com/marimo-team/marimo/discussions/3270))
 *   *Block (cell) output and stderr persistence:* only block's *variables* are currently included in persisted entries' contents.
@@ -70,7 +70,7 @@ We are making an attempt to separate general concepts and interfaces that are re
 *   **Entry Hash:** The hash of the entry metadata. See "Mapping Hashing" below for the details on the hashing algorithm. Since entry metadata includes the objects hashes (via object IDs) of the serialized contents of the entry, entry hash can also be seen as a hash of the "full" entry rather than just the entry metadata (the same technique is used to hash file trees in Git; [Merkle trees](https://en.wikipedia.org/wiki/Merkle_tree) are similar, too, although the entry hash is not cryptographically secure). The entry hash is used to check the entry metadata's integrity on the file system. Entry hashes are always passed around, stored, and used in downstream hashes (the snapshot hashes, see below) as 11-character base64url-encoded strings (without the trailing pad character `=`) rather than as 64-bit integer (8-byte) digests.
 *   **(Entries) Snapshot:** The totality of entries recognised by `FsPersister` at some point, including some metadata about the snapshot itself, such as its *ancestor snapshots*. A snapshot is designed to be the *unit of synchronization of entries between machines running Marimo*, althrough the synchronization itself may be performed by other systems, such as Dropbox. Conceptually, snapshots are similar to *commits* in Git and other version control systems, and can be *included in* the commits in the same version control system in which the user tracks the Marimo notebook(s) that use the Marimo persistence system. In the future, snapshots could also be *implemented as* separate commits in a *branch* of the repo where the user stores Marimo notebooks, akin to [git-annex's branch](https://git-annex.branchable.com/how_it_works/).
 *   **Snapshot Hash:** The hash of the whole snapshot *except* for the single key that stores this snapshot's hash itself. See the sections "Snapshot File Format (TOML)" and "Mapping Hashing" below for further details. Snapshot hashes serve as the names for the snapshot file themselves: `{snapshot_hash}.toml`, which means that snapshot files are content-addressed and deduplicated, too. This mirrors Git, where commits are stored as objects, and therefore commit objects are deduplicated. However, unlike Git, `FsPersister` stores snapshot files in a dedicated directory, separate from objects. Snapshot hashes are always passed around and stored (including in the snapshot file names) as 43-character base64url-encoded strings rather than 32-byte digests.
-*   **_Fresh_ (Entries, Contents, Objects):** the entries (also the contents and the objects referenced from them) are called **fresh** if they haven't yet been included in any snapshot that have been seen by `FsPersister` on a specific machine (although, the snapshot might not have been *created* on the machine, it might have been created on a different machine and synched to this machine), and therefore haven't yet been synchronized to other machines and haven't yet become visible to `FsPersister`s operating on other machines. *Object cleanup* skips fresh objects to avoid a specific kind of conflict with external, non-cooperative sychronization systems such as Dropbox. The fresh markers of objects should themselves be stored and synchronized between machines. See the "Fresh Object Statuses" section for more details.
+*   **_Fresh_ (Entries, Contents, Objects):** the entries (also the contents and the objects referenced from them) are called **fresh** if they haven't yet been included in any snapshot that have been seen by `FsPersister` on a specific machine (although, the snapshot might not have been *created* on the machine, it might have been created on a different machine and synched to this machine), and therefore haven't yet been synchronized to other machines and haven't yet become visible to `FsPersister`s operating on other machines. *Object cleanup* skips fresh objects to avoid a specific kind of conflict with external, non-cooperative synchronization systems such as Dropbox. The fresh markers of objects should themselves be stored and synchronized between machines. See the "Fresh Object Statuses" section for more details.
 
 ## 2. Python APIs and Behavior Spec of Any Persistence Implementation via `Persister`
 
@@ -86,7 +86,7 @@ class ExecutionKey:
 
 The `ExecutionKey` uniquely identifies a specific execution of a program block (a `mo.persistent_cache()` context block or a persisted cell) that is being persisted. It includes:
 
-1.   **`block_id`:** The id of the block that produced the entry. Currently, this is the hash of the code (AST) of the `mo.persistent_cache()` context block *without* considering either its varaible or function deependencies. In the future, this may also be the hash of the cell code (for persisted cells), or the persisted cell's *name* (perhaps, qualified) if the cell is [named](https://docs.marimo.io/api/cell/#marimo.Cell.name).
+1.   **`block_id`:** The id of the block that produced the entry. Currently, this is the hash of the code (AST) of the `mo.persistent_cache()` context block *without* considering either its variable or function deependencies. In the future, this may also be the hash of the cell code (for persisted cells), or the persisted cell's *name* (perhaps, qualified) if the cell is [named](https://docs.marimo.io/api/cell/#marimo.Cell.name).
 2.   **`module_hash`:** The tree hash that includes the block's code (AST) hash and the hashes of the variable and function dependencies of the `mo.persistent_cache()` context block (or, in the future, the persisted cell). Variable and function dependency hashing algorithms are detailed below.
 3.   **`created_at`:** A `datetime` (up to millisecond precision) indicating when the block executed started, which is considered the "entry creation time". This is an optional part of the execution key for entry retrieval: if not specified, `Persister` *must* retrieve the `Entry` whose `created_at` is the latest among the entries with `block_id` and `module_hash` matching those in the provided `ExecutionKey`.
 
@@ -440,7 +440,7 @@ be there at all, and instead all its options (currently, only `version`) are inc
 
 ### 3.2. FsPersister Constructor and Default Configuration
 
-`.marimo.toml` can include an `[fs_persister.defaults]` table with *default* `FsPersister` configurations, *unless* overriden in `FsPersister()` constructor call and then passed into `App()` constructor:
+`.marimo.toml` can include an `[fs_persister.defaults]` table with *default* `FsPersister` configurations, *unless* overridden in `FsPersister()` constructor call and then passed into `App()` constructor:
 ```toml
 [fs_persister.defaults]
 dir_path              = "persist"       # Relative to the __marimo__ dir location.
@@ -457,7 +457,7 @@ entry_merge_timeout_seconds = 3600 # -1 means unlimited, also positive values ar
 max_entries_in_log          = -1   # -1 means unlimited, also positive values are allowed
 ```
 
-All the option values listed above are themselves default, so `[fs_persister]` table should be added to `.marimo.toml` (or [overriden via `pyproject.toml`](https://docs.marimo.io/guides/configuration/#overriding-settings-with-pyprojecttoml)) only if any configurations other than the above are desired.
+All the option values listed above are themselves default, so `[fs_persister]` table should be added to `.marimo.toml` (or [overridden via `pyproject.toml`](https://docs.marimo.io/guides/configuration/#overriding-settings-with-pyprojecttoml)) only if any configurations other than the above are desired.
 
 All these options directly correspond to `FsPersister`'s constructor parameters:
 ```python
@@ -483,7 +483,7 @@ Regarding `use_fresh_object_statuses`, see the sections "Object Cleanup" and "Fr
 
 `cleanup_default_include_content` controls whether `FsPersister` cleans up the content (i.e., objects) in addition to entries during whenever `FsPersister.cleanup()` is called in background by `FsPersister` itself: see the full list of trigger conditions and entry points to this method in the "New Snapshot Creation" section below, *except* when the argument is explicitly overridden from the command line: `marimo persist cleanup --include_content[=true|false] [--] <notebook_paths>`.
 
-`cleanup_default_delete_orphan_objects` controls whether `delete_orphan_objects` keyword argument is passed to `FsPersister.cleanup()` by default. See more details about this argument in the "Object Cleanup" section below. This argument can be overriden from the command line: `marimo persist cleanup --delete_orphan_objects[=true|false] [--] <notebook_paths>`.
+`cleanup_default_delete_orphan_objects` controls whether `delete_orphan_objects` keyword argument is passed to `FsPersister.cleanup()` by default. See more details about this argument in the "Object Cleanup" section below. This argument can be overridden from the command line: `marimo persist cleanup --delete_orphan_objects[=true|false] [--] <notebook_paths>`.
 
 `use_fresh_object_statuses=True` and `cleanup_default_include_content=False` are defensive defaults that assume the least permissive environment and prioritise synchronization correctness over ergonomics and simplicity. However, in a lot of cases `use_fresh_object_statuses=False` and `cleanup_default_include_content=True` configurations also work correctly and are more ergonomic. See the section "Object Cleanup" for details.
 
@@ -493,7 +493,7 @@ Regarding `use_fresh_object_statuses`, see the sections "Object Cleanup" and "Fr
 
 #### 3.2.1. Default Cleanup Strategy
 
-The `default_cleanup_strategy` argument to `FsPersister()` constructor controls the cleanup strategy that is used whenever `FsPersister.cleanup()` is called in background by `FsPersister` itself: see the full list of trigger conditions and entry points to this method in the "New Snapshot Creation" section below, except when the cleanup strategy is explicitly overriden in the `marimo persist cleanup` command (see below in this section).
+The `default_cleanup_strategy` argument to `FsPersister()` constructor controls the cleanup strategy that is used whenever `FsPersister.cleanup()` is called in background by `FsPersister` itself: see the full list of trigger conditions and entry points to this method in the "New Snapshot Creation" section below, except when the cleanup strategy is explicitly overridden in the `marimo persist cleanup` command (see below in this section).
 
 In turn, if `default_cleanup_strategy` argument is not passed to `FsPersister()`, or if `FsPersister()` is not explicitly passed into the `App` constructor, the default cleanup strategy is created based on `[fs_persister.default_cleanup_strategy]` table in `.marimo.toml`:
 
@@ -525,7 +525,7 @@ class DefaultCleanupStrategy:
         self.max_total_content_size = self._validate(max_total_content_size, "max_total_content_size")
         if max_entries_per_block == -1 and max_entries_per_module == -1 and
             max_entry_age_days == -1 and max_total_content_size == -1:
-            raise ValueError("At least one of the paraemters should be positive")
+            raise ValueError("At least one of the parameters should be positive")
 
     def _validate(self, value: int, param_name: str) -> int:
         if value <= 0 and value != -1:
@@ -616,9 +616,9 @@ For the rest of this document, we classify these systems as **cooperative** and 
 *   Git extensions for large and/or binary and/or frequently churning contents: [git-annex](http://git-annex.branchable.com/), [Datalad](https://www.datalad.org/) (itself a "wrapper" of git-annex), or [Git-LFS](https://github.com/git-lfs/git-lfs).
 *   [DVC](https://dvc.org/) or other [data package managers](https://github.com/davidgasquez/handbook/blob/main/Open%20Data.md#data-package-managers).
  
-**Non-cooperative synchronization and backup systems** are those that monitor the file system independenly and can trigger synchronization as soon as they detect any changes. These include Dropbox, Box.com, OneDrive, Google Drive, iCloud, etc.
+**Non-cooperative synchronization and backup systems** are those that monitor the file system independently and can trigger synchronization as soon as they detect any changes. These include Dropbox, Box.com, OneDrive, Google Drive, iCloud, etc.
 
-**Cooperative synchonization systems should be preferred** because they enable using a much simpler *object cleanup* procedure: see the "Object Cleanup" section below. However, `FsPersister` also has a mode 
+**Cooperative synchronization systems should be preferred** because they enable using a much simpler *object cleanup* procedure: see the "Object Cleanup" section below. However, `FsPersister` also has a mode 
 
 **`locks/` and `entry_log/` directories should be excluded from synchronization**. However, it is harmless if the user forgets to exclude these directories from synchronization, or is "too lazy" to do so, although synchronization of `entry_log/` via non-cooperative systems ay cause significant but entirely unnecessary synchronization traffic.
 
@@ -689,7 +689,7 @@ entry_table_name_parts = ["block_id", "module_hash", "created_at"]
 # Elements in the list are sorted.
 # Note that bare keys with trailing or leading `-` are acceptable in TOML. 
 1234567890123456789012345678901234567890A_- = ["-_A1234567890123456789012345678901234567890", "_-A1234567890123456789012345678901234567890"]
-# Record the snapshot ancestory up to a certain depth
+# Record the snapshot ancestry up to a certain depth
 -_A1234567890123456789012345678901234567890 = ["...", "..."]
 _-A1234567890123456789012345678901234567890 = ["..."]
 ...
@@ -727,7 +727,7 @@ With `created_at` datetimes around the current moment, these keys have 15 digits
 The algorithm of computing the entry hashes is described in the "Mapping Hashing" section below.
 
 **Alternatives considered:**
-*   Considered using `created_at.isoformat(timespec='milliseconds')` as `created_at` representation for entry storage, such as `"2024-03-20T14:30:15.123"` (quoted TOML keys). That would be more human-readable. However, chose `created_at_millis` represetation for consistency with execution key-qualified mode for object IDs (see the section "Object IDs" below) and consistency with possible alternative `Persister` implementations (either also file system-based, or using remote object storage), where the `created_at` can be a part of a path and ISO format with `:` characters may not be admissible.
+*   Considered using `created_at.isoformat(timespec='milliseconds')` as `created_at` representation for entry storage, such as `"2024-03-20T14:30:15.123"` (quoted TOML keys). That would be more human-readable. However, chose `created_at_millis` representation for consistency with execution key-qualified mode for object IDs (see the section "Object IDs" below) and consistency with possible alternative `Persister` implementations (either also file system-based, or using remote object storage), where the `created_at` can be a part of a path and ISO format with `:` characters may not be admissible.
 *   Considered adding `header.default_variables_format` key that permits shrinking the snapshot files because usually `variables = { ..., format = "pickle" }` will be repeated throughout the file. This optimisation could be implemented in the future, but is left out of scope of the design described in this document.
 *   Considered using content formats like `pickle_5`, where the `5` is the [Pickle protocol version](https://docs.python.org/3/library/pickle.html#data-stream-format). However, this seems unnecessary because Pickle already includes the protocol version byte in the serialized byte sequence, so it should transparently handle potential protocol version mismatches for us. But just in case, the protocol version could be passed down via `mo.persistent_cache(..., protocol=N)` that will pass down `kwargs` to `FsPersister`'s `get()` and `.put()` calls, who in turn pass these `kwargs` down to `Unpickler()` and `Pickler()`.
 
@@ -762,7 +762,7 @@ Unlike snapshot writing and object writing, `FsPersister` does *not* attempt to 
 **Alternatives considered:**
 *   A single log file such as `log.toml` (rather than a *per-machine* log file with name `machine_{machine_id}.toml`, as described above) that would be synchronized across machines
 *   Chunked log files with timestamps in their names,
-*   Appending entries directy to "unified" TOML file with entries: that is, not differentiating snapshots and logs.
+*   Appending entries directly to "unified" TOML file with entries: that is, not differentiating snapshots and logs.
 
 Ultimately, the per-machine log approach simplifies concurrency and should avoid interference with non-cooperative synchronization services like Dropbox.
 
@@ -827,7 +827,7 @@ In `FsPersister.cleanup()`:
    *   Since the number of files in `fresh_objects/` is likely much smaller than the number of files we should delete from it (actually, "ensure they are deleted", because most of these files wouldn't be present in this directory), as an optimisation, call `os.listdir(fresh_object_dir)`, then compute the intersection with the list of object names that should be deleted, and then call `os.remove()` only on these files in the intersection.
 15.  Determine whether writing a new snapshot file is needed. It's *not* needed if there was a single "everyone's descendant" snapshot on the step 9 above and *all* entries from the entry log were excluded by the cleanup strategy, and the cleanup strategy didn't exclude any entries from "everyone's descendant" snapshot. 
 16.  If needed, write a new snapshot file with the cleaned set of entries and the appropriate `[parents]` table, where the parents of this new snapshot are the "minimal set" from the step 9 above. For snapshot file writing, use the procedure "Atomic File Writes" described below. Also, after this step is successful, put the dict with the new mapping from execution keys to `EntryMetadata` objects in a field of this `FsPersister`, making it the new "live" set of entries tracked by this `FsPersister` and available (under `threading.Lock`) to other `FsPersister` methods such as `get()` and `put()`.
-17.  Delete from `entry_snapshots/` all (non-corrupted) snapshot files that were feeded into the new snapshot, from the step 6 onwards.
+17.  Delete from `entry_snapshots/` all (non-corrupted) snapshot files that were fed into the new snapshot, from the step 6 onwards.
 18.  If `cleanup()` is called with `include_content=True` **or** `delete_orphan_objects=True`, do the object cleanup:
    a.   If `delete_orphan_objects=True` prepare a "to_keep" list of objects, otherwise a "to_delete" list of objects. "to_keep" objects are referenced from the entries that are included in the new snapshot. "to_delete" objects are referenced from any non-corrupt entries that have been seen throughout this procedure and are *not* referenced from the entries that are included in the new snapshot.
    b.   With the "to_keep" list of objects, list all files in `objects/` and delete all that don't appear in the "to_keep" list and that *don't* have a corresponding marker file in the `fresh_objects/` directory, if fresh objects statuses are used by this `FsPersister`. With the "to_delete" list, try to delete objects from this list directly.
@@ -838,7 +838,7 @@ This procedure is designed to be resilient to the Marimo process termination at 
 
 #### 3.8. Entry Conflict Resolution and Integrity Checking
 
-This section describes various entry ans shanpshot confict edge cases and integrity checks that are used in `FsPersister`.
+This section describes various entry ans shanpshot conflict edge cases and integrity checks that are used in `FsPersister`.
 
 **Execution Key Clashes:** It's possible, althrough exceedingly unlikely, that two entries with the same `ExecutionKey` are created by different Marimo processes with the same `block_id`, `module_hash`, and `created_at` (a millisecond-precision `datetime`). `FsPersister.put()` doesn't persist the entry and raises `ExecutionKeyClash`, as per `Persister.put()` specification (see above). When clashing execution keys appear when `FsPersister` merges snapshots that have been synchronized from other machines, `FsPersister` chooses the entry with the largest content sizes (in the alphabetical order of content kinds: `output`, `stderr`, `variables`; absent content kind is assumed to have zero size). If all content sizes are equal, all other entry metadata are compared in the "Mapping Hashing" order (see below). This deterministic resolution ensures consistent snapshot merging results across different machines.
 
@@ -908,7 +908,7 @@ Rather than:
 {f"{block_id}.{module_hash}.{created_at}": ...}
 ```
 
-The `[header]` table (except for the `snapshot_hash` key) and the `[parents]` table are also feeded into the snapshot hash. So, the full mapping that is being hashed is something like:
+The `[header]` table (except for the `snapshot_hash` key) and the `[parents]` table are also fed into the snapshot hash. So, the full mapping that is being hashed is something like:
 ```python
 [
     # The first parts of the execution keys, block_ids (which are considered top-level TOML tables)
@@ -948,7 +948,7 @@ When hashing list values (such as in `[parents]`; `referenced_objects` list with
 
 In the **deduplication mode** (default), object IDs (and hence the file names) are just the *object hashes* of the corresponding objects. As the name of this mode suggests, this mode enables deduplication of contents (stored as objects) across entries.
 
-Since execution of the same block (`mo.persistent_cache()`) at different times create separate entries, and it's plausible that these executions produce byte-identical `variables` (despite different varaible dependencies, which would indicate that the block is indifferent to the values of these dependencies, although the Marimo runtime doesn't and couldn't know that). So, objects are expected to be actually deduplicated in the majority of "normal" uses of Marimo's persistence subsystem, not just in rare cases.
+Since execution of the same block (`mo.persistent_cache()`) at different times create separate entries, and it's plausible that these executions produce byte-identical `variables` (despite different variable dependencies, which would indicate that the block is indifferent to the values of these dependencies, although the Marimo runtime doesn't and couldn't know that). So, objects are expected to be actually deduplicated in the majority of "normal" uses of Marimo's persistence subsystem, not just in rare cases.
 
 The **object hash** is a base64url encoding (without `=` pad at the end) of the **SHA-256 hash** of this object's byte sequence. The result is a 43-character string.
 
@@ -978,7 +978,7 @@ __marimo__/
 
 As discussed in the "Persistence Directory Config" section above, objects with IDs in different modes might potentially be mixed in this directory.
 
-`variables` contents are currently serialised (using Pickle or JSON) as a sinlge `dict`, mapping from persisted block's top-level variable names to the values, that produces a single serialized byte sequence, i.e., a single *content object*. This already permits some Pickle-native deduplication when some large objects are referenced from within multiple variables in that `dict`.
+`variables` contents are currently serialised (using Pickle or JSON) as a single `dict`, mapping from persisted block's top-level variable names to the values, that produces a single serialized byte sequence, i.e., a single *content object*. This already permits some Pickle-native deduplication when some large objects are referenced from within multiple variables in that `dict`.
 
 Using Pickle's [out-of-band buffers](https://docs.python.org/3/library/pickle.html#out-of-band-buffers) and [persistend object references](https://docs.python.org/3/library/pickle.html#persistence-of-external-objects) to deduplicate serialised variables more thoroughly (such as if multiple blocks or cells serialise different variables that thinly wrap the same large dataframe) is out of scope for the initial implementation, but if/when it's added in the future, these "extracted" objects will be stored as separate files in the same `objects/` directory (also shared with `output` and `stderr` objects, by the way), and there would be no way to "correlate" these objects other than through consulting the entry metadata that is stored separately. This paragraph is an elaborate way of saying that the `objects/` directory doesn't have any semantic grouping (such as via subdirectories or file naming) on the file system level.
 
@@ -1040,10 +1040,10 @@ This approach is fine if at least one of the following conditions are met:
 *   The persistence directory is *not* synchronized across machines at all.
 *   A *cooperative* synchronization system is used to manage the object in the `objects/` directory, such as Git, git-annex, Datalad, DVC, etc: see the section "External Synchronization" above.
 *   The persistence directory is synchronized across machines, but there is a single "writer" machine on which the writes to the persistence directory happen exclusively.
-*   There are multiple "active" machines that may have `marimo` processes writing to their persistence directories at the same time, but they always work on *different notebooks that couldn't plausibly produce identical contents* (and, therefore, deduplicate objects): for example, teammates working in the same project on separate notebooks. Note that asserting that different notebooks will not produce identical contents is easier when only explicit `mo.persistence_cache()` context blocks are used. When *all* cells in the notebooks are persisted automatically (see [#3054](https://github.com/marimo-team/marimo/issues/3054)), cells across notebooks may persist trivial `variables` dicts like `{}`. However, the special handling of such trivial objects (see the "Trivial Objects" section above) should prevent almost all such conficts, unless the notebooks are actually somewhat releated and can produce non-trivial identical contents.
+*   There are multiple "active" machines that may have `marimo` processes writing to their persistence directories at the same time, but they always work on *different notebooks that couldn't plausibly produce identical contents* (and, therefore, deduplicate objects): for example, teammates working in the same project on separate notebooks. Note that asserting that different notebooks will not produce identical contents is easier when only explicit `mo.persistence_cache()` context blocks are used. When *all* cells in the notebooks are persisted automatically (see [#3054](https://github.com/marimo-team/marimo/issues/3054)), cells across notebooks may persist trivial `variables` dicts like `{}`. However, the special handling of such trivial objects (see the "Trivial Objects" section above) should prevent almost all such conflicts, unless the notebooks are actually somewhat related and can produce non-trivial identical contents.
 *   The persistence directory is synchronized between multiple "active" machines, but there is only one active at any single time, and the internet speed and the sizes of objects are such that synchronization systems always have ample time to complete the synchronization between the working sessions on these different machines. A typical example of this would be a solo user synchronizing between their laptop and a PC, while never actively "coding in Marimo" (or their AI agent coding on their behalf) on both machines at any time. This condition also requires that `FsPersister()` is configured with `cleanup_on_exit=True` argument (or `fs_persister.defaults.cleanup_on_exit=true` in `.marimo.toml`) and it is working, i.e., Marimo processes are exiting "cleanly" rather than via SIGKILL.
 
-If any of the above conditions is true, the user should configure `use_fresh_object_statuses=False`, `cleanup_default_include_content=True` and `cleanup_default_delete_orphan_objects=False` in the `FsPersister()` constructor, or alterantively `use_fresh_object_statuses=false`, `cleanup_default_include_content=true` and `cleanup_default_delete_orphan_objects=false` in the `[fs_persister.defaults]` table in [`.marimo.toml` or `pyproject.toml`](https://docs.marimo.io/guides/configuration/#user-configuration-file) to enable the simple cleanup approach (the default values for these three configuration knobs are all opposite from the values given above).
+If any of the above conditions is true, the user should configure `use_fresh_object_statuses=False`, `cleanup_default_include_content=True` and `cleanup_default_delete_orphan_objects=False` in the `FsPersister()` constructor, or alternatively `use_fresh_object_statuses=false`, `cleanup_default_include_content=true` and `cleanup_default_delete_orphan_objects=false` in the `[fs_persister.defaults]` table in [`.marimo.toml` or `pyproject.toml`](https://docs.marimo.io/guides/configuration/#user-configuration-file) to enable the simple cleanup approach (the default values for these three configuration knobs are all opposite from the values given above).
 
 When none of the conditions listed above is met, the following race scenario between Marimo processes and non-coooperative synchronization is possible with the simple object cleanup approach described above:
 1. On machine A, the entry is deleted that references object X. The object X is deleted from the `objects/` directory on machine A.
@@ -1091,7 +1091,7 @@ This is needed to prevent interferences when the synchronization system creates 
 
 Writing object files (as described in the "Entry Writing" section) also follows the atomic file writing algorithm, but the steps of this algorithm are interleaved with other actions done in `FsPersister.put()`. 
 
-In the case of objects, the additional purpose of atomic file writing is to permit *streaming hashing* (see the "Object IDs" section above) while writing out the object to a temporary file and *not* requiring the whole object to reside in memory: if the `variables` references a memory-mapped dataframe, the content object could be too large to fit into memory. Directly streaming the object to `objects/` directory is not posssible because the name of the file (object ID) depends on the hash.
+In the case of objects, the additional purpose of atomic file writing is to permit *streaming hashing* (see the "Object IDs" section above) while writing out the object to a temporary file and *not* requiring the whole object to reside in memory: if the `variables` references a memory-mapped dataframe, the content object could be too large to fit into memory. Directly streaming the object to `objects/` directory is not possible because the name of the file (object ID) depends on the hash.
 
 **The Atomic File Writing Procedure:**
 1. Write to a *temp* file in `__marimo__/temp/`. Use this location instead of `tempfile.gettempdir()` because the latter is not guaranteed to be mounted on the same file system as `__marimo__/persist/` (this is a prerequisite for calling `os.replace()` later). On the other hand, making the temp file location dependent on the local fs mounting seems unnecessarily "jittery".
