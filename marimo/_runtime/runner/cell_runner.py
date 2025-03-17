@@ -5,11 +5,11 @@ import asyncio
 import contextlib
 import functools
 import io
-import os
 import signal
 import threading
 import traceback
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from marimo._ast.cell import CellImpl
@@ -438,17 +438,12 @@ class Runner:
                 if isinstance(unwrapped_exception, ModuleNotFoundError):
                     try:
                         module_name = getattr(unwrapped_exception, "name", "")
+                        # Grab the base module name if it's a submodule
                         module_name = module_name.split(".")[0]
 
-                        python_files = [
-                            file.split(".")[0]
-                            for file in os.listdir()
-                            if file.endswith(".py")
-                        ]
-                        if (
-                            module_name in python_files
-                            and DependencyManager.has(module_name)
-                        ):
+                        if Path(
+                            f"{module_name}.py"
+                        ).exists() and DependencyManager.has(module_name):
                             error_message = f"There is a file named '{module_name}.py' which conflicts with the imported package. Please rename the file."
                             output = MarimoExceptionRaisedError(
                                 error_message,
