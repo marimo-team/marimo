@@ -6,8 +6,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     Final,
+    Literal,
     Optional,
     TypedDict,
     Union,
@@ -16,6 +18,7 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.validators import validate_one_of
 from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
@@ -72,7 +75,7 @@ class file_browser(
         from cloudpathlib import S3Path
 
         file_browser = mo.ui.file_browser(
-            initial_path=S3Path("s3://mybucket/mydir")
+            initial_path=S3Path("s3://my-bucket/folder/")
         )
 
         # Access the selected file path(s):
@@ -80,6 +83,20 @@ class file_browser(
 
         # Read the contents of the selected file(s):
         file_browser.path(index).read_text()
+        ```
+
+        Using with client credentials:
+        ```python
+        from cloudpathlib import GSClient, GSPath
+
+        # Create a client with credentials
+        gs_client = GSClient("storage_credentials.json", project="my-project")
+
+        # Create a path with the client
+        cloudpath = GSPath("gs://my-bucket/folder", client=gs_client)
+
+        # Use the path with file_browser
+        file_browser = mo.ui.file_browser(initial_path=cloudpath)
         ```
 
     Attributes:
@@ -93,10 +110,11 @@ class file_browser(
             If a Path, it will be interpreted as a local path.
             If a CloudPath (from cloudpathlib), such as S3Path, GCSPath, or AzurePath,
             files will be loaded from the respective cloud storage bucket.
+            If a CloudPath with a client is provided, that client will be used for all operations.
         filetypes (Sequence[str], optional): The file types to display in each
             directory; for example, filetypes=[".txt", ".csv"]. If None, all
             files are displayed. Defaults to None.
-        selection_mode (str, optional): Either "file" or "directory". Defaults to
+        selection_mode (Literal["file", "directory"], optional): Either "file" or "directory". Defaults to
             "file".
         multiple (bool, optional): If True, allow the user to select multiple
             files. Defaults to True.
@@ -114,7 +132,7 @@ class file_browser(
         self,
         initial_path: Union[str, Path] = "",
         filetypes: Optional[Sequence[str]] = None,
-        selection_mode: str = "file",
+        selection_mode: Literal["file", "directory"] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
@@ -124,17 +142,7 @@ class file_browser(
             Callable[[Sequence[FileBrowserFileInfo]], None]
         ] = None,
     ) -> None:
-        if (
-            selection_mode != "file"
-            and selection_mode != "directory"
-            and selection_mode != "all"
-        ):
-            raise ValueError(
-                "Invalid argument for selection_mode. "
-                + "Must be either 'file' or 'directory'."
-            )
-        else:
-            self.selection_mode = selection_mode
+        validate_one_of(selection_mode, ["file", "directory"])
 
         if not initial_path:
             initial_path = Path.cwd()
@@ -149,16 +157,17 @@ class file_browser(
                 f"Initial path {initial_path} is not a directory."
             )
 
-        self.filetypes: set[str] = set(filetypes) if filetypes else set()
-        self.restrict_navigation = restrict_navigation
-        self.initial_path: Path = initial_path
-        self.limit = limit
+        self._selection_mode = selection_mode
+        self._filetypes: set[str] = set(filetypes) if filetypes else set()
+        self._restrict_navigation = restrict_navigation
+        self._initial_path: Path = initial_path
+        self._limit = limit
 
-        self.path_cls: type[Path]
+        self._path_cls: type[Path]
         if isinstance(initial_path, str):
-            self.path_cls = Path
+            self._path_cls = Path
         else:
-            self.path_cls = initial_path.__class__
+            self._path_cls = initial_path.__class__
 
         super().__init__(
             component_name=file_browser._name,
@@ -181,6 +190,18 @@ class file_browser(
             on_change=on_change,
         )
 
+    def _create_path(self, path_str: str) -> Path:
+        """Create a path object with the same class and client as the initial path."""
+        kwargs: dict[str, Any] = {}
+
+        # If we have a client on the initial path, pass it to the path constructor
+        # This covers the case when the initial path is a CloudPath with a client
+        if hasattr(self._initial_path, "client"):
+            kwargs["client"] = self._initial_path.client  # type: ignore
+
+        path = self._path_cls(path_str, **kwargs)
+        return path
+
     def _list_directory(
         self, args: ListDirectoryArgs
     ) -> ListDirectoryResponse:
@@ -190,9 +211,9 @@ class file_browser(
         # Convert to original class of initial_path
         # so that it works with anything that extended Path
         # such as CloudPath
-        path = self.path_cls(args.path)
+        path = self._create_path(args.path)
 
-        if self.restrict_navigation and path in self.initial_path.parents:
+        if self._restrict_navigation and path in self._initial_path.parents:
             raise RuntimeError(
                 "Navigation is restricted; navigating to a "
                 "parent of initial path is not allowed."
@@ -203,12 +224,12 @@ class file_browser(
             _, extension = os.path.splitext(file.name)
 
             # Skip non-directories if selection mode is directory
-            if self.selection_mode == "directory" and not file.is_dir():
+            if self._selection_mode == "directory" and not file.is_dir():
                 continue
 
             # Skip non-matching file types
-            if self.filetypes and not file.is_dir():
-                if extension not in self.filetypes:
+            if self._filetypes and not file.is_dir():
+                if extension not in self._filetypes:
                     continue
 
             files.append(
@@ -220,7 +241,7 @@ class file_browser(
                 )
             )
 
-            if len(files) >= self.limit:
+            if len(files) >= self._limit:
                 break
 
         return ListDirectoryResponse(files)
@@ -232,7 +253,7 @@ class file_browser(
             FileBrowserFileInfo(
                 id=file["id"],
                 name=file["name"],
-                path=self.path_cls(file["path"]),
+                path=self._create_path(file["path"]),
                 is_directory=file["is_directory"],
             )
             for file in value
