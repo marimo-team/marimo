@@ -325,6 +325,7 @@ class table(
         self._selected_manager: Optional[TableManager[Any]] = None
 
         self._selection = selection
+        self._has_any_selection = False
         initial_value = []
         if initial_selection and self._manager.supports_selection():
             if selection == "single" and len(initial_selection) > 1:
@@ -476,6 +477,7 @@ class table(
                 for v in value
                 if isinstance(v, int) or isinstance(v, str)
             ]
+            self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
                 self._selected_manager = self._manager.select_rows(indices)
@@ -483,7 +485,6 @@ class table(
                 self._selected_manager = self._searched_manager.select_rows(
                     indices
                 )
-                self._has_any_selection = len(indices) > 0
             return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
     def _download_as(self, args: DownloadAsArgs) -> str:
