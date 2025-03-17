@@ -402,6 +402,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "dns": "dnspython",
         "docgen": "ansible-docgenerator",
         "docker": "docker-py",
+        "docx": "python-docx",
         "dogpile": "dogpile.core",
         "dogshell": "dogapi",
         "dot_parser": "pydot3k",
