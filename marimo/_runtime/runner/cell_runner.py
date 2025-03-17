@@ -449,7 +449,7 @@ class Runner:
                             module_name in python_files
                             and DependencyManager.has(module_name)
                         ):
-                            error_message = f"Error: You have a file named '{module_name}.py' which conflicts with the imported package. Please rename the file."
+                            error_message = f"There is a file named '{module_name}.py' which conflicts with the imported package. Please rename the file."
                             output = MarimoExceptionRaisedError(
                                 error_message,
                                 unwrapped_exception.__class__.__name__,
