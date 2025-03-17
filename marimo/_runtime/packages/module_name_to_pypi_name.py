@@ -401,6 +401,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "djorm_pgarray": "djorm-ext-pgarray",
         "dns": "dnspython",
         "docgen": "ansible-docgenerator",
+        "docx": "python-docx",
         "docker": "docker-py",
         "dogpile": "dogpile.core",
         "dogshell": "dogapi",
