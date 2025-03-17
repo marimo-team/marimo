@@ -24,7 +24,7 @@ from marimo._ast.compiler import (
     toplevel_cell_factory,
 )
 from marimo._ast.models import CellData
-from marimo._ast.names import DEFAULT_CELL_NAME
+from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.pytest import process_for_pytest
 from marimo._types.ids import CellId_t
 
@@ -146,7 +146,7 @@ class CellManager:
     ) -> Cell:
         """Registers cells when called through a context block."""
         cell = context_cell_factory(
-            cell_id=self.create_cell_id(),
+            cell_id=CellId_t(SETUP_CELL_NAME),
             # NB. carry along the frame from the initial call.
             frame=frame,
         )

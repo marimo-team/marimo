@@ -2230,6 +2230,7 @@ export interface components {
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
       run_id?: string | null;
+      serialization?: string | null;
       stale_inputs?: boolean | null;
       status?: components["schemas"]["RuntimeState"];
       timestamp: number;
