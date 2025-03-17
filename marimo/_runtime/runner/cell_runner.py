@@ -9,11 +9,13 @@ import signal
 import threading
 import traceback
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from marimo._ast.cell import CellImpl
 from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
@@ -430,6 +432,28 @@ class Runner:
                 (ModuleNotFoundError, ManyModulesNotFoundError),
             ):
                 self.missing_packages = True
+
+                # If the user has a library and a file with the same name
+                # we should inform that this is a conflict.
+                if isinstance(unwrapped_exception, ModuleNotFoundError):
+                    try:
+                        module_name = getattr(unwrapped_exception, "name", "")
+                        # Grab the base module name if it's a submodule
+                        module_name = module_name.split(".")[0]
+
+                        if Path(
+                            f"{module_name}.py"
+                        ).exists() and DependencyManager.has(module_name):
+                            error_message = f"There is a file named '{module_name}.py' which conflicts with the imported package. Please rename the file."
+                            output = MarimoExceptionRaisedError(
+                                error_message,
+                                unwrapped_exception.__class__.__name__,
+                                None,
+                            )
+                            LOGGER.error(error_message)
+                            exception = output
+                    except Exception as e:
+                        pass
 
             elif isinstance(unwrapped_exception, MarimoStopError):
                 output = unwrapped_exception.output
