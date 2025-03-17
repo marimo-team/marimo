@@ -339,7 +339,9 @@ def python_print_ibis(
         )
 
         if operator == "==" or operator == "equals":
-            return f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
+            return (
+                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
+            )
         elif operator == "does_not_equal" or operator == "!=":
             return f"({_as_literal(column_id)}) != {_as_literal(value)}"
         elif operator == "does_not_equal" or operator == "!=":
@@ -375,7 +377,7 @@ def python_print_ibis(
             transform.data_type,
             transform.errors,
         )
-        transform_data_type = _as_literal(data_type).replace("_","")
+        transform_data_type = _as_literal(data_type).replace("_", "")
         if errors == "ignore":
             return (
                 f"{df_name}.mutate("
@@ -418,16 +420,20 @@ def python_print_ibis(
         for agg_func in transform.aggregations:
             for column_id in transform.column_ids:
                 name = f"{column_id}_{agg_func}"
-                agg_dict.append(f"'{name}' : {df_name}['{column_id}'].{agg_func}()")
+                agg_dict.append(
+                    f"'{name}' : {df_name}['{column_id}'].{agg_func}()"
+                )
         return f"{df_name}.agg(**{{{','.join(agg_dict)}}})"
 
-    elif transform.type == TransformType.GROUP_BY:        
+    elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
         aggs: list[str] = []
         for column_id in all_columns:
             if column_id not in column_ids:
                 agg_alias = f"{column_id}_{aggregation}"
-                aggs.append(f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()')
+                aggs.append(
+                    f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
+                )
         return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"  # noqa: E501
 
     elif transform.type == TransformType.SELECT_COLUMNS:

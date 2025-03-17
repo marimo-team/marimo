@@ -6,9 +6,9 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+    python_print_ibis,
     python_print_pandas,
     python_print_polars,
-    python_print_ibis,
     python_print_transforms,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
@@ -464,7 +464,8 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         df: ibis.Table, transform: ColumnConversionTransform
     ) -> ibis.Table:
         import ibis
-        transform_data_type = transform.data_type.replace("_","")
+
+        transform_data_type = transform.data_type.replace("_", "")
 
         if transform.errors == "ignore":
             try:

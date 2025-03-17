@@ -355,8 +355,8 @@ class TestDataframes:
     @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
     def test_ibis_groupby_alias() -> None:
         """Test that group by operations use original column names correctly."""
-        import polars as pl
         import ibis
+        import polars as pl
 
         # Create a test dataframe with age and group columns
         df = pl.DataFrame(
@@ -365,10 +365,10 @@ class TestDataframes:
                 "age": [10, 20, 30, 40],
             }
         )
-        
+
         # from Polars to Ibis
         df = ibis.memtable(df)
-        
+
         # Test the transformation directly using TransformsContainer
         from marimo._plugins.ui._impl.dataframes.transforms.apply import (
             TransformsContainer,
@@ -391,9 +391,9 @@ class TestDataframes:
             drop_na=True,
             aggregation="max",
         )
-        
+
         # Create and apply the sort transformation
-        # result should be orderd
+        # result should be ordered
         transform_sort = SortColumnTransform(
             type=TransformType.SORT_COLUMN,
             column_id="age_max",
@@ -403,7 +403,7 @@ class TestDataframes:
 
         transformations = Transformations([transform_grp, transform_sort])
         transformed_df = transform_container.apply(transformations)
-        
+
         # from Ibis to Polars
         transformed_df = transformed_df.to_polars()
 
@@ -438,7 +438,11 @@ class TestDataframes:
             ["group", "age"],
             transform_grp,
         )
-        assert 'df.group_by(["group"]).aggregate(**{"age_max" : df["age"].max()})' in code
+        assert (
+            'df.group_by(["group"]).aggregate(**{"age_max" : df["age"].max()})'
+            in code
+        )
+
 
 @pytest.mark.skipif(
     not HAS_IBIS or not HAS_POLARS,
