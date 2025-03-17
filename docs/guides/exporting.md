@@ -187,19 +187,19 @@ files=("batch_and_form.py" "data_explorer.py")
 
 for file in "${files[@]}"; do
   without_extension="${file%.*}"
-  marimo export html-wasm "$file" -o public/"$without_extension".html --mode run
+  marimo export html-wasm "$file" -o site/"$without_extension".html --mode run
 done
 ```
 
 Optionally, you can create an `index.html` file in the public directory:
 
 ```bash
-echo "<html><body><ul>" > public/index.html
+echo "<html><body><ul>" > site/index.html
 for file in "${files[@]}"; do
   without_extension="${file%.*}"
-  echo "<li><a href=\"$without_extension.html\">$without_extension</a></li>" >> public/index.html
+  echo "<li><a href=\"$without_extension.html\">$without_extension</a></li>" >> site/index.html
 done
-echo "</ul></body></html>" >> public/index.html
+echo "</ul></body></html>" >> site/index.html
 ```
 
 ## 🏝️ Embed marimo outputs in HTML using Islands
