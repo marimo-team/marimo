@@ -125,7 +125,12 @@ def _generate_server_api_schema() -> dict[str, Any]:
         snippets.Snippets,
         requests.SetUIElementValueRequest,
         # Requests/responses
+        completion.SchemaColumn,
+        completion.SchemaTable,
+        completion.AiCompletionContext,
         completion.AiCompletionRequest,
+        completion.AiInlineCompletionRequest,
+        completion.ChatRequest,
         export.ExportAsHTMLRequest,
         export.ExportAsMarkdownRequest,
         export.ExportAsScriptRequest,

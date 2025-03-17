@@ -14,6 +14,7 @@ export const DATA_TYPES = [
   "unknown",
 ] as const;
 export type Banner = OperationMessageData<"banner">;
+export type AiInlineCompletionRequest = schemas["AiInlineCompletionRequest"];
 export type DataTableColumn = schemas["DataTableColumn"];
 export type DataTable = schemas["DataTable"];
 export type Database = schemas["Database"];

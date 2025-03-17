@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 from marimo._ai._types import ChatMessage
+
+if TYPE_CHECKING:
+    from google.generativeai.types import (  # type: ignore[import-not-found]
+        ContentDict,
+        PartType,
+    )
 
 
 def convert_to_openai_messages(
@@ -118,19 +124,13 @@ def convert_to_groq_messages(
     return groq_messages
 
 
-# Matches from google.generativeai.types import content_types
-class BlobDict(TypedDict):
-    mime_type: str
-    data: bytes
-
-
 def convert_to_google_messages(
     messages: list[ChatMessage],
-) -> list[dict[Any, Any]]:
-    google_messages: list[dict[Any, Any]] = []
+) -> list[ContentDict]:
+    google_messages: list[ContentDict] = []
 
     for message in messages:
-        parts: list[str | BlobDict] = [str(message.content)]
+        parts: list[PartType] = [str(message.content)]
         if message.attachments:
             for attachment in message.attachments:
                 content_type = attachment.content_type or "text/plain"

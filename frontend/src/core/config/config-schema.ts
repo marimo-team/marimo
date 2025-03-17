@@ -35,7 +35,7 @@ export const UserConfigSchema = z
       .object({
         activate_on_typing: z.boolean().default(true),
         copilot: z
-          .union([z.boolean(), z.enum(["github", "codeium"])])
+          .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
           .default(false)
           .transform((copilot) => {
             if (copilot === true) {

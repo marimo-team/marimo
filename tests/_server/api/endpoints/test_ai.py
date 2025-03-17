@@ -11,7 +11,7 @@ import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.api.endpoints.ai import get_content, make_stream_response
+from marimo._server.ai.providers import OpenAIProvider
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -219,6 +219,97 @@ class TestOpenAiEndpoints:
             base_url = openai_mock.call_args.kwargs["base_url"]
             assert base_url == "https://my-openai-instance.com"
 
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("openai.OpenAI")
+    def test_inline_completion(client: TestClient, openai_mock: Any) -> None:
+        user_config_manager = get_session_config_manager(client)
+
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
+
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[Choice(delta=Delta(content="df = pd.DataFrame()"))]
+            )
+        ]
+
+        with openai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/inline_completion",
+                headers=HEADERS,
+                json={
+                    "prefix": "import pandas as pd\n",
+                    "suffix": "\ndf.head()",
+                    "language": "python",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][1]["content"]
+            assert prompt == "import pandas as pd\n<FILL_ME>\ndf.head()"
+            # Assert the system prompt includes language-specific instructions
+            system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][0]["content"]
+            assert "python" in system_prompt
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("openai.OpenAI")
+    def test_inline_completion_without_token(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        del openai_mock
+        user_config_manager = get_session_config_manager(client)
+
+        with no_openai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/inline_completion",
+                headers=HEADERS,
+                json={
+                    "prefix": "import pandas as pd\n",
+                    "suffix": "\ndf.head()",
+                    "language": "python",
+                },
+            )
+        assert response.status_code == 400, response.text
+        assert response.json() == {"detail": "OpenAI API key not configured"}
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("openai.OpenAI")
+    def test_inline_completion_different_language(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        user_config_manager = get_session_config_manager(client)
+
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
+
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(choices=[Choice(delta=Delta(content="SELECT 1;"))])
+        ]
+
+        with openai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/inline_completion",
+                headers=HEADERS,
+                json={
+                    "prefix": "SELECT 1;",
+                    "suffix": "\nSELECT 2;",
+                    "language": "sql",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the system prompt includes language-specific instructions
+            system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][0]["content"]
+            assert "sql" in system_prompt
+
 
 @pytest.mark.skipif(
     not HAS_ANTHROPIC_DEPS, reason="optional dependencies not installed"
@@ -282,6 +373,38 @@ class TestAnthropicAiEndpoints:
                 "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("anthropic.Client")
+    def test_anthropic_inline_completion(
+        client: TestClient, anthropic_mock: Any
+    ) -> None:
+        user_config_manager = get_session_config_manager(client)
+
+        anthropic_client = MagicMock()
+        anthropic_mock.return_value = anthropic_client
+
+        anthropic_client.messages.create.return_value = [
+            RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
+        ]
+
+        with anthropic_config(user_config_manager):
+            response = client.post(
+                "/api/ai/inline_completion",
+                headers=HEADERS,
+                json={
+                    "prefix": "import pandas as pd\n",
+                    "suffix": "\ndf.head()",
+                    "language": "python",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt: str = anthropic_client.messages.create.call_args.kwargs[
+                "messages"
+            ][0]["content"]
+            assert prompt == "import pandas as pd\n<FILL_ME>\ndf.head()"
+
 
 @pytest.mark.skipif(
     not HAS_GOOGLE_AI_DEPS, reason="optional dependencies not installed"
@@ -317,7 +440,7 @@ class TestGoogleAiEndpoints:
             prompt = google_client.generate_content.call_args.kwargs[
                 "contents"
             ]
-            assert prompt == (
+            assert prompt[0]["parts"][0] == (
                 "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
 
@@ -344,6 +467,41 @@ class TestGoogleAiEndpoints:
         assert response.json() == {
             "detail": "Google AI API key not configured"
         }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("google.generativeai.GenerativeModel")
+    def test_google_ai_inline_completion(
+        client: TestClient, google_ai_mock: Any
+    ) -> None:
+        user_config_manager = get_session_config_manager(client)
+
+        google_client = MagicMock()
+        google_ai_mock.return_value = google_client
+
+        google_client.predict.return_value = MagicMock(
+            text="df = pd.DataFrame()"
+        )
+
+        with google_ai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/inline_completion",
+                headers=HEADERS,
+                json={
+                    "prefix": "import pandas as pd\n",
+                    "suffix": "\ndf.head()",
+                    "language": "python",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt = google_client.generate_content.call_args.kwargs[
+                "contents"
+            ]
+            assert (
+                prompt[0]["parts"][0]
+                == "import pandas as pd\n<FILL_ME>\ndf.head()"
+            )
 
 
 @contextmanager
@@ -433,7 +591,11 @@ def anthropic_config(config: UserConfigManager):
                 "ai": {
                     "open_ai": {"model": "claude-3.5"},
                     "anthropic": {"api_key": "fake-key"},
-                }
+                },
+                "completion": {
+                    "model": "claude-3.5",
+                    "api_key": "fake-key",
+                },
             }
         )
         yield
@@ -450,7 +612,11 @@ def google_ai_config(config: UserConfigManager):
                 "ai": {
                     "open_ai": {"model": "gemini-1.5-pro"},
                     "google": {"api_key": "fake-key"},
-                }
+                },
+                "completion": {
+                    "model": "gemini-1.5-pro",
+                    "api_key": "fake-key",
+                },
             }
         )
         yield
@@ -467,7 +633,7 @@ def no_google_ai_config(config: UserConfigManager):
                 "ai": {
                     "open_ai": {"model": "gemini-1.5-pro"},
                     "google": {"api_key": ""},
-                }
+                },
             }
         )
         yield
@@ -493,31 +659,35 @@ class TestStreamResponse(unittest.TestCase):
             yield MockChunk(content)
 
     def test_no_code_fence(self):
+        provider = OpenAIProvider(model="gpt-4o", config={})
         response = self.simulate_stream(["Hello, world!"])
-        result = list(make_stream_response(response))
+        result = list(provider.make_stream_response(response))
         assert result == ["Hello, world!"]
 
     def test_single_complete_code_fence(self):
+        provider = OpenAIProvider(model="gpt-4o", config={})
         response = self.simulate_stream(
             ["```python\nprint('Hello, world!')\n```"]
         )
-        result = list(make_stream_response(response))
+        result = list(provider.make_stream_response(response))
         assert result == ["print('Hello, world!')\n"]
 
     def test_code_fence_across_chunks(self):
+        provider = OpenAIProvider(model="gpt-4o", config={})
         response = self.simulate_stream(
             [
                 "```python\nprint('Hello,",
                 " world!')\n```",
             ]
         )
-        result = list(make_stream_response(response))
+        result = list(provider.make_stream_response(response))
         assert result == [
             "print('Hello,",
             " world!')\n",
         ]
 
     def test_code_fence_across_more_chunks(self):
+        provider = OpenAIProvider(model="gpt-4o", config={})
         response = self.simulate_stream(
             [
                 "```",
@@ -527,7 +697,7 @@ class TestStreamResponse(unittest.TestCase):
                 "```",
             ]
         )
-        result = list(make_stream_response(response))
+        result = list(provider.make_stream_response(response))
         assert result == ["print('Hello,", " world!')\n", ""]
 
     def test_multiple_code_fences(self):
@@ -539,7 +709,8 @@ class TestStreamResponse(unittest.TestCase):
                 "```sql\nSELECT * FROM users;\n```",
             ]
         )
-        result = list(make_stream_response(response))
+        provider = OpenAIProvider(model="gpt-4o", config={})
+        result = list(provider.make_stream_response(response))
         assert result == [
             "print('Hello',",
             " 'world!')\n",
@@ -551,93 +722,91 @@ class TestStreamResponse(unittest.TestCase):
         response = self.simulate_stream(
             ["```python\nprint('```nested```')\n```"]
         )
-        result = list(make_stream_response(response))
+        provider = OpenAIProvider(model="gpt-4o", config={})
+        result = list(provider.make_stream_response(response))
         assert result == ["print('```nested```')\n"]
 
-        @staticmethod
-        @with_session(SESSION_ID)
-        @patch("openai.OpenAI")
-        def test_chat_without_code(
-            client: TestClient, openai_mock: Any
-        ) -> None:
-            user_config_manager = get_session_config_manager(client)
 
-            oaiclient = MagicMock()
-            openai_mock.return_value = oaiclient
+@with_session(SESSION_ID)
+def test_chat_without_code(client: TestClient) -> None:
+    user_config_manager = get_session_config_manager(client)
 
-            oaiclient.chat.completions.create.return_value = [
-                FakeChoices(
-                    choices=[
-                        Choice(
-                            delta=Delta(content="Hello, how can I help you?")
-                        )
-                    ]
-                )
-            ]
+    with patch("openai.OpenAI") as openai_mock:
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
 
-            with openai_config(user_config_manager):
-                response = client.post(
-                    "/api/ai/chat",
-                    headers=HEADERS,
-                    json={
-                        "messages": [{"role": "user", "content": "Hello"}],
-                        "model": "gpt-4-turbo",
-                        "variables": [],
-                        "include_other_code": "",
-                        "id": "123",
-                    },
-                )
-                assert response.status_code == 200, response.text
-                # Assert the prompt it was called with
-                prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                    "messages"
-                ][1]["content"]
-                assert prompt == "Hello"
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[
+                    Choice(delta=Delta(content="Hello, how can I help you?"))
+                ]
+            )
+        ]
 
-        @staticmethod
-        @with_session(SESSION_ID)
-        @patch("openai.OpenAI")
-        def test_chat_with_code(client: TestClient, openai_mock: Any) -> None:
-            user_config_manager = get_session_config_manager(client)
+        with openai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/chat",
+                headers=HEADERS,
+                json={
+                    "messages": [{"role": "user", "content": "Hello"}],
+                    "model": "gpt-4-turbo",
+                    "variables": [],
+                    "include_other_code": "",
+                    "context": {},
+                    "id": "123",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][1]["content"]
+            assert prompt == "Hello"
 
-            oaiclient = MagicMock()
-            openai_mock.return_value = oaiclient
 
-            oaiclient.chat.completions.create.return_value = [
-                FakeChoices(
-                    choices=[
-                        Choice(delta=Delta(content="import pandas as pd"))
-                    ]
-                )
-            ]
+@with_session(SESSION_ID)
+def test_chat_with_code(client: TestClient) -> None:
+    user_config_manager = get_session_config_manager(client)
 
-            with openai_config(user_config_manager):
-                response = client.post(
-                    "/api/ai/chat",
-                    headers=HEADERS,
-                    json={
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": "Help me create a dataframe",
-                            }
-                        ],
-                        "model": "gpt-4-turbo",
-                        "variables": [],
-                        "include_other_code": "import pandas as pd",
-                        "id": "123",
-                    },
-                )
-                assert response.status_code == 200, response.text
-                # Assert the prompt it was called with
-                prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                    "messages"
-                ][1]["content"]
-                assert prompt == "Help me create a dataframe"
+    with patch("openai.OpenAI") as openai_mock:
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
+
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[Choice(delta=Delta(content="import pandas as pd"))]
+            )
+        ]
+
+        with openai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/chat",
+                headers=HEADERS,
+                json={
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Help me create a dataframe",
+                        }
+                    ],
+                    "model": "gpt-4-turbo",
+                    "variables": [],
+                    "include_other_code": "import pandas as pd",
+                    "context": {},
+                    "id": "123",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][1]["content"]
+            assert prompt == "Help me create a dataframe"
 
 
 class TestGetContent(unittest.TestCase):
-    def test_get_content_with_none_delta(self) -> None:
+    def test_extract_content_with_none_delta(self) -> None:
+        provider = OpenAIProvider(model="gpt-4o", config={})
         # Create a mock response with choices but delta is None
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -647,12 +816,12 @@ class TestGetContent(unittest.TestCase):
         type(mock_response).text = property(lambda _: None)
 
         # Call get_content with the mock response
-        result = get_content(mock_response)
+        result = provider.extract_content(mock_response)
 
         # Assert that the result is None
         assert result is None
 
-    def test_get_content_with_delta_content(self) -> None:
+    def test_extract_content_with_delta_content(self) -> None:
         # Create a mock response with choices and delta.content
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -660,7 +829,8 @@ class TestGetContent(unittest.TestCase):
         mock_response.choices[0].delta.content = "Test content"
 
         # Call get_content with the mock response
-        result = get_content(mock_response)
+        provider = OpenAIProvider(model="gpt-4o", config={})
+        result = provider.extract_content(mock_response)
 
         # Assert that the result is the expected content
         assert result == "Test content"
