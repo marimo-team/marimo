@@ -101,22 +101,10 @@ def _(df):
 
 @app.cell
 def _(mo, pd, pl):
-    new = pd.DataFrame({"datetime": [pd.to_datetime("2024-12-17")]})
-    new.to_json(orient="records", date_format="iso")
-
-    new = pd.DataFrame(
-        {
-            "datetime": [
-                pd.to_datetime("2024-12-17", errors="coerce").tz_localize("UTC")
-            ]
-        }
-    )
-    new.to_json(orient="records", date_format="iso")
-
     additional_types_pd = pd.DataFrame({"complex": [1+2j, 2+3j], "bigint": [2**64, 2**127]})
     additional_types_pl = pl.DataFrame({"complex": [1+2j, 2+3j], "bigint": [2**64, 2**65]})
     mo.vstack([additional_types_pd, additional_types_pl])
-    return additional_types_pd, additional_types_pl, new
+    return additional_types_pd, additional_types_pl
 
 
 @app.cell
