@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, Optional
 
 import pytest
 
@@ -18,11 +19,11 @@ def test_file_browser_init() -> None:
     # Use a temporary directory for testing
     with tempfile.TemporaryDirectory() as temp_dir:
         fb = file_browser(initial_path=temp_dir)
-        assert isinstance(fb.initial_path, Path)
-        assert str(fb.initial_path) == str(Path(temp_dir).resolve())
-        assert fb.selection_mode == "file"
-        assert fb.filetypes == set()
-        assert fb.restrict_navigation is False
+        assert isinstance(fb._initial_path, Path)
+        assert str(fb._initial_path) == str(Path(temp_dir).resolve())
+        assert fb._selection_mode == "file"
+        assert fb._filetypes == set()
+        assert fb._restrict_navigation is False
 
         # Test with custom filetypes
         custom_filetypes = [".txt", ".csv"]
@@ -32,10 +33,10 @@ def test_file_browser_init() -> None:
             selection_mode="directory",
             restrict_navigation=True,
         )
-        assert fb.initial_path == Path(temp_dir).resolve()
-        assert fb.filetypes == set(custom_filetypes)
-        assert fb.selection_mode == "directory"
-        assert fb.restrict_navigation is True
+        assert fb._initial_path == Path(temp_dir).resolve()
+        assert fb._filetypes == set(custom_filetypes)
+        assert fb._selection_mode == "directory"
+        assert fb._restrict_navigation is True
 
 
 def test_list_directory() -> None:
@@ -46,7 +47,7 @@ def test_list_directory() -> None:
     assert isinstance(response, ListDirectoryResponse)
     for file_info in response.files:
         assert file_info["is_directory"] or file_info["path"].endswith(
-            tuple(fb.filetypes)
+            tuple(fb._filetypes)
         )
 
 
@@ -108,3 +109,30 @@ def test_extended_path_class(tmp_path: Path) -> None:
     assert len(value) == 1
     assert isinstance(value[0], FileBrowserFileInfo)
     assert isinstance(value[0].path, CustomPath)
+
+    class CustomPathWithClient(Path):
+        def __init__(self, path: Path, client: Optional[Any] = None) -> None:
+            super().__init__(path)
+            self.client = client
+
+        def resolve(self) -> CustomPathWithClient:
+            return CustomPathWithClient(super().resolve(), self.client)
+
+    fb = file_browser(
+        initial_path=CustomPathWithClient(tmp_path, "custom_client")
+    )
+    response = fb._list_directory(
+        ListDirectoryArgs(path=str(tmp_path)),
+    )
+    value = fb._convert_value(response.files)
+    assert isinstance(value, tuple)
+    assert len(value) == 1
+    assert isinstance(value[0], FileBrowserFileInfo)
+    assert isinstance(value[0].path, CustomPathWithClient)
+    assert value[0].path.client == "custom_client"
+
+
+def test_validation() -> None:
+    with pytest.raises(ValueError) as e:
+        file_browser(initial_path="invalid", selection_mode="invalid")
+    assert "Value must be one of" in str(e.value)
