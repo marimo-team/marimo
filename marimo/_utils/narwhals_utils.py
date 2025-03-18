@@ -87,20 +87,11 @@ def dataframe_to_csv(df: IntoFrame) -> str:
 
 def is_narwhals_integer_type(
     dtype: Any,
-) -> TypeGuard[
-    nw.Int64
-    | nw.UInt64
-    | nw.Int32
-    | nw.UInt32
-    | nw.Int16
-    | nw.UInt16
-    | nw.Int8
-    | nw.UInt8
-]:
+) -> TypeGuard[nw_dtypes.IntegerType]:
     """
     Check if the given dtype is integer type.
     """
-    if isinstance(dtype, nw_dtypes.DType):
+    if hasattr(dtype, "is_integer"):
         return dtype.is_integer()
     return False
 
@@ -111,7 +102,7 @@ def is_narwhals_temporal_type(
     """
     Check if the given dtype is temporal type.
     """
-    if isinstance(dtype, nw_dtypes.DType):
+    if hasattr(dtype, "is_temporal"):
         return dtype.is_temporal()
     return False
 
