@@ -393,6 +393,16 @@
   transition-delay: 200ms;
 }
 
+.marimo-output-stale.marimo-output-loading,
+.marimo-cell.stale .output-area.marimo-output-stale.marimo-output-loading,
+.marimo-cell.stale
+  .console-output-area.marimo-output-stale.marimo-output-loading {
+  opacity: 0.4;
+  filter: grayscale(50%);
+  transition: 300ms;
+  transition-delay: 200ms;
+}
+
 .console-output-area {
   background-color: var(--gray-1);
 }

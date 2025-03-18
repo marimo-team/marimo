@@ -42,6 +42,7 @@ import { Maps } from "@/utils/maps";
 import { startCase } from "lodash-es";
 import { BorderAllIcon } from "@radix-ui/react-icons";
 import { NumberField } from "@/components/ui/number-field";
+import { outputIsLoading } from "@/core/cells/cell";
 
 type Props = ICellRendererProps<GridLayout>;
 
@@ -362,7 +363,7 @@ const GridCell = memo(
     side,
     className,
   }: GridCellProps) => {
-    const loading = status === "running" || status === "queued";
+    const loading = outputIsLoading(status);
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output
@@ -388,6 +389,7 @@ const GridCell = memo(
           output={output}
           cellId={cellId}
           stale={loading}
+          loading={loading}
         />
       </div>
     );

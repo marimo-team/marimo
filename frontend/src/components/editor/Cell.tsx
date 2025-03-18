@@ -40,7 +40,7 @@ import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import type { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
 import { CellEditor } from "./cell/code/cell-editor";
-import { outputIsStale } from "@/core/cells/cell";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
 import { useSetAtom } from "jotai";
@@ -411,6 +411,8 @@ const CellComponent = (
     edited,
   );
 
+  const loading = outputIsLoading(status);
+
   if (id === SETUP_CELL_ID) {
     return (
       <SetupCellComponent
@@ -437,7 +439,13 @@ const CellComponent = (
     );
   }
 
-  return <ReadonlyCellComponent {...props} outputStale={outputStale} />;
+  return (
+    <ReadonlyCellComponent
+      {...props}
+      outputStale={outputStale}
+      outputLoading={loading}
+    />
+  );
 };
 
 const ReadonlyCellComponent = forwardRef(
@@ -447,6 +455,7 @@ const ReadonlyCellComponent = forwardRef(
       "id" | "output" | "interrupted" | "errored" | "stopped" | "name"
     > & {
       outputStale: boolean;
+      outputLoading: boolean;
     },
     ref: React.ForwardedRef<HTMLDivElement>,
   ) => {
@@ -458,6 +467,7 @@ const ReadonlyCellComponent = forwardRef(
       stopped,
       name,
       outputStale,
+      outputLoading,
     } = props;
 
     const className = clsx("marimo-cell", "hover-actions-parent z-10", {
@@ -490,6 +500,7 @@ const ReadonlyCellComponent = forwardRef(
           className="output-area"
           cellId={cellId}
           stale={outputStale}
+          loading={outputLoading}
         />
       </div>
     );
@@ -559,7 +570,7 @@ const EditableCellComponent = ({
 
   const needsRun =
     edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
-  const loading = status === "running" || status === "queued";
+  const loading = outputIsLoading(status);
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
@@ -674,6 +685,7 @@ const EditableCellComponent = ({
         className="output-area"
         cellId={cellId}
         stale={outputStale}
+        loading={loading}
       />
       {isMarkdownCodeHidden &&
         hasOutputAbove &&
@@ -1258,6 +1270,7 @@ const SetupCellComponent = ({
               className="output-area"
               cellId={cellId}
               stale={false}
+              loading={loading}
             />
           )}
           <ConsoleOutput

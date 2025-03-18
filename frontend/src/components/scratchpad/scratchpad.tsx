@@ -155,6 +155,7 @@ export const ScratchPad: React.FC = () => {
             className="output-area"
             cellId={cellId}
             stale={false}
+            loading={false}
           />
         </div>
         <div className="overflow-auto flex-shrink-0 max-h-[35%]">

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
-import { outputIsStale } from "@/core/cells/cell";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
 import {
@@ -279,6 +279,7 @@ const VerticalCell = memo(
       },
       false,
     );
+    const loading = outputIsLoading(status);
 
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
@@ -308,6 +309,7 @@ const VerticalCell = memo(
           className="output-area"
           cellId={cellId}
           stale={outputStale}
+          loading={loading}
         />
       );
 
@@ -366,6 +368,7 @@ const VerticalCell = memo(
           className="output-area"
           cellId={cellId}
           stale={outputStale}
+          loading={loading}
         />
       </div>
     );
