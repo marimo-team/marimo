@@ -595,6 +595,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "path": "path.py",
         "patricia": "patricia-trie",
         "paver": "Paver",
+        "pdfminer": "pdfminer.six",
         "peak": "ProxyTypes",
         "picasso": "anderson.picasso",
         "picklefield": "django-picklefield",
