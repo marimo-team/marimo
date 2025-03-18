@@ -2,7 +2,12 @@
 from typing import Literal
 
 from marimo._save.loaders.json import JsonLoader
-from marimo._save.loaders.loader import Loader, LoaderPartial, LoaderType
+from marimo._save.loaders.loader import (
+    BasePersistenceLoader,
+    Loader,
+    LoaderPartial,
+    LoaderType,
+)
 from marimo._save.loaders.memory import MemoryLoader
 from marimo._save.loaders.pickle import PickleLoader
 
@@ -17,6 +22,7 @@ __all__ = [
     "PERSISTENT_LOADERS",
     "Loader",
     "LoaderKey",
+    "BasePersistenceLoader",
     "LoaderPartial",
     "LoaderType",
     "MemoryLoader",

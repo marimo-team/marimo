@@ -12,6 +12,7 @@ from marimo._runtime.state import SetFunctor
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
+    from marimo._save.hash import HashKey
 
 # NB. Increment on cache breaking changes.
 MARIMO_CACHE_VERSION: int = 1
@@ -46,9 +47,8 @@ class CacheException(BaseException):
 @dataclass
 class Cache:
     defs: dict[Name, Any]
-    hash: str
+    key: HashKey
     stateful_refs: set[str]
-    cache_type: CacheType
     hit: bool
     # meta corresponds to internally used data, kept as a dictionary to allow
     # for backwards pickle compatibility with future entries.
@@ -133,3 +133,15 @@ class Cache:
             for var, value in self.defs.items()
             if var not in self.stateful_refs
         }
+
+    @property
+    def hash(self) -> str:
+        return self.key.hash
+
+    @property
+    def cache_type(self) -> str:
+        return self.key.cache_type
+
+    @property
+    def execution(self) -> str:
+        return self.key.execution

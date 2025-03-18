@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
@@ -13,11 +13,12 @@ from marimo._runtime.state import State
 from marimo._save.cache import (
     CACHE_PREFIX,
     Cache,
-    CacheType,
 )
+from marimo._save.stores import DEFAULT_STORE
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
+    from marimo._save.hash import HashKey
 
 INCONSISTENT_CACHE_BOILER_PLATE = (
     "The cache state does not match "
@@ -110,38 +111,35 @@ class Loader(ABC):
         self.name = name
         self._hits = 0
 
-    def build_path(self, hashed_context: str, cache_type: CacheType) -> Path:
-        prefix = CACHE_PREFIX.get(cache_type, "U_")
-        return Path(f"{prefix}{hashed_context}")
+    def build_path(self, key: HashKey) -> Path:
+        prefix = CACHE_PREFIX.get(key.cache_type, "U_")
+        return Path(f"{prefix}{key.hash}")
 
     def cache_attempt(
         self,
         defs: set[Name],
-        hashed_context: str,
+        key: HashKey,
         stateful_refs: set[Name],
-        cache_type: CacheType,
     ) -> Cache:
-        if not self.cache_hit(hashed_context, cache_type):
+        if not self.cache_hit(key):
             return Cache(
                 {d: None for d in defs},
-                hashed_context,
+                key,
                 stateful_refs,
-                cache_type,
                 False,
                 {},
             )
-        loaded = self.load_cache(hashed_context, cache_type)
+        loaded = self.load_cache(key)
         # TODO: Consider more robust verification
-        if loaded.hash != hashed_context:
+        if loaded.hash != key.hash:
             raise LoaderError("Hash mismatch in loaded cache.")
         if (defs | stateful_refs) != set(loaded.defs):
             raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
         return Cache(
             loaded.defs,
-            hashed_context,
+            key,
             stateful_refs,
-            cache_type,
             True,  # hit
             loaded.meta,
         )
@@ -162,19 +160,19 @@ class Loader(ABC):
         return cache(*args, loader=cls, **kwargs)  # type: ignore
 
     @abstractmethod
-    def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
+    def cache_hit(self, key: HashKey) -> bool:
         """Check if cache has been hit given a result hash.
 
         Args:
-            hashed_context: The hash of the result context
-            cache_type: The type of cache to check for
+            key: The hash of the result context, and the hash type, and the
+            execution hash.
 
         Returns:
             bool: Whether the cache has been hit
         """
 
     @abstractmethod
-    def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
+    def load_cache(self, key: HashKey) -> Cache:
         """Load Cache"""
 
     @abstractmethod
@@ -189,6 +187,11 @@ class BasePersistenceLoader(Loader):
         self, name: str, suffix: str, save_path: str | Path | None
     ) -> None:
         super().__init__(name)
+
+        try:
+            self.store = get_context().cache_store
+        except ContextNotInitializedError:
+            self.store = DEFAULT_STORE()
 
         self.name = name
         # Setter takes care of this, not sure why mypy is complaining.
@@ -209,25 +212,30 @@ class BasePersistenceLoader(Loader):
         self._save_path = Path(save_path)
         (self._save_path / self.name).mkdir(parents=True, exist_ok=True)
 
-    def build_path(self, hashed_context: str, cache_type: CacheType) -> Path:
-        prefix = CACHE_PREFIX.get(cache_type, "U_")
-        return self.save_path / f"{prefix}{hashed_context}.{self.suffix}"
+    def build_path(self, key: HashKey) -> Path:
+        prefix = CACHE_PREFIX.get(key.cache_type, "U_")
+        return self.save_path / f"{prefix}{key.hash}.{self.suffix}"
 
-    def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
-        path = self.build_path(hashed_context, cache_type)
-        return os.path.exists(path) and os.path.getsize(path) > 0
+    def cache_hit(self, key: HashKey) -> bool:
+        return self.store.hit(key, self)
 
-    def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
+    def save_cache(self, cache: Cache) -> None:
+        return self.store.put(cache, self)
+
+    def load_cache(self, key: HashKey) -> Cache:
         try:
-            return self.load_persistent_cache(hashed_context, cache_type)
+            blob: bytes = self.store.get(key, self)
+            return self.restore_cache(key, blob)
         except FileNotFoundError as e:
             raise LoaderError("Unexpected cache miss.") from e
 
     @abstractmethod
-    def load_persistent_cache(
-        self, hashed_context: str, cache_type: CacheType
-    ) -> Cache:
+    def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
         """May throw FileNotFoundError"""
+
+    @abstractmethod
+    def to_blob(self, cache: Cache) -> Optional[bytes]:
+        """Convert cache to bytes"""
 
 
 LoaderType = type[Loader]
