@@ -170,11 +170,11 @@ class CellOp(Op):
                 the max output size by adding (eg)
 
                 ```
-                [tool.marimo.runtime]
+                [runtime]
                 output_max_bytes = 10_000_000
                 ```
 
-                to your pyproject.toml, or with the environment variable
+                to your marimo.toml, or with the environment variable
                 `MARIMO_OUTPUT_MAX_BYTES`:
 
                 ```
