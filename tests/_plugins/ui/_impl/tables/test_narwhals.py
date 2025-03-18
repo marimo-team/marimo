@@ -220,7 +220,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             ("B", ("string", "String")),
             ("C", ("number", "Float64")),
             ("D", ("boolean", "Boolean")),
-            ("E", ("date", "Datetime(time_unit='us', time_zone=None)")),
+            ("E", ("datetime", "Datetime(time_unit='us', time_zone=None)")),
         ]
         assert self.manager.get_field_types() == expected_field_types
 
@@ -258,7 +258,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             ("E", ("unknown", "Object")),
             ("F", ("unknown", "Unknown")),
             ("G", ("unknown", "Object")),
-            ("H", ("date", "Datetime(time_unit='us', time_zone=None)")),
+            ("H", ("datetime", "Datetime(time_unit='us', time_zone=None)")),
             ("I", ("string", "String")),
             ("J", ("string", "String")),
         ]
