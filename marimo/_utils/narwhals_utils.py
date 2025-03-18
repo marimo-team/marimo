@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any
 
+import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw
 
 if sys.version_info < (3, 11):
@@ -99,25 +100,30 @@ def is_narwhals_integer_type(
     """
     Check if the given dtype is integer type.
     """
-    return bool(
-        dtype == nw.Int64
-        or dtype == nw.UInt64
-        or dtype == nw.Int32
-        or dtype == nw.UInt32
-        or dtype == nw.Int16
-        or dtype == nw.UInt16
-        or dtype == nw.Int8
-        or dtype == nw.UInt8
-    )
+    if isinstance(dtype, nw_dtypes.DType):
+        return dtype.is_integer()
+    return False
 
 
 def is_narwhals_temporal_type(
     dtype: Any,
-) -> TypeGuard[nw.Datetime | nw.Date]:
+) -> TypeGuard[nw_dtypes.TemporalType]:
     """
     Check if the given dtype is temporal type.
     """
-    return bool(dtype == nw.Datetime or dtype == nw.Date)
+    if isinstance(dtype, nw_dtypes.DType):
+        return dtype.is_temporal()
+    return False
+
+
+def is_narwhals_time_type(dtype: Any) -> bool:
+    """
+    Check if the given dtype is Time
+    This was added in later version, so we need to safely check
+    """
+    if getattr(nw, "Time", None) is not None:
+        return dtype == nw.Time  # type: ignore[attr-defined,no-any-return]
+    return False
 
 
 def is_narwhals_string_type(
