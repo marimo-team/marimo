@@ -6,7 +6,7 @@ import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
 import { type Seconds, Time } from "@/utils/time";
 import { invariant } from "@/utils/invariant";
-import { RuntimeState } from "../network/types";
+import type { RuntimeState } from "../network/types";
 
 export function transitionCell(
   cell: CellRuntimeState,

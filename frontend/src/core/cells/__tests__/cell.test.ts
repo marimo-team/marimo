@@ -36,7 +36,9 @@ describe("outputIsStale", () => {
   });
 
   it("should return false if the cell is disabled-transitively", () => {
-    expect(outputIsLoading("disabled-transitively" as RuntimeState)).toBe(false);
+    expect(outputIsLoading("disabled-transitively" as RuntimeState)).toBe(
+      false,
+    );
   });
 });
 

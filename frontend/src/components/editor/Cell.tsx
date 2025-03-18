@@ -439,7 +439,13 @@ const CellComponent = (
     );
   }
 
-  return <ReadonlyCellComponent {...props} outputStale={outputStale} outputLoading={loading}/>;
+  return (
+    <ReadonlyCellComponent
+      {...props}
+      outputStale={outputStale}
+      outputLoading={loading}
+    />
+  );
 };
 
 const ReadonlyCellComponent = forwardRef(
