@@ -29,6 +29,7 @@ describe("hasAnyOutputAtom", () => {
         `${i}` as CellId,
         createCellRuntimeState({
           output,
+          status: "queued",
           outline: { items: [] },
         }),
       ]),
@@ -86,6 +87,40 @@ describe("hasAnyOutputAtom", () => {
         { channel: "output", mimetype: "text/plain", data: "", timestamp: 0 },
       ]),
     );
+    expect(store.get(hasAnyOutputAtom)).toBe(true);
+  });
+
+  it("should return true when all outputs are idle", () => {
+    const notebookState = createNotebookState([null, null]);
+    const cellId0 = "0" as CellId;
+    const cellId1 = "1" as CellId;
+    // Some idle cell, so returns false
+    store.set(notebookAtom, {
+      ...notebookState,
+      cellRuntime: {
+        ...notebookState.cellRuntime,
+        [cellId0]: {
+          ...notebookState.cellRuntime[cellId0],
+          status: "idle",
+        },
+      },
+    });
+    expect(store.get(hasAnyOutputAtom)).toBe(false);
+
+    // All cells are idle, so returns true
+    store.set(notebookAtom, {
+      ...notebookState,
+      cellRuntime: {
+        [cellId0]: {
+          ...notebookState.cellRuntime[cellId0],
+          status: "idle",
+        },
+        [cellId1]: {
+          ...notebookState.cellRuntime[cellId1],
+          status: "idle",
+        },
+      },
+    });
     expect(store.get(hasAnyOutputAtom)).toBe(true);
   });
 });
