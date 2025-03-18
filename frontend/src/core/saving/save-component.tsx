@@ -33,6 +33,7 @@ import { SaveIcon } from "lucide-react";
 import { useHotkey } from "@/hooks/useHotkey";
 import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
 import { useAutoExport } from "../export/hooks";
+import { useEventListener } from "@/hooks/useEventListener";
 
 interface SaveNotebookProps {
   kioskMode: boolean;
@@ -47,6 +48,19 @@ export const SaveComponent = ({ kioskMode, appConfig }: SaveNotebookProps) => {
   });
 
   useAutoExport();
+
+  // Add beforeunload event listener to prevent accidental closing when there are unsaved changes
+  useEventListener(window, "beforeunload", (event) => {
+    // Only prevent unload if we have unsaved changes
+    if (needsSave) {
+      // Standard way to show a confirmation dialog before closing
+      event.preventDefault();
+      // Required for older browsers
+      event.returnValue =
+        "You have unsaved changes. Are you sure you want to leave?";
+      return event.returnValue;
+    }
+  });
 
   const handleSaveClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
