@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
-import { outputIsStale } from "../cell";
+import { outputIsLoading, outputIsStale } from "../cell";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { Seconds } from "@/utils/time";
 import type { RuntimeState } from "@/core/network/types";
@@ -22,6 +22,23 @@ function createOutput(): OutputMessage {
     timestamp: Date.now(),
   };
 }
+describe("outputIsStale", () => {
+  it("should return true if the cell is running", () => {
+    expect(outputIsLoading("running" as RuntimeState)).toBe(true);
+  });
+
+  it("should return true if the cell is queued", () => {
+    expect(outputIsLoading("queued" as RuntimeState)).toBe(true);
+  });
+
+  it("should return false if the cell is idle", () => {
+    expect(outputIsLoading("idle" as RuntimeState)).toBe(false);
+  });
+
+  it("should return false if the cell is disabled-transitively", () => {
+    expect(outputIsLoading("disabled-transitively" as RuntimeState)).toBe(false);
+  });
+});
 
 describe("outputIsStale", () => {
   it.each(STATUSES)(

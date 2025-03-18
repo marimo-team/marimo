@@ -130,6 +130,7 @@ describe("Output data attributes", () => {
           output={output}
           cellId={cellId}
           stale={false}
+          loading={false}
           allowExpand={true}
           className="test-output"
         />
