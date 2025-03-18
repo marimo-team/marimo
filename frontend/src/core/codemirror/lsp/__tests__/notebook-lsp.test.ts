@@ -130,6 +130,42 @@ describe("createNotebookLens", () => {
     const transformed = lens.transformPosition(pos, Cells.cell2);
     expect(transformed.line).toBe(3);
   });
+
+  it("should clip range and text to cell boundaries", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2, Cells.cell3];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "line1\nline2",
+      [Cells.cell2]: "line3\nline4\nline5",
+      [Cells.cell3]: "line6\nline7",
+    };
+    const lens = createNotebookLens(cellIds, codes);
+
+    // Assume the line length does not change
+    const newText = "a\nb\nc\nd\ne\nf\ng";
+
+    const edits = lens.getEditsForNewText(newText);
+
+    expect(edits).toMatchInlineSnapshot(`
+      [
+        {
+          "cellId": "cell1",
+          "text": "a
+      b",
+        },
+        {
+          "cellId": "cell2",
+          "text": "c
+      d
+      e",
+        },
+        {
+          "cellId": "cell3",
+          "text": "f
+      g",
+        },
+      ]
+    `);
+  });
 });
 
 describe("NotebookLanguageServerClient", () => {

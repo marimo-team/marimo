@@ -50,12 +50,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       });
     });
   }
+
   textDocumentDefinition(
     params: LSP.DefinitionParams,
   ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
     // Get the cell document URI from the params
     const cellDocumentUri = params.textDocument.uri;
     if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
       return Promise.resolve(null);
     }
 
@@ -92,11 +94,87 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     }
     return this.client.textDocumentCodeAction(params);
   }
-
-  textDocumentRename(
+  async textDocumentRename(
     params: LSP.RenameParams,
   ): Promise<LSP.WorkspaceEdit | null> {
-    return this.client.textDocumentRename(params);
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    // Find the latest lens
+    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
+    if (!latestVersion) {
+      Logger.warn("No lens found for cell", cellDocumentUri);
+      return null;
+    }
+
+    // Use the lens to transform the position
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
+    const transformedPosition = lens.transformPosition(params.position, cellId);
+
+    const response = await this.client.textDocumentRename({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: transformedPosition,
+    });
+
+    if (!response) {
+      return null;
+    }
+
+    return {
+      ...response,
+      documentChanges: response.documentChanges?.flatMap((change) => {
+        if ("edits" in change) {
+          const firstEdit = change.edits[0];
+          if (change.edits.length !== 1) {
+            throw new Error("Expected exactly one edit");
+          }
+          const edit = firstEdit;
+          if (!("newText" in edit)) {
+            throw new Error("Expected newText in edit");
+          }
+          const edits = lens.getEditsForNewText(edit.newText);
+          // Filter out other cells
+          // TODO: make edits in other editors as well.
+          const editsForThisCell = edits.filter((e) => e.cellId === cellId);
+
+          return {
+            ...change,
+            textDocument: {
+              ...change.textDocument,
+              uri: cellDocumentUri,
+            },
+            edits: editsForThisCell.map((e) => ({
+              newText: e.text,
+              range: {
+                start: {
+                  line: 0,
+                  character: 0,
+                },
+                end: {
+                  line: e.text.split("\n").length + 1,
+                  character: 0,
+                },
+              },
+            })),
+          };
+
+          // // TODO: make edits in other editors as well.
+          // return [];
+        }
+
+        return change;
+      }),
+    };
   }
 
   completionItemResolve(
@@ -105,10 +183,34 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.completionItemResolve(params);
   }
 
-  textDocumentPrepareRename(
+  async textDocumentPrepareRename(
     params: LSP.PrepareRenameParams,
   ): Promise<LSP.PrepareRenameResult | null> {
-    return this.client.textDocumentPrepareRename(params);
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    // Get the latest updated lens
+    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
+    if (!latestVersion) {
+      Logger.warn("No lens found for cell", cellDocumentUri);
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    return this.client.textDocumentPrepareRename({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: lens.transformPosition(params.position, cellId),
+    });
   }
 
   get ready(): boolean {
