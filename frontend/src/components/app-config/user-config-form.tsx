@@ -130,6 +130,7 @@ export const UserConfigForm: React.FC = () => {
     if (copilot === false) {
       return null;
     }
+
     if (copilot === "codeium") {
       return (
         <>
@@ -171,8 +172,80 @@ export const UserConfigForm: React.FC = () => {
         </>
       );
     }
+
     if (copilot === "github") {
       return <CopilotConfig />;
+    }
+
+    if (copilot === "custom") {
+      return (
+        <>
+          <p className="text-sm text-muted-secondary">
+            Configure your custom AI completion provider with the following
+            settings.
+          </p>
+          <FormField
+            control={form.control}
+            name="completion.model"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Model</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-model-input"
+                    className="m-0 inline-flex"
+                    placeholder="Qwen2.5-Coder-7B"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.model" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="completion.base_url"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Base URL</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-base-url-input"
+                    className="m-0 inline-flex"
+                    placeholder="http://localhost:11434/v1"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.base_url" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="completion.api_key"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-api-key-input"
+                    className="m-0 inline-flex"
+                    placeholder="key"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.api_key" />
+              </FormItem>
+            )}
+          />
+        </>
+      );
     }
   };
 
@@ -774,7 +847,8 @@ export const UserConfigForm: React.FC = () => {
           <>
             <SettingGroup title="AI Code Completion">
               <p className="text-sm text-muted-secondary">
-                You may use GitHub Copilot or Codeium for AI code completion.
+                You may use GitHub Copilot, Codeium, or a custom provider (e.g.
+                Ollama) for AI code completion.
               </p>
 
               <FormField
@@ -804,11 +878,13 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled}
                           className="inline-flex mr-2"
                         >
-                          {["none", "github", "codeium"].map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
+                          {["none", "github", "codeium", "custom"].map(
+                            (option) => (
+                              <option value={option} key={option}>
+                                {option}
+                              </option>
+                            ),
+                          )}
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />

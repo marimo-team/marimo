@@ -73,6 +73,13 @@ class Prompter:
 
         return system_prompt
 
+    @staticmethod
+    def get_inline_system_prompt(*, language: Language) -> str:
+        return (
+            f"You are a {language} programmer that replaces <FILL_ME> part with the right code. "
+            "Only output the code that replaces <FILL_ME> part. Do not add any explanation or markdown."
+        )
+
     def get_prompt(self, *, user_prompt: str, include_other_code: str) -> str:
         prompt = user_prompt
         if include_other_code:

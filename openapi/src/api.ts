@@ -49,6 +49,36 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/chat": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for AI chat */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ChatRequest"];
+        };
+      };
+      responses: never;
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ai/completion": {
     parameters: {
       query?: never;
@@ -65,7 +95,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      /** @description The prompt to get AI completion for */
+      /** @description The request body for AI completion */
       requestBody: {
         content: {
           "application/json": components["schemas"]["AiCompletionRequest"];
@@ -81,6 +111,46 @@ export interface paths {
             "application/json": {
               [key: string]: unknown;
             };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ai/inline_completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for AI inline completion */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AiInlineCompletionRequest"];
+        };
+      };
+      responses: {
+        /** @description Get AI inline completion for code */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
           };
         };
       };
@@ -2153,22 +2223,22 @@ export interface components {
     AddPackageRequest: {
       package: string;
     };
+    AiCompletionContext: {
+      schema: components["schemas"]["SchemaTable"][];
+    };
     AiCompletionRequest: {
       code: string;
-      context?: {
-        schema: {
-          columns: {
-            name: string;
-            sampleValues: unknown[];
-            type: string;
-          }[];
-          name: string;
-        }[];
-      } | null;
+      context?: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
       prompt: string;
+    };
+    AiInlineCompletionRequest: {
+      /** @enum {string} */
+      language: "python" | "markdown" | "sql";
+      prefix: string;
+      suffix: string;
     };
     Alert: {
       description: string;
@@ -2244,6 +2314,26 @@ export interface components {
           };
       mimetype: components["schemas"]["MimeType"];
       timestamp: number;
+    };
+    ChatRequest: {
+      context: components["schemas"]["AiCompletionContext"];
+      includeOtherCode: string;
+      messages: {
+        attachments?:
+          | {
+              contentType?: string | null;
+              name: string;
+              url: string;
+            }[]
+          | null;
+        content: {
+          [key: string]: unknown;
+        };
+        /** @enum {string} */
+        role: "user" | "assistant" | "system";
+      }[];
+      model?: string | null;
+      variables?: string[] | null;
     };
     CodeCompletionRequest: {
       cellId: string;
@@ -2688,8 +2778,11 @@ export interface components {
       };
       completion: {
         activate_on_typing: boolean;
+        api_key?: string | null;
+        base_url?: string | null;
         codeium_api_key?: string | null;
-        copilot: boolean | ("github" | "codeium");
+        copilot: boolean | ("github" | "codeium" | "custom");
+        model?: string | null;
       };
       datasources?: {
         auto_discover_columns?: boolean | "auto";
@@ -3010,6 +3103,15 @@ export interface components {
     Schema: {
       name: string;
       tables: components["schemas"]["DataTable"][];
+    };
+    SchemaColumn: {
+      name: string;
+      sampleValues: unknown[];
+      type: string;
+    };
+    SchemaTable: {
+      columns: components["schemas"]["SchemaColumn"][];
+      name: string;
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

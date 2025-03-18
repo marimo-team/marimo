@@ -38,12 +38,23 @@ class CompletionConfig(TypedDict):
 
     - `activate_on_typing`: if `False`, completion won't activate
     until the completion hotkey is entered
-    - `copilot`: if `True`, enable the GitHub Copilot language server
+    - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
+    - `codeium_api_key`: the Codeium API key
+    - `api_key`: the API key for the LLM provider, when `copilot` is `"custom"`
+    - `model`: the model to use, when `copilot` is `"custom"`
+    - `base_url`: the base URL for the API, when `copilot` is `"custom"`
     """
 
     activate_on_typing: bool
-    copilot: Union[bool, Literal["github", "codeium"]]
+    copilot: Union[bool, Literal["github", "codeium", "custom"]]
+
+    # Codeium
     codeium_api_key: NotRequired[Optional[str]]
+
+    # Custom
+    api_key: NotRequired[Optional[str]]
+    model: NotRequired[Optional[str]]
+    base_url: NotRequired[Optional[str]]
 
 
 @mddoc
