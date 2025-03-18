@@ -387,7 +387,7 @@
 .marimo-output-stale,
 .marimo-cell.stale .output-area.marimo-output-stale,
 .marimo-cell.stale .console-output-area.marimo-output-stale {
-  opacity: 0.8;
+  opacity: 0.5;
   filter: grayscale(50%);
   transition: 300ms;
   transition-delay: 200ms;
