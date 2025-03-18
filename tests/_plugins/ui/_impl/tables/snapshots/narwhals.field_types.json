@@ -12,7 +12,7 @@
   ["category", ["string", "Categorical"]],
   ["set", ["unknown", "Object"]],
   ["imaginary", ["unknown", "Object"]],
-  ["time", ["unknown", "Unknown"]],
+  ["time", ["unknown", "Time"]],
   ["duration", ["number", "Duration(time_unit='us')"]],
   ["mixed_list", ["unknown", "List(String)"]]
 ]
