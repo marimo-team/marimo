@@ -22,7 +22,7 @@ function createOutput(): OutputMessage {
     timestamp: Date.now(),
   };
 }
-describe("outputIsStale", () => {
+describe("outputIsLoading", () => {
   it("should return true if the cell is running", () => {
     expect(outputIsLoading("running" as RuntimeState)).toBe(true);
   });
