@@ -92,7 +92,7 @@ def is_narwhals_integer_type(
     Check if the given dtype is integer type.
     """
     if hasattr(dtype, "is_integer"):
-        return dtype.is_integer()
+        return dtype.is_integer()  # type: ignore[no-any-return]
     return False
 
 
@@ -103,7 +103,7 @@ def is_narwhals_temporal_type(
     Check if the given dtype is temporal type.
     """
     if hasattr(dtype, "is_temporal"):
-        return dtype.is_temporal()
+        return dtype.is_temporal()  # type: ignore[no-any-return]
     return False
 
 
