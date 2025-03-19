@@ -209,7 +209,7 @@ class table(
         selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
             'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
-        initial_selection (List[int], optional): Indices of the rows you want selected by default.
+        initial_selection (Union[List[int], List[dict[str, Any]), optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.
@@ -224,7 +224,7 @@ class table(
             Dictionary of column names to text justification options: left, center, right.
         wrapped_columns (List[str], optional): List of column names to wrap.
         label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[Cell]]], None], optional):
+        on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
@@ -244,7 +244,9 @@ class table(
         selection: Optional[
             Literal["single", "multi", "single-cell", "multi-cell"]
         ] = "multi",
-        initial_selection: Optional[list[int]] = None,
+        initial_selection: Optional[
+            Union[list[int], list[dict[str, Any]]]
+        ] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
@@ -322,20 +324,46 @@ class table(
         # (searching operations include query, sort, filter, etc.)
         self._searched_manager = self._manager
         # Holds the data after user selecting from the component
-        self._selected_manager: Optional[TableManager[Any]] = None
+        self._selected_manager: Optional[
+            Union[TableManager[Any], list[TableCell]]
+        ] = None
 
         self._selection = selection
         self._has_any_selection = False
-        initial_value = []
+        initial_value: Union[list[int], list[dict[str, Any]]] = []
         if initial_selection and self._manager.supports_selection():
-            if selection == "single" and len(initial_selection) > 1:
+            if (selection in ["single", "single-cell"]) and len(
+                initial_selection
+            ) > 1:
                 raise ValueError(
                     "For single selection mode, initial_selection can only contain one row index"
                 )
             try:
-                self._selected_manager = self._searched_manager.select_rows(
-                    initial_selection
-                )
+                if selection in ["single-cell", "multi-cell"]:
+                    self._selected_manager = (
+                        self._searched_manager.select_cells(
+                            [
+                                TableCoordinate(
+                                    row_id=v["rowId"],
+                                    column_name=v["columnName"],
+                                )
+                                for v in initial_selection
+                                if isinstance(v, dict)
+                                and "rowId" in v
+                                and "columnName" in v
+                            ]
+                        )
+                    )
+                else:
+                    self._selected_manager = (
+                        self._searched_manager.select_rows(
+                            [
+                                v
+                                for v in initial_selection
+                                if isinstance(v, int)
+                            ]
+                        )
+                    )
             except IndexError as e:
                 raise IndexError(
                     "initial_selection contains invalid row indices"
@@ -510,15 +538,20 @@ class table(
         )
 
         # Remove the selection column before downloading
-        manager = manager.drop_columns([INDEX_COLUMN_NAME])
+        if isinstance(manager, TableManager):
+            manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
-        ext = args.format
-        if ext == "csv":
-            return mo_data.csv(manager.to_csv()).url
-        elif ext == "json":
-            return mo_data.json(manager.to_json()).url
+            ext = args.format
+            if ext == "csv":
+                return mo_data.csv(manager.to_csv()).url
+            elif ext == "json":
+                return mo_data.json(manager.to_json()).url
+            else:
+                raise ValueError("format must be one of 'csv' or 'json'.")
         else:
-            raise ValueError("format must be one of 'csv' or 'json'.")
+            raise NotImplementedError(
+                "Download is not supported for cell selection."
+            )
 
     def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         """Get statistical summaries for each column in the table.
