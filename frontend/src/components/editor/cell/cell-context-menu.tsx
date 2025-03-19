@@ -27,6 +27,7 @@ import { Logger } from "@/utils/Logger";
 import { copyToClipboard } from "@/utils/copy";
 import { toast } from "@/components/ui/use-toast";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -154,6 +155,8 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
     },
   ];
 
+  const allActions: ActionButton[][] = [DEFAULT_CONTEXT_MENU_ITEMS, ...actions];
+
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -169,36 +172,53 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-[300px]">
-        {[DEFAULT_CONTEXT_MENU_ITEMS, ...actions].map((group, i) => (
+        {allActions.map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {
               if (action.hidden) {
                 return null;
               }
+
+              let body = (
+                <div className="flex items-center flex-1">
+                  {action.icon && (
+                    <div className="mr-2 w-5 text-muted-foreground">
+                      {action.icon}
+                    </div>
+                  )}
+                  <div className="flex-1">{action.label}</div>
+                  <div className="flex-shrink-0 text-sm">
+                    {action.hotkey && renderMinimalShortcut(action.hotkey)}
+                    {action.rightElement}
+                  </div>
+                </div>
+              );
+
+              if (action.tooltip) {
+                body = (
+                  <Tooltip delayDuration={100} content={action.tooltip}>
+                    {body}
+                  </Tooltip>
+                );
+              }
+
               return (
                 <ContextMenuItem
                   key={action.label}
+                  className={action.disabled ? "!opacity-50" : ""}
                   onSelect={(evt) => {
+                    if (action.disableClick || action.disabled) {
+                      return;
+                    }
                     action.handle(evt);
                   }}
                   variant={action.variant}
                 >
-                  <div className="flex items-center flex-1">
-                    {action.icon && (
-                      <div className="mr-2 w-5 text-muted-foreground">
-                        {action.icon}
-                      </div>
-                    )}
-                    <div className="flex-1">{action.label}</div>
-                    <div className="flex-shrink-0 text-sm">
-                      {action.hotkey && renderMinimalShortcut(action.hotkey)}
-                      {action.rightElement}
-                    </div>
-                  </div>
+                  {body}
                 </ContextMenuItem>
               );
             })}
-            {i < group.length - 1 && <ContextMenuSeparator />}
+            {i < allActions.length - 1 && <ContextMenuSeparator />}
           </Fragment>
         ))}
       </ContextMenuContent>
