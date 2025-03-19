@@ -1,28 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { exportedForTesting } from "../useDelayVisibility";
 import { renderHook, act } from "@testing-library/react";
 import { useDelayVisibility } from "../useDelayVisibility";
 import * as cellsModule from "@/core/cells/cells";
-
-const { extractCellNameFromHash } = exportedForTesting;
-
-describe("extractCellNameFromHash", () => {
-  it("should extract cell name from hash", () => {
-    expect(extractCellNameFromHash("#scrollTo=cell1")).toBe("cell1");
-    expect(extractCellNameFromHash("#scrollTo=cell1&other=param")).toBe(
-      "cell1",
-    );
-    expect(extractCellNameFromHash("#other=param&scrollTo=cell1")).toBe(
-      "cell1",
-    );
-  });
-
-  it("should return null if no cell name is found", () => {
-    expect(extractCellNameFromHash("")).toBeNull();
-    expect(extractCellNameFromHash("#other=param")).toBeNull();
-  });
-});
 
 describe("useDelayVisibility", () => {
   beforeEach(() => {
@@ -122,7 +102,9 @@ describe("useDelayVisibility", () => {
     expect(querySelectorSpy).toHaveBeenCalledWith(
       '[data-cell-name="testCell"]',
     );
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockElement.scrollIntoView).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockElement.focus).toHaveBeenCalled();
     expect(mockEditor.focus).toHaveBeenCalled();
 

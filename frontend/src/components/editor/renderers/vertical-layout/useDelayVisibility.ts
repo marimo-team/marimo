@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Logger } from "@/utils/Logger";
 import type { CellId } from "@/core/cells/ids";
 import { useOnMount } from "@/hooks/useLifecycle";
+import { extractCellNameFromHash } from "@/utils/cell-urls";
 
 export function useDelayVisibility(numCells: number, mode: AppMode) {
   // Start the app as invisible and delay proportional to the number of cells,
@@ -52,10 +53,17 @@ function focusFirstEditor() {
   }
 }
 
+let hasScrolledToCell = false;
+
 /**
  * Focus the cell with the given name
  */
 function focusCellByName(cellName: string) {
+  // Only do this once per page load
+  if (hasScrolledToCell) {
+    return;
+  }
+
   // Find the cell div with data-cell-name attribute matching the cellName
   const cellElement = document.querySelector(`[data-cell-name="${cellName}"]`);
 
@@ -63,8 +71,10 @@ function focusCellByName(cellName: string) {
     // Scroll the element into view
     cellElement.scrollIntoView({
       behavior: "smooth",
-      block: "nearest",
+      block: "start",
     });
+
+    hasScrolledToCell = true;
 
     // Try to focus the cell
     if (cellElement instanceof HTMLElement) {
@@ -92,16 +102,3 @@ function focusCellByName(cellName: string) {
     focusFirstEditor();
   }
 }
-
-function extractCellNameFromHash(hash: string) {
-  const scrollToMatch = hash.match(/scrollTo=([^&]+)/);
-  const cellName = scrollToMatch?.[1];
-  if (cellName) {
-    return cellName.split("&")[0];
-  }
-  return null;
-}
-
-export const exportedForTesting = {
-  extractCellNameFromHash,
-};
