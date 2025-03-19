@@ -59,6 +59,7 @@ import { switchLanguage } from "@/core/codemirror/language/extension";
 import { useSplitCellCallback } from "../cell/useSplitCell";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
+import { toast } from "@/components/ui/use-toast";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -383,6 +384,7 @@ export function useCellActionButtons({ cell }: Props) {
           : "Only named cells can be linked to",
         handle: async () => {
           await copyToClipboard(createCellLink(name));
+          toast({ description: "Link copied to clipboard" });
         },
       },
     ],
