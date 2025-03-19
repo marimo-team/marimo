@@ -101,8 +101,12 @@ def _(df):
 
 @app.cell
 def _(mo, pd, pl):
-    additional_types_pd = pd.DataFrame({"complex": [1+2j, 2+3j], "bigint": [2**64, 2**127]})
-    additional_types_pl = pl.DataFrame({"complex": [1+2j, 2+3j], "bigint": [2**64, 2**65]})
+    additional_types_pd = pd.DataFrame(
+        {"complex": [1 + 2j, 2 + 3j], "bigint": [2**64, 2**127]}
+    )
+    additional_types_pl = pl.DataFrame(
+        {"complex": [1 + 2j, 2 + 3j], "bigint": [2**64, 2**65]}
+    )
     mo.vstack([additional_types_pd, additional_types_pl])
     return additional_types_pd, additional_types_pl
 

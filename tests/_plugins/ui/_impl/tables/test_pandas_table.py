@@ -212,6 +212,78 @@ class TestPandasTableManager(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("pandas.json", data.decode("utf-8"))
 
+    def test_to_json_index(self) -> None:
+        data = pd.DataFrame({"a": [1, 2, 3]}, index=["c", "d", "e"])
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data == [
+            {"": "c", "a": 1},
+            {"": "d", "a": 2},
+            {"": "e", "a": 3},
+        ]
+
+        # Named index
+        data = pd.DataFrame(
+            {"a": [1, 2, 3]}, index=pd.Index(["c", "d", "e"], name="index")
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data == [
+            {"index": "c", "a": 1},
+            {"index": "d", "a": 2},
+            {"index": "e", "a": 3},
+        ]
+
+    def test_to_json_multi_index(self) -> None:
+        # Named index
+        data = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4, 5, 6],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
+            ),
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data == [
+            {"X": "x", "Y": 1, "a": 1, "b": 4},
+            {"X": "y", "Y": 2, "a": 2, "b": 5},
+            {"X": "z", "Y": 3, "a": 3, "b": 6},
+        ]
+
+    @pytest.mark.xfail(reason="Implementation not yet supported")
+    def test_to_json_multi_index_unnamed(self) -> None:
+        data = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4, 5, 6],
+            },
+            index=pd.MultiIndex.from_tuples([("x", 1), ("y", 2), ("z", 3)]),
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data == [
+            {"level_0": "x", "level_1": 1, "a": 1, "b": 4},
+            {"level_0": "y", "level_1": 2, "a": 2, "b": 5},
+            {"level_0": "z", "level_1": 3, "a": 3, "b": 6},
+        ]
+
+    def test_to_json_multi_col_index(self) -> None:
+        cols = pd.MultiIndex.from_arrays(
+            [["basic_amt"] * 2, ["NSW", "QLD"]], names=[None, "Faculty"]
+        )
+        idx = pd.Index(["All", "Full"])
+        data = pd.DataFrame([(1, 1), (0, 1)], index=idx, columns=cols)
+
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json().decode("utf-8"))
+        assert json_data == [
+            {"": "All", "('basic_amt', 'NSW')": 1, "('basic_amt', 'QLD')": 1},
+            {"": "Full", "('basic_amt', 'NSW')": 0, "('basic_amt', 'QLD')": 1},
+        ]
+
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
         field_types = complex_data.get_field_types()

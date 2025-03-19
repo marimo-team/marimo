@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import narwhals.stable.v1 as nw
 
+from marimo import _loggers
 from marimo._data.models import ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -18,6 +19,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class PandasTableManagerFactory(TableManagerFactory):
@@ -72,6 +75,38 @@ class PandasTableManagerFactory(TableManagerFactory):
                     # We want to preserve the original display
                     if is_complex_dtype(_data[col].dtype):
                         _data[col] = _data[col].apply(str)
+
+                # if isinstance(_data.columns, pd.MultiIndex):
+                #     try:
+                #         LOGGER.warning(
+                #             "MultiIndex columns are not supported in the frontend, converting to single index"
+                #         )
+
+                #         single_col_names = [
+                #             ",".join(col) for col in _data.columns
+                #         ]
+
+                #         _data = _data.droplevel(0, axis=1)
+                #         _data.columns = single_col_names
+                #     except Exception as e:
+                #         LOGGER.error(
+                #             "Error converting MultiIndex columns to single index",
+                #             exc_info=e,
+                #         )
+
+                # Flatten indexes
+                if isinstance(_data.index, pd.MultiIndex) or (
+                    isinstance(_data.index, pd.Index)
+                    and not isinstance(_data.index, pd.RangeIndex)
+                ):
+                    unnamed_indexes = _data.index.names[0] is None
+                    # index_levels = _data.index.nlevels
+                    _data = _data.reset_index()
+                    LOGGER.debug("Converting multi_index to single index")
+
+                    if unnamed_indexes:
+                        # We need to set the column name to an empty string
+                        _data.columns = [""] + list(_data.columns[1:])
 
                 return _data.to_json(
                     orient="records",
