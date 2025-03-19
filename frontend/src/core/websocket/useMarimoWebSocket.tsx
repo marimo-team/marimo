@@ -21,7 +21,7 @@ import {
 } from "../functions/FunctionRegistry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import type { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
@@ -49,6 +49,24 @@ import {
   type ConnectionName,
   useDataSourceActions,
 } from "../datasets/data-source-connections";
+import { API } from "../network/api";
+
+// Function to convert URLSearchParams to the format expected by the backend
+function parseURLSearchParams(
+  params: URLSearchParams,
+): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+
+  // Iterate through all entries and group them by key
+  for (const [key, value] of params.entries()) {
+    if (!result[key]) {
+      result[key] = [];
+    }
+    result[key].push(value);
+  }
+
+  return result;
+}
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -342,6 +360,55 @@ export function useMarimoWebSocket(opts: {
       tryReconnecting();
     },
   });
+
+  // Listen for URL changes to sync query params with backend
+  useEffect(() => {
+    // Function to send current URL params to backend
+    const syncQueryParamsWithBackend = () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const parsedParams = parseURLSearchParams(currentParams);
+
+      // Skip if there's no active connection
+      if (connection.state !== WebSocketState.OPEN) {
+        return;
+      }
+
+      // Send the params to the backend
+      API.post("/kernel/update_query_params", {
+        query_params: parsedParams,
+      }).catch((error) => {
+        console.error("Failed to sync query params with backend:", error);
+      });
+    };
+
+    // Initial sync
+    // syncQueryParamsWithBackend();
+
+    // Listen for popstate events (back/forward button)
+    const handlePopState = () => syncQueryParamsWithBackend();
+    window.addEventListener("popstate", handlePopState);
+
+    // Also capture programmatic navigation (history.pushState/replaceState)
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    // history.pushState = function (...args) {
+    //   originalPushState.apply(this, args);
+    //   syncQueryParamsWithBackend();
+    // };
+
+    // history.replaceState = function (...args) {
+    //   originalReplaceState.apply(this, args);
+    //   syncQueryParamsWithBackend();
+    // };
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      // history.pushState = originalPushState;
+      // history.replaceState = originalReplaceState;
+    };
+  }, [connection.state]);
 
   return { connection };
 }

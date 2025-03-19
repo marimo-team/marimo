@@ -326,6 +326,13 @@ class PreviewSQLTableListRequest:
     schema: str
 
 
+@dataclass
+class UpdateQueryParamsRequest:
+    """Update query parameters from frontend"""
+
+    query_params: SerializedQueryParams
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -342,4 +349,5 @@ ControlRequest = Union[
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
     PreviewSQLTableListRequest,
+    UpdateQueryParamsRequest,
 ]

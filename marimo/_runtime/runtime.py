@@ -121,6 +121,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SetUserConfigRequest,
     StopRequest,
+    UpdateQueryParamsRequest,
 )
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hooks import (
@@ -2241,6 +2242,20 @@ class Kernel:
                 error="Not an SQLAlchemyEngine",
             ).broadcast()
 
+    @kernel_tracer.start_as_current_span("update_query_params")
+    async def update_query_params(
+        self, request: UpdateQueryParamsRequest
+    ) -> None:
+        """Update query parameters from frontend.
+
+        Args:
+            request: Contains the updated query parameters
+        """
+        # TODO: this does not work, since its not part of the DAG / have an associated cell
+        # File "/Users/myles/code/marimo/marimo/_runtime/runtime.py", line 1448, in register_state_update
+        # assert ctx.execution_context is not None
+        query_params().set_all(request.query_params)
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
@@ -2296,6 +2311,9 @@ class Kernel:
                 await self.preview_sql_table(request)
             elif isinstance(request, PreviewSQLTableListRequest):
                 await self.preview_sql_table_list(request)
+            elif isinstance(request, UpdateQueryParamsRequest):
+                await self.update_query_params(request)
+                CompletedRun().broadcast()
             elif isinstance(request, StopRequest):
                 return None
             else:

@@ -11,6 +11,7 @@ from marimo._runtime.requests import (
     DeleteCellRequest,
     InstallMissingPackagesRequest,
     SetCellConfigRequest,
+    UpdateQueryParamsRequest,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -202,6 +203,32 @@ async def install_missing_packages(request: Request) -> BaseResponse:
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=InstallMissingPackagesRequest)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+    return SuccessResponse()
+
+
+@router.post("/update_query_params")
+@requires("edit")
+async def update_query_params(request: Request) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateQueryParamsRequest"
+    responses:
+        200:
+            description: Update query parameters in the backend
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateQueryParamsRequest)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

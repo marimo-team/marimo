@@ -116,6 +116,11 @@ class QueryParams(State[SerializedQueryParams]):
         """Set the value of a query parameter."""
         self[key] = value
 
+    def set_all(self, params: dict[str, Union[str, list[str]]]) -> None:
+        """Set the value of all query parameters."""
+        for key, value in params.items():
+            self[key] = value
+
     def append(self, key: str, value: str) -> None:
         """Append a value to a list of values"""
         if key not in self._params:
