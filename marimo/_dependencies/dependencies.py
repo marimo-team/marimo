@@ -168,6 +168,7 @@ class DependencyManager:
     numpy = Dependency("numpy")
     altair = Dependency("altair", min_version="5.3.0", max_version="6.0.0")
     duckdb = Dependency("duckdb")
+    chdb = Dependency("chdb")
     sqlglot = Dependency("sqlglot")
     pillow = Dependency("PIL")
     plotly = Dependency("plotly")

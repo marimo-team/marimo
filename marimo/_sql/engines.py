@@ -21,12 +21,14 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    import chdb
     import duckdb
     from sqlalchemy import Engine
     from sqlalchemy.sql.type_api import TypeEngine
 
-# Internal engine name for DuckDB, we need to ensure this is unique
+# Internal engine names
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
+INTERNAL_CLICKHOUSE_ENGINE = cast(VariableName, "__marimo_clickhouse")
 
 
 def raise_df_import_error(pkg: str) -> None:
@@ -474,6 +476,46 @@ class SQLAlchemyEngine(SQLEngine):
 
     def _is_cheap_discovery(self) -> bool:
         return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
+
+
+class ClickhouseEngine(SQLEngine):
+    """Use chdb to connect to Clickhouse"""
+
+    def __init__(
+        self,
+        connection: Optional[chdb.state.sqlitelike.Connection] = None,
+        engine_name: Optional[VariableName] = None,
+    ) -> None:
+        self._connection = connection
+        self._engine_name = engine_name
+
+    def source(self) -> str:
+        return INTERNAL_CLICKHOUSE_ENGINE
+
+    def dialect(self) -> str:
+        return "clickhouse"
+
+    def execute(self, query: str) -> Any:
+        # chdb currently only supports pandas
+        if not DependencyManager.pandas.has():
+            raise_df_import_error("pandas")
+
+        import chdb
+        import pandas as pd
+
+        result = chdb.query(query, "Dataframe")
+        if isinstance(result, pd.DataFrame):
+            return result
+        return None
+
+    @staticmethod
+    def is_compatible(var: Any) -> bool:
+        if not DependencyManager.chdb.imported():
+            return False
+
+        from chdb.state.sqlitelike import Connection
+
+        return isinstance(var, Connection)
 
 
 def _sql_type_to_data_type(type_str: str) -> DataType:

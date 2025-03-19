@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   type SQLTableContext,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
 } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 
@@ -24,7 +24,7 @@ export function sqlCode(
       tableName = `${database}.${tableName}`;
     }
 
-    if (engine === DEFAULT_ENGINE) {
+    if (engine === DUCKDB_ENGINE) {
       return `_df = mo.sql(f"SELECT ${columnName} FROM ${tableName} LIMIT 100")`;
     }
 

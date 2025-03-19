@@ -13,7 +13,32 @@ import { Logger } from "@/utils/Logger";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
-export const DEFAULT_ENGINE = "__marimo_duckdb" as ConnectionName;
+export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
+export const CLICKHOUSE_ENGINE = "__marimo_clickhouse" as ConnectionName;
+export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE, CLICKHOUSE_ENGINE]);
+
+const initialConnections: ConnectionsMap = new Map([
+  [
+    DUCKDB_ENGINE,
+    {
+      name: DUCKDB_ENGINE,
+      dialect: "duckdb",
+      source: "duckdb",
+      display_name: "DuckDB In-Memory",
+      databases: [],
+    },
+  ],
+  [
+    CLICKHOUSE_ENGINE,
+    {
+      name: CLICKHOUSE_ENGINE,
+      dialect: "clickhouse",
+      source: "clickhouse",
+      display_name: "ClickHouse In-Memory",
+      databases: [],
+    },
+  ],
+]);
 
 // Extend the backend type but override the name property with the strongly typed ConnectionName
 export interface DataSourceConnection
@@ -21,9 +46,11 @@ export interface DataSourceConnection
   name: ConnectionName;
 }
 
+type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
+
 export interface DataSourceState {
   latestEngineSelected: ConnectionName;
-  connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
+  connectionsMap: ConnectionsMap;
 }
 
 export interface SQLTableContext {
@@ -36,14 +63,8 @@ export interface SQLTableContext {
 
 function initialState(): DataSourceState {
   return {
-    latestEngineSelected: DEFAULT_ENGINE,
-    connectionsMap: new Map().set(DEFAULT_ENGINE, {
-      name: DEFAULT_ENGINE,
-      dialect: "duckdb",
-      source: "duckdb",
-      display_name: "DuckDB In-Memory",
-      databases: [],
-    }),
+    latestEngineSelected: DUCKDB_ENGINE,
+    connectionsMap: initialConnections,
   };
 }
 
@@ -77,7 +98,7 @@ const {
     };
   },
 
-  // Keep default engine and any connections that are used by variables
+  // Keep internal engines and any connections that are used by variables
   filterDataSourcesFromVariables: (
     state: DataSourceState,
     variableNames: VariableName[],
@@ -86,7 +107,7 @@ const {
     const names = new Set(variableNames);
     const newMap = new Map(
       [...connectionsMap].filter(([name]) => {
-        if (name === DEFAULT_ENGINE) {
+        if (INTERNAL_SQL_ENGINES.has(name)) {
           return true;
         }
         return names.has(name as unknown as VariableName);
@@ -96,13 +117,13 @@ const {
       // If the latest engine selected is not in the new map, use the default engine
       latestEngineSelected: newMap.has(latestEngineSelected)
         ? latestEngineSelected
-        : DEFAULT_ENGINE,
+        : DUCKDB_ENGINE,
       connectionsMap: newMap,
     };
   },
 
   clearDataSourceConnections: (): DataSourceState => ({
-    latestEngineSelected: DEFAULT_ENGINE,
+    latestEngineSelected: DUCKDB_ENGINE,
     connectionsMap: new Map(),
   }),
 
@@ -117,7 +138,7 @@ const {
     return {
       latestEngineSelected: newMap.has(latestEngineSelected)
         ? latestEngineSelected
-        : DEFAULT_ENGINE,
+        : DUCKDB_ENGINE,
       connectionsMap: newMap,
     };
   },
