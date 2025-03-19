@@ -80,7 +80,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if isinstance(_data.columns, pd.MultiIndex):
                     try:
                         LOGGER.warning(
-                            "MultiIndex columns are not supported in the frontend, converting to single index"
+                            "MultiIndex columns is not yet supported. Search and sort will not work."
                         )
 
                         # Hack to match column names
@@ -89,7 +89,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                         ]
 
                         _data = _data.droplevel(0, axis=1)
-                        _data.columns = single_col_names
+                        _data.columns = pd.Index(single_col_names)
                     except Exception as e:
                         LOGGER.error(
                             "Error converting MultiIndex columns to single index",
