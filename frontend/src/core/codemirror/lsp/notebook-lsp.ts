@@ -8,6 +8,7 @@ import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import type { CellId } from "@/core/cells/ids";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
+import type { EditorView } from "@codemirror/view";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
   public readonly documentUri: LSP.DocumentUri;
@@ -50,12 +51,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       });
     });
   }
+
   textDocumentDefinition(
     params: LSP.DefinitionParams,
   ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
     // Get the cell document URI from the params
     const cellDocumentUri = params.textDocument.uri;
     if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
       return Promise.resolve(null);
     }
 
@@ -93,10 +96,117 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.textDocumentCodeAction(params);
   }
 
-  textDocumentRename(
+  /**
+   * HACK
+   * This whole function is a hack to work around the fact that we don't have
+   * a great way to map the edits back to the appropriate LSP view plugin.
+   *
+   * Instead, we parse out the new text from the response and then update the
+   * code in the plugins manually, instead of using the LSP.
+   */
+  async textDocumentRename(
     params: LSP.RenameParams,
   ): Promise<LSP.WorkspaceEdit | null> {
-    return this.client.textDocumentRename(params);
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    // Find the latest lens
+    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
+    if (latestVersion === undefined) {
+      Logger.warn("No lens found for cell", cellDocumentUri);
+      return null;
+    }
+
+    // Use the lens to transform the position
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
+    const transformedPosition = lens.transformPosition(params.position, cellId);
+
+    // Request
+    const response = await this.client.textDocumentRename({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: transformedPosition,
+    });
+
+    if (!response) {
+      return null;
+    }
+
+    // Get all the edits from the response
+    const edits = response.documentChanges?.flatMap((change) => {
+      if ("edits" in change) {
+        return change.edits;
+      }
+      return [];
+    });
+
+    // Validate its a single edit
+    if (!edits || edits.length !== 1) {
+      Logger.warn("Expected exactly one edit", edits);
+      return response;
+    }
+
+    const edit = edits[0];
+    if (!("newText" in edit)) {
+      Logger.warn("Expected newText in edit", edit);
+      return response;
+    }
+
+    // Get the new text for all the cells (some may be unchanged)
+    const newEdits = lens.getEditsForNewText(edit.newText);
+    const editsToNewCode = new Map(newEdits.map((e) => [e.cellId, e.text]));
+
+    // Update the code in the plugins manually
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const plugin of (this.client as any).plugins) {
+      const documentUri: string = plugin.documentUri;
+      if (!CellDocumentUri.is(documentUri)) {
+        Logger.warn("Invalid cell document URI", documentUri);
+        continue;
+      }
+
+      const cellId = CellDocumentUri.parse(documentUri);
+      const newCode = editsToNewCode.get(cellId);
+      if (!newCode) {
+        Logger.warn("No new code for cell", cellId);
+        continue;
+      }
+
+      const view: EditorView = plugin.view;
+      if (!view) {
+        Logger.warn("No view for plugin", plugin);
+        continue;
+      }
+
+      // Only update if it has changed
+      if (view.state.doc.toString() !== newCode) {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: newCode },
+        });
+      }
+    }
+
+    return {
+      ...response,
+      documentChanges: [
+        {
+          edits: [],
+          textDocument: {
+            uri: cellDocumentUri,
+            version: 0,
+          },
+        },
+      ],
+    };
   }
 
   completionItemResolve(
@@ -105,10 +215,34 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.completionItemResolve(params);
   }
 
-  textDocumentPrepareRename(
+  async textDocumentPrepareRename(
     params: LSP.PrepareRenameParams,
   ): Promise<LSP.PrepareRenameResult | null> {
-    return this.client.textDocumentPrepareRename(params);
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    // Get the latest updated lens
+    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
+    if (!latestVersion) {
+      Logger.warn("No lens found for cell", cellDocumentUri);
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    return this.client.textDocumentPrepareRename({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: lens.transformPosition(params.position, cellId),
+    });
   }
 
   get ready(): boolean {

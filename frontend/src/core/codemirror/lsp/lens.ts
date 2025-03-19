@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId } from "@/core/cells/ids";
+import { Objects } from "@/utils/objects";
 import type * as LSP from "vscode-languageserver-protocol";
 
 export interface NotebookLens {
@@ -17,6 +18,12 @@ export interface NotebookLens {
   transformPosition: (position: LSP.Position, cellId: CellId) => LSP.Position;
   /** Transform a position from notebook coordinates back to cell coordinates */
   reversePosition: (position: LSP.Position, cellId: CellId) => LSP.Position;
+
+  /** Clip a range to the given cell */
+  getEditsForNewText: (newText: string) => Array<{
+    cellId: CellId;
+    text: string;
+  }>;
 
   /** Check if a range falls within the given cell */
   isInRange: (range: LSP.Range, cellId: CellId) => boolean;
@@ -43,10 +50,12 @@ export function createNotebookLens(
     return cellLineOffsets.get(cellId) || 0;
   }
 
+  const mergedText = Object.values(codes).join("\n");
+
   return {
     cellIds: sortedCellIds,
 
-    mergedText: Object.values(codes).join("\n"),
+    mergedText,
 
     transformRange: (range: LSP.Range, cellId: CellId) =>
       shiftRange(range, getCurrentLineOffset(cellId)),
@@ -60,6 +69,37 @@ export function createNotebookLens(
       const startLine = range.start.line - offset;
       const endLine = range.end.line - offset;
       return startLine >= 0 && endLine < cellLines;
+    },
+
+    getEditsForNewText: (newText: string) => {
+      const newLines = newText.split("\n");
+      const oldLines = mergedText.split("\n");
+
+      if (newLines.length !== oldLines.length) {
+        throw new Error("Cannot apply rename when there are new lines");
+      }
+
+      const edits: Array<{
+        cellId: CellId;
+        text: string;
+      }> = [];
+
+      for (const [cellId, code] of Objects.entries(codes)) {
+        if (!cellLineOffsets.has(cellId)) {
+          continue;
+        }
+        const offset = cellLineOffsets.get(cellId) || 0;
+
+        const numCellLines = code.split("\n").length;
+        const newCellLines = newLines.slice(offset, offset + numCellLines);
+
+        edits.push({
+          cellId,
+          text: newCellLines.join("\n"),
+        });
+      }
+
+      return edits;
     },
 
     transformPosition: (position: LSP.Position, cellId: CellId) =>

@@ -6,6 +6,11 @@ import * as LSP from "vscode-languageserver-protocol";
 import { NotebookLanguageServerClient } from "../notebook-lsp";
 import { CellDocumentUri, type ILanguageServerClient } from "../types";
 import type { CellId } from "@/core/cells/ids";
+import { EditorView } from "@codemirror/view";
+import {
+  type LanguageServerClient,
+  languageServerWithTransport,
+} from "@marimo-team/codemirror-languageserver";
 
 const Cells = {
   cell1: "cell1" as CellId,
@@ -130,25 +135,69 @@ describe("createNotebookLens", () => {
     const transformed = lens.transformPosition(pos, Cells.cell2);
     expect(transformed.line).toBe(3);
   });
+
+  it("should clip range and text to cell boundaries", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2, Cells.cell3];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "line1\nline2",
+      [Cells.cell2]: "line3\nline4\nline5",
+      [Cells.cell3]: "line6\nline7",
+    };
+    const lens = createNotebookLens(cellIds, codes);
+
+    // Assume the line length does not change
+    const newText = "a\nb\nc\nd\ne\nf\ng";
+
+    const edits = lens.getEditsForNewText(newText);
+
+    expect(edits).toMatchInlineSnapshot(`
+      [
+        {
+          "cellId": "cell1",
+          "text": "a
+      b",
+        },
+        {
+          "cellId": "cell2",
+          "text": "c
+      d
+      e",
+        },
+        {
+          "cellId": "cell3",
+          "text": "f
+      g",
+        },
+      ]
+    `);
+  });
 });
 
 describe("NotebookLanguageServerClient", () => {
+  let plugins: any[] = [];
   let mockClient: Mocked<ILanguageServerClient>;
   let notebookClient: NotebookLanguageServerClient;
 
   beforeEach(() => {
+    plugins = [];
     mockClient = {
+      plugins,
       ready: true,
       capabilities: {},
       initializePromise: Promise.resolve(),
       initialize: vi.fn(),
       close: vi.fn(),
-      detachPlugin: vi.fn(),
-      attachPlugin: vi.fn(),
+      detachPlugin: vi.fn().mockImplementation((plugin) => {
+        plugins = plugins.filter((p) => p !== plugin);
+      }),
+      attachPlugin: vi.fn().mockImplementation((plugin) => {
+        plugins.push(plugin);
+      }),
       textDocumentDidOpen: vi.fn(),
       textDocumentDidChange: vi.fn(),
       textDocumentHover: vi.fn(),
       textDocumentCompletion: vi.fn(),
+      textDocumentRename: vi.fn(),
       processNotification: vi.fn(),
       notify: vi.fn(),
       request: vi.fn(),
@@ -264,6 +313,259 @@ describe("NotebookLanguageServerClient", () => {
           textDocument: { uri: "file:///__marimo_notebook__.py" },
         }),
       );
+    });
+  });
+
+  describe("textDocumentRename", () => {
+    it("should transform rename position and apply edits to editor views", async () => {
+      const props = {
+        workspaceFolders: null,
+        capabilities: {
+          textDocument: {
+            rename: {
+              prepareSupport: true,
+            },
+          },
+        },
+        languageId: "python",
+        transport: {
+          sendData: vi.fn(),
+          subscribe: vi.fn(),
+          connect: vi.fn(),
+          transportRequestManager: {
+            send: vi.fn(),
+          },
+        } as any,
+      };
+
+      // Setup mock plugins with editor views
+      const mockView1 = new EditorView({
+        doc: "# this is a comment",
+        extensions: [
+          languageServerWithTransport({
+            client: mockClient as unknown as LanguageServerClient,
+            rootUri: "file:///",
+            documentUri: CellDocumentUri.of(Cells.cell1),
+            ...props,
+          }),
+        ],
+      });
+      expect(mockView1.state.doc.toString()).toBe("# this is a comment");
+
+      const mockView2 = new EditorView({
+        doc: "import math\nimport numpy",
+        extensions: [
+          languageServerWithTransport({
+            client: mockClient as unknown as LanguageServerClient,
+            rootUri: "file:///",
+            documentUri: CellDocumentUri.of(Cells.cell2),
+            ...props,
+          }),
+        ],
+      });
+      expect(mockView2.state.doc.toString()).toBe("import math\nimport numpy");
+
+      const mockView3 = new EditorView({
+        doc: "print(math.sqrt(4))",
+        extensions: [
+          languageServerWithTransport({
+            client: mockClient as unknown as LanguageServerClient,
+            rootUri: "file:///",
+            documentUri: CellDocumentUri.of(Cells.cell3),
+            ...props,
+          }),
+        ],
+      });
+      expect(mockView3.state.doc.toString()).toBe("print(math.sqrt(4))");
+
+      // Setup rename params
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell2) },
+        position: { line: 0, character: 7 },
+        newName: "renamed_math",
+      };
+
+      // Open a document first to set up the lens
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
+          languageId: "python",
+          version: 1,
+          text: "import math\nimport numpy",
+        },
+      });
+
+      // Mock the response from the language server
+      const mockRenameResponse: LSP.WorkspaceEdit = {
+        documentChanges: [
+          {
+            textDocument: {
+              uri: "file:///__marimo_notebook__.py",
+              version: 1,
+            },
+            edits: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 5, character: 0 },
+                },
+                newText:
+                  "# this is a comment\nimport renamed_math\nimport numpy\nprint(renamed_math.sqrt(4))",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentRename = vi
+        .fn()
+        .mockResolvedValue(mockRenameResponse);
+
+      // Call rename
+      const result = await notebookClient.textDocumentRename(renameParams);
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "documentChanges": [
+            {
+              "edits": [],
+              "textDocument": {
+                "uri": "file:///cell2",
+                "version": 0,
+              },
+            },
+          ],
+        }
+      `);
+
+      expect(mockView2.state.doc.toString()).toBe(
+        "import renamed_math\nimport numpy",
+      );
+      expect(mockView1.state.doc.toString()).toBe("# this is a comment");
+    });
+
+    it("should return null for invalid cell document URIs", async () => {
+      const invalidParams: LSP.RenameParams = {
+        textDocument: { uri: "file:///invalid.py" },
+        position: { line: 0, character: 0 },
+        newName: "new_name",
+      };
+
+      const result = await notebookClient.textDocumentRename(invalidParams);
+      expect(result).toBeNull();
+    });
+
+    it("should return null when no lens is found", async () => {
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell1) },
+        position: { line: 0, character: 0 },
+        newName: "new_name",
+      };
+
+      const result = await notebookClient.textDocumentRename(renameParams);
+      expect(result).toBeNull();
+    });
+
+    it("should return the original response when edits are not as expected", async () => {
+      // Setup response with multiple edits
+      const multiEditResponse: LSP.WorkspaceEdit = {
+        documentChanges: [
+          {
+            textDocument: {
+              uri: "file:///__marimo_notebook__.py",
+              version: 1,
+            },
+            edits: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 0, character: 5 },
+                },
+                newText: "edit1",
+              },
+              {
+                range: {
+                  start: { line: 1, character: 0 },
+                  end: { line: 1, character: 5 },
+                },
+                newText: "edit2",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentRename = vi
+        .fn()
+        .mockResolvedValue(multiEditResponse);
+
+      // Open a document first to set up the lens
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "test",
+        },
+      });
+
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell1) },
+        position: { line: 0, character: 0 },
+        newName: "new_name",
+      };
+
+      const result = await notebookClient.textDocumentRename(renameParams);
+
+      // Should return the original response when edits don't meet expectations
+      expect(result).toEqual(multiEditResponse);
+    });
+
+    it("should return the original response when edits don't have newText property", async () => {
+      // Setup response with an edit that doesn't have newText
+      const invalidEditResponse: LSP.WorkspaceEdit = {
+        documentChanges: [
+          {
+            textDocument: {
+              uri: "file:///__marimo_notebook__.py",
+              version: 1,
+            },
+            edits: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 0, character: 5 },
+                },
+                // Missing newText property
+              } as any,
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentRename = vi
+        .fn()
+        .mockResolvedValue(invalidEditResponse);
+
+      // Open a document first to set up the lens
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "test",
+        },
+      });
+
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell1) },
+        position: { line: 0, character: 0 },
+        newName: "new_name",
+      };
+
+      const result = await notebookClient.textDocumentRename(renameParams);
+
+      // Should return the original response when edits don't have proper properties
+      expect(result).toEqual(invalidEditResponse);
     });
   });
 
