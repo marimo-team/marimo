@@ -209,7 +209,7 @@ class table(
         selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
             'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
-        initial_selection (Union[List[int], List[dict[str, Any]), optional): Indices of the rows you want selected by default.
+        initial_selection (Union[List[int], List[tuple[str, str]), optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns, False otherwise.
@@ -245,7 +245,7 @@ class table(
             Literal["single", "multi", "single-cell", "multi-cell"]
         ] = "multi",
         initial_selection: Optional[
-            Union[list[int], list[dict[str, Any]]]
+            Union[list[int], list[tuple[str, str]]]
         ] = None,
         page_size: int = 10,
         show_column_summaries: Optional[
@@ -330,7 +330,7 @@ class table(
 
         self._selection = selection
         self._has_any_selection = False
-        initial_value: Union[list[int], list[dict[str, Any]]] = []
+        initial_value = []
         if initial_selection and self._manager.supports_selection():
             if (selection in ["single", "single-cell"]) and len(
                 initial_selection
@@ -344,13 +344,11 @@ class table(
                         self._searched_manager.select_cells(
                             [
                                 TableCoordinate(
-                                    row_id=v["rowId"],
-                                    column_name=v["columnName"],
+                                    v[0],
+                                    v[1],
                                 )
                                 for v in initial_selection
-                                if isinstance(v, dict)
-                                and "rowId" in v
-                                and "columnName" in v
+                                if isinstance(v, tuple)
                             ]
                         )
                     )
@@ -368,7 +366,15 @@ class table(
                 raise IndexError(
                     "initial_selection contains invalid row indices"
                 ) from e
-            initial_value = initial_selection
+
+            for v in initial_selection:
+                if isinstance(v, int):
+                    initial_value.append(v)
+                # error: Argument 1 to "append" of "list" has incompatible type "dict[str, str]"; expected "int"  [arg-type]
+                # Found 1 error in 1 file (checked 375 source files)
+                elif isinstance(v, tuple):
+                    initial_value.append({"rowId": v[0], "columnName": v[1]})
+
             self._has_any_selection = True
 
         # We will need this when calling table manager's to_data()
