@@ -212,7 +212,7 @@ class table(
         initial_selection (Union[List[int], List[tuple[str, str]), optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
-            Defaults to True when the table has less than 40 columns, False otherwise.
+            Defaults to True when the table has less than 40 columns and at least 10 rows, False otherwise.
             If "stats", only show stats. If "chart", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
@@ -297,12 +297,26 @@ class table(
         self._manager = get_table_manager(data)
         self._max_columns = max_columns
 
+        if _internal_total_rows is not None:
+            total_rows = _internal_total_rows
+        else:
+            num_rows = self._manager.get_num_rows(force=True)
+            total_rows = num_rows if num_rows is not None else "too_many"
+
         # Set the default value for show_column_summaries,
         # if it is not set by the user
         if show_column_summaries is None:
-            show_column_summaries = (
-                self._manager.get_num_columns()
-                <= TableManager.DEFAULT_SUMMARY_CHARTS_COLUMN_LIMIT
+            # cast to bool --- comparison come back as a NumPy bool
+            show_column_summaries = bool(
+                (
+                    self._manager.get_num_columns()
+                    <= TableManager.DEFAULT_SUMMARY_CHARTS_COLUMN_LIMIT
+                )
+                and (
+                    total_rows == "too_many"
+                    or total_rows
+                    >= TableManager.DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS
+                )
             )
         self._show_column_summaries = show_column_summaries
 
@@ -390,12 +404,6 @@ class table(
         self._format_mapping = format_mapping
 
         field_types = self._manager.get_field_types()
-
-        if _internal_total_rows is not None:
-            total_rows = _internal_total_rows
-        else:
-            num_rows = self._manager.get_num_rows(force=True)
-            total_rows = num_rows if num_rows is not None else "too_many"
 
         if pagination is False and total_rows != "too_many":
             page_size = total_rows
