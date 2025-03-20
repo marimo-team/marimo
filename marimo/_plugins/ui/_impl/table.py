@@ -306,13 +306,17 @@ class table(
         # Set the default value for show_column_summaries,
         # if it is not set by the user
         if show_column_summaries is None:
-            show_column_summaries = (
-                self._manager.get_num_columns()
-                <= TableManager.DEFAULT_SUMMARY_CHARTS_COLUMN_LIMIT
-            ) and (
-                total_rows == "too_many"
-                or total_rows
-                >= TableManager.DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS
+            # cast to bool --- comparison come back as a NumPy bool
+            show_column_summaries = bool(
+                (
+                    self._manager.get_num_columns()
+                    <= TableManager.DEFAULT_SUMMARY_CHARTS_COLUMN_LIMIT
+                )
+                and (
+                    total_rows == "too_many"
+                    or total_rows
+                    >= TableManager.DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS
+                )
             )
         self._show_column_summaries = show_column_summaries
 
