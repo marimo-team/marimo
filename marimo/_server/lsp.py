@@ -74,7 +74,7 @@ class BaseLspServer(LspServer):
             )
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(
-                cmd.split(),
+                cmd,
                 stdout=file_out,
                 stderr=file_out,
                 stdin=None,
