@@ -879,6 +879,13 @@ class code_editor(UIElement[str, str]):
         return value
 
 
+def _to_option_name(option: Any) -> str:
+    if isinstance(option, str):
+        return option
+    else:
+        return repr(option)
+
+
 @mddoc
 class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
@@ -917,8 +924,10 @@ class dropdown(UIElement[list[str], Any]):
         selected_key (str, optional): The selected option's key, or None if no selection.
 
     Args:
-        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+        options (Sequence[Any] | dict[str, Any]): Sequence of options, or dict
             mapping option name to option value.
+            If the options are not strings, they will be converted to strings
+            when displayed in the dropdown.
         value (str, optional): Default option name. Defaults to None.
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
@@ -935,11 +944,12 @@ class dropdown(UIElement[list[str], Any]):
     _MAX_OPTIONS: Final[int] = 1000
     _name: Final[str] = "marimo-dropdown"
     _selected_key: Optional[str] = None
+    _RESERVED_OPTION: Final[str] = "--"
 
     def __init__(
         self,
-        options: Sequence[str] | dict[str, Any],
-        value: Optional[str] = None,
+        options: Sequence[Any] | dict[str, Any],
+        value: Optional[Any] = None,
         allow_select_none: Optional[bool] = None,
         searchable: bool = False,
         *,
@@ -959,12 +969,15 @@ class dropdown(UIElement[list[str], Any]):
             )
 
         if not isinstance(options, dict):
-            options = {option: option for option in options}
+            options = {_to_option_name(option): option for option in options}
 
-        if "--" in options:
+            if value is not None and not isinstance(value, str):
+                value = _to_option_name(value)
+
+        if self._RESERVED_OPTION in options:
             raise ValueError(
-                "The option name '--' is reserved by marimo"
-                "; please use another name."
+                f"The option name '{self._RESERVED_OPTION}' "
+                "is reserved by marimo; please use another name."
             )
 
         self.options = options
@@ -1000,8 +1013,15 @@ class dropdown(UIElement[list[str], Any]):
 
     def _convert_value(self, value: list[str]) -> Any:
         if value:
-            assert len(value) == 1
+            assert len(value) == 1, "Dropdowns only support a single value"
             self._selected_key = value[0]
+            if self._selected_key not in self.options:
+                raise ValueError(
+                    f"The option name '{self._selected_key}' "
+                    "is not a valid option. "
+                    "Please use one of the following options: "
+                    f"{list(self.options.keys())}"
+                )
             return self.options[value[0]]
         else:
             self._selected_key = None
@@ -1034,8 +1054,10 @@ class multiselect(UIElement[list[str], list[object]]):
         options (dict): A dict mapping option name to option value.
 
     Args:
-        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+        options (Sequence[Any] | dict[str, Any]): Sequence of options, or dict
             mapping option name to option value.
+            If the options are not strings, they will be converted to strings
+            when displayed in the dropdown.
         value (Sequence[str], optional): A list of initially selected options.
             Defaults to None.
         label (str, optional): Markdown label for the element. Defaults to "".
@@ -1052,8 +1074,8 @@ class multiselect(UIElement[list[str], list[object]]):
 
     def __init__(
         self,
-        options: Sequence[str] | dict[str, Any],
-        value: Optional[Sequence[str]] = None,
+        options: Sequence[Any] | dict[str, Any],
+        value: Optional[Sequence[Any]] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[list[object]], None]] = None,
@@ -1072,7 +1094,10 @@ class multiselect(UIElement[list[str], list[object]]):
             )
 
         if not isinstance(options, dict):
-            options = {option: option for option in options}
+            options = {_to_option_name(option): option for option in options}
+
+            if value is not None and not isinstance(value, str):
+                value = [_to_option_name(v) for v in value]
 
         self.options = options
         initial_value = list(value) if value is not None else []
