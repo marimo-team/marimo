@@ -13,11 +13,7 @@ import {
 } from "@codemirror/language";
 import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import {
-  cellIdState,
-  diagnosticsConfigState,
-  type PlaceholderType,
-} from "../config/extension";
+import type { PlaceholderType } from "../config/extension";
 import {
   smartPlaceholderExtension,
   clickablePlaceholderExtension,
@@ -26,7 +22,6 @@ import {
   LanguageServerClient,
   languageServerWithTransport,
   documentUri,
-  diagnosticsEnabled,
 } from "@marimo-team/codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
@@ -172,13 +167,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
               });
             },
           }),
-          documentUri.compute([cellIdState], (state) => {
-            return CellDocumentUri.of(state.facet(cellIdState));
-          }),
-          diagnosticsEnabled.compute([diagnosticsConfigState], (state) => {
-            // default to false
-            return state.facet(diagnosticsConfigState)?.enabled ?? false;
-          }),
+          documentUri.of(CellDocumentUri.of(cellId)),
         ];
       }
 

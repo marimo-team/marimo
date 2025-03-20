@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CellId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type * as LSP from "vscode-languageserver-protocol";
 
@@ -47,7 +48,10 @@ export function createNotebookLens(
   });
 
   function getCurrentLineOffset(cellId: CellId): number {
-    return cellLineOffsets.get(cellId) || 0;
+    if (!cellLineOffsets.has(cellId)) {
+      Logger.warn("[lsp] no cell line offsets for", cellId);
+    }
+    return cellLineOffsets.get(cellId) ?? 0;
   }
 
   const mergedText = Object.values(codes).join("\n");
@@ -88,7 +92,7 @@ export function createNotebookLens(
         if (!cellLineOffsets.has(cellId)) {
           continue;
         }
-        const offset = cellLineOffsets.get(cellId) || 0;
+        const offset = cellLineOffsets.get(cellId) ?? 0;
 
         const numCellLines = code.split("\n").length;
         const newCellLines = newLines.slice(offset, offset + numCellLines);
