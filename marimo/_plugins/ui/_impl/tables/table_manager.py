@@ -43,6 +43,9 @@ class TableManager(abc.ABC, Generic[T]):
     # Upper limit for frontend table component to show column summary charts
     # to ensure browser performance
     DEFAULT_SUMMARY_CHARTS_ROW_LIMIT = 20_000
+    # Lower limit for frontend to show column summary charts, since for
+    # very small tables column summaries just take up space.
+    DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS = 11
     # Upper limit for column summaries to avoid hanging up the kernel
     # Note: Keep this value in sync with DataTablePlugin's banner text
     DEFAULT_SUMMARY_STATS_ROW_LIMIT = 1_000_000
