@@ -361,17 +361,12 @@ def find_sql_refs(
         if expression is None:
             continue
 
-        if is_dml := bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
+        if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
                 append_refs_from_table(table)
 
         # build_scope only works for select statements
         if root := build_scope(expression):
-            if is_dml:
-                LOGGER.warning(
-                    "Scopes should not exist for dml's, may need rework if this occurs"
-                )
-
             for scope in root.traverse():  # type: ignore
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):

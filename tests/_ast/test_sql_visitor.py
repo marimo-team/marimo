@@ -731,3 +731,15 @@ class TestFindSQLRefs:
     def test_find_sql_refs_invalid_sql() -> None:
         sql = "SELECT * FROM"
         assert find_sql_refs(sql) == []
+
+    @staticmethod
+    def test_dml_with_subquery() -> None:
+        sql = """
+        insert into table1 (column1) select distinct column1 from table2 order by random();
+        update table3 set column1=(select column2 from table1 t where t.column1=table3.column1);
+        """
+        assert find_sql_refs(sql) == [
+            "table1",
+            "table2",
+            "table3",
+        ]
