@@ -33,6 +33,7 @@ def _(pd):
         }
     )
     unnamed_indexes
+    # unnamed_indexes.reset_index() # this works
     return (unnamed_indexes,)
 
 

@@ -43,6 +43,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "strings": ["a", "b", "c"],
                 "bool": [True, False, True],
                 "int": [1, 2, 3],
+                "large_int": [2**64, 2**65 + 1, 2**66 + 2],
                 "float": [1.0, 2.0, 3.0],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
@@ -62,6 +63,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "list": pl.Series(
                     [[1, 2], [3, 4], [5, 6]], dtype=pl.List(pl.Int64)
                 ),
+                "nested_lists": pl.Series(
+                    [[[1, 2]], [[3, 4]], [[5, 6]]],
+                    dtype=pl.List(pl.List(pl.Int64)),
+                ),
+                "nested_arrays": pl.Series(
+                    [[[1, 2]], [[3, 4]], [[5, 6]]],
+                    dtype=pl.Array(pl.Array(pl.Int64, shape=(2,)), shape=(1,)),
+                ),
                 "array": pl.Series(
                     [[1], [2], [3]], dtype=pl.Array(pl.Int64, 1)
                 ),
@@ -78,14 +87,26 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 ],
                 "duration": [
                     datetime.timedelta(days=1),
-                    datetime.timedelta(days=2),
-                    datetime.timedelta(days=3),
+                    datetime.timedelta(microseconds=315),
+                    datetime.timedelta(hours=2, minutes=30),
                 ],
                 "mixed_list": [
                     [1, "two"],
                     [3.0, False],
                     [None, datetime.datetime(2021, 1, 1)],
                 ],
+                "structs_with_list": pl.Series(
+                    "mixed",
+                    [{"a": [1, 2], "b": 2}, {"a": [3, 4], "b": 4}, [5, 6]],
+                ),
+                "list_with_structs": pl.Series(
+                    "list_with_structs",
+                    [
+                        [{"a": 1}, {"c": 3}],
+                        [{"e": 5}],
+                        [],
+                    ],
+                ),
             },
             strict=False,
         )
@@ -124,7 +145,20 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
+        # CSV does not support nested data types
+        columns = [
+            col
+            for col in complex_data.get_column_names()
+            if col
+            not in [
+                "nested_lists",
+                "nested_arrays",
+                "list_with_structs",
+                "structs_with_list",
+            ]
+        ]
+        manager = complex_data.select_columns(columns)
+        data = manager.to_csv()
         assert isinstance(data, bytes)
         snapshot("polars.csv", data.decode("utf-8"))
 
@@ -156,21 +190,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
-        # pl.Time and pl.Object are not supported in JSON
-        other_columns = [
-            col
-            for col in complex_data.get_column_names()
-            if col
-            not in [
-                "time",
-                "set",
-                "imaginary",
-            ]
-        ]
-        manager = complex_data.select_columns(other_columns)
-        data = manager.to_json()
+        data = complex_data.to_json()
         assert isinstance(data, bytes)
         snapshot("polars.json", data.decode("utf-8"))
+
+        json_data = json.loads(data)
+        assert json_data[0]["duration"] == "1d"
+        assert json_data[1]["duration"] == "315µs"
+        assert json_data[2]["duration"] == "2h 30m"
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()

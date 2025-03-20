@@ -96,34 +96,37 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 result, column
                             )
                         elif isinstance(dtype, pl.Duration):
-                            unit_map = {
-                                "ms": column.dt.total_milliseconds,
-                                "ns": column.dt.total_nanoseconds,
-                                "us": column.dt.total_microseconds,
-                                "s": column.dt.total_seconds,
-                            }
-                            if dtype.time_unit in unit_map:
-                                method = unit_map[dtype.time_unit]
-                                result = result.with_columns(method())
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
                     return result.write_csv().encode("utf-8")
 
             def to_json(
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> bytes:
-                _data = self.apply_formatting(format_mapping).collect()
+                result = self.apply_formatting(format_mapping).collect()
                 try:
-                    return _data.write_json().encode("utf-8")
+                    for column in result.get_columns():
+                        dtype = column.dtype
+                        if isinstance(dtype, pl.Duration):
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
+                    return result.write_json().encode("utf-8")
                 except (
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
-                    result = _data
+                    LOGGER.debug(
+                        "Failed to write json. Trying to convert columns to strings."
+                    )
                     for column in result.get_columns():
                         dtype = column.dtype
                         if isinstance(dtype, pl.Object):
                             result = self._cast_object_to_string(
                                 result, column
                             )
-                        elif dtype == pl.Int128:
+                        elif str(dtype) == "Int128":
+                            # Use string comparison because pl.Int128 doesn't exist on older versions
                             # As of writing this, Int128 is not supported by polars
                             LOGGER.warning(
                                 "Column %s is of type Int128, which is not supported. Converting to string.",
@@ -132,7 +135,20 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = result.with_columns(
                                 column.cast(pl.String)
                             )
+                        elif isinstance(dtype, pl.Duration):
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
+
                     return result.write_json().encode("utf-8")
+
+            def _convert_time_to_string(
+                self, result: pl.DataFrame, column: pl.Series
+            ) -> pl.Series:
+                # Converts to human readable format
+                return result.with_columns(
+                    column.dt.to_string(format="polars")
+                )
 
             def _cast_object_to_string(
                 self, df: pl.DataFrame, column: pl.Series

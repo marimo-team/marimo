@@ -151,6 +151,11 @@ class TestPandasTableManager(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("pandas.csv", data.decode("utf-8"))
 
+    def factory_create_json_from_df(self, df: Any) -> Any:
+        if isinstance(df, pd.DataFrame):
+            manager = self.factory.create()(df)
+            return json.loads(manager.to_json().decode("utf-8"))
+
     def test_to_json(self) -> None:
         expected_json = self.data.to_json(
             orient="records", date_format="iso"
@@ -177,8 +182,7 @@ class TestPandasTableManager(unittest.TestCase):
                 ],
             }
         )
-        manager = self.factory.create()(timestamps)
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(timestamps)
 
         assert json_data[0]["timestamp"] == "2024-12-17T00:00:00.000"
         assert (
@@ -188,9 +192,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_json_complex_number_handling(self) -> None:
         df = pd.DataFrame({"complex": [1 + 2j]})
-        manager = self.factory.create()(df)
-
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(df)
         assert json_data[0]["complex"] == "(1+2j)"
 
     @pytest.mark.skipif(
@@ -201,9 +203,7 @@ class TestPandasTableManager(unittest.TestCase):
         import numpy as np
 
         df = pd.DataFrame({"complex": np.array([1 + 2j])})
-        manager = self.factory.create()(df)
-
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(df)
         assert json_data[0]["complex"] == "(1+2j)"
 
     def test_to_json_complex(self) -> None:
@@ -214,8 +214,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_json_index(self) -> None:
         data = pd.DataFrame({"a": [1, 2, 3]}, index=["c", "d", "e"])
-        manager = self.factory.create()(data)
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(data)
         assert json_data == [
             {"": "c", "a": 1},
             {"": "d", "a": 2},
@@ -226,8 +225,7 @@ class TestPandasTableManager(unittest.TestCase):
         data = pd.DataFrame(
             {"a": [1, 2, 3]}, index=pd.Index(["c", "d", "e"], name="index")
         )
-        manager = self.factory.create()(data)
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(data)
         assert json_data == [
             {"index": "c", "a": 1},
             {"index": "d", "a": 2},
@@ -245,8 +243,7 @@ class TestPandasTableManager(unittest.TestCase):
                 [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
             ),
         )
-        manager = self.factory.create()(data)
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(data)
         assert json_data == [
             {"X": "x", "Y": 1, "a": 1, "b": 4},
             {"X": "y", "Y": 2, "a": 2, "b": 5},
@@ -262,8 +259,7 @@ class TestPandasTableManager(unittest.TestCase):
             },
             index=pd.MultiIndex.from_tuples([("x", 1), ("y", 2), ("z", 3)]),
         )
-        manager = self.factory.create()(data)
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(data)
         assert json_data == [
             {"level_0": "x", "level_1": 1, "a": 1, "b": 4},
             {"level_0": "y", "level_1": 2, "a": 2, "b": 5},
@@ -277,11 +273,10 @@ class TestPandasTableManager(unittest.TestCase):
         idx = pd.Index(["All", "Full"])
         data = pd.DataFrame([(1, 1), (0, 1)], index=idx, columns=cols)
 
-        manager = self.factory.create()(data)
-        json_data = json.loads(manager.to_json().decode("utf-8"))
+        json_data = self.factory_create_json_from_df(data)
         assert json_data == [
-            {"": "All", "basic_amt,NSW": 1, "basic_amt,QLD": 1},
-            {"": "Full", "basic_amt,NSW": 0, "basic_amt,QLD": 1},
+            {"": "All", "basic_amt x NSW": 1, "basic_amt x QLD": 1},
+            {"": "Full", "basic_amt x NSW": 0, "basic_amt x QLD": 1},
         ]
 
     def test_complex_data_field_types(self) -> None:

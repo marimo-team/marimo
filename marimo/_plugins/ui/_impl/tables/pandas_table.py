@@ -36,6 +36,12 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
+                if isinstance(data.columns, pd.MultiIndex):
+                    single_col_names = [
+                        " x ".join(col) for col in data.columns
+                    ]
+                    data.columns = pd.Index(single_col_names)
+
                 self._original_data = data
                 super().__init__(nw.from_native(data))
 
@@ -67,52 +73,49 @@ class PandasTableManagerFactory(TableManagerFactory):
             def to_json(
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> bytes:
-                from pandas.api.types import is_complex_dtype
+                from pandas.api.types import (
+                    is_complex_dtype,
+                    is_timedelta64_dtype,
+                    is_timedelta64_ns_dtype,
+                )
 
                 _data = self.apply_formatting(format_mapping)._original_data
-                for col in _data.columns:
-                    # Complex dtypes are converted to {'imag': num, 'real': num} by default
-                    # We want to preserve the original display
-                    if is_complex_dtype(_data[col].dtype):
-                        _data[col] = _data[col].apply(str)
+                result = _data.copy()  # to avoid SettingWithCopyWarning
+                try:
+                    for col in result.columns:
+                        dtype = result[col].dtype
+                        # Complex dtypes are converted to {'imag': num, 'real': num} by default
+                        # We want to preserve the original display
+                        if is_complex_dtype(dtype):
+                            result[col] = result[col].apply(str)
+                        if is_timedelta64_dtype(
+                            dtype
+                        ) or is_timedelta64_ns_dtype(dtype):
+                            result[col] = result[col].apply(str)
 
-                # Multi-col doesn't properly work, i.e with search and sort
-                if isinstance(_data.columns, pd.MultiIndex):
-                    try:
-                        LOGGER.warning(
-                            "MultiIndex columns is not yet supported. Search and sort will not work."
-                        )
-
-                        # Hack to match column names
-                        single_col_names = [
-                            ",".join(col) for col in _data.columns
-                        ]
-
-                        _data = _data.droplevel(0, axis=1)
-                        _data.columns = pd.Index(single_col_names)
-                    except Exception as e:
-                        LOGGER.error(
-                            "Error converting MultiIndex columns to single index",
-                            exc_info=e,
-                        )
+                except Exception as e:
+                    LOGGER.error(
+                        "Error converting data to JSON",
+                        exc_info=e,
+                    )
+                    return result
 
                 # Flatten indexes
-                if isinstance(_data.index, pd.MultiIndex) or (
-                    isinstance(_data.index, pd.Index)
-                    and not isinstance(_data.index, pd.RangeIndex)
+                if isinstance(result.index, pd.MultiIndex) or (
+                    isinstance(result.index, pd.Index)
+                    and not isinstance(result.index, pd.RangeIndex)
                 ):
-                    unnamed_indexes = _data.index.names[0] is None
-                    # index_levels = _data.index.nlevels
-                    _data = _data.reset_index()
+                    unnamed_indexes = result.index.names[0] is None
+                    result = result.reset_index()
                     LOGGER.debug("Converting multi_index to single index")
 
                     if unnamed_indexes:
                         # We could rename, but it doesn't work cleanly for multi-col indexes
-                        _data.columns = pd.Index(
-                            [""] + list(_data.columns[1:])
+                        result.columns = pd.Index(
+                            [""] + list(result.columns[1:])
                         )
 
-                return _data.to_json(
+                return result.to_json(
                     orient="records",
                     date_format="iso",
                 ).encode("utf-8")

@@ -13,7 +13,7 @@
     "set": [1, 2],
     "imaginary": "(1+2j)",
     "time": "12:30:00",
-    "duration": "P1DT0H0M0S",
+    "duration": "1 days 00:00:00",
     "mixed_list": [1, "two"]
   },
   {
@@ -30,7 +30,7 @@
     "set": [3, 4],
     "imaginary": "(3+4j)",
     "time": "13:45:00",
-    "duration": "P2DT0H0M0S",
+    "duration": "2 days 00:00:00",
     "mixed_list": [3.0, false]
   },
   {
@@ -47,7 +47,7 @@
     "set": [5, 6],
     "imaginary": "(5+6j)",
     "time": "14:15:00",
-    "duration": "P3DT0H0M0S",
+    "duration": "3 days 00:00:00",
     "mixed_list": [null, "2021-01-01T00:00:00.000"]
   }
 ]
