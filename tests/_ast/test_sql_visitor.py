@@ -734,6 +734,25 @@ class TestFindSQLRefs:
 
     @staticmethod
     def test_dml_with_subquery() -> None:
+        # first
+        sql = """
+        insert into table1 (column1) select distinct column1 from table2 order by random();
+        """
+        assert find_sql_refs(sql) == [
+            "table1",
+            "table2",
+        ]
+
+        # second
+        sql = """
+        update table3 set column1=(select column2 from table1 t where t.column1=table3.column1);
+        """
+        assert find_sql_refs(sql) == [
+            "table3",
+            "table1",
+        ]
+
+        # combined
         sql = """
         insert into table1 (column1) select distinct column1 from table2 order by random();
         update table3 set column1=(select column2 from table1 t where t.column1=table3.column1);
