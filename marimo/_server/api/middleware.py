@@ -9,6 +9,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Final,
     Optional,
     Union,
 )
@@ -79,6 +80,8 @@ class AuthBackend(AuthenticationBackend):
 
 
 class SkewProtectionMiddleware:
+    HEADER_NAME: Final[str] = "Marimo-Server-Token"
+
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
@@ -106,8 +109,27 @@ class SkewProtectionMiddleware:
             return await self.app(scope, receive, send)
 
         expected = state.session_manager.skew_protection_token
-        server_token = request.headers.get("Marimo-Server-Token")
+        server_token = request.headers.get(self.HEADER_NAME)
+        if server_token is None:
+            LOGGER.warning(
+                "Received request with no server token (skew protection token). "
+                "This could mean the header is being stripped by a proxy. "
+                "If you are running behind a proxy, please ensure the header "
+                f"'{self.HEADER_NAME}' is being forwarded."
+            )
+            response = JSONResponse(
+                {"error": "Missing server token"},
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+            return await response(scope, receive, send)
+
         if server_token != str(expected):
+            LOGGER.warning(
+                "Received request with invalid server token (skew protection token). "
+                "This could mean the server has new code deployed but the client "
+                "is still using an old version."
+                f"Expected: {expected}, got: {server_token}"
+            )
             response = JSONResponse(
                 {"error": "Invalid server token"},
                 status_code=status.HTTP_401_UNAUTHORIZED,
