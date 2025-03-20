@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import pytest
@@ -337,6 +338,60 @@ def test_dropdown() -> None:
     assert dd.value == 2
 
 
+@dataclass
+class SomeObject:
+    a: int
+
+
+def test_dropdown_with_non_string_options() -> None:
+    # Integer options
+    dd = ui.dropdown(options=[1, 2, 3], value=1)
+    assert dd.options == {"1": 1, "2": 2, "3": 3}
+    assert dd.value == 1
+
+    dd._update(["2"])
+    assert dd.value == 2
+
+    # Float options
+    dd = ui.dropdown(options=[1.0, 2.0, 3.0], value=1.0)
+    assert dd.options == {"1.0": 1.0, "2.0": 2.0, "3.0": 3.0}
+    assert dd.value == 1.0
+
+    dd._update(["2.0"])
+    assert dd.value == 2.0
+
+    # Boolean options
+    dd = ui.dropdown(options=[True, False], value=True)
+    assert dd.options == {"True": True, "False": False}
+    assert dd.value is True
+
+    dd._update(["False"])
+    assert dd.value is False
+
+    # Rich objects
+    dd = ui.dropdown(
+        options=[SomeObject(a=1), SomeObject(a=2), SomeObject(a=3)],
+        value=SomeObject(a=1),
+    )
+    assert dd.options == {
+        "SomeObject(a=1)": SomeObject(a=1),
+        "SomeObject(a=2)": SomeObject(a=2),
+        "SomeObject(a=3)": SomeObject(a=3),
+    }
+    assert dd.value == SomeObject(a=1)
+
+    dd._update(["SomeObject(a=2)"])
+    assert dd.value == SomeObject(a=2)
+
+    # Mixed types
+    dd = ui.dropdown(
+        options=[1, "2", SomeObject(a=3)],
+        value="2",
+    )
+    assert dd.options == {"1": 1, "2": "2", "SomeObject(a=3)": SomeObject(a=3)}
+    assert dd.value == "2"
+
+
 def test_dropdown_too_many_options() -> None:
     with pytest.raises(ValueError) as e:
         ui.dropdown(options={str(i): i for i in range(2000)})
@@ -394,6 +449,68 @@ def test_multiselect() -> None:
 
     with pytest.raises(ValueError):
         ms = ui.multiselect(options=options_list, max_selections=-10)
+
+
+def test_multiselect_non_string_options() -> None:
+    # Integer options
+    options_list = [1, 2, 3]
+    ms = ui.multiselect(options=options_list)
+    assert ms.options == {"1": 1, "2": 2, "3": 3}
+    assert ms.value == []
+
+    ms._update(["1"])
+    assert ms.value == [1]
+
+    ms._update(["1", "2"])
+    assert ms.value == [1, 2]
+
+    # Float options
+    options_list = [1.0, 2.0, 3.0]
+    ms = ui.multiselect(options=options_list, value=[1.0])
+    assert ms.options == {"1.0": 1.0, "2.0": 2.0, "3.0": 3.0}
+    assert ms.value == [1.0]
+
+    # Boolean options
+    options_list = [True, False]
+    ms = ui.multiselect(options=options_list, value=[True])
+    assert ms.options == {"True": True, "False": False}
+    assert ms.value == [True]
+
+    # Rich objects
+    options_list = [SomeObject(a=1), SomeObject(a=2), SomeObject(a=3)]
+    ms = ui.multiselect(options=options_list, value=[SomeObject(a=1)])
+    assert ms.options == {
+        "SomeObject(a=1)": SomeObject(a=1),
+        "SomeObject(a=2)": SomeObject(a=2),
+        "SomeObject(a=3)": SomeObject(a=3),
+    }
+    assert ms.value == [SomeObject(a=1)]
+
+    ms._update(["SomeObject(a=2)"])
+    assert ms.value == [SomeObject(a=2)]
+
+    # Mixed types
+    options_list = [1, "2", (3, 4)]
+    ms = ui.multiselect(options=options_list, value=["1"])
+    assert ms.options == {"1": 1, "2": "2", "(3, 4)": (3, 4)}
+    assert ms.value == [1]
+
+    ms._update(["1", "(3, 4)"])
+    assert ms.value == [1, (3, 4)]
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_multiselect_from_series_non_string() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    ms = ui.multiselect.from_series(df["A"], value=["2"])
+    assert ms.options == {
+        "1": 1,
+        "2": 2,
+        "3": 3,
+    }
+    assert ms.value == [2]
 
 
 def test_multiselect_too_many_options() -> None:
