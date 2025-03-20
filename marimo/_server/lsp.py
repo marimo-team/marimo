@@ -156,7 +156,9 @@ class PyLspServer(BaseLspServer):
         return "pylsp"
 
     def get_command(self) -> str:
-        return f"pylsp --ws -v --port {self.port} --check-parent-process"
+        import sys
+
+        return f"{sys.executable} -m pylsp --ws -v --port {self.port} --check-parent-process"
 
     def missing_binary_alert(self) -> Alert:
         return Alert(

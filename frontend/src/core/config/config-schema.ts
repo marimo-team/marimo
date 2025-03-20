@@ -165,6 +165,7 @@ export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 export type LSPConfig = UserConfig["language_servers"];
+export type DiagnosticsConfig = UserConfig["diagnostics"];
 
 export const AppTitleSchema = z.string();
 export const AppConfigSchema = z

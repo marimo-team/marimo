@@ -2671,7 +2671,7 @@ export interface components {
         html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full";
+        width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
         terminal: boolean;
@@ -2789,6 +2789,9 @@ export interface components {
         auto_discover_schemas?: boolean | "auto";
         auto_discover_tables?: boolean | "auto";
       };
+      diagnostics?: {
+        enabled?: boolean;
+      };
       display: {
         /** @enum {string} */
         cell_output: "above" | "below";
@@ -2796,7 +2799,7 @@ export interface components {
         /** @enum {string} */
         dataframes: "rich" | "plain";
         /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full";
+        default_width: "normal" | "compact" | "medium" | "full" | "columns";
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };

@@ -39,6 +39,7 @@ import {
 import { EditorState, type Extension, Prec } from "@codemirror/state";
 import type {
   CompletionConfig,
+  DiagnosticsConfig,
   KeymapConfig,
   LSPConfig,
 } from "../config/config-schema";
@@ -78,6 +79,7 @@ export interface CodeMirrorSetupOpts {
   theme: Theme;
   hotkeys: HotkeyProvider;
   lspConfig: LSPConfig;
+  diagnosticsConfig: DiagnosticsConfig;
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
@@ -97,6 +99,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     cellActions,
     completionConfig,
     lspConfig,
+    diagnosticsConfig,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
 
@@ -107,13 +110,19 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     pasteBundle(),
     jupyterHelpExtension(),
     // Cell editing
-    cellConfigExtension(completionConfig, hotkeys, placeholderType, lspConfig),
+    cellConfigExtension(
+      completionConfig,
+      hotkeys,
+      placeholderType,
+      lspConfig,
+      diagnosticsConfig,
+    ),
     cellBundle(cellId, hotkeys, cellActions),
     // Comes last so that it can be overridden
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
-    getFeatureFlag("lsp") ? lintGutter() : [],
+    getFeatureFlag("lsp") && diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({

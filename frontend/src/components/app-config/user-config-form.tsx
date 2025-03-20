@@ -50,6 +50,8 @@ import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
 import { OptionalFeatures } from "./optional-features";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { Badge } from "../ui/badge";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -425,6 +427,79 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
+            {getFeatureFlag("lsp") && (
+              <SettingGroup title="Language Servers">
+                <FormField
+                  control={form.control}
+                  name="language_servers.pylsp.enabled"
+                  render={({ field }) => (
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Python Language Server (
+                        <a
+                          href="https://github.com/python-lsp/python-lsp-server"
+                          target="_blank"
+                          className="text-link hover:underline"
+                          rel="noreferrer"
+                        >
+                          pylsp
+                        </a>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="pylsp-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.pylsp.enabled"
+                      />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="diagnostics.enabled"
+                  render={({ field }) => (
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Diagnostics
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="diagnostics-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="diagnostics.enabled"
+                      />
+                    </FormItem>
+                  )}
+                />
+              </SettingGroup>
+            )}
+
             <SettingGroup title="Keymap">
               <FormField
                 control={form.control}
