@@ -342,17 +342,21 @@ class table(
                 )
             try:
                 if selection in ["single-cell", "multi-cell"]:
-                    self._selected_manager = (
-                        self._searched_manager.select_cells(
-                            [
+                    coordinates = []
+                    for v in initial_selection:
+                        if not isinstance(v, tuple) or len(v) != 2:
+                            raise TypeError(
+                                "initial_selection must be a list of tuples for cell selection"
+                            )
+                        else:
+                            coordinates.append(
                                 TableCoordinate(
-                                    v[0],
-                                    v[1],
+                                    row_id=v[0],
+                                    column_name=v[1],
                                 )
-                                for v in initial_selection
-                                if isinstance(v, tuple)
-                            ]
-                        )
+                            )
+                    self._selected_manager = (
+                        self._searched_manager.select_cells(coordinates)
                     )
                 else:
                     indexes = []
@@ -549,7 +553,10 @@ class table(
         )
 
         # Remove the selection column before downloading
-        if isinstance(manager, TableManager):
+        if isinstance(manager, TableManager) and self._selection in [
+            "single",
+            "multi",
+        ]:
             manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
             ext = args.format
