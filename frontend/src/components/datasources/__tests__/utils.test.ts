@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   type SQLTableContext,
 } from "@/core/datasets/data-source-connections";
 import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
@@ -28,7 +28,7 @@ describe("sqlCode", () => {
 
   it("should generate SQL with default schema", () => {
     const sqlTableContext: SQLTableContext = {
-      engine: DEFAULT_ENGINE,
+      engine: DUCKDB_ENGINE,
       schema: "public",
       defaultSchema: "public",
       defaultDatabase: "mydb",
@@ -41,7 +41,7 @@ describe("sqlCode", () => {
 
   it("should generate SQL with non-default schema", () => {
     const sqlTableContext: SQLTableContext = {
-      engine: DEFAULT_ENGINE,
+      engine: DUCKDB_ENGINE,
       schema: "analytics",
       defaultSchema: "public",
       defaultDatabase: "mydb",
@@ -86,7 +86,7 @@ describe("sqlCode", () => {
 
   it("should generate SQL with non-default database", () => {
     const sqlTableContext: SQLTableContext = {
-      engine: DEFAULT_ENGINE,
+      engine: DUCKDB_ENGINE,
       schema: "public",
       defaultSchema: "public",
       defaultDatabase: "memory",

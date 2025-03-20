@@ -3,8 +3,9 @@ import { expect, describe, it, afterAll, afterEach, beforeEach } from "vitest";
 import { SQLCompletionStore, SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
 import {
+  CLICKHOUSE_ENGINE,
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   type ConnectionName,
 } from "@/core/datasets/data-source-connections";
 import type { DataSourceConnection } from "@/core/kernel/messages";
@@ -15,7 +16,7 @@ const adapter = new SQLLanguageAdapter();
 describe("SQLLanguageAdapter", () => {
   describe("transformIn", () => {
     afterAll(() => {
-      adapter.engine = DEFAULT_ENGINE;
+      adapter.engine = DUCKDB_ENGINE;
       adapter.showOutput = true;
     });
 
@@ -138,6 +139,15 @@ describe("SQLLanguageAdapter", () => {
       expect(innerCode2).toBe("SELECT * FROM table");
     });
 
+    it("should handle quoted clickhouse engine", () => {
+      // Internal clickhouse engine is quoted
+      const pythonCode = `_df = mo.sql("""SELECT * FROM table""", engine="${CLICKHOUSE_ENGINE}")`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(offset).toBe(16);
+      expect(adapter.engine).toBe(CLICKHOUSE_ENGINE);
+    });
+
     it("should handle engine param with output flag", () => {
       const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", output=False, engine=postgres_engine)';
@@ -239,7 +249,7 @@ _df = mo.sql(
 
   describe("transformOut", () => {
     afterEach(() => {
-      adapter.engine = DEFAULT_ENGINE;
+      adapter.engine = DUCKDB_ENGINE;
       adapter.showOutput = true;
       adapter.dataframeName = "_df";
     });
@@ -339,6 +349,22 @@ _df = mo.sql(
             """,
             output=False,
             engine=postgres_engine
+        )"
+      `);
+      expect(offset).toBe(24);
+    });
+
+    it("should support quoted clickhouse engine", () => {
+      const code = "SELECT * FROM table";
+      adapter.engine = CLICKHOUSE_ENGINE;
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "# hello
+        _df = mo.sql(
+            f"""
+            SELECT * FROM table
+            """,
+            engine="${CLICKHOUSE_ENGINE}"
         )"
       `);
       expect(offset).toBe(24);
@@ -473,8 +499,8 @@ _df = mo.sql(
           dialect: "mysql",
           databases: [],
         })
-        .set(DEFAULT_ENGINE, {
-          name: DEFAULT_ENGINE,
+        .set(DUCKDB_ENGINE, {
+          name: DUCKDB_ENGINE,
           source: "duckdb",
           display_name: "DuckDB",
           dialect: "duckdb",
@@ -487,7 +513,7 @@ _df = mo.sql(
     });
 
     it("should use default engine initially", () => {
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
     });
 
     it("should persist the selected engine", () => {
@@ -525,7 +551,7 @@ _df = mo.sql(
       // Don't update for unspecified engine
       const pythonCode2 = '_df = mo.sql("""SELECT 1""")';
       adapter.transformIn(pythonCode2);
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
         "postgres_engine",
       );
@@ -566,11 +592,11 @@ _df = mo.sql(
     it("should restore previous engine when selecting default", () => {
       const engine = "postgres_engine" as ConnectionName;
       adapter.selectEngine(engine);
-      adapter.selectEngine(DEFAULT_ENGINE);
+      adapter.selectEngine(DUCKDB_ENGINE);
 
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        DEFAULT_ENGINE,
+        DUCKDB_ENGINE,
       );
     });
   });
@@ -585,7 +611,7 @@ _df = mo.sql(
     });
 
     it("should not include engine in getDefaultCode when using default engine", () => {
-      adapter.selectEngine(DEFAULT_ENGINE);
+      adapter.selectEngine(DUCKDB_ENGINE);
       expect(adapter.getDefaultCode()).toBe(
         `_df = mo.sql(f"""SELECT * FROM """)`,
       );
@@ -599,13 +625,13 @@ describe("tablesCompletionSource", () => {
 
   beforeEach(() => {
     // Reset the adapter engine
-    adapter.engine = DEFAULT_ENGINE;
+    adapter.engine = DUCKDB_ENGINE;
   });
 
   it("should return null if connection not found", () => {
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map(),
-      latestEngineSelected: DEFAULT_ENGINE,
+      latestEngineSelected: DUCKDB_ENGINE,
     });
 
     const completionSource = completionStore.getCompletionSource(

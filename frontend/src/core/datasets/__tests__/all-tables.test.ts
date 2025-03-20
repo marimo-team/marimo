@@ -5,7 +5,7 @@ import { datasetsAtom } from "../state";
 import {
   allTablesAtom,
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
 } from "../data-source-connections";
 import { store } from "@/core/state/jotai";
 import type { DatasetsState } from "../types";
@@ -17,9 +17,9 @@ describe("allTablesAtom", () => {
       tables: [],
     } as unknown as DatasetsState);
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, {
-        name: DEFAULT_ENGINE,
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, {
+        name: DUCKDB_ENGINE,
         dialect: "duckdb",
         source: "duckdb",
         display_name: "DuckDB In-Memory",
@@ -63,7 +63,7 @@ describe("allTablesAtom", () => {
   it("should return connection tables when only connections are present", () => {
     // Set up test connections
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -85,8 +85,8 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     // Get tables from the atom
@@ -102,7 +102,7 @@ describe("allTablesAtom", () => {
   it("should use schema name when there is no default schema", () => {
     // Set up test connection with no default schema
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -120,8 +120,8 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     // Get tables from the atom
@@ -135,7 +135,7 @@ describe("allTablesAtom", () => {
   it("should use default schema appropriately", () => {
     // Set up test connection with a default schema
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -161,8 +161,8 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     // Get tables from the atom
@@ -178,7 +178,7 @@ describe("allTablesAtom", () => {
   it("should use fully qualified name when no default_database", () => {
     // Set up test connections with colliding schema.table names in different databases
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -205,8 +205,8 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     const tables = store.get(allTablesAtom);
@@ -219,7 +219,7 @@ describe("allTablesAtom", () => {
   it("should handle default database", () => {
     // Set up test connection with a default database
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -247,8 +247,8 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     // Get tables from the atom
@@ -262,7 +262,7 @@ describe("allTablesAtom", () => {
 
   it("should handle multiple connections with progressive qualified names", () => {
     const defaultConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -298,9 +298,9 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
+      latestEngineSelected: DUCKDB_ENGINE,
       connectionsMap: new Map()
-        .set(DEFAULT_ENGINE, defaultConnection)
+        .set(DUCKDB_ENGINE, defaultConnection)
         .set("other_engine", otherConnection),
     });
 
@@ -330,7 +330,7 @@ describe("allTablesAtom", () => {
 
     // Set up test connection
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -350,8 +350,8 @@ describe("allTablesAtom", () => {
     };
 
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     // Get tables from the atom

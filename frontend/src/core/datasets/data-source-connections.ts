@@ -13,6 +13,8 @@ import { Logger } from "@/utils/Logger";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
+// duckdb engine is treated as the default engine
+// as it doesn't require passing an engine variable to the backend
 export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
 export const CLICKHOUSE_ENGINE = "__marimo_clickhouse" as ConnectionName;
 export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE, CLICKHOUSE_ENGINE]);
@@ -24,7 +26,7 @@ const initialConnections: ConnectionsMap = new Map([
       name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
-      display_name: "DuckDB In-Memory",
+      display_name: "DuckDB (In-Memory)",
       databases: [],
     },
   ],
@@ -34,7 +36,7 @@ const initialConnections: ConnectionsMap = new Map([
       name: CLICKHOUSE_ENGINE,
       dialect: "clickhouse",
       source: "clickhouse",
-      display_name: "ClickHouse In-Memory",
+      display_name: "ClickHouse (In-Memory)",
       databases: [],
     },
   ],
