@@ -91,11 +91,21 @@ def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
 
 
 def test_pylsp_server():
+    import sys
+
     server = PyLspServer(port=8000)
+
     assert server.binary_name() == "pylsp"
-    assert server.get_command().endswith(
-        "pylsp --ws -v --port 8000 --check-parent-process"
-    )
+    assert server.get_command() == [
+        sys.executable,
+        "-m",
+        "pylsp",
+        "--ws",
+        "-v",
+        "--port",
+        "8000",
+        "--check-parent-process",
+    ]
     alert = server.missing_binary_alert()
     assert "Python LSP" in alert.title
 
