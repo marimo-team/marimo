@@ -240,42 +240,6 @@ export function generateColumns<T>({
           );
         }
 
-        if (Array.isArray(value) || typeof value === "object") {
-          const rawStringValue = renderAny(value);
-          return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
-              <EmotionCacheProvider container={null}>
-                <Popover>
-                  <PopoverTrigger>
-                    <span
-                      className="cursor-pointer hover:text-link"
-                      title={rawStringValue}
-                    >
-                      {rawStringValue}
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent>
-                    <PopoverClose className="absolute top-2 right-2">
-                      <Button variant="link" size="xs">
-                        Close
-                      </Button>
-                    </PopoverClose>
-                    <JsonOutput data={value} format="tree" />
-                  </PopoverContent>
-                </Popover>
-              </EmotionCacheProvider>
-            </div>
-          );
-        }
-
         if (value instanceof Date) {
           // e.g. 2010-10-07 17:15:00
           const type =
@@ -310,6 +274,42 @@ export function generateColumns<T>({
               )}
             >
               <MimeCell value={value} />
+            </div>
+          );
+        }
+
+        if (Array.isArray(value) || typeof value === "object") {
+          const rawStringValue = renderAny(value);
+          return (
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
+              <EmotionCacheProvider container={null}>
+                <Popover>
+                  <PopoverTrigger>
+                    <span
+                      className="cursor-pointer hover:text-link"
+                      title={rawStringValue}
+                    >
+                      {rawStringValue}
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <PopoverClose className="absolute top-2 right-2">
+                      <Button variant="link" size="xs">
+                        Close
+                      </Button>
+                    </PopoverClose>
+                    <JsonOutput data={value} format="tree" />
+                  </PopoverContent>
+                </Popover>
+              </EmotionCacheProvider>
             </div>
           );
         }
