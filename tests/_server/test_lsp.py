@@ -117,7 +117,7 @@ def test_copilot_server():
         assert "node" in server.get_command()
         assert str(8000) in server.get_command()
     else:
-        assert server.get_command() == ""
+        assert server.get_command() == []
     alert = server.missing_binary_alert()
     assert "GitHub Copilot" in alert.title
 
