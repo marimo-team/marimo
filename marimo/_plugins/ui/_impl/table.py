@@ -355,14 +355,16 @@ class table(
                         )
                     )
                 else:
+                    indexes = []
+                    for v in initial_selection:
+                        if not isinstance(v, int):
+                            raise TypeError(
+                                "initial_selection must be a list of integers for row selection"
+                            )
+                        else:
+                            indexes.append(v)
                     self._selected_manager = (
-                        self._searched_manager.select_rows(
-                            [
-                                v
-                                for v in initial_selection
-                                if isinstance(v, int)
-                            ]
-                        )
+                        self._searched_manager.select_rows(indexes)
                     )
             except IndexError as e:
                 raise IndexError(
