@@ -37,6 +37,9 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def __init__(self, data: pd.DataFrame) -> None:
                 if isinstance(data.columns, pd.MultiIndex):
+                    LOGGER.debug(
+                        "Multicolumn indexes aren't supported, converting to single index"
+                    )
                     single_col_names = [
                         " x ".join(col) for col in data.columns
                     ]
@@ -106,6 +109,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     and not isinstance(result.index, pd.RangeIndex)
                 ):
                     unnamed_indexes = result.index.names[0] is None
+                    index_levels = result.index.nlevels
                     result = result.reset_index()
                     LOGGER.debug("Converting multi_index to single index")
 
@@ -114,6 +118,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                         result.columns = pd.Index(
                             [""] + list(result.columns[1:])
                         )
+
+                        if index_levels > 1:
+                            LOGGER.warning(
+                                "Indexes with more than one level are not supported properly, call reset_index() to flatten"
+                            )
 
                 return result.to_json(
                     orient="records",

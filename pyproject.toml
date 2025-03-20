@@ -244,7 +244,7 @@ extra-dependencies = [
     "pyarrow",
     "pyarrow_hotfix",
     "altair>=5.4.0",
-    "polars~=1.24.0",
+    "polars>=1.24.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.38",
     "pandas>=1.5.3",
