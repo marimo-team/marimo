@@ -138,7 +138,7 @@ class CopilotLspServer(BaseLspServer):
         if not os.path.exists(lsp_bin):
             # Only debug since this may not exist in conda environments
             LOGGER.debug("LSP binary not found at %s", lsp_bin)
-            return ""
+            return []
         return [
             "node",
             lsp_bin,
