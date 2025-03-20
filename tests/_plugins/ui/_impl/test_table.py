@@ -554,6 +554,46 @@ def test_search_sort_nonexistent_columns() -> None:
     assert table._convert_value(["0"]) == ["banana"]
 
 
+def test_invalid_index_in_initial_selection() -> None:
+    """Test that invalid initial selection raises appropriate errors"""
+    with pytest.raises(IndexError):
+        ui.table(
+            data={"a": [1, 2], "b": [3, 4]},
+            initial_selection=[5],  # Invalid index
+        )
+
+
+def test_invalid_initial_cell_selection() -> None:
+    """Test that invalid initial selection raises appropriate errors"""
+    with pytest.raises(TypeError):
+        ui.table(
+            data={"a": [1, 2], "b": [3, 4]},
+            selection="single-cell",
+            initial_selection=[(1, 2, 3)],  # invalid tulple length
+        )
+
+
+def test_initial_row_selection_happy_path() -> None:
+    """Test that initial row selection works with valid indices"""
+    table = ui.table(
+        data={"a": [1, 2, 3], "b": [4, 5, 6]}, initial_selection=[0, 1]
+    )
+    assert table.value == {"a": [1, 2], "b": [4, 5]}
+
+
+def test_initial_cell_selection_happy_path() -> None:
+    """Test that initial cell selection works with valid coordinates"""
+    table = ui.table(
+        data={"a": [1, 2, 3], "b": [4, 5, 6]},
+        selection="multi-cell",
+        initial_selection=[("0", "a"), ("1", "b")],
+    )
+    assert table.value == [
+        TableCell(row="0", column="a", value=1),
+        TableCell(row="1", column="b", value=5),
+    ]
+
+
 def test_get_row_ids() -> None:
     data = {
         "id": [1, 2, 3] * 3,
@@ -1068,6 +1108,12 @@ def test_download_as_polars() -> None:
         selected_df = download_and_convert(format_type, table)
         assert len(selected_df) == 1
         assert selected_df["cities"][0] == "New York"
+
+
+def test_download_as_for_cell_selection_is_unsupported() -> None:
+    table = ui.table(data=[], selection="single-cell")
+    with pytest.raises(NotImplementedError):
+        table._download_as(DownloadAsArgs(format="csv"))
 
 
 def test_pagination_behavior() -> None:

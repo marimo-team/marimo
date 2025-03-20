@@ -113,7 +113,10 @@ type S = Array<number | string | { rowId: string; columnName?: string }>;
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
     z.object({
-      initialValue: z.array(z.number()),
+      initialValue: z.union([
+        z.array(z.number()),
+        z.array(z.object({ rowId: z.string(), columnName: z.string() })),
+      ]),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       totalRows: z.union([z.number(), z.literal("too_many")]),
