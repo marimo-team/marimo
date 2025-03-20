@@ -144,7 +144,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series
-            ) -> pl.Series:
+            ) -> pl.DataFrame:
                 # Converts to human readable format
                 return result.with_columns(
                     column.dt.to_string(format="polars")

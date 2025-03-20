@@ -98,10 +98,10 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 except Exception as e:
                     LOGGER.error(
-                        "Error converting data to JSON",
+                        "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
-                    return result
+                    return result.to_json(orient="records").encode("utf-8")
 
                 # Flatten indexes
                 if isinstance(result.index, pd.MultiIndex) or (
@@ -111,7 +111,6 @@ class PandasTableManagerFactory(TableManagerFactory):
                     unnamed_indexes = result.index.names[0] is None
                     index_levels = result.index.nlevels
                     result = result.reset_index()
-                    LOGGER.debug("Converting multi_index to single index")
 
                     if unnamed_indexes:
                         # We could rename, but it doesn't work cleanly for multi-col indexes
