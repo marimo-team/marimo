@@ -13,6 +13,7 @@ from marimo._runtime.context.types import (
 )
 from marimo._sql.engines import (
     INTERNAL_DUCKDB_ENGINE,
+    ClickhouseEmbedded,
     DuckDBEngine,
     SQLAlchemyEngine,
 )
@@ -43,6 +44,15 @@ def get_engines_from_variables(
                     DuckDBEngine(cast(Any, value), engine_name=variable_name),
                 )
             )
+        elif ClickhouseEmbedded.is_compatible(value):
+            engines.append(
+                (
+                    variable_name,
+                    ClickhouseEmbedded(
+                        cast(Any, value), engine_name=variable_name
+                    ),
+                )
+            )
 
     return engines
 
@@ -68,6 +78,8 @@ def engine_to_data_source_connection(
         databases = engine.get_databases()
         default_database = engine.get_current_database()
         default_schema = engine.get_current_schema()
+    elif isinstance(engine, ClickhouseEmbedded):
+        pass
     else:
         LOGGER.warning(
             f"Unsupported engine type: {type(engine)}. Unable to get databases for {variable_name}."

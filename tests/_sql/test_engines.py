@@ -8,6 +8,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines import (
+    ClickhouseEmbedded,
     DuckDBEngine,
     SQLAlchemyEngine,
     _sql_type_to_data_type,
@@ -16,6 +17,7 @@ from marimo._sql.engines import (
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
+HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
 
@@ -45,31 +47,40 @@ def test_raise_df_import_error() -> None:
 
 
 @pytest.mark.skipif(
-    not HAS_DUCKDB or not HAS_SQLALCHEMY,
-    reason="Duckdb and sqlalchemy not installed",
+    not (HAS_DUCKDB and HAS_SQLALCHEMY and HAS_CLICKHOUSE),
+    reason="Duckdb, sqlalchemy and Clickhouse not installed",
 )
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
+    import chdb
     import duckdb
     import sqlalchemy as sa
 
     duckdb_conn = duckdb.connect(":memory:")
     sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    clickhouse_conn = chdb.connect(":memory:")
 
     duck_engine = DuckDBEngine(duckdb_conn, engine_name="my_duck")
     sql_engine = SQLAlchemyEngine(sqlite_engine, engine_name="my_sql")
+    clickhouse_engine = SQLAlchemyEngine(
+        clickhouse_conn, engine_name="my_clickhouse"
+    )
 
     assert duck_engine._engine_name == "my_duck"
     assert sql_engine._engine_name == "my_sql"
+    assert clickhouse_engine._engine_name == "my_clickhouse"
 
     # Test default names
     duck_engine_default = DuckDBEngine(duckdb_conn)
     sql_engine_default = SQLAlchemyEngine(sqlite_engine)
+    clickhouse_engine_default = ClickhouseEmbedded(clickhouse_conn)
 
     assert duck_engine_default._engine_name is None
     assert sql_engine_default._engine_name is None
+    assert clickhouse_engine_default._engine_name is None
 
     duckdb_conn.close()
+    clickhouse_conn.close()
 
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="Duckdb not installed")

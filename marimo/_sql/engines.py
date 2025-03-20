@@ -478,8 +478,8 @@ class SQLAlchemyEngine(SQLEngine):
         return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
 
 
-class ClickhouseEngine(SQLEngine):
-    """Use chdb to connect to Clickhouse"""
+class ClickhouseEmbedded(SQLEngine):
+    """Use chdb to connect to an embedded Clickhouse"""
 
     def __init__(
         self,
@@ -489,9 +489,11 @@ class ClickhouseEngine(SQLEngine):
         self._connection = connection
         self._engine_name = engine_name
 
+    @property
     def source(self) -> str:
-        return INTERNAL_CLICKHOUSE_ENGINE
+        return "clickhouse"
 
+    @property
     def dialect(self) -> str:
         return "clickhouse"
 
@@ -503,7 +505,11 @@ class ClickhouseEngine(SQLEngine):
         import chdb
         import pandas as pd
 
-        result = chdb.query(query, "Dataframe")
+        try:
+            result = chdb.query(query, "Dataframe")
+        except Exception:
+            LOGGER.exception("Failed to execute query")
+            return None
         if isinstance(result, pd.DataFrame):
             return result
         return None

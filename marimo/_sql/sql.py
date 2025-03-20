@@ -9,7 +9,7 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines import (
     INTERNAL_CLICKHOUSE_ENGINE,
-    ClickhouseEngine,
+    ClickhouseEmbedded,
     DuckDBEngine,
     SQLAlchemyEngine,
     raise_df_import_error,
@@ -66,8 +66,8 @@ def sql(
         sql_engine = SQLAlchemyEngine(engine)  # type: ignore
     elif DuckDBEngine.is_compatible(engine):
         sql_engine = DuckDBEngine(engine)  # type: ignore
-    elif ClickhouseEngine.is_compatible(engine):
-        sql_engine = ClickhouseEngine(engine)
+    elif ClickhouseEmbedded.is_compatible(engine):
+        sql_engine = ClickhouseEmbedded(engine)
     elif engine == INTERNAL_CLICKHOUSE_ENGINE:
         # Check if user defined an engine first to ensure
         # we don't override the connection
@@ -76,7 +76,7 @@ def sql(
             DependencyManager.chdb,
             DependencyManager.sqlglot,
         )
-        sql_engine = ClickhouseEngine(connection=None)
+        sql_engine = ClickhouseEmbedded(connection=None)
     else:
         raise ValueError(
             "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
