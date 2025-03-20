@@ -330,7 +330,9 @@ class table(
 
         self._selection = selection
         self._has_any_selection = False
-        initial_value = []
+        # Either a list of int (for selection "single" or "multiple")
+        # Or a list of dict (for selection "single-cell" or "multi-cell")
+        initial_value: list[Any] = []
         if initial_selection and self._manager.supports_selection():
             if (selection in ["single", "single-cell"]) and len(
                 initial_selection
@@ -367,14 +369,15 @@ class table(
                     "initial_selection contains invalid row indices"
                 ) from e
 
-            for v in initial_selection:
-                if isinstance(v, int):
-                    initial_value.append(v)
-                # error: Argument 1 to "append" of "list" has incompatible type "dict[str, str]"; expected "int"  [arg-type]
-                # Found 1 error in 1 file (checked 375 source files)
-                elif isinstance(v, tuple):
-                    initial_value.append({"rowId": v[0], "columnName": v[1]})
-
+            initial_value = (
+                initial_selection
+                if all(isinstance(v, int) for v in initial_selection)
+                else [
+                    {"rowId": v[0], "columnName": v[1]}
+                    for v in initial_selection
+                    if isinstance(v, tuple)
+                ]
+            )
             self._has_any_selection = True
 
         # We will need this when calling table manager's to_data()

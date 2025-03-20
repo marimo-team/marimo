@@ -115,7 +115,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     z.object({
       initialValue: z.union([
         z.array(z.number()),
-        z.array(z.tuple([z.string(), z.string()])),
+        z.array(z.object({ rowId: z.string(), columnName: z.string() })),
       ]),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
