@@ -753,6 +753,27 @@ def test_to_json(df: Any) -> None:
     assert isinstance(manager.to_json(), bytes)
 
 
+@pytest.mark.xfail(
+    reason="Format mapping is not supported when converting to JSON"
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+        }
+    ),
+)
+def test_to_json_format_mapping(df: Any) -> None:
+    format_mapping = {"A": lambda x: x * 2}
+    manager = NarwhalsTableManager.from_dataframe(df)
+    json_data = manager.to_json(format_mapping)
+
+    json_object = json.loads(json_data)
+    assert json_object == [{"A": 2}, {"A": 4}, {"A": 6}]
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
