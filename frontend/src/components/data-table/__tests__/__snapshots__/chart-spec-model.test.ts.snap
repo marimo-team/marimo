@@ -45,13 +45,6 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
       "axis": null,
       "bin": true,
       "field": "a",
-      "scale": {
-        "align": 0,
-        "paddingInner": 0,
-        "paddingOuter": {
-          "expr": "length(data('source_0')) == 2 ? 1 : length(data('source_0')) == 3 ? 0.5 : length(data('source_0')) == 4 ? 0 : 0",
-        },
-      },
       "type": "nominal",
     },
     "y": {
@@ -67,9 +60,6 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
   "mark": {
     "align": "right",
     "color": "#027864",
-    "size": {
-      "expr": "min(28, 120 / length(data('source_0')) - 1)",
-    },
     "type": "bar",
   },
 }
@@ -127,13 +117,6 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
       "axis": null,
       "bin": true,
       "field": "a",
-      "scale": {
-        "align": 0,
-        "paddingInner": 0,
-        "paddingOuter": {
-          "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
-        },
-      },
       "type": "nominal",
     },
     "y": {
@@ -149,9 +132,6 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
   "mark": {
     "align": "right",
     "color": "#027864",
-    "size": {
-      "expr": "min(28, 120 / length(data('data_0')) - 1)",
-    },
     "type": "bar",
   },
 }
@@ -209,13 +189,6 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
       "axis": null,
       "bin": true,
       "field": "a",
-      "scale": {
-        "align": 0,
-        "paddingInner": 0,
-        "paddingOuter": {
-          "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
-        },
-      },
       "type": "nominal",
     },
     "y": {
@@ -231,9 +204,6 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
   "mark": {
     "align": "right",
     "color": "#027864",
-    "size": {
-      "expr": "min(28, 120 / length(data('data_0')) - 1)",
-    },
     "type": "bar",
   },
 }
@@ -299,9 +269,6 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
   "mark": {
     "color": "#027864",
     "type": "bar",
-    "width": {
-      "expr": "min(28, 120 / length(data('data_0')) - 1)",
-    },
   },
 }
 `;
