@@ -137,9 +137,8 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   return [
     ...extensions,
-    // grab the first 4 elements of the array is the LSP without hover/autocompletion
     // place in own compartment so it doesn't interfere with other LSP
-    copilotCompartment.of(copilotServer().slice(0, 4)),
+    copilotCompartment.of(copilotServer()),
   ];
 };
 
