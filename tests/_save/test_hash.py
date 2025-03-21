@@ -102,13 +102,17 @@ class TestHash:
         # Rewrite changes the AST, breaking the hash
         app._pytest_rewrite = False
 
+
         @app.cell
-        def load() -> tuple[int]:
+        def imports() -> tuple[int]:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
+            return persistent_cache, MockLoader
 
+        @app.cell
+        def load() -> tuple[int]:
             shared = [None, object()]
-            return persistent_cache, MockLoader, shared
+            return shared
 
         @app.cell
         def one(persistent_cache, MockLoader, shared) -> tuple[int]:
@@ -121,7 +125,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -142,7 +146,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -169,7 +173,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -190,7 +194,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -198,12 +202,15 @@ class TestHash:
             return (Z,)
 
         @app.cell
-        def load() -> tuple[int]:
+        def imports() -> tuple[int]:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
+            return persistent_cache, MockLoader
 
+        @app.cell
+        def load() -> tuple[int]:
             shared = [None, object()]
-            return persistent_cache, MockLoader, shared
+            return shared
 
     @staticmethod
     def test_transitive_content_hash(app) -> None:
