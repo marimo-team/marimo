@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+from functools import cached_property
 from typing import (
     Any,
     Callable,
@@ -13,26 +14,29 @@ from typing import (
     runtime_checkable,
 )
 
+from marimo._utils.docs import google_docstring_to_markdown
 from marimo._utils.format_signature import format_signature
 
 _WRAP_WIDTH = 72
 
 
 def _format_parameter(parameter: inspect.Parameter) -> str:
-    annotation = (
-        ""
-        if parameter.annotation == inspect.Parameter.empty
-        else ": " + cast(str, parameter.annotation)
-    )
-    default = (
-        ""
-        if parameter.default == inspect.Parameter.empty
-        else (
-            f" = '{str(parameter.default)}'"
-            if isinstance(parameter.default, str)
-            else f" = {str(parameter.default)}"
-        )
-    )
+    # Handle annotation
+    if parameter.annotation == inspect.Parameter.empty:
+        annotation = ""
+    elif isinstance(parameter.annotation, str):
+        annotation = f": {parameter.annotation}"
+    else:
+        annotation = f": {parameter.annotation.__name__}"
+
+    # Handle default value
+    if parameter.default == inspect.Parameter.empty:
+        default = ""
+    elif isinstance(parameter.default, str):
+        default = f" = '{parameter.default}'"
+    else:
+        default = f" = {parameter.default}"
+
     return parameter.name + annotation + default
 
 
@@ -113,10 +117,36 @@ def mddoc(obj: T) -> T:
     """Adds a `_rich_help_` method to the passed in object.
 
     Returns `obj`, with modification to implement the `RichHelp` protocol.
+    And also converts the docstring to markdown if it is Google style docs.
     """
+    # Patch the docstring to be lazy and convert to markdown if it is Google style docs.
+    original_doc = obj.__doc__
+    if original_doc is not None:
+        # TODO: make this lazy.
+        # Remove the str() does not actually work with the LSP.
+        obj.__doc__ = str(MarkdownDocstring(original_doc))
+
     rich_help = cast(RichHelp[T], obj)
     rich_help._rich_help_ = lambda: _doc_with_signature(  # type: ignore[method-assign]  # noqa: E501
         obj
     )
+
     # cast back to original type, so type-hinters provide helpful information
     return cast(T, rich_help)
+
+
+class MarkdownDocstring(str):
+    def __init__(self, doc: Optional[str]) -> None:
+        self.doc = doc or ""
+
+    @cached_property
+    def converted(self) -> str:
+        if "Returns:" in self.doc or "Args:" in self.doc:
+            return google_docstring_to_markdown(self.doc)
+        return self.doc
+
+    def __repr__(self) -> str:
+        return self.converted
+
+    def __str__(self) -> str:
+        return self.converted
