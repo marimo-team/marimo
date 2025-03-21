@@ -211,3 +211,19 @@
     border-top-right-radius: 0;
   }
 }
+
+.cm-signature-help {
+  @apply bg-popover shadow-md border border-border rounded-md text-sm;
+
+  .cm-signature {
+    @apply text-xs;
+  }
+
+  .cm-signature-parameter {
+    @apply text-xs;
+  }
+
+  .cm-signature-docs {
+    @apply text-xs;
+  }
+}

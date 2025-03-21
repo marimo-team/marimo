@@ -170,6 +170,9 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             allowHTMLContent: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
+            // Match completions before the cursor is at the end of a word,
+            // after a dot, after a slash, after a comma.
+            completionMatchBefore: /(\w+|\w+\.|\/|,)$/,
             onGoToDefinition: (result) => {
               Logger.debug("onGoToDefinition", result);
               if (client.documentUri === result.uri) {
