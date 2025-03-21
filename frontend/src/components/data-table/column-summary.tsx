@@ -39,15 +39,15 @@ export const TableColumnSummary = <TData, TValue>({
         milliseconds={200}
         visibility={true}
         rootMargin="200px"
-        fallback={<ChartSkeleton seed={columnId} width={130} height={60} />}
+        fallback={<ChartSkeleton seed={columnId} width={80} height={40} />}
       >
         <LazyVegaLite
           spec={spec}
-          width={120}
-          height={50}
+          width={70}
+          height={30}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           loader={batchedLoader as any}
-          style={{ minWidth: "unset", maxHeight: "60px" }}
+          style={{ minWidth: "unset", maxHeight: "40px" }}
           actions={false}
           theme={theme === "dark" ? "dark" : "vox"}
         />
