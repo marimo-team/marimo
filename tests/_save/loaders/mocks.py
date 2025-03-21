@@ -32,11 +32,12 @@ class MockLoader(Loader):
             return None
         self._loaded = True
         return Cache(
-            self._data,
-            key,
-            self._stateful_refs,
-            True,
-            {},
+            defs=self._data,
+            hash=key.hash,
+            cache_type=key.cache_type,
+            stateful_refs=self._stateful_refs,
+            hit=True,
+            meta={},
         )
 
     def save_cache(self, _cache: Cache) -> None:

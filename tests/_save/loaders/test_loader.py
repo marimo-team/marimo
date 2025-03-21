@@ -137,11 +137,12 @@ class TestMemoryLoader(ABCTestLoader):
     def seed_cache(self) -> None:
         cache_path = self.instance().build_path(key("hash1", "Pure"))
         self.instance()._cache[cache_path] = Cache(
-            {"var1": "value1"},
-            key("hash1", "Pure"),
-            [],
-            True,
-            {},
+            defs={"var1": "value1"},
+            hash="hash1",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
         )
 
 
@@ -177,7 +178,12 @@ class TestPickleLoader(ABCTestLoader):
     def seed_cache(self) -> None:
         cache_path = self.instance().build_path(key("hash1", "Pure"))
         cache = Cache(
-            {"var1": "value1"}, key("hash1", "Pure"), set(), True, {}
+            defs={"var1": "value1"},
+            hash="hash1",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
         )
 
         with open(cache_path, "wb") as f:
