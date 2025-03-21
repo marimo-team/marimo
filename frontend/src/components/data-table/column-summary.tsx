@@ -125,7 +125,9 @@ export const TableColumnSummary = <TData, TValue>({
           return (
             <div className="flex justify-between w-full px-2 whitespace-pre">
               <span>{prettyScientificNumber(summary.min)}</span>
-              <span>{prettyScientificNumber(summary.max)}</span>
+              {summary.min === summary.max ? null : (
+                <span>{prettyScientificNumber(summary.max)}</span>
+              )}
             </div>
           );
         }
