@@ -14,7 +14,7 @@ from marimo._save.cache import (
     CACHE_PREFIX,
     Cache,
 )
-from marimo._save.stores import Store, DEFAULT_STORE
+from marimo._save.stores import DEFAULT_STORE, Store
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name

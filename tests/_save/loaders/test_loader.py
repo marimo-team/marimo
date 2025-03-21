@@ -1,28 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
 
-import pytest
-import tempfile
-
-from abc import ABC, abstractmethod
 import functools
-from pathlib import Path
-import os
 import json
+import os
 import pickle
+import tempfile
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+import pytest
 
 from marimo._save.cache import Cache
+from marimo._save.hash import HashKey
+from marimo._save.loaders import JsonLoader, MemoryLoader, PickleLoader
 from marimo._save.loaders.loader import (
     BasePersistenceLoader,
     Loader,
     LoaderError,
     LoaderPartial,
 )
-
-from marimo._save.loaders import JsonLoader, PickleLoader, MemoryLoader
-
 from tests._save.loaders.mocks import MockLoader
-
-from marimo._save.hash import HashKey
 
 
 def key(a, b):
@@ -157,8 +154,8 @@ class TestJsonLoader(ABCTestLoader):
         cache_dict = {
             "defs": {"var1": "value1"},
             "key": {
-              "hash": "hash1",
-              "cache_type": "Pure",
+                "hash": "hash1",
+                "cache_type": "Pure",
             },
             "stateful_refs": [],
             "hit": True,
@@ -178,7 +175,9 @@ class TestPickleLoader(ABCTestLoader):
 
     def seed_cache(self) -> None:
         cache_path = self.instance().build_path(key("hash1", "Pure"))
-        cache = Cache({"var1": "value1"}, key("hash1", "Pure"), set(), True, {})
+        cache = Cache(
+            {"var1": "value1"}, key("hash1", "Pure"), set(), True, {}
+        )
 
         with open(cache_path, "wb") as f:
             pickle.dump(cache, f)

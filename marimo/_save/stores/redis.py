@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from marimo._save.cache import (
     Cache,
