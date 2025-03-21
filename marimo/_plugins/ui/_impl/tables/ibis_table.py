@@ -45,8 +45,10 @@ class IbisTableManagerFactory(TableManagerFactory):
             ) -> bytes:
                 return self._as_table_manager().to_csv(format_mapping)
 
-            def to_json(self) -> bytes:
-                return self._as_table_manager().to_json()
+            def to_json(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
+                return self._as_table_manager().to_json(format_mapping)
 
             def supports_download(self) -> bool:
                 return False

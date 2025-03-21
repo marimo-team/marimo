@@ -24,6 +24,11 @@ import { DatePopover } from "./date-popover";
 import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
 import { exactDateTime } from "@/utils/dates";
+import { JsonOutput } from "../editor/output/JsonOutput";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
+import { PopoverClose } from "@radix-ui/react-popover";
+import { Button } from "../ui/button";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -273,6 +278,42 @@ export function generateColumns<T>({
           );
         }
 
+        if (Array.isArray(value) || typeof value === "object") {
+          const rawStringValue = renderAny(value);
+          return (
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
+              <EmotionCacheProvider container={null}>
+                <Popover>
+                  <PopoverTrigger>
+                    <span
+                      className="cursor-pointer hover:text-link"
+                      title={rawStringValue}
+                    >
+                      {rawStringValue}
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent>
+                    <PopoverClose className="absolute top-2 right-2">
+                      <Button variant="link" size="xs">
+                        Close
+                      </Button>
+                    </PopoverClose>
+                    <JsonOutput data={value} format="tree" />
+                  </PopoverContent>
+                </Popover>
+              </EmotionCacheProvider>
+            </div>
+          );
+        }
+
         return (
           <div
             onClick={selectCell}
@@ -375,13 +416,14 @@ function getCellStyleClass(
       "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
+    "truncate",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
     wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
   );
 }
 
-function renderAny(value: unknown): React.ReactNode {
+function renderAny(value: unknown): string {
   if (value == null) {
     return "";
   }

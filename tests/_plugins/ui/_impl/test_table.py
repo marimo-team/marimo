@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
@@ -736,8 +737,8 @@ def test_can_get_second_page_with_search_df(df: Any) -> None:
         )
     )
     mime_type, data = from_data_uri(result.data)
-    assert mime_type == "text/csv"
-    data = pl.read_csv(data)
+    assert mime_type == "application/json"
+    data = pl.read_json(data)
     assert len(data) == 5
     assert int(data["a"][0]) == 23
     assert int(data["a"][-1]) == 27
@@ -850,7 +851,7 @@ def test__get_column_summaries_after_search_df() -> None:
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    assert summaries.data.startswith("data:text/csv;base64,")
+    assert summaries.data.startswith("data:application/json;base64,")
     assert summaries.summaries[0].min == 0
     assert summaries.summaries[0].max == 19
 
@@ -865,7 +866,7 @@ def test__get_column_summaries_after_search_df() -> None:
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    assert summaries.data.startswith("data:text/csv;base64,")
+    assert summaries.data.startswith("data:application/json;base64,")
     # We don't have column summaries for non-dataframe data
     assert summaries.summaries[0].min == 2
     assert summaries.summaries[0].max == 12
@@ -1272,8 +1273,9 @@ def test_column_clamping_with_polars():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
-    headers = csv.split("\n")[0].split(",")
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    headers = json_data[0].keys()
     assert len(headers) == 50  # 50 columns
     assert len(table._component_args["field-types"]) == 50
 
@@ -1282,8 +1284,9 @@ def test_column_clamping_with_polars():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
-    headers = csv.split("\n")[0].split(",")
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    headers = json_data[0].keys()
     assert len(headers) == 40  # 40 columns
     assert len(table._component_args["field-types"]) == 40
 
@@ -1292,8 +1295,9 @@ def test_column_clamping_with_polars():
     # Check that the table is not clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
-    headers = csv.split("\n")[0].split(",")
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    headers = json_data[0].keys()
 
     assert len(headers) == 61  # 60 columns + 1 selection column
     assert len(table._component_args["field-types"]) == 60

@@ -11,7 +11,6 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
-import { getVegaFieldTypes } from "./vega/utils";
 import { Banner } from "./common/error-banner";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
@@ -342,12 +341,10 @@ export const LoadingDataTableComponent = memo(
         };
       }
 
-      const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
-
       // Otherwise, load the data from the URL
       tableData = await vegaLoadData(
         tableData,
-        { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
+        { type: "json" },
         { handleBigIntAndNumberLike: true },
       );
 

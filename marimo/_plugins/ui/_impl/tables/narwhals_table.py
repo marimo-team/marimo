@@ -8,6 +8,7 @@ from typing import Any, Optional, Union, cast
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
+from marimo import _loggers
 from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -30,6 +31,8 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_time_type,
     unwrap_py_scalar,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class NarwhalsTableManager(
@@ -62,8 +65,17 @@ class NarwhalsTableManager(
         _data = self.apply_formatting(format_mapping).as_frame()
         return dataframe_to_csv(_data).encode("utf-8")
 
-    def to_json(self) -> bytes:
-        csv_str = self.to_csv().decode("utf-8")
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        try:
+            csv_str = self.to_csv(format_mapping=format_mapping).decode(
+                "utf-8"
+            )
+        except Exception as e:
+            LOGGER.debug(
+                f"Failed to use format mapping: {str(e)}, falling back to default"
+            )
+            csv_str = self.to_csv().decode("utf-8")
+
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
