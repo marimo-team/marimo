@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._utils.platform import is_windows
 from tests.mocks import snapshotter
 
 HAS_DEPS = DependencyManager.polars.has()
@@ -143,6 +144,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
 
+    @pytest.mark.skipif(
+        is_windows(),
+        reason="Windows doesn't show microseconds unicode properly",
+    )
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
         # CSV does not support nested data types
