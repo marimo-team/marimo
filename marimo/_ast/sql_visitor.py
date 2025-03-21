@@ -81,8 +81,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             return "null"
 
     result = "".join(print_part(part) for part in node.values)
-    # remove any double '' created by the f-string
-    return result.replace("''", "'")
+    return result
 
 
 class TokenExtractor:
@@ -326,8 +325,8 @@ def find_sql_refs(
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
-    if not DependencyManager.sqlglot.has():
-        return []
+
+    DependencyManager.sqlglot.require(why="SQL parsing")
 
     from sqlglot import exp, parse
     from sqlglot.errors import ParseError
