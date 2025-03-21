@@ -313,6 +313,15 @@ def cli_args() -> CLIArgs:
     """
     return get_context().cli_args
 
+@mddoc
+def raw_cli_args() -> list[str]:
+    """Get the raw command line arguments of a marimo notebook.
+
+    Returns:
+        str: unparsed command line arguments.
+    """
+    return get_context().raw_cli_args
+
 
 @mddoc
 def notebook_dir() -> pathlib.Path | None:
@@ -449,6 +458,7 @@ class Kernel:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
         self.cli_args = CLIArgs(app_metadata.cli_args)
+        self.raw_cli_args = app_metadata.raw_cli_args
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr

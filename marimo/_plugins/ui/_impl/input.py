@@ -35,6 +35,12 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import Function
 
+from marimo._runtime.runtime import raw_cli_args
+import argparse
+
+# 'resolve' to overwrite existing arguments with same name when we re-run cells
+parser = argparse.ArgumentParser(conflict_handler='resolve', add_help=False)
+
 LOGGER = _loggers.marimo_logger()
 
 Numeric = Union[int, float]
@@ -82,6 +88,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `key`: TODO
     """
 
     _name: Final[str] = "marimo-number"
@@ -97,7 +104,17 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
+
+        # Fill default value from command line
+        if key:
+            _help = f"{label} ({start=}, {stop=}, {step=}, default={value})"
+            parser.add_argument(f'--{key}', type=float, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         validate_range(min_value=start, max_value=stop)
         validate_between_range(value, min_value=start, max_value=stop)
         warn_js_safe_number(start, stop, value)
@@ -218,6 +235,7 @@ class slider(UIElement[Numeric, Numeric]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
@@ -238,6 +256,15 @@ class slider(UIElement[Numeric, Numeric]):
                 "Missing arguments: `steps` xor both `start`"
                 "and `stop` must be provided."
             )
+
+        # Fill default value from command line
+        if key:
+            _help = f"{label} ({start=}, {stop=}, {step=}, default={value})" if step is not None else f"{label} ({steps=}, default={value})"
+            parser.add_argument(f'--{key}', type=float, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         # If steps are provided
         if steps is not None:
             # Cast to a list in case user passes a numpy array
@@ -419,6 +446,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
@@ -438,6 +466,14 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                 "Missing arguments: `steps` xor both `start`"
                 "and `stop` must be provided."
             )
+
+        # Fill default value from command line
+        if key:
+            _help = f"{label} ({start=}, {stop=}, {step=}, default={value})" if step is not None else f"{label} ({steps=}, default={value})"
+            parser.add_argument(f'--{key}', nargs=2, type=float, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
 
         if steps is not None:
             # Cast to a list in case user passes a numpy array
@@ -586,7 +622,16 @@ class checkbox(UIElement[bool, bool]):
         *,
         label: str = "",
         on_change: Optional[Callable[[bool], None]] = None,
+        key: str = "",
     ) -> None:
+        # Fill default value from command line
+        if key:
+            _help = f"{label} (default={value})"
+            parser.add_argument(f'--{key}', action=argparse.BooleanOptionalAction, default=value, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
@@ -648,12 +693,21 @@ class radio(UIElement[Optional[str], Any]):
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
+        key: str = "",
     ) -> None:
         if not isinstance(options, dict):
             if len(set(options)) != len(options):
                 raise ValueError("A radio group cannot have repeated options.")
             options = {option: option for option in options}
         self.options = options
+        # Fill default value from command line
+        if key:
+            _help = f"{label} (options={list(options)} default={value})"
+            parser.add_argument(f'--{key}', type=str, default=value, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         super().__init__(
             component_name=radio._name,
             initial_value=value,
@@ -721,7 +775,16 @@ class text(UIElement[str, str]):
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
+        # Fill default value from command line
+        if key:
+            _help = f"{label} (default={value})"
+            parser.add_argument(f'--{key}', type=str, default=value, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         super().__init__(
             component_name=text._name,
             initial_value=value,
@@ -784,7 +847,16 @@ class text_area(UIElement[str, str]):
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
+        # Fill default value from command line
+        if key:
+            _help = f"{label} (default={value})"
+            parser.add_argument(f'--{key}', type=str, default=value, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
+
         super().__init__(
             component_name=text_area._name,
             initial_value=value,
@@ -956,6 +1028,7 @@ class dropdown(UIElement[list[str], Any]):
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
+        key: str = "",
     ) -> None:
         if len(options) > dropdown._MAX_OPTIONS:
             raise ValueError(
@@ -979,6 +1052,14 @@ class dropdown(UIElement[list[str], Any]):
                 f"The option name '{self._RESERVED_OPTION}' "
                 "is reserved by marimo; please use another name."
             )
+
+        # Fill default value from command line
+        if key:
+            _help = f"{label} (options={list(options)} default={value})"
+            parser.add_argument(f'--{key}', type=str, default=value, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
 
         self.options = options
         initial_value = [value] if value is not None else []
@@ -1081,6 +1162,7 @@ class multiselect(UIElement[list[str], list[object]]):
         on_change: Optional[Callable[[list[object]], None]] = None,
         full_width: bool = False,
         max_selections: Optional[int] = None,
+        key: str = "",
     ) -> None:
         if len(options) > multiselect._MAX_OPTIONS:
             raise ValueError(
@@ -1098,6 +1180,15 @@ class multiselect(UIElement[list[str], list[object]]):
 
             if value is not None and not isinstance(value, str):
                 value = [_to_option_name(v) for v in value]
+
+
+        # Fill default value from command line
+        if key:
+            _help = f"{label} (options={list(options)} default={value})"
+            parser.add_argument(f'--{key}', nargs='*', type=str, default=value, help=_help)
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if parsed_args[key] is not None:
+                value = parsed_args[key]
 
         self.options = options
         initial_value = list(value) if value is not None else []
@@ -1321,6 +1412,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         on_change: Optional[
             Callable[[Sequence[FileUploadResults]], None]
         ] = None,
+        key: str = "",
     ) -> None:
         # Validate filetypes have leading dots or contain a forward slash
         if filetypes is not None:
@@ -1345,6 +1437,18 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
             },
             on_change=on_change,
         )
+        # Fill default value from command line
+        if key:
+            parser.add_argument(f'--{key}', nargs='+' if multiple else 1, type=str, help=f"{label} (path to file)")
+            parsed_args = vars(parser.parse_known_args(raw_cli_args())[0])
+            if (fnames:=parsed_args[key]) is not None:
+                fnames = [fnames] if isinstance(fnames, str) else list(fnames)
+                contents = []
+                for fname in fnames:
+                    with open(fname, 'rb') as f:
+                        contents.append((fname, base64.b64encode(f.read())))
+                self._update(contents)
+
 
     def _convert_value(
         self, value: list[tuple[str, str]]
