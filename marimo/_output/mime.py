@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
 
 from marimo._messaging.mimetypes import KnownMimeType
 
 
 @dataclass
-class MIME(Protocol):
+class MIME:
     """Protocol for instantiating objects using marimo's media viewer.
 
     To implement this protocol, a class needs to define
