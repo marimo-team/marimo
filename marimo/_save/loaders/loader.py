@@ -123,25 +123,17 @@ class Loader(ABC):
     ) -> Cache:
         loaded = self.load_cache(key)
         if not loaded:
-            return Cache(
-                defs={d: None for d in defs},
-                key=key,
-                stateful_refs=stateful_refs,
-                hit=False,
-                meta={},
-            )
+            return Cache.empty(defs=defs, key=key, stateful_refs=stateful_refs)
         # TODO: Consider more robust verification
         if loaded.hash != key.hash:
             raise LoaderError("Hash mismatch in loaded cache.")
         if (defs | stateful_refs) != set(loaded.defs):
             raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
-        return Cache(
-            defs=loaded.defs,
+        return Cache.new(
+            loaded=loaded,
             key=key,
             stateful_refs=stateful_refs,
-            hit=True,
-            meta=loaded.meta,
         )
 
     @property

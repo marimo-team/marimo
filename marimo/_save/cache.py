@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from marimo._save.hash import HashKey
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 1
+MARIMO_CACHE_VERSION: int = 2
 
 CacheType = Literal[
     "ContextExecutionPath",
@@ -47,7 +47,8 @@ class CacheException(BaseException):
 @dataclass
 class Cache:
     defs: dict[Name, Any]
-    key: HashKey
+    hash: str
+    cache_type: CacheType
     stateful_refs: set[str]
     hit: bool
     # meta corresponds to internally used data, kept as a dictionary to allow
@@ -135,9 +136,32 @@ class Cache:
         }
 
     @property
-    def hash(self) -> str:
-        return self.key.hash
+    def key(self) -> HashKey:
+        from marimo._save.hash import HashKey
+        return HashKey(hash=self.hash, cache_type=self.cache_type)
 
-    @property
-    def cache_type(self) -> str:
-        return self.key.cache_type
+    @classmethod
+    def empty(
+        cls, *, key: HashKey, defs: dict[str, Any], stateful_refs: set[str]
+    ) -> Cache:
+        return Cache(
+            defs={d: None for d in defs},
+            hash=key.hash,
+            cache_type=key.cache_type,
+            stateful_refs=stateful_refs,
+            hit=False,
+            meta={},
+        )
+
+    @classmethod
+    def new(
+        cls, *, loaded: Cache, key: HashKey, stateful_refs: set[str]
+    ) -> Cache:
+        return Cache(
+            defs=loaded.defs,
+            hash=key.hash,
+            cache_type=key.cache_type,
+            stateful_refs=stateful_refs,
+            hit=True,
+            meta=loaded.meta,
+        )

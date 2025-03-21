@@ -22,7 +22,7 @@ class JsonLoader(BasePersistenceLoader):
         cache["stateful_refs"] = set(cache["stateful_refs"])
         try:
             hash_key = cache.pop("key", {})
-            return Cache(key=HashKey(**hash_key), **cache)
+            return Cache(**hash_key, **cache)
         except TypeError as e:
             raise LoaderError(
                 "Invalid json object for cache restoration"
