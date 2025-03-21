@@ -233,6 +233,10 @@ class _cache_context(SkipContext):
         self.hash_type = hash_type
         self._loader = loader
 
+    @property
+    def hit(self) -> bool:
+        return self._cache is not None and self._cache.hit
+
     def trace(self, with_frame: FrameType) -> None:
         # General flow is as follows:
         #   1) Follow the stack trace backwards to the first instance of a
