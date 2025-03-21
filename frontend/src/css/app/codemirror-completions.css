@@ -18,8 +18,13 @@
   /* Autocomplete list items */
   .cm-tooltip-autocomplete > ul > li {
     padding: 0;
-    height: 16px;
+    height: 18px;
     @apply flex items-center gap-2 cursor-pointer;
+  }
+
+  .cm-completionLabel {
+    padding: 1px 0;
+    @apply text-xs;
   }
 
   /* Hover state for list items */
@@ -38,7 +43,7 @@
     width: 1rem;
     height: 100%;
     flex-shrink: 0;
-    line-height: 16px;
+    line-height: 18px;
     font-weight: bold;
     opacity: 0.9;
     padding: 0 1px;
