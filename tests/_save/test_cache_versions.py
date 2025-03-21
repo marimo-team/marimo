@@ -20,13 +20,16 @@ class TestVersionCache:
         @app.cell
         def _():
             unhashable = [object()]
+
         @app.cell
         def v1() -> tuple[int]:
             # Check top level import
             from marimo import persistent_cache
 
             ref = 1
-            with persistent_cache(name="pickle-dump-v1", save_path="tests/_save/cache-dumps") as cache:
+            with persistent_cache(
+                name="pickle-dump-v1", save_path="tests/_save/cache-dumps"
+            ) as cache:
                 value = 1 + len(unhashable) + ref
             assert cache.hit
             assert value == 3
@@ -36,15 +39,18 @@ class TestVersionCache:
         @app.cell
         def _():
             unhashable = [object()]
+
         @app.cell
         def v1() -> tuple[int]:
             # Check top level import
             from marimo import persistent_cache
 
             ref = 1
-            with persistent_cache(name="json-dump-v1",
-                                  save_path="tests/_save/cache-dumps", method="json") as cache:
+            with persistent_cache(
+                name="json-dump-v1",
+                save_path="tests/_save/cache-dumps",
+                method="json",
+            ) as cache:
                 value = 1 + len(unhashable) + ref
             assert cache.hit
             assert value == 3
-

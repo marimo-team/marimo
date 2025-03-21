@@ -138,6 +138,7 @@ class Cache:
     @property
     def key(self) -> HashKey:
         from marimo._save.hash import HashKey
+
         return HashKey(hash=self.hash, cache_type=self.cache_type)
 
     @classmethod
