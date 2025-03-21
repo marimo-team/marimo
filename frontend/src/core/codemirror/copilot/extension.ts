@@ -135,7 +135,11 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
     );
   }
 
-  return [...extensions, copilotServer()];
+  return [
+    ...extensions,
+    // place in own compartment so it doesn't interfere with other LSP
+    copilotCompartment.of(copilotServer()),
+  ];
 };
 
 function getCopilotRequest(
