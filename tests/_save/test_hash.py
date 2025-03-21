@@ -102,11 +102,11 @@ class TestHash:
         # Rewrite changes the AST, breaking the hash
         app._pytest_rewrite = False
 
-
         @app.cell
         def imports() -> tuple[int]:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
+
             return persistent_cache, MockLoader
 
         @app.cell
@@ -205,6 +205,7 @@ class TestHash:
         def imports() -> tuple[int]:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
+
             return persistent_cache, MockLoader
 
         @app.cell

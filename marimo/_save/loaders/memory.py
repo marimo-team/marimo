@@ -6,7 +6,7 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 
 from marimo._save.cache import Cache
-from marimo._save.loaders.loader import Loader, LoaderError
+from marimo._save.loaders.loader import Loader
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._save.cache import (
     Cache,
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class RedisStore(Store):
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         import redis
 
         # TODO: Construct from a full config dataclass, and pass in kwargs

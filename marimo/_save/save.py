@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
     from marimo._runtime.dataflow import DirectedGraph
+    from marimo._save.stores import Store
 
 
 class _cache_call:
@@ -774,7 +775,7 @@ def persistent_cache(  # type: ignore[misc]
             f"{PERSISTENT_LOADERS.keys()}"
         )
 
-    partial_args = {"save_path": save_path}
+    partial_args: dict[str, Any] = {"save_path": save_path}
     if store is not None:
         partial_args["store"] = store
 

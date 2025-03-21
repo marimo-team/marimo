@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from marimo._save.cache import (
     Cache,
@@ -11,11 +10,13 @@ from marimo._save.cache import (
 from marimo._save.stores.store import Store
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from marimo._save.hash import HashKey
     from marimo._save.loaders import BasePersistenceLoader as Loader
 
 
-def _valid_path(path: Path):
+def _valid_path(path: Path) -> bool:
     return os.path.exists(path) and os.path.getsize(path) > 0
 
 
