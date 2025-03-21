@@ -142,7 +142,7 @@ const DateRangePicker = <T extends AriaDateValue>({
       }}
       {...props}
     >
-      <Label>{label}</Label>
+      {label && <Label>{label}</Label>}
       <FieldGroup>
         <DateInput variant="ghost" slot={"start"} />
         <span aria-hidden={true} className="px-2 text-sm text-muted-foreground">
