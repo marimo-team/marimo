@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import os
 from abc import abstractmethod
+from functools import cached_property
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
+    CompletionConfig,
+    LanguageServersConfig,
     MarimoConfig,
     PartialMarimoConfig,
     Theme,
@@ -65,17 +68,43 @@ class MarimoConfigReader:
 
     # Convenience methods for common access patterns
 
+    @cached_property
+    def _config(self) -> MarimoConfig:
+        return self.get_config()
+
     @property
     def default_width(self) -> WidthType:
-        return self.get_config()["display"]["default_width"]
+        return self._config["display"]["default_width"]
 
     @property
     def theme(self) -> Theme:
-        return self.get_config()["display"]["theme"]
+        return self._config["display"]["theme"]
 
     @property
     def package_manager(self) -> PackageManagerKind:
-        return self.get_config()["package_management"]["manager"]
+        return self._config["package_management"]["manager"]
+
+    @property
+    def completion(self) -> CompletionConfig:
+        return self._config["completion"]
+
+    @property
+    def language_servers(self) -> LanguageServersConfig:
+        # LSP is behind an experimental flag,
+        # if it's not enabled, return an empty config
+        lsp_enabled = self.experimental.get("lsp", False)
+        if not lsp_enabled:
+            return {}
+
+        if "language_servers" in self._config:
+            return self._config["language_servers"]
+        return {}
+
+    @property
+    def experimental(self) -> dict[str, Any]:
+        if "experimental" in self._config:
+            return self._config["experimental"]
+        return {}
 
 
 class MarimoConfigManager(MarimoConfigReader):

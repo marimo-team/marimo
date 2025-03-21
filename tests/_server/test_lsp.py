@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Union
 from unittest import mock
 
 import pytest
@@ -42,24 +42,22 @@ def mock_which():
 class MockLspServer(BaseLspServer):
     id = "mock"
 
-    def binary_name(self) -> str:
-        return "mock_binary"
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        return True
 
-    def get_command(self) -> str:
-        return f"mock_binary --port {self.port}"
+    def get_command(self) -> list[str]:
+        return ["mock_binary", "--port", str(self.port)]
 
     def missing_binary_alert(self) -> Alert:
         return Alert(title="Mock Alert", description="Mock missing binary")
 
 
 def test_base_lsp_server_start_stop(
-    mock_which: mock.MagicMock,
     mock_popen: mock.MagicMock,
     mock_process: mock.MagicMock,
 ):
     server = MockLspServer(port=8000)
-
-    mock_which.return_value = None
+    server.validate_requirements = mock.MagicMock(return_value=False)
 
     # Without binary install
     alert = server.start()
@@ -67,8 +65,7 @@ def test_base_lsp_server_start_stop(
     assert alert.title == "Mock Alert"
     assert alert.description == "Mock missing binary"
 
-    # Add binary
-    mock_which.return_value = "/mock/path"
+    server.validate_requirements = mock.MagicMock(return_value=True)
 
     # Test start
     alert = server.start()
@@ -85,6 +82,7 @@ def test_base_lsp_server_start_stop(
 def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
     server = MockLspServer(port=8000)
     mock_which.return_value = None
+    server.validate_requirements = mock.MagicMock(return_value=False)
     alert = server.start()
     assert alert is not None
     assert alert.title == "Mock Alert"
@@ -95,7 +93,7 @@ def test_pylsp_server():
 
     server = PyLspServer(port=8000)
 
-    assert server.binary_name() == "pylsp"
+    assert isinstance(server.validate_requirements(), (str, bool))
     assert server.get_command() == [
         sys.executable,
         "-m",
@@ -112,7 +110,7 @@ def test_pylsp_server():
 
 def test_copilot_server():
     server = CopilotLspServer(port=8000)
-    assert server.binary_name() == "node"
+    assert isinstance(server.validate_requirements(), (str, bool))
     if Path(server._lsp_bin()).exists():
         assert "node" in server.get_command()
         assert str(8000) in server.get_command()

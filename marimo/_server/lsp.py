@@ -2,18 +2,15 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import CompletionConfig, LanguageServersConfig
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import (
-    Alert,
-)
+from marimo._messaging.ops import Alert
 from marimo._runtime.complete import _get_docstring
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
@@ -50,11 +47,10 @@ class BaseLspServer(LspServer):
             LOGGER.debug("LSP server already started")
             return None
 
-        binpath = shutil.which(self.binary_name())
-        LOGGER.debug("binpath %s", binpath)
-        if binpath is None:
+        validation_msg = self.validate_requirements()
+        if validation_msg is not True:
             LOGGER.error(
-                f"{self.binary_name()} not found; cannot start LSP server."
+                f"Cannot start {self.id} LSP server: {validation_msg}"
             )
             return self.missing_binary_alert()
 
@@ -109,7 +105,7 @@ class BaseLspServer(LspServer):
         else:
             LOGGER.debug("LSP server not running")
 
-    def binary_name(self) -> str:
+    def validate_requirements(self) -> Union[str, Literal[True]]:
         raise NotImplementedError()
 
     def get_command(self) -> list[str]:
@@ -122,8 +118,12 @@ class BaseLspServer(LspServer):
 class CopilotLspServer(BaseLspServer):
     id = "copilot"
 
-    def binary_name(self) -> str:
-        return "node"
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        if DependencyManager.which("node"):
+            return True
+        return (
+            "node.js binary is missing. Install node at https://nodejs.org/."
+        )
 
     def _lsp_bin(self) -> str:
         lsp_bin = os.path.join(
@@ -157,8 +157,10 @@ class CopilotLspServer(BaseLspServer):
 class PyLspServer(BaseLspServer):
     id = "pylsp"
 
-    def binary_name(self) -> str:
-        return "pylsp"
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        if DependencyManager.pylsp.has():
+            return True
+        return "pylsp is missing. Install it with `pip install python-lsp-server`."
 
     def get_command(self) -> list[str]:
         import sys
@@ -214,9 +216,6 @@ class CompositeLspServer(LspServer):
                 server_name: cast(dict[str, bool], config)["enabled"]
                 for server_name, config in lsp_config.items()
             },
-            # While under development, only allow if it's installed and enabled
-            "pylsp": DependencyManager.which("pylsp")
-            and lsp_config.get("pylsp", {}).get("enabled", False),
         }
         self.servers: list[LspServer] = [
             constructor(find_free_port(min_port + 100 * i))
