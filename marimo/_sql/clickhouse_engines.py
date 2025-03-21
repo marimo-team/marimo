@@ -105,11 +105,9 @@ class ClickhouseServer(SQLEngine):
         # TODO: remove comments
         query = query.strip()
 
-        try:
-            result = self._connection.query_df(query)
-        except Exception:
-            LOGGER.exception("Failed to execute query")
-            return None
+        # If wrapped with try/catch, an error may not be caught
+        result = self._connection.query_df(query)
+
         if isinstance(result, pd.DataFrame):
             return result
         return None
