@@ -18,50 +18,85 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
       "c",
     ],
   },
-  "encoding": {
-    "color": {
-      "condition": {
-        "test": "datum["bin_maxbins_10_a_range"] === "null"",
-        "value": "#cc4e00",
-      },
-      "value": "#027864",
-    },
-    "tooltip": [
-      {
-        "bin": true,
-        "field": "a",
-        "format": ".2f",
-        "title": "a",
-        "type": "nominal",
-      },
-      {
-        "aggregate": "count",
-        "format": ",d",
-        "title": "Count",
-        "type": "quantitative",
-      },
-    ],
-    "x": {
-      "axis": null,
-      "bin": true,
-      "field": "a",
-      "type": "nominal",
-    },
-    "y": {
-      "aggregate": "count",
-      "axis": null,
-      "scale": {
-        "type": "linear",
-      },
-      "type": "quantitative",
-    },
-  },
   "height": 100,
-  "mark": {
-    "align": "right",
-    "color": "#027864",
-    "type": "bar",
-  },
+  "layer": [
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "a",
+            "format": ".2f",
+            "title": "a",
+            "type": "quantitative",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "bin": {
+            "maxbins": 10,
+          },
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+      "transform": [
+        {
+          "filter": "datum['a'] !== null",
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "title": "a",
+            "value": "Missing",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Null",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "value": 0,
+        },
+        "y": {
+          "aggregate": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#cc4e00",
+        "type": "bar",
+        "x": {
+          "offset": -15,
+        },
+      },
+      "transform": [
+        {
+          "filter": "datum['a'] === null",
+        },
+      ],
+    },
+  ],
 }
 `;
 
@@ -90,50 +125,85 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
       },
     ],
   },
-  "encoding": {
-    "color": {
-      "condition": {
-        "test": "datum["bin_maxbins_10_a_range"] === "null"",
-        "value": "#cc4e00",
-      },
-      "value": "#027864",
-    },
-    "tooltip": [
-      {
-        "bin": true,
-        "field": "a",
-        "format": ".2f",
-        "title": "a",
-        "type": "nominal",
-      },
-      {
-        "aggregate": "count",
-        "format": ",d",
-        "title": "Count",
-        "type": "quantitative",
-      },
-    ],
-    "x": {
-      "axis": null,
-      "bin": true,
-      "field": "a",
-      "type": "nominal",
-    },
-    "y": {
-      "aggregate": "count",
-      "axis": null,
-      "scale": {
-        "type": "linear",
-      },
-      "type": "quantitative",
-    },
-  },
   "height": 100,
-  "mark": {
-    "align": "right",
-    "color": "#027864",
-    "type": "bar",
-  },
+  "layer": [
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "a",
+            "format": ".2f",
+            "title": "a",
+            "type": "quantitative",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "bin": {
+            "maxbins": 10,
+          },
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+      "transform": [
+        {
+          "filter": "datum['a'] !== null",
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "title": "a",
+            "value": "Missing",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Null",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "value": 0,
+        },
+        "y": {
+          "aggregate": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#cc4e00",
+        "type": "bar",
+        "x": {
+          "offset": -15,
+        },
+      },
+      "transform": [
+        {
+          "filter": "datum['a'] === null",
+        },
+      ],
+    },
+  ],
 }
 `;
 
@@ -162,50 +232,85 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
       },
     ],
   },
-  "encoding": {
-    "color": {
-      "condition": {
-        "test": "datum["bin_maxbins_10_a_range"] === "null"",
-        "value": "#cc4e00",
-      },
-      "value": "#027864",
-    },
-    "tooltip": [
-      {
-        "bin": true,
-        "field": "a",
-        "format": ".2f",
-        "title": "a",
-        "type": "nominal",
-      },
-      {
-        "aggregate": "count",
-        "format": ",d",
-        "title": "Count",
-        "type": "quantitative",
-      },
-    ],
-    "x": {
-      "axis": null,
-      "bin": true,
-      "field": "a",
-      "type": "nominal",
-    },
-    "y": {
-      "aggregate": "count",
-      "axis": null,
-      "scale": {
-        "type": "linear",
-      },
-      "type": "quantitative",
-    },
-  },
   "height": 100,
-  "mark": {
-    "align": "right",
-    "color": "#027864",
-    "type": "bar",
-  },
+  "layer": [
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "a",
+            "format": ".2f",
+            "title": "a",
+            "type": "quantitative",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "bin": {
+            "maxbins": 10,
+          },
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+      "transform": [
+        {
+          "filter": "datum['a'] !== null",
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "title": "a",
+            "value": "Missing",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Null",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "value": 0,
+        },
+        "y": {
+          "aggregate": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#cc4e00",
+        "type": "bar",
+        "x": {
+          "offset": -15,
+        },
+      },
+      "transform": [
+        {
+          "filter": "datum['a'] === null",
+        },
+      ],
+    },
+  ],
 }
 `;
 
