@@ -74,6 +74,7 @@ export function renderTableBody<TData>(
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
+            "px-1.5 py-0.5",
             className,
           )}
           style={style}
