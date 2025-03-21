@@ -255,7 +255,10 @@ const CellEditorInternal = ({
           editorViewRef.current,
           userConfig.completion,
           new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
-          userConfig.language_servers,
+          {
+            ...userConfig.language_servers,
+            diagnostics: userConfig.diagnostics,
+          },
         ),
       ],
     });

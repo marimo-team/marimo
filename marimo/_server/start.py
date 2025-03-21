@@ -105,15 +105,9 @@ def start(
 
     config_reader = get_default_config_manager(current_path=start_path)
 
-    user_config = config_reader.get_config()
-
     lsp_composite_server = CompositeLspServer(
-        lsp_config=(
-            user_config["language_servers"]
-            if "language_servers" in user_config
-            else {}
-        ),
-        completion_config=user_config["completion"],
+        lsp_config=config_reader.language_servers,
+        completion_config=config_reader.completion,
         min_port=DEFAULT_PORT + 400,
     )
 

@@ -347,7 +347,10 @@ class ProxyMiddleware:
                 ws_url = ws_url.replace("https", "wss", 1)
 
             LOGGER.debug(f"Creating websocket proxy for {ws_url}")
-            await self._proxy_websocket(scope, receive, send, ws_url)
+            try:
+                await self._proxy_websocket(scope, receive, send, ws_url)
+            except Exception as e:
+                LOGGER.error(f"Error proxying websocket: {e}")
             LOGGER.debug(f"Done with websocket proxy for {ws_url}")
             return
 

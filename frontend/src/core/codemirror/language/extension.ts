@@ -13,7 +13,11 @@ import {
   showPanel,
 } from "@codemirror/view";
 import { clamp } from "@/utils/math";
-import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import {
   cellIdState,
   completionConfigState,
@@ -184,7 +188,7 @@ export function adaptiveLanguageConfiguration(opts: {
   placeholderType: PlaceholderType;
   completionConfig: CompletionConfig;
   hotkeys: HotkeyProvider;
-  lspConfig: LSPConfig;
+  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig };
   cellId: CellId;
 }) {
   const { placeholderType, completionConfig, hotkeys, cellId, lspConfig } =
@@ -264,7 +268,7 @@ export function reconfigureLanguageEffect(
   view: EditorView,
   completionConfig: CompletionConfig,
   hotkeysProvider: HotkeyProvider,
-  lspConfig: LSPConfig,
+  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);

@@ -115,6 +115,11 @@ dev = [
     "openai>=1.55.3",
 ]
 
+lsp = [
+    "python-lsp-server>=1.10.0",
+    "python-lsp-ruff>=2.0.0",
+]
+
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.49",

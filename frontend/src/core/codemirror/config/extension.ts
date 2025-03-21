@@ -7,7 +7,6 @@ import type {
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { CellId } from "@/core/cells/ids";
 import { singleFacet } from "../facet";
-import { diagnosticsEnabled } from "@marimo-team/codemirror-languageserver";
 
 /**
  * State for completion config
@@ -33,12 +32,9 @@ export const cellIdState = singleFacet<CellId>();
 /**
  * State for LSP config
  */
-export const lspConfigState = singleFacet<LSPConfig>();
-
-/**
- * State for diagnostics config
- */
-export const diagnosticsConfigState = singleFacet<DiagnosticsConfig>();
+export const lspConfigState = singleFacet<
+  LSPConfig & { diagnostics: DiagnosticsConfig }
+>();
 
 /**
  * Extension for cell config
@@ -55,9 +51,6 @@ export function cellConfigExtension(
     completionConfigState.of(completionConfig),
     hotkeysProviderState.of(hotkeys),
     placeholderState.of(placeholderType),
-    lspConfigState.of(lspConfig),
-    diagnosticsConfigState.of(diagnosticsConfig),
-    // Enable diagnostics (default to false)
-    diagnosticsEnabled.of(diagnosticsConfig?.enabled ?? false),
+    lspConfigState.of({ ...lspConfig, diagnostics: diagnosticsConfig }),
   ];
 }
