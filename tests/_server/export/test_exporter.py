@@ -263,6 +263,9 @@ async def test_run_until_completion_with_stop():
     snapshot("run_until_completion_with_stop.txt", _print_messages(cell_ops))
 
 
+@pytest.mark.skipif(
+    sys.version_info == (3, 13), reason="3.13 has different stack trace format"
+)
 async def test_run_until_completion_with_stack_trace():
     app = App()
 
