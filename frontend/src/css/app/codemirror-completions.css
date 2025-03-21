@@ -166,7 +166,7 @@
   .cm-tooltip.cm-completionInfo {
     /* Codemirror generates an inline style for these properties,
       * so we have to override them with !important. */
-    top: 0 !important;
+    top: -1px !important;
 
     /* CodeMirror's default of 400px is often too small. */
     max-width: 36rem !important;
