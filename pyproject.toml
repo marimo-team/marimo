@@ -249,6 +249,7 @@ extra-dependencies = [
     "sqlalchemy>=2.0.38",
     # For testing clickhouse
     "chdb>=3.1.1",
+    "clickhouse-connect>=0.8",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
     # Causes issues installing `shapely` (v2.0.7)

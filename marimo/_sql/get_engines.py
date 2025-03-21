@@ -11,9 +11,9 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._sql.clickhouse_engines import ClickhouseEmbedded, ClickhouseServer
 from marimo._sql.engines import (
     INTERNAL_DUCKDB_ENGINE,
-    ClickhouseEmbedded,
     DuckDBEngine,
     SQLAlchemyEngine,
 )
@@ -27,32 +27,25 @@ def get_engines_from_variables(
     variables: list[tuple[VariableName, object]],
 ) -> list[tuple[VariableName, SQLEngine]]:
     engines: list[tuple[VariableName, SQLEngine]] = []
+
+    supported_engines: list[SQLEngine] = [
+        SQLAlchemyEngine,
+        DuckDBEngine,
+        ClickhouseEmbedded,
+        ClickhouseServer,
+    ]
+
     for variable_name, value in variables:
-        if SQLAlchemyEngine.is_compatible(value):
-            engines.append(
-                (
-                    variable_name,
-                    SQLAlchemyEngine(
-                        cast(Any, value), engine_name=variable_name
-                    ),
+        for sql_engine in supported_engines:
+            if sql_engine.is_compatible(value):
+                engines.append(
+                    (
+                        variable_name,
+                        sql_engine(
+                            cast(Any, value), engine_name=variable_name
+                        ),
+                    )
                 )
-            )
-        elif DuckDBEngine.is_compatible(value):
-            engines.append(
-                (
-                    variable_name,
-                    DuckDBEngine(cast(Any, value), engine_name=variable_name),
-                )
-            )
-        elif ClickhouseEmbedded.is_compatible(value):
-            engines.append(
-                (
-                    variable_name,
-                    ClickhouseEmbedded(
-                        cast(Any, value), engine_name=variable_name
-                    ),
-                )
-            )
 
     return engines
 
@@ -79,6 +72,8 @@ def engine_to_data_source_connection(
         default_database = engine.get_current_database()
         default_schema = engine.get_current_schema()
     elif isinstance(engine, ClickhouseEmbedded):
+        pass
+    elif isinstance(engine, ClickhouseServer):
         pass
     else:
         LOGGER.warning(

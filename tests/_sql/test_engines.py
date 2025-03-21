@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.clickhouse_engines import ClickhouseEmbedded
 from marimo._sql.engines import (
-    ClickhouseEmbedded,
     DuckDBEngine,
     SQLAlchemyEngine,
     _sql_type_to_data_type,

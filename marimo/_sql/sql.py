@@ -7,9 +7,12 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
-from marimo._sql.engines import (
+from marimo._sql.clickhouse_engines import (
     INTERNAL_CLICKHOUSE_ENGINE,
     ClickhouseEmbedded,
+    ClickhouseServer,
+)
+from marimo._sql.engines import (
     DuckDBEngine,
     SQLAlchemyEngine,
     raise_df_import_error,
@@ -22,8 +25,9 @@ def get_default_result_limit() -> Optional[int]:
 
 
 if TYPE_CHECKING:
-    import duckdb
-    import sqlalchemy
+    from clickhouse_connect.driver.client import Client as ClickhouseClient
+    from duckdb import DuckDBPyConnection
+    from sqlalchemy.engine import Engine as SAEngine
 
 
 @mddoc
@@ -31,7 +35,7 @@ def sql(
     query: str,
     *,
     output: bool = True,
-    engine: Optional[sqlalchemy.Engine | duckdb.DuckDBPyConnection] = None,
+    engine: Optional[SAEngine | DuckDBPyConnection | ClickhouseClient] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -46,7 +50,7 @@ def sql(
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
-        engine: Optional SQL engine to use. Can be a SQLAlchemy engine or DuckDB connection.
+        engine: Optional SQL engine to use. Can be a SQLAlchemy, Clickhouse, or DuckDB engine.
                If None, uses DuckDB.
 
     Returns:
@@ -68,6 +72,8 @@ def sql(
         sql_engine = DuckDBEngine(engine)  # type: ignore
     elif ClickhouseEmbedded.is_compatible(engine):
         sql_engine = ClickhouseEmbedded(engine)
+    elif ClickhouseServer.is_compatible(engine):
+        sql_engine = ClickhouseServer(engine)
     elif engine == INTERNAL_CLICKHOUSE_ENGINE:
         # Check if user defined an engine first to ensure
         # we don't override the connection
@@ -79,7 +85,7 @@ def sql(
         sql_engine = ClickhouseEmbedded(connection=None)
     else:
         raise ValueError(
-            "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
+            "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
         )
 
     df = sql_engine.execute(query)
