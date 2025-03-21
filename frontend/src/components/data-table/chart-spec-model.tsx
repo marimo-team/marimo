@@ -7,10 +7,8 @@ import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
 import type { TopLevelSpec } from "vega-lite";
 
-const MAX_BAR_HEIGHT = 24; // px
-const MAX_BAR_WIDTH = 28; // px
-const CONTAINER_WIDTH = 120; // px
-const PAD = 1; // px
+// We rely on vega's built-in binning to determine bar widths.
+const MAX_BAR_HEIGHT = 20; // px
 
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
@@ -103,7 +101,6 @@ export class ColumnChartSpecModel<T> {
     column = column.replaceAll(":", "\\:");
 
     const scale = this.getScale();
-    const variableWidth = `min(${MAX_BAR_WIDTH}, ${CONTAINER_WIDTH} / length(data('${this.sourceName}')) - ${PAD})`;
 
     switch (type) {
       case "date":
@@ -114,7 +111,6 @@ export class ColumnChartSpecModel<T> {
           mark: {
             type: "bar",
             color: mint.mint11,
-            width: { expr: variableWidth },
           },
           encoding: {
             x: {
@@ -163,16 +159,15 @@ export class ColumnChartSpecModel<T> {
           mark: {
             type: "bar",
             color: mint.mint11,
-            size: { expr: variableWidth },
             align: "right",
           },
           encoding: {
             x: {
               field: column,
+              // nominal to support a null bin
               type: "nominal",
               axis: null,
               bin: true,
-              scale: scale,
             },
             y: {
               aggregate: "count",

@@ -278,7 +278,7 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
   return (
     <div
       className={cn(
-        "flex flex-col h-full py-1 justify-between items-start gap-1",
+        "flex flex-col h-full py-0.5 justify-between items-start",
         className,
       )}
     >
