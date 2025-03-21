@@ -1,56 +1,27 @@
 # Copyright 2024 Marimo. All rights reserved.
+
+import json
+import os
+import pickle
+import tempfile
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 import pytest
 
 from marimo._save.cache import Cache
+from marimo._save.hash import HashKey
+from marimo._save.loaders import JsonLoader, MemoryLoader, PickleLoader
 from marimo._save.loaders.loader import (
     BasePersistenceLoader,
     Loader,
-    LoaderError,
     LoaderPartial,
 )
+from tests._save.loaders.mocks import MockLoader
 
 
-# Mock loader for testing
-class MockLoader(Loader):
-    def __init__(self, name: str, config_value: str = "default") -> None:
-        super().__init__(name)
-        self.config_value = config_value
-        self.saved_caches: dict[str, Cache] = {}
-
-    def cache_hit(self, hashed_context: str, cache_type: str) -> bool:
-        key = f"{cache_type}_{hashed_context}"
-        return key in self.saved_caches
-
-    def load_cache(self, hashed_context: str, cache_type: str) -> Cache:
-        key = f"{cache_type}_{hashed_context}"
-        if key not in self.saved_caches:
-            raise LoaderError("Unexpected cache miss.")
-        return self.saved_caches[key]
-
-    def save_cache(self, cache: Cache) -> None:
-        key = f"{cache.cache_type}_{cache.hash}"
-        self.saved_caches[key] = cache
-
-
-# Mock persistence loader for testing
-class MockPersistenceLoader(BasePersistenceLoader):
-    def __init__(self, name: str, save_path: str) -> None:
-        super().__init__(name, "mock", save_path)
-        self.saved_caches: dict[str, Cache] = {}
-
-    def load_persistent_cache(
-        self, hashed_context: str, cache_type: str
-    ) -> Cache:
-        key = f"{cache_type}_{hashed_context}"
-        if key not in self.saved_caches:
-            raise FileNotFoundError(f"No cache found for {key}")
-        return self.saved_caches[key]
-
-    def save_cache(self, cache: Cache) -> None:
-        key = f"{cache.cache_type}_{cache.hash}"
-        self.saved_caches[key] = cache
+def key(a, b):
+    return HashKey(a, b)
 
 
 class TestLoaderPartial:
@@ -77,63 +48,13 @@ class TestLoaderPartial:
             partial("test_name")
 
 
-class TestLoader:
-    def test_build_path(self) -> None:
-        """Test building a path from hash and cache type."""
-        loader = MockLoader("test")
+class ABCTestLoader(ABC):
+    save_path = None
+    suffix = None
+    value = None
 
-        path = loader.build_path("hash1", "Pure")
-        assert str(path) == "P_hash1"
-
-        path = loader.build_path("hash2", "Deferred")
-        assert str(path) == "D_hash2"
-
-    def test_cache_attempt_miss(self) -> None:
-        """Test cache attempt with a miss."""
-        loader = MockLoader("test")
-        defs = {"var1"}
-        stateful_refs: set[str] = set()
-
-        cache = loader.cache_attempt(defs, "hash1", stateful_refs, "Pure")
-
-        assert cache.hash == "hash1"
-        assert cache.hit is False
-        assert cache.cache_type == "Pure"
-        assert set(cache.defs.keys()) == defs
-        assert all(value is None for value in cache.defs.values())
-
-    def test_cache_attempt_hit(self) -> None:
-        """Test cache attempt with a hit."""
-        loader = MockLoader("test")
-        defs = {"var1"}
-        stateful_refs: set[str] = set()
-
-        # Create and save a cache
-        original_cache = Cache(
-            {"var1": "value1"},
-            "hash1",
-            stateful_refs,
-            "Pure",
-            True,
-            {"version": 1},
-        )
-        loader.saved_caches["Pure_hash1"] = original_cache
-
-        # Attempt to load the cache
-        cache = loader.cache_attempt(defs, "hash1", stateful_refs, "Pure")
-
-        assert cache.hash == "hash1"
-        assert cache.hit is True
-        assert cache.cache_type == "Pure"
-        assert cache.defs["var1"] == "value1"
-        assert cache.meta == {"version": 1}
-
-
-class TestBasePersistenceLoader:
     def setup_method(self) -> None:
         """Set up a temporary directory for each test."""
-        import tempfile
-
         self.temp_dir = tempfile.TemporaryDirectory()
         self.save_path = self.temp_dir.name
 
@@ -141,54 +62,129 @@ class TestBasePersistenceLoader:
         """Clean up the temporary directory."""
         self.temp_dir.cleanup()
 
+    def instance(self) -> Loader:
+        if self.value is None:
+            self.value = self._instance()
+        return self.value
+
     def test_init(self) -> None:
         """Test initialization."""
-        loader = MockPersistenceLoader("test", self.save_path)
+        loader = self.instance()
         assert loader.name == "test"
-        assert loader.suffix == "mock"
-        assert Path(str(loader.save_path)).name == "test"
+        if self.suffix:
+            assert loader.suffix == self.suffix
+        if isinstance(loader, BasePersistenceLoader):
+            assert Path(str(loader.save_path)).name == "test"
+            # Check that the directory was created
+            assert os.path.exists(loader.save_path)
 
-        # Check that the directory was created
-        assert Path(self.save_path, "test").exists()
+    def test_build_path(self) -> None:
+        """Test building the path for a cache file."""
+        loader = self.instance()
+        path = loader.build_path(key("hash1", "Pure"))
+        suffix = f".{self.suffix}" if self.suffix else ""
+        assert str(path).endswith(f"P_hash1{suffix}")
 
-    def test_cache_hit(self) -> None:
-        """Test cache hit detection."""
-        loader = MockPersistenceLoader("test", self.save_path)
+        path = loader.build_path(key("hash2", "Deferred"))
+        assert str(path).endswith(f"D_hash2{suffix}")
 
-        # No cache exists yet
-        assert not loader.cache_hit("hash1", "Pure")
+    def test_cache_hit_miss(self) -> None:
+        """Test cache hit and miss."""
+        loader = self.instance()
 
-        # Create a cache file (just a placeholder file)
-        cache_path = loader.build_path("hash1", "Pure")
-        with open(cache_path, "w") as f:
-            f.write("placeholder")
+        # No file exists yet
+        assert not loader.cache_hit(key("hash1", "Pure"))
+
+        # Create a cache file
+        cache_path = loader.build_path(key("hash1", "Pure"))
+
+        # Create a valid JSON cache
+        self.seed_cache()
 
         # Now it should hit
-        assert loader.cache_hit("hash1", "Pure")
+        assert (
+            loader.cache_attempt({"var1"}, key("hash1", "Pure"), set())
+            is not None
+        )
 
         # Different hash should miss
-        assert not loader.cache_hit("hash2", "Pure")
+        assert not loader.cache_hit(key("hash2", "Pure"))
 
         # Different cache type should miss
-        assert not loader.cache_hit("hash1", "Deferred")
+        assert not loader.cache_hit(key("hash1", "Deferred"))
 
-    def test_load_cache(self) -> None:
-        """Test the load_cache method."""
-        loader = MockPersistenceLoader("test", self.save_path)
+        # Empty file should miss
+        empty_path = loader.build_path(key("empty", "Pure"))
+        with open(empty_path, "w") as f:
+            pass
+        assert not loader.cache_hit(key("empty", "Pure"))
 
-        # Create and save a cache
-        cache = Cache({"var1": "value1"}, "hash1", set(), "Pure", True, {})
-        loader.saved_caches["Pure_hash1"] = cache
+        assert loader.hits == 1
 
-        # Create a placeholder file to trigger cache_hit
-        cache_path = loader.build_path("hash1", "Pure")
+    @abstractmethod
+    def _instance(self) -> Loader:
+        pass
+
+    @abstractmethod
+    def seed_cache(self) -> None:
+        pass
+
+
+class TestMemoryLoader(ABCTestLoader):
+    def _instance(self) -> Loader:
+        return MemoryLoader("test")
+
+    def seed_cache(self) -> None:
+        cache_path = self.instance().build_path(key("hash1", "Pure"))
+        self.instance()._cache[cache_path] = Cache(
+            defs={"var1": "value1"},
+            hash="hash1",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+
+class TestJsonLoader(ABCTestLoader):
+    suffix = "json"
+
+    def _instance(self) -> Loader:
+        return JsonLoader("test", self.save_path)
+
+    def seed_cache(self):
+        cache_path = self.instance().build_path(key("hash1", "Pure"))
+        cache_dict = {
+            "defs": {"var1": "value1"},
+            "key": {
+                "hash": "hash1",
+                "cache_type": "Pure",
+            },
+            "stateful_refs": [],
+            "hit": True,
+            "meta": {},
+        }
+
         with open(cache_path, "w") as f:
-            f.write("placeholder")
+            json.dump(cache_dict, f)
 
-        # Load the cache
-        loaded_cache = loader.load_cache("hash1", "Pure")
-        assert loaded_cache.hash == "hash1"
 
-        # Should raise for non-existent cache
-        with pytest.raises(LoaderError, match="Unexpected cache miss"):
-            loader.load_cache("nonexistent", "Pure")
+class TestPickleLoader(ABCTestLoader):
+    suffix = "pickle"
+
+    def _instance(self) -> Loader:
+        return PickleLoader("test", self.save_path)
+
+    def seed_cache(self) -> None:
+        cache_path = self.instance().build_path(key("hash1", "Pure"))
+        cache = Cache(
+            defs={"var1": "value1"},
+            hash="hash1",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        with open(cache_path, "wb") as f:
+            pickle.dump(cache, f)

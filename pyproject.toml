@@ -197,6 +197,7 @@ dependencies = [
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
+    "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
 ]
@@ -437,6 +438,7 @@ banned-module-level-imports = [
     "ipython",
     "anywidget",
     "packaging",
+    "redis",
     "typing_extensions",
 ]
 

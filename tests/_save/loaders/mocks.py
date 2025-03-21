@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from marimo._save.cache import Cache, CacheType
+from marimo._save.cache import Cache
 from marimo._save.loaders import Loader
 
 
@@ -13,6 +13,7 @@ class MockLoader(Loader):
         save_path: str = "",
         data: Optional[dict[str, Any]] = None,
         stateful_refs: Optional[set[str]] = None,
+        config_value: Any = None,
     ) -> None:
         self.save_path = save_path
         self._data = data or {}
@@ -20,21 +21,25 @@ class MockLoader(Loader):
         self._loaded = False
         self._saved = False
         self._stateful_refs = stateful_refs or set()
+        self.config_value = config_value
         super().__init__(name)
 
-    def cache_hit(self, _hashed_context: str, _cache_type: CacheType) -> bool:
+    def cache_hit(self, _) -> bool:
         return self._cache_hit
 
-    def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
+    def load_cache(self, key) -> Optional[Cache]:
+        if not self._cache_hit:
+            return None
         self._loaded = True
         return Cache(
-            self._data,
-            hashed_context,
-            self._stateful_refs,
-            cache_type,
-            True,
-            {},
+            defs=self._data,
+            hash=key.hash,
+            cache_type=key.cache_type,
+            stateful_refs=self._stateful_refs,
+            hit=True,
+            meta={},
         )
 
     def save_cache(self, _cache: Cache) -> None:
         self._saved = True
+        self._cache_hit = True
