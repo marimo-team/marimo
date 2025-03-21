@@ -61,76 +61,6 @@
   z-index: 1000;
 }
 
-/* -- Completion Info -- */
-
-/* Compeletion Symbol */
-#root .cm-tooltip-autocomplete {
-  /* CodeMirror's default is too wide. */
-  max-width: 200px;
-}
-
-#root .cm-tooltip.cm-tooltip-autocomplete > ul {
-  min-width: unset;
-}
-
-#root .cm-tooltip-autocomplete ul li[aria-selected] {
-  background: #1177ccb0;
-  max-width: 200px;
-}
-
-.dark #root .cm-tooltip-autocomplete ul li[aria-selected] {
-  background: #1177cc80;
-  max-width: 200px;
-}
-
-#root .cm-tooltip.cm-completionInfo {
-  /* Codemirror generates an inline style for these properties,
-   * so we have to override them with !important. */
-  top: 0 !important;
-
-  /* CodeMirror's default of 400px is often too small. */
-  max-width: 36rem !important;
-}
-
-#root .cm-completionInfo.cm-completionInfo-right-narrow {
-  /* CodeMirror's default makes the completionInfo overlap with the
-   * compeletion symbol */
-  left: 100%;
-}
-
-/* Completion Info may show up to the left or right of another menu item.
- First is the parent (completion list)
- Second is the child (completion info) */
-#root .cm-tooltip:has(.cm-completionInfo-left),
-#root .cm-tooltip.cm-completionInfo-right {
-  border-top-left-radius: 0;
-}
-
-#root .cm-tooltip:has(.cm-completionInfo-right),
-#root .cm-tooltip.cm-completionInfo-left {
-  border-top-right-radius: 0;
-}
-
-.cm .cm-completionIcon-function::after {
-  content: "λ";
-}
-
-.cm .cm-completionIcon-class::after {
-  content: "τ";
-}
-
-.cm .cm-completionIcon-module::after {
-  content: "μ";
-}
-
-.cm .cm-completionIcon-statement::after {
-  content: "χ";
-}
-
-.cm .cm-completionIcon-keyword::after {
-  content: "κ";
-}
-
 /* -- Panels -- */
 
 .cm .cm-panels {
@@ -144,6 +74,8 @@
   @apply text-xs;
 }
 
+/* -- Ghost Text -- */
+
 .cm-ghostText,
 .cm-ghostText * {
   opacity: 0.6;
@@ -154,6 +86,8 @@
 .cm-ghostText:hover {
   background: var(--gray-3);
 }
+
+/* -- Codeium -- */
 
 .cm-codeium-cycle {
   font-size: 9px;
