@@ -7,6 +7,7 @@ import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import {
   type ConnectionName,
   dataConnectionsMapAtom,
+  INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
 import { AlertCircle, CircleHelpIcon } from "lucide-react";
@@ -23,6 +24,7 @@ import {
 import { DatabaseLogo } from "@/components/databases/icon";
 import { transformDisplayName } from "@/components/databases/display";
 import { useNonce } from "@/hooks/useNonce";
+import type { DataSourceConnection } from "@/core/kernel/messages";
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -116,6 +118,14 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
 }) => {
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
 
+  const internalEngineConnections: DataSourceConnection[] = [];
+  const userDefinedConnections: DataSourceConnection[] = [];
+  for (const [connName, connection] of connectionsMap.entries()) {
+    INTERNAL_SQL_ENGINES.has(connName)
+      ? internalEngineConnections.push(connection)
+      : userDefinedConnections.push(connection);
+  }
+
   // Use nonce to force re-render as languageAdapter.engine may not trigger change
   // If it's disconnected, we display the engine variable.
   const selectedEngine = languageAdapter.engine;
@@ -138,6 +148,19 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
     }
   };
 
+  const renderConnections = (connections: DataSourceConnection[]) => {
+    return connections.map((connection) => (
+      <SelectItem key={connection.name} value={connection.name}>
+        <div className="flex items-center gap-1">
+          <DatabaseLogo className="h-3 w-3" name={connection.source} />
+          <span className="truncate">
+            {transformDisplayName(connection.display_name)}
+          </span>
+        </div>
+      </SelectItem>
+    ));
+  };
+
   return (
     <div className="flex flex-row gap-1 items-center">
       <Select value={selectedEngine} onValueChange={handleSelectEngine}>
@@ -157,16 +180,10 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
                 </div>
               </SelectItem>
             )}
-            {[...connectionsMap.entries()].map(([key, value]) => (
-              <SelectItem key={key} value={value.name}>
-                <div className="flex items-center gap-1">
-                  <DatabaseLogo className="h-3 w-3" name={value.source} />
-                  <span className="truncate">
-                    {transformDisplayName(value.display_name)}
-                  </span>
-                </div>
-              </SelectItem>
-            ))}
+            {/* Prioritize showing user-defined connections */}
+            {renderConnections(userDefinedConnections)}
+            {userDefinedConnections.length > 0 && <SelectSeparator />}
+            {renderConnections(internalEngineConnections)}
             <SelectSeparator />
             <SelectItem className="text-muted-foreground" value={HELP_KEY}>
               <a

@@ -41,3 +41,11 @@ def wrapped_sql(
             {"query": query, "connection": connection},
         )
     return relation
+
+
+def raise_df_import_error(pkg: str) -> None:
+    raise ModuleNotFoundError(
+        "pandas or polars is required to execute sql. "
+        + "You can install them with 'pip install pandas polars'",
+        name=pkg,
+    )

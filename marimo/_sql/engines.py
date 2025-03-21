@@ -15,7 +15,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.types import SQLEngine
-from marimo._sql.utils import wrapped_sql
+from marimo._sql.utils import raise_df_import_error, wrapped_sql
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -25,16 +25,8 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
     from sqlalchemy.sql.type_api import TypeEngine
 
-# Internal engine name for DuckDB, we need to ensure this is unique
+# Internal engine names
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
-
-
-def raise_df_import_error(pkg: str) -> None:
-    raise ModuleNotFoundError(
-        "pandas or polars is required to execute sql. "
-        + "You can install them with 'pip install pandas polars'",
-        name=pkg,
-    )
 
 
 class DuckDBEngine(SQLEngine):

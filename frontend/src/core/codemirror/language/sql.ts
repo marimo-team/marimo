@@ -14,9 +14,10 @@ import { store } from "@/core/state/jotai";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
+  CLICKHOUSE_ENGINE,
   dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   setLatestEngineSelected,
   type ConnectionName,
 } from "@/core/datasets/data-source-connections";
@@ -34,6 +35,7 @@ import {
   PostgreSQL,
   MySQL,
   SQLite,
+  MSSQL,
 } from "@codemirror/lang-sql";
 import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
@@ -43,7 +45,9 @@ import type { DataSourceConnection } from "@/core/kernel/messages";
  */
 export class SQLLanguageAdapter implements LanguageAdapter {
   readonly type = "sql";
+  // defaultCode only works for duckdb at the moment
   readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
+  readonly defaultEngine = DUCKDB_ENGINE;
   static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
 
   dataframeName = "_df";
@@ -53,10 +57,14 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   engine = store.get(dataSourceConnectionsAtom).latestEngineSelected;
 
   getDefaultCode(): string {
-    if (this.engine === DEFAULT_ENGINE) {
+    if (this.engine === this.defaultEngine) {
       return this.defaultCode;
     }
-    return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
+    const engineParam =
+      this.engine === CLICKHOUSE_ENGINE
+        ? `"${CLICKHOUSE_ENGINE}"`
+        : this.engine;
+    return `_df = mo.sql(f"""SELECT * FROM """, engine=${engineParam})`;
   }
 
   transformIn(
@@ -84,11 +92,15 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     if (sqlStatement) {
       this.dataframeName = sqlStatement.dfName;
       this.showOutput = sqlStatement.output ?? true;
-      this.engine = (sqlStatement.engine as ConnectionName) ?? DEFAULT_ENGINE;
+      this.engine =
+        (sqlStatement.engine as ConnectionName) ?? this.defaultEngine;
 
-      if (this.engine !== DEFAULT_ENGINE) {
+      if (this.engine !== this.defaultEngine) {
         // User selected a new engine, set it as latest.
         // This makes new SQL statements use the new engine by default.
+        if (this.engine === `"${CLICKHOUSE_ENGINE}"`) {
+          this.engine = CLICKHOUSE_ENGINE;
+        }
         setLatestEngineSelected(this.engine);
       }
 
@@ -122,8 +134,12 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
 
     const showOutputParam = this.showOutput ? "" : ",\n    output=False";
-    const engineParam =
-      this.engine === DEFAULT_ENGINE ? "" : `,\n    engine=${this.engine}`;
+    let engineParam = "";
+    if (this.engine !== this.defaultEngine) {
+      const engineString =
+        this.engine === CLICKHOUSE_ENGINE ? `"${this.engine}"` : this.engine;
+      engineParam = `,\n    engine=${engineString}`;
+    }
     const end = `\n    """${showOutputParam}${engineParam}\n)`;
 
     return [
@@ -287,6 +303,9 @@ function guessDialect(
       return MySQL;
     case "sqlite":
       return SQLite;
+    case "mssql":
+    case "sqlserver":
+      return MSSQL;
     default:
       return undefined;
   }

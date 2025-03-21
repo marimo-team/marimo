@@ -7,7 +7,7 @@ import { store } from "@/core/state/jotai";
 import type { DatasetsState } from "@/core/datasets/types";
 import {
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
 } from "@/core/datasets/data-source-connections";
 
 // Mock getCodes function
@@ -22,7 +22,7 @@ describe("getAICompletionBody", () => {
       tables: [],
     } as unknown as DatasetsState);
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
+      latestEngineSelected: DUCKDB_ENGINE,
       connectionsMap: new Map(),
     });
     (getCodes as Mock).mockReturnValue("// Some other code");
@@ -161,7 +161,7 @@ describe("getAICompletionBody", () => {
   it("should handle connections", () => {
     // Set up test data in the Jotai store
     const testConnection = {
-      name: DEFAULT_ENGINE,
+      name: DUCKDB_ENGINE,
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB In-Memory",
@@ -186,8 +186,8 @@ describe("getAICompletionBody", () => {
       ],
     };
     store.set(dataSourceConnectionsAtom, {
-      latestEngineSelected: DEFAULT_ENGINE,
-      connectionsMap: new Map().set(DEFAULT_ENGINE, testConnection),
+      latestEngineSelected: DUCKDB_ENGINE,
+      connectionsMap: new Map().set(DUCKDB_ENGINE, testConnection),
     });
 
     const input = "Use @table1 for analysis";
