@@ -762,3 +762,16 @@ class TestFindSQLRefs:
             "table2",
             "table3",
         ]
+
+    @staticmethod
+    def test_find_sql_refs_with_regex() -> None:
+        # regex and replacement
+        sql = """
+        SELECT name, REGEXP_REPLACE(name, '^.*/', '') regex_name
+        FROM pdb.database
+        LIMIT 10;
+        """
+        assert find_sql_refs(sql) == [
+            "pdb",
+            "database",
+        ]

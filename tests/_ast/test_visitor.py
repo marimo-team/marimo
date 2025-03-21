@@ -1041,6 +1041,19 @@ def test_print_f_string() -> None:
     )
 
 
+def test_normalize_sql_f_string_with_empty_quotes() -> None:
+    import ast
+
+    joined_str = ast.parse(
+        "f'SELECT comment, REGEXP_REPLACE(comment, \\'*/.\\', \\'\\') regex_name,'"
+    )
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
+    assert (
+        normalize_sql_f_string(joined_str.body[0].value)
+        == "SELECT comment, REGEXP_REPLACE(comment, '*/.', '') regex_name,"
+    )  # type: ignore
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_empty_statement() -> None:
     code = "mo.sql('')"
