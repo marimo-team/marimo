@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
-import { languageServerWithTransport } from "@marimo-team/codemirror-languageserver";
+import { languageServerWithClient } from "@marimo-team/codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
@@ -100,11 +100,8 @@ export const getCopilotClient = once(
 );
 
 export function copilotServer() {
-  return languageServerWithTransport({
-    rootUri: FILE_URI,
+  return languageServerWithClient({
     documentUri: FILE_URI,
-    workspaceFolders: [],
-    transport: createWSTransport(),
     client: getCopilotClient(),
     languageId: LANGUAGE_ID,
   });

@@ -4,6 +4,7 @@
 @import url("./fonts.css");
 @import url("./Header.css");
 @import url("./print.css");
+@import url("./codemirror-completions.css");
 
 /* stylelint-disable unit-allowed-list */
 

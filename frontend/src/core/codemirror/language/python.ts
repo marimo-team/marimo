@@ -20,7 +20,7 @@ import {
 } from "../placeholder/extensions";
 import {
   LanguageServerClient,
-  languageServerWithTransport,
+  languageServerWithClient,
   documentUri,
 } from "@marimo-team/codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
@@ -145,16 +145,31 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     lspConfig: LSPConfig,
   ): Extension[] {
     const getCompletionsExtension = () => {
+      const autocompleteOptions = {
+        // Whether or not to require keypress to activate autocompletion (default
+        // keymap is Ctrl+Space)
+        activateOnTyping: completionConfig.activate_on_typing,
+        // The Cell component handles the blur event. `closeOnBlur` is too
+        // aggressive and doesn't let the user click into the completion info
+        // element (which contains the docstring/type --- users might want to
+        // copy paste from the docstring). The main issue is that the completion
+        // tooltip is not part of the editable DOM tree:
+        // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
+        closeOnBlur: false,
+      };
+      const hoverOptions = {
+        hideOnChange: true,
+      };
+
       if (getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled) {
         const client = lspClient(lspConfig);
         return [
-          languageServerWithTransport({
+          languageServerWithClient({
             client: client as unknown as LanguageServerClient,
-            transport: pylspTransport(),
-            rootUri: "file:///",
             languageId: "python",
-            workspaceFolders: [],
             allowHTMLContent: true,
+            hoverConfig: hoverOptions,
+            completionConfig: autocompleteOptions,
             onGoToDefinition: (result) => {
               Logger.debug("onGoToDefinition", result);
               if (client.documentUri === result.uri) {
@@ -171,17 +186,8 @@ export class PythonLanguageAdapter implements LanguageAdapter {
         ];
       }
 
-      // Whether or not to require keypress to activate autocompletion (default
-      // keymap is Ctrl+Space)
       return autocompletion({
-        activateOnTyping: completionConfig.activate_on_typing,
-        // The Cell component handles the blur event. `closeOnBlur` is too
-        // aggressive and doesn't let the user click into the completion info
-        // element (which contains the docstring/type --- users might want to
-        // copy paste from the docstring). The main issue is that the completion
-        // tooltip is not part of the editable DOM tree:
-        // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
-        closeOnBlur: false,
+        ...autocompleteOptions,
         override: [completer],
       });
     };
