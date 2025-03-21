@@ -59,6 +59,7 @@ function getOpts() {
         enabled: false,
       },
     },
+    diagnosticsConfig: {},
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
   } as const;

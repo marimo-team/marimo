@@ -94,8 +94,6 @@ export const getCopilotClient = once(
   () =>
     new CopilotLanguageServerClient({
       rootUri: FILE_URI,
-      documentUri: FILE_URI,
-      languageId: LANGUAGE_ID,
       workspaceFolders: null,
       transport: createWSTransport(),
     }),

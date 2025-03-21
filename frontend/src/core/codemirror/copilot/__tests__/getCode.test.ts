@@ -52,6 +52,7 @@ function createMockEditorView(code: string) {
           new OverridingHotkeyProvider({}),
           "marimo-import",
           {},
+          {},
         ),
       ],
     }),

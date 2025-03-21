@@ -165,6 +165,7 @@ const CellEditorInternal = ({
       lspConfig: userConfig.language_servers,
       theme,
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
+      diagnosticsConfig: userConfig.diagnostics,
     });
 
     extensions.push(
@@ -191,6 +192,7 @@ const CellEditorInternal = ({
     userConfig.keymap,
     userConfig.completion,
     userConfig.language_servers,
+    userConfig.diagnostics,
     aiEnabled,
     theme,
     showPlaceholder,

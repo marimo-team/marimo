@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { SettingSubtitle } from "./common";
 import { isWasm } from "@/core/wasm/utils";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 interface Package {
   name: string;
@@ -81,6 +82,15 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
     description: "Export as IPYNB",
   },
 ];
+
+if (getFeatureFlag("lsp")) {
+  OPTIONAL_DEPENDENCIES.push({
+    id: "lsp",
+    packagesRequired: [{ name: "python-lsp-server" }, { name: "websockets" }],
+    additionalPackageInstalls: [{ name: "python-lsp-ruff" }],
+    description: "Language Server Protocol",
+  });
+}
 
 export const OptionalFeatures: React.FC = () => {
   const [config] = useResolvedMarimoConfig();

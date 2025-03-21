@@ -136,7 +136,7 @@ class RuntimeConfig(TypedDict):
 
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
-WidthType = Literal["normal", "compact", "medium", "full"]
+WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 
 
@@ -264,7 +264,11 @@ class GoogleAiConfig(TypedDict, total=False):
 
 @dataclass
 class PythonLanguageServerConfig(TypedDict, total=False):
-    """Configuration options for Python Language Server."""
+    """
+    Configuration options for Python Language Server.
+
+    pylsp handles completion, hover, go-to-definition, and diagnostics.
+    """
 
     enabled: bool
     enable_mypy: bool
@@ -285,6 +289,18 @@ class LanguageServersConfig(TypedDict, total=False):
     """
 
     pylsp: PythonLanguageServerConfig
+
+
+@dataclass
+class DiagnosticsConfig(TypedDict, total=False):
+    """Configuration options for diagnostics.
+
+    **Keys.**
+
+    - `enabled`: if `True`, diagnostics will be shown in the editor
+    """
+
+    enabled: bool
 
 
 @dataclass
@@ -331,6 +347,7 @@ class MarimoConfig(TypedDict):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
+    diagnostics: NotRequired[DiagnosticsConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
@@ -351,6 +368,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
+    diagnostics: NotRequired[DiagnosticsConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]

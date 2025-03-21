@@ -176,7 +176,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
       const cellId = CellDocumentUri.parse(documentUri);
       const newCode = editsToNewCode.get(cellId);
-      if (!newCode) {
+      if (newCode == null) {
         Logger.warn("No new code for cell", cellId);
         continue;
       }
@@ -346,7 +346,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       const lens = createNotebookLens(cellIds, codes);
 
       const version = params.textDocument.version;
-      const globalDocumentVersion = this.documentVersion + 1;
+      this.documentVersion++;
+      const globalDocumentVersion = this.documentVersion;
 
       this.versionToCellNumberAndVersion.set(globalDocumentVersion, {
         cellDocumentUri,

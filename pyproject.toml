@@ -32,7 +32,7 @@ dependencies = [
     # - 0.26.1 introduced lifespans, which we use
     # - starlette 0.36.0 introduced a bug
     "starlette>=0.26.1,!=0.36.0",
-    # websockets for use with starlette
+    # websockets for use with starlette, and for lsp
     "websockets >= 10.0.0",
     # pycrdt for collaborative editing
     "pycrdt >=0.11.0,<0.12.0",

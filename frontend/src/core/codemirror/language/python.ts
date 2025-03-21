@@ -21,10 +21,10 @@ import {
 import {
   LanguageServerClient,
   languageServerWithTransport,
+  documentUri,
 } from "@marimo-team/codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
-import { CellDocumentUri } from "../lsp/types";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -36,6 +36,7 @@ import type { CellId } from "@/core/cells/ids";
 import { cellActionsState } from "../cells/state";
 import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
+import { CellDocumentUri } from "../lsp/types";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -46,7 +47,6 @@ const lspClient = once((lspConfig: LSPConfig) => {
   const lspClientOpts = {
     transport: pylspTransport(),
     rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
-    languageId: "python",
     workspaceFolders: [],
   };
   const config = lspConfig?.pylsp;
@@ -112,7 +112,6 @@ const lspClient = once((lspConfig: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      documentUri: "file:///unused.py", // Incorrect types
       autoClose: false,
     }),
     settings,
@@ -148,26 +147,28 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     const getCompletionsExtension = () => {
       if (getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled) {
         const client = lspClient(lspConfig);
-        return languageServerWithTransport({
-          client: client as unknown as LanguageServerClient,
-          documentUri: CellDocumentUri.of(cellId),
-          transport: pylspTransport(),
-          rootUri: "file:///",
-          languageId: "python",
-          workspaceFolders: [],
-          allowHTMLContent: true,
-          onGoToDefinition: (result) => {
-            Logger.debug("onGoToDefinition", result);
-            if (client.documentUri === result.uri) {
-              // Local definition
-              return;
-            }
+        return [
+          languageServerWithTransport({
+            client: client as unknown as LanguageServerClient,
+            transport: pylspTransport(),
+            rootUri: "file:///",
+            languageId: "python",
+            workspaceFolders: [],
+            allowHTMLContent: true,
+            onGoToDefinition: (result) => {
+              Logger.debug("onGoToDefinition", result);
+              if (client.documentUri === result.uri) {
+                // Local definition
+                return;
+              }
 
-            openFile({
-              path: result.uri.replace("file://", ""),
-            });
-          },
-        });
+              openFile({
+                path: result.uri.replace("file://", ""),
+              });
+            },
+          }),
+          documentUri.of(CellDocumentUri.of(cellId)),
+        ];
       }
 
       // Whether or not to require keypress to activate autocompletion (default

@@ -41,6 +41,7 @@ function createEditor(doc: string) {
               enabled: true,
             },
           },
+          {},
         ),
       ],
     }),

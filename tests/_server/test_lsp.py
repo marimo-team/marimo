@@ -91,12 +91,21 @@ def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
 
 
 def test_pylsp_server():
+    import sys
+
     server = PyLspServer(port=8000)
+
     assert server.binary_name() == "pylsp"
-    assert (
-        server.get_command()
-        == "pylsp --ws -v --port 8000 --check-parent-process"
-    )
+    assert server.get_command() == [
+        sys.executable,
+        "-m",
+        "pylsp",
+        "--ws",
+        "-v",
+        "--port",
+        "8000",
+        "--check-parent-process",
+    ]
     alert = server.missing_binary_alert()
     assert "Python LSP" in alert.title
 
@@ -108,7 +117,7 @@ def test_copilot_server():
         assert "node" in server.get_command()
         assert str(8000) in server.get_command()
     else:
-        assert server.get_command() == ""
+        assert server.get_command() == []
     alert = server.missing_binary_alert()
     assert "GitHub Copilot" in alert.title
 

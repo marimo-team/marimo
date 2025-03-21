@@ -74,7 +74,7 @@ class BaseLspServer(LspServer):
             )
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(
-                cmd.split(),
+                cmd,
                 stdout=file_out,
                 stderr=file_out,
                 stdin=None,
@@ -112,7 +112,7 @@ class BaseLspServer(LspServer):
     def binary_name(self) -> str:
         raise NotImplementedError()
 
-    def get_command(self) -> str:
+    def get_command(self) -> list[str]:
         raise NotImplementedError()
 
     def missing_binary_alert(self) -> Alert:
@@ -132,14 +132,19 @@ class CopilotLspServer(BaseLspServer):
         )
         return lsp_bin
 
-    def get_command(self) -> str:
+    def get_command(self) -> list[str]:
         lsp_bin = self._lsp_bin()
         # Check if the LSP binary exists
         if not os.path.exists(lsp_bin):
             # Only debug since this may not exist in conda environments
             LOGGER.debug("LSP binary not found at %s", lsp_bin)
-            return ""
-        return f"node {lsp_bin} --port {self.port}"
+            return []
+        return [
+            "node",
+            lsp_bin,
+            "--port",
+            str(self.port),
+        ]
 
     def missing_binary_alert(self) -> Alert:
         return Alert(
@@ -155,8 +160,19 @@ class PyLspServer(BaseLspServer):
     def binary_name(self) -> str:
         return "pylsp"
 
-    def get_command(self) -> str:
-        return f"pylsp --ws -v --port {self.port} --check-parent-process"
+    def get_command(self) -> list[str]:
+        import sys
+
+        return [
+            sys.executable,
+            "-m",
+            "pylsp",
+            "--ws",
+            "-v",
+            "--port",
+            str(self.port),
+            "--check-parent-process",
+        ]
 
     def missing_binary_alert(self) -> Alert:
         return Alert(

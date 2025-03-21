@@ -36,6 +36,7 @@ function createState(content: string, selection?: { anchor: number }) {
         new OverridingHotkeyProvider({}),
         "marimo-import",
         {},
+        {},
       ),
     ],
     selection,
