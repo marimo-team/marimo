@@ -88,9 +88,9 @@ describe("ColumnChartSpecModel", () => {
     const summary = model.getHeaderSummary("column.with[special:chars]");
     expect(summary.spec).toBeDefined();
     // @ts-expect-error numerical charts have 'layer' property
-    expect((summary.spec?.layer[0].encoding?.x as { field: string })?.field).toBe(
-      "column\\.with\\[special\\:chars\\]",
-    );
+    expect(
+      (summary.spec?.layer[0].encoding?.x as { field: string })?.field,
+    ).toBe("column\\.with\\[special\\:chars\\]");
   });
 
   describe("snapshot", () => {
