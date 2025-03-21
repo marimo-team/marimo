@@ -13,6 +13,7 @@ from typing import (
     runtime_checkable,
 )
 
+from marimo._utils.docs import google_docstring_to_markdown
 from marimo._utils.format_signature import format_signature
 
 _WRAP_WIDTH = 72
@@ -119,4 +120,11 @@ def mddoc(obj: T) -> T:
         obj
     )
     # cast back to original type, so type-hinters provide helpful information
-    return cast(T, rich_help)
+    return cast(T, _convert_docstring_to_markdown(rich_help))
+
+
+def _convert_docstring_to_markdown(obj: Any) -> Any:
+    if obj.__doc__:
+        if "Returns:" in obj.__doc__ or "Args:" in obj.__doc__:
+            obj.__doc__ = google_docstring_to_markdown(obj.__doc__)
+    return obj
