@@ -153,52 +153,87 @@ export class ColumnChartSpecModel<T> {
         };
       case "integer":
       case "number": {
+        // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
+
         return {
-          ...base,
-          mark: {
-            type: "bar",
-            color: mint.mint11,
-            align: "right",
-          },
-          encoding: {
-            x: {
-              field: column,
-              // nominal to support a null bin
-              type: "nominal",
-              axis: null,
-              bin: true,
-            },
-            y: {
-              aggregate: "count",
-              type: "quantitative",
-              axis: null,
-              scale: { type: "linear" },
-            },
-            tooltip: [
-              {
-                field: column,
-                type: "nominal",
-                format: format,
-                bin: true,
-                title: column,
+          ...base, // Assuming base contains shared configurations
+          layer: [
+            // Layer 1: Regular data histogram
+            {
+              transform: [
+                {
+                  filter: `datum['${column}'] !== null`,
+                },
+              ],
+              mark: {
+                type: "bar",
+                color: mint.mint11,
               },
-              {
-                aggregate: "count",
-                type: "quantitative",
-                title: "Count",
-                format: ",d",
+              encoding: {
+                x: {
+                  field: column,
+                  type: "quantitative",
+                  bin: { maxbins: 10 },
+                  axis: null,
+                },
+                y: {
+                  aggregate: "count",
+                  type: "quantitative",
+                  axis: null,
+                },
+                tooltip: [
+                  {
+                    field: column,
+                    type: "quantitative",
+                    bin: true,
+                    title: column,
+                    format: format,
+                  },
+                  {
+                    aggregate: "count",
+                    type: "quantitative",
+                    title: "Count",
+                    format: ",d",
+                  },
+                ],
               },
-            ],
-            // Color nulls
-            color: {
-              condition: {
-                test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
-                value: orange.orange11,
-              },
-              value: mint.mint11,
             },
-          },
+            // Layer 2: Null values as separate bar
+            {
+              transform: [
+                {
+                  filter: `datum['${column}'] === null`,
+                },
+              ],
+              mark: {
+                type: "bar",
+                color: orange.orange11,
+                x: { offset: -15 }, // Offset to visually separate from main histogram
+              },
+              encoding: {
+                x: {
+                  value: 0, // Place at beginning of axis
+                },
+                y: {
+                  aggregate: "count",
+                  type: "quantitative",
+                },
+                tooltip: [
+                  {
+                    value: "Missing",
+                    title: column,
+                  },
+                  {
+                    aggregate: "count",
+                    type: "quantitative",
+                    title: "Null",
+                    format: ",d",
+                  },
+                ],
+              },
+            },
+          ],
         };
       }
       case "boolean":
