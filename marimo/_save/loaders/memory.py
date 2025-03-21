@@ -55,9 +55,9 @@ class MemoryLoader(Loader):
         path = self.build_path(key)
         return self._maybe_lock(lambda: path in self._cache)
 
-    def load_cache(self, key: HashKey) -> Cache:
+    def load_cache(self, key: HashKey) -> Optional[Cache]:
         if not self.cache_hit(key):
-            raise LoaderError("Unexpected cache miss.")
+            return None
         path = self.build_path(key)
         if self.is_lru:
             assert isinstance(self._cache, OrderedDict)

@@ -141,7 +141,3 @@ class Cache:
     @property
     def cache_type(self) -> str:
         return self.key.cache_type
-
-    @property
-    def execution(self) -> str:
-        return self.key.execution

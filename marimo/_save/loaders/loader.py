@@ -14,7 +14,7 @@ from marimo._save.cache import (
     CACHE_PREFIX,
     Cache,
 )
-from marimo._save.stores import DEFAULT_STORE
+from marimo._save.stores import Store, DEFAULT_STORE
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
@@ -121,15 +121,15 @@ class Loader(ABC):
         key: HashKey,
         stateful_refs: set[Name],
     ) -> Cache:
-        if not self.cache_hit(key):
-            return Cache(
-                {d: None for d in defs},
-                key,
-                stateful_refs,
-                False,
-                {},
-            )
         loaded = self.load_cache(key)
+        if not loaded:
+            return Cache(
+                defs={d: None for d in defs},
+                key=key,
+                stateful_refs=stateful_refs,
+                hit=False,
+                meta={},
+            )
         # TODO: Consider more robust verification
         if loaded.hash != key.hash:
             raise LoaderError("Hash mismatch in loaded cache.")
@@ -137,11 +137,11 @@ class Loader(ABC):
             raise LoaderError("Variable mismatch in loaded cache.")
         self._hits += 1
         return Cache(
-            loaded.defs,
-            key,
-            stateful_refs,
-            True,  # hit
-            loaded.meta,
+            defs=loaded.defs,
+            key=key,
+            stateful_refs=stateful_refs,
+            hit=True,
+            meta=loaded.meta,
         )
 
     @property
@@ -172,7 +172,7 @@ class Loader(ABC):
         """
 
     @abstractmethod
-    def load_cache(self, key: HashKey) -> Cache:
+    def load_cache(self, key: HashKey) -> Optional[Cache]:
         """Load Cache"""
 
     @abstractmethod
@@ -184,14 +184,21 @@ class BasePersistenceLoader(Loader):
     """Abstract base for cache written to disk."""
 
     def __init__(
-        self, name: str, suffix: str, save_path: str | Path | None
+        self,
+        name: str,
+        suffix: str,
+        save_path: str | Path | None,
+        store: Optional[Store] = None,
     ) -> None:
         super().__init__(name)
 
-        try:
-            self.store = get_context().cache_store
-        except ContextNotInitializedError:
-            self.store = DEFAULT_STORE()
+        if store is not None:
+            self.store = store
+        else:
+            try:
+                self.store = get_context().cache_store
+            except ContextNotInitializedError:
+                self.store = DEFAULT_STORE()
 
         self.name = name
         # Setter takes care of this, not sure why mypy is complaining.
@@ -222,9 +229,11 @@ class BasePersistenceLoader(Loader):
     def save_cache(self, cache: Cache) -> None:
         return self.store.put(cache, self)
 
-    def load_cache(self, key: HashKey) -> Cache:
+    def load_cache(self, key: HashKey) -> Optional[Cache]:
         try:
-            blob: bytes = self.store.get(key, self)
+            blob: Optional[bytes] = self.store.get(key, self)
+            if not blob:
+                return None
             return self.restore_cache(key, blob)
         except FileNotFoundError as e:
             raise LoaderError("Unexpected cache miss.") from e

@@ -294,7 +294,6 @@ def get_and_update_context_from_scope(
 @dataclasses.dataclass
 class HashKey:
     hash: str
-    execution: str
     cache_type: CacheType
 
 
@@ -507,7 +506,6 @@ class BlockHasher:
     def key(self) -> HashKey:
         return HashKey(
             hash=self.hash,
-            execution=self.exe_hash,
             cache_type=self.cache_type,
         )
 

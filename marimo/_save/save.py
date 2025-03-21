@@ -674,6 +674,7 @@ def persistent_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     save_path: str | None = None,
     method: LoaderKey = "pickle",
+    store: Optional[Store] = None,
     *args: Any,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
@@ -772,7 +773,12 @@ def persistent_cache(  # type: ignore[misc]
             f"Invalid method {method}, expected one of "
             f"{PERSISTENT_LOADERS.keys()}"
         )
-    loader = PERSISTENT_LOADERS[method].partial(save_path=save_path)
+
+    partial_args = {"save_path": save_path}
+    if store is not None:
+        partial_args["store"] = store
+
+    loader = PERSISTENT_LOADERS[method].partial(**partial_args)
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")

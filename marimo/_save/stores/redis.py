@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from marimo._save.cache import (
     Cache,
@@ -14,13 +14,16 @@ if TYPE_CHECKING:
 
 
 class RedisStore(Store):
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         import redis
 
-        self.redis = redis.Redis()
+        # TODO: Construct from a full config dataclass, and pass in kwargs
+        # opposed to experimental.store.redis.args
+        # See list of options here:
+        self.redis = redis.Redis(**kwargs)
 
-    def get(self, key: HashKey, loader: Loader) -> bytes:
-        return self.redis.get(str(loader.build_path(key))) or b""
+    def get(self, key: HashKey, loader: Loader) -> Optional[bytes]:
+        return self.redis.get(str(loader.build_path(key))) or None
 
     def put(self, cache: Cache, loader: Loader) -> None:
         self.redis.set(

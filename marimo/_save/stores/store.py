@@ -24,7 +24,7 @@ class Store(ABC):
         return cls._instance
 
     @abstractmethod
-    def get(self, key: HashKey, loader: Loader) -> bytes:
+    def get(self, key: HashKey, loader: Loader) -> Optional[bytes]:
         """Get the bytes of a cache from the store"""
 
     @abstractmethod

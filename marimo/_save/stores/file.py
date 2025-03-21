@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo._save.cache import (
@@ -14,9 +15,15 @@ if TYPE_CHECKING:
     from marimo._save.loaders import BasePersistenceLoader as Loader
 
 
+def _valid_path(path: Path):
+    return os.path.exists(path) and os.path.getsize(path) > 0
+
+
 class FileStore(Store):
-    def get(self, key: HashKey, loader: Loader) -> bytes:
+    def get(self, key: HashKey, loader: Loader) -> Optional[bytes]:
         path = loader.build_path(key)
+        if not _valid_path(path):
+            return None
         with open(path, "rb") as f:
             return f.read()
 
@@ -30,4 +37,4 @@ class FileStore(Store):
 
     def hit(self, key: HashKey, loader: Loader) -> bool:
         path = loader.build_path(key)
-        return os.path.exists(path) and os.path.getsize(path) > 0
+        return _valid_path(path)
