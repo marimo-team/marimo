@@ -143,7 +143,7 @@ class Cache:
 
     @classmethod
     def empty(
-        cls, *, key: HashKey, defs: dict[str, Any], stateful_refs: set[str]
+        cls, *, key: HashKey, defs: set[str], stateful_refs: set[str]
     ) -> Cache:
         return Cache(
             defs={d: None for d in defs},
