@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from typing import Any
 
 from marimo._save.cache import Cache
 from marimo._save.hash import HashKey
@@ -12,8 +13,8 @@ from marimo._save.loaders.loader import BasePersistenceLoader, LoaderError
 class JsonLoader(BasePersistenceLoader):
     """Readable json loader for basic objects."""
 
-    def __init__(self, name: str, save_path: str) -> None:
-        super().__init__(name, "json", save_path)
+    def __init__(self, name: str, save_path: str, **kwargs: Any) -> None:
+        super().__init__(name, "json", save_path, **kwargs)
 
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
         del key

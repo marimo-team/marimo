@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pickle
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from marimo._save.cache import Cache
 from marimo._save.loaders.loader import BasePersistenceLoader, LoaderError
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 class PickleLoader(BasePersistenceLoader):
     """General loader for serializable objects."""
 
-    def __init__(self, name: str, save_path: str) -> None:
-        super().__init__(name, "pickle", save_path)
+    def __init__(self, name: str, save_path: str, **kwargs: Any) -> None:
+        super().__init__(name, "pickle", save_path, **kwargs)
 
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
         del key
