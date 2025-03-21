@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import re
 from textwrap import dedent
 
@@ -159,36 +161,36 @@ def google_docstring_to_markdown(docstring: str) -> str:
     # Build final output
     output: list[str] = []
     if parsed_lines:
-        output.append("# Summary")
+        output.append("Summary\n-----------\n")
         output.append("\n".join(parsed_lines).strip())
 
     if examples_lines:
-        output.append("\n# Examples")
+        output.append("\nExamples\n-----------\n")
         output.append("\n".join(examples_lines))
 
     if arg_table:
-        output.append("\n# Arguments")
+        output.append("\nArguments\n-----------\n")
         output.append("| Parameter | Type | Description |")
         output.append("|-----------|------|-------------|")
         for arg_name, arg_type, desc in arg_table:
             output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
 
     if attribute_table:
-        output.append("\n# Attributes")
+        output.append("\nAttributes\n-----------\n")
         output.append("| Attribute | Type | Description |")
         output.append("|-----------|------|-------------|")
         for arg_name, arg_type, desc in attribute_table:
             output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
 
     if returns_table:
-        output.append("\n# Returns")
+        output.append("\nReturns\n-----------\n")
         output.append("| Type | Description |")
         output.append("|------|-------------|")
         for ret_type, desc in returns_table:
             output.append(f"| `{ret_type}` | {desc.strip()} |")
 
     if raises_table:
-        output.append("\n# Raises")
+        output.append("\nRaises\n-----------\n")
         for err_type, explanation in raises_table:
             output.append(f"- **{err_type}**: {explanation.strip()}")
 
