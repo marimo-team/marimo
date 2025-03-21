@@ -1,5 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { Extension } from "@codemirror/state";
 import type { PlaceholderType } from "../config/extension";
@@ -21,7 +25,7 @@ export interface LanguageAdapter {
     completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
-    lspConfig: LSPConfig,
+    lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
   ): Extension[];
 }
 

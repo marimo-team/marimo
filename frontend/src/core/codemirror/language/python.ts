@@ -11,7 +11,11 @@ import {
   foldInside,
   LanguageSupport,
 } from "@codemirror/language";
-import type { CompletionConfig, LSPConfig } from "@/core/config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { PlaceholderType } from "../config/extension";
 import {
@@ -142,7 +146,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
-    lspConfig: LSPConfig,
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
     const getCompletionsExtension = () => {
       const autocompleteOptions = {
@@ -170,6 +174,8 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             allowHTMLContent: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
+            // Default to false
+            diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
             // Match completions before the cursor is at the end of a word,
             // after a dot, after a slash, after a comma.
             completionMatchBefore: /(\w+|\w+\.|\/|,)$/,

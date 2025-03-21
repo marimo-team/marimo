@@ -156,7 +156,14 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
-  const { theme, hotkeys, completionConfig, cellId, lspConfig } = opts;
+  const {
+    theme,
+    hotkeys,
+    completionConfig,
+    cellId,
+    lspConfig,
+    diagnosticsConfig,
+  } = opts;
   const placeholderType = getPlaceholderType(opts);
 
   return [
@@ -198,7 +205,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
       completionConfig,
       hotkeys,
       cellId,
-      lspConfig,
+      lspConfig: { ...lspConfig, diagnostics: diagnosticsConfig },
     }),
 
     ///// Editing
