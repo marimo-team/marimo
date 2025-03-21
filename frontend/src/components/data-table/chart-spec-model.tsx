@@ -158,6 +158,7 @@ export class ColumnChartSpecModel<T> {
 
         return {
           ...base, // Assuming base contains shared configurations
+          // @ts-expect-error 'layer' property is needed for layered visualization but not in TopLevelFacetedUnitSpec
           layer: [
             // Layer 1: Regular data histogram
             {
