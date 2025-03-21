@@ -68,6 +68,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -185,7 +186,7 @@ dependencies = [
     "polars~=1.9.0",
     "narwhals>=1.12.0",
     "matplotlib>=3.8.0",
-    "pyarrow-stubs>=17.0",
+    "pyarrow-stubs>=19.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.0",
     "pandas-stubs>=1.5.3.230321",
@@ -212,7 +213,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -241,7 +242,7 @@ extra-dependencies = [
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",
-    "pyarrow",
+    "pyarrow>=19.0.0",
     "pyarrow_hotfix",
     "altair>=5.4.0",
     "polars~=1.24.0",
@@ -252,7 +253,7 @@ extra-dependencies = [
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
-    "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
+    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
     "anywidget~=0.9.14",
@@ -271,7 +272,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["dev", "docs"]
