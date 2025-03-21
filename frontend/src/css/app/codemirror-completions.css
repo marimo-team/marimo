@@ -18,7 +18,9 @@
   /* Autocomplete list items */
   .cm-tooltip-autocomplete > ul > li {
     padding: 0;
+    padding-right: 6px;
     height: 18px;
+    min-width: 60px;
     @apply flex items-center gap-2 cursor-pointer;
   }
 
@@ -47,11 +49,20 @@
     font-weight: bold;
     opacity: 0.9;
     padding: 0 1px;
+    /* Default colors */
+    color: var(--gray-11);
+    background-color: var(--gray-3);
+
     @apply flex items-center justify-center font-medium;
+
+    /* Default styling for completion icons */
+    &::after {
+      content: "•"; /* Default bullet point for unknown types */
+    }
   }
 
   .cm-completionIcon-variable {
-    color: var(--blue-10);
+    color: var(--blue-11);
     background-color: var(--blue-3);
 
     &::after {
@@ -123,11 +134,20 @@
   }
 
   .cm-completionIcon-reference {
-    color: var(--gray-10);
+    color: var(--gray-11);
     background-color: var(--gray-3);
 
     &::after {
       content: "→"; /* Right arrow for references */
+    }
+  }
+
+  .cm-completionIcon-file {
+    color: var(--crimson-11);
+    background-color: var(--crimson-3);
+
+    &::after {
+      content: "𝌆"; /* File symbol for files */
     }
   }
 

@@ -26,6 +26,8 @@
 @import url("@radix-ui/colors/purple-dark.css");
 @import url("@radix-ui/colors/green.css");
 @import url("@radix-ui/colors/green-dark.css");
+@import url("@radix-ui/colors/crimson.css");
+@import url("@radix-ui/colors/crimson-dark.css");
 
 @tailwind base;
 @tailwind components;
