@@ -193,6 +193,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         formatted_data = pl.read_json(json_bytes)
         assert formatted_data["A"].to_list() == [2, 4, 6]
 
+    @pytest.mark.skipif(
+        is_windows(),
+        reason="Windows doesn't show microseconds unicode properly",
+    )
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
         data = complex_data.to_json()
