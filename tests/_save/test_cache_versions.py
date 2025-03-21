@@ -2,17 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-import textwrap
-import warnings
-
-import pytest
-
-from marimo._ast.app import App
-from marimo._runtime.requests import ExecutionRequest
-from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider
-
 
 class TestVersionCache:
     @staticmethod
@@ -22,7 +11,7 @@ class TestVersionCache:
             unhashable = [object()]
 
         @app.cell
-        def v1() -> tuple[int]:
+        def v1(unhashable) -> tuple[int]:
             # Check top level import
             from marimo import persistent_cache
 
@@ -41,7 +30,7 @@ class TestVersionCache:
             unhashable = [object()]
 
         @app.cell
-        def v1() -> tuple[int]:
+        def v1(unhashable) -> tuple[int]:
             # Check top level import
             from marimo import persistent_cache
 
