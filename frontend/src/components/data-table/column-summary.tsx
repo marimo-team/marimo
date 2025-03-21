@@ -89,9 +89,9 @@ export const TableColumnSummary = <TData, TValue>({
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
             <span>{renderDate(summary.min, type)}</span>
-            {summary.min === summary.max
-              ? null
-              : -(<span>{renderDate(summary.max, type)}</span>)}
+            {summary.min === summary.max ? null : (
+              <span>-{renderDate(summary.max, type)}</span>
+            )}
           </div>
         );
       case "integer":
