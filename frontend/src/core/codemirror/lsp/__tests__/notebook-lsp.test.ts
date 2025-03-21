@@ -9,7 +9,7 @@ import type { CellId } from "@/core/cells/ids";
 import { EditorView } from "@codemirror/view";
 import {
   type LanguageServerClient,
-  languageServerWithTransport,
+  languageServerWithClient,
 } from "@marimo-team/codemirror-languageserver";
 
 const Cells = {
@@ -342,9 +342,8 @@ describe("NotebookLanguageServerClient", () => {
       const mockView1 = new EditorView({
         doc: "# this is a comment",
         extensions: [
-          languageServerWithTransport({
+          languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
-            rootUri: "file:///",
             documentUri: CellDocumentUri.of(Cells.cell1),
             ...props,
           }),
@@ -355,9 +354,8 @@ describe("NotebookLanguageServerClient", () => {
       const mockView2 = new EditorView({
         doc: "import math\nimport numpy",
         extensions: [
-          languageServerWithTransport({
+          languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
-            rootUri: "file:///",
             documentUri: CellDocumentUri.of(Cells.cell2),
             ...props,
           }),
@@ -368,9 +366,8 @@ describe("NotebookLanguageServerClient", () => {
       const mockView3 = new EditorView({
         doc: "print(math.sqrt(4))",
         extensions: [
-          languageServerWithTransport({
+          languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
-            rootUri: "file:///",
             documentUri: CellDocumentUri.of(Cells.cell3),
             ...props,
           }),
