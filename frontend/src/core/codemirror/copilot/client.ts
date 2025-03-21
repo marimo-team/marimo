@@ -104,5 +104,14 @@ export function copilotServer() {
     documentUri: FILE_URI,
     client: getCopilotClient(),
     languageId: LANGUAGE_ID,
+    // Disable all basic LSP features
+    // we only need textDocument/didChange
+    hoverEnabled: false,
+    completionEnabled: false,
+    definitionEnabled: false,
+    renameEnabled: false,
+    codeActionsEnabled: false,
+    signatureHelpEnabled: false,
+    diagnosticsEnabled: false,
   });
 }
