@@ -86,6 +86,51 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     });
   }
 
+  async textDocumentSignatureHelp(
+    params: LSP.SignatureHelpParams,
+  ): Promise<LSP.SignatureHelp | null> {
+    // TODO: not implemented yet
+    // It currently doesn't provide too much value over the autocomplete
+    // and blocks the completion list when it is open.
+    const disabledSignatureHelp = true;
+    if (disabledSignatureHelp) {
+      return null;
+    }
+
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+    const versionInfo = [...this.versionToCellNumberAndVersion.values()].find(
+      (info) => info.cellDocumentUri === cellDocumentUri,
+    );
+
+    if (!versionInfo) {
+      Logger.warn("No lens found for cell", cellId);
+      return null;
+    }
+
+    const { lens } = versionInfo;
+    const transformedPosition = lens.transformPosition(params.position, cellId);
+
+    const response = await this.client.textDocumentSignatureHelp({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: transformedPosition,
+    });
+
+    if (!response) {
+      return null;
+    }
+
+    return response;
+  }
+
   textDocumentCodeAction(
     params: LSP.CodeActionParams,
   ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
