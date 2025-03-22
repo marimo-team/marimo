@@ -20,7 +20,7 @@ MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import _pytest  # type: ignore
+    import _pytest.Item  # type: ignore
 
 
 @dataclass
@@ -212,7 +212,7 @@ class ReplaceStubPlugin:
             )
         # Signature from pytest is:
         # None | ExceptionInfo[BaseException] | tuple[str, int, str] | str | TerminalRepr
-        if report.longrepr or isinstance(report.longrepr, str):
+        if not report.longrepr or isinstance(report.longrepr, str):
             return
 
         if isinstance(report.longrepr, tuple):
