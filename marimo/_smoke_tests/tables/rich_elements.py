@@ -27,6 +27,14 @@ def _(alt, mo, pd):
     )
     password = mo.ui.text(kind="password", value="secret")
 
+    dictionary = mo.ui.dictionary(
+        {
+            "slider": mo.ui.slider(1, 10),
+            "text": mo.ui.text(),
+            "date": mo.ui.date(),
+        }
+    )
+
 
     def simple_echo_model(messages, config):
         return f"You said: {messages[-1].content}"
@@ -43,8 +51,9 @@ def _(alt, mo, pd):
         alt="Marimo logo",
         width=100,
         height=100,
-        rounded=True,
-        caption="Marimo logo",
+    )
+    html_img = mo.Html(
+        "<img src='https://marimo.io/logo.png' width='100px' height='100px' alt='Marimo logo'>"
     )
 
     office_characters = [
@@ -86,9 +95,16 @@ def _(alt, mo, pd):
         "buttons": [mo.ui.button(kind="warn"), mo.ui.button(kind="invalid")],
         "mixed": [mo.ui.button(kind="info"), "apples"],
         "arrays": mo.ui.array([text] * 2),
-        "raw_objects": [{"fruits": ["apples", "bananas"]}, {"trees": {"plants": "flowers"}}],
-        "raw_lists": [["fruits", "trees", "animals"], ["humans", "aliens", "life"]],
-        "images": img,
+        "dictionary": [dictionary, dictionary],
+        "raw_objects": [
+            {"fruits": ["apples", "bananas"]},
+            {"trees": {"plants": "flowers"}},
+        ],
+        "raw_lists": [
+            ["fruits", "trees", "animals"],
+            ["humans", "aliens", "life"],
+        ],
+        "images": [img, html_img],
         "batch": user_info,
         "dropdowns": [
             mo.ui.dropdown(options=["apple", "bananas", "coconut"]),
@@ -108,6 +124,8 @@ def _(alt, mo, pd):
         chart,
         chat,
         data,
+        dictionary,
+        html_img,
         img,
         mermaid,
         office_characters,
