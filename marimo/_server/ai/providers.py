@@ -159,8 +159,14 @@ class OpenAIProvider(
     def get_client(self, config: AiConfig) -> OpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
+        import ssl
+
+        # library to check if paths exists
+        from pathlib import Path
         from urllib.parse import parse_qs, urlparse
 
+        # ssl related libs, httpx is a dependency of openai
+        import httpx
         from openai import AzureOpenAI, OpenAI
 
         if "open_ai" not in config or "api_key" not in config["open_ai"]:
@@ -180,6 +186,37 @@ class OpenAIProvider(
         if not base_url:
             base_url = None
 
+        # add SSL parameters/values
+        ssl_verify: Optional[bool] = (
+            config.get("ai", {})
+            .get("open_ai", {})
+            .get(
+                "ssl_verify", True
+            )  # Default to using ssl to verify if not present in config. This mimics current functionality as httpx uses it by default
+        )
+        caBundlePath: Optional[str] = (
+            config.get("ai", {}).get("open_ai", {}).get("caBundlePath", None)
+        )
+        clientPem: Optional[bool] = (
+            config.get("ai", {}).get("open_ai", {}).get("clientPem", None)
+        )
+
+        # check if caBundlePath and clientPem are valid files, if not, flag error
+        if caBundlePath:
+            caPath = Path(caBundlePath)
+            if not caPath.exists():
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="CA Bundle is not a valid path or does not exist",
+                )
+
+        if clientPem:
+            clientPemPath = Path(clientPem)
+            if not clientPemPath.exists():
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Client PEM is not a valid path or does not exist",
+                )
         # Azure OpenAI clients are instantiated slightly differently
         parsed_url = urlparse(base_url)
         if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
@@ -196,11 +233,43 @@ class OpenAIProvider(
                 azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
             )
         else:
-            return OpenAI(
-                default_headers={"api-key": key},
-                api_key=key,
-                base_url=base_url,
-            )
+            # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
+            if ssl_verify:
+                ctx = None  # Initialize ctx to avoid UnboundLocalError
+                client = None  # Initialize client to avoid UnboundLocalError
+                if caBundlePath:
+                    ctx = ssl.create_default_context(cafile=caBundlePath)
+                if clientPem:
+                    # if ctx already exists from caBundlePath argument
+                    if ctx:
+                        ctx.load_cert_chain(certfile=clientPem)
+                    else:
+                        ctx = ssl.create_default_context()
+                        ctx.load_cert_chain(certfile=clientPem)
+
+                # if ssl context was created by the above statements
+                if ctx:
+                    client = httpx.Client(verify=ctx)
+                else:
+                    pass
+            else:
+                client = httpx.Client(verify=False)
+
+            # if client is created, either with a custom context or with verify=False, use it as the http_client object in `OpenAI`
+            if client:
+                return OpenAI(
+                    default_headers={"api-key": key},
+                    api_key=key,
+                    base_url=base_url,
+                    http_client=client,
+                )
+            # if not, return bog standard OpenAI object
+            else:
+                return OpenAI(
+                    default_headers={"api-key": key},
+                    api_key=key,
+                    base_url=base_url,
+                )
 
     def stream_completion(
         self,
