@@ -209,8 +209,7 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: column,
                   type: "quantitative",
-                  bin: { maxbins: 10 },
-                  axis: null,
+                  bin: true,
                 },
                 y: {
                   aggregate: "count",
@@ -219,6 +218,8 @@ export class ColumnChartSpecModel<T> {
                 },
               },
             },
+
+            // Tooltip layer
             {
               mark: {
                 type: "bar",
@@ -228,8 +229,8 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: column,
                   type: "quantitative",
-                  bin: { maxbins: 10 },
-                  axis: null,
+                  bin: true,
+                  axis: { title: null, labelFontSize: 8 },
                 },
                 y: {
                   aggregate: "max",

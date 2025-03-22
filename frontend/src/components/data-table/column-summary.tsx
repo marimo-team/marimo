@@ -116,26 +116,8 @@ export const TableColumnSummary = <TData, TValue>({
           );
         }
 
-        if (
-          typeof summary.min === "number" &&
-          typeof summary.max === "number"
-        ) {
-          return (
-            <div className="flex justify-between w-full whitespace-pre">
-              <span>{prettyScientificNumber(summary.min)}</span>
-              {summary.min === summary.max ? null : (
-                <span>{prettyScientificNumber(summary.max)}</span>
-              )}
-            </div>
-          );
-        }
-
-        return (
-          <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{summary.min}</span>
-            <span>{summary.max}</span>
-          </div>
-        );
+        // Numerical bar charts use built-in vega axis and ticks
+        return null;
       case "boolean":
         // Without a chart
         if (!spec) {
