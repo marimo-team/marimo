@@ -39,15 +39,15 @@ export const TableColumnSummary = <TData, TValue>({
         milliseconds={200}
         visibility={true}
         rootMargin="200px"
-        fallback={<ChartSkeleton seed={columnId} width={130} height={60} />}
+        fallback={<ChartSkeleton seed={columnId} width={80} height={40} />}
       >
         <LazyVegaLite
           spec={spec}
-          width={120}
-          height={50}
+          width={70}
+          height={30}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           loader={batchedLoader as any}
-          style={{ minWidth: "unset", maxHeight: "60px" }}
+          style={{ minWidth: "unset", maxHeight: "40px" }}
           actions={false}
           theme={theme === "dark" ? "dark" : "vox"}
         />
@@ -88,8 +88,10 @@ export const TableColumnSummary = <TData, TValue>({
 
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{renderDate(summary.min, type)}</span>-
-            <span>{renderDate(summary.max, type)}</span>
+            <span>{renderDate(summary.min, type)}</span>
+            {summary.min === summary.max ? null : (
+              <span>-{renderDate(summary.max, type)}</span>
+            )}
           </div>
         );
       case "integer":
@@ -123,7 +125,9 @@ export const TableColumnSummary = <TData, TValue>({
           return (
             <div className="flex justify-between w-full px-2 whitespace-pre">
               <span>{prettyScientificNumber(summary.min)}</span>
-              <span>{prettyScientificNumber(summary.max)}</span>
+              {summary.min === summary.max ? null : (
+                <span>{prettyScientificNumber(summary.max)}</span>
+              )}
             </div>
           );
         }
