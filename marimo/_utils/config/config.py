@@ -43,7 +43,7 @@ class ConfigReader:
         import tomlkit
 
         _maybe_create_directory(self.filepath)
-        with open(self.filepath, "w") as file:
+        with open(self.filepath, "w", encoding="utf-8") as file:
             tomlkit.dump(asdict(data), file)
 
     @staticmethod
