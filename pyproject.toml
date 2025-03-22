@@ -185,6 +185,7 @@ installer = "uv"
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
+    "altair>=5.4.0",
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",

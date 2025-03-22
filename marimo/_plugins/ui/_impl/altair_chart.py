@@ -34,7 +34,7 @@ from marimo._utils.narwhals_utils import (
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import altair
 
 # Selection is a dictionary of the form:
 # {
@@ -369,7 +369,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             )
             chart_selection = False
             legend_selection = False
-        if _has_geoshape(vega_spec) and (has_chart_selection):
+        if _has_geoshape(chart) and (has_chart_selection):
             sys.stderr.write(
                 "Geoshapes + chart selection is not yet supported in "
                 "marimo.ui.chart.\n"
@@ -431,7 +431,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         import altair
 
-        if chart.data is altair.Undefined:
+        if chart.data is altair.Undefined:  # type: ignore[comparison-overlap]
             return None
 
         return cast(ChartDataType, chart.data)
