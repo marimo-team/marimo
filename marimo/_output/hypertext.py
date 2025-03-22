@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import weakref
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, final
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -37,6 +38,7 @@ def _hypertext_cleanup(virtual_filenames: list[str]) -> None:
 
 
 @mddoc
+@dataclass
 class Html(MIME):
     """A wrapper around HTML text that can be used as an output.
 
@@ -68,6 +70,10 @@ class Html(MIME):
         center: center this element in the output area
         right: right-justify this element in the output area
     """
+
+    # Some libraries (e.g. polars) will serialize dataclasses so we add this
+    # field to serialize the mimetype. This is to support rich display in tables/dfs.
+    serialized_mime_bundle: dict[str, str] = field(default_factory=dict)
 
     def __init__(self, text: str) -> None:
         """Initialize the HTML element.
@@ -107,6 +113,11 @@ class Html(MIME):
             self, _hypertext_cleanup, self._virtual_filenames
         )
         finalizer.atexit = False
+        mimetype, data = self._mime_()
+        self.serialized_mime_bundle = {
+            "mimetype": mimetype,
+            "data": data,
+        }
 
     @property
     def text(self) -> str:

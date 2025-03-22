@@ -7,7 +7,7 @@ import {
   DataTableColumnHeaderWithSummary,
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
-import { isMimeValue, MimeCell } from "./mime-cell";
+import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
@@ -278,7 +278,8 @@ export function generateColumns<T>({
           );
         }
 
-        if (isMimeValue(value)) {
+        const mimeValues = getMimeValues(value);
+        if (mimeValues) {
           return (
             <div
               onClick={selectCell}
@@ -289,7 +290,9 @@ export function generateColumns<T>({
                 isCellSelected,
               )}
             >
-              <MimeCell value={value} />
+              {mimeValues.map((mimeValue, idx) => (
+                <MimeCell key={idx} value={mimeValue} />
+              ))}
             </div>
           );
         }
