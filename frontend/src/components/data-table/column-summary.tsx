@@ -81,7 +81,6 @@ export const TableColumnSummary = <TData, TValue>({
               <span>min: {renderDate(summary.min, type)}</span>
               <span>max: {renderDate(summary.max, type)}</span>
               <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
           );
         }
@@ -113,7 +112,6 @@ export const TableColumnSummary = <TData, TValue>({
                   : summary.max}
               </span>
               <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
           );
         }
@@ -123,7 +121,7 @@ export const TableColumnSummary = <TData, TValue>({
           typeof summary.max === "number"
         ) {
           return (
-            <div className="flex justify-between w-full px-2 whitespace-pre">
+            <div className="flex justify-between w-full whitespace-pre">
               <span>{prettyScientificNumber(summary.min)}</span>
               {summary.min === summary.max ? null : (
                 <span>{prettyScientificNumber(summary.max)}</span>
@@ -149,22 +147,13 @@ export const TableColumnSummary = <TData, TValue>({
           );
         }
 
-        if (summary.nulls == null || summary.nulls === 0) {
-          return null;
-        }
-
-        return (
-          <div className="flex flex-col whitespace-pre">
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
-          </div>
-        );
+        return null;
       case "time":
         return null;
       case "string":
         return (
           <div className="flex flex-col whitespace-pre">
             <span>unique: {prettyNumber(summary.unique)}</span>
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
       case "unknown":

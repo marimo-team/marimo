@@ -9,7 +9,7 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
-import { TableColumnSummary } from "./column-summary";
+import { ColumnChartContext, TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
 import {
   type DataTableSelection,
@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
+import { useContext } from "react";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -150,13 +151,27 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
+        const chartSpecModel = useContext(ColumnChartContext);
+        const summary = chartSpecModel.getColumnSummary(key);
         const dtype = column.columnDef.meta?.dtype;
+        const dtypeHeader =
+          showDataTypes && dtype ? (
+            <div className="flex flex-row gap-1">
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+              {summary &&
+                typeof summary.nulls === "number" &&
+                summary.nulls > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    (nulls: {summary.nulls})
+                  </span>
+                )}
+            </div>
+          ) : null;
+
         const headerWithType = (
           <div className="flex flex-col">
             <span className="font-bold">{key}</span>
-            {showDataTypes && dtype && (
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-            )}
+            {dtypeHeader}
           </div>
         );
 
