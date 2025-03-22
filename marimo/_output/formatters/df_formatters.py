@@ -65,7 +65,7 @@ class PyArrowFormatter(FormatterFactory):
         return "pyarrow"
 
     def register(self) -> None:
-        import pyarrow as pa
+        import pyarrow as pa  # type: ignore[import-not-found]
 
         from marimo._output import formatting
 
