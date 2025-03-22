@@ -264,7 +264,7 @@ async def test_run_until_completion_with_stop():
 
 
 @pytest.mark.skipif(
-    sys.version_info == (3, 13), reason="3.13 has different stack trace format"
+    sys.version_info >= (3, 13), reason="3.13 has different stack trace format"
 )
 async def test_run_until_completion_with_stack_trace():
     app = App()
@@ -299,19 +299,11 @@ async def test_run_until_completion_with_stack_trace():
     assert did_error is True
     cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
 
-    # Use a version-specific snapshot for Python 3.13 due to traceback format changes
     messages = _print_messages(cell_ops)
-    if sys.version_info >= (3, 13):
-        # Python 3.13 has different traceback formatting
-        snapshot(
-            "run_until_completion_with_stack_trace_py313.txt",
-            _delete_lines_with_files(messages),
-        )
-    else:
-        snapshot(
-            "run_until_completion_with_stack_trace.txt",
-            _delete_lines_with_files(messages),
-        )
+    snapshot(
+        "run_until_completion_with_stack_trace.txt",
+        _delete_lines_with_files(messages),
+    )
 
 
 async def test_export_wasm_edit():
