@@ -511,6 +511,7 @@ const DataTableComponent = ({
       generateColumns({
         rowHeaders: memoizedRowHeaders,
         selection: selection,
+        chartSpecModel: chartSpecModel,
         fieldTypes: memoizedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,

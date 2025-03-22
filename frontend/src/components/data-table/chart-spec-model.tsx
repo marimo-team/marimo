@@ -114,7 +114,7 @@ export class ColumnChartSpecModel<T> {
           ...base,
           // Two layers: one with the visible bars, and one with invisible bars
           // that provide a larger tooltip area.
-          // @ts-expect-error layer 
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
               mark: {
@@ -198,7 +198,7 @@ export class ColumnChartSpecModel<T> {
           ...base, // Assuming base contains shared configurations
           // Two layers: one with the visible bars, and one with invisible bars
           // that provide a larger tooltip area.
-          // @ts-expect-error layer
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
               mark: {

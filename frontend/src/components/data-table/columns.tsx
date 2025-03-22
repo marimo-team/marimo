@@ -9,7 +9,7 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { isMimeValue, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
-import { ColumnChartContext, TableColumnSummary } from "./column-summary";
+import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
 import {
   type DataTableSelection,
@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
-import { useContext } from "react";
+import type { ColumnChartSpecModel } from "./chart-spec-model";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -95,6 +95,7 @@ export function generateColumns<T>({
   rowHeaders,
   selection,
   fieldTypes,
+  chartSpecModel,
   textJustifyColumns,
   wrappedColumns,
   showDataTypes,
@@ -102,6 +103,7 @@ export function generateColumns<T>({
   rowHeaders: string[];
   selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
+  chartSpecModel?: ColumnChartSpecModel<unknown>;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   showDataTypes?: boolean;
@@ -151,8 +153,7 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
-        const chartSpecModel = useContext(ColumnChartContext);
-        const summary = chartSpecModel.getColumnSummary(key);
+        const summary = chartSpecModel?.getColumnSummary(key);
         const dtype = column.columnDef.meta?.dtype;
         const dtypeHeader =
           showDataTypes && dtype ? (
