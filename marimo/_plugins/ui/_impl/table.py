@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -262,6 +263,7 @@ class table(
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
         max_columns: Optional[int] = 50,
+        table_name: Optional[str] = None,
         *,
         label: str = "",
         on_change: Optional[
@@ -285,6 +287,21 @@ class table(
     ) -> None:
         validate_no_integer_columns(data)
         validate_page_size(page_size)
+
+        # HACK: this is a hack to get the name of the variable that was passed
+        table_name = "_replace_with_dataframe_name_"
+        try:
+            frame = inspect.currentframe()
+            if frame is not None and frame.f_back is not None:
+                for (
+                    var_name,
+                    var_value,
+                ) in frame.f_back.f_locals.items():
+                    if var_value is data:
+                        table_name = var_name
+                        break
+        except Exception:
+            pass
 
         has_stable_row_id = False
         if selection is not None:
@@ -465,6 +482,8 @@ class table(
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
+                "table-name": table_name,
+                "show-create-chart": True,
             },
             on_change=on_change,
             functions=(

@@ -34,6 +34,7 @@ import { INDEX_COLUMN_NAME } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { ColumnChartingFeature } from "./column-charting/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -69,6 +70,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  // Column charting
+  tableName?: string;
 }
 
 const DataTableInternal = <TData,>({
@@ -101,6 +104,7 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  tableName,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -115,6 +119,7 @@ const DataTableInternal = <TData,>({
       ColumnWrappingFeature,
       ColumnFormattingFeature,
       CellSelectionFeature,
+      ColumnChartingFeature,
     ],
     data,
     columns,
@@ -159,6 +164,12 @@ const DataTableInternal = <TData,>({
     enableCellSelection:
       selection === "single-cell" || selection === "multi-cell",
     enableMultiCellSelection: selection === "multi-cell",
+    // Column charting
+    enableColumnCharting: !!tableName,
+    tableName: tableName ?? "",
+    // Column pinning
+    onColumnPinningChange: setColumnPinning,
+    // Initial state
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
@@ -174,7 +185,6 @@ const DataTableInternal = <TData,>({
       cellSelection,
       columnPinning: columnPinning,
     },
-    onColumnPinningChange: setColumnPinning,
   });
 
   return (

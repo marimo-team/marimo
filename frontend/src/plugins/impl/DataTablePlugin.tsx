@@ -46,6 +46,8 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
+import { Provider } from "jotai";
+import { store } from "@/core/state/jotai";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -85,6 +87,7 @@ interface Data<T> {
   wrappedColumns?: string[];
   totalColumns: number;
   hasStableRowId: boolean;
+  tableName?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -147,6 +150,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .nullish(),
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
+      tableName: z.string().optional(),
+      showCreateChart: z.boolean().default(false),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -200,16 +205,18 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <TooltipProvider>
-        <LoadingDataTableComponent
-          {...props.data}
-          {...props.functions}
-          enableSearch={true}
-          data={props.data.data}
-          value={props.value}
-          setValue={props.setValue}
-        />
-      </TooltipProvider>
+      <Provider store={store}>
+        <TooltipProvider>
+          <LoadingDataTableComponent
+            {...props.data}
+            {...props.functions}
+            enableSearch={true}
+            data={props.data.data}
+            value={props.value}
+            setValue={props.setValue}
+          />
+        </TooltipProvider>
+      </Provider>
     );
   });
 
@@ -475,6 +482,7 @@ const DataTableComponent = ({
   wrappedColumns,
   totalColumns,
   get_row_ids,
+  tableName,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -618,6 +626,7 @@ const DataTableComponent = ({
             freezeColumnsRight={freezeColumnsRight}
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
+            tableName={tableName}
           />
         </Labeled>
       </ColumnChartContext.Provider>

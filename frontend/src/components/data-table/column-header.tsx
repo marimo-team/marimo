@@ -48,6 +48,11 @@ interface DataTableColumnHeaderProps<TData, TValue>
   header: React.ReactNode;
 }
 
+const AscIcon = ArrowDownNarrowWideIcon;
+const DescIcon = ArrowDownWideNarrowIcon;
+
+const iconClassName = "mr-2 h-3.5 w-3.5 text-muted-foreground/70";
+
 export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
@@ -61,9 +66,6 @@ export const DataTableColumnHeader = <TData, TValue>({
     return <div className={cn(className)}>{header}</div>;
   }
 
-  const AscIcon = ArrowDownNarrowWideIcon;
-  const DescIcon = ArrowDownWideNarrowIcon;
-
   const renderSorts = () => {
     if (!column.getCanSort()) {
       return null;
@@ -71,16 +73,16 @@ export const DataTableColumnHeader = <TData, TValue>({
     return (
       <>
         <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-          <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          <AscIcon className={iconClassName} />
           Asc
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-          <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          <DescIcon className={iconClassName} />
           Desc
         </DropdownMenuItem>
         {column.getIsSorted() && (
           <DropdownMenuItem onClick={() => column.clearSorting()}>
-            <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            <ChevronsUpDown className={iconClassName} />
             Clear sort
           </DropdownMenuItem>
         )}
@@ -97,22 +99,16 @@ export const DataTableColumnHeader = <TData, TValue>({
     const wrap = column.getColumnWrapping();
     if (wrap === "wrap") {
       return (
-        <DropdownMenuItem
-          onClick={() => column.toggleColumnWrapping("nowrap")}
-          className="flex items-center"
-        >
-          <AlignJustifyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+        <DropdownMenuItem onClick={() => column.toggleColumnWrapping("nowrap")}>
+          <AlignJustifyIcon className={iconClassName} />
           No wrap text
         </DropdownMenuItem>
       );
     }
 
     return (
-      <DropdownMenuItem
-        onClick={() => column.toggleColumnWrapping("wrap")}
-        className="flex items-center"
-      >
-        <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+      <DropdownMenuItem onClick={() => column.toggleColumnWrapping("wrap")}>
+        <WrapTextIcon className={iconClassName} />
         Wrap text
       </DropdownMenuItem>
     );
@@ -127,10 +123,7 @@ export const DataTableColumnHeader = <TData, TValue>({
 
     if (pinnedPosition !== false) {
       return (
-        <DropdownMenuItem
-          onClick={() => column.pin(false)}
-          className="flex items-center"
-        >
+        <DropdownMenuItem onClick={() => column.pin(false)}>
           <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Unfreeze
         </DropdownMenuItem>
@@ -139,17 +132,11 @@ export const DataTableColumnHeader = <TData, TValue>({
 
     return (
       <>
-        <DropdownMenuItem
-          onClick={() => column.pin("left")}
-          className="flex items-center"
-        >
+        <DropdownMenuItem onClick={() => column.pin("left")}>
           <PinLeftIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Freeze left
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => column.pin("right")}
-          className="flex items-center"
-        >
+        <DropdownMenuItem onClick={() => column.pin("right")}>
           <PinRightIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
           Freeze right
         </DropdownMenuItem>
@@ -170,7 +157,7 @@ export const DataTableColumnHeader = <TData, TValue>({
     return (
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <FormatIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          <FormatIcon className={iconClassName} />
           Format
         </DropdownMenuSubTrigger>
         <DropdownMenuPortal>
@@ -205,6 +192,24 @@ export const DataTableColumnHeader = <TData, TValue>({
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
       </DropdownMenuSub>
+    );
+  };
+
+  const renderColumnCopy = () => {
+    if (column.id.startsWith(NAMELESS_COLUMN_PREFIX)) {
+      return null;
+    }
+
+    return (
+      <DropdownMenuItem
+        onClick={async () => {
+          const value = typeof header === "string" ? header : column.id;
+          await copyToClipboard(value);
+        }}
+      >
+        <CopyIcon className={iconClassName} />
+        Copy column name
+      </DropdownMenuItem>
     );
   };
 
@@ -246,21 +251,11 @@ export const DataTableColumnHeader = <TData, TValue>({
           </>
         )}
         {renderSorts()}
-        {!column.id.startsWith(NAMELESS_COLUMN_PREFIX) && (
-          <DropdownMenuItem
-            onClick={async () =>
-              await copyToClipboard(
-                typeof header === "string" ? header : column.id,
-              )
-            }
-          >
-            <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Copy column name
-          </DropdownMenuItem>
-        )}
+        {renderColumnCopy()}
         {renderColumnPinning()}
         {renderColumnWrapping()}
         {renderFormatOptions()}
+        {column.renderChartMenuItems?.()}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>
