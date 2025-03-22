@@ -210,7 +210,7 @@ class ReplaceStubPlugin:
                 lineno,
                 MARIMO_TEST_BLOCK_REGEX.sub("", domain),
             )
-        # Signature from pytest is:
+        # Signature from pytest for longrepr is:
         # None | ExceptionInfo[BaseException] | tuple[str, int, str] | str | TerminalRepr
         if not report.longrepr or isinstance(report.longrepr, str):
             return
@@ -236,9 +236,9 @@ def run_pytest(
     notebook_path: Path | str | None = None,
 ) -> MarimoPytestResult:
     # Note, there does seem to be a bit of a race condition if the file hasn't
-    # saved yet....
-    # But I think this may only be noticable with rapidly adding, renaming, and
-    # running testing
+    # saved yet...
+    # But I think this may only be noticeable with rapidly adding, renaming, and
+    # running tests.
     DependencyManager.pytest.require(
         "pytest is required for reactive "
         "testing. Please report to github if you would like a different testing "
@@ -252,7 +252,7 @@ def run_pytest(
         notebook_path = _maybe_name()
     notebook_path = str(notebook_path)
 
-    # Hold on to modules since e want to refresh them in order to enable
+    # Hold on to modules since we want to refresh them in order to enable
     # repeated calls.
     module_snapshot = dict(sys.modules)
 
@@ -272,8 +272,6 @@ def run_pytest(
                 ],
                 plugins=[plugin],
             )
-    except:
-        raise
     finally:
         # Note, in pytester, there are also exceptions for zope and readline.
         # However, those deps should already be in module_snapshot, since
