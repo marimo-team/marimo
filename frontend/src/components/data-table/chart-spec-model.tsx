@@ -77,7 +77,7 @@ export class ColumnChartSpecModel<T> {
     };
   }
 
-  private getVegaSpec<T>(column: string): TopLevelSpec | null {
+  private getVegaSpec<T>(column: string): TopLevelFacetedUnitSpec | null {
     if (!this.data) {
       return null;
     }
@@ -112,6 +112,9 @@ export class ColumnChartSpecModel<T> {
       case "time":
         return {
           ...base,
+          // Two layers: one with the visible bars, and one with invisible bars
+          // that provide a larger tooltip area.
+          // @ts-expect-error layer 
           layer: [
             {
               mark: {
@@ -193,6 +196,9 @@ export class ColumnChartSpecModel<T> {
 
         return {
           ...base, // Assuming base contains shared configurations
+          // Two layers: one with the visible bars, and one with invisible bars
+          // that provide a larger tooltip area.
+          // @ts-expect-error layer
           layer: [
             {
               mark: {

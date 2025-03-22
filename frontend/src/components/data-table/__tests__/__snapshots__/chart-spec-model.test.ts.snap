@@ -22,6 +22,27 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
   "layer": [
     {
       "encoding": {
+        "x": {
+          "axis": null,
+          "bin": {
+            "maxbins": 10,
+          },
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
         "tooltip": [
           {
             "bin": true,
@@ -46,55 +67,15 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
           "type": "quantitative",
         },
         "y": {
-          "aggregate": "count",
+          "aggregate": "max",
           "axis": null,
           "type": "quantitative",
         },
       },
       "mark": {
-        "color": "#027864",
+        "opacity": 0,
         "type": "bar",
       },
-      "transform": [
-        {
-          "filter": "datum['a'] !== null",
-        },
-      ],
-    },
-    {
-      "encoding": {
-        "tooltip": [
-          {
-            "title": "a",
-            "value": "Missing",
-          },
-          {
-            "aggregate": "count",
-            "format": ",d",
-            "title": "Null",
-            "type": "quantitative",
-          },
-        ],
-        "x": {
-          "value": 0,
-        },
-        "y": {
-          "aggregate": "count",
-          "type": "quantitative",
-        },
-      },
-      "mark": {
-        "color": "#cc4e00",
-        "type": "bar",
-        "x": {
-          "offset": -15,
-        },
-      },
-      "transform": [
-        {
-          "filter": "datum['a'] === null",
-        },
-      ],
     },
   ],
 }
@@ -129,6 +110,27 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
   "layer": [
     {
       "encoding": {
+        "x": {
+          "axis": null,
+          "bin": {
+            "maxbins": 10,
+          },
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
         "tooltip": [
           {
             "bin": true,
@@ -153,55 +155,15 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
           "type": "quantitative",
         },
         "y": {
-          "aggregate": "count",
+          "aggregate": "max",
           "axis": null,
           "type": "quantitative",
         },
       },
       "mark": {
-        "color": "#027864",
+        "opacity": 0,
         "type": "bar",
       },
-      "transform": [
-        {
-          "filter": "datum['a'] !== null",
-        },
-      ],
-    },
-    {
-      "encoding": {
-        "tooltip": [
-          {
-            "title": "a",
-            "value": "Missing",
-          },
-          {
-            "aggregate": "count",
-            "format": ",d",
-            "title": "Null",
-            "type": "quantitative",
-          },
-        ],
-        "x": {
-          "value": 0,
-        },
-        "y": {
-          "aggregate": "count",
-          "type": "quantitative",
-        },
-      },
-      "mark": {
-        "color": "#cc4e00",
-        "type": "bar",
-        "x": {
-          "offset": -15,
-        },
-      },
-      "transform": [
-        {
-          "filter": "datum['a'] === null",
-        },
-      ],
     },
   ],
 }
@@ -236,6 +198,27 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
   "layer": [
     {
       "encoding": {
+        "x": {
+          "axis": null,
+          "bin": {
+            "maxbins": 10,
+          },
+          "field": "a",
+          "type": "quantitative",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
         "tooltip": [
           {
             "bin": true,
@@ -260,55 +243,15 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
           "type": "quantitative",
         },
         "y": {
-          "aggregate": "count",
+          "aggregate": "max",
           "axis": null,
           "type": "quantitative",
         },
       },
       "mark": {
-        "color": "#027864",
+        "opacity": 0,
         "type": "bar",
       },
-      "transform": [
-        {
-          "filter": "datum['a'] !== null",
-        },
-      ],
-    },
-    {
-      "encoding": {
-        "tooltip": [
-          {
-            "title": "a",
-            "value": "Missing",
-          },
-          {
-            "aggregate": "count",
-            "format": ",d",
-            "title": "Null",
-            "type": "quantitative",
-          },
-        ],
-        "x": {
-          "value": 0,
-        },
-        "y": {
-          "aggregate": "count",
-          "type": "quantitative",
-        },
-      },
-      "mark": {
-        "color": "#cc4e00",
-        "type": "bar",
-        "x": {
-          "offset": -15,
-        },
-      },
-      "transform": [
-        {
-          "filter": "datum['a'] === null",
-        },
-      ],
     },
   ],
 }
@@ -328,52 +271,89 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
   "data": {
     "values": [],
   },
-  "encoding": {
-    "color": {
-      "condition": {
-        "test": "datum["bin_maxbins_10_date_range"] === "null"",
-        "value": "#cc4e00",
-      },
-      "value": "#027864",
-    },
-    "tooltip": [
-      {
-        "bin": true,
-        "field": "date",
-        "format": "%Y-%m-%d",
-        "title": "date",
-        "type": "temporal",
-      },
-      {
-        "aggregate": "count",
-        "format": ",d",
-        "title": "Count",
-        "type": "quantitative",
-      },
-    ],
-    "x": {
-      "axis": null,
-      "bin": true,
-      "field": "date",
-      "scale": {
-        "align": 0,
-        "paddingInner": 0,
-        "paddingOuter": {
-          "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum["bin_maxbins_10_date_range"] === "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "x": {
+          "axis": null,
+          "bin": true,
+          "field": "date",
+          "scale": {
+            "align": 0,
+            "paddingInner": 0,
+            "paddingOuter": {
+              "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+            },
+          },
+          "type": "temporal",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
         },
       },
-      "type": "temporal",
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
     },
-    "y": {
-      "aggregate": "count",
-      "axis": null,
-      "type": "quantitative",
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum["bin_maxbins_10_date_range"] === "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "tooltip": [
+          {
+            "bin": true,
+            "field": "date",
+            "format": "%Y-%m-%d",
+            "title": "date",
+            "type": "temporal",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "bin": true,
+          "field": "date",
+          "scale": {
+            "align": 0,
+            "paddingInner": 0,
+            "paddingOuter": {
+              "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+            },
+          },
+          "type": "temporal",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
     },
-  },
-  "height": 100,
-  "mark": {
-    "color": "#027864",
-    "type": "bar",
-  },
+  ],
 }
 `;
