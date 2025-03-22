@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 import marimo
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
 from marimo._cli.print import bold, green
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stdout
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
@@ -209,21 +210,24 @@ class ReplaceStubPlugin:
                 lineno,
                 MARIMO_TEST_BLOCK_REGEX.sub("", domain),
             )
-        if report.longrepr:
-            if isinstance(report.longrepr, tuple):
-                _, lineno, msg = report.longrepr
-                report.longrepr = (report.nodeid, lineno, f"({msg})")
-            elif not isinstance(report.longrepr, str):
-                longrepr = str(report.longrepr)
-                if "func_JYWB" in longrepr:
-                    # Strip the first call of traceback
-                    report.longrepr.reprtraceback.reprentries = (
-                        report.longrepr.reprtraceback.reprentries[1:]
-                    )
-                for entry in report.longrepr.reprtraceback.reprentries:
-                    entry.reprfileloc.path = _to_marimo_uri(
-                        entry.reprfileloc.path
-                    )
+        # Signature from pytest is:
+        # None | ExceptionInfo[BaseException] | tuple[str, int, str] | str | TerminalRepr
+        if report.longrepr or isinstance(report.longrepr, str):
+            return
+
+        if isinstance(report.longrepr, tuple):
+            _, lineno, msg = report.longrepr
+            report.longrepr = (report.nodeid, lineno, f"({msg})")
+        # Not all TerminalRepr seem to have a reprtraceback
+        elif hasattr(report.longrepr, "reprtraceback"):
+            longrepr = str(report.longrepr)
+            if "func_JYWB" in longrepr:
+                # Strip the first call of traceback
+                report.longrepr.reprtraceback.reprentries = (
+                    report.longrepr.reprtraceback.reprentries[1:]
+                )
+            for entry in report.longrepr.reprtraceback.reprentries:
+                entry.reprfileloc.path = _to_marimo_uri(entry.reprfileloc.path)
 
 
 def run_pytest(
@@ -231,37 +235,51 @@ def run_pytest(
     lcls: dict[str, Any] | None = None,
     notebook_path: Path | str | None = None,
 ) -> MarimoPytestResult:
+    # Note, there does seem to be a bit of a race condition if the file hasn't
+    # saved yet....
+    # But I think this may only be noticable with rapidly adding, renaming, and
+    # running testing
+    DependencyManager.pytest.require(
+        "pytest is required for reactive "
+        "testing. Please report to github if you would like a different testing "
+        "suite supported."
+    )
+
     import pytest  # type: ignore
 
     if not notebook_path:
         # Translate name to python module
-        notebook_path = os.path.relpath(
-            _maybe_name(), marimo.notebook_location()
-        )
+        notebook_path = _maybe_name()
     notebook_path = str(notebook_path)
-    # So path/to/notebook.py -> path.to.notebook
-    # but windows compat
-    notebook = (
-        notebook_path.replace(os.sep, ".").strip(".py").strip(".md")
-    ).strip(".")
 
-    if notebook in sys.modules:
-        del sys.modules[notebook]
+    # Hold on to modules since e want to refresh them in order to enable
+    # repeated calls.
+    module_snapshot = dict(sys.modules)
 
     # qq and disable warnings suppress a fair bit of filler noise.
     # color=yes seems to work nicely, but code-highlight is a bit much.
     plugin = ReplaceStubPlugin(defs, lcls)
-    with capture_stdout() as stdout:
-        pytest.main(
-            [
-                "-qq",
-                "--disable-warnings",
-                "--color=yes",
-                "--code-highlight=no",
-                notebook_path,
-            ],
-            plugins=[plugin],
-        )
+    try:
+        with capture_stdout() as stdout:
+            pytest.main(
+                [
+                    "-qq",
+                    "--disable-warnings",
+                    "--color=yes",
+                    "--code-highlight=no",
+                    "--import-mode=importlib",
+                    notebook_path,
+                ],
+                plugins=[plugin],
+            )
+    except:
+        raise
+    finally:
+        # Note, in pytester, there are also exceptions for zope and readline.
+        # However, those deps should already be in module_snapshot, since
+        # dependencies are required before the given cell runs.
+        sys.modules.clear()
+        sys.modules.update(module_snapshot)
 
     plugin._result.output = stdout.getvalue()
     return plugin._result
