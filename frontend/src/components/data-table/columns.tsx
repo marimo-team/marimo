@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
+import type { ColumnChartSpecModel } from "./chart-spec-model";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -94,6 +95,7 @@ export function generateColumns<T>({
   rowHeaders,
   selection,
   fieldTypes,
+  chartSpecModel,
   textJustifyColumns,
   wrappedColumns,
   showDataTypes,
@@ -101,6 +103,7 @@ export function generateColumns<T>({
   rowHeaders: string[];
   selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
+  chartSpecModel?: ColumnChartSpecModel<unknown>;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   showDataTypes?: boolean;
@@ -150,13 +153,26 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
+        const summary = chartSpecModel?.getColumnSummary(key);
         const dtype = column.columnDef.meta?.dtype;
+        const dtypeHeader =
+          showDataTypes && dtype ? (
+            <div className="flex flex-row gap-1">
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+              {summary &&
+                typeof summary.nulls === "number" &&
+                summary.nulls > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    (nulls: {summary.nulls})
+                  </span>
+                )}
+            </div>
+          ) : null;
+
         const headerWithType = (
           <div className="flex flex-col">
             <span className="font-bold">{key}</span>
-            {showDataTypes && dtype && (
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-            )}
+            {dtypeHeader}
           </div>
         );
 
