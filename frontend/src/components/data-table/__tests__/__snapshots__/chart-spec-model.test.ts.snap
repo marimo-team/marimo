@@ -57,6 +57,7 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
         ],
         "x": {
           "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
             "labelFontSize": 8,
             "title": null,
           },
@@ -143,6 +144,7 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
         ],
         "x": {
           "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
             "labelFontSize": 8,
             "title": null,
           },
@@ -229,6 +231,7 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
         ],
         "x": {
           "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
             "labelFontSize": 8,
             "title": null,
           },

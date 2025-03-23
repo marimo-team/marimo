@@ -230,7 +230,12 @@ export class ColumnChartSpecModel<T> {
                   field: column,
                   type: "quantitative",
                   bin: true,
-                  axis: { title: null, labelFontSize: 8 },
+                  axis: {
+                    title: null,
+                    labelFontSize: 8,
+                    labelExpr:
+                      "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
+                  },
                 },
                 y: {
                   aggregate: "max",
