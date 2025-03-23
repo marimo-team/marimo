@@ -78,6 +78,7 @@ __all__ = [
     "style",
     "tabs",
     "tree",
+    "json",
     "video",
     "vstack",
 ]
@@ -104,6 +105,7 @@ from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.json import json
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.nav_menu import nav_menu
