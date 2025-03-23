@@ -8,9 +8,10 @@ from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
+from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
 
 if TYPE_CHECKING:
-    import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import altair
 
 
 class AltairFormatter(FormatterFactory):
@@ -19,7 +20,7 @@ class AltairFormatter(FormatterFactory):
         return "altair"
 
     def register(self) -> None:
-        import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair
 
         from marimo._output import formatting
         from marimo._plugins.ui._impl.charts.altair_transformer import (
@@ -81,6 +82,8 @@ class AltairFormatter(FormatterFactory):
                 alt.data_transformers.options["max_rows"] = 20_000
 
             chart = _apply_embed_options(chart)
+
+            chart = maybe_make_full_width(chart)
 
             # Return the chart as a vega-lite chart with embed options
             return (
