@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 import time
 from multiprocessing import Process
 from typing import TYPE_CHECKING, Any
@@ -576,6 +577,10 @@ class TestProxyMiddleware:
 
     @pytest.mark.xfail(
         reason="Returning 403 instead of invalid ID message",
+    )
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Skipping test on Windows due to websocket issues",
     )
     def test_proxy_websocket_with_invalid_id(
         self, app_with_mpl_proxy: Starlette
