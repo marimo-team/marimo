@@ -90,7 +90,7 @@ export const JsonOutput: React.FC<Props> = memo(
       case "tree":
         return (
           <JsonViewer
-            className="marimo-json-output"
+            className={cn("marimo-json-output", className)}
             rootName={name}
             theme={theme}
             displayDataTypes={false}

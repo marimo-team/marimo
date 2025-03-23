@@ -19,7 +19,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, mo, pd):
     text = mo.ui.text(placeholder="Enter", on_change=lambda x: print("hi"))
     warn_btn = mo.ui.button(

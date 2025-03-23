@@ -73,7 +73,9 @@ class Html(MIME):
 
     # Some libraries (e.g. polars) will serialize dataclasses so we add this
     # field to serialize the mimetype. This is to support rich display in tables/dfs.
-    serialized_mime_bundle: dict[str, str] = field(default_factory=dict)
+    serialized_mime_bundle: dict[Literal["mimetype", "data"], str] = field(
+        default_factory=dict
+    )
 
     def __init__(self, text: str) -> None:
         """Initialize the HTML element.
@@ -81,6 +83,12 @@ class Html(MIME):
         Subclasses of HTML MUST call this method.
         """
         self._text = text
+        mimetype, data = self._mime_()
+        self.serialized_mime_bundle = {
+            "mimetype": mimetype,
+            "data": data,
+        }
+
         # A list of the virtual file names referenced by this HTML element.
         self._virtual_filenames: list[str] = []
 
@@ -113,11 +121,6 @@ class Html(MIME):
             self, _hypertext_cleanup, self._virtual_filenames
         )
         finalizer.atexit = False
-        mimetype, data = self._mime_()
-        self.serialized_mime_bundle = {
-            "mimetype": mimetype,
-            "data": data,
-        }
 
     @property
     def text(self) -> str:
