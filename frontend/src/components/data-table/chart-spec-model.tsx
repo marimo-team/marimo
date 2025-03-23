@@ -209,8 +209,7 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: column,
                   type: "quantitative",
-                  bin: { maxbins: 10 },
-                  axis: null,
+                  bin: true,
                 },
                 y: {
                   aggregate: "count",
@@ -219,6 +218,8 @@ export class ColumnChartSpecModel<T> {
                 },
               },
             },
+
+            // Tooltip layer
             {
               mark: {
                 type: "bar",
@@ -228,8 +229,13 @@ export class ColumnChartSpecModel<T> {
                 x: {
                   field: column,
                   type: "quantitative",
-                  bin: { maxbins: 10 },
-                  axis: null,
+                  bin: true,
+                  axis: {
+                    title: null,
+                    labelFontSize: 8,
+                    labelExpr:
+                      "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
+                  },
                 },
                 y: {
                   aggregate: "max",

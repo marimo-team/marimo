@@ -23,10 +23,7 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
     {
       "encoding": {
         "x": {
-          "axis": null,
-          "bin": {
-            "maxbins": 10,
-          },
+          "bin": true,
           "field": "a",
           "type": "quantitative",
         },
@@ -59,10 +56,12 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
           },
         ],
         "x": {
-          "axis": null,
-          "bin": {
-            "maxbins": 10,
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
+            "labelFontSize": 8,
+            "title": null,
           },
+          "bin": true,
           "field": "a",
           "type": "quantitative",
         },
@@ -111,10 +110,7 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
     {
       "encoding": {
         "x": {
-          "axis": null,
-          "bin": {
-            "maxbins": 10,
-          },
+          "bin": true,
           "field": "a",
           "type": "quantitative",
         },
@@ -147,10 +143,12 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
           },
         ],
         "x": {
-          "axis": null,
-          "bin": {
-            "maxbins": 10,
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
+            "labelFontSize": 8,
+            "title": null,
           },
+          "bin": true,
           "field": "a",
           "type": "quantitative",
         },
@@ -199,10 +197,7 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
     {
       "encoding": {
         "x": {
-          "axis": null,
-          "bin": {
-            "maxbins": 10,
-          },
+          "bin": true,
           "field": "a",
           "type": "quantitative",
         },
@@ -235,10 +230,12 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
           },
         ],
         "x": {
-          "axis": null,
-          "bin": {
-            "maxbins": 10,
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
+            "labelFontSize": 8,
+            "title": null,
           },
+          "bin": true,
           "field": "a",
           "type": "quantitative",
         },
