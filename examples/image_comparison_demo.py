@@ -11,14 +11,6 @@ __generated_with = "0.11.25"
 app = marimo.App()
 
 
-@app.cell
-def _():
-    import marimo as mo
-    import os
-    import urllib.request
-    return mo, os, urllib
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
@@ -45,10 +37,7 @@ def _():
 @app.cell
 def _(after_image_path, before_image_path, mo):
     # Basic horizontal comparison with default settings
-    mo.image_compare(
-        before_image=before_image_path,
-        after_image=after_image_path
-    )
+    mo.image_compare(before_image=before_image_path, after_image=after_image_path)
     return
 
 
@@ -66,7 +55,6 @@ def _(mo):
 
 @app.cell
 def _(after_image_path, before_image_path, mo):
-    # Vertical comparison
     mo.image_compare(
         before_image=before_image_path,
         after_image=after_image_path,
@@ -74,7 +62,7 @@ def _(after_image_path, before_image_path, mo):
         show_labels=True,
         before_label="Before",
         after_label="After",
-        height=1000,  # Set a specific height
+        height=1000,
     )
     return
 
@@ -93,7 +81,6 @@ def _(mo):
 
 @app.cell
 def _(after_image_path, before_image_path, mo):
-    # Vertical comparison
     mo.image_compare(
         before_image=before_image_path,
         after_image=after_image_path,
@@ -101,9 +88,15 @@ def _(after_image_path, before_image_path, mo):
         show_labels=True,
         before_label="Before",
         after_label="After",
-        height=400,  # Set a specific height
+        height=400,
     )
     return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
 
 
 if __name__ == "__main__":
