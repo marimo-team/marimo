@@ -165,8 +165,10 @@ function useCellHotkeys(
         editorView.current?.focus();
       }
     },
-    "cell.focusDown": () => actions.moveToNextCell({ cellId, before: false }),
-    "cell.focusUp": () => actions.moveToNextCell({ cellId, before: true }),
+    "cell.focusDown": () =>
+      actions.moveToNextCell({ cellId, before: false, noCreate: true }),
+    "cell.focusUp": () =>
+      actions.moveToNextCell({ cellId, before: true, noCreate: true }),
     "cell.sendToBottom": () => actions.sendToBottom({ cellId }),
     "cell.sendToTop": () => actions.sendToTop({ cellId }),
     "cell.aiCompletion": () => {

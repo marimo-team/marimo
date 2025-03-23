@@ -973,15 +973,18 @@ const {
       };
     }
 
-    const nextCellId = column.atOrThrow(nextCellIndex);
-    // Just focus, no state change
-    focusAndScrollCellIntoView({
-      cellId: nextCellId,
-      cell: state.cellHandles[nextCellId],
-      config: state.cellData[nextCellId].config,
-      codeFocus: before ? "bottom" : "top",
-      variableName: undefined,
-    });
+    if (nextCellIndex !== -1) {
+      // Don't wrap around from top to bottom
+      const nextCellId = column.atOrThrow(nextCellIndex);
+      // Just focus, no state change
+      focusAndScrollCellIntoView({
+        cellId: nextCellId,
+        cell: state.cellHandles[nextCellId],
+        config: state.cellData[nextCellId].config,
+        codeFocus: before ? "bottom" : "top",
+        variableName: undefined,
+      });
+    }
     return state;
   },
   scrollToTarget: (state) => {
