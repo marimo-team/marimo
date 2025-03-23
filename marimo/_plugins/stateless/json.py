@@ -36,4 +36,8 @@ def json(
             "Argument `data` must be a str, " + f"but got: {type(data)}"
         )
 
-    return json_output.json_output(json_data=loads(data), name=label)
+    return json_output.json_output(
+        json_data=loads(data),
+        name=label,
+        value_types="json",
+    )

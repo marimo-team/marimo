@@ -15,8 +15,12 @@ from marimo._utils.flatten import CyclicStructureError
 def tree(
     items: list[Any] | tuple[Any] | dict[Any, Any],
     label: Optional[str] = None,
+    as_json: bool = False,
 ) -> Html:
     """Render a nested structure of lists, tuples, or dicts as a tree.
+
+    This function can be used to visualize objects structures in JSON format,
+    the as_json argument is used to control the output format (and Copy).
 
     Example:
         ```python3
@@ -25,9 +29,17 @@ def tree(
         )
         ```
 
+    Notes:
+        - The enabled `as_json` argument will format the output in JSON format,
+        which means that the floats will be displayed as numbers, and sets and
+        tuples will be displayed as lists. JavaScript can handle these types
+        of values with some changes.
+
     Args:
         items: nested structure of lists, tuples, or dicts
         label: optional text label for the tree
+        as_json: if True, the output will be in JSON format
+            (and Copy), otherwise it will be in Python format
 
     Returns:
         Html: `Html` object
@@ -40,7 +52,11 @@ def tree(
 
     json_data: JSONType
     try:
-        json_data = format_structure(items)
+        json_data = format_structure(items, json_compat_values=as_json)
     except CyclicStructureError:
         json_data = str(items)
-    return json_output.json_output(json_data=json_data, name=label)
+    return json_output.json_output(
+        json_data=json_data,
+        name=label,
+        value_types="json" if as_json else "python",
+    )
