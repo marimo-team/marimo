@@ -505,13 +505,14 @@ const DataTableComponent = ({
   const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
+  const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const showDataTypes = Boolean(fieldTypes);
   const columns = useMemo(
     () =>
       generateColumns({
         rowHeaders: memoizedRowHeaders,
         selection: selection,
-        chartSpecModel: chartSpecModel,
+        chartSpecModel: memoizedChartSpecModel,
         fieldTypes: memoizedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
@@ -521,6 +522,7 @@ const DataTableComponent = ({
     [
       selection,
       showDataTypes,
+      memoizedChartSpecModel,
       memoizedRowHeaders,
       memoizedFieldTypes,
       memoizedTextJustifyColumns,
