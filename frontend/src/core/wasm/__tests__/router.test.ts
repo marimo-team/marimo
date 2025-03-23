@@ -8,12 +8,12 @@ describe("URLPyodideRouter", () => {
   const originalReplaceState = window.history.replaceState;
 
   beforeEach(() => {
-    window.location = { href: "https://marimo.app" } as Location;
+    window.location = { href: "https://marimo.app" } as never;
     window.history.replaceState = vi.fn();
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    window.location = originalLocation as never;
     window.history.replaceState = originalReplaceState;
   });
 
