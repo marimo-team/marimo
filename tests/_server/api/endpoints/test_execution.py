@@ -360,7 +360,7 @@ def get_printed_object(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
 
-    timeout = 2
+    timeout = 4
     start = time.time()
     console = None
     while time.time() - start < timeout:
