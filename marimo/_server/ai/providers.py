@@ -186,33 +186,28 @@ class OpenAIProvider(
         if not base_url:
             base_url = None
 
-        # add SSL parameters/values
-        ssl_verify: Optional[bool] = (
-            config.get("ai", {})
-            .get("open_ai", {})
-            .get(
-                "ssl_verify", True
-            )  # Default to using ssl to verify if not present in config. This mimics current functionality as httpx uses it by default
-        )
-        caBundlePath: Optional[str] = (
-            config.get("ai", {}).get("open_ai", {}).get("caBundlePath", None)
-        )
-        clientPem: Optional[bool] = (
-            config.get("ai", {}).get("open_ai", {}).get("clientPem", None)
-        )
+        # Extract open_ai config once to avoid multiple dictionary lookups
+        open_ai_config = config["open_ai"]
 
-        # check if caBundlePath and clientPem are valid files, if not, flag error
-        if caBundlePath:
-            caPath = Path(caBundlePath)
-            if not caPath.exists():
+        # Add SSL parameters/values
+        ssl_verify: bool = open_ai_config.get(
+            "ssl_verify", True
+        )  # Default to True to match httpx behavior
+        ca_bundle_path: Optional[str] = open_ai_config.get("ca_bundle_path")
+        client_pem: Optional[str] = open_ai_config.get("client_pem")
+
+        # Check if ca_bundle_path and client_pem are valid files
+        if ca_bundle_path:
+            ca_path = Path(ca_bundle_path)
+            if not ca_path.exists():
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="CA Bundle is not a valid path or does not exist",
                 )
 
-        if clientPem:
-            clientPemPath = Path(clientPem)
-            if not clientPemPath.exists():
+        if client_pem:
+            client_pem_path = Path(client_pem)
+            if not client_pem_path.exists():
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Client PEM is not a valid path or does not exist",
@@ -237,15 +232,15 @@ class OpenAIProvider(
             if ssl_verify:
                 ctx = None  # Initialize ctx to avoid UnboundLocalError
                 client = None  # Initialize client to avoid UnboundLocalError
-                if caBundlePath:
-                    ctx = ssl.create_default_context(cafile=caBundlePath)
-                if clientPem:
+                if ca_bundle_path:
+                    ctx = ssl.create_default_context(cafile=ca_bundle_path)
+                if client_pem:
                     # if ctx already exists from caBundlePath argument
                     if ctx:
-                        ctx.load_cert_chain(certfile=clientPem)
+                        ctx.load_cert_chain(certfile=client_pem)
                     else:
                         ctx = ssl.create_default_context()
-                        ctx.load_cert_chain(certfile=clientPem)
+                        ctx.load_cert_chain(certfile=client_pem)
 
                 # if ssl context was created by the above statements
                 if ctx:

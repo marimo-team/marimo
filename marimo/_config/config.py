@@ -232,16 +232,16 @@ class OpenAiConfig(TypedDict, total=False):
         if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
-    - `caBundlePath`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
-    - `clientPem` : custom path of a client .pem cert used for verifying identity of client server
+    - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
+    - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
     """
 
     api_key: str
     model: NotRequired[str]
     base_url: NotRequired[str]
     ssl_verify: NotRequired[bool]
-    caBundlePath: NotRequired[str]
-    clientPem: NotRequired[str]
+    ca_bundle_path: NotRequired[str]
+    client_pem: NotRequired[str]
 
 
 @dataclass
