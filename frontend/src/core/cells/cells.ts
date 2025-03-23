@@ -353,23 +353,23 @@ const {
 
     return before
       ? {
-          ...state,
-          cellIds: state.cellIds.moveWithinColumn(
-            column.id,
-            cellIndex,
-            cellIndex - 1,
-          ),
-          scrollKey: cellId,
-        }
+        ...state,
+        cellIds: state.cellIds.moveWithinColumn(
+          column.id,
+          cellIndex,
+          cellIndex - 1,
+        ),
+        scrollKey: cellId,
+      }
       : {
-          ...state,
-          cellIds: state.cellIds.moveWithinColumn(
-            column.id,
-            cellIndex,
-            cellIndex + 1,
-          ),
-          scrollKey: cellId,
-        };
+        ...state,
+        cellIds: state.cellIds.moveWithinColumn(
+          column.id,
+          cellIndex,
+          cellIndex + 1,
+        ),
+        scrollKey: cellId,
+      };
   },
   dropCellOverCell: (state, action: { cellId: CellId; overCellId: CellId }) => {
     const { cellId, overCellId } = action;
@@ -702,15 +702,15 @@ const {
       // if it was not previously edited. And we don't change the edited state.
       return formattingChange
         ? {
-            ...cell,
-            code: code,
-            lastCodeRun: cell.edited ? cell.lastCodeRun : code,
-          }
+          ...cell,
+          code: code,
+          lastCodeRun: cell.edited ? cell.lastCodeRun : code,
+        }
         : {
-            ...cell,
-            code: code,
-            edited: code.trim() !== cell.lastCodeRun,
-          };
+          ...cell,
+          code: code,
+          edited: code.trim() !== cell.lastCodeRun,
+        };
     });
   },
   updateCellName: (state, action: { cellId: CellId; name: string }) => {
@@ -973,15 +973,18 @@ const {
       };
     }
 
-    const nextCellId = column.atOrThrow(nextCellIndex);
-    // Just focus, no state change
-    focusAndScrollCellIntoView({
-      cellId: nextCellId,
-      cell: state.cellHandles[nextCellId],
-      config: state.cellData[nextCellId].config,
-      codeFocus: before ? "bottom" : "top",
-      variableName: undefined,
-    });
+    if (nextCellIndex !== -1) {
+      // Don't wrap around from top to bottom
+      const nextCellId = column.atOrThrow(nextCellIndex);
+      // Just focus, no state change
+      focusAndScrollCellIntoView({
+        cellId: nextCellId,
+        cell: state.cellHandles[nextCellId],
+        config: state.cellData[nextCellId].config,
+        codeFocus: before ? "bottom" : "top",
+        variableName: undefined,
+      });
+    }
     return state;
   },
   scrollToTarget: (state) => {
