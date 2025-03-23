@@ -24,7 +24,7 @@ from marimo._server.utils import (
 )
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._tracer import LOGGER
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
@@ -198,9 +198,7 @@ def start(
             # reload=development_mode,
             reload_dirs=(
                 [
-                    os.path.realpath(
-                        str(import_files("marimo").joinpath("_static"))
-                    )
+                    str((marimo_package_path() / "_static").resolve()),
                 ]
                 if development_mode
                 else None
