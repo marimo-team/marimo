@@ -255,9 +255,17 @@ def run_pytest(
     # Hold on to modules since we want to refresh them in order to enable
     # repeated calls.
     module_snapshot = dict(sys.modules)
+    # Paths may be altered by pytest. To prevent accumulation- we refresh the
+    # path to the original state.
+    # NB. refer to pytester the most native solution (not used here, since it
+    # seems reasonable to just hook in this way).
+    path_snapshot = sys.path.copy()
 
     # qq and disable warnings suppress a fair bit of filler noise.
     # color=yes seems to work nicely, but code-highlight is a bit much.
+    # Ideally, --import-mode=importlib would be a great flag- however the
+    # method is too brittle to handle absolute paths. As such, we default to
+    # the normal behavior (in which pytest alters the system path).
     plugin = ReplaceStubPlugin(defs, lcls)
     try:
         with capture_stdout() as stdout:
@@ -267,7 +275,6 @@ def run_pytest(
                     "--disable-warnings",
                     "--color=yes",
                     "--code-highlight=no",
-                    "--import-mode=importlib",
                     notebook_path,
                 ],
                 plugins=[plugin],
@@ -278,6 +285,7 @@ def run_pytest(
         # dependencies are required before the given cell runs.
         sys.modules.clear()
         sys.modules.update(module_snapshot)
+        sys.path[:] = path_snapshot
 
     plugin._result.output = stdout.getvalue()
     return plugin._result
