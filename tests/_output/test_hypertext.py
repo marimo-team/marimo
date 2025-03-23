@@ -20,6 +20,11 @@ def test_html_mime():
     assert mime_type == "text/html"
     assert content == "<p>Test</p>"
 
+    assert html.serialized_mime_bundle == {
+        "mimetype": "text/html",
+        "data": "<p>Test</p>",
+    }
+
 
 def test_html_format():
     html = Html("<p>\n  Hello\n</p>")
