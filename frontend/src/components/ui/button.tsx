@@ -6,6 +6,7 @@ import { type VariantProps, cva } from "class-variance-authority";
 import { cn } from "@/utils/cn";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useEventListener } from "@/hooks/useEventListener";
+import { Events } from "@/utils/events";
 
 const activeCommon = "active:shadow-xsSolid";
 
@@ -113,6 +114,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         if (!keyboardShortcut) {
           return;
         }
+
+        // Ignore keyboard events from input elements
+        if (Events.shouldIgnoreKeyboardEvent(e)) {
+          return;
+        }
+
         if (parseShortcut(keyboardShortcut)(e)) {
           e.preventDefault();
           e.stopPropagation();
