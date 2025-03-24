@@ -35,7 +35,7 @@ LOGIN_PAGE = """
     align-items: center;
     height: 100vh;
     margin: 0;">
-  <form method="POST" action="{base_url}/auth/login" style="
+  <form method="POST" action="{base_url}auth/login" style="
     padding: 20px;
     background-color: white;
     border-radius: 8px;
@@ -100,6 +100,8 @@ async def login_submit(request: Request) -> Response:
                         type: string
     """
     base_url = AppState(request).base_url or "/"
+    base_url = _with_trailing_slash(base_url)
+
     error = ""
     redirect_url = request.query_params.get("next", base_url)
 
@@ -139,6 +141,7 @@ async def login_submit(request: Request) -> Response:
 @router.get("/login", name="login_page")
 async def login_page(request: Request) -> HTMLResponse:
     base_url = AppState(request).base_url
+    base_url = _with_trailing_slash(base_url)
     return HTMLResponse(
         content=LOGIN_PAGE.format(error="", base_url=base_url),
         headers={
@@ -146,3 +149,9 @@ async def login_page(request: Request) -> HTMLResponse:
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+def _with_trailing_slash(url: str) -> str:
+    if not url.endswith("/"):
+        return url + "/"
+    return url

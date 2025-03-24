@@ -108,7 +108,15 @@ def test_login_submit_with_base_url():
     client = TestClient(app, follow_redirects=False)
     response = client.post("/app/login", data={"password": str(AUTH_TOKEN)})
     assert response.status_code == 302, response.text
-    assert response.headers["location"] == "/app"
+    assert response.headers["location"] == "/app/"
+
+
+def test_login_submit_with_base_url_trailing_slash():
+    app = create_app(base_url="/app/")
+    client = TestClient(app, follow_redirects=False)
+    response = client.post("/app/login", data={"password": str(AUTH_TOKEN)})
+    assert response.status_code == 302, response.text
+    assert response.headers["location"] == "/app/"
 
 
 def test_login_submit_with_next_url_and_base_url():
