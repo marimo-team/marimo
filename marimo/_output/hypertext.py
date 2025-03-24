@@ -92,8 +92,8 @@ class Html(MIME):
             "data": data,
         }
         # Whenever _serialized_mime_bundle is set, ensure a public copy exists.
-        # This avoids declaring a public attribute in the class definition
-        # Pandas does not serialize private variables, so we need a public copy.
+        # This avoids declaring a public attribute (does not show up in docs)
+        # Pandas does not serialize private variables, so we need this.
         self.__setattr__(
             "serialized_mime_bundle", self._serialized_mime_bundle
         )
