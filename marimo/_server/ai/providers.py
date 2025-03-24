@@ -159,8 +159,14 @@ class OpenAIProvider(
     def get_client(self, config: AiConfig) -> OpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
+        import ssl
+
+        # library to check if paths exists
+        from pathlib import Path
         from urllib.parse import parse_qs, urlparse
 
+        # ssl related libs, httpx is a dependency of openai
+        import httpx
         from openai import AzureOpenAI, OpenAI
 
         if "open_ai" not in config or "api_key" not in config["open_ai"]:
@@ -180,6 +186,32 @@ class OpenAIProvider(
         if not base_url:
             base_url = None
 
+        # Extract open_ai config once to avoid multiple dictionary lookups
+        open_ai_config = config["open_ai"]
+
+        # Add SSL parameters/values
+        ssl_verify: bool = open_ai_config.get(
+            "ssl_verify", True
+        )  # Default to True to match httpx behavior
+        ca_bundle_path: Optional[str] = open_ai_config.get("ca_bundle_path")
+        client_pem: Optional[str] = open_ai_config.get("client_pem")
+
+        # Check if ca_bundle_path and client_pem are valid files
+        if ca_bundle_path:
+            ca_path = Path(ca_bundle_path)
+            if not ca_path.exists():
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="CA Bundle is not a valid path or does not exist",
+                )
+
+        if client_pem:
+            client_pem_path = Path(client_pem)
+            if not client_pem_path.exists():
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Client PEM is not a valid path or does not exist",
+                )
         # Azure OpenAI clients are instantiated slightly differently
         parsed_url = urlparse(base_url)
         if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
@@ -196,11 +228,43 @@ class OpenAIProvider(
                 azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
             )
         else:
-            return OpenAI(
-                default_headers={"api-key": key},
-                api_key=key,
-                base_url=base_url,
-            )
+            # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
+            if ssl_verify:
+                ctx = None  # Initialize ctx to avoid UnboundLocalError
+                client = None  # Initialize client to avoid UnboundLocalError
+                if ca_bundle_path:
+                    ctx = ssl.create_default_context(cafile=ca_bundle_path)
+                if client_pem:
+                    # if ctx already exists from caBundlePath argument
+                    if ctx:
+                        ctx.load_cert_chain(certfile=client_pem)
+                    else:
+                        ctx = ssl.create_default_context()
+                        ctx.load_cert_chain(certfile=client_pem)
+
+                # if ssl context was created by the above statements
+                if ctx:
+                    client = httpx.Client(verify=ctx)
+                else:
+                    pass
+            else:
+                client = httpx.Client(verify=False)
+
+            # if client is created, either with a custom context or with verify=False, use it as the http_client object in `OpenAI`
+            if client:
+                return OpenAI(
+                    default_headers={"api-key": key},
+                    api_key=key,
+                    base_url=base_url,
+                    http_client=client,
+                )
+            # if not, return bog standard OpenAI object
+            else:
+                return OpenAI(
+                    default_headers={"api-key": key},
+                    api_key=key,
+                    base_url=base_url,
+                )
 
     def stream_completion(
         self,
