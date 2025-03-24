@@ -14,7 +14,6 @@ import { store } from "@/core/state/jotai";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
-  CLICKHOUSE_ENGINE,
   dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
   DUCKDB_ENGINE,
@@ -45,7 +44,6 @@ import type { DataSourceConnection } from "@/core/kernel/messages";
  */
 export class SQLLanguageAdapter implements LanguageAdapter {
   readonly type = "sql";
-  // defaultCode only works for duckdb at the moment
   readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
   readonly defaultEngine = DUCKDB_ENGINE;
   static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
@@ -60,11 +58,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     if (this.engine === this.defaultEngine) {
       return this.defaultCode;
     }
-    const engineParam =
-      this.engine === CLICKHOUSE_ENGINE
-        ? `"${CLICKHOUSE_ENGINE}"`
-        : this.engine;
-    return `_df = mo.sql(f"""SELECT * FROM """, engine=${engineParam})`;
+    return `_df = mo.sql(f"""SELECT * FROM """, engine="${this.engine}")`;
   }
 
   transformIn(
@@ -98,9 +92,6 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       if (this.engine !== this.defaultEngine) {
         // User selected a new engine, set it as latest.
         // This makes new SQL statements use the new engine by default.
-        if (this.engine === `"${CLICKHOUSE_ENGINE}"`) {
-          this.engine = CLICKHOUSE_ENGINE;
-        }
         setLatestEngineSelected(this.engine);
       }
 
@@ -134,12 +125,8 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
 
     const showOutputParam = this.showOutput ? "" : ",\n    output=False";
-    let engineParam = "";
-    if (this.engine !== this.defaultEngine) {
-      const engineString =
-        this.engine === CLICKHOUSE_ENGINE ? `"${this.engine}"` : this.engine;
-      engineParam = `,\n    engine=${engineString}`;
-    }
+    const engineParam =
+      this.engine === this.defaultEngine ? "" : `,\n    engine=${this.engine}`;
     const end = `\n    """${showOutputParam}${engineParam}\n)`;
 
     return [

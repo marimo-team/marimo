@@ -26,7 +26,7 @@ function addConnection(
   });
 }
 
-const defaultConnSize = 2;
+const defaultConnSize = 1;
 
 describe("data source connections", () => {
   let state: DataSourceState;

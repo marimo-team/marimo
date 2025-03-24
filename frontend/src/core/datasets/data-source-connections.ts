@@ -16,8 +16,7 @@ export type ConnectionName = TypedString<"ConnectionName">;
 // duckdb engine is treated as the default engine
 // as it doesn't require passing an engine variable to the backend
 export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
-export const CLICKHOUSE_ENGINE = "__marimo_clickhouse" as ConnectionName;
-export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE, CLICKHOUSE_ENGINE]);
+export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE]);
 
 const initialConnections: ConnectionsMap = new Map([
   [
@@ -27,16 +26,6 @@ const initialConnections: ConnectionsMap = new Map([
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB (In-Memory)",
-      databases: [],
-    },
-  ],
-  [
-    CLICKHOUSE_ENGINE,
-    {
-      name: CLICKHOUSE_ENGINE,
-      dialect: "clickhouse",
-      source: "clickhouse",
-      display_name: "ClickHouse (In-Memory)",
       databases: [],
     },
   ],

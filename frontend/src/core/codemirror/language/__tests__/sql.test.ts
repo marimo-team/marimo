@@ -3,7 +3,6 @@ import { expect, describe, it, afterAll, afterEach, beforeEach } from "vitest";
 import { SQLCompletionStore, SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
 import {
-  CLICKHOUSE_ENGINE,
   dataSourceConnectionsAtom,
   DUCKDB_ENGINE,
   type ConnectionName,
@@ -137,15 +136,6 @@ describe("SQLLanguageAdapter", () => {
         '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine,)';
       const [innerCode2] = adapter.transformIn(pythonCode2);
       expect(innerCode2).toBe("SELECT * FROM table");
-    });
-
-    it("should handle quoted clickhouse engine", () => {
-      // Internal clickhouse engine is quoted
-      const pythonCode = `_df = mo.sql("""SELECT * FROM table""", engine="${CLICKHOUSE_ENGINE}")`;
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM table");
-      expect(offset).toBe(16);
-      expect(adapter.engine).toBe(CLICKHOUSE_ENGINE);
     });
 
     it("should handle engine param with output flag", () => {
@@ -349,22 +339,6 @@ _df = mo.sql(
             """,
             output=False,
             engine=postgres_engine
-        )"
-      `);
-      expect(offset).toBe(24);
-    });
-
-    it("should support quoted clickhouse engine", () => {
-      const code = "SELECT * FROM table";
-      adapter.engine = CLICKHOUSE_ENGINE;
-      const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toMatchInlineSnapshot(`
-        "# hello
-        _df = mo.sql(
-            f"""
-            SELECT * FROM table
-            """,
-            engine="${CLICKHOUSE_ENGINE}"
         )"
       `);
       expect(offset).toBe(24);
