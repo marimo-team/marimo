@@ -287,6 +287,12 @@ describe("getMimeValues", () => {
     expect(getMimeValues(value)).toEqual([mimeValue]);
   });
 
+  it("should return array with MimeValue when input has _serialized_mime_bundle", () => {
+    const mimeValue = { mimetype: "text/plain", data: "test data" };
+    const value = { _serialized_mime_bundle: mimeValue };
+    expect(getMimeValues(value)).toEqual([mimeValue]);
+  });
+
   it("should return array of MimeValues when input is an array of MimeValues", () => {
     const values = [
       { mimetype: "text/plain", data: "test data 1" },
@@ -313,6 +319,12 @@ describe("getMimeValues", () => {
   it("should return undefined for invalid serialized_mime_bundle", () => {
     expect(
       getMimeValues({ serialized_mime_bundle: "not a mime value" }),
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for invalid _serialized_mime_bundle", () => {
+    expect(
+      getMimeValues({ _serialized_mime_bundle: "not a mime value" }),
     ).toBeUndefined();
   });
 
