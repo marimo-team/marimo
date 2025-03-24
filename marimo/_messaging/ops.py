@@ -25,6 +25,7 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (
     ColumnSummary,
     DataSourceConnection,
@@ -110,12 +111,13 @@ class CellOp(Op):
 
     A CellOp's data has some optional fields:
 
-    output       - a CellOutput
-    console      - a CellOutput (console msg to append), or a list of
-                   CellOutputs
-    status       - execution status
-    stale_inputs - whether the cell has stale inputs (variables, modules, ...)
-    run_id       - the run associated with this cell.
+    output        - a CellOutput
+    console       - a CellOutput (console msg to append), or a list of
+                    CellOutputs
+    status        - execution status
+    stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
+    run_id        - the run associated with this cell.
+    serialization - the serialization status of the cell
 
     Omitting a field means that its value should be unchanged!
 
@@ -131,6 +133,7 @@ class CellOp(Op):
     status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
     run_id: Optional[RunId_t] = None
+    serialization: Optional[str] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -311,6 +314,15 @@ class CellOp(Op):
         cell_id: CellId_t, stale: bool, stream: Stream | None = None
     ) -> None:
         CellOp(cell_id=cell_id, stale_inputs=stale).broadcast(stream)
+
+    @staticmethod
+    def broadcast_serialization(
+        cell_id: CellId_t,
+        serialization: TopLevelStatus,
+        stream: Stream | None = None,
+    ) -> None:
+        status: Optional[TopLevelHints] = serialization.hint
+        CellOp(cell_id=cell_id, serialization=status).broadcast(stream)
 
 
 @dataclass

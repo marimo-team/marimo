@@ -493,6 +493,14 @@ class Kernel:
 
             self._post_execution_hooks.append(_attempt_pytest)
 
+        # Adds in a post_execution hook to run pytest immediately
+        if user_config.get("experimental", {}).get("toplevel_defs", False):
+            from marimo._runtime.runner.hooks_post_execution import (
+                _render_toplevel_defs,
+            )
+
+            self._post_execution_hooks.append(_render_toplevel_defs)
+
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
 

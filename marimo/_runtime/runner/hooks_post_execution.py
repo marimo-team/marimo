@@ -6,6 +6,7 @@ from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
+from marimo._ast.toplevel import TopLevelExtraction
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
@@ -336,6 +337,30 @@ def _broadcast_outputs(
                 )
             ],
             clear_console=False,
+            cell_id=cell.cell_id,
+        )
+
+
+@kernel_tracer.start_as_current_span("render_toplevel_defs")
+def _render_toplevel_defs(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    variable = cell.toplevel_variable
+    if variable is not None:
+        # TODO: Actually needs to run full extractor on graph extraction.
+
+        ancestors = runner.graph.ancestors(cell.cell_id)
+        # TODO: Technically, order does matter incase there is a type definition
+        # or decorator.
+        path = [cell] + [runner.graph.cells[cid] for cid in ancestors]
+        extractor = TopLevelExtraction.from_cells(path)
+        serialization = next(iter(extractor))
+
+        CellOp.broadcast_serialization(
+            serialization=serialization,
             cell_id=cell.cell_id,
         )
 

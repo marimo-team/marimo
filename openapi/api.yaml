@@ -184,6 +184,9 @@ components:
         run_id:
           nullable: true
           type: string
+        serialization:
+          nullable: true
+          type: string
         stale_inputs:
           nullable: true
           type: boolean
