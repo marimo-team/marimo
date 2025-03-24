@@ -652,11 +652,13 @@ def pytest_make_collect_report(collector):
             if isinstance(cls, pytest.Class)
         }
         from tests._ast.test_pytest import app as app_pytest
+        from tests._ast.test_pytest_scoped import app as app_scoped
         from tests._ast.test_pytest_toplevel import app as app_toplevel
 
         app = {
             "test_pytest": app_pytest,
             "test_pytest_toplevel": app_toplevel,
+            "test_pytest_scoped": app_scoped,
         }[collector.path.stem]
 
         # Just a quick check to make sure the class is actually exported.

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
 
 from marimo._ast.cell import Cell
+from marimo._runtime.context import ContextNotInitializedError, get_context
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Mapping
@@ -186,14 +187,27 @@ def build_test_class(
             functools.wraps(stub_fn)(_hook)
             # Evaluate and run decorators.
             local = {}
+            # Always expose pytest. Low hanging fruit, that should mitigate some
+            # user issues.
             try:
                 import pytest  # type: ignore
 
-                # TODO: Remove import pytest with top level functions
-                # Just a hack for now.
-                local = {"pytest": pytest}
+                local["pytest"] = pytest
             except ImportError:
                 pass
+
+            # If called from the runtime, we can populate the locals
+            try:
+                local.update(get_context().globals)
+            except ContextNotInitializedError:
+                # If not in runtime, we are running directly as a script. As
+                # such, we need the values from the module frame.
+                # Traverse frame upwards until we match the file.
+                frames = inspect.stack()
+                for frame in frames:
+                    if Path(frame.filename).resolve() == Path(file).resolve():
+                        local.update(frame.frame.f_locals)
+                        break
 
             try:
                 for decorator in test.decorator_list[::-1]:
@@ -208,12 +222,12 @@ def build_test_class(
                 def fails(*args: Any, **kwargs: Any) -> NoReturn:
                     del args, kwargs
                     raise ValueError(
-                        f"Failed to evaluate decorator for {var}."
-                        "Consider adjusting the test to enable "
-                        "static analysis."
+                        f"Failed to evaluate signature/decorator for {var} "
+                        "during test collection. Consider exposing relevant "
+                        "variables in the setup block, or rewriting your "
+                        "tests to avoid runtime dependencies."
                     ) from e
 
-                functools.wraps(stub_fn)(fails)
                 return fails
 
             return _hook
