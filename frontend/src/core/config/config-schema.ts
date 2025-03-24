@@ -35,7 +35,7 @@ export const UserConfigSchema = z
       .object({
         activate_on_typing: z.boolean().default(true),
         copilot: z
-          .union([z.boolean(), z.enum(["github", "codeium"])])
+          .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
           .default(false)
           .transform((copilot) => {
             if (copilot === true) {
@@ -164,10 +164,10 @@ export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
+export type LSPConfig = UserConfig["language_servers"];
+export type DiagnosticsConfig = UserConfig["diagnostics"];
 
-export const AppTitleSchema = z.string().regex(/^[\w '-]*$/, {
-  message: "Invalid application title",
-});
+export const AppTitleSchema = z.string();
 export const AppConfigSchema = z
   .object({
     width: z

@@ -151,15 +151,133 @@ class TestPandasTableManager(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("pandas.csv", data.decode("utf-8"))
 
+    def factory_create_json_from_df(self, df: Any) -> Any:
+        if isinstance(df, pd.DataFrame):
+            manager = self.factory.create()(df)
+            return json.loads(manager.to_json().decode("utf-8"))
+
     def test_to_json(self) -> None:
-        expected_json = self.data.to_json(orient="records").encode("utf-8")
+        expected_json = self.data.to_json(
+            orient="records", date_format="iso"
+        ).encode("utf-8")
         assert self.manager.to_json() == expected_json
+
+    def test_to_json_format_mapping(self) -> None:
+        expected_json = (
+            self.data.assign(A=self.data["A"] * 2)
+            .to_json(orient="records", date_format="iso")
+            .encode("utf-8")
+        )
+        format_mapping = {"A": lambda x: x * 2}
+        assert self.manager.to_json(format_mapping) == expected_json, (
+            "Format mapping not applied"
+        )
+
+    def test_to_json_datetime_handling(self) -> None:
+        timestamps = pd.DataFrame(
+            {
+                "timestamp": [pd.to_datetime("2024-12-17")],
+                "timestamp_with_timezone": [
+                    pd.to_datetime("2024-12-17").tz_localize("UTC")
+                ],
+            }
+        )
+        json_data = self.factory_create_json_from_df(timestamps)
+
+        assert json_data[0]["timestamp"] == "2024-12-17T00:00:00.000"
+        assert (
+            json_data[0]["timestamp_with_timezone"]
+            == "2024-12-17T00:00:00.000Z"
+        )
+
+    def test_to_json_complex_number_handling(self) -> None:
+        df = pd.DataFrame({"complex": [1 + 2j]})
+        json_data = self.factory_create_json_from_df(df)
+        assert json_data[0]["complex"] == "(1+2j)"
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="numpy not installed",
+    )
+    def test_to_json_numpy_complex_handling(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame({"complex": np.array([1 + 2j])})
+        json_data = self.factory_create_json_from_df(df)
+        assert json_data[0]["complex"] == "(1+2j)"
 
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
         data = complex_data.to_json()
         assert isinstance(data, bytes)
         snapshot("pandas.json", data.decode("utf-8"))
+
+    def test_to_json_index(self) -> None:
+        data = pd.DataFrame({"a": [1, 2, 3]}, index=["c", "d", "e"])
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"": "c", "a": 1},
+            {"": "d", "a": 2},
+            {"": "e", "a": 3},
+        ]
+
+        # Named index
+        data = pd.DataFrame(
+            {"a": [1, 2, 3]}, index=pd.Index(["c", "d", "e"], name="index")
+        )
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"index": "c", "a": 1},
+            {"index": "d", "a": 2},
+            {"index": "e", "a": 3},
+        ]
+
+    def test_to_json_multi_index(self) -> None:
+        # Named index
+        data = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4, 5, 6],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
+            ),
+        )
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"X": "x", "Y": 1, "a": 1, "b": 4},
+            {"X": "y", "Y": 2, "a": 2, "b": 5},
+            {"X": "z", "Y": 3, "a": 3, "b": 6},
+        ]
+
+    @pytest.mark.xfail(reason="Implementation not yet supported")
+    def test_to_json_multi_index_unnamed(self) -> None:
+        data = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4, 5, 6],
+            },
+            index=pd.MultiIndex.from_tuples([("x", 1), ("y", 2), ("z", 3)]),
+        )
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"level_0": "x", "level_1": 1, "a": 1, "b": 4},
+            {"level_0": "y", "level_1": 2, "a": 2, "b": 5},
+            {"level_0": "z", "level_1": 3, "a": 3, "b": 6},
+        ]
+
+    def test_to_json_multi_col_index(self) -> None:
+        cols = pd.MultiIndex.from_arrays(
+            [["basic_amt"] * 2, ["NSW", "QLD"]], names=[None, "Faculty"]
+        )
+        idx = pd.Index(["All", "Full"])
+        data = pd.DataFrame([(1, 1), (0, 1)], index=idx, columns=cols)
+
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"": "All", "basic_amt x NSW": 1, "basic_amt x QLD": 1},
+            {"": "Full", "basic_amt x NSW": 0, "basic_amt x QLD": 1},
+        ]
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()

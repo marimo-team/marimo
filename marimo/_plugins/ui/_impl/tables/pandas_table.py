@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import narwhals.stable.v1 as nw
 
+from marimo import _loggers
 from marimo._data.models import ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -18,6 +19,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class PandasTableManagerFactory(TableManagerFactory):
@@ -33,6 +36,15 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
+                if isinstance(data.columns, pd.MultiIndex):
+                    LOGGER.debug(
+                        "Multicolumn indexes aren't supported, converting to single index"
+                    )
+                    single_col_names = [
+                        " x ".join(col) for col in data.columns
+                    ]
+                    data.columns = pd.Index(single_col_names)
+
                 self._original_data = data
                 super().__init__(nw.from_native(data))
 
@@ -61,10 +73,60 @@ class PandasTableManagerFactory(TableManagerFactory):
                     .encode("utf-8")
                 )
 
-            def to_json(self) -> bytes:
-                return self._original_data.to_json(orient="records").encode(
-                    "utf-8"
+            def to_json(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
+                from pandas.api.types import (
+                    is_complex_dtype,
+                    is_timedelta64_dtype,
+                    is_timedelta64_ns_dtype,
                 )
+
+                _data = self.apply_formatting(format_mapping)._original_data
+                result = _data.copy()  # to avoid SettingWithCopyWarning
+                try:
+                    for col in result.columns:
+                        dtype = result[col].dtype
+                        # Complex dtypes are converted to {'imag': num, 'real': num} by default
+                        # We want to preserve the original display
+                        if is_complex_dtype(dtype):
+                            result[col] = result[col].apply(str)
+                        if is_timedelta64_dtype(
+                            dtype
+                        ) or is_timedelta64_ns_dtype(dtype):
+                            result[col] = result[col].apply(str)
+
+                except Exception as e:
+                    LOGGER.error(
+                        "Error handling complex or timedelta64 dtype",
+                        exc_info=e,
+                    )
+                    return result.to_json(orient="records").encode("utf-8")
+
+                # Flatten indexes
+                if isinstance(result.index, pd.MultiIndex) or (
+                    isinstance(result.index, pd.Index)
+                    and not isinstance(result.index, pd.RangeIndex)
+                ):
+                    unnamed_indexes = result.index.names[0] is None
+                    index_levels = result.index.nlevels
+                    result = result.reset_index()
+
+                    if unnamed_indexes:
+                        # We could rename, but it doesn't work cleanly for multi-col indexes
+                        result.columns = pd.Index(
+                            [""] + list(result.columns[1:])
+                        )
+
+                        if index_levels > 1:
+                            LOGGER.warning(
+                                "Indexes with more than one level are not supported properly, call reset_index() to flatten"
+                            )
+
+                return result.to_json(
+                    orient="records",
+                    date_format="iso",
+                ).encode("utf-8")
 
             def to_arrow_ipc(self) -> bytes:
                 out = io.BytesIO()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import base64
+import dataclasses
 import hashlib
 import inspect
 import struct
@@ -290,6 +291,12 @@ def get_and_update_context_from_scope(
         return None
 
 
+@dataclasses.dataclass
+class HashKey:
+    hash: str
+    cache_type: CacheType
+
+
 class BlockHasher:
     def __init__(
         self,
@@ -359,6 +366,7 @@ class BlockHasher:
             )
 
         self._hash: Optional[str] = None
+        self._exe_hash: Optional[str] = None
         self.graph = graph
         self.cell_id = cell_id
         self.pin_modules = pin_modules
@@ -427,6 +435,9 @@ class BlockHasher:
             self.hash_and_verify_context_refs(refs, context)
         self.context_refs -= refs | self.content_refs | self.execution_refs
 
+        # Hold on to execution_path refs before content update.
+        self.exe_alg = self.hash_alg.copy()
+
         # Now run the content hash on the content refs.
         if apply_content_hash:
             self._apply_content_hash(content_serialization)
@@ -435,7 +446,10 @@ class BlockHasher:
 
         # Finally, utilize the unrun block itself, and clean up.
         self.cache_type = cache_type
-        self.hash_alg.update(hash_raw_module(module, hash_type))
+        module_hash = hash_raw_module(module, hash_type)
+        self.hash_alg.update(module_hash)
+        # Update execution path without content data.
+        self.exe_alg.update(module_hash)
 
     @staticmethod
     def from_parent(
@@ -454,7 +468,9 @@ class BlockHasher:
         block.defs = set(parent.defs)
         block.stateful_refs = set(parent.stateful_refs)
         block.hash_alg = parent.hash_alg.copy()
+        block.exe_alg = parent.exe_alg.copy()
         block._hash = None
+        block._exe_hash = parent._exe_hash  # The exe hash is the same
         block.cache_type = parent.cache_type
         block.content_refs = set(parent.content_refs)
         block.execution_refs = set(parent.execution_refs)
@@ -472,8 +488,26 @@ class BlockHasher:
             )
         return self._hash
 
+    @property
+    def exe_hash(self) -> str:
+        if self._exe_hash is None:
+            assert self.exe_alg is not None, "Hash algorithm not initialized."
+            self._exe_hash = (
+                base64.urlsafe_b64encode(self.exe_alg.digest())
+                .decode("utf-8")
+                .strip("=")
+            )
+        return self._exe_hash
+
     def __hash__(self) -> int:
         return hash(self.hash)
+
+    @property
+    def key(self) -> HashKey:
+        return HashKey(
+            hash=self.hash,
+            cache_type=self.cache_type,
+        )
 
     def _apply_content_hash(
         self, content_serialization: dict[Name, bytes]
@@ -900,9 +934,8 @@ def cache_attempt_from_hash(
 
     return loader.cache_attempt(
         hasher.defs,
-        hasher.hash,
+        hasher.key,
         hasher.stateful_refs,
-        hasher.cache_type,
     )
 
 
@@ -989,7 +1022,6 @@ def content_cache_attempt_from_base(
 
     return loader.cache_attempt(
         hasher.defs,
-        hasher.hash,
+        hasher.key,
         stateful_refs,
-        hasher.cache_type,
     )

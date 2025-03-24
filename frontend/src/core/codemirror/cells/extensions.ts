@@ -140,7 +140,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
 
           if (isAtStartOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: true });
+            actions.moveToNextCell({ cellId, before: true, noCreate: true });
             return true;
           }
           return false;
@@ -159,7 +159,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
 
           if (isAtEndOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: false });
+            actions.moveToNextCell({ cellId, before: false, noCreate: true });
             return true;
           }
           return false;
@@ -171,7 +171,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: false });
+          actions.moveToNextCell({ cellId, before: false, noCreate: true });
           return true;
         },
       },
@@ -181,7 +181,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: true });
+          actions.moveToNextCell({ cellId, before: true, noCreate: true });
           return true;
         },
       },

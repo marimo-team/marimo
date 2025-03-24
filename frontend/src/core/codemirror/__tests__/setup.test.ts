@@ -17,6 +17,14 @@ vi.mock("@/core/config/config", async (importOriginal) => {
     parseUserConfig: () => ({}),
   };
 });
+vi.mock("@/core/config/config", async (importOriginal) => {
+  const original = await importOriginal<{}>();
+  return {
+    ...original,
+    parseAppConfig: () => ({}),
+    parseUserConfig: () => ({}),
+  };
+});
 
 function namedFunction(name: string) {
   const fn = () => false;
@@ -46,6 +54,15 @@ function getOpts() {
       preset: "default",
       overrides: {},
     },
+    lspConfig: {
+      pylsp: {
+        enabled: false,
+      },
+      diagnostics: {
+        enabled: false,
+      },
+    },
+    diagnosticsConfig: {},
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
   } as const;
@@ -120,10 +137,17 @@ test("placeholder adds another extension", () => {
       opts.completionConfig,
       opts.hotkeys,
       "marimo-import",
+      opts.lspConfig,
     )
     .flat();
   const withoutAI = new PythonLanguageAdapter()
-    .getExtension(opts.cellId, opts.completionConfig, opts.hotkeys, "none")
+    .getExtension(
+      opts.cellId,
+      opts.completionConfig,
+      opts.hotkeys,
+      "none",
+      opts.lspConfig,
+    )
     .flat();
   expect(withAI.length - 1).toBe(withoutAI.length);
 });
@@ -131,10 +155,22 @@ test("placeholder adds another extension", () => {
 test("ai adds more extensions", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
-    .getExtension(opts.cellId, opts.completionConfig, opts.hotkeys, "ai")
+    .getExtension(
+      opts.cellId,
+      opts.completionConfig,
+      opts.hotkeys,
+      "ai",
+      opts.lspConfig,
+    )
     .flat();
   const withoutAI = new PythonLanguageAdapter()
-    .getExtension(opts.cellId, opts.completionConfig, opts.hotkeys, "none")
+    .getExtension(
+      opts.cellId,
+      opts.completionConfig,
+      opts.hotkeys,
+      "none",
+      opts.lspConfig,
+    )
     .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);
 });

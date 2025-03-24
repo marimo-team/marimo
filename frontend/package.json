@@ -42,6 +42,7 @@
     "@lezer/python": "^1.1.16",
     "@marimo-team/codemirror-ai": "^0.1.9",
     "@marimo-team/marimo-api": "file:../openapi",
+    "@marimo-team/codemirror-languageserver": "^1.15.0",
     "@marimo-team/react-slotz": "^0.1.8",
     "@open-rpc/client-js": "^1.8.1",
     "@paralleldrive/cuid2": "^2.2.2",
@@ -71,7 +72,7 @@
     "@radix-ui/react-tooltip": "~1.1.8",
     "@radix-ui/react-use-callback-ref": "~1.1.0",
     "@radix-ui/react-use-controllable-state": "~1.1.0",
-    "@react-aria/focus": "^3.19.1",
+    "@react-aria/focus": "^3.20.1",
     "@replit/codemirror-vim": "^6.2.1",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-table": "^8.21.2",
@@ -96,7 +97,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "codemirror-extension-inline-suggestion": "^0.0.3",
-    "codemirror-languageserver": "^1.12.1",
     "compassql": "^0.21.2",
     "cssnano": "^7.0.6",
     "date-fns": "^4.1.0",
@@ -120,7 +120,7 @@
     "plotly.js": "^2.35.3",
     "pyodide": "0.27.3",
     "react-arborist": "^3.4.3",
-    "react-aria-components": "^1.6.0",
+    "react-aria-components": "^1.7.1",
     "react-codemirror-merge": "^4.23.8",
     "react-dropzone": "^14.3.8",
     "react-error-boundary": "^5.0.0",
@@ -205,8 +205,8 @@
     "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.15.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "@vitejs/plugin-react-swc": "^3.8.0",
-    "autoprefixer": "^10.4.20",
+    "@vitejs/plugin-react-swc": "^3.8.1",
+    "autoprefixer": "^10.4.21",
     "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
     "blob-polyfill": "^7.0.20220408",
     "cross-env": "^7.0.3",
@@ -233,15 +233,16 @@
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^3.4.17",
     "turbo": "^2.4.4",
-    "typescript": "^5.7.3",
-    "vite": "^6.1.1",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.0.6"
+    "vitest": "^3.0.9"
   },
   "packageManager": "pnpm@9.15.6",
   "pnpm": {
     "patchedDependencies": {
-      "react-plotly.js": "patches/react-plotly.js.patch"
+      "react-plotly.js": "patches/react-plotly.js.patch",
+      "codemirror-extension-inline-suggestion": "patches/codemirror-extension-inline-suggestion.patch"
     }
   }
 }

@@ -2,26 +2,27 @@
 from __future__ import annotations
 
 import pickle
+from typing import TYPE_CHECKING, Any
 
-from marimo._save.cache import Cache, CacheType
+from marimo._save.cache import Cache
 from marimo._save.loaders.loader import BasePersistenceLoader, LoaderError
+
+if TYPE_CHECKING:
+    from marimo._save.hash import HashKey
 
 
 class PickleLoader(BasePersistenceLoader):
     """General loader for serializable objects."""
 
-    def __init__(self, name: str, save_path: str) -> None:
-        super().__init__(name, "pickle", save_path)
+    def __init__(self, name: str, save_path: str, **kwargs: Any) -> None:
+        super().__init__(name, "pickle", save_path, **kwargs)
 
-    def load_persistent_cache(
-        self, hashed_context: str, cache_type: CacheType
-    ) -> Cache:
-        with open(self.build_path(hashed_context, cache_type), "rb") as handle:
-            cache = pickle.load(handle)
-            if not isinstance(cache, Cache):
-                raise LoaderError(f"Excepted cache object, got{type(cache)}")
-            return cache
+    def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
+        del key
+        cache = pickle.loads(blob)
+        if not isinstance(cache, Cache):
+            raise LoaderError(f"Excepted cache object, got{type(cache)}")
+        return cache
 
-    def save_cache(self, cache: Cache) -> None:
-        with open(self.build_path(cache.hash, cache.cache_type), "wb") as f:
-            pickle.dump(cache, f, protocol=pickle.HIGHEST_PROTOCOL)
+    def to_blob(self, cache: Cache) -> bytes:
+        return pickle.dumps(cache, protocol=pickle.HIGHEST_PROTOCOL)

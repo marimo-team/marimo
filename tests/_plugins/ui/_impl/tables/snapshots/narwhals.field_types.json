@@ -3,7 +3,7 @@
   ["bool", ["boolean", "Boolean"]],
   ["int", ["integer", "Int64"]],
   ["float", ["number", "Float64"]],
-  ["datetime", ["date", "Datetime(time_unit='us', time_zone=None)"]],
+  ["datetime", ["datetime", "Datetime(time_unit='us', time_zone=None)"]],
   ["date", ["date", "Date"]],
   ["struct", ["unknown", "Struct({'a': Int64, 'b': Int64})"]],
   ["list", ["unknown", "List(Int64)"]],
@@ -12,7 +12,7 @@
   ["category", ["string", "Categorical"]],
   ["set", ["unknown", "Object"]],
   ["imaginary", ["unknown", "Object"]],
-  ["time", ["unknown", "Unknown"]],
+  ["time", ["time", "Time"]],
   ["duration", ["number", "Duration(time_unit='us')"]],
   ["mixed_list", ["unknown", "List(String)"]]
 ]

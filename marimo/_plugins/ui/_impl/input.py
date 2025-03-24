@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import base64
 import dataclasses
-import os
-import pathlib
 import sys
 import traceback
 from collections.abc import Sequence
@@ -36,8 +34,6 @@ from marimo._plugins.validators import (
     warn_js_safe_number,
 )
 from marimo._runtime.functions import Function
-from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.files import FileInfo
 
 LOGGER = _loggers.marimo_logger()
 
@@ -883,6 +879,13 @@ class code_editor(UIElement[str, str]):
         return value
 
 
+def _to_option_name(option: Any) -> str:
+    if isinstance(option, str):
+        return option
+    else:
+        return repr(option)
+
+
 @mddoc
 class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
@@ -921,8 +924,10 @@ class dropdown(UIElement[list[str], Any]):
         selected_key (str, optional): The selected option's key, or None if no selection.
 
     Args:
-        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+        options (Sequence[Any] | dict[str, Any]): Sequence of options, or dict
             mapping option name to option value.
+            If the options are not strings, they will be converted to strings
+            when displayed in the dropdown.
         value (str, optional): Default option name. Defaults to None.
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
@@ -939,11 +944,12 @@ class dropdown(UIElement[list[str], Any]):
     _MAX_OPTIONS: Final[int] = 1000
     _name: Final[str] = "marimo-dropdown"
     _selected_key: Optional[str] = None
+    _RESERVED_OPTION: Final[str] = "--"
 
     def __init__(
         self,
-        options: Sequence[str] | dict[str, Any],
-        value: Optional[str] = None,
+        options: Sequence[Any] | dict[str, Any],
+        value: Optional[Any] = None,
         allow_select_none: Optional[bool] = None,
         searchable: bool = False,
         *,
@@ -963,12 +969,15 @@ class dropdown(UIElement[list[str], Any]):
             )
 
         if not isinstance(options, dict):
-            options = {option: option for option in options}
+            options = {_to_option_name(option): option for option in options}
 
-        if "--" in options:
+            if value is not None and not isinstance(value, str):
+                value = _to_option_name(value)
+
+        if self._RESERVED_OPTION in options:
             raise ValueError(
-                "The option name '--' is reserved by marimo"
-                "; please use another name."
+                f"The option name '{self._RESERVED_OPTION}' "
+                "is reserved by marimo; please use another name."
             )
 
         self.options = options
@@ -1004,8 +1013,15 @@ class dropdown(UIElement[list[str], Any]):
 
     def _convert_value(self, value: list[str]) -> Any:
         if value:
-            assert len(value) == 1
+            assert len(value) == 1, "Dropdowns only support a single value"
             self._selected_key = value[0]
+            if self._selected_key not in self.options:
+                raise ValueError(
+                    f"The option name '{self._selected_key}' "
+                    "is not a valid option. "
+                    "Please use one of the following options: "
+                    f"{list(self.options.keys())}"
+                )
             return self.options[value[0]]
         else:
             self._selected_key = None
@@ -1038,8 +1054,10 @@ class multiselect(UIElement[list[str], list[object]]):
         options (dict): A dict mapping option name to option value.
 
     Args:
-        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+        options (Sequence[Any] | dict[str, Any]): Sequence of options, or dict
             mapping option name to option value.
+            If the options are not strings, they will be converted to strings
+            when displayed in the dropdown.
         value (Sequence[str], optional): A list of initially selected options.
             Defaults to None.
         label (str, optional): Markdown label for the element. Defaults to "".
@@ -1056,8 +1074,8 @@ class multiselect(UIElement[list[str], list[object]]):
 
     def __init__(
         self,
-        options: Sequence[str] | dict[str, Any],
-        value: Optional[Sequence[str]] = None,
+        options: Sequence[Any] | dict[str, Any],
+        value: Optional[Sequence[Any]] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[list[object]], None]] = None,
@@ -1076,7 +1094,10 @@ class multiselect(UIElement[list[str], list[object]]):
             )
 
         if not isinstance(options, dict):
-            options = {option: option for option in options}
+            options = {_to_option_name(option): option for option in options}
+
+            if value is not None and not isinstance(value, str):
+                value = [_to_option_name(v) for v in value]
 
         self.options = options
         initial_value = list(value) if value is not None else []
@@ -1364,195 +1385,6 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
             return None
         else:
             return self.value[index].contents
-
-
-@dataclass
-class ListDirectoryArgs:
-    path: str
-
-
-@dataclass
-class ListDirectoryResponse:
-    files: list[FileInfo]
-
-
-@mddoc
-class file_browser(UIElement[list[dict[str, Any]], Sequence[FileInfo]]):
-    """File browser for browsing and selecting server-side files.
-
-    Examples:
-        Selecting multiple files:
-        ```python
-        file_browser = mo.ui.file_browser(
-            initial_path="path/to/dir", multiple=True
-        )
-
-        # Access the selected file path(s):
-        file_browser.path(index)
-
-        # Get name of selected file(s)
-        file_browser.name(index)
-        ```
-
-    Attributes:
-        value (Sequence[FileInfo]): A sequence of file paths representing selected
-            files.
-
-    Args:
-        initial_path (str, optional): Starting directory. Defaults to current
-            working directory.
-        filetypes (Sequence[str], optional): The file types to display in each
-            directory; for example, filetypes=[".txt", ".csv"]. If None, all
-            files are displayed. Defaults to None.
-        selection_mode (str, optional): Either "file" or "directory". Defaults to
-            "file".
-        multiple (bool, optional): If True, allow the user to select multiple
-            files. Defaults to True.
-        restrict_navigation (bool, optional): If True, prevent the user from
-            navigating any level above the given path. Defaults to False.
-        label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Sequence[FileInfo]], None], optional): Optional
-            callback to run when this element's value changes. Defaults to None.
-    """
-
-    _name: Final[str] = "marimo-file-browser"
-
-    def __init__(
-        self,
-        initial_path: str = "",
-        filetypes: Optional[Sequence[str]] = None,
-        selection_mode: str = "file",
-        multiple: bool = True,
-        restrict_navigation: bool = False,
-        *,
-        label: str = "",
-        on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
-    ) -> None:
-        self.filetypes = filetypes
-
-        if (
-            selection_mode != "file"
-            and selection_mode != "directory"
-            and selection_mode != "all"
-        ):
-            raise ValueError(
-                "Invalid argument for selection_mode. "
-                + "Must be either 'file' or 'directory'."
-            )
-        else:
-            self.selection_mode = selection_mode
-
-        if not initial_path:
-            initial_path = os.getcwd()
-
-        # frontend plugin can't handle relative paths
-        initial_path = os.path.realpath(os.path.expanduser(initial_path))
-        # initial path must be a directory
-        if not os.path.isdir(initial_path):
-            raise ValueError(
-                f"Initial path {initial_path} is not a directory."
-            )
-
-        self.restrict_navigation = restrict_navigation
-        self.initial_path = initial_path
-        super().__init__(
-            component_name=file_browser._name,
-            initial_value=[],
-            label=label,
-            args={
-                "initial-path": initial_path,
-                "selection-mode": selection_mode,
-                "filetypes": filetypes if filetypes is not None else [],
-                "multiple": multiple,
-                "restrict-navigation": restrict_navigation,
-            },
-            functions=(
-                Function(
-                    name="list_directory",
-                    arg_cls=ListDirectoryArgs,
-                    function=self._list_directory,
-                ),
-            ),
-            on_change=on_change,
-        )
-
-    def _list_directory(
-        self, args: ListDirectoryArgs
-    ) -> ListDirectoryResponse:
-        # When navigation is restricted, the navigated-to path cannot be
-        # be a parent of the initial path
-        if (
-            self.restrict_navigation
-            and pathlib.Path(args.path)
-            in pathlib.Path(self.initial_path).parents
-        ):
-            raise RuntimeError(
-                "Navigation is restricted; navigating to a "
-                "parent of initial path is not allowed."
-            )
-
-        files = []
-        files_in_path = OSFileSystem().list_files(args.path)
-
-        for file in files_in_path:
-            _, extension = os.path.splitext(file.name)
-
-            if self.selection_mode == "directory" and not file.is_directory:
-                continue
-
-            if self.filetypes and not file.is_directory:
-                if extension not in self.filetypes:
-                    continue
-
-            files.append(file)
-
-        return ListDirectoryResponse(files)
-
-    def _convert_value(
-        self, value: list[dict[str, Any]]
-    ) -> Sequence[FileInfo]:
-        return tuple(
-            FileInfo(
-                id=file["id"],
-                name=file["name"],
-                path=file["path"],
-                is_directory=file["is_directory"],
-                is_marimo_file=file["is_marimo_file"],
-            )
-            for file in value
-        )
-
-    def name(self, index: int = 0) -> Optional[str]:
-        """Get file name at index.
-
-        Args:
-            index (int, optional): Index of the file to get the name from.
-                Defaults to 0.
-
-        Returns:
-            Optional[str]: The name of the file at the specified index,
-                or None if index is out of range.
-        """
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].name
-
-    def path(self, index: int = 0) -> Optional[str]:
-        """Get file path at index.
-
-        Args:
-            index (int, optional): Index of the file to get the path from.
-                Defaults to 0.
-
-        Returns:
-            Optional[str]: The path of the file at the specified index,
-                or None if index is out of range.
-        """
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].path
 
 
 T = TypeVar("T")

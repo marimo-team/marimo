@@ -6,6 +6,7 @@ from __future__ import annotations
 # on PyPI
 def module_name_to_pypi_name() -> dict[str, str]:
     return {
+        "agents": "openai-agents",
         "whisper": "openai-whisper",
         "cv2": "opencv-python",
         "shopify": "ShopifyAPI",
@@ -401,6 +402,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "dns": "dnspython",
         "docgen": "ansible-docgenerator",
         "docker": "docker-py",
+        "docx": "python-docx",
         "dogpile": "dogpile.core",
         "dogshell": "dogapi",
         "dot_parser": "pydot3k",
@@ -593,6 +595,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "path": "path.py",
         "patricia": "patricia-trie",
         "paver": "Paver",
+        "pdfminer": "pdfminer.six",
         "peak": "ProxyTypes",
         "picasso": "anderson.picasso",
         "picklefield": "django-picklefield",

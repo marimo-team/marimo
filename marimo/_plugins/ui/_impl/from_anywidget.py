@@ -28,9 +28,14 @@ cache: dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ign
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    if widget not in cache:
-        cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
-    return cache[widget]
+    try:
+        if widget not in cache:
+            cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+        return cache[widget]
+    except TypeError as e:
+        # Unhashable widgets can't be used as keys in a WeakKeyDictionary
+        LOGGER.warning(e)
+        return anywidget(widget)
 
 
 T = dict[str, Any]

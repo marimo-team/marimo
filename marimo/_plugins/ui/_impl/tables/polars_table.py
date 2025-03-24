@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 import narwhals.stable.v1 as nw
 
+from marimo import _loggers
 from marimo._data.models import (
     ExternalDataType,
 )
@@ -20,6 +21,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class PolarsTableManagerFactory(TableManagerFactory):
@@ -89,30 +92,75 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 ).arr.join(",")
                             )
                         elif isinstance(dtype, pl.Object):
-                            import warnings
-
-                            with warnings.catch_warnings(record=True):
-                                result = result.with_columns(
-                                    # As of writing this, cast(pl.String) doesn't work
-                                    # for pl.Object types, so we use map_elements
-                                    column.map_elements(
-                                        str, return_dtype=pl.String
-                                    )
-                                )
+                            result = self._cast_object_to_string(
+                                result, column
+                            )
                         elif isinstance(dtype, pl.Duration):
-                            unit_map = {
-                                "ms": column.dt.total_milliseconds,
-                                "ns": column.dt.total_nanoseconds,
-                                "us": column.dt.total_microseconds,
-                                "s": column.dt.total_seconds,
-                            }
-                            if dtype.time_unit in unit_map:
-                                method = unit_map[dtype.time_unit]
-                                result = result.with_columns(method())
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
                     return result.write_csv().encode("utf-8")
 
-            def to_json(self) -> bytes:
-                return self.collect().write_json().encode("utf-8")
+            def to_json(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> bytes:
+                result = self.apply_formatting(format_mapping).collect()
+                try:
+                    for column in result.get_columns():
+                        dtype = column.dtype
+                        if isinstance(dtype, pl.Duration):
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
+                    return result.write_json().encode("utf-8")
+                except (
+                    BaseException
+                ):  # Sometimes, polars throws a generic exception
+                    LOGGER.debug(
+                        "Failed to write json. Trying to convert columns to strings."
+                    )
+                    for column in result.get_columns():
+                        dtype = column.dtype
+                        if isinstance(dtype, pl.Object):
+                            result = self._cast_object_to_string(
+                                result, column
+                            )
+                        elif str(dtype) == "Int128":
+                            # Use string comparison because pl.Int128 doesn't exist on older versions
+                            # As of writing this, Int128 is not supported by polars
+                            LOGGER.warning(
+                                "Column %s is of type Int128, which is not supported. Converting to string.",
+                                column.name,
+                            )
+                            result = result.with_columns(
+                                column.cast(pl.String)
+                            )
+                        elif isinstance(dtype, pl.Duration):
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
+
+                    return result.write_json().encode("utf-8")
+
+            def _convert_time_to_string(
+                self, result: pl.DataFrame, column: pl.Series
+            ) -> pl.DataFrame:
+                # Converts to human readable format
+                return result.with_columns(
+                    column.dt.to_string(format="polars")
+                )
+
+            def _cast_object_to_string(
+                self, df: pl.DataFrame, column: pl.Series
+            ) -> pl.DataFrame:
+                import warnings
+
+                with warnings.catch_warnings(record=True):
+                    return df.with_columns(
+                        # As of writing this, cast(pl.String) doesn't work
+                        # for pl.Object types, so we use map_elements
+                        column.map_elements(str, return_dtype=pl.String)
+                    )
 
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]

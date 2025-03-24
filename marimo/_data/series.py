@@ -6,15 +6,14 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import narwhals.stable.v1 as nw
+from narwhals.typing import IntoSeries
 
 from marimo._utils.narwhals_utils import (
     assert_narwhals_series,
     unwrap_py_scalar,
 )
 
-# TODO: use series type when released
-# https://github.com/narwhals-dev/narwhals/pull/991
-DataFrameSeries = Any
+DataFrameSeries = IntoSeries
 
 
 @dataclass

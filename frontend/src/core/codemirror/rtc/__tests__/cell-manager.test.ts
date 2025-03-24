@@ -80,7 +80,7 @@ describe("CellProviderManager", () => {
       },
     );
     expect(provider).toBe(mockProvider);
-    expect(ytext.toJSON()).toBe("initial code");
+    expect(ytext.toJSON()).toBe("");
   });
 
   it("should return existing provider if one exists", async () => {
@@ -102,7 +102,7 @@ describe("CellProviderManager", () => {
     window.location = {
       ...originalLocation,
       search: "?file=/path/to/file.py",
-    };
+    } as never;
 
     manager.getOrCreateProvider(CELL_ID, "initial code");
 

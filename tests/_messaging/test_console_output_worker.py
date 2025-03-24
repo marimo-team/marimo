@@ -231,6 +231,11 @@ class TestConsoleOutputWorker:
             # Use a longer timeout to ensure the messages are processed
             time.sleep(TIMEOUT_S * 5)
 
+            for _ in range(10):
+                time.sleep(0.1)
+                if len(stream.messages) == 2:
+                    break
+
             # Check that the messages were written to the stream
             assert len(stream.messages) == 2  # Merged stdout messages + stderr
 

@@ -12,6 +12,7 @@ import pytest
 from marimo._config.config import merge_default_config
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.ops import InstallingPackageAlert, MissingPackageAlert
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
@@ -338,6 +339,10 @@ async def test_broadcast_missing_packages(
                 "ibis": ModuleNotFoundError(
                     "No module named 'ibis'", name="ibis"
                 ),
+                "cell3": ManyModulesNotFoundError(
+                    package_names=["grouped-one", "grouped-two"],
+                    msg="Missing one and two",
+                ),
             }
 
     # Case 1: Auto-install enabled
@@ -353,7 +358,12 @@ async def test_broadcast_missing_packages(
         request = control_requests[0]
         assert isinstance(request, InstallMissingPackagesRequest)
         assert request.manager == package_manager.name
-        assert request.versions == {"numpy": "", "ibis-framework[duckdb]": ""}
+        assert request.versions == {
+            "numpy": "",
+            "ibis-framework[duckdb]": "",
+            "grouped-one": "",
+            "grouped-two": "",
+        }
         assert len(broadcast_messages) == 0
 
         # Case 2: Auto-install disabled
@@ -367,7 +377,12 @@ async def test_broadcast_missing_packages(
         assert len(broadcast_messages) == 1
         alert = broadcast_messages[0]
         assert isinstance(alert, MissingPackageAlert)
-        assert alert.packages == ["ibis-framework[duckdb]", "numpy"]
+        assert alert.packages == [
+            "grouped-one",
+            "grouped-two",
+            "ibis-framework[duckdb]",
+            "numpy",
+        ]
         assert alert.isolated == is_python_isolated()
 
         # Case 3: Multiple missing modules
@@ -387,6 +402,8 @@ async def test_broadcast_missing_packages(
         assert isinstance(request, InstallMissingPackagesRequest)
         assert request.manager == package_manager.name
         assert request.versions == {
+            "grouped-one": "",
+            "grouped-two": "",
             "ibis-framework[duckdb]": "",
             "numpy": "",
             "pandas": "",
@@ -407,6 +424,8 @@ async def test_broadcast_missing_packages(
         assert isinstance(request, InstallMissingPackagesRequest)
         assert request.manager == package_manager.name
         assert request.versions == {
+            "grouped-one": "",
+            "grouped-two": "",
             "ibis-framework[duckdb]": "",
             "pandas": "",
             "scipy": "",

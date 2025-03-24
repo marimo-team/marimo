@@ -41,6 +41,7 @@ function createMockEditorView(code: string) {
           },
           hotkeys: new OverridingHotkeyProvider({}),
           placeholderType: "marimo-import",
+          lspConfig: {},
         }),
         cellConfigExtension(
           {
@@ -50,6 +51,8 @@ function createMockEditorView(code: string) {
           },
           new OverridingHotkeyProvider({}),
           "marimo-import",
+          {},
+          {},
         ),
       ],
     }),

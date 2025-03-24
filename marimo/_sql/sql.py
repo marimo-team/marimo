@@ -54,7 +54,11 @@ def sql(
         return None
 
     if engine is None:
-        DependencyManager.duckdb.require("to execute sql")
+        DependencyManager.require_many(
+            "to execute sql",
+            DependencyManager.duckdb,
+            DependencyManager.sqlglot,
+        )
         sql_engine = DuckDBEngine(connection=None)
     elif SQLAlchemyEngine.is_compatible(engine):
         sql_engine = SQLAlchemyEngine(engine)  # type: ignore
@@ -94,7 +98,7 @@ def sql(
             )
             df = df.head(default_result_limit)
         else:
-            raise_df_import_error("polars")
+            raise_df_import_error("polars[pyarrow]")
 
     if output:
         from marimo._plugins.ui._impl import table

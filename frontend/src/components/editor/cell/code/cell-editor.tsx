@@ -36,6 +36,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
 import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
 import { store } from "@/core/state/jotai";
+import { useDeleteCellCallback } from "../useDeleteCell";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -91,6 +92,7 @@ const CellEditorInternal = ({
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const setLastFocusedCellId = useSetLastFocusedCellId();
+  const deleteCell = useDeleteCellCallback();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -104,7 +106,7 @@ const CellEditorInternal = ({
       return false;
     }
 
-    cellActions.deleteCell({ cellId });
+    deleteCell({ cellId });
     return true;
   });
 
@@ -162,8 +164,10 @@ const CellEditorInternal = ({
       },
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
+      lspConfig: userConfig.language_servers,
       theme,
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
+      diagnosticsConfig: userConfig.diagnostics,
     });
 
     extensions.push(
@@ -189,6 +193,8 @@ const CellEditorInternal = ({
     cellId,
     userConfig.keymap,
     userConfig.completion,
+    userConfig.language_servers,
+    userConfig.diagnostics,
     aiEnabled,
     theme,
     showPlaceholder,
@@ -205,11 +211,15 @@ const CellEditorInternal = ({
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (getFeatureFlag("rtc_v2")) {
-      const rtc = realTimeCollaboration(cellId, (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      });
+      const rtc = realTimeCollaboration(
+        cellId,
+        (code) => {
+          // It's not really a formatting change,
+          // but this means it won't be marked as stale
+          cellActions.updateCellCode({ cellId, code, formattingChange: true });
+        },
+        code,
+      );
       extensions.push(rtc.extension);
       code = rtc.code;
     }
@@ -245,6 +255,10 @@ const CellEditorInternal = ({
           editorViewRef.current,
           userConfig.completion,
           new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
+          {
+            ...userConfig.language_servers,
+            diagnostics: userConfig.diagnostics,
+          },
         ),
       ],
     });

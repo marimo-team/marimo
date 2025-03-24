@@ -39,15 +39,15 @@ export const TableColumnSummary = <TData, TValue>({
         milliseconds={200}
         visibility={true}
         rootMargin="200px"
-        fallback={<ChartSkeleton seed={columnId} width={130} height={60} />}
+        fallback={<ChartSkeleton seed={columnId} width={80} height={40} />}
       >
         <LazyVegaLite
           spec={spec}
-          width={120}
-          height={50}
+          width={70}
+          height={30}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           loader={batchedLoader as any}
-          style={{ minWidth: "unset", maxHeight: "60px" }}
+          style={{ minWidth: "unset", maxHeight: "40px" }}
           actions={false}
           theme={theme === "dark" ? "dark" : "vox"}
         />
@@ -81,15 +81,16 @@ export const TableColumnSummary = <TData, TValue>({
               <span>min: {renderDate(summary.min, type)}</span>
               <span>max: {renderDate(summary.max, type)}</span>
               <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
           );
         }
 
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{renderDate(summary.min, type)}</span>-
-            <span>{renderDate(summary.max, type)}</span>
+            <span>{renderDate(summary.min, type)}</span>
+            {summary.min === summary.max ? null : (
+              <span>-{renderDate(summary.max, type)}</span>
+            )}
           </div>
         );
       case "integer":
@@ -111,29 +112,12 @@ export const TableColumnSummary = <TData, TValue>({
                   : summary.max}
               </span>
               <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
           );
         }
 
-        if (
-          typeof summary.min === "number" &&
-          typeof summary.max === "number"
-        ) {
-          return (
-            <div className="flex justify-between w-full px-2 whitespace-pre">
-              <span>{prettyScientificNumber(summary.min)}</span>
-              <span>{prettyScientificNumber(summary.max)}</span>
-            </div>
-          );
-        }
-
-        return (
-          <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{summary.min}</span>
-            <span>{summary.max}</span>
-          </div>
-        );
+        // Numerical bar charts use built-in vega axis and ticks
+        return null;
       case "boolean":
         // Without a chart
         if (!spec) {
@@ -145,22 +129,13 @@ export const TableColumnSummary = <TData, TValue>({
           );
         }
 
-        if (summary.nulls == null || summary.nulls === 0) {
-          return null;
-        }
-
-        return (
-          <div className="flex flex-col whitespace-pre">
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
-          </div>
-        );
+        return null;
       case "time":
         return null;
       case "string":
         return (
           <div className="flex flex-col whitespace-pre">
             <span>unique: {prettyNumber(summary.unique)}</span>
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
       case "unknown":

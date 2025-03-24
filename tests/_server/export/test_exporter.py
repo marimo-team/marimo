@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -262,6 +263,9 @@ async def test_run_until_completion_with_stop():
     snapshot("run_until_completion_with_stop.txt", _print_messages(cell_ops))
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13), reason="3.13 has different stack trace format"
+)
 async def test_run_until_completion_with_stack_trace():
     app = App()
 
@@ -294,9 +298,11 @@ async def test_run_until_completion_with_stack_trace():
     )
     assert did_error is True
     cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+
+    messages = _print_messages(cell_ops)
     snapshot(
         "run_until_completion_with_stack_trace.txt",
-        _delete_lines_with_files(_print_messages(cell_ops)),
+        _delete_lines_with_files(messages),
     )
 
 

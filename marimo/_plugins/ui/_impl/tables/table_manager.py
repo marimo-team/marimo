@@ -43,6 +43,9 @@ class TableManager(abc.ABC, Generic[T]):
     # Upper limit for frontend table component to show column summary charts
     # to ensure browser performance
     DEFAULT_SUMMARY_CHARTS_ROW_LIMIT = 20_000
+    # Lower limit for frontend to show column summary charts, since for
+    # very small tables column summaries just take up space.
+    DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS = 11
     # Upper limit for column summaries to avoid hanging up the kernel
     # Note: Keep this value in sync with DataTablePlugin's banner text
     DEFAULT_SUMMARY_STATS_ROW_LIMIT = 1_000_000
@@ -59,10 +62,10 @@ class TableManager(abc.ABC, Generic[T]):
         """
         The best way to represent the data in a table as JSON.
 
-        By default, this method calls `to_csv` and returns the result as
-        a string.
+        By default, this method calls `to_json` and returns the result as
+        a string. `to_json` supports most data types (e.g. nested lists)
         """
-        return mo_data.csv(self.to_csv(format_mapping)).url
+        return mo_data.json(self.to_json(format_mapping)).url
 
     def supports_download(self) -> bool:
         return True
@@ -100,7 +103,7 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
-    def to_json(self) -> bytes:
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
         pass
 
     @abc.abstractmethod

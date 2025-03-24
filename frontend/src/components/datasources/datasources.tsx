@@ -801,7 +801,7 @@ const DatasetColumnPreview: React.FC<{
   }
 
   const error = preview.error && (
-    <div className="text-xs text-muted-foreground p-2 block border border-muted rounded flex items-center">
+    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
       <span>{preview.error}</span>
       {preview.missing_packages && (
         <InstallPackageButton packages={preview.missing_packages} />

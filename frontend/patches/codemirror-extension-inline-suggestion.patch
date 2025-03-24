@@ -1,0 +1,12 @@
+diff --git a/dist/extension.js b/dist/extension.js
+index 85ae3900124b575165fc4891e271c97bc1485b5e..7c3385b5381d0aaa4183cc2d293643a046ac2caa 100644
+--- a/dist/extension.js
++++ b/dist/extension.js
+@@ -12,6 +12,7 @@ const u = p.define({
+     const e = n.effects.find(
+       (s) => s.is(l)
+     );
++    if (!n.docChanged && !e && !n.selection) return t;
+     return n.state.doc && e && n.state.doc == e.value.doc ? { suggestion: e.value.text } : { suggestion: null };
+   }
+ }), l = S.define();

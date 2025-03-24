@@ -89,6 +89,18 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("ibis.json", data.decode("utf-8"))
 
+    def test_to_json_format_mapping(self) -> None:
+        import ibis
+
+        table = ibis.memtable({"int": [1, 2, 3]})
+        data = self.factory.create()(table)
+
+        format_mapping = {"int": lambda x: x * 2}
+        json_data = data.to_json(format_mapping)
+
+        json_object = json.loads(json_data.decode("utf-8"))
+        assert json_object == [{"int": 2}, {"int": 4}, {"int": 6}]
+
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
         field_types = complex_data.get_field_types()

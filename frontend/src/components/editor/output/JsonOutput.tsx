@@ -65,6 +65,7 @@ const CopyButton: React.FC<DataItemProps<any>> = ({ value }) => {
         "inline-flex ml-2 copy-button rounded w-6 h-3 justify-center items-center relative",
       )}
       aria-label="Copy to clipboard"
+      type="button"
     >
       {copied ? (
         <CheckIcon className="w-5 h-5 absolute -top-0.5 p-1 hover:bg-muted rounded" />
@@ -89,7 +90,7 @@ export const JsonOutput: React.FC<Props> = memo(
       case "tree":
         return (
           <JsonViewer
-            className="marimo-json-output"
+            className={cn("marimo-json-output", className)}
             rootName={name}
             theme={theme}
             displayDataTypes={false}

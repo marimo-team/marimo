@@ -88,6 +88,7 @@ function createEditor(content: string) {
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
+        lspConfig: {},
       }),
     ],
   });

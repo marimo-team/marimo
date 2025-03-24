@@ -49,9 +49,11 @@ import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
+import { OptionalFeatures } from "./optional-features";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { Badge } from "../ui/badge";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
-
 const categories = [
   {
     id: "editor",
@@ -82,6 +84,12 @@ const categories = [
     label: "AI",
     Icon: BrainIcon,
     className: "bg-[linear-gradient(45deg,var(--purple-5),var(--cyan-5))]",
+  },
+  {
+    id: "optionalDeps",
+    label: "Optional Dependencies",
+    Icon: FolderCog2,
+    className: "bg-[var(--orange-4)]",
   },
   {
     id: "labs",
@@ -124,6 +132,7 @@ export const UserConfigForm: React.FC = () => {
     if (copilot === false) {
       return null;
     }
+
     if (copilot === "codeium") {
       return (
         <>
@@ -165,8 +174,80 @@ export const UserConfigForm: React.FC = () => {
         </>
       );
     }
+
     if (copilot === "github") {
       return <CopilotConfig />;
+    }
+
+    if (copilot === "custom") {
+      return (
+        <>
+          <p className="text-sm text-muted-secondary">
+            Configure your custom AI completion provider with the following
+            settings.
+          </p>
+          <FormField
+            control={form.control}
+            name="completion.model"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Model</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-model-input"
+                    className="m-0 inline-flex"
+                    placeholder="Qwen2.5-Coder-7B"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.model" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="completion.base_url"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Base URL</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-base-url-input"
+                    className="m-0 inline-flex"
+                    placeholder="http://localhost:11434/v1"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.base_url" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="completion.api_key"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-api-key-input"
+                    className="m-0 inline-flex"
+                    placeholder="key"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.api_key" />
+              </FormItem>
+            )}
+          />
+        </>
+      );
     }
   };
 
@@ -346,6 +427,79 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
+            {getFeatureFlag("lsp") && (
+              <SettingGroup title="Language Servers">
+                <FormField
+                  control={form.control}
+                  name="language_servers.pylsp.enabled"
+                  render={({ field }) => (
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Python Language Server (
+                        <a
+                          href="https://github.com/python-lsp/python-lsp-server"
+                          target="_blank"
+                          className="text-link hover:underline"
+                          rel="noreferrer"
+                        >
+                          pylsp
+                        </a>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="pylsp-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.pylsp.enabled"
+                      />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="diagnostics.enabled"
+                  render={({ field }) => (
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Diagnostics
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="diagnostics-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="diagnostics.enabled"
+                      />
+                    </FormItem>
+                  )}
+                />
+              </SettingGroup>
+            )}
+
             <SettingGroup title="Keymap">
               <FormField
                 control={form.control}
@@ -768,7 +922,8 @@ export const UserConfigForm: React.FC = () => {
           <>
             <SettingGroup title="AI Code Completion">
               <p className="text-sm text-muted-secondary">
-                You may use GitHub Copilot or Codeium for AI code completion.
+                You may use GitHub Copilot, Codeium, or a custom provider (e.g.
+                Ollama) for AI code completion.
               </p>
 
               <FormField
@@ -798,11 +953,13 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled}
                           className="inline-flex mr-2"
                         >
-                          {["none", "github", "codeium"].map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
+                          {["none", "github", "codeium", "custom"].map(
+                            (option) => (
+                              <option value={option} key={option}>
+                                {option}
+                              </option>
+                            ),
+                          )}
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
@@ -1061,6 +1218,8 @@ export const UserConfigForm: React.FC = () => {
             </SettingGroup>
           </>
         );
+      case "optionalDeps":
+        return <OptionalFeatures />;
       case "labs":
         return (
           <SettingGroup title="Experimental Features">
@@ -1169,7 +1328,7 @@ export const UserConfigForm: React.FC = () => {
             setActiveCategory(value as SettingCategoryId)
           }
           orientation="vertical"
-          className="w-1/3 pr-4 border-r h-full overflow-auto p-6"
+          className="w-1/3 border-r h-full overflow-auto p-3"
         >
           <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
             {categories.map((category) => (
@@ -1178,16 +1337,16 @@ export const UserConfigForm: React.FC = () => {
                 value={category.id}
                 className="w-full text-left p-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground justify-start"
               >
-                <div className="flex gap-4 items-center text-lg">
+                <div className="flex gap-4 items-center text-lg overflow-hidden">
                   <span
                     className={cn(
                       category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground",
+                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground flex-shrink-0",
                     )}
                   >
                     <category.Icon className="w-4 h-4" />
                   </span>
-                  {category.label}
+                  <span className="truncate">{category.label}</span>
                 </div>
               </TabsTrigger>
             ))}
@@ -1214,7 +1373,7 @@ const SettingGroup = ({
 }: { title: string; children: React.ReactNode }) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <SettingSubtitle className="text-base">{title}</SettingSubtitle>
+      <SettingSubtitle>{title}</SettingSubtitle>
       {children}
     </div>
   );

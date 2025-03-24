@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import weakref
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, final
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -37,6 +38,7 @@ def _hypertext_cleanup(virtual_filenames: list[str]) -> None:
 
 
 @mddoc
+@dataclass
 class Html(MIME):
     """A wrapper around HTML text that can be used as an output.
 
@@ -69,12 +71,33 @@ class Html(MIME):
         right: right-justify this element in the output area
     """
 
+    # Some libraries (e.g. polars) will serialize dataclasses so we add this
+    # field to serialize the mimetype. This is to support rich display in tables/dfs.
+    _serialized_mime_bundle: dict[Literal["mimetype", "data"], str] = field(
+        default_factory=dict,
+        repr=False,
+        init=False,
+    )
+
     def __init__(self, text: str) -> None:
         """Initialize the HTML element.
 
         Subclasses of HTML MUST call this method.
         """
         self._text = text
+        mimetype, data = self._mime_()
+
+        self._serialized_mime_bundle = {
+            "mimetype": mimetype,
+            "data": data,
+        }
+        # Whenever _serialized_mime_bundle is set, ensure a public copy exists.
+        # This avoids declaring a public attribute (does not show up in docs)
+        # Pandas does not serialize private variables, so we need this.
+        self.__setattr__(
+            "serialized_mime_bundle", self._serialized_mime_bundle
+        )
+
         # A list of the virtual file names referenced by this HTML element.
         self._virtual_filenames: list[str] = []
 

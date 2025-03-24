@@ -15,7 +15,7 @@ class TestHash:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
                 Y = [1, 2, 3]
@@ -28,7 +28,7 @@ class TestHash:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             a = 1
             with persistent_cache(name="one", _loader=MockLoader()) as cache:
@@ -45,7 +45,7 @@ class TestHash:
         @app.cell
         def load() -> tuple[Any]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "haIqC9yzlTaNo-ClmY11Kvtiv08oQPz3-SlnOLfhJYM"
 
@@ -85,7 +85,7 @@ class TestHash:
         @app.cell
         def one() -> tuple[int]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             non_primitive = [object()]
 
@@ -103,12 +103,16 @@ class TestHash:
         app._pytest_rewrite = False
 
         @app.cell
-        def load() -> tuple[int]:
+        def imports() -> tuple[int]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
+            return persistent_cache, MockLoader
+
+        @app.cell
+        def load() -> tuple[int]:
             shared = [None, object()]
-            return persistent_cache, MockLoader, shared
+            return shared
 
         @app.cell
         def one(persistent_cache, MockLoader, shared) -> tuple[int]:
@@ -121,7 +125,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -142,7 +146,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -169,7 +173,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -190,7 +194,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "b7qDaJXGI0uohd9Q5llsyggPCtEW9dTM7Dt2ZtuuqCs"
+                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -198,19 +202,23 @@ class TestHash:
             return (Z,)
 
         @app.cell
-        def load() -> tuple[int]:
+        def imports() -> tuple[int]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
+            return persistent_cache, MockLoader
+
+        @app.cell
+        def load() -> tuple[int]:
             shared = [None, object()]
-            return persistent_cache, MockLoader, shared
+            return shared
 
     @staticmethod
     def test_transitive_content_hash(app) -> None:
         @app.cell
         def load() -> tuple[int]:
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             shared = [None, object()]
             return persistent_cache, MockLoader, shared
@@ -229,7 +237,7 @@ class TestHash:
         def load() -> tuple[Any]:
             import marimo as mo
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             slider = mo.ui.slider(1, 10)
 
@@ -260,7 +268,7 @@ class TestHash:
         def load() -> tuple[Any]:
             import marimo as mo
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             state, set_state = mo.state(0)
 
@@ -315,7 +323,7 @@ class TestHash:
         def load() -> tuple[Any]:
             import marimo as mo
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             state, set_state = mo.state(0)
 
@@ -352,7 +360,7 @@ class TestHash:
         def load() -> tuple[Any]:
             import marimo as mo
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             mo.__version__ = "0.0.0"
 
@@ -397,7 +405,7 @@ class TestDataHash:
             import numpy as np
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "w_Bjhpz2xMVQC6Y61GgqB8O80u_UyoJ-1xQmJU3j0Gg"
             return MockLoader, persistent_cache, expected_hash, np
@@ -450,7 +458,7 @@ class TestDataHash:
             from jax import numpy as np
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "aAL9QNoQIQ1zOJgm_xDbHG63Bc4Atnpn58pGW9x9A_A"
             return MockLoader, persistent_cache, expected_hash, np
@@ -503,7 +511,7 @@ class TestDataHash:
             import torch
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "stIOtiKIn4yscvKd-uK6mbmZpWzzfGm8Ccz7mvnRrnI"
             return MockLoader, persistent_cache, expected_hash, torch
@@ -563,7 +571,7 @@ class TestDataHash:
             import torch
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "iV5v_cNAxBPqe8tNJnI5volNORTH_gyhKuIvHcG_cds"
             return MockLoader, persistent_cache, expected_hash, torch
@@ -603,7 +611,7 @@ class TestDataHash:
             from skbio import DNA
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "ggxwHLzWcyDQltN_Zq0_zYVP_w86a9AAQLQwleAMuH8"
             return MockLoader, persistent_cache, expected_hash, DNA, copy
@@ -641,7 +649,7 @@ class TestDataHash:
             import pandas as pd
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "wtrS6NoH2AOH3DnWm7wooK4Bgw8TmMotgMbiY0bu5as"
             return MockLoader, persistent_cache, expected_hash, np, pd
@@ -705,7 +713,7 @@ class TestDataHash:
             import pandas as pd
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "RbeMLx994_-kB9rF2ebi6mFMbCW_S6-Q41MsrgJgwUA"
             return MockLoader, persistent_cache, expected_hash, np, pd
@@ -746,7 +754,7 @@ class TestDataHash:
             import polars as pl
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "rC6YiNsuaZKQ1JqMgSRa0iyEDwi7ZTl6InABjuM0RDY"
             return MockLoader, persistent_cache, expected_hash, pl
@@ -803,7 +811,7 @@ class TestDataHash:
             import polars as pl
 
             from marimo._save.save import persistent_cache
-            from tests._save.mocks import MockLoader
+            from tests._save.loaders.mocks import MockLoader
 
             expected_hash = "QzGgcNS-eEP58qkkFphgAOJNKEpoTNcXhJ-L2exXzr4"
             return MockLoader, persistent_cache, expected_hash, pl

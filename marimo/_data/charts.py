@@ -20,7 +20,7 @@ class ChartBuilder:
         raise NotImplementedError
 
     def altair_json(self, data: Any, column: str) -> str:
-        import altair as alt  # type: ignore[import-not-found]
+        import altair as alt
 
         if alt.data_transformers.active.startswith("vegafusion"):
             return cast(str, self.altair(data, column).to_json(format="vega"))
@@ -40,7 +40,7 @@ class ChartParams:
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found]
+        import altair as alt
 
         return (
             alt.Chart(data)
@@ -73,7 +73,7 @@ class StringChartBuilder(ChartBuilder):
         super().__init__()
 
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair as alt
 
         if self.should_limit_to_10_items:
             return (
@@ -177,7 +177,7 @@ class DateChartBuilder(ChartBuilder):
             return "%Y-%m-%d %H:%M"  # Date and time (hours, minutes)
 
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair as alt
 
         return (
             alt.Chart(data)
@@ -218,7 +218,7 @@ class DateChartBuilder(ChartBuilder):
 
 class BooleanChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair as alt
 
         return (
             alt.Chart(data)
@@ -247,7 +247,7 @@ class BooleanChartBuilder(ChartBuilder):
 
 class IntegerChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair as alt
 
         return (
             alt.Chart(data)
@@ -276,7 +276,7 @@ class IntegerChartBuilder(ChartBuilder):
 
 class UnknownChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair as alt
 
         return (
             alt.Chart(data)

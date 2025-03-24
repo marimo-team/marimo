@@ -38,12 +38,23 @@ class CompletionConfig(TypedDict):
 
     - `activate_on_typing`: if `False`, completion won't activate
     until the completion hotkey is entered
-    - `copilot`: if `True`, enable the GitHub Copilot language server
+    - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
+    - `codeium_api_key`: the Codeium API key
+    - `api_key`: the API key for the LLM provider, when `copilot` is `"custom"`
+    - `model`: the model to use, when `copilot` is `"custom"`
+    - `base_url`: the base URL for the API, when `copilot` is `"custom"`
     """
 
     activate_on_typing: bool
-    copilot: Union[bool, Literal["github", "codeium"]]
+    copilot: Union[bool, Literal["github", "codeium", "custom"]]
+
+    # Codeium
     codeium_api_key: NotRequired[Optional[str]]
+
+    # Custom
+    api_key: NotRequired[Optional[str]]
+    model: NotRequired[Optional[str]]
+    base_url: NotRequired[Optional[str]]
 
 
 @mddoc
@@ -125,7 +136,7 @@ class RuntimeConfig(TypedDict):
 
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
-WidthType = Literal["normal", "compact", "medium", "full"]
+WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 
 
@@ -220,11 +231,17 @@ class OpenAiConfig(TypedDict, total=False):
     - `model`: the model to use.
         if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
+    - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
+    - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
+    - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
     """
 
     api_key: str
     model: NotRequired[str]
     base_url: NotRequired[str]
+    ssl_verify: NotRequired[bool]
+    ca_bundle_path: NotRequired[str]
+    client_pem: NotRequired[str]
 
 
 @dataclass
@@ -249,6 +266,47 @@ class GoogleAiConfig(TypedDict, total=False):
     """
 
     api_key: str
+
+
+@dataclass
+class PythonLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Python Language Server.
+
+    pylsp handles completion, hover, go-to-definition, and diagnostics.
+    """
+
+    enabled: bool
+    enable_mypy: bool
+    enable_ruff: bool
+    enable_flake8: bool
+    enable_pydocstyle: bool
+    enable_pylint: bool
+    enable_pyflakes: bool
+
+
+@dataclass
+class LanguageServersConfig(TypedDict, total=False):
+    """Configuration options for language servers.
+
+    **Keys.**
+
+    - `pylsp`: the pylsp config
+    """
+
+    pylsp: PythonLanguageServerConfig
+
+
+@dataclass
+class DiagnosticsConfig(TypedDict, total=False):
+    """Configuration options for diagnostics.
+
+    **Keys.**
+
+    - `enabled`: if `True`, diagnostics will be shown in the editor
+    """
+
+    enabled: bool
 
 
 @dataclass
@@ -294,6 +352,8 @@ class MarimoConfig(TypedDict):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
+    language_servers: NotRequired[LanguageServersConfig]
+    diagnostics: NotRequired[DiagnosticsConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
@@ -313,6 +373,8 @@ class PartialMarimoConfig(TypedDict, total=False):
     server: ServerConfig
     package_management: PackageManagementConfig
     ai: NotRequired[AiConfig]
+    language_servers: NotRequired[LanguageServersConfig]
+    diagnostics: NotRequired[DiagnosticsConfig]
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
@@ -351,6 +413,17 @@ DEFAULT_CONFIG: MarimoConfig = {
     "server": {
         "browser": "default",
         "follow_symlink": False,
+    },
+    "language_servers": {
+        "pylsp": {
+            "enabled": True,
+            "enable_mypy": True,
+            "enable_ruff": True,
+            "enable_flake8": False,
+            "enable_pydocstyle": False,
+            "enable_pylint": False,
+            "enable_pyflakes": False,
+        }
     },
     "snippets": {
         "custom_paths": [],

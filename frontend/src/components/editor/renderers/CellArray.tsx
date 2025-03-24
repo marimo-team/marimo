@@ -41,9 +41,7 @@ import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import type { Milliseconds } from "@/utils/time";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import {
   horizontalListSortingStrategy,
@@ -294,7 +292,6 @@ const AddCellButtons: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const sqlCapabilities = useAtomValue(capabilitiesAtom).sql;
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -339,42 +336,23 @@ const AddCellButtons: React.FC<{
           <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
           Markdown
         </Button>
-        <Tooltip
-          content={
-            sqlCapabilities ? null : (
-              <div className="flex flex-col">
-                <span>
-                  Additional dependencies required:
-                  <Kbd className="inline">pip install 'marimo[sql]'</Kbd>.
-                </span>
-                <span>
-                  You will need to restart the notebook after installing.
-                </span>
-              </div>
-            )
-          }
-          delayDuration={100}
-          asChild={false}
-        >
-          <Button
-            className={buttonClass}
-            variant="text"
-            size="sm"
-            disabled={!sqlCapabilities}
-            onClick={() => {
-              maybeAddMarimoImport(autoInstantiate, createNewCell);
+        <Button
+          className={buttonClass}
+          variant="text"
+          size="sm"
+          onClick={() => {
+            maybeAddMarimoImport(autoInstantiate, createNewCell);
 
-              createNewCell({
-                cellId: { type: "__end__", columnId },
-                before: false,
-                code: new SQLLanguageAdapter().getDefaultCode(),
-              });
-            }}
-          >
-            <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
-            SQL
-          </Button>
-        </Tooltip>
+            createNewCell({
+              cellId: { type: "__end__", columnId },
+              before: false,
+              code: new SQLLanguageAdapter().getDefaultCode(),
+            });
+          }}
+        >
+          <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
+          SQL
+        </Button>
         <Tooltip
           content={
             aiEnabled ? null : <span>Enable via settings under AI Assist</span>

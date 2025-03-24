@@ -38,6 +38,13 @@ class AiCompletionRequest:
 
 
 @dataclass
+class AiInlineCompletionRequest:
+    prefix: str
+    suffix: str
+    language: Language = "python"
+
+
+@dataclass
 class ChatRequest:
     context: AiCompletionContext
     include_other_code: str

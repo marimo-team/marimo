@@ -32,6 +32,7 @@ from marimo._data.preview_column import (
     get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
@@ -1318,38 +1319,62 @@ class Kernel:
         module_not_found_errors = [
             e
             for e in runner.exceptions.values()
-            if isinstance(e, ModuleNotFoundError)
+            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
         ]
-        if (
-            len(module_not_found_errors) > 0
-            and self.package_manager is not None
-        ):
-            # Grab missing modules from module registry and from module not found errors
-            missing_modules = self.module_registry.missing_modules() | set(
-                e.name for e in module_not_found_errors if e.name is not None
-            )
 
-            missing_packages = [
-                pkg
-                for mod in missing_modules
+        if len(module_not_found_errors) == 0:
+            return
+
+        if self.package_manager is None:
+            return
+
+        missing_modules: set[str] = set()
+        missing_packages: set[str] = set()
+
+        # Populate missing_modules and missing_packages
+        # from the errors
+        for e in module_not_found_errors:
+            if isinstance(e, ManyModulesNotFoundError):
                 # filter out packages that we already attempted to install
                 # to prevent an infinite loop
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
+                missing_packages.update(
+                    {
+                        package
+                        for package in e.package_names
+                        if not self.package_manager.attempted_to_install(
+                            package
+                        )
+                    }
                 )
-            ]
+            elif e.name is not None:
+                missing_modules.add(e.name)
 
-            if missing_packages:
-                packages = list(sorted(missing_packages))
-                if self.package_manager.should_auto_install():
-                    self._execute_install_missing_packages_callback(
-                        self.package_manager.name, packages
-                    )
-                else:
-                    MissingPackageAlert(
-                        packages=packages,
-                        isolated=is_python_isolated(),
-                    ).broadcast()
+        # Grab missing modules from module registry and from module not found errors
+        missing_modules = (
+            self.module_registry.missing_modules() | missing_modules
+        )
+
+        # Convert modules to packages
+        for mod in missing_modules:
+            pkg = self.package_manager.module_to_package(mod)
+            # filter out packages that we already attempted to install
+            # to prevent an infinite loop
+            if not self.package_manager.attempted_to_install(pkg):
+                missing_packages.add(pkg)
+
+        if not missing_packages:
+            return
+
+        packages = list(sorted(missing_packages))
+        if self.package_manager.should_auto_install():
+            self._execute_install_missing_packages_callback(
+                self.package_manager.name, packages
+            )
+        else:
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
     def _propagate_kernel_errors(
         self,

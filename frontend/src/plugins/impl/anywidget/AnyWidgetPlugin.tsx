@@ -128,8 +128,20 @@ const AnyWidgetSlot = (props: Props) => {
     return <ErrorBanner error={error} />;
   }
 
+  // Find the closest parent element with an attribute of `random-id`
+  const randomId = props.host.closest("[random-id]")?.getAttribute("random-id");
+  const key = randomId ?? jsUrl;
+
   return (
-    <LoadedSlot {...props} widget={module.default} value={valueWithBuffer} />
+    <LoadedSlot
+      // Use the a key to force a re-render when the randomId (or jsUrl) changes
+      // Plugins may be stateful and we cannot make assumptions that we won't be
+      // so it is safer to just re-render.
+      key={key}
+      {...props}
+      widget={module.default}
+      value={valueWithBuffer}
+    />
   );
 };
 

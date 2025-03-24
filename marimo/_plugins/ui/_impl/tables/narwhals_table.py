@@ -8,6 +8,7 @@ from typing import Any, Optional, Union, cast
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
+from marimo import _loggers
 from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -27,8 +28,11 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_integer_type,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
+    is_narwhals_time_type,
     unwrap_py_scalar,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class NarwhalsTableManager(
@@ -61,8 +65,17 @@ class NarwhalsTableManager(
         _data = self.apply_formatting(format_mapping).as_frame()
         return dataframe_to_csv(_data).encode("utf-8")
 
-    def to_json(self) -> bytes:
-        csv_str = self.to_csv().decode("utf-8")
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        try:
+            csv_str = self.to_csv(format_mapping=format_mapping).decode(
+                "utf-8"
+            )
+        except Exception as e:
+            LOGGER.debug(
+                f"Failed to use format mapping: {str(e)}, falling back to default"
+            )
+            csv_str = self.to_csv().decode("utf-8")
+
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
@@ -149,12 +162,18 @@ class NarwhalsTableManager(
             return ("string", dtype_string)
         elif dtype == nw.Boolean:
             return ("boolean", dtype_string)
-        elif is_narwhals_integer_type(dtype):
-            return ("integer", dtype_string)
-        elif is_narwhals_temporal_type(dtype):
-            return ("date", dtype_string)
         elif dtype == nw.Duration:
             return ("number", dtype_string)
+        elif dtype.is_integer():
+            return ("integer", dtype_string)
+        elif is_narwhals_time_type(dtype):
+            return ("time", dtype_string)
+        elif dtype == nw.Date:
+            return ("date", dtype_string)
+        elif dtype == nw.Datetime:
+            return ("datetime", dtype_string)
+        elif dtype.is_temporal():
+            return ("datetime", dtype_string)
         elif dtype.is_numeric():
             return ("number", dtype_string)
         else:
@@ -185,7 +204,6 @@ class NarwhalsTableManager(
             elif (
                 dtype.is_numeric()
                 or is_narwhals_temporal_type(dtype)
-                or dtype == nw.Duration
                 or dtype == nw.Boolean
             ):
                 expressions.append(
@@ -228,28 +246,15 @@ class NarwhalsTableManager(
                 true=cast(int, col.sum()),
                 false=cast(int, total - col.sum()),
             )
-        if col.dtype == nw.Date:
+        if (col.dtype == nw.Date) or is_narwhals_time_type(col.dtype):
             return ColumnSummary(
                 total=total,
                 nulls=col.null_count(),
                 min=col.min(),
                 max=col.max(),
                 mean=col.mean(),
-                # Quantile not supported on date type
+                # Quantile not supported on date and time types
                 # median=col.quantile(0.5, interpolation="nearest"),
-            )
-        if is_narwhals_temporal_type(col.dtype):
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                min=col.min(),
-                max=col.max(),
-                mean=col.mean(),
-                median=col.quantile(0.5, interpolation="nearest"),
-                p5=col.quantile(0.05, interpolation="nearest"),
-                p25=col.quantile(0.25, interpolation="nearest"),
-                p75=col.quantile(0.75, interpolation="nearest"),
-                p95=col.quantile(0.95, interpolation="nearest"),
             )
         if col.dtype == nw.Duration and isinstance(col.dtype, nw.Duration):
             unit_map = {
@@ -266,6 +271,19 @@ class NarwhalsTableManager(
                 min=str(res.min()) + unit,
                 max=str(res.max()) + unit,
                 mean=str(res.mean()) + unit,
+            )
+        if is_narwhals_temporal_type(col.dtype):
+            return ColumnSummary(
+                total=total,
+                nulls=col.null_count(),
+                min=col.min(),
+                max=col.max(),
+                mean=col.mean(),
+                median=col.quantile(0.5, interpolation="nearest"),
+                p5=col.quantile(0.05, interpolation="nearest"),
+                p25=col.quantile(0.25, interpolation="nearest"),
+                p75=col.quantile(0.75, interpolation="nearest"),
+                p95=col.quantile(0.95, interpolation="nearest"),
             )
         if (
             col.dtype == nw.List

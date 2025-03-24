@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
     from marimo._runtime.dataflow import DirectedGraph
+    from marimo._save.stores import Store
 
 
 class _cache_call:
@@ -232,6 +233,10 @@ class _cache_context(SkipContext):
         self.hash_type = hash_type
         self._loader = loader
 
+    @property
+    def hit(self) -> bool:
+        return self._cache is not None and self._cache.hit
+
     def trace(self, with_frame: FrameType) -> None:
         # General flow is as follows:
         #   1) Follow the stack trace backwards to the first instance of a
@@ -295,7 +300,8 @@ class _cache_context(SkipContext):
                     if lineno >= self._body_start:
                         self.skip()
                 return
-            elif i > 2:
+            # <module> -> _trace_wrapper -> _trace
+            elif i > 3:
                 raise CacheException(
                     "`cache` must be invoked from cell level "
                     "(cannot be in a function or class)"
@@ -673,6 +679,7 @@ def persistent_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     save_path: str | None = None,
     method: LoaderKey = "pickle",
+    store: Optional[Store] = None,
     *args: Any,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
@@ -771,7 +778,12 @@ def persistent_cache(  # type: ignore[misc]
             f"Invalid method {method}, expected one of "
             f"{PERSISTENT_LOADERS.keys()}"
         )
-    loader = PERSISTENT_LOADERS[method].partial(save_path=save_path)
+
+    partial_args: dict[str, Any] = {"save_path": save_path}
+    if store is not None:
+        partial_args["store"] = store
+
+    loader = PERSISTENT_LOADERS[method].partial(**partial_args)
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")

@@ -7,42 +7,22 @@ components:
       required:
       - package
       type: object
+    AiCompletionContext:
+      properties:
+        schema:
+          items:
+            $ref: '#/components/schemas/SchemaTable'
+          type: array
+      required:
+      - schema
+      type: object
     AiCompletionRequest:
       properties:
         code:
           type: string
         context:
+          $ref: '#/components/schemas/AiCompletionContext'
           nullable: true
-          properties:
-            schema:
-              items:
-                properties:
-                  columns:
-                    items:
-                      properties:
-                        name:
-                          type: string
-                        sampleValues:
-                          items: {}
-                          type: array
-                        type:
-                          type: string
-                      required:
-                      - name
-                      - type
-                      - sampleValues
-                      type: object
-                    type: array
-                  name:
-                    type: string
-                required:
-                - name
-                - columns
-                type: object
-              type: array
-          required:
-          - schema
-          type: object
         includeOtherCode:
           type: string
         language:
@@ -57,6 +37,23 @@ components:
       - prompt
       - includeOtherCode
       - code
+      - language
+      type: object
+    AiInlineCompletionRequest:
+      properties:
+        language:
+          enum:
+          - python
+          - markdown
+          - sql
+          type: string
+        prefix:
+          type: string
+        suffix:
+          type: string
+      required:
+      - prefix
+      - suffix
       - language
       type: object
     Alert:
@@ -224,6 +221,58 @@ components:
       - mimetype
       - data
       - timestamp
+      type: object
+    ChatRequest:
+      properties:
+        context:
+          $ref: '#/components/schemas/AiCompletionContext'
+        includeOtherCode:
+          type: string
+        messages:
+          items:
+            properties:
+              attachments:
+                items:
+                  properties:
+                    contentType:
+                      nullable: true
+                      type: string
+                    name:
+                      type: string
+                    url:
+                      type: string
+                  required:
+                  - url
+                  - name
+                  type: object
+                nullable: true
+                type: array
+              content:
+                additionalProperties: true
+                type: object
+              role:
+                enum:
+                - user
+                - assistant
+                - system
+                type: string
+            required:
+            - role
+            - content
+            type: object
+          type: array
+        model:
+          nullable: true
+          type: string
+        variables:
+          items:
+            type: string
+          nullable: true
+          type: array
+      required:
+      - context
+      - includeOtherCode
+      - messages
       type: object
     CodeCompletionRequest:
       properties:
@@ -1071,6 +1120,7 @@ components:
               - compact
               - medium
               - full
+              - columns
               type: string
           required:
           - width
@@ -1079,12 +1129,9 @@ components:
           type: object
         capabilities:
           properties:
-            sql:
-              type: boolean
             terminal:
               type: boolean
           required:
-          - sql
           - terminal
           type: object
         cell_ids:
@@ -1268,6 +1315,12 @@ components:
           properties:
             activate_on_typing:
               type: boolean
+            api_key:
+              nullable: true
+              type: string
+            base_url:
+              nullable: true
+              type: string
             codeium_api_key:
               nullable: true
               type: string
@@ -1277,7 +1330,11 @@ components:
               - enum:
                 - github
                 - codeium
+                - custom
                 type: string
+            model:
+              nullable: true
+              type: string
           required:
           - activate_on_typing
           - copilot
@@ -1303,6 +1360,11 @@ components:
                 - auto
                 type: string
           type: object
+        diagnostics:
+          properties:
+            enabled:
+              type: boolean
+          type: object
         display:
           properties:
             cell_output:
@@ -1323,6 +1385,7 @@ components:
               - compact
               - medium
               - full
+              - columns
               type: string
             theme:
               enum:
@@ -1360,6 +1423,26 @@ components:
               type: string
           required:
           - preset
+          type: object
+        language_servers:
+          properties:
+            pylsp:
+              properties:
+                enable_flake8:
+                  type: boolean
+                enable_mypy:
+                  type: boolean
+                enable_pydocstyle:
+                  type: boolean
+                enable_pyflakes:
+                  type: boolean
+                enable_pylint:
+                  type: boolean
+                enable_ruff:
+                  type: boolean
+                enabled:
+                  type: boolean
+              type: object
           type: object
         package_management:
           properties:
@@ -2032,6 +2115,32 @@ components:
       - name
       - tables
       type: object
+    SchemaColumn:
+      properties:
+        name:
+          type: string
+        sampleValues:
+          items: {}
+          type: array
+        type:
+          type: string
+      required:
+      - name
+      - type
+      - sampleValues
+      type: object
+    SchemaTable:
+      properties:
+        columns:
+          items:
+            $ref: '#/components/schemas/SchemaColumn'
+          type: array
+        name:
+          type: string
+      required:
+      - name
+      - columns
+      type: object
     SendUIElementMessage:
       properties:
         buffers:
@@ -2287,7 +2396,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.19
+  version: 0.11.23
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2308,6 +2417,15 @@ paths:
           description: Get a virtual file
         404:
           description: Invalid byte length in virtual file request
+  /api/ai/chat:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+        description: The request body for AI chat
+        required: true
   /api/ai/completion:
     post:
       requestBody:
@@ -2315,7 +2433,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AiCompletionRequest'
-        description: The prompt to get AI completion for
+        description: The request body for AI completion
         required: true
       responses:
         200:
@@ -2325,6 +2443,22 @@ paths:
                 additionalProperties: true
                 type: object
           description: Get AI completion for a prompt
+  /api/ai/inline_completion:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiInlineCompletionRequest'
+        description: The request body for AI inline completion
+        required: true
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Get AI inline completion for code
   /api/datasources/preview_column:
     post:
       requestBody:

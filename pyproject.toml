@@ -32,7 +32,7 @@ dependencies = [
     # - 0.26.1 introduced lifespans, which we use
     # - starlette 0.36.0 introduced a bug
     "starlette>=0.26.1,!=0.36.0",
-    # websockets for use with starlette
+    # websockets for use with starlette, and for lsp
     "websockets >= 10.0.0",
     # pycrdt for collaborative editing
     "pycrdt >=0.11.0,<0.12.0",
@@ -68,6 +68,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -76,6 +77,9 @@ marimo = "marimo._cli.cli:main"
 
 [project.urls]
 homepage = "https://github.com/marimo-team/marimo"
+
+[project.entry-points."pylsp"]
+marimo_plugin = "marimo._server.lsp"
 
 [project.optional-dependencies]
 sql = [
@@ -95,8 +99,6 @@ recommended = [
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
-    "vegafusion>=2.0.0",        # Performant charting
-    "vl-convert-python>=1.0.0", # Required by vegafusion
 ]
 
 dev = [
@@ -112,6 +114,11 @@ dev = [
     "ruff~=0.9.1",
     # For AI
     "openai>=1.55.3",
+]
+
+lsp = [
+    "python-lsp-server>=1.10.0",
+    "python-lsp-ruff>=2.0.0",
 ]
 
 docs = [
@@ -179,18 +186,19 @@ installer = "uv"
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
+    "altair>=5.4.0",
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",
     "narwhals>=1.12.0",
     "matplotlib>=3.8.0",
-    "pyarrow-stubs>=17.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.38",
+    "sqlalchemy>=2.0.0",
     "pandas-stubs>=1.5.3.230321",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
+    "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
 ]
@@ -211,7 +219,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -236,13 +244,14 @@ extra-dependencies = [
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
     "pytest-asyncio~=0.25.2",
+    "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",
-    "pyarrow",
+    "pyarrow>=19.0.0",
     "pyarrow_hotfix",
     "altair>=5.4.0",
-    "polars~=1.9.0",
+    "polars~=1.24.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.38",
     "pandas>=1.5.3",
@@ -250,7 +259,7 @@ extra-dependencies = [
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
-    "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
+    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
     "anywidget~=0.9.14",
@@ -269,7 +278,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["dev", "docs"]
@@ -430,6 +439,8 @@ banned-module-level-imports = [
     "ipython",
     "anywidget",
     "packaging",
+    "redis",
+    "typing_extensions",
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -501,6 +512,8 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 chat_sidebar = true
+# Very experimental!
+lsp = true
 
 [tool.marimo.display]
 dataframes = "rich"

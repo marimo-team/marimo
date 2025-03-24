@@ -32,7 +32,6 @@ from marimo._data.models import (
     DataTable,
     DataTableSource,
 )
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
@@ -234,11 +233,7 @@ class CellOp(Op):
         assert cell_id is not None
         CellOp(
             cell_id=cell_id,
-            output=CellOutput(
-                channel=CellChannel.OUTPUT,
-                mimetype="text/plain",
-                data="",
-            ),
+            output=CellOutput.empty(),
             status=status,
         ).broadcast(stream=stream)
 
@@ -309,11 +304,7 @@ class CellOp(Op):
 
         CellOp(
             cell_id=cell_id,
-            output=CellOutput(
-                channel=CellChannel.MARIMO_ERROR,
-                mimetype="application/vnd.marimo+error",
-                data=safe_errors,
-            ),
+            output=CellOutput.errors(safe_errors),
             console=console,
             status=None,
         ).broadcast()
@@ -422,11 +413,9 @@ class CompletedRun(Op):
 
 @dataclass
 class KernelCapabilities:
-    sql: bool = False
     terminal: bool = False
 
     def __post_init__(self) -> None:
-        self.sql = DependencyManager.duckdb.has_at_version(min_version="1.0.0")
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
 

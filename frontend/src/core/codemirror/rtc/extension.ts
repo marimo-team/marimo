@@ -35,7 +35,7 @@ export function realTimeCollaboration(
   // Code sync plugin
   const codeSync = ViewPlugin.define((view) => {
     const handleSync = (isSynced: boolean) => {
-      Logger.debug(`RTC: sync=${isSynced}, ytext.length=${ytext.toJSON()}`);
+      Logger.debug(`RTC sync=${isSynced}, ytext.length=${ytext.toJSON()}`);
 
       // If it's not synced, update the editor code
       if (!isSynced) {
@@ -52,6 +52,23 @@ export function realTimeCollaboration(
       // If it's synced, update the cell code
       if (isSynced) {
         updateCellCode(ytext.toJSON());
+
+        // If the cell is new, insert the initial code
+        // Only do this once when we first connect and the document is empty
+        if (initialCode && ytext.length === 0) {
+          // Set a flag to prevent multiple insertions
+          const hasInserted = ytext.doc
+            ?.getMap("_metadata")
+            .get("initialCodeInserted");
+          if (!hasInserted) {
+            ytext.doc?.transact(() => {
+              ytext.delete(0, ytext.length);
+              ytext.insert(0, initialCode);
+              // Mark that we've inserted the initial code
+              ytext.doc?.getMap("_metadata").set("initialCodeInserted", true);
+            });
+          }
+        }
       }
     };
 

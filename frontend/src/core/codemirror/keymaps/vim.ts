@@ -26,7 +26,7 @@ export function vimKeymapExtension(): Extension[] {
           if (isAtEndOfEditor(ev, true) && isInVimNormalMode(ev)) {
             const actions = ev.state.facet(cellActionsState);
             const cellId = ev.state.facet(cellIdState);
-            actions.moveToNextCell({ cellId, before: false });
+            actions.moveToNextCell({ cellId, before: false, noCreate: true });
             return true;
           }
           return false;
@@ -40,7 +40,7 @@ export function vimKeymapExtension(): Extension[] {
           if (isAtStartOfEditor(ev) && isInVimNormalMode(ev)) {
             const actions = ev.state.facet(cellActionsState);
             const cellId = ev.state.facet(cellIdState);
-            actions.moveToNextCell({ cellId, before: true });
+            actions.moveToNextCell({ cellId, before: true, noCreate: true });
             return true;
           }
           return false;

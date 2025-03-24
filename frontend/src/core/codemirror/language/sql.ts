@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
+// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -11,7 +12,6 @@ import {
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
 import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
   dataConnectionsMapAtom,
@@ -48,6 +48,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
   dataframeName = "_df";
   lastQuotePrefix: QuotePrefixKind = "f";
+  lastPythonCode = "";
   showOutput = true;
   engine = store.get(dataSourceConnectionsAtom).latestEngineSelected;
 
@@ -69,6 +70,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       return [transformedCode, offset];
     }
 
+    this.lastPythonCode = pythonCode;
     pythonCode = pythonCode.trim();
 
     // Handle empty strings
@@ -104,6 +106,18 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
 
     // Multiline code
+    // Retrieve any comments that the Python code may have started with
+    const lines = this.lastPythonCode.split("\n");
+    const commentLines = [];
+
+    for (const line of lines) {
+      if (line.startsWith("#")) {
+        commentLines.push(line);
+      } else {
+        break;
+      }
+    }
+
     const start = `${this.dataframeName} = mo.sql(\n    ${prefix}"""\n`;
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
 
@@ -112,15 +126,13 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       this.engine === DEFAULT_ENGINE ? "" : `,\n    engine=${this.engine}`;
     const end = `\n    """${showOutputParam}${engineParam}\n)`;
 
-    return [start + indentOneTab(escapedCode) + end, start.length + 1];
+    return [
+      [...commentLines, start].join("\n") + indentOneTab(escapedCode) + end,
+      start.length + 1,
+    ];
   }
 
   isSupported(pythonCode: string): boolean {
-    const sqlCapabilities = store.get(capabilitiesAtom).sql;
-    if (!sqlCapabilities) {
-      return false;
-    }
-
     if (pythonCode.trim() === "") {
       return true;
     }
@@ -288,10 +300,15 @@ interface SQLParseInfo {
   startPosition: number;
 }
 
+// Finds an assignment node that is preceded only by comments.
 function findAssignment(cursor: TreeCursor): SyntaxNode | null {
   do {
     if (cursor.name === "AssignStatement") {
       return cursor.node;
+    }
+
+    if (cursor.name !== "Comment") {
+      return null;
     }
   } while (cursor.next());
   return null;
@@ -330,16 +347,17 @@ export function parseSQLStatement(code: string): SQLParseInfo | null {
     const tree = parser.parse(code);
     const cursor = tree.cursor();
 
-    // Find assignment statement
+    // Trees start with a Script node.
+    if (cursor.name === "Script") {
+      cursor.next();
+    }
     const assignStmt = findAssignment(cursor);
     if (!assignStmt) {
       return null;
     }
 
-    // Code outside of the assignment statement is not allowed
-    const outsideCode =
-      code.slice(0, assignStmt.from) + code.slice(assignStmt.to);
-    if (outsideCode.trim().length > 0) {
+    // Code after the assignment statement is not allowed.
+    if (code.slice(assignStmt.to).trim().length > 0) {
       return null;
     }
 

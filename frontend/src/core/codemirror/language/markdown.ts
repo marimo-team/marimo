@@ -5,6 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
+// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import {
   type Completion,

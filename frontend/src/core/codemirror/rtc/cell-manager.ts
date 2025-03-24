@@ -43,14 +43,6 @@ export class CellProviderManager {
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText(DOC_KEY);
     const ylanguage = ydoc.getText(LANGUAGE_KEY);
-    // Handle initial code. This is only used if a cell is brought back
-    // from being deleted.
-    if (initialCode) {
-      ytext.doc?.transact(() => {
-        ytext.delete(0, ytext.length);
-        ytext.insert(0, initialCode);
-      });
-    }
 
     const params: Record<string, string> = {
       session_id: getSessionId(),

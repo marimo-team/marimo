@@ -13,11 +13,16 @@ import {
   showPanel,
 } from "@codemirror/view";
 import { clamp } from "@/utils/math";
-import type { CompletionConfig } from "@/core/config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import {
   cellIdState,
   completionConfigState,
   hotkeysProviderState,
+  lspConfigState,
   placeholderState,
   type PlaceholderType,
 } from "../config/extension";
@@ -117,6 +122,7 @@ function updateLanguageAdapterAndCode(
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
   const placeholderType = view.state.facet(placeholderState);
   const cellId = view.state.facet(cellIdState);
+  const lspConfig = view.state.facet(lspConfigState);
   let cursor = view.state.selection.main.head;
 
   // If keepCodeAsIs is true, we just keep the original code
@@ -147,6 +153,7 @@ function updateLanguageAdapterAndCode(
           completionConfig,
           hotkeysProvider,
           placeholderType,
+          lspConfig,
         ),
       ),
       // Clear history
@@ -181,9 +188,11 @@ export function adaptiveLanguageConfiguration(opts: {
   placeholderType: PlaceholderType;
   completionConfig: CompletionConfig;
   hotkeys: HotkeyProvider;
+  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig };
   cellId: CellId;
 }) {
-  const { placeholderType, completionConfig, hotkeys, cellId } = opts;
+  const { placeholderType, completionConfig, hotkeys, cellId, lspConfig } =
+    opts;
 
   return [
     // Language adapter
@@ -194,6 +203,7 @@ export function adaptiveLanguageConfiguration(opts: {
         completionConfig,
         hotkeys,
         placeholderType,
+        lspConfig,
       ),
     ),
     languageAdapterState,
@@ -258,6 +268,7 @@ export function reconfigureLanguageEffect(
   view: EditorView,
   completionConfig: CompletionConfig,
   hotkeysProvider: HotkeyProvider,
+  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
@@ -268,6 +279,7 @@ export function reconfigureLanguageEffect(
       completionConfig,
       hotkeysProvider,
       placeholderType,
+      lspConfig,
     ),
   );
 }

@@ -114,6 +114,44 @@ export class CollapsibleTree<T> {
     );
   }
 
+  /**
+   * Create a new tree from ids, preserving structure from previous tree if possible
+   */
+  static fromWithPreviousShape<T>(
+    ids: T[],
+    previousTree?: CollapsibleTree<T>,
+  ): CollapsibleTree<T> {
+    if (!previousTree) {
+      return CollapsibleTree.from(ids);
+    }
+
+    // Reuse the previous tree's id if possible
+    const id = previousTree.id;
+
+    // Create new tree with nothing collapsed
+    let newTree = new CollapsibleTree(
+      ids.map((id) => new TreeNode(id, false, [])),
+      id,
+    );
+
+    // Collapse nodes that were collapsed in the previous tree
+    for (const id of ids) {
+      if (previousTree.isCollapsed(id)) {
+        const children = previousTree._nodeMap.get(id)?.children ?? [];
+        // Find the first child that is also in the new tree, going backwards
+        for (let i = children.length - 1; i >= 0; i--) {
+          const child = children[i];
+          if (newTree._nodeMap.has(child.value)) {
+            newTree = newTree.collapse(id, child.value);
+            break;
+          }
+        }
+      }
+    }
+
+    return newTree;
+  }
+
   withNodes(nodes: Array<TreeNode<T>>): CollapsibleTree<T> {
     return new CollapsibleTree(nodes, this.id);
   }
@@ -126,6 +164,11 @@ export class CollapsibleTree<T> {
   @Memoize()
   get inOrderIds(): T[] {
     return this.nodes.flatMap((n) => [n.value, ...n.inOrderIds]);
+  }
+
+  @Memoize()
+  get idSet(): Set<T> {
+    return new Set(this.inOrderIds);
   }
 
   get length(): number {
@@ -445,6 +488,45 @@ export class MultiColumn<T> {
 
   static from<T>(idsList: T[][]): MultiColumn<T> {
     return new MultiColumn(idsList.map((ids) => CollapsibleTree.from(ids)));
+  }
+
+  /**
+   * Create a new MultiColumn from idsList,
+   * attempting to preserve structure from previous MultiColumn if possible.
+   */
+  static fromWithPreviousShape<T>(
+    idsList: T[],
+    previousShape: MultiColumn<T>,
+  ): MultiColumn<T> {
+    if (!previousShape) {
+      return MultiColumn.from([idsList]);
+    }
+
+    // Get previous columns for reference
+    const previousColumns = previousShape.getColumns();
+
+    // Split the ids into their respective columns
+    const splitIds: T[][] = Array.from(
+      { length: previousColumns.length },
+      () => [],
+    );
+    let lastUsedColumnIdx = 0;
+    for (const id of idsList) {
+      const column = previousColumns.findIndex((c) => c.idSet.has(id));
+      if (column === -1) {
+        // No column found, use the last used column
+        splitIds[lastUsedColumnIdx].push(id);
+      } else {
+        lastUsedColumnIdx = column;
+        splitIds[column].push(id);
+      }
+    }
+
+    const newColumns = splitIds.map((ids, idx) =>
+      CollapsibleTree.fromWithPreviousShape(ids, previousColumns[idx]),
+    );
+
+    return new MultiColumn(newColumns);
   }
 
   @Memoize()
