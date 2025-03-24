@@ -11,6 +11,7 @@ from starlette.responses import (
 )
 
 from marimo._server.api.auth import validate_auth
+from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ LOGIN_PAGE = """
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>marimo</title>
 </head>
 <body style="
@@ -33,7 +35,7 @@ LOGIN_PAGE = """
     align-items: center;
     height: 100vh;
     margin: 0;">
-  <form method="POST" action="/auth/login" style="
+  <form method="POST" action="{base_url}auth/login" style="
     padding: 20px;
     background-color: white;
     border-radius: 8px;
@@ -97,16 +99,18 @@ async def login_submit(request: Request) -> Response:
                     schema:
                         type: string
     """
+    base_url = AppState(request).base_url or "/"
+    base_url = _with_trailing_slash(base_url)
+
     error = ""
-    redirect_url = request.query_params.get("next", "/")
+    redirect_url = request.query_params.get("next", base_url)
 
-    # Ensure redirect URL uses same protocol as request
+    # Validate redirect URL to prevent open redirect vulnerabilities
     parsed = urlparse(redirect_url)
-    if parsed.scheme:
-        redirect_url = parsed._replace(scheme=request.url.scheme).geturl()
-
-    if request.user.is_authenticated:
-        return RedirectResponse("/", 302)
+    if parsed.scheme and parsed.netloc:
+        if parsed.netloc != request.url.netloc:
+            # Fall back to base URL if external redirect
+            redirect_url = base_url
 
     if request.method == "POST":
         body = (await request.body()).decode()
@@ -120,11 +124,34 @@ async def login_submit(request: Request) -> Response:
                 return RedirectResponse(redirect_url, 302)
             else:
                 error = "Invalid password"
+    elif request.user.is_authenticated:
+        return RedirectResponse(redirect_url, 302)
 
-    return HTMLResponse(content=LOGIN_PAGE.format(error=error))
+    base_url = AppState(request).base_url
+    html = LOGIN_PAGE.format(error=error, base_url=base_url)
+    return HTMLResponse(
+        content=html,
+        headers={
+            "X-Frame-Options": "DENY",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/login", name="login_page")
 async def login_page(request: Request) -> HTMLResponse:
-    del request
-    return HTMLResponse(content=LOGIN_PAGE.format(error=""))
+    base_url = AppState(request).base_url
+    base_url = _with_trailing_slash(base_url)
+    return HTMLResponse(
+        content=LOGIN_PAGE.format(error="", base_url=base_url),
+        headers={
+            "X-Frame-Options": "DENY",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+def _with_trailing_slash(url: str) -> str:
+    if not url.endswith("/"):
+        return url + "/"
+    return url

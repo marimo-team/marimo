@@ -2773,7 +2773,10 @@ export interface components {
         open_ai?: {
           api_key?: string;
           base_url?: string;
+          ca_bundle_path?: string;
+          client_pem?: string;
           model?: string;
+          ssl_verify?: boolean;
         };
         rules?: string;
       };
