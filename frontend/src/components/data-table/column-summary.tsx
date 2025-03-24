@@ -102,13 +102,13 @@ export const TableColumnSummary = <TData, TValue>({
               <span>
                 min:{" "}
                 {typeof summary.min === "number"
-                  ? prettyScientificNumber(summary.min)
+                  ? prettyScientificNumber(summary.min, { shouldRound: true })
                   : summary.min}
               </span>
               <span>
                 max:{" "}
                 {typeof summary.max === "number"
-                  ? prettyScientificNumber(summary.max)
+                  ? prettyScientificNumber(summary.max, { shouldRound: true })
                   : summary.max}
               </span>
               <span>unique: {prettyNumber(summary.unique)}</span>
