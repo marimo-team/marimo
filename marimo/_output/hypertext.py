@@ -73,8 +73,10 @@ class Html(MIME):
 
     # Some libraries (e.g. polars) will serialize dataclasses so we add this
     # field to serialize the mimetype. This is to support rich display in tables/dfs.
-    serialized_mime_bundle: dict[Literal["mimetype", "data"], str] = field(
-        default_factory=dict
+    _serialized_mime_bundle: dict[Literal["mimetype", "data"], str] = field(
+        default_factory=dict,
+        repr=False,
+        init=False,
     )
 
     def __init__(self, text: str) -> None:
@@ -84,10 +86,17 @@ class Html(MIME):
         """
         self._text = text
         mimetype, data = self._mime_()
-        self.serialized_mime_bundle = {
+
+        self._serialized_mime_bundle = {
             "mimetype": mimetype,
             "data": data,
         }
+        # Whenever _serialized_mime_bundle is set, ensure a public copy exists.
+        # This avoids declaring a public attribute (does not show up in docs)
+        # Pandas does not serialize private variables, so we need this.
+        self.__setattr__(
+            "serialized_mime_bundle", self._serialized_mime_bundle
+        )
 
         # A list of the virtual file names referenced by this HTML element.
         self._virtual_filenames: list[str] = []

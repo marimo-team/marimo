@@ -44,10 +44,12 @@ export function getMimeValues(value: unknown): MimeValue[] | undefined {
   const hasSerializedMimeBundle =
     typeof value === "object" &&
     value !== null &&
-    "serialized_mime_bundle" in value;
+    ("_serialized_mime_bundle" in value || "serialized_mime_bundle" in value);
 
   if (hasSerializedMimeBundle) {
-    const serializedMimeBundle = value.serialized_mime_bundle;
+    const obj = value as Record<string, unknown>;
+    const serializedMimeBundle =
+      obj._serialized_mime_bundle || obj.serialized_mime_bundle;
     if (isMimeValue(serializedMimeBundle)) {
       return [serializedMimeBundle];
     }
