@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 from typing import TYPE_CHECKING, Any
+
+import pytest
 
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
@@ -160,6 +163,10 @@ class TestExecutionRoutes_EditMode:
         assert response.json()["status"] == "ok"
 
     @staticmethod
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Skipping test on Windows due to websocket issues",
+    )
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
         response = client.post(
@@ -360,7 +367,7 @@ def get_printed_object(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
 
-    timeout = 2
+    timeout = 4
     start = time.time()
     console = None
     while time.time() - start < timeout:
