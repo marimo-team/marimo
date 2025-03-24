@@ -2,16 +2,21 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from importlib.abc import Traversable
 
 
-def import_files(filename: str) -> Any:
+def import_files(filename: str) -> Traversable:
     from importlib.resources import files as importlib_files
 
     return importlib_files(filename)
+
+
+def marimo_package_path() -> Path:
+    return Path(str(import_files("marimo")))
 
 
 def pretty_path(filename: str) -> str:

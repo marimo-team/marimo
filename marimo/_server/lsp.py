@@ -14,7 +14,7 @@ from marimo._messaging.ops import Alert
 from marimo._runtime.complete import _get_docstring
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -126,11 +126,8 @@ class CopilotLspServer(BaseLspServer):
         )
 
     def _lsp_bin(self) -> str:
-        lsp_bin = os.path.join(
-            str(import_files("marimo").joinpath("_lsp")),
-            "index.js",
-        )
-        return lsp_bin
+        lsp_bin = marimo_package_path() / "_lsp" / "index.js"
+        return str(lsp_bin)
 
     def get_command(self) -> list[str]:
         lsp_bin = self._lsp_bin()
