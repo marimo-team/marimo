@@ -27,7 +27,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.session.session_view import SessionView
-from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 

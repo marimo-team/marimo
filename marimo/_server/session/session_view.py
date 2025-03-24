@@ -26,10 +26,8 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._sql.clickhouse_engines import INTERNAL_CLICKHOUSE_ENGINE
-from marimo._sql.engines import (
-    INTERNAL_DUCKDB_ENGINE,
-)
+from marimo._sql.engines.clickhouse import INTERNAL_CLICKHOUSE_ENGINE
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw

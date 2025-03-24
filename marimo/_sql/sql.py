@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
-from marimo._sql.clickhouse_engines import (
+from marimo._sql.engines.clickhouse import (
     INTERNAL_CLICKHOUSE_ENGINE,
     ClickhouseEmbedded,
     ClickhouseServer,
 )
-from marimo._sql.engines import (
-    DuckDBEngine,
+from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.sqlalchemy import (
     SQLAlchemyEngine,
     raise_df_import_error,
 )

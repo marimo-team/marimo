@@ -8,7 +8,7 @@ import clickhouse_connect.driver.client
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.types import SQLEngine
+from marimo._sql.engines.types import SQLEngine
 from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 

@@ -142,9 +142,9 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines import SQLAlchemyEngine
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.engines.types import SQLEngine
 from marimo._sql.get_engines import get_engines_from_variables
-from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never

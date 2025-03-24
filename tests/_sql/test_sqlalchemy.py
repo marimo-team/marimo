@@ -9,7 +9,7 @@ import pytest
 
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines import (
+from marimo._sql.engines.sqlalchemy import (
     SQLAlchemyEngine,
 )
 from marimo._sql.sql import sql

@@ -9,9 +9,7 @@ import pytest
 
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines import (
-    DuckDBEngine,
-)
+from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.sql import sql
 
 HAS_DUCKDB = DependencyManager.duckdb.has()

@@ -11,12 +11,12 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.clickhouse_engines import ClickhouseEmbedded
-from marimo._sql.engines import (
+from marimo._sql.engines.clickhouse import ClickhouseEmbedded
+from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
-    SQLAlchemyEngine,
 )
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,

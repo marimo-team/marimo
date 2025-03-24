@@ -11,13 +11,16 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
-from marimo._sql.clickhouse_engines import ClickhouseEmbedded, ClickhouseServer
-from marimo._sql.engines import (
+from marimo._sql.engines.clickhouse import (
+    ClickhouseEmbedded,
+    ClickhouseServer,
+)
+from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
-    SQLAlchemyEngine,
 )
-from marimo._sql.types import SQLEngine
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.engines.types import SQLEngine
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
