@@ -42,7 +42,7 @@ interface Props {
   /**
    * The value types to use for the JSON viewer.
    */
-  valueTypes?: string;
+  valueTypes?: "json" | "python";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

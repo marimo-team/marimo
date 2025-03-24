@@ -15,8 +15,7 @@ from marimo._utils.flatten import CyclicStructureError, flatten
 
 def _leaf_formatter(
     value: object,
-    json_compat_values: bool = False,
-) -> bool | None | str | int | float | list:
+) -> bool | None | str | int:
     formatter = formatting.get_formatter(value)
     if formatter is not None:
         return ":".join(formatter(value))
@@ -29,21 +28,12 @@ def _leaf_formatter(
     # floats are still converted to strings because JavaScript
     # can't reliably distinguish between them (eg 1 and 1.0)
     if isinstance(value, float):
-        if json_compat_values:
-            return value
-
         return f"text/plain+float:{value}"
     if value is None:
         return value
     if isinstance(value, set):
-        if json_compat_values:
-            return list(value)
-
         return f"text/plain+set:{str(value)}"
     if isinstance(value, tuple):
-        if json_compat_values:
-            return list(value)
-
         return f"text/plain+tuple:{json.dumps(value)}"
 
     try:
@@ -54,7 +44,6 @@ def _leaf_formatter(
 
 def format_structure(
     t: Union[tuple[Any, ...], list[Any], dict[str, Any]],
-    json_compat_values: bool = False,
 ) -> Union[tuple[Any, ...], list[Any], dict[str, Any]]:
     """Format the leaves of a structure.
 
@@ -62,9 +51,7 @@ def format_structure(
     leaves.
     """
     flattened, repacker = flatten(t, json_compat_keys=True)
-    return repacker(
-        [_leaf_formatter(v, json_compat_values) for v in flattened]
-    )
+    return repacker([_leaf_formatter(v) for v in flattened])
 
 
 class StructuresFormatter(FormatterFactory):

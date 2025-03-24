@@ -11,7 +11,7 @@ from marimo._plugins.stateless import json_output
 
 @mddoc
 def json(
-    data: str,
+    data: str | dict | list,
     label: Optional[str] = None,
 ) -> Html:
     """Render a JSON with tree.
@@ -25,19 +25,29 @@ def json(
         ```
 
     Args:
-        data: JSON string to render
+        data: JSON string or JSON-compatible Python object(s) to render
         label: optional text label for the tree
 
     Returns:
         Html: `Html` object
     """
-    if not isinstance(data, str):
+    if not isinstance(data, (str, dict, list)):
         raise ValueError(
-            "Argument `data` must be a str, " + f"but got: {type(data)}"
+            "Argument `data` must be a str, dict, or list, "
+            f"but got: {type(data)}"
         )
 
+    if isinstance(data, str):
+        try:
+            data = loads(data)
+        except ValueError as e:
+            raise ValueError(
+                "Argument `data` must be a valid JSON string, "
+                + f"but got: {data}"
+            ) from e
+
     return json_output.json_output(
-        json_data=loads(data),
+        json_data=data,
         name=label,
         value_types="json",
     )
