@@ -193,5 +193,26 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo, pd, pl):
+    pd.DataFrame({"button": [mo.ui.button()]})
+
+    pl.DataFrame({"button": mo.ui.button()})
+    mo.ui.table({"button": mo.ui.button()})
+    return
+
+
+@app.cell
+def _(data, mo):
+    mo.ui.experimental_data_editor(data=data, label="Edit Data")
+    return
+
+
+@app.cell
+def _(data, mo):
+    mo.ui.data_explorer(data)
+    return
+
+
 if __name__ == "__main__":
     app.run()
