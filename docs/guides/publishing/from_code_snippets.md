@@ -71,4 +71,4 @@ You can also configure data attributes per-element.
 </marimo-iframe>
 ```
 
-Check the [Github repository](https://github.com/marimo-team/marimo-snippets) for a full example and more [documentation on configuration](https://github.com/marimo-team/marimo-snippets?tab=readme-ov-file#configuration).
+See the [GitHub repository](https://github.com/marimo-team/marimo-snippets) for a full example and [documentation on configuration](https://github.com/marimo-team/marimo-snippets?tab=readme-ov-file#configuration).
