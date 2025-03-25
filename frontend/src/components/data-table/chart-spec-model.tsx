@@ -232,9 +232,10 @@ export class ColumnChartSpecModel<T> {
                   bin: true,
                   axis: {
                     title: null,
-                    labelFontSize: 8,
+                    labelFontSize: 8.5,
+                    labelOpacity: 0.5,
                     labelExpr:
-                      "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : datum.value",
+                      "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
                   },
                 },
                 y: {
