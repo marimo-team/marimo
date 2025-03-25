@@ -12,7 +12,11 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import InferenceConfig, SQLEngine
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLEngine,
+    register_engine,
+)
 from marimo._sql.utils import sql_type_to_data_type
 from marimo._types.ids import VariableName
 
@@ -28,6 +32,7 @@ PANDAS_REQUIRED_MSG = (
 )
 
 
+@register_engine
 class ClickhouseEmbedded(SQLEngine):
     """Use chdb to connect to an embedded Clickhouse"""
 
@@ -87,17 +92,17 @@ class ClickhouseEmbedded(SQLEngine):
         return []
 
     def get_tables_in_schema(
-        self, *, schema: str, include_table_details: bool
+        self, *, database: str, schema: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        _, _ = schema, include_table_details
+        _, _, _ = database, schema, include_table_details
         return []
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str
+        self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
-        _, _ = table_name, schema_name
+        _, _, _ = table_name, schema_name, database_name
         return None
 
     def get_default_database(self) -> Optional[str]:
@@ -125,6 +130,7 @@ class ClickhouseEmbedded(SQLEngine):
         )
 
 
+@register_engine
 class ClickhouseServer(SQLEngine):
     """Use clickhouse.connect to connect to a Clickhouse server"""
 
@@ -241,7 +247,8 @@ class ClickhouseServer(SQLEngine):
             ):
                 tables = []
             else:
-                tables = self.get_tables_in_database(
+                tables = self.get_tables_in_schema(
+                    schema="",
                     database=db,
                     include_table_details=include_table_details,
                 )
@@ -268,18 +275,6 @@ class ClickhouseServer(SQLEngine):
         self,
         *,
         schema: str,
-        include_table_details: bool,
-    ) -> list[DataTable]:
-        """Return all tables in a schema.
-        For ClickHouse, this is equivalent to getting all tables in a database.
-        """
-        return self.get_tables_in_database(
-            database=schema, include_table_details=include_table_details
-        )
-
-    def get_tables_in_database(
-        self,
-        *,
         database: str,
         include_table_details: bool,
     ) -> list[DataTable]:
@@ -287,12 +282,14 @@ class ClickhouseServer(SQLEngine):
         Return all tables in a given ClickHouse database.
 
         Args:
+            schema: The schema name. (ignored for ClickHouse)
             database: The name of the database.
             include_table_details: Whether to retrieve detailed table metadata.
 
         Returns:
             List of DataTable objects.
         """
+        _ = schema  # ClickHouse does not have schemas
         if self._connection is None:
             return []
 
@@ -319,8 +316,8 @@ class ClickhouseServer(SQLEngine):
         table_names = table_df[table_df.columns[0]].tolist()
         for table in table_names:
             if include_table_details:
-                table_detail = self.get_table_details_from_db(
-                    database=database, table_name=table
+                table_detail = self.get_table_details(
+                    table_name=table, schema_name="", database_name=database
                 )
                 if table_detail is not None:
                     tables.append(table_detail)
@@ -343,36 +340,30 @@ class ClickhouseServer(SQLEngine):
         return tables
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str
-    ) -> Optional[DataTable]:
-        """Get a single table from the engine. Equivalent to get_table_details_from_db."""
-        return self.get_table_details_from_db(
-            database=schema_name, table_name=table_name
-        )
-
-    def get_table_details_from_db(
-        self, *, database: str, table_name: str
+        self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """
         Get detailed metadata for a given table in a database.
 
         Args:
-            database: The database name.
+            database_name: The database name.
+            schema_name: The schema name. (ignored for ClickHouse)
             table_name: The table name.
 
         Returns:
             A DataTable object with detailed metadata,
             or None if the table cannot be described.
         """
+        _ = schema_name
         if self._connection is None:
             return None
 
         try:
-            query = f"SELECT * FROM system.tables WHERE name = '{table_name}' AND database = '{database}'"
+            query = f"SELECT * FROM system.tables WHERE name = '{table_name}' AND database = '{database_name}'"
             table_df = self._connection.query_df(query)
         except Exception:
             LOGGER.warning(
-                f"Failed to get table details for {table_name} in database {database}",
+                f"Failed to get table details for {table_name} in database {database_name}",
                 exc_info=True,
             )
             return None
@@ -402,11 +393,11 @@ class ClickhouseServer(SQLEngine):
             pass
 
         try:
-            query = f"DESCRIBE TABLE {database}.{table_name}"
+            query = f"DESCRIBE TABLE {database_name}.{table_name}"
             desc_df = self._connection.query_df(query)
         except Exception:
             LOGGER.warning(
-                f"Failed to get table description for {table_name} in database {database}",
+                f"Failed to get table description for {table_name} in database {database_name}",
                 exc_info=True,
             )
             return None

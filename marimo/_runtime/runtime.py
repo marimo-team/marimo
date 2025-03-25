@@ -142,7 +142,6 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines.clickhouse import ClickhouseServer
 from marimo._sql.engines.types import SQLEngine
 from marimo._sql.get_engines import get_engines_from_variables
 from marimo._tracer import kernel_tracer
@@ -2191,15 +2190,11 @@ class Kernel:
             return
 
         try:
-            # Schemaless engines
-            if isinstance(engine, ClickhouseServer):
-                table = engine.get_table_details_from_db(
-                    database=database_name, table_name=table_name
-                )
-            else:
-                table = engine.get_table_details(
-                    table_name=table_name, schema_name=schema_name
-                )
+            table = engine.get_table_details(
+                table_name=table_name,
+                schema_name=schema_name,
+                database_name=database_name,
+            )
 
             SQLTablePreview(
                 request_id=request.request_id, table=table
@@ -2240,14 +2235,11 @@ class Kernel:
             return
 
         try:
-            if isinstance(engine, ClickhouseServer):
-                table_list = engine.get_tables_in_database(
-                    database=database_name, include_table_details=False
-                )
-            else:
-                table_list = engine.get_tables_in_schema(
-                    schema=schema_name, include_table_details=False
-                )
+            table_list = engine.get_tables_in_schema(
+                schema=schema_name,
+                database=database_name,
+                include_table_details=False,
+            )
             SQLTableListPreview(
                 request_id=request.request_id, tables=table_list
             ).broadcast()

@@ -18,6 +18,8 @@ HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
 
+UNUSED_DB_NAME = "unused_db"
+
 
 @pytest.mark.skipif(
     not HAS_DUCKDB or not HAS_SQLALCHEMY or not HAS_PANDAS,
@@ -216,7 +218,9 @@ def test_sqlalchemy_get_table_details() -> None:
 
     # Get table details
     table_details = engine.get_table_details(
-        table_name="test_table", schema_name="main"
+        table_name="test_table",
+        schema_name="main",
+        database_name=UNUSED_DB_NAME,
     )  # main is default schema in SQLite
 
     assert table_details is not None

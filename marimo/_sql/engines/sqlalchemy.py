@@ -13,7 +13,11 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import InferenceConfig, SQLEngine
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLEngine,
+    register_engine,
+)
 from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
@@ -24,6 +28,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.type_api import TypeEngine
 
 
+@register_engine
 class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
 
@@ -142,7 +147,9 @@ class SQLAlchemyEngine(SQLEngine):
         # We check for existing schemas to verify the connection's validity.
         if database_name is None:
             schemas_found = self._get_schemas(
-                include_tables=False, include_table_details=False
+                database=None,
+                include_tables=False,
+                include_table_details=False,
             )
             if not schemas_found:
                 return None
@@ -187,6 +194,7 @@ class SQLAlchemyEngine(SQLEngine):
 
         schemas = (
             self._get_schemas(
+                database=database_name,
                 include_tables=self._resolve_should_auto_discover(
                     include_tables
                 ),
@@ -210,6 +218,7 @@ class SQLAlchemyEngine(SQLEngine):
     def _get_schemas(
         self,
         *,
+        database: Optional[str],
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -230,6 +239,7 @@ class SQLAlchemyEngine(SQLEngine):
                     name=schema,
                     tables=self.get_tables_in_schema(
                         schema=schema,
+                        database=database if database is not None else "",
                         include_table_details=include_table_details,
                     )
                     if include_tables
@@ -240,9 +250,10 @@ class SQLAlchemyEngine(SQLEngine):
         return schemas
 
     def get_tables_in_schema(
-        self, *, schema: str, include_table_details: bool
+        self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
+        _ = database
 
         if self.inspector is None:
             return []
@@ -277,7 +288,7 @@ class SQLAlchemyEngine(SQLEngine):
         data_tables: list[DataTable] = []
         for t_type, t_name in tables:
             table = self.get_table_details(
-                table_name=t_name, schema_name=schema
+                table_name=t_name, schema_name=schema, database_name=database
             )
             if table is not None:
                 table.type = t_type
@@ -286,9 +297,10 @@ class SQLAlchemyEngine(SQLEngine):
         return data_tables
 
     def get_table_details(
-        self, *, table_name: str, schema_name: str
+        self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
+        _ = database_name
 
         if self.inspector is None:
             return None

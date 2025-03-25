@@ -7,6 +7,13 @@ from typing import Any, Literal, Optional, Union
 
 from marimo._data.models import Database, DataTable
 
+ENGINE_REGISTRY: list[type[SQLEngine]] = []
+
+
+def register_engine(cls: type[SQLEngine]) -> type[SQLEngine]:
+    ENGINE_REGISTRY.append(cls)
+    return cls
+
 
 @dataclass
 class InferenceConfig(ABC):
@@ -74,14 +81,14 @@ class SQLEngine(ABC):
 
     @abstractmethod
     def get_tables_in_schema(
-        self, *, schema: str, include_table_details: bool
+        self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
         pass
 
     @abstractmethod
     def get_table_details(
-        self, *, table_name: str, schema_name: str
+        self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
         pass

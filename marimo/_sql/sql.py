@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
-from marimo._sql.engines.clickhouse import ClickhouseEmbedded, ClickhouseServer
 from marimo._sql.engines.duckdb import DuckDBEngine
-from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.engines.types import ENGINE_REGISTRY
 from marimo._sql.utils import raise_df_import_error
 
 
@@ -63,18 +62,17 @@ def sql(
             DependencyManager.sqlglot,
         )
         sql_engine = DuckDBEngine(connection=None)
-    elif SQLAlchemyEngine.is_compatible(engine):
-        sql_engine = SQLAlchemyEngine(engine)  # type: ignore
-    elif DuckDBEngine.is_compatible(engine):
-        sql_engine = DuckDBEngine(engine)  # type: ignore
-    elif ClickhouseEmbedded.is_compatible(engine):
-        sql_engine = ClickhouseEmbedded(engine)  # type: ignore
-    elif ClickhouseServer.is_compatible(engine):
-        sql_engine = ClickhouseServer(engine)  # type: ignore
     else:
-        raise ValueError(
-            "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
-        )
+        for engine_cls in ENGINE_REGISTRY:
+            if engine_cls.is_compatible(engine):
+                sql_engine = engine_cls(
+                    connection=engine, engine_name="custom"
+                )  # type: ignore
+                break
+        else:
+            raise ValueError(
+                "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
+            )
 
     df = sql_engine.execute(query)
     if df is None:
