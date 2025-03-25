@@ -7,9 +7,6 @@ settings:
 pnpmfileChecksum: eqzj7c6t3bs5v7xcjer2wfwkp4
 
 patchedDependencies:
-  codemirror-extension-inline-suggestion:
-    hash: khbxbgrsjmwb5ecklr5ujxzp5i
-    path: patches/codemirror-extension-inline-suggestion.patch
   react-plotly.js:
     hash: bpeex744nmt6722etqry6essaq
     path: patches/react-plotly.js.patch
@@ -100,8 +97,8 @@ importers:
         specifier: ^1.1.16
         version: 1.1.16
       '@marimo-team/codemirror-ai':
-        specifier: ^0.1.9
-        version: 0.1.9(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
+        specifier: ^0.1.11
+        version: 0.1.11(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
       '@marimo-team/codemirror-languageserver':
         specifier: ^1.15.0
         version: 1.15.0(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
@@ -267,9 +264,6 @@ importers:
       cmdk:
         specifier: ^1.0.4
         version: 1.0.4(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      codemirror-extension-inline-suggestion:
-        specifier: ^0.0.3
-        version: 0.0.3(patch_hash=khbxbgrsjmwb5ecklr5ujxzp5i)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)
       compassql:
         specifier: ^0.21.2
         version: 0.21.2(vega@5.32.0)
@@ -1572,8 +1566,8 @@ packages:
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
 
-  '@marimo-team/codemirror-ai@0.1.9':
-    resolution: {integrity: sha512-Ti6KzKfwvceHuSSUoWyoALawALq/ftNUaxvLIfzsU0vwtNa23Et95btAisGLBCPQ0YxBPEPSI3anYY/o7T4cMQ==}
+  '@marimo-team/codemirror-ai@0.1.11':
+    resolution: {integrity: sha512-EGFdLmJP5i4fV0Mec0V48Wlav7bvzbC+GWPmOmYmX49v1LLo1ie1x4CcbcM4IC3baH8MP3AdGvzD/7fSXBoupg==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -4475,12 +4469,6 @@ packages:
   code-point-at@1.1.0:
     resolution: {integrity: sha512-RpAVKQA5T63xEj6/giIbUEtZwJ4UFIc3ZtvEkiaUERylqe8xb5IvqcgOurZLahv93CLKfxcw5YI+DZcUBRyLXA==}
     engines: {node: '>=0.10.0'}
-
-  codemirror-extension-inline-suggestion@0.0.3:
-    resolution: {integrity: sha512-IgNoyK7d4HJicqZMYMC1RgHlpR1pnSEgDHATKIuQrqW68o5QmD8IFZ26M/8UXNI+Usb00Vu4q0EtzMdm92pOAg==}
-    peerDependencies:
-      '@codemirror/state': ^6.2.0
-      '@codemirror/view': ^6.7.2
 
   codemirror-lang-mermaid@0.5.0:
     resolution: {integrity: sha512-Taw/2gPCyNArQJCxIP/HSUif+3zrvD+6Ugt7KJZ2dUKou/8r3ZhcfG8krNTZfV2iu8AuGnymKuo7bLPFyqsh/A==}
@@ -10366,7 +10354,7 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.2': {}
 
-  '@marimo-team/codemirror-ai@0.1.9(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)':
+  '@marimo-team/codemirror-ai@0.1.11(@codemirror/state@6.5.2)(@codemirror/view@6.36.4)':
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.4
@@ -14045,11 +14033,6 @@ snapshots:
       - '@types/react-dom'
 
   code-point-at@1.1.0: {}
-
-  codemirror-extension-inline-suggestion@0.0.3(patch_hash=khbxbgrsjmwb5ecklr5ujxzp5i)(@codemirror/state@6.5.2)(@codemirror/view@6.36.4):
-    dependencies:
-      '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.4
 
   codemirror-lang-mermaid@0.5.0:
     dependencies:
