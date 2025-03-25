@@ -13,6 +13,7 @@ This guide provides an overview of the various ways to publish marimo notebooks.
 | Guide                                                 | Description                                                  |
 | ----------------------------------------------------- | ------------------------------------------------------------ |
 | [Embedding](embedding.md)                             | An overview of embedding notebooks in other sites            |
+| [Markdown Snippets](marimo-snippets.md)               | Use the `marimo-snippets` plugin to host marimo              |
 | [From GitHub](from_github.md)                         | How to share links to executable notebooks hosted on GitHUb  |
 | [GitHub Pages](github_pages.md)                       | Publishing interactive notebooks on GitHub Pages             |
 | [Cloudflare Pages](cloudflare_pages.md)               | Publishing interactive notebooks on Cloudflare Pages         |
