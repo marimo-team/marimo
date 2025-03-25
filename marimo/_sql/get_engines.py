@@ -61,35 +61,22 @@ def engine_to_data_source_connection(
     default_database: Optional[str] = None
     default_schema: Optional[str] = None
 
-    config = get_datasources_config()
-    auto_discover_schemas = config.get("auto_discover_schemas", True)
-    auto_discover_tables = config.get("auto_discover_tables", "auto")
-    auto_discover_columns = config.get("auto_discover_columns", False)
+    default_database = engine.get_default_database()
+    default_schema = engine.get_default_schema()
+    inference_config = engine.inference_config
 
-    if isinstance(engine, SQLAlchemyEngine):
-        default_database = engine.default_database
-        default_schema = engine.default_schema
-        databases = engine.get_databases(
-            include_schemas=auto_discover_schemas,
-            include_tables=auto_discover_tables,
-            include_table_details=auto_discover_columns,
-        )
-    elif isinstance(engine, DuckDBEngine):
-        databases = engine.get_databases()
-        default_database = engine.get_current_database()
-        default_schema = engine.get_current_schema()
-    elif isinstance(engine, ClickhouseEmbedded):
-        pass
-    elif isinstance(engine, ClickhouseServer):
-        default_database = engine.get_default_database()
-        databases = engine.get_databases(
-            include_tables=auto_discover_tables,
-            include_table_details=auto_discover_columns,
-        )
-    else:
-        LOGGER.warning(
-            f"Unsupported engine type: {type(engine)}. Unable to get databases for {variable_name}."
-        )
+    config = get_datasources_config()
+    databases = engine.get_databases(
+        include_schemas=config.get(
+            "auto_discover_schemas", inference_config.auto_discover_schemas
+        ),
+        include_tables=config.get(
+            "auto_discover_tables", inference_config.auto_discover_tables
+        ),
+        include_table_details=config.get(
+            "auto_discover_columns", inference_config.auto_discover_columns
+        ),
+    )
 
     display_name = (
         f"{engine.dialect} ({variable_name})"

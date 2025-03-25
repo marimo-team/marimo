@@ -13,7 +13,7 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import SQLEngine
+from marimo._sql.engines.types import InferenceConfig, SQLEngine
 from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 
@@ -42,8 +42,8 @@ class SQLAlchemyEngine(SQLEngine):
             LOGGER.warning("Failed to create inspector", exc_info=True)
             self.inspector = None
 
-        self.default_database = self._get_current_database()
-        self.default_schema = self._get_default_schema()
+        self.default_database = self.get_default_database()
+        self.default_schema = self.get_default_schema()
 
     @property
     def source(self) -> str:
@@ -93,13 +93,15 @@ class SQLAlchemyEngine(SQLEngine):
 
         return isinstance(var, Engine)
 
-    def _should_include_columns(self) -> bool:
-        # Including columns can fan out to a lot of requests,
-        # so this is disabled for now.
-        # Maybe in future we can enable this as a flag or for certain connection types.
-        return False
+    @property
+    def inference_config(self) -> InferenceConfig:
+        return InferenceConfig(
+            auto_discover_schemas=True,
+            auto_discover_tables="auto",
+            auto_discover_columns=False,
+        )
 
-    def _get_current_database(self) -> Optional[str]:
+    def get_default_database(self) -> Optional[str]:
         """Get the current database name.
 
         Returns:
@@ -147,7 +149,7 @@ class SQLAlchemyEngine(SQLEngine):
 
         return database_name or ""
 
-    def _get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> Optional[str]:
         """Get the default schema name"""
         if self.inspector is None:
             return None
@@ -282,7 +284,7 @@ class SQLAlchemyEngine(SQLEngine):
         return data_tables
 
     def get_table_details(
-        self, table_name: str, schema_name: str
+        self, *, table_name: str, schema_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
 

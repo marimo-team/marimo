@@ -3,16 +3,16 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, Optional, Union
 
-# from marimo._data.models import Database
+from marimo._data.models import Database, DataTable
 
 
 @dataclass
 class InferenceConfig(ABC):
-    auto_discover_schemas: bool
-    auto_discover_tables: bool
-    auto_discover_columns: bool
+    auto_discover_schemas: Union[bool | Literal["auto"]]
+    auto_discover_tables: Union[bool | Literal["auto"]]
+    auto_discover_columns: Union[bool | Literal["auto"]]
 
 
 class SQLEngine(ABC):
@@ -34,6 +34,12 @@ class SQLEngine(ABC):
         """Return the sqlglot dialect for this engine."""
         pass
 
+    @property
+    @abstractmethod
+    def inference_config(self) -> InferenceConfig:
+        """Return the inference config for the engine."""
+        pass
+
     @abstractmethod
     def execute(self, query: str) -> Any:
         """Execute a SQL query and return a dataframe."""
@@ -45,18 +51,37 @@ class SQLEngine(ABC):
         """Check if a variable is a compatible engine."""
         pass
 
-    # @abstractmethod
-    # def get_inference_config(self) -> InferenceConfig:
-    #     """Return the inference config for the engine."""
-    #     pass
+    @abstractmethod
+    def get_default_database(self) -> Optional[str]:
+        """Return the default database for the engine."""
+        pass
 
-    # @abstractmethod
-    # def get_databases(
-    #     self,
-    #     *,
-    #     include_schemas: Union[bool, Literal["auto"]],
-    #     include_tables: Union[bool, Literal["auto"]],
-    #     include_table_details: Union[bool, Literal["auto"]],
-    # ) -> list[Database]:
-    #     """Return the databases for the engine."""
-    #     pass
+    @abstractmethod
+    def get_default_schema(self) -> Optional[str]:
+        """Return the default schema for the engine."""
+        pass
+
+    @abstractmethod
+    def get_databases(
+        self,
+        *,
+        include_schemas: Union[bool, Literal["auto"]],
+        include_tables: Union[bool, Literal["auto"]],
+        include_table_details: Union[bool, Literal["auto"]],
+    ) -> list[Database]:
+        """Return the databases for the engine."""
+        pass
+
+    @abstractmethod
+    def get_tables_in_schema(
+        self, *, schema: str, include_table_details: bool
+    ) -> list[DataTable]:
+        """Return all tables in a schema."""
+        pass
+
+    @abstractmethod
+    def get_table_details(
+        self, *, table_name: str, schema_name: str
+    ) -> Optional[DataTable]:
+        """Get a single table from the engine."""
+        pass

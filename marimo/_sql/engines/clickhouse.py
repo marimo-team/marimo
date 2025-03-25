@@ -13,7 +13,7 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import SQLEngine
+from marimo._sql.engines.types import InferenceConfig, SQLEngine
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -71,6 +71,37 @@ class ClickhouseEmbedded(SQLEngine):
             return result
         return None
 
+    # TODO: Implement the following functionalities
+    def get_databases(
+        self,
+        *,
+        include_schemas: Union[bool, Literal["auto"]],
+        include_tables: Union[bool, Literal["auto"]],
+        include_table_details: Union[bool, Literal["auto"]],
+    ) -> list[Database]:
+        _, _, _ = include_schemas, include_tables, include_table_details
+        return []
+
+    def get_tables_in_schema(
+        self, *, schema: str, include_table_details: bool
+    ) -> list[DataTable]:
+        """Return all tables in a schema."""
+        _, _ = schema, include_table_details
+        return []
+
+    def get_table_details(
+        self, *, table_name, schema_name
+    ) -> Optional[DataTable]:
+        """Get a single table from the engine."""
+        _, _ = table_name, schema_name
+        return []
+
+    def get_default_database(self) -> Optional[str]:
+        return None
+
+    def get_default_schema(self) -> Optional[str]:
+        return None
+
     @staticmethod
     def is_compatible(var: Any) -> bool:
         if not DependencyManager.chdb.imported():
@@ -79,6 +110,15 @@ class ClickhouseEmbedded(SQLEngine):
         from chdb.state.sqlitelike import Connection
 
         return isinstance(var, Connection)
+
+    @property
+    def inference_config(self) -> InferenceConfig:
+        # Because chdb is a local connection, we can auto-discover everything
+        return InferenceConfig(
+            auto_discover_schemas=True,
+            auto_discover_tables=True,
+            auto_discover_columns=True,
+        )
 
 
 class ClickhouseServer(SQLEngine):
@@ -117,9 +157,27 @@ class ClickhouseServer(SQLEngine):
             return result
         return None
 
+    @staticmethod
+    def is_compatible(var: Any) -> bool:
+        if not DependencyManager.clickhouse_connect.imported():
+            return False
+
+        from clickhouse_connect.driver.client import Client
+
+        return isinstance(var, Client)
+
+    @property
+    def inference_config(self) -> InferenceConfig:
+        return InferenceConfig(
+            auto_discover_schemas=False,
+            auto_discover_tables="auto",
+            auto_discover_columns="auto",
+        )
+
     def get_databases(
         self,
         *,
+        include_schemas: Union[bool, Literal["auto"]],
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
@@ -127,12 +185,14 @@ class ClickhouseServer(SQLEngine):
         Get all databases from the ClickHouse server.
 
         Args:
+            include_schemas: Whether to include schema information. (ignored for ClickHouse)
             include_tables: Whether to include table information.
             include_table_details: Whether to include detailed table metadata.
 
         Returns:
             List of Database objects representing the server's databases.
         """
+        _ = include_schemas  # ClickHouse doesn't have schemas
 
         if self._connection is None:
             return []
@@ -162,17 +222,18 @@ class ClickhouseServer(SQLEngine):
 
         db_names = db_df[db_df.columns[0]].tolist()
         for db in db_names:
-            # Skip meta db's, TODO: do this for other engines too.
             db_name = cast(str, db)
-            if db_name.lower() in ["system", "information_schema"]:
-                continue
-            if include_tables:
+            if (
+                # Skip meta db's, TODO: do this for other engines too.
+                db_name.lower() in ["system", "information_schema"]
+                or not include_tables
+            ):
+                tables = []
+            else:
                 tables = self.get_tables_in_database(
                     database=db,
                     include_table_details=include_table_details,
                 )
-            else:
-                tables = []
             databases.append(
                 Database(
                     name=db,
@@ -184,8 +245,24 @@ class ClickhouseServer(SQLEngine):
             )
         return databases
 
+    def get_tables_in_schema(
+        self,
+        *,
+        schema: str,
+        include_table_details: bool,
+    ) -> list[DataTable]:
+        """Return all tables in a schema.
+        For ClickHouse, this is equivalent to getting all tables in a database.
+        """
+        return self.get_tables_in_database(
+            database=schema, include_table_details=include_table_details
+        )
+
     def get_tables_in_database(
-        self, *, database: str, include_table_details: bool | Literal["auto"]
+        self,
+        *,
+        database: str,
+        include_table_details: bool,
     ) -> list[DataTable]:
         """
         Return all tables in a given ClickHouse database.
@@ -223,7 +300,7 @@ class ClickhouseServer(SQLEngine):
         table_names = table_df[table_df.columns[0]].tolist()
         for table in table_names:
             if include_table_details:
-                table_detail = self.get_table_details(
+                table_detail = self.get_table_details_from_db(
                     database=database, table_name=table
                 )
                 if table_detail is not None:
@@ -247,6 +324,14 @@ class ClickhouseServer(SQLEngine):
         return tables
 
     def get_table_details(
+        self, *, table_name: str, schema_name: str
+    ) -> Optional[DataTable]:
+        """Get a single table from the engine. Equivalent to get_table_details_from_db."""
+        return self.get_table_details_from_db(
+            database=schema_name, table_name=table_name
+        )
+
+    def get_table_details_from_db(
         self, *, database: str, table_name: str
     ) -> Optional[DataTable]:
         """
@@ -294,8 +379,6 @@ class ClickhouseServer(SQLEngine):
                 table_type = "view"  # TODO: We should add support for general table types
 
             total_rows = table_df["total_rows"].iloc[0]
-            if total_rows:
-                total_rows = int(total_rows)
         except Exception:
             pass
 
@@ -334,6 +417,11 @@ class ClickhouseServer(SQLEngine):
                 )
             )
 
+        try:
+            total_rows = int(total_rows)
+        except Exception:
+            total_rows = None
+
         return DataTable(
             source_type="connection",
             source=self.dialect,
@@ -371,14 +459,9 @@ class ClickhouseServer(SQLEngine):
             return None
         return str(db_name.iloc[0, 0])
 
-    @staticmethod
-    def is_compatible(var: Any) -> bool:
-        if not DependencyManager.clickhouse_connect.imported():
-            return False
-
-        from clickhouse_connect.driver.client import Client
-
-        return isinstance(var, Client)
+    def get_default_schema(self) -> Optional[str]:
+        # ClickHouse does not have schemas
+        return None
 
 
 def _sql_type_to_data_type(type_str: str) -> DataType:

@@ -515,10 +515,10 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_get_database_name(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_database_name."""
     engine = SQLAlchemyEngine(sqlite_engine)
-    assert engine._get_current_database() == ":memory:"
+    assert engine.get_default_database() == ":memory:"
 
     import sqlalchemy as sa
 
     # Test with no database name
     engine = SQLAlchemyEngine(sa.create_engine("sqlite:///"))
-    assert engine._get_current_database() == ""
+    assert engine.get_default_database() == ""

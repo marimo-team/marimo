@@ -127,13 +127,13 @@ def test_duckdb_get_current_database_and_schema() -> None:
     engine = DuckDBEngine(duckdb_conn)
 
     # These should return values for an in-memory database
-    assert engine.get_current_database() is not None
-    assert engine.get_current_schema() is not None
+    assert engine.get_default_database() is not None
+    assert engine.get_default_schema() is not None
 
     # Test error handling by closing the connection before calling methods
     duckdb_conn.close()
-    assert engine.get_current_database() is None
-    assert engine.get_current_schema() is None
+    assert engine.get_default_database() is None
+    assert engine.get_default_schema() is None
     # Connection already closed, no need to close again
 
 

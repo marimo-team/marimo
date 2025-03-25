@@ -1,13 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
-from marimo._data.models import Database
+from marimo._data.models import Database, DataTable
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import SQLEngine
+from marimo._sql.engines.types import InferenceConfig, SQLEngine
 from marimo._sql.utils import raise_df_import_error, wrapped_sql
 from marimo._types.ids import VariableName
 
@@ -62,7 +62,16 @@ class DuckDBEngine(SQLEngine):
 
         return isinstance(var, duckdb.DuckDBPyConnection)
 
-    def get_current_database(self) -> Optional[str]:
+    @property
+    def inference_config(self) -> InferenceConfig:
+        # At the moment this isn't being used for duckdb
+        return InferenceConfig(
+            auto_discover_schemas=True,
+            auto_discover_tables="auto",
+            auto_discover_columns=False,
+        )
+
+    def get_default_database(self) -> Optional[str]:
         try:
             import duckdb
 
@@ -75,7 +84,7 @@ class DuckDBEngine(SQLEngine):
             LOGGER.info("Failed to get current database")
             return None
 
-    def get_current_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> Optional[str]:
         try:
             import duckdb
 
@@ -88,6 +97,27 @@ class DuckDBEngine(SQLEngine):
             LOGGER.info("Failed to get current schema")
             return None
 
-    def get_databases(self) -> list[Database]:
+    def get_databases(
+        self,
+        *,
+        include_schemas: Union[bool, Literal["auto"]],
+        include_tables: Union[bool, Literal["auto"]],
+        include_table_details: Union[bool, Literal["auto"]],
+    ) -> list[Database]:
         """Fetch all databases from the engine. At the moment, will fetch everything."""
+        _, _, _ = include_schemas, include_tables, include_table_details
         return get_databases_from_duckdb(self._connection, self._engine_name)
+
+    def get_tables_in_schema(
+        self, *, schema: str, include_table_details: bool
+    ) -> list[DataTable]:
+        """Return all tables in a schema. This is currently implemented in get_databases_from_duckdb."""
+        _, _ = schema, include_table_details
+        return []
+
+    def get_table_details(
+        self, table_name: str, schema_name: str
+    ) -> Optional[DataTable]:
+        """Get a single table from the engine. This is currently implemented in get_databases_from_duckdb."""
+        _, _ = table_name, schema_name
+        return None

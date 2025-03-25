@@ -131,8 +131,8 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
     engine = DuckDBEngine()
     initial_databases = engine.get_databases()
     assert initial_databases == []
-    assert engine.get_current_database() == "memory"
-    assert engine.get_current_schema() == "main"
+    assert engine.get_default_database() == "memory"
+    assert engine.get_default_schema() == "main"
 
     engine.execute(
         "CREATE TABLE test (id INTEGER PRIMARY KEY, name VARCHAR(255))"
@@ -165,15 +165,15 @@ def test_get_current_database_schema() -> None:
     engine = duckdb.connect(":memory:")
     duckdb_engine = DuckDBEngine(engine)
 
-    assert duckdb_engine.get_current_database() == "memory"
-    assert duckdb_engine.get_current_schema() == "main"
+    assert duckdb_engine.get_default_database() == "memory"
+    assert duckdb_engine.get_default_schema() == "main"
 
     sql("CREATE SCHEMA test_schema;", engine=engine)
     sql("CREATE TABLE test_schema.test_table (id INTEGER);", engine=engine)
     sql("USE test_schema;", engine=engine)
 
-    assert duckdb_engine.get_current_database() == "memory"
-    assert duckdb_engine.get_current_schema() == "test_schema"
+    assert duckdb_engine.get_default_database() == "memory"
+    assert duckdb_engine.get_default_schema() == "test_schema"
 
     sql("DROP TABLE test_schema.test_table;", engine=engine)
     sql("DROP SCHEMA test_schema;", engine=engine)
