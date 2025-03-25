@@ -1,9 +1,11 @@
 # Publish using `marimo-snippets` 
 
-`marimo-snippets` is a single-file JavaScript utility that lets you embed interactive
-marimo notebooks in static web pages, powered by WebAssembly. Simply wrap code
-elements in a custom tag, and marimo snippets does the rest; marimo-snippets
-is even compatible with MkDocs-generated markdown.
+[`marimo-snippets`](https://github.com/marimo-team/marimo-snippets) is a
+single-file JavaScript utility that lets you embed interactive marimo notebooks
+in static web pages, powered by WebAssembly.
+
+Simply wrap code elements in a custom tag, and `marimo-snippets` does the rest;
+`marimo-snippets` is even compatible with MkDocs-processed markdown!
 
 Here's a demo:
 
