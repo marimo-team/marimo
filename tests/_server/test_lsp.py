@@ -7,7 +7,6 @@ from unittest import mock
 import pytest
 
 from marimo._config.config import CompletionConfig, LanguageServersConfig
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
 from marimo._server.lsp import (
     BaseLspServer,
