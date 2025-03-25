@@ -1,0 +1,23 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-empty-interface */
+import type { RowData } from "@tanstack/react-table";
+
+export type CellStylingState = React.CSSProperties[][];
+
+export type CellStylingTableState = {
+  cellStyling: CellStylingState;
+};
+
+export interface CellStylingCell {
+  /**
+   * Returns additional styling for the cell.
+   */
+  getUserStyling?: () => React.CSSProperties;
+}
+
+// Use declaration merging to add our new feature APIs
+declare module "@tanstack/react-table" {
+  interface TableState extends CellStylingTableState {}
+
+  interface Cell<TData extends RowData, TValue> extends CellStylingCell {}
+}

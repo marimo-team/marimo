@@ -147,6 +147,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .nullish(),
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
+      cellStyles: z.array(z.array(z.object({}).passthrough())),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -222,6 +223,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableSearch: boolean;
   // Filters
   enableFilters?: boolean;
+  cellStyles?: any[][];
 }
 
 interface DataTableSearchProps {
@@ -475,6 +477,7 @@ const DataTableComponent = ({
   wrappedColumns,
   totalColumns,
   get_row_ids,
+  cellStyles,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -608,6 +611,7 @@ const DataTableComponent = ({
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}
             cellSelection={cellSelection}
+            cellStyling={cellStyles}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}

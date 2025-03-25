@@ -226,6 +226,7 @@ class table(
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
+        style_cell (Callable[[int, int, dict], dict], optional): A function that takes the row and column index and returns a dictionary of CSS styles.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
     """
@@ -277,6 +278,7 @@ class table(
                 None,
             ]
         ] = None,
+        style_cell: Optional[Callable[[int, int, dict], dict]] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
@@ -400,6 +402,22 @@ class table(
             )
             self._has_any_selection = True
 
+        cell_styles = []
+        if style_cell is not None:
+
+            def do_style_cell(row, col) -> dict:
+                value = self._searched_manager.select_cells(
+                    [TableCoordinate(row_id=row, column_name=col)]
+                )[0].value
+                return style_cell(row, col, value)
+
+            total_rows = self._searched_manager.get_num_rows(force=True) or 0
+            columns = self._searched_manager.get_column_names()
+            cell_styles = [
+                [do_style_cell(row, col) for col in columns]
+                for row in range(total_rows)
+            ]
+
         # We will need this when calling table manager's to_data()
         self._format_mapping = format_mapping
 
@@ -465,6 +483,7 @@ class table(
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
+                "cell-styles": cell_styles,
             },
             on_change=on_change,
             functions=(
