@@ -74,7 +74,7 @@ import {
   RotatingChevron,
 } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { sqlCode } from "./utils";
+import { isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
 
 const sortedTablesAtom = atom((get) => {
@@ -369,6 +369,10 @@ const SchemaItem: React.FC<{
     setIsExpanded(hasSearch);
   }, [hasSearch]);
 
+  if (isSchemaless(schema.name)) {
+    return children;
+  }
+
   return (
     <>
       <CommandItem
@@ -600,7 +604,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          sqlTableContext && "pl-12",
+          sqlTableContext &&
+            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}

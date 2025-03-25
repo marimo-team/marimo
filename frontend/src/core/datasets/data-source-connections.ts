@@ -10,6 +10,7 @@ import { atom } from "jotai";
 import { store } from "../state/jotai";
 import { datasetTablesAtom } from "./state";
 import { Logger } from "@/utils/Logger";
+import { isSchemaless } from "@/components/datasources/utils";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
@@ -279,6 +280,7 @@ export const allTablesAtom = atom((get) => {
 
       for (const schema of database.schemas) {
         const isDefaultSchema = schema.name === conn.default_schema;
+        const schemalessDb = isSchemaless(schema.name);
 
         for (const table of schema.tables) {
           let nameToSave: string;
@@ -287,6 +289,20 @@ export const allTablesAtom = atom((get) => {
           // Otherwise, we need to qualify the table name
           // We also need to use the more qualified name if there are collisions
           nameToSave = table.name;
+
+          // Save either dbName.table / tableName
+          if (schemalessDb) {
+            nameToSave = isDefaultDb
+              ? table.name
+              : `${database.name}.${table.name}`;
+
+            if (tableNames.has(nameToSave)) {
+              Logger.warn(`Table name collision for ${nameToSave}. Skipping.`);
+            } else {
+              tableNames.set(nameToSave, table);
+            }
+            continue;
+          }
 
           if (isDefaultDb && isDefaultSchema && !tableNames.has(nameToSave)) {
             tableNames.set(nameToSave, table);

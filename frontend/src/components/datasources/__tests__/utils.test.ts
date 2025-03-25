@@ -113,4 +113,28 @@ describe("sqlCode", () => {
       '_df = mo.sql(f"SELECT email FROM remote.sales.users LIMIT 100", engine=bigquery)',
     );
   });
+
+  it("should generate SQL for schemaless tables", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: DUCKDB_ENGINE,
+      schema: "",
+      defaultDatabase: "mydb",
+      database: "mydb",
+    };
+
+    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    expect(result).toBe('_df = mo.sql(f"SELECT email FROM users LIMIT 100")');
+
+    const sqlTableContext2: SQLTableContext = {
+      engine: DUCKDB_ENGINE,
+      schema: "",
+      defaultDatabase: "remote",
+      database: "another_db",
+    };
+
+    const result2 = sqlCode(mockTable, mockColumn.name, sqlTableContext2);
+    expect(result2).toBe(
+      '_df = mo.sql(f"SELECT email FROM another_db.users LIMIT 100")',
+    );
+  });
 });

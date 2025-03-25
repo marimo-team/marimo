@@ -28,11 +28,11 @@ class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
 
     def __init__(
-        self, engine: Engine, engine_name: Optional[VariableName] = None
+        self, connection: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
         from sqlalchemy import Inspector, inspect
 
-        self._engine = engine
+        self._engine = connection
         self._engine_name = engine_name
         self.inspector: Optional[Inspector] = None
 

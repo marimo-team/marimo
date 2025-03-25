@@ -26,7 +26,6 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._sql.engines.clickhouse import INTERNAL_CLICKHOUSE_ENGINE
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t
 from marimo._utils.lists import as_list
@@ -189,9 +188,9 @@ class SessionView:
             # Keep internal connections if they exist as these are not defined in variables
             next_connections: dict[str, DataSourceConnection] = {}
             for connection in self.data_connectors.connections:
-                if connection.name in variable_names or connection.name in (
-                    INTERNAL_DUCKDB_ENGINE,
-                    INTERNAL_CLICKHOUSE_ENGINE,
+                if (
+                    connection.name in variable_names
+                    or connection.name == INTERNAL_DUCKDB_ENGINE
                 ):
                     next_connections[connection.name] = connection
             self.data_connectors = DataSourceConnections(

@@ -1083,4 +1083,93 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.defaultTable).toBe("users");
     expect(completionSource?.dialect).toBe(PostgreSQL);
   });
+
+  it("should handle schemaless databases", () => {
+    const mockConnection: DataSourceConnection = {
+      name: "test_engine",
+      dialect: "postgres",
+      display_name: "postgres",
+      default_database: "test_db",
+      source: "postgres",
+      databases: [
+        {
+          name: "test_db",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "", // lack of name indicates schemaless
+              tables: [
+                {
+                  name: "users",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "test_db2",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "",
+              tables: [
+                {
+                  name: "orders",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "order_id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: mockConnection.name as ConnectionName,
+    });
+
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.defaultTable).toBe(undefined);
+    expect(completionSource?.dialect).toBe(PostgreSQL);
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "test_db2": {
+          "orders": [
+            "order_id",
+          ],
+        },
+        "users": [
+          "id",
+        ],
+      }
+      `);
+  });
 });

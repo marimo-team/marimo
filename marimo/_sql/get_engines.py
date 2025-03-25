@@ -31,7 +31,7 @@ def get_engines_from_variables(
 ) -> list[tuple[VariableName, SQLEngine]]:
     engines: list[tuple[VariableName, SQLEngine]] = []
 
-    supported_engines: list[SQLEngine] = [
+    supported_engines: list[type[SQLEngine]] = [
         SQLAlchemyEngine,
         DuckDBEngine,
         ClickhouseEmbedded,
@@ -61,14 +61,18 @@ def engine_to_data_source_connection(
     default_database: Optional[str] = None
     default_schema: Optional[str] = None
 
+    config = get_datasources_config()
+    auto_discover_schemas = config.get("auto_discover_schemas", True)
+    auto_discover_tables = config.get("auto_discover_tables", "auto")
+    auto_discover_columns = config.get("auto_discover_columns", False)
+
     if isinstance(engine, SQLAlchemyEngine):
-        config = get_datasources_config()
         default_database = engine.default_database
         default_schema = engine.default_schema
         databases = engine.get_databases(
-            include_schemas=config.get("auto_discover_schemas", True),
-            include_tables=config.get("auto_discover_tables", "auto"),
-            include_table_details=config.get("auto_discover_columns", False),
+            include_schemas=auto_discover_schemas,
+            include_tables=auto_discover_tables,
+            include_table_details=auto_discover_columns,
         )
     elif isinstance(engine, DuckDBEngine):
         databases = engine.get_databases()
@@ -77,7 +81,11 @@ def engine_to_data_source_connection(
     elif isinstance(engine, ClickhouseEmbedded):
         pass
     elif isinstance(engine, ClickhouseServer):
-        pass
+        default_database = engine.get_default_database()
+        databases = engine.get_databases(
+            include_tables=auto_discover_tables,
+            include_table_details=auto_discover_columns,
+        )
     else:
         LOGGER.warning(
             f"Unsupported engine type: {type(engine)}. Unable to get databases for {variable_name}."

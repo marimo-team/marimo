@@ -7,11 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
-from marimo._sql.engines.clickhouse import (
-    INTERNAL_CLICKHOUSE_ENGINE,
-    ClickhouseEmbedded,
-    ClickhouseServer,
-)
+from marimo._sql.engines.clickhouse import ClickhouseEmbedded, ClickhouseServer
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import (
     SQLAlchemyEngine,
@@ -25,6 +21,7 @@ def get_default_result_limit() -> Optional[int]:
 
 
 if TYPE_CHECKING:
+    from chdb.state.sqlitelike import Connection as ChdbConnection
     from clickhouse_connect.driver.client import Client as ClickhouseClient
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
@@ -35,7 +32,9 @@ def sql(
     query: str,
     *,
     output: bool = True,
-    engine: Optional[SAEngine | DuckDBPyConnection | ClickhouseClient] = None,
+    engine: Optional[
+        SAEngine | DuckDBPyConnection | ClickhouseClient | ChdbConnection
+    ] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -71,18 +70,9 @@ def sql(
     elif DuckDBEngine.is_compatible(engine):
         sql_engine = DuckDBEngine(engine)  # type: ignore
     elif ClickhouseEmbedded.is_compatible(engine):
-        sql_engine = ClickhouseEmbedded(engine)
+        sql_engine = ClickhouseEmbedded(engine)  # type: ignore
     elif ClickhouseServer.is_compatible(engine):
-        sql_engine = ClickhouseServer(engine)
-    elif engine == INTERNAL_CLICKHOUSE_ENGINE:
-        # Check if user defined an engine first to ensure
-        # we don't override the connection
-        DependencyManager.require_many(
-            "to execute sql",
-            DependencyManager.chdb,
-            DependencyManager.sqlglot,
-        )
-        sql_engine = ClickhouseEmbedded(connection=None)
+        sql_engine = ClickhouseServer(engine)  # type: ignore
     else:
         raise ValueError(
             "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
