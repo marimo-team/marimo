@@ -60,18 +60,18 @@ def audio(
     """Render an audio file as HTML.
 
     Args:
-        src: a path or URL to an audio file, bytes,
+        src: a path or URL to an audio `file`, `bytes`,
             or a file-like object opened in binary mode
-            Numpy 1d array containing the desired waveform (mono)
-            Numpy 2d array containing waveforms for each channel.Shape=(NCHAN, NSAMPLES).
-        rate : integer
+            `Numpy 1d array` containing the desired waveform (mono)
+            `Numpy 2d array` containing waveforms for each channel.Shape=(NCHAN, NSAMPLES).
+        rate :
             The sampling rate of the raw data.
-            Only required when data parameter is being used as an array
-        normalize : bool
+            Only required when data parameter is being used as an array.
+        normalize :
             Whether audio should be normalized (rescaled) to the maximum possible
-            range. Default is `True`. When set to `False`, `data` must be between
+            range. Default is `True`. When set to `False`, `src` must be between
             -1 and 1 (inclusive), otherwise an error is raised.
-            Applies only when `data` is a list or array of samples; other types of
+            Applies only when `src` is a numpy array; other types of
             audio are never normalized.
 
     Returns:
