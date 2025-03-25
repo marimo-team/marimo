@@ -1,8 +1,11 @@
 # Publish using `marimo-snippets` 
 
-You can host marimo entire notebooks directly by exporting them to WASM but thanks to the `marimo-snippets` library you can also choose to embed a marimo notebook on your site via markdown blocks. 
+`marimo-snippets` is a single-file JavaScript utility that lets you embed interactive
+marimo notebooks in static web pages, powered by WebAssembly. Simply wrap code
+elements in a custom tag, and marimo snippets does the rest; marimo-snippets
+is even compatible with MkDocs-generated markdown.
 
-Here's a quick demo on how you might set that up. 
+Here's a demo:
 
 ````md
 <div>
@@ -24,11 +27,8 @@ slider.value * "🍃"
 <script src="https://cdn.jsdelivr.net/npm/@marimo-team/marimo-snippets@1"></script>
 ````
 
-!!! note
-
-    You might wonder why we wrap the `<marimo-button>` element with an extra `<div>`. This is related to how different markdown preprocessors might handle the custom HTML elements. To guarantee that this approach works across most markdown tools, we need to wrap the custom elements in a block element.
-
-This will embed an iframe on your behalf with an interactive slider. 
+This embeds an iframe on your page with an interactive slider, like the one below.
+Fun fact: this page is itself using `marimo-snippets`!
 
 <div>
 <marimo-iframe>
@@ -71,4 +71,4 @@ You can also configure data attributes per-element.
 </marimo-iframe>
 ```
 
-Check the [Github repository](https://github.com/marimo-team/marimo-snippets) to learn more about [the configuration options](https://github.com/marimo-team/marimo-snippets?tab=readme-ov-file#configuration).
+Check the [Github repository](https://github.com/marimo-team/marimo-snippets) for a full example and more [documentation on configuration](https://github.com/marimo-team/marimo-snippets?tab=readme-ov-file#configuration).
