@@ -7,6 +7,7 @@ import wave
 from typing import Optional, Union
 
 import marimo._output.data.data as mo_data
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -87,7 +88,6 @@ def audio(
         ```
     """
     resolved_src: Optional[str]
-    import numpy as np
 
     if isinstance(src, (io.BufferedReader, io.BytesIO)):
         pos = src.tell()
@@ -102,13 +102,16 @@ def audio(
             resolved_src = mo_data.audio(
                 f.read(), ext=os.path.splitext(src)[1]
             ).url
-    elif isinstance(src, np.ndarray):
-        if rate is None:
-            raise ValueError(
-                "rate must be specified when data is a numpy array of audio samples."
-            )
-        wav_data = convert_numpy_to_wav(src, rate, normalize)
-        resolved_src = mo_data.audio(wav_data).url
+    elif DependencyManager.numpy.imported():
+        import numpy as np
+
+        if isinstance(src, np.ndarray):
+            if rate is None:
+                raise ValueError(
+                    "rate must be specified when data is a numpy array of audio samples."
+                )
+            wav_data = convert_numpy_to_wav(src, rate, normalize)
+            resolved_src = mo_data.audio(wav_data).url
     else:
         resolved_src = io_to_data_url(src, fallback_mime_type="audio/wav")
 
