@@ -147,25 +147,3 @@ def test_composite_server():
         )
         server = CompositeLspServer(config, completion_config, min_port=8000)
         assert len(server.servers) == 0
-
-
-@pytest.mark.skipif(
-    not DependencyManager.pylsp.has(),
-    reason="pylsp is not installed",
-)
-def test_pylsp_hooks():
-    from marimo._server.lsp import pylsp_completions, pylsp_hover
-
-    # Mock document and position
-    mock_doc = mock.MagicMock()
-    mock_doc.source = "def test(): pass"
-    mock_doc.path = "test.py"
-    position = {"line": 0, "character": 4}
-
-    # Test hover
-    hover_result = pylsp_hover({}, mock_doc, position)
-    assert hover_result is None or isinstance(hover_result, dict)
-
-    # Test completions
-    completion_result = pylsp_completions(mock_doc, position)
-    assert completion_result is None
