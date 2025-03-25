@@ -76,17 +76,10 @@ export function prettyScientificNumber(
   }
 
   // Don't round
-  try {
-    return new Intl.NumberFormat(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 100,
-    }).format(value);
-  } catch {
-    return new Intl.NumberFormat("en-us", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 100,
-    }).format(value);
-  }
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 30,
+  }).format(value);
 }
 
 const prefixes = {
