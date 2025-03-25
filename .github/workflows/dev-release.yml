@@ -44,6 +44,8 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
