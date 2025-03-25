@@ -213,6 +213,8 @@
 }
 
 .cm-signature-help {
+  max-width: 700px !important;
+  margin-right: 16px !important;
   @apply bg-popover shadow-md border border-border rounded-md text-sm;
 
   .cm-signature {
@@ -225,5 +227,27 @@
 
   .cm-signature-docs {
     @apply text-xs;
+  }
+
+  ul {
+    @apply list-disc;
+  }
+
+  ol {
+    @apply list-decimal;
+  }
+
+  li {
+    margin-bottom: 2px;
+
+    @apply pl-2;
+  }
+
+  code:not(:empty) {
+    @apply bg-[var(--gray-3)] rounded-sm px-1;
+  }
+
+  h4 {
+    @apply text-sm font-semibold mt-2 mb-1;
   }
 }

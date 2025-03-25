@@ -144,7 +144,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
   getExtension(
     cellId: CellId,
     completionConfig: CompletionConfig,
-    _hotkeys: HotkeyProvider,
+    hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
     lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
@@ -176,9 +176,16 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             completionConfig: autocompleteOptions,
             // Default to false
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
+            signatureHelpEnabled: true,
+            signatureActivateOnTyping: false,
+            keyboardShortcuts: {
+              signatureHelp: hotkeys.getHotkey("cell.signatureHelp").key,
+              goToDefinition: hotkeys.getHotkey("cell.goToDefinition").key,
+              rename: hotkeys.getHotkey("cell.renameSymbol").key,
+            },
             // Match completions before the cursor is at the end of a word,
             // after a dot, after a slash, after a comma.
-            completionMatchBefore: /(\w+|\w+\.|\/|,)$/,
+            completionMatchBefore: /(\w+|\w+\.|\(|\/|,)$/,
             onGoToDefinition: (result) => {
               Logger.debug("onGoToDefinition", result);
               if (client.documentUri === result.uri) {
