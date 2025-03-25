@@ -52,7 +52,7 @@ class ClickhouseEmbedded(SQLEngine):
         # chdb currently only supports pandas
         DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
 
-        import chdb  # type: ignore
+        import chdb
         import pandas as pd
 
         # TODO: this will fail weirdly / silently when there is another connection
