@@ -467,6 +467,18 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                   )}
                 />
+                <FormDescription>
+                  See the{" "}
+                  <a
+                    className="text-link hover:underline"
+                    href="https://docs.marimo.io/guides/editor_features/language_server/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    docs
+                  </a>{" "}
+                  for more information about language server support.
+                </FormDescription>
 
                 <FormField
                   control={form.control}
@@ -1246,7 +1258,8 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                   <FormDescription>
                     Enable experimental LSP support. You will need to have
-                    `marimo[lsp]` installed in your environment to use this. See{" "}
+                    <Kbd className="inline">marimo[lsp]</Kbd> installed in your
+                    environment to use this. See{" "}
                     <a
                       className="text-link hover:underline"
                       href="https://docs.marimo.io/guides/editor_features/language_server/"
