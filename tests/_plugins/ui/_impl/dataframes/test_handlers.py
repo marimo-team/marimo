@@ -80,9 +80,9 @@ def assert_frame_not_equal(df1: DataFrameType, df2: DataFrameType) -> None:
 
 def df_size(df: DataFrameType) -> int:
     if isinstance(df, pd.DataFrame):
-        return df.size
+        return len(df)
     if isinstance(df, pl.DataFrame):
-        return df.shape[0]
+        return len(df)
     if isinstance(df, ibis.Table):
         return df.count().execute()
     raise ValueError("Unsupported dataframe type")
@@ -926,7 +926,7 @@ class TestTransformHandler:
             type=TransformType.SAMPLE_ROWS, n=2, seed=42, replace=False
         )
         result = apply(df, transform)
-        assert df_size(result) == 2
+        assert len(result) == 2
         assert "A" in result.columns
         assert "B" in result.columns
 
