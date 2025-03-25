@@ -78,8 +78,8 @@ marimo = "marimo._cli.cli:main"
 [project.urls]
 homepage = "https://github.com/marimo-team/marimo"
 
-[project.entry-points."pylsp"]
-marimo_plugin = "marimo._server.lsp"
+[project.entry-points."docstring_to_markdown"]
+marimo_converter = "marimo._utils.docs:MarimoConverter"
 
 [project.optional-dependencies]
 sql = [
