@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, cast
 
+from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -49,3 +50,22 @@ def raise_df_import_error(pkg: str) -> None:
         + "You can install them with 'pip install pandas polars'",
         name=pkg,
     )
+
+
+def sql_type_to_data_type(type_str: str) -> DataType:
+    """Convert SQL type string to DataType"""
+    type_str = type_str.lower()
+    if any(x in type_str for x in ("int", "serial")):
+        return "integer"
+    elif any(x in type_str for x in ("float", "double", "decimal", "numeric")):
+        return "number"
+    elif any(x in type_str for x in ("timestamp", "datetime")):
+        return "datetime"
+    elif "date" in type_str:
+        return "date"
+    elif "bool" in type_str:
+        return "boolean"
+    elif any(x in type_str for x in ("char", "text")):
+        return "string"
+    else:
+        return "string"

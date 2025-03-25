@@ -9,11 +9,8 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
 from marimo._sql.engines.duckdb import DuckDBEngine
-from marimo._sql.engines.sqlalchemy import (
-    SQLAlchemyEngine,
-    _sql_type_to_data_type,
-    raise_df_import_error,
-)
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -219,7 +216,7 @@ def test_sqlalchemy_get_table_details() -> None:
 
     # Get table details
     table_details = engine.get_table_details(
-        "test_table", "main"
+        table_name="test_table", schema_name="main"
     )  # main is default schema in SQLite
 
     assert table_details is not None
@@ -301,32 +298,32 @@ def test_sqlalchemy_execute() -> None:
 
 
 def test_sql_type_to_data_type() -> None:
-    """Test _sql_type_to_data_type function."""
+    """Test sql_type_to_data_type function."""
     # Now that the raise statement is removed, we can test directly
     # Test integer types
     for int_type in ["INTEGER", "INT", "BIGINT", "SERIAL"]:
-        assert _sql_type_to_data_type(int_type) == "integer"
+        assert sql_type_to_data_type(int_type) == "integer"
 
     # Test float types
     for float_type in ["FLOAT", "DOUBLE", "DECIMAL", "NUMERIC"]:
-        assert _sql_type_to_data_type(float_type) == "number"
+        assert sql_type_to_data_type(float_type) == "number"
 
     # Test datetime types
     for dt_type in ["TIMESTAMP", "DATETIME"]:
-        assert _sql_type_to_data_type(dt_type) == "datetime"
+        assert sql_type_to_data_type(dt_type) == "datetime"
 
     # Test date type
-    assert _sql_type_to_data_type("DATE") == "date"
+    assert sql_type_to_data_type("DATE") == "date"
 
     # Test boolean type
-    assert _sql_type_to_data_type("BOOLEAN") == "boolean"
+    assert sql_type_to_data_type("BOOLEAN") == "boolean"
 
     # Test string types
     for str_type in ["VARCHAR", "CHAR", "TEXT"]:
-        assert _sql_type_to_data_type(str_type) == "string"
+        assert sql_type_to_data_type(str_type) == "string"
 
     # Test unknown type
-    assert _sql_type_to_data_type("UNKNOWN_TYPE") == "string"
+    assert sql_type_to_data_type("UNKNOWN_TYPE") == "string"
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

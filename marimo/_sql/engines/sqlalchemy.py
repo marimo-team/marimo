@@ -14,7 +14,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLEngine
-from marimo._sql.utils import raise_df_import_error
+from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -276,7 +276,9 @@ class SQLAlchemyEngine(SQLEngine):
 
         data_tables: list[DataTable] = []
         for t_type, t_name in tables:
-            table = self.get_table_details(t_name, schema)
+            table = self.get_table_details(
+                table_name=t_name, schema_name=schema
+            )
             if table is not None:
                 table.type = t_type
                 data_tables.append(table)
@@ -361,7 +363,7 @@ class SQLAlchemyEngine(SQLEngine):
     ) -> DataType | None:
         try:
             col_type = engine_type.python_type
-            return _sql_type_to_data_type(str(col_type))
+            return sql_type_to_data_type(str(col_type))
         except NotImplementedError:
             return None
         except Exception:
@@ -373,7 +375,7 @@ class SQLAlchemyEngine(SQLEngine):
     ) -> DataType | None:
         try:
             col_type = engine_type.as_generic()
-            return _sql_type_to_data_type(str(col_type))
+            return sql_type_to_data_type(str(col_type))
         except NotImplementedError:
             return None
         except Exception:
@@ -390,22 +392,3 @@ class SQLAlchemyEngine(SQLEngine):
 
     def _is_cheap_discovery(self) -> bool:
         return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
-
-
-def _sql_type_to_data_type(type_str: str) -> DataType:
-    """Convert SQL type string to DataType"""
-    type_str = type_str.lower()
-    if any(x in type_str for x in ("int", "serial")):
-        return "integer"
-    elif any(x in type_str for x in ("float", "double", "decimal", "numeric")):
-        return "number"
-    elif any(x in type_str for x in ("timestamp", "datetime")):
-        return "datetime"
-    elif "date" in type_str:
-        return "date"
-    elif "bool" in type_str:
-        return "boolean"
-    elif any(x in type_str for x in ("char", "text")):
-        return "string"
-    else:
-        return "string"

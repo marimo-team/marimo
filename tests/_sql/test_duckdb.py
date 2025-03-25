@@ -120,7 +120,9 @@ def test_duckdb_engine_get_databases(
     """Test DuckDBEngine get_databases method."""
 
     engine = DuckDBEngine(duckdb_connection, engine_name="test_duckdb")
-    databases = engine.get_databases()
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=True
+    )
 
     assert databases == expected_databases_with_conn
 
@@ -129,7 +131,11 @@ def test_duckdb_engine_get_databases(
 def test_duckdb_engine_get_databases_no_conn() -> None:
     """Test DuckDBEngine get_databases method."""
     engine = DuckDBEngine()
-    initial_databases = engine.get_databases()
+    initial_databases = engine.get_databases(
+        include_schemas=False,
+        include_table_details=False,
+        include_tables=False,
+    )
     assert initial_databases == []
     assert engine.get_default_database() == "memory"
     assert engine.get_default_schema() == "main"
@@ -145,7 +151,9 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
         (3, 'Charlie');
         """
     )
-    databases = engine.get_databases()
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=True
+    )
 
     expected_databases = deepcopy(expected_databases_with_conn)
     expected_databases[0].engine = None

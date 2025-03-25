@@ -93,7 +93,7 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_invalid_engine() -> None:
     """Test SQLAlchemyEngine with an invalid engine and inspector does not raise errors."""
 
-    engine = SQLAlchemyEngine(engine=None)  # type: ignore
+    engine = SQLAlchemyEngine(connection=None)  # type: ignore
     assert engine.inspector is None
     assert engine.default_database is None
     assert engine.default_schema is None
@@ -103,7 +103,7 @@ def test_sqlalchemy_invalid_engine() -> None:
 def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine with an empty engine."""
     engine = SQLAlchemyEngine(
-        engine=empty_sqlite_engine, engine_name=VariableName("sqlite")
+        connection=empty_sqlite_engine, engine_name=VariableName("sqlite")
     )
 
     databases = engine.get_databases(
@@ -123,7 +123,9 @@ def test_sqlalchemy_empty_engine(empty_sqlite_engine: sa.Engine) -> None:
     )
     assert tables == []
 
-    table_info = engine.get_table_details("test", "main")
+    table_info = engine.get_table_details(
+        table_name="test", schema_name="main"
+    )
     assert table_info is None
 
 
@@ -255,18 +257,26 @@ def test_sqlalchemy_engine_get_table_details(sqlite_engine: sa.Engine) -> None:
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    table = engine.get_table_details("test", "main")
+    table = engine.get_table_details(table_name="test", schema_name="main")
     assert table == get_expected_table("test")
 
     # different schema
-    table = engine.get_table_details("test2", "my_schema")
+    table = engine.get_table_details(
+        table_name="test2", schema_name="my_schema"
+    )
     assert table == get_expected_table("test2")
 
     # non-existent table
-    assert engine.get_table_details("non_existent", "main") is None
+    assert (
+        engine.get_table_details(table_name="non_existent", schema_name="main")
+        is None
+    )
 
     # non-existent schema
-    assert engine.get_table_details("test", "non_existent") is None
+    assert (
+        engine.get_table_details(table_name="test", schema_name="non_existent")
+        is None
+    )
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

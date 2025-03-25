@@ -9,11 +9,11 @@ from marimo._data.models import (
     DataTable,
     DataTableColumn,
     DataTableType,
-    DataType,
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLEngine
+from marimo._sql.utils import sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -52,15 +52,19 @@ class ClickhouseEmbedded(SQLEngine):
         # chdb currently only supports pandas
         DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
 
-        import chdb
+        import chdb  # type: ignore
         import pandas as pd
 
         # TODO: this will fail weirdly / silently when there is another connection
 
         if self._cursor:
-            self._cursor.execute(query)
-            rows = self._cursor.fetchall()
-            return pd.DataFrame(rows)
+            try:
+                self._cursor.execute(query)
+                rows = self._cursor.fetchall()
+                return pd.DataFrame(rows)
+            except Exception:
+                LOGGER.exception("Failed to execute query")
+                return None
 
         try:
             result = chdb.query(query, "Dataframe")
@@ -90,11 +94,11 @@ class ClickhouseEmbedded(SQLEngine):
         return []
 
     def get_table_details(
-        self, *, table_name, schema_name
+        self, *, table_name: str, schema_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
         _, _ = table_name, schema_name
-        return []
+        return None
 
     def get_default_database(self) -> Optional[str]:
         return None
@@ -141,6 +145,9 @@ class ClickhouseServer(SQLEngine):
         return "clickhouse"
 
     def execute(self, query: str) -> Any:
+        if self._connection is None:
+            return None
+
         # clickhouse connect supports pandas and arrow format
         DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
 
@@ -216,6 +223,10 @@ class ClickhouseServer(SQLEngine):
             )
             return databases
 
+        include_table_details = self._resolve_should_auto_discover(
+            include_table_details
+        )
+
         # Assume the first column contains the database names.
         if db_df.empty:
             return databases
@@ -244,6 +255,14 @@ class ClickhouseServer(SQLEngine):
                 )
             )
         return databases
+
+    def _resolve_should_auto_discover(
+        self, value: Union[bool, Literal["auto"]]
+    ) -> bool:
+        if value == "auto":
+            # TODO: Smartly determine if we should auto-discover
+            return False
+        return value
 
     def get_tables_in_schema(
         self,
@@ -407,7 +426,7 @@ class ClickhouseServer(SQLEngine):
             if col_name is None:
                 continue
             col_type_str = str(row.get("type", "string"))
-            data_type = _sql_type_to_data_type(col_type_str)
+            data_type = sql_type_to_data_type(col_type_str)
             cols.append(
                 DataTableColumn(
                     name=str(col_name),
@@ -418,7 +437,7 @@ class ClickhouseServer(SQLEngine):
             )
 
         try:
-            total_rows = int(total_rows)
+            total_rows = int(total_rows) if total_rows is not None else None
         except Exception:
             total_rows = None
 
@@ -462,22 +481,3 @@ class ClickhouseServer(SQLEngine):
     def get_default_schema(self) -> Optional[str]:
         # ClickHouse does not have schemas
         return None
-
-
-def _sql_type_to_data_type(type_str: str) -> DataType:
-    """Convert SQL type string to DataType"""
-    type_str = type_str.lower()
-    if any(x in type_str for x in ("int", "serial")):
-        return "integer"
-    elif any(x in type_str for x in ("float", "double", "decimal", "numeric")):
-        return "number"
-    elif any(x in type_str for x in ("timestamp", "datetime")):
-        return "datetime"
-    elif "date" in type_str:
-        return "date"
-    elif "bool" in type_str:
-        return "boolean"
-    elif any(x in type_str for x in ("char", "text")):
-        return "string"
-    else:
-        return "string"

@@ -9,10 +9,8 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded, ClickhouseServer
 from marimo._sql.engines.duckdb import DuckDBEngine
-from marimo._sql.engines.sqlalchemy import (
-    SQLAlchemyEngine,
-    raise_df_import_error,
-)
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.utils import raise_df_import_error
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -21,8 +19,12 @@ def get_default_result_limit() -> Optional[int]:
 
 
 if TYPE_CHECKING:
-    from chdb.state.sqlitelike import Connection as ChdbConnection
-    from clickhouse_connect.driver.client import Client as ClickhouseClient
+    from chdb.state.sqlitelike import (
+        Connection as ChdbConnection,
+    )  # type: ignore
+    from clickhouse_connect.driver.client import (
+        Client as ClickhouseClient,  # type: ignore
+    )
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
 
