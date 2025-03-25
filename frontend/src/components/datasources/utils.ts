@@ -1,9 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   type SQLTableContext,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
 } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
+
+// Some databases have no schemas, so we don't show it (eg. Clickhouse)
+export function isSchemaless(schemaName: string) {
+  return schemaName === "";
+}
 
 export function sqlCode(
   table: DataTable,
@@ -15,16 +20,23 @@ export function sqlCode(
       sqlTableContext;
     let tableName = table.name;
 
-    // If the schema is not the default schema, we need to include the schema in the table name
-    if (schema !== defaultSchema) {
-      tableName = `${schema}.${tableName}`;
-    }
-    // If the database is not the default database, we need to include the database in the table name
-    if (database !== defaultDatabase) {
-      tableName = `${database}.${tableName}`;
+    // Set the fully qualified table name based on schema and database
+    if (isSchemaless(schema)) {
+      tableName =
+        database === defaultDatabase ? tableName : `${database}.${tableName}`;
+    } else {
+      // Include schema if it's not the default schema
+      if (schema !== defaultSchema) {
+        tableName = `${schema}.${tableName}`;
+      }
+
+      // Include database if it's not the default database
+      if (database !== defaultDatabase) {
+        tableName = `${database}.${tableName}`;
+      }
     }
 
-    if (engine === DEFAULT_ENGINE) {
+    if (engine === DUCKDB_ENGINE) {
       return `_df = mo.sql(f"SELECT ${columnName} FROM ${tableName} LIMIT 100")`;
     }
 

@@ -56,7 +56,7 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
   dataConnectionsMapAtom,
-  DEFAULT_ENGINE,
+  INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
@@ -74,7 +74,7 @@ import {
   RotatingChevron,
 } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { sqlCode } from "./utils";
+import { isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
 
 const sortedTablesAtom = atom((get) => {
@@ -105,16 +105,18 @@ const sortedTablesAtom = atom((get) => {
 
 const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
-  const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
 
-  // Filter out the internal duckdb engine if it has no databases
-  if (defaultEngine && defaultEngine.databases.length === 0) {
-    dataConnections.delete(DEFAULT_ENGINE);
+  // Filter out the internal engines if it has no databases
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (connection && connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
   }
 
-  // Sort by name, but put the default engine at the top
+  // Put internal engines last to prioritize user-defined connections
   return sortBy([...dataConnections.values()], (connection) =>
-    connection.name === DEFAULT_ENGINE ? "" : connection.name,
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
   );
 });
 
@@ -367,6 +369,10 @@ const SchemaItem: React.FC<{
     setIsExpanded(hasSearch);
   }, [hasSearch]);
 
+  if (isSchemaless(schema.name)) {
+    return children;
+  }
+
   return (
     <>
       <CommandItem
@@ -598,7 +604,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          sqlTableContext && "pl-12",
+          sqlTableContext &&
+            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}

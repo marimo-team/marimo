@@ -16,7 +16,7 @@ import { MarkdownLanguageAdapter } from "./markdown";
 import {
   dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   setLatestEngineSelected,
   type ConnectionName,
 } from "@/core/datasets/data-source-connections";
@@ -34,9 +34,11 @@ import {
   PostgreSQL,
   MySQL,
   SQLite,
+  MSSQL,
 } from "@codemirror/lang-sql";
 import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
+import { isSchemaless } from "@/components/datasources/utils";
 
 /**
  * Language adapter for SQL.
@@ -44,6 +46,7 @@ import type { DataSourceConnection } from "@/core/kernel/messages";
 export class SQLLanguageAdapter implements LanguageAdapter {
   readonly type = "sql";
   readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
+  readonly defaultEngine = DUCKDB_ENGINE;
   static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
 
   dataframeName = "_df";
@@ -53,7 +56,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
   engine = store.get(dataSourceConnectionsAtom).latestEngineSelected;
 
   getDefaultCode(): string {
-    if (this.engine === DEFAULT_ENGINE) {
+    if (this.engine === this.defaultEngine) {
       return this.defaultCode;
     }
     return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
@@ -84,9 +87,10 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     if (sqlStatement) {
       this.dataframeName = sqlStatement.dfName;
       this.showOutput = sqlStatement.output ?? true;
-      this.engine = (sqlStatement.engine as ConnectionName) ?? DEFAULT_ENGINE;
+      this.engine =
+        (sqlStatement.engine as ConnectionName) ?? this.defaultEngine;
 
-      if (this.engine !== DEFAULT_ENGINE) {
+      if (this.engine !== this.defaultEngine) {
         // User selected a new engine, set it as latest.
         // This makes new SQL statements use the new engine by default.
         setLatestEngineSelected(this.engine);
@@ -123,7 +127,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
 
     const showOutputParam = this.showOutput ? "" : ",\n    output=False";
     const engineParam =
-      this.engine === DEFAULT_ENGINE ? "" : `,\n    engine=${this.engine}`;
+      this.engine === this.defaultEngine ? "" : `,\n    engine=${this.engine}`;
     const end = `\n    """${showOutputParam}${engineParam}\n)`;
 
     return [
@@ -200,12 +204,56 @@ export class SQLCompletionStore {
       const schemaMap: Record<string, TableToCols> = {};
       const databaseMap: Record<string, Schemas> = {};
 
+      const baseConfig: SQLConfig = {
+        dialect: guessDialect(connection),
+        schema: schemaMap,
+        defaultSchema: connection.default_schema ?? undefined,
+        defaultTable: getSingleTable(connection),
+      };
+
       // When there is only one database, it is the default
       const defaultDb = connection.databases.find(
         (db) =>
           db.name === connection.default_database ||
           connection.databases.length === 1,
       );
+
+      const dbToVerify = defaultDb ?? connection.databases[0];
+      const isSchemalessDb =
+        dbToVerify?.schemas.some((schema) => isSchemaless(schema.name)) ??
+        false;
+
+      // For schemaless databases, treat databases as schemas
+      if (isSchemalessDb) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dbToTablesMap: Record<string, any> = {};
+
+        for (const db of connection.databases) {
+          const isDefaultDb = db.name === defaultDb?.name;
+
+          for (const schema of db.schemas) {
+            for (const table of schema.tables) {
+              const columns = table.columns.map((col) => col.name);
+
+              if (isDefaultDb) {
+                // For default database, add tables directly to top level
+                dbToTablesMap[table.name] = columns;
+              } else {
+                // Otherwise nest under database name
+                dbToTablesMap[db.name] = dbToTablesMap[db.name] || {};
+                dbToTablesMap[db.name][table.name] = columns;
+              }
+            }
+          }
+        }
+
+        cacheConfig = {
+          ...baseConfig,
+          schema: dbToTablesMap,
+          defaultSchema: defaultDb?.name,
+        };
+        return cacheConfig;
+      }
 
       // For default db, we can use the schema name directly
       for (const schema of defaultDb?.schemas ?? []) {
@@ -234,10 +282,9 @@ export class SQLCompletionStore {
       }
 
       cacheConfig = {
-        dialect: guessDialect(connection),
+        ...baseConfig,
         schema: { ...databaseMap, ...schemaMap },
         defaultSchema: connection.default_schema ?? undefined,
-        defaultTable: getSingleTable(connection),
       };
       this.cache.set(connection, cacheConfig);
     }
@@ -287,6 +334,9 @@ function guessDialect(
       return MySQL;
     case "sqlite":
       return SQLite;
+    case "mssql":
+    case "sqlserver":
+      return MSSQL;
     default:
       return undefined;
   }

@@ -4,8 +4,8 @@ import {
   type ConnectionName,
   type DataSourceConnection,
   type DataSourceState,
-  DEFAULT_ENGINE,
   exportedForTesting,
+  INTERNAL_SQL_ENGINES,
   type SQLTableContext,
 } from "../data-source-connections";
 import type { VariableName } from "@/core/variables/types";
@@ -26,6 +26,8 @@ function addConnection(
   });
 }
 
+const defaultConnSize = 1;
+
 describe("data source connections", () => {
   let state: DataSourceState;
 
@@ -34,8 +36,10 @@ describe("data source connections", () => {
   });
 
   it("starts with default connections map", () => {
-    expect(initialState().connectionsMap.size).toBe(1);
-    expect(initialState().connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+    expect(initialState().connectionsMap.size).toBe(defaultConnSize);
+    for (const engine of INTERNAL_SQL_ENGINES) {
+      expect(initialState().connectionsMap.has(engine)).toBe(true);
+    }
   });
 
   it("can add new connections", () => {
@@ -50,7 +54,7 @@ describe("data source connections", () => {
     ];
 
     const newState = addConnection(newConnections, state);
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       newConnections[0],
     );
@@ -73,7 +77,7 @@ describe("data source connections", () => {
     let newState = addConnection([connection], state);
     newState = addConnection([updatedConnection], state);
 
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(newState.connectionsMap.get("conn1" as ConnectionName)).toEqual(
       updatedConnection,
     );
@@ -98,13 +102,13 @@ describe("data source connections", () => {
     ];
 
     let newState = addConnection(connections, state);
-    expect(newState.connectionsMap.size).toBe(3);
+    expect(newState.connectionsMap.size).toBe(defaultConnSize + 2);
 
     newState = reducer(newState, {
       type: "removeDataSourceConnection",
       payload: "conn1" as ConnectionName,
     });
-    expect(newState.connectionsMap.size).toBe(2);
+    expect(newState.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(newState.connectionsMap.has("conn2" as ConnectionName)).toBe(true);
   });
 
@@ -127,7 +131,7 @@ describe("data source connections", () => {
     ];
 
     let newState = addConnection(connections, state);
-    expect(newState.connectionsMap.size).toBe(3);
+    expect(newState.connectionsMap.size).toBe(defaultConnSize + 2);
 
     newState = reducer(newState, {
       type: "clearDataSourceConnections",
@@ -167,27 +171,31 @@ describe("filtering data sources", () => {
 
   beforeEach(() => {
     baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(3); // 2 + 1 (default) connections
+    expect(baseState.connectionsMap.size).toBe(defaultConnSize + 2); // 2 + 2 (default) connections
   });
 
-  it("keeps only DEFAULT_ENGINE when no variables", () => {
+  it("keeps only internal engines when no variables", () => {
     const filtered = filterDataSources([]);
-    expect(filtered.connectionsMap.size).toBe(1);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+    expect(filtered.connectionsMap.size).toBe(defaultConnSize);
+    for (const engine of INTERNAL_SQL_ENGINES) {
+      expect(filtered.connectionsMap.has(engine)).toBe(true);
+    }
   });
 
-  it("keeps matching variables and DEFAULT_ENGINE", () => {
+  it("keeps matching variables and internal engines", () => {
     const filtered = filterDataSources(["conn1" as unknown as VariableName]);
-    expect(filtered.connectionsMap.size).toBe(2);
+    expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+    for (const engine of INTERNAL_SQL_ENGINES) {
+      expect(filtered.connectionsMap.has(engine)).toBe(true);
+    }
   });
 
   it("filters out non-matching variables", () => {
     const filtered = filterDataSources([
       "non_existent" as unknown as VariableName,
     ]);
-    expect(filtered.connectionsMap.size).toBe(1);
+    expect(filtered.connectionsMap.size).toBe(defaultConnSize);
   });
 
   it("handles mix of matching and non-matching variables", () => {
@@ -195,9 +203,11 @@ describe("filtering data sources", () => {
       "conn1" as unknown as VariableName,
       "non_existent" as unknown as VariableName,
     ]);
-    expect(filtered.connectionsMap.size).toBe(2);
+    expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
-    expect(filtered.connectionsMap.has(DEFAULT_ENGINE)).toBe(true);
+    for (const engine of INTERNAL_SQL_ENGINES) {
+      expect(filtered.connectionsMap.has(engine)).toBe(true);
+    }
   });
 });
 
@@ -241,7 +251,7 @@ describe("add table list", () => {
 
   beforeEach(() => {
     baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(2);
+    expect(baseState.connectionsMap.size).toBe(defaultConnSize + 1);
   });
 
   it("adds table list to a specific connection", () => {
@@ -368,7 +378,7 @@ describe("add table", () => {
 
   beforeEach(() => {
     baseState = addConnection(connections, baseState);
-    expect(baseState.connectionsMap.size).toBe(2);
+    expect(baseState.connectionsMap.size).toBe(defaultConnSize + 1);
   });
 
   it("adds table to a specific connection", () => {

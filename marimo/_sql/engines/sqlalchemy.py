@@ -1,10 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from marimo import _loggers
-from marimo._data.get_datasets import get_databases_from_duckdb
 from marimo._data.models import (
     Database,
     DataTable,
@@ -14,111 +13,31 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.types import SQLEngine
-from marimo._sql.utils import wrapped_sql
+from marimo._sql.engines.types import (
+    InferenceConfig,
+    SQLEngine,
+    register_engine,
+)
+from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    import duckdb
     from sqlalchemy import Engine
     from sqlalchemy.sql.type_api import TypeEngine
 
-# Internal engine name for DuckDB, we need to ensure this is unique
-INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
-
-def raise_df_import_error(pkg: str) -> None:
-    raise ModuleNotFoundError(
-        "pandas or polars is required to execute sql. "
-        + "You can install them with 'pip install pandas polars'",
-        name=pkg,
-    )
-
-
-class DuckDBEngine(SQLEngine):
-    """DuckDB SQL engine."""
-
-    def __init__(
-        self,
-        connection: Optional[duckdb.DuckDBPyConnection] = None,
-        engine_name: Optional[VariableName] = None,
-    ) -> None:
-        self._connection = connection
-        self._engine_name = engine_name
-
-    @property
-    def source(self) -> str:
-        return "duckdb"
-
-    @property
-    def dialect(self) -> str:
-        return "duckdb"
-
-    def execute(self, query: str) -> Any:
-        relation = wrapped_sql(query, self._connection)
-
-        # Invalid / empty query
-        if relation is None:
-            return None
-
-        if DependencyManager.polars.has():
-            return relation.pl()
-        elif DependencyManager.pandas.has():
-            return relation.df()
-        else:
-            raise_df_import_error("polars[pyarrow]")
-
-    @staticmethod
-    def is_compatible(var: Any) -> bool:
-        if not DependencyManager.duckdb.imported():
-            return False
-
-        import duckdb
-
-        return isinstance(var, duckdb.DuckDBPyConnection)
-
-    def get_current_database(self) -> Optional[str]:
-        try:
-            import duckdb
-
-            connection = self._connection or duckdb
-            row = connection.sql("SELECT CURRENT_DATABASE()").fetchone()
-            if row is not None and row[0] is not None:
-                return str(row[0])
-            return None
-        except Exception:
-            LOGGER.info("Failed to get current database")
-            return None
-
-    def get_current_schema(self) -> Optional[str]:
-        try:
-            import duckdb
-
-            connection = self._connection or duckdb
-            row = connection.sql("SELECT CURRENT_SCHEMA()").fetchone()
-            if row is not None and row[0] is not None:
-                return str(row[0])
-            return None
-        except Exception:
-            LOGGER.info("Failed to get current schema")
-            return None
-
-    def get_databases(self) -> list[Database]:
-        """Fetch all databases from the engine. At the moment, will fetch everything."""
-        return get_databases_from_duckdb(self._connection, self._engine_name)
-
-
+@register_engine
 class SQLAlchemyEngine(SQLEngine):
     """SQLAlchemy engine."""
 
     def __init__(
-        self, engine: Engine, engine_name: Optional[VariableName] = None
+        self, connection: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
         from sqlalchemy import Inspector, inspect
 
-        self._engine = engine
+        self._engine = connection
         self._engine_name = engine_name
         self.inspector: Optional[Inspector] = None
 
@@ -128,8 +47,8 @@ class SQLAlchemyEngine(SQLEngine):
             LOGGER.warning("Failed to create inspector", exc_info=True)
             self.inspector = None
 
-        self.default_database = self._get_current_database()
-        self.default_schema = self._get_default_schema()
+        self.default_database = self.get_default_database()
+        self.default_schema = self.get_default_schema()
 
     @property
     def source(self) -> str:
@@ -179,13 +98,15 @@ class SQLAlchemyEngine(SQLEngine):
 
         return isinstance(var, Engine)
 
-    def _should_include_columns(self) -> bool:
-        # Including columns can fan out to a lot of requests,
-        # so this is disabled for now.
-        # Maybe in future we can enable this as a flag or for certain connection types.
-        return False
+    @property
+    def inference_config(self) -> InferenceConfig:
+        return InferenceConfig(
+            auto_discover_schemas=True,
+            auto_discover_tables="auto",
+            auto_discover_columns=False,
+        )
 
-    def _get_current_database(self) -> Optional[str]:
+    def get_default_database(self) -> Optional[str]:
         """Get the current database name.
 
         Returns:
@@ -226,14 +147,16 @@ class SQLAlchemyEngine(SQLEngine):
         # We check for existing schemas to verify the connection's validity.
         if database_name is None:
             schemas_found = self._get_schemas(
-                include_tables=False, include_table_details=False
+                database=None,
+                include_tables=False,
+                include_table_details=False,
             )
             if not schemas_found:
                 return None
 
         return database_name or ""
 
-    def _get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> Optional[str]:
         """Get the default schema name"""
         if self.inspector is None:
             return None
@@ -271,6 +194,7 @@ class SQLAlchemyEngine(SQLEngine):
 
         schemas = (
             self._get_schemas(
+                database=database_name,
                 include_tables=self._resolve_should_auto_discover(
                     include_tables
                 ),
@@ -294,6 +218,7 @@ class SQLAlchemyEngine(SQLEngine):
     def _get_schemas(
         self,
         *,
+        database: Optional[str],
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -314,6 +239,7 @@ class SQLAlchemyEngine(SQLEngine):
                     name=schema,
                     tables=self.get_tables_in_schema(
                         schema=schema,
+                        database=database if database is not None else "",
                         include_table_details=include_table_details,
                     )
                     if include_tables
@@ -324,9 +250,10 @@ class SQLAlchemyEngine(SQLEngine):
         return schemas
 
     def get_tables_in_schema(
-        self, *, schema: str, include_table_details: bool
+        self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
+        _ = database
 
         if self.inspector is None:
             return []
@@ -360,7 +287,9 @@ class SQLAlchemyEngine(SQLEngine):
 
         data_tables: list[DataTable] = []
         for t_type, t_name in tables:
-            table = self.get_table_details(t_name, schema)
+            table = self.get_table_details(
+                table_name=t_name, schema_name=schema, database_name=database
+            )
             if table is not None:
                 table.type = t_type
                 data_tables.append(table)
@@ -368,9 +297,10 @@ class SQLAlchemyEngine(SQLEngine):
         return data_tables
 
     def get_table_details(
-        self, table_name: str, schema_name: str
+        self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
+        _ = database_name
 
         if self.inspector is None:
             return None
@@ -445,7 +375,7 @@ class SQLAlchemyEngine(SQLEngine):
     ) -> DataType | None:
         try:
             col_type = engine_type.python_type
-            return _sql_type_to_data_type(str(col_type))
+            return sql_type_to_data_type(str(col_type))
         except NotImplementedError:
             return None
         except Exception:
@@ -457,7 +387,7 @@ class SQLAlchemyEngine(SQLEngine):
     ) -> DataType | None:
         try:
             col_type = engine_type.as_generic()
-            return _sql_type_to_data_type(str(col_type))
+            return sql_type_to_data_type(str(col_type))
         except NotImplementedError:
             return None
         except Exception:
@@ -474,22 +404,3 @@ class SQLAlchemyEngine(SQLEngine):
 
     def _is_cheap_discovery(self) -> bool:
         return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
-
-
-def _sql_type_to_data_type(type_str: str) -> DataType:
-    """Convert SQL type string to DataType"""
-    type_str = type_str.lower()
-    if any(x in type_str for x in ("int", "serial")):
-        return "integer"
-    elif any(x in type_str for x in ("float", "double", "decimal", "numeric")):
-        return "number"
-    elif any(x in type_str for x in ("timestamp", "datetime")):
-        return "datetime"
-    elif "date" in type_str:
-        return "date"
-    elif "bool" in type_str:
-        return "boolean"
-    elif any(x in type_str for x in ("char", "text")):
-        return "string"
-    else:
-        return "string"

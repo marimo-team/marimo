@@ -254,6 +254,9 @@ extra-dependencies = [
     "polars~=1.24.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.38",
+    # For testing clickhouse
+    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
+    "clickhouse-connect>=0.8",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
     # Causes issues installing `shapely` (v2.0.7)

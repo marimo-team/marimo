@@ -142,9 +142,8 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines import SQLAlchemyEngine
+from marimo._sql.engines.types import SQLEngine
 from marimo._sql.get_engines import get_engines_from_variables
-from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
@@ -2187,7 +2186,7 @@ class Kernel:
                 - table_name: Name of the table
         """
         engine_name = cast(VariableName, request.engine)
-        _database_name = request.database
+        database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
 
@@ -2198,18 +2197,26 @@ class Kernel:
             ).broadcast()
             return
 
-        if isinstance(engine, SQLAlchemyEngine):
-            table = engine.get_table_details(table_name, schema_name)
-            if table is None:
-                LOGGER.warning("Table %s not found", table_name)
+        try:
+            table = engine.get_table_details(
+                table_name=table_name,
+                schema_name=schema_name,
+                database_name=database_name,
+            )
+
             SQLTablePreview(
                 request_id=request.request_id, table=table
             ).broadcast()
-        else:
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get preview for table %s in schema %s",
+                table_name,
+                schema_name,
+            )
             SQLTablePreview(
                 request_id=request.request_id,
                 table=None,
-                error="Not an SQLAlchemyEngine",
+                error="Failed to get table details: " + str(e),
             ).broadcast()
 
     @kernel_tracer.start_as_current_span("preview_sql_table_list")
@@ -2225,7 +2232,7 @@ class Kernel:
                 - schema: Name of the schema
         """
         engine_name = cast(VariableName, request.engine)
-        _database_name = request.database
+        database_name = request.database
         schema_name = request.schema
 
         engine, error = self._get_sql_engine(engine_name)
@@ -2235,19 +2242,24 @@ class Kernel:
             ).broadcast()
             return
 
-        if isinstance(engine, SQLAlchemyEngine):
+        try:
             table_list = engine.get_tables_in_schema(
-                schema=schema_name, include_table_details=False
+                schema=schema_name,
+                database=database_name,
+                include_table_details=False,
             )
             SQLTableListPreview(
                 request_id=request.request_id, tables=table_list
             ).broadcast()
-        else:
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get table list for schema %s", schema_name
+            )
             SQLTableListPreview(
                 request_id=request.request_id,
                 tables=[],
-                error="Not an SQLAlchemyEngine",
-            ).broadcast()
+                error="Failed to get table list: " + str(e),
+            )
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
