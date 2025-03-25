@@ -19,8 +19,8 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from chdb.state.sqlitelike import Connection as ChdbConnection
-    from clickhouse_connect.driver.client import Client as ClickhouseClient
+    from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore # noqa: I001
+    from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
 
 
 PANDAS_REQUIRED_MSG = (
@@ -52,7 +52,7 @@ class ClickhouseEmbedded(SQLEngine):
         # chdb currently only supports pandas
         DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
 
-        import chdb
+        import chdb  # type: ignore
         import pandas as pd
 
         # TODO: this will fail weirdly / silently when there is another connection

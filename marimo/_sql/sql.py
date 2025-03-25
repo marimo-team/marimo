@@ -19,12 +19,8 @@ def get_default_result_limit() -> Optional[int]:
 
 
 if TYPE_CHECKING:
-    from chdb.state.sqlitelike import (
-        Connection as ChdbConnection,
-    )  # type: ignore
-    from clickhouse_connect.driver.client import (
-        Client as ClickhouseClient,  # type: ignore
-    )
+    from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore  # noqa: I001
+    from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
 
