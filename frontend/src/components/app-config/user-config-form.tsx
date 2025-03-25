@@ -467,6 +467,18 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                   )}
                 />
+                <FormDescription>
+                  See the{" "}
+                  <a
+                    className="text-link hover:underline"
+                    href="https://docs.marimo.io/guides/editor_features/language_server/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    docs
+                  </a>{" "}
+                  for more information about language server support.
+                </FormDescription>
 
                 <FormField
                   control={form.control}
@@ -1227,6 +1239,40 @@ export const UserConfigForm: React.FC = () => {
               ⚠️ These features are experimental and may require restarting your
               notebook to take effect.
             </p>
+            <FormField
+              control={form.control}
+              name="experimental.lsp"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      LSP (Language Server Protocol)
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="inline-ai-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental LSP support. You will need to have
+                    <Kbd className="inline">marimo[lsp]</Kbd> installed in your
+                    environment to use this. See{" "}
+                    <a
+                      className="text-link hover:underline"
+                      href="https://docs.marimo.io/guides/editor_features/language_server/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      docs
+                    </a>{" "}
+                    for more info.
+                  </FormDescription>
+                </div>
+              )}
+            />
             <FormField
               control={form.control}
               name="experimental.inline_ai_tooltip"

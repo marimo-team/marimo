@@ -4,14 +4,13 @@ from __future__ import annotations
 import os
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Any, Literal, Optional, Union, cast
+from typing import Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import CompletionConfig, LanguageServersConfig
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
-from marimo._runtime.complete import _get_docstring
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import marimo_package_path
@@ -232,45 +231,3 @@ class CompositeLspServer(LspServer):
 
     def is_running(self) -> bool:
         return any(server.is_running() for server in self.servers)
-
-
-if DependencyManager.pylsp.has():
-    from pylsp import hookimpl  # type: ignore[import-untyped,import-not-found]
-
-    @hookimpl(tryfirst=True)  # type: ignore[misc]
-    def pylsp_hover(
-        config: Any, document: Any, position: dict[str, int]
-    ) -> Optional[dict[str, Any]]:
-        try:
-            del config
-            LOGGER.debug("Hovering over %s", document.path)
-            import jedi  # type: ignore[import-untyped]
-
-            # Use Jedi to get information about the symbol under cursor
-            script = jedi.Script(document.source, path=document.path)
-
-            definitions = script.goto(
-                position["line"] + 1, position["character"]
-            )
-
-            if not definitions:
-                return None
-
-            definition = definitions[0]
-
-            docstring = _get_docstring(definition)
-
-            if not docstring:
-                return None
-
-            return {"contents": {"kind": "markdown", "value": docstring}}
-        except Exception:
-            return None
-
-    @hookimpl()  # type: ignore[misc]
-    def pylsp_completions(
-        document: Any, position: dict[str, int]
-    ) -> Optional[list[dict[str, Any]]]:
-        del document
-        del position
-        return None
