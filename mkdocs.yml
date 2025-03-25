@@ -110,6 +110,7 @@ nav:
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - Embedding: guides/publishing/embedding.md
+          - Marimo Snippets: guides/publishing/marimo-snippets.md
           - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
           - Cloudflare Pages: guides/publishing/cloudflare_pages.md
