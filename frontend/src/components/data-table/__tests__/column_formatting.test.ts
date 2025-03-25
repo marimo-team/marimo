@@ -41,7 +41,7 @@ describe("applyFormat", () => {
       expect(applyFormat(number, "Auto", "number")).toBe("1,234.57");
       expect(applyFormat(number, "Percent", "number")).toBe("123,456.7%");
       expect(applyFormat(number, "Scientific", "number")).toBe(
-        prettyScientificNumber(1234.567),
+        prettyScientificNumber(1234.567, { shouldRound: true }),
       );
       expect(applyFormat(number, "Engineering", "number")).toBe(
         prettyEngineeringNumber(1234.567),

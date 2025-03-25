@@ -40,7 +40,13 @@ function scientificSpecialCase(value: number): string | null {
   return null;
 }
 
-export function prettyScientificNumber(value: number): string {
+export function prettyScientificNumber(
+  value: number,
+  opts: {
+    // Default to false
+    shouldRound?: boolean;
+  } = {},
+): string {
   // Handle special cases first
   const specialCase = scientificSpecialCase(value);
   if (specialCase !== null) {
@@ -59,13 +65,21 @@ export function prettyScientificNumber(value: number): string {
       .toLowerCase();
   }
 
-  // Number has an integer part, format with 2 decimal places
-  const formatter = new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  const { shouldRound } = opts;
 
-  return formatter.format(value);
+  if (shouldRound) {
+    // Number has an integer part, format with 2 decimal places
+    return new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+
+  // Don't round
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 100,
+  });
 }
 
 const prefixes = {
