@@ -142,6 +142,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Ctrl-Space",
   },
+  "cell.signatureHelp": {
+    name: "Signature help",
+    group: "Editing",
+    key: "Mod-Shift-Space",
+  },
   "cell.undo": {
     name: "Undo",
     group: "Editing",
@@ -221,6 +226,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-/",
     editable: false,
+  },
+  "cell.renameSymbol": {
+    name: "Rename symbol",
+    group: "Editing",
+    key: "F2",
   },
 
   // Markdown

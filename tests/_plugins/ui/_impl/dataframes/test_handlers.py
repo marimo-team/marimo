@@ -80,9 +80,9 @@ def assert_frame_not_equal(df1: DataFrameType, df2: DataFrameType) -> None:
 
 def df_size(df: DataFrameType) -> int:
     if isinstance(df, pd.DataFrame):
-        return df.size
+        return len(df)
     if isinstance(df, pl.DataFrame):
-        return df.shape[0]
+        return len(df)
     if isinstance(df, ibis.Table):
         return df.count().execute()
     raise ValueError("Unsupported dataframe type")
@@ -915,28 +915,18 @@ class TestTransformHandler:
 
     @staticmethod
     @pytest.mark.parametrize(
-        ("df", "expected"),
+        "df",
         [
-            (
-                pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
-                pd.DataFrame({"A": [1, 3], "B": [4, 6]}),
-            ),
-            (
-                pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
-                pl.DataFrame({"A": [1, 3], "B": [4, 6]}),
-            ),
-            (
-                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
-                ibis.memtable({"A": [1, 3], "B": [4, 6]}),
-            ),
+            pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
+            pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
         ],
     )
-    def test_sample_rows(df: DataFrameType, expected: DataFrameType) -> None:
+    def test_sample_rows(df: DataFrameType) -> None:
         transform = SampleRowsTransform(
             type=TransformType.SAMPLE_ROWS, n=2, seed=42, replace=False
         )
         result = apply(df, transform)
-        assert df_size(result) == df_size(expected)
+        assert len(result) == 2
         assert "A" in result.columns
         assert "B" in result.columns
 

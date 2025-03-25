@@ -89,14 +89,6 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   async textDocumentSignatureHelp(
     params: LSP.SignatureHelpParams,
   ): Promise<LSP.SignatureHelp | null> {
-    // TODO: not implemented yet
-    // It currently doesn't provide too much value over the autocomplete
-    // and blocks the completion list when it is open.
-    const disabledSignatureHelp = true;
-    if (disabledSignatureHelp) {
-      return null;
-    }
-
     const cellDocumentUri = params.textDocument.uri;
     if (!CellDocumentUri.is(cellDocumentUri)) {
       Logger.warn("Invalid cell document URI", cellDocumentUri);
