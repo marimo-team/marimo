@@ -95,6 +95,10 @@ class AppScriptRunner:
                 outputs, defs = self._run_synchronous(
                     post_execute_hooks=post_execute_hooks,
                 )
+            from marimo._plugins.ui._impl.input import parser
+            parser.add_argument('-h', '--help', action='store_true', help="show this help message and exit")
+            if parser.parse_known_args()[0].help:
+                parser.print_help()
             return outputs, defs
 
         # Cell runner manages the exception handling for kernel

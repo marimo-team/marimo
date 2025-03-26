@@ -127,6 +127,12 @@ class RuntimeContext(abc.ABC):
 
     @property
     @abc.abstractmethod
+    def raw_cli_args(self) -> list[str]:
+        """Get the raw CLI args."""
+        pass
+
+    @property
+    @abc.abstractmethod
     def query_params(self) -> QueryParams:
         """Get the query params."""
         pass

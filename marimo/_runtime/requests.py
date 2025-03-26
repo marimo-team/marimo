@@ -233,6 +233,7 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    raw_cli_args: list[str]
 
     filename: Optional[str] = None
 

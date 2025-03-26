@@ -748,6 +748,7 @@ class SessionManager:
         lsp_server: LspServer,
         config_manager: MarimoConfigManager,
         cli_args: SerializedCLIArgs,
+        raw_cli_args: list[str],
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
@@ -765,6 +766,7 @@ class SessionManager:
         self.watch = watch
         self.recents = RecentFilesManager()
         self.cli_args = cli_args
+        self.raw_cli_args = raw_cli_args
         self.redirect_console_to_browser = redirect_console_to_browser
 
         # We should access the config_manager from the session if possible
@@ -826,6 +828,7 @@ class SessionManager:
                     query_params=query_params,
                     filename=app_file_manager.path,
                     cli_args=self.cli_args,
+                    raw_cli_args=self.raw_cli_args,
                 ),
                 app_file_manager=app_file_manager,
                 config_manager=self._config_manager,

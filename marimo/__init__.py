@@ -38,6 +38,7 @@ __all__ = [
     "carousel",
     "center",
     "cli_args",
+    "raw_cli_args",
     "defs",
     "doc",
     "download",
@@ -128,6 +129,7 @@ from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import (
     app_meta,
     cli_args,
+    raw_cli_args,
     defs,
     notebook_dir,
     notebook_location,

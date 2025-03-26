@@ -79,6 +79,11 @@ class KernelRuntimeContext(RuntimeContext):
     def cli_args(self) -> CLIArgs:
         """Get the CLI args."""
         return self._kernel.cli_args
+    
+    @property
+    def raw_cli_args(self) -> list[str]:
+        """Get the raw CLI args."""
+        return self._kernel.raw_cli_args
 
     @property
     def query_params(self) -> QueryParams:
