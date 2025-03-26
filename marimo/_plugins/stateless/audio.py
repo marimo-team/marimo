@@ -54,7 +54,7 @@ def convert_numpy_to_wav(data, rate: int, normalize: bool) -> bytes:
 
 def get_resolved_src(
     src: Union[str, io.BytesIO], rate: Optional[int], normalize: bool
-) -> str:
+) -> Optional[str]:
     """Determines the correct URL for the given audio source."""
 
     if isinstance(src, (io.BufferedReader, io.BytesIO)):
