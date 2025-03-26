@@ -111,7 +111,7 @@ def __():
 def __(Dict, List, Span, json):
     def parse_jsonl(file_path):
         spans = []
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             for line in file:
                 spans.append(Span.parse(json.loads(line)))
         return spans

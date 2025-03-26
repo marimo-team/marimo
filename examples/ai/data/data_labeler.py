@@ -138,7 +138,7 @@ def __(json, os):
                 for _ in range(number_of_examples)
             ]
 
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             labels = json.loads(f.read())
         assert len(labels) == number_of_examples
         return labels
@@ -150,7 +150,7 @@ def __(json, os):
             {"label": item["label"], "notes": item["notes"][:100]}
             for item in labels
         ]
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(json.dumps(labels))
     return load_labels, write_labels
 

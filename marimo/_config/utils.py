@@ -51,7 +51,7 @@ def get_or_create_user_config_path() -> str:
     else:
         config_path = _xdg_config_path()
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        open(config_path, "a").close()
+        open(config_path, "ab", buffering=0).close()
         return config_path
 
 

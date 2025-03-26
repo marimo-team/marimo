@@ -88,7 +88,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
 
         # Read from project root
         try:
-            with open(filepath, "r") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 code = f.read()
         except FileNotFoundError:
             raise ValueError(f"File not found: {filepath}")
