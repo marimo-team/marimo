@@ -1111,9 +1111,21 @@ def test_download_as_polars() -> None:
         assert selected_df["cities"][0] == "New York"
 
 
-def test_download_as_for_cell_selection_is_unsupported() -> None:
-    table = ui.table(data=[], selection="single-cell")
-    with pytest.raises(NotImplementedError):
+def test_download_as_for_unsupported_cell_selection() -> None:
+    for selection in ["single-cell", "multi-cell"]:
+        table = ui.table(data=[], selection=selection)
+        with pytest.raises(NotImplementedError):
+            table._download_as(DownloadAsArgs(format="csv"))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() or not DependencyManager.polars.has(),
+    reason="Pandas or Polars not installed",
+)
+def test_download_as_for_supported_cell_selection() -> None:
+    # Assert that download works for other selection types
+    for selection in ["single", "multi", None]:
+        table = ui.table(data=[], selection=selection)
         table._download_as(DownloadAsArgs(format="csv"))
 
 

@@ -553,7 +553,13 @@ class table(
 
         Raises:
             ValueError: If format is not 'csv' or 'json'.
+            NotImplementedError: If download is not supported for cell selection.
         """
+        if self._selection in ["single-cell", "multi-cell"]:
+            raise NotImplementedError(
+                "Download is not supported for cell selection."
+            )
+
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
@@ -561,10 +567,7 @@ class table(
         )
 
         # Remove the selection column before downloading
-        if isinstance(manager, TableManager) and self._selection in [
-            "single",
-            "multi",
-        ]:
+        if isinstance(manager, TableManager):
             manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
             ext = args.format
@@ -576,7 +579,7 @@ class table(
                 raise ValueError("format must be one of 'csv' or 'json'.")
         else:
             raise NotImplementedError(
-                "Download is not supported for cell selection."
+                "Download is not supported for this table format."
             )
 
     def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
