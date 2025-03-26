@@ -161,8 +161,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         summaries: z.array(
           z.object({
             column: z.union([z.number(), z.string()]),
-            min: z.union([z.number(), z.string()]).nullish(),
-            max: z.union([z.number(), z.string()]).nullish(),
+            min: z.union([z.number(), z.nan(), z.string()]).nullish(),
+            max: z.union([z.number(), z.nan(), z.string()]).nullish(),
             unique: z.union([z.number(), z.array(z.any())]).nullish(),
             nulls: z.number().nullish(),
             true: z.number().nullish(),
@@ -307,9 +307,9 @@ export const LoadingDataTableComponent = memo(
         sort:
           sorting.length > 0
             ? {
-                by: sorting[0].id,
-                descending: sorting[0].desc,
-              }
+              by: sorting[0].id,
+              descending: sorting[0].desc,
+            }
             : undefined,
         query: searchQuery,
         page_number: paginationState.pageIndex,
