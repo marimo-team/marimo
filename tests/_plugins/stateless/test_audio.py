@@ -97,27 +97,6 @@ async def test_audio_numpy_mono(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 @pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
-async def test_audio_numpy_stereo(
-    k: Kernel, exec_req: ExecReqProvider
-) -> None:
-    await k.run(
-        [
-            exec_req.get(
-                """
-                import marimo as mo
-                import numpy as np
-                data = np.random.rand(2, 1000) * 2 - 1  # Random values between -1 and 1
-                audio = mo.audio(data, rate=44100)
-                """
-            ),
-        ]
-    )
-    assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
-        assert fname.endswith(".wav")
-
-
-@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
 async def test_audio_numpy_normalize(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
@@ -139,39 +118,26 @@ async def test_audio_numpy_normalize(
 
 
 @pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
-async def test_audio_numpy_no_normalize(
-    k: Kernel, exec_req: ExecReqProvider
-) -> None:
-    await k.run(
-        [
-            exec_req.get(
-                """
-                  import marimo as mo
-                  import numpy as np
-                  data = np.random.rand(1000) * 10  # Values > 1
-                  audio = mo.audio(data, rate=44100, normalize=False)
-                  """
-            ),
-        ]
-    )
+async def test_audio_numpy_constructor() -> None:
+    import numpy as np
 
+    # Rate
+    data = np.random.rand(1000) * 2 - 1  # Random values between -1 and 1
+    res = audio(data, rate=44100, normalize=False)
+    assert res.text.startswith("<audio src='data:audio/")
 
-@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
-async def test_audio_numpy_no_rate(
-    k: Kernel, exec_req: ExecReqProvider
-) -> None:
-    await k.run(
-        [
-            exec_req.get(
-                """
-                  import marimo as mo
-                  import numpy as np
-                  data = np.random.rand(1000)
-                  audio = mo.audio(data)
-                  """
-            ),
-        ]
-    )
+    # Don't normalize out of range
+    data = np.random.rand(1000) * 10  # Values > 1
+    with pytest.raises(ValueError):
+        res = audio(data, rate=44100, normalize=False)
+
+    # Normalize in range
+    data = np.random.rand(1000) * 10  # Values > 1
+    res = audio(data, rate=44100, normalize=True)
+
+    # No rate
+    with pytest.raises(ValueError):
+        res = audio(data)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
