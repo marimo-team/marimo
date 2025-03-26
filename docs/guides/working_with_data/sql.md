@@ -182,7 +182,7 @@ marimo supports ClickHouse via [ClickHouse Connect](https://clickhouse.com/docs/
 
 /// tab | clickhouse_connect
 
-Refer to [the docs](https://clickhouse.com/docs/integrations/python#gather-your-connection-details) for more configuration options.
+Refer to [the official docs](https://clickhouse.com/docs/integrations/python#gather-your-connection-details) for more configuration options.
 
 ```python
 import clickhouse_connect
