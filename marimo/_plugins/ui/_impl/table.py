@@ -10,7 +10,6 @@ from typing import (
     Final,
     Literal,
     Optional,
-    TypeAlias,
     Union,
 )
 
@@ -94,8 +93,8 @@ class SearchTableArgs:
     limit: Optional[int] = None
 
 
-CellStyle: TypeAlias = dict[str, Any]
-CellStyles: TypeAlias = dict[str, CellStyle]
+CellStyle = dict[str, Any]
+CellStyles = dict[str, CellStyle]
 
 
 @dataclass(frozen=True)
