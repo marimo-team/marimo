@@ -23,7 +23,7 @@ engine = clickhouse_connect.get_client(
   host="localhost",
   user="user",
   port=8123,
-  os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+  password=os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 )"
 `;
 
@@ -79,12 +79,11 @@ engine = sqlmodel.create_engine(
   URL(
     account="account",
     user="user",
-    password="pass",
     database="db",
     warehouse="warehouse",
     schema="schema",
     role="role",
-    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -131,7 +130,7 @@ engine = clickhouse_connect.get_client(
   user="user",
   secure=True,
   port=8123,
-  os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+  password=os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 )"
 `;
 
@@ -142,7 +141,7 @@ import clickhouse_connect
 engine = clickhouse_connect.get_client(
   host="localhost",
   user="user",
-  os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+  password=os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 )"
 `;
 
@@ -243,12 +242,11 @@ engine = sqlmodel.create_engine(
   URL(
     account="org-account",
     user="user",
-    password="pass",
     database="db",
     warehouse="compute_wh",
     schema="public",
     role="accountadmin",
-    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -262,9 +260,8 @@ engine = sqlmodel.create_engine(
   URL(
     account="account",
     user="user",
-    password="pass",
     database="db",
-    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -357,12 +354,11 @@ engine = sqlmodel.create_engine(
   URL(
     account="account-with-password123",
     user="user",
-    password="pass",
     database="db",
     warehouse="warehouse",
     schema="schema",
     role="role",
-    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -376,12 +372,11 @@ engine = sqlalchemy.create_engine(
   URL(
     account="account-with-password123",
     user="user",
-    password="pass",
     database="db",
     warehouse="warehouse",
     schema="schema",
     role="role",
-    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;

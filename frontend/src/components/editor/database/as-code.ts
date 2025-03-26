@@ -92,7 +92,6 @@ export function generateDatabaseCode(
       const params = {
         account: connection.account,
         user: connection.username,
-        password: connection.password,
         database: connection.database,
         warehouse: connection.warehouse,
         schema: connection.schema,
@@ -159,7 +158,7 @@ function formatPassword(password: string | undefined, envVar: string): string {
   if (!password) {
     return "";
   }
-  return `os.environ.get("${envVar}", "${password}")`;
+  return `password=os.environ.get("${envVar}", "${password}")`;
 }
 
 function formatBoolean(value: boolean): string {
