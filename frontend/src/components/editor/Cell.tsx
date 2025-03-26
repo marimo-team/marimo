@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { completionStatus } from "@codemirror/autocomplete";
+import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import {
   memo,
@@ -79,7 +79,7 @@ function useCellCompletion(
       !cellRef.current.contains(e.relatedTarget) &&
       editorView.current !== null
     ) {
-      // closeCompletion(editorView.current);
+      closeCompletion(editorView.current);
     }
   });
 
