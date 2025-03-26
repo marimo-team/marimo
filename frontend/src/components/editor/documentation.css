@@ -54,7 +54,7 @@
   }
 
   code {
-    @apply border px-1 rounded font-mono bg-[var(--slate-1)] text-sm mb-4 mt-2;
+    @apply border px-1 rounded font-mono bg-[var(--slate-2)] text-sm mb-4 mt-2;
   }
 
   h1,
@@ -81,6 +81,7 @@
     @apply bg-[var(--slate-2)] px-1 border rounded-md text-sm font-mono;
   }
 
+  pre > code,
   .codehilite code {
     width: 100%;
     display: inline-block;

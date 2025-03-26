@@ -215,6 +215,10 @@
 .cm-signature-help {
   max-width: 700px !important;
   margin-right: 16px !important;
+  padding: 10px !important;
+  overflow-y: auto;
+  max-height: 400px;
+  scrollbar-width: thin;
   @apply bg-popover shadow-md border border-border rounded-md text-sm;
 
   .cm-signature {
@@ -223,6 +227,10 @@
 
   .cm-signature-parameter {
     @apply text-xs;
+  }
+
+  .cm-signature {
+    @apply font-mono;
   }
 
   .cm-signature-docs {
@@ -244,9 +252,21 @@
   }
 
   code:not(:empty) {
-    @apply bg-[var(--gray-3)] rounded-sm px-1;
+    width: 100%;
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-2)] border rounded-sm px-1 font-mono;
   }
 
+  pre > code {
+    width: 100%;
+    display: inline-block;
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm my-2;
+  }
+
+  h1,
+  h2,
+  h3,
   h4 {
     @apply text-sm font-semibold mt-2 mb-1;
   }
