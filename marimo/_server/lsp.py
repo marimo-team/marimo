@@ -211,9 +211,15 @@ class CompositeLspServer(LspServer):
         # With 2 servers, this is OK, but if we want to support more, we should
         # lazily construct servers, routes, and ports.
         # We still lazily start servers as they are enabled.
+        # We also need to ensure that the ports are unique
         self.servers: dict[str, LspServer] = {
-            server_name: server_constructor(find_free_port(self.min_port))
-            for server_name, server_constructor in self.LANGUAGE_SERVERS.items()
+            # We offset the ports by 2 to ensure they are unique
+            server_name: server_constructor(
+                find_free_port(self.min_port + i * 5)
+            )
+            for i, (server_name, server_constructor) in enumerate(
+                self.LANGUAGE_SERVERS.items()
+            )
         }
 
     def _is_enabled(self, server_name: str) -> bool:
