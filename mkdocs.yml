@@ -188,6 +188,7 @@ nav:
           - Accordion: api/layouts/accordion.md
           - Callout: api/layouts/callout.md
           - Carousel: api/layouts/carousel.md
+          - Json: api/layouts/json.md
           - Justify: api/layouts/justify.md
           - Lazy: api/layouts/lazy.md
           - Plain: api/layouts/plain.md
