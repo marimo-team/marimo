@@ -1111,9 +1111,15 @@ def test_download_as_polars() -> None:
         assert selected_df["cities"][0] == "New York"
 
 
-def test_download_as_for_cell_selection_is_unsupported() -> None:
-    table = ui.table(data=[], selection="single-cell")
-    with pytest.raises(NotImplementedError):
+def test_download_as_for_cell_selection() -> None:
+    for selection in ["single-cell", "multi-cell"]:
+        table = ui.table(data=[], selection=selection)
+        with pytest.raises(NotImplementedError):
+            table._download_as(DownloadAsArgs(format="csv"))
+
+    # Assert that download works for other selection types
+    for selection in ["single", "multi", None]:
+        table = ui.table(data=[], selection=selection)
         table._download_as(DownloadAsArgs(format="csv"))
 
 
