@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 import os
 import wave
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
@@ -13,12 +13,18 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.media import io_to_data_url
 
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
 
-def convert_numpy_to_wav(data, rate: int, normalize: bool) -> bytes:
+
+def convert_numpy_to_wav(
+    data: NDArray[np.int16], rate: int, normalize: bool
+) -> bytes:
     import numpy as np
 
     def get_normalization_factor(
-        max_abs_value, normalize
+        max_abs_value: float, normalize: bool
     ) -> Union[float, int]:
         if not normalize and max_abs_value > 1:
             raise ValueError(
@@ -38,7 +44,7 @@ def convert_numpy_to_wav(data, rate: int, normalize: bool) -> bytes:
     max_abs_value = np.max(np.abs(data))
     normalization_factor = get_normalization_factor(max_abs_value, normalize)
     scaled = data / normalization_factor * 32767
-    scaled = scaled.astype("<h").tobytes()
+    scaled_bytes = scaled.astype("<h").tobytes()
 
     buffer = io.BytesIO()
     waveobj = wave.open(buffer, mode="wb")
@@ -46,7 +52,7 @@ def convert_numpy_to_wav(data, rate: int, normalize: bool) -> bytes:
     waveobj.setframerate(rate)
     waveobj.setsampwidth(2)
     waveobj.setcomptype("NONE", "NONE")
-    waveobj.writeframes(scaled)
+    waveobj.writeframes(scaled_bytes)
     val = buffer.getvalue()
     waveobj.close()
     return val
