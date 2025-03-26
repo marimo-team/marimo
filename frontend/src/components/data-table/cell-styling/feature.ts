@@ -38,7 +38,7 @@ export const CellStylingFeature: TableFeature = {
     cell.getUserStyling = () => {
       const state = table.getState().cellStyling;
       const rowId = getRowId(row);
-      return state[rowId]?.[column.id] || {};
+      return state?.[rowId]?.[column.id] || {};
     };
   },
 };

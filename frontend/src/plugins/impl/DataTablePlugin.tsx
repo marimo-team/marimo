@@ -149,7 +149,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .nullish(),
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
-      cellStyles: z.record(z.record(z.object({}).passthrough())),
+      cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -191,7 +191,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.number(),
-          cell_styles: z.record(z.record(z.object({}).passthrough())),
+          cell_styles: z
+            .record(z.record(z.object({}).passthrough()))
+            .optional(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(

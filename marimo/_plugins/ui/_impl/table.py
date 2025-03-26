@@ -101,7 +101,7 @@ CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
 class SearchTableResponse:
     data: Union[JSONType, str]
     total_rows: int
-    cell_styles: CellStyles = dict()
+    cell_styles: Optional[CellStyles] = None
 
 
 @dataclass(frozen=True)
@@ -695,10 +695,10 @@ class table(
 
         return result
 
-    def _style_cells(self, skip: int, take: int) -> CellStyles:
+    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
-            return dict()
+            return None
         else:
 
             def do_style_cell(row: str, col: str) -> dict[str, Any]:
