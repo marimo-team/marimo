@@ -92,7 +92,7 @@ export function generateDatabaseCode(
       const params = {
         account: connection.account,
         user: connection.username,
-        password: `os.environ.get("SNOWFLAKE_PASSWORD", "${connection.password}")`,
+        password: connection.password,
         database: connection.database,
         warehouse: connection.warehouse,
         schema: connection.schema,
@@ -102,7 +102,8 @@ export function generateDatabaseCode(
       code = dedent(`
         engine = ${orm}.create_engine(
           URL(
-${formatUrlParams(params, (inner) => `            ${inner}`)}
+${formatUrlParams(params, (inner) => `            ${inner}`)},
+            ${formatPassword(connection.password, "SNOWFLAKE_PASSWORD")}
           )
         )
       `);
@@ -120,22 +121,22 @@ ${formatUrlParams(params, (inner) => `            ${inner}`)}
     case "duckdb":
       code = dedent(`
         DATABASE_URL = ${connection.database ? `"${connection.database}"` : "':memory:'"}
-        engine = ${orm}.connect(DATABASE_URL, read_only=${convertBooleanToPython(connection.read_only)})
+        engine = ${orm}.connect(DATABASE_URL, read_only=${formatBoolean(connection.read_only)})
       `);
       break;
 
     case "clickhouse_connect": {
       const params = {
         host: connection.host,
-        port: connection.port,
         user: connection.username,
-        password: connection.password,
-        secure: convertBooleanToPython(connection.secure),
+        secure: connection.secure,
+        port: connection.port,
       };
 
       code = dedent(`
         engine = ${orm}.get_client(
-${formatUrlParams(params, (inner) => `          ${inner}`)}
+${formatUrlParams(params, (inner) => `          ${inner}`)},
+          ${formatPassword(connection.password, "CLICKHOUSE_PASSWORD")}
         )
       `);
       break;
@@ -143,7 +144,7 @@ ${formatUrlParams(params, (inner) => `          ${inner}`)}
 
     case "chdb":
       code = dedent(`
-        engine = ${orm}.connect("${connection.database}", read_only=${convertBooleanToPython(connection.read_only)})
+        engine = ${orm}.connect("${connection.database}", read_only=${formatBoolean(connection.read_only)})
         `);
       break;
 
@@ -154,8 +155,15 @@ ${formatUrlParams(params, (inner) => `          ${inner}`)}
   return `${imports.join("\n")}\n\n${code.trim()}`;
 }
 
-function convertBooleanToPython(value: boolean): string {
-  return value ? "True" : "False";
+function formatPassword(password: string | undefined, envVar: string): string {
+  if (!password) {
+    return "";
+  }
+  return `os.environ.get("${envVar}", "${password}")`;
+}
+
+function formatBoolean(value: boolean): string {
+  return value.toString().charAt(0).toUpperCase() + value.toString().slice(1);
 }
 
 function formatUrlParams(
@@ -163,7 +171,16 @@ function formatUrlParams(
   formatLine: (line: string) => string,
 ): string {
   return Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => formatLine(`${k}=${v}`))
+    .filter(([, v]) => v)
+    .map(([k, v]) => {
+      if (typeof v === "boolean") {
+        // uppercase the first letter, but do not quote it
+        return formatLine(`${k}=${formatBoolean(v)}`);
+      }
+      if (typeof v === "number") {
+        return formatLine(`${k}=${v}`);
+      }
+      return formatLine(`${k}="${v}"`);
+    })
     .join(",\n");
 }

@@ -125,6 +125,15 @@ describe("generateDatabaseCode", () => {
         "sqlmodel",
       ],
       [
+        "clickhouse connect with minimal config",
+        {
+          ...clickhouseConnection,
+          port: undefined,
+          password: undefined,
+        },
+        "clickhouse_connect",
+      ],
+      [
         "postgres with unicode",
         {
           ...basePostgres,

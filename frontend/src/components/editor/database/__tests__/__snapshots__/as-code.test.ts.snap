@@ -20,11 +20,10 @@ exports[`generateDatabaseCode > basic connections > clickhouse 1`] = `
 import clickhouse_connect
 
 engine = clickhouse_connect.get_client(
-  host=localhost,
+  host="localhost",
+  user="user",
   port=8123,
-  user=user,
-  password=pass,
-  secure=False
+  os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 )"
 `;
 
@@ -78,13 +77,14 @@ from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
   URL(
-    account=account,
-    user=user,
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-    database=db,
-    warehouse=warehouse,
-    schema=schema,
-    role=role
+    account="account",
+    user="user",
+    password="pass",
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -111,16 +111,27 @@ exports[`generateDatabaseCode > edge cases > chdb with no database 1`] = `
 engine = chdb.connect("", read_only=False)"
 `;
 
+exports[`generateDatabaseCode > edge cases > clickhouse connect with minimal config 1`] = `
+"import os
+import clickhouse_connect
+
+engine = clickhouse_connect.get_client(
+  host="localhost",
+  user="user",
+
+)"
+`;
+
 exports[`generateDatabaseCode > edge cases > clickhouse with https 1`] = `
 "import os
 import clickhouse_connect
 
 engine = clickhouse_connect.get_client(
-  host=localhost,
+  host="localhost",
+  user="user",
+  secure=True,
   port=8123,
-  user=user,
-  password=pass,
-  secure=True
+  os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 )"
 `;
 
@@ -129,10 +140,9 @@ exports[`generateDatabaseCode > edge cases > clickhouse with no port 1`] = `
 import clickhouse_connect
 
 engine = clickhouse_connect.get_client(
-  host=localhost,
-  user=user,
-  password=pass,
-  secure=False
+  host="localhost",
+  user="user",
+  os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 )"
 `;
 
@@ -231,13 +241,14 @@ from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
   URL(
-    account=org-account,
-    user=user,
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-    database=db,
-    warehouse=compute_wh,
-    schema=public,
-    role=accountadmin
+    account="org-account",
+    user="user",
+    password="pass",
+    database="db",
+    warehouse="compute_wh",
+    schema="public",
+    role="accountadmin",
+    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -249,13 +260,11 @@ from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
   URL(
-    account=account,
-    user=user,
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-    database=db,
-    warehouse=,
-    schema=,
-    role=
+    account="account",
+    user="user",
+    password="pass",
+    database="db",
+    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -346,13 +355,14 @@ from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
   URL(
-    account=account-with-password123,
-    user=user,
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-    database=db,
-    warehouse=warehouse,
-    schema=schema,
-    role=role
+    account="account-with-password123",
+    user="user",
+    password="pass",
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
@@ -364,13 +374,14 @@ from snowflake.sqlalchemy import URL
 
 engine = sqlalchemy.create_engine(
   URL(
-    account=account-with-password123,
-    user=user,
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-    database=db,
-    warehouse=warehouse,
-    schema=schema,
-    role=role
+    account="account-with-password123",
+    user="user",
+    password="pass",
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    os.environ.get("SNOWFLAKE_PASSWORD", "pass")
   )
 )"
 `;
