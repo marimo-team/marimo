@@ -1,7 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`generateDatabaseCode > basic connections > bigquery 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 import json
 
 credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
@@ -35,7 +36,8 @@ engine = duckdb.connect(DATABASE_URL, read_only=True)"
 `;
 
 exports[`generateDatabaseCode > basic connections > mysql with SQLAlchemy 1`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 
 password = os.environ.get("MYSQL_PASSWORD", "pass")
 DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
@@ -43,7 +45,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode'
 `;
 
 exports[`generateDatabaseCode > basic connections > mysql with SQLModel 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("MYSQL_PASSWORD", "pass")
 DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
@@ -51,7 +54,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 
 `;
 
 exports[`generateDatabaseCode > basic connections > postgres with SQLAlchemy 1`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
@@ -59,7 +63,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'requir
 `;
 
 exports[`generateDatabaseCode > basic connections > postgres with SQLModel 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
@@ -67,7 +72,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > basic connections > snowflake 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
@@ -91,7 +97,8 @@ engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > edge cases > bigquery with long credentials 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 import json
 
 credentials = json.loads("""xxxxxxxxxx""")
@@ -137,7 +144,8 @@ engine = sqlmodel.connect(DATABASE_URL, read_only=False)"
 `;
 
 exports[`generateDatabaseCode > edge cases > mysql with extremely long database name 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("MYSQL_PASSWORD", "pass")
 DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -145,7 +153,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 
 `;
 
 exports[`generateDatabaseCode > edge cases > mysql with max port 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("MYSQL_PASSWORD", "pass")
 DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:65535/test"
@@ -153,7 +162,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with IPv6 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@2001:0db8:85a3:0000:0000:8a2e:0370:7334:5432/test"
@@ -161,7 +171,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with URL-encoded characters 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass%20word")
 DATABASE_URL = f"postgresql://user%20name:{password}@localhost:5432/test%20db"
@@ -169,7 +180,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with domain socket 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@/var/run/postgresql:undefined/test"
@@ -177,7 +189,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with non-standard port 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@localhost:54321/test"
@@ -185,7 +198,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with special chars SQLAlchemy 1`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
 DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-db.special"
@@ -193,7 +207,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'requir
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with special chars SQLModel 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
 DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-db.special"
@@ -201,7 +216,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with unicode 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "密码")
 DATABASE_URL = f"postgresql://用户:{password}@localhost:5432/测试数据库"
@@ -209,7 +225,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > snowflake with all optional fields filled 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
@@ -226,7 +243,8 @@ engine = sqlmodel.create_engine(
 `;
 
 exports[`generateDatabaseCode > edge cases > snowflake with minimal config SQLModel 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
@@ -250,7 +268,8 @@ engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 import json
 
 credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
@@ -258,7 +277,8 @@ engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 2`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 import json
 
 credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
@@ -266,7 +286,8 @@ engine = sqlalchemy.create_engine(f"bigquery://my-project/my_dataset", credentia
 `;
 
 exports[`generateDatabaseCode > security cases > mysql with very long password 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("MYSQL_PASSWORD", "xxxxxxxxxx")
 DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
@@ -274,7 +295,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 
 `;
 
 exports[`generateDatabaseCode > security cases > mysql with very long password 2`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 
 password = os.environ.get("MYSQL_PASSWORD", "xxxxxxxxxx")
 DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
@@ -282,7 +304,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode'
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with SQL injection attempt in database name 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@localhost:5432/db'; DROP TABLE users;--"
@@ -290,7 +313,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with SQL injection attempt in database name 2`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{password}@localhost:5432/db'; DROP TABLE users;--"
@@ -298,7 +322,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'requir
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with empty password 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "")
 DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
@@ -306,7 +331,8 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with empty password 2`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 
 password = os.environ.get("POSTGRES_PASSWORD", "")
 DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
@@ -314,7 +340,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'requir
 `;
 
 exports[`generateDatabaseCode > security cases > snowflake with sensitive info in account 1`] = `
-"import sqlmodel
+"import os
+import sqlmodel
 from snowflake.sqlalchemy import URL
 
 engine = sqlmodel.create_engine(
@@ -331,7 +358,8 @@ engine = sqlmodel.create_engine(
 `;
 
 exports[`generateDatabaseCode > security cases > snowflake with sensitive info in account 2`] = `
-"import sqlalchemy
+"import os
+import sqlalchemy
 from snowflake.sqlalchemy import URL
 
 engine = sqlalchemy.create_engine(

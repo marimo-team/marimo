@@ -29,15 +29,17 @@ export function generateDatabaseCode(
   // Parse the connection to ensure it's valid
   DatabaseConnectionSchema.parse(connection);
 
-  const ormsWithPasswords: ConnectionLibrary[] = [
-    "postgres" as ConnectionLibrary,
-    "mysql" as ConnectionLibrary,
-    "snowflake" as ConnectionLibrary,
-    "bigquery" as ConnectionLibrary,
-    "clickhouse_connect" as ConnectionLibrary,
+  const connectionsWithPasswords: Array<DatabaseConnection["type"]> = [
+    "postgres",
+    "mysql",
+    "snowflake",
+    "bigquery",
+    "clickhouse_connect",
   ];
 
-  const imports = ormsWithPasswords.includes(orm) ? ["import os"] : [];
+  const imports = connectionsWithPasswords.includes(connection.type)
+    ? ["import os"]
+    : [];
 
   switch (orm) {
     case "duckdb":
