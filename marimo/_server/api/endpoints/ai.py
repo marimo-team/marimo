@@ -13,8 +13,10 @@ from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.prompts import Prompter
 from marimo._server.ai.providers import (
     DEFAULT_MODEL,
+    AnyProviderConfig,
     get_completion_provider,
     get_max_tokens,
+    get_model,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
@@ -87,7 +89,11 @@ async def ai_completion(
         user_prompt=body.prompt, include_other_code=body.include_other_code
     )
 
-    provider = get_completion_provider(ai_config)
+    model = get_model(ai_config)
+    provider = get_completion_provider(
+        AnyProviderConfig.for_model(model, ai_config),
+        model=model,
+    )
     response = provider.stream_completion(
         messages=[ChatMessage(role="user", content=prompt)],
         system_prompt=system_prompt,
@@ -134,7 +140,11 @@ async def ai_chat(
 
     max_tokens = get_max_tokens(config)
 
-    provider = get_completion_provider(ai_config, model_override=body.model)
+    model = body.model or get_model(ai_config)
+    provider = get_completion_provider(
+        AnyProviderConfig.for_model(model, ai_config),
+        model=model,
+    )
     response = provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
@@ -178,7 +188,6 @@ async def ai_inline_completion(
     prompt = f"{body.prefix}<FILL_ME>{body.suffix}"
     messages = [ChatMessage(role="user", content=prompt)]
     system_prompt = Prompter.get_inline_system_prompt(language=body.language)
-    ai_config = get_ai_config(config)
 
     # This is currently not configurable and smaller than the default
     # of 4096, since it is smaller/faster for inline completions
@@ -189,7 +198,10 @@ async def ai_inline_completion(
     except Exception:
         model = DEFAULT_MODEL
 
-    provider = get_completion_provider(ai_config, model_override=model)
+    provider = get_completion_provider(
+        AnyProviderConfig.for_completion(config["completion"]),
+        model=model,
+    )
     response = provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
