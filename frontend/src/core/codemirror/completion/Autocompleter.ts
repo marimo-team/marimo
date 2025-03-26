@@ -38,9 +38,8 @@ export const AUTOCOMPLETER = new DeferredRequestRegistry<
       ...req,
     });
   },
-  // We don't care about previous requests
-  // so we just resolve them with an empty response.
-  { resolveExistingRequests: () => null },
+  // We don't resolve previous requests
+  // because they may be used for tooltips or live documentation.
 );
 
 export const Autocompleter = {
