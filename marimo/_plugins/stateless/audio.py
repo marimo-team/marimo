@@ -52,28 +52,57 @@ def convert_numpy_to_wav(data, rate: int, normalize: bool) -> bytes:
     return val
 
 
+def get_resolved_src(
+    src: Union[str, io.BytesIO], rate: Optional[int], normalize: bool
+) -> str:
+    """Determines the correct URL for the given audio source."""
+
+    if isinstance(src, (io.BufferedReader, io.BytesIO)):
+        pos = src.tell()
+        src.seek(0)
+        resolved_src = mo_data.audio(src.read()).url
+        src.seek(pos)
+        return resolved_src
+
+    if isinstance(src, bytes):
+        return mo_data.audio(src).url
+
+    if isinstance(src, str) and os.path.isfile(os.path.expanduser(src)):
+        src = os.path.expanduser(src)
+        with open(src, "rb") as f:
+            return mo_data.audio(f.read(), ext=os.path.splitext(src)[1]).url
+
+    if DependencyManager.numpy.imported():
+        import numpy as np
+
+        if isinstance(src, np.ndarray):
+            if rate is None:
+                raise ValueError(
+                    "rate must be specified when data is a numpy array of audio samples."
+                )
+            wav_data = convert_numpy_to_wav(src, rate, normalize)
+            return mo_data.audio(wav_data).url
+
+    return io_to_data_url(src, fallback_mime_type="audio/wav")
+
+
 @mddoc
 def audio(
     src: Union[str, io.BytesIO],
-    rate: int,
+    rate: Optional[int] = None,
     normalize: bool = True,
 ) -> Html:
     """Render an audio file as HTML.
 
     Args:
         src: a path or URL to an audio `file`, `bytes`,
-            or a file-like object opened in binary mode
-            `Numpy 1d array` containing the desired waveform (mono)
-            `Numpy 2d array` containing waveforms for each channel.Shape=(NCHAN, NSAMPLES).
-        rate :
-            The sampling rate of the raw data.
-            Only required when data parameter is being used as an array.
-        normalize :
-            Whether audio should be normalized (rescaled) to the maximum possible
-            range. Default is `True`. When set to `False`, `src` must be between
-            -1 and 1 (inclusive), otherwise an error is raised.
-            Applies only when `src` is a numpy array; other types of
-            audio are never normalized.
+            or a file-like object opened in binary mode,
+            `1D numpy array` → Mono waveform,
+            `2D numpy array` → Multi-channel waveform (Shape: `[NCHAN, NSAMPLES]`).
+        rate : Sampling rate (required only for NumPy arrays).
+        normalize: Whether to rescale NumPy array audio to its max range (`True` by default).
+            If `False`, values must be in `[-1, 1]`, or an error is raised.
+            Does not apply to non-array audio sources.
 
     Returns:
         An audio player as an `Html` object.
@@ -87,32 +116,5 @@ def audio(
         mo.audio(src="path/to/local/file.wav")
         ```
     """
-    resolved_src: Optional[str]
-
-    if isinstance(src, (io.BufferedReader, io.BytesIO)):
-        pos = src.tell()
-        src.seek(0)
-        resolved_src = mo_data.audio(src.read()).url
-        src.seek(pos)
-    elif isinstance(src, bytes):
-        resolved_src = mo_data.audio(src).url
-    elif isinstance(src, str) and os.path.isfile(os.path.expanduser(src)):
-        src = os.path.expanduser(src)
-        with open(src, "rb") as f:
-            resolved_src = mo_data.audio(
-                f.read(), ext=os.path.splitext(src)[1]
-            ).url
-    elif DependencyManager.numpy.imported():
-        import numpy as np
-
-        if isinstance(src, np.ndarray):
-            if rate is None:
-                raise ValueError(
-                    "rate must be specified when data is a numpy array of audio samples."
-                )
-            wav_data = convert_numpy_to_wav(src, rate, normalize)
-            resolved_src = mo_data.audio(wav_data).url
-    else:
-        resolved_src = io_to_data_url(src, fallback_mime_type="audio/wav")
-
+    resolved_src = get_resolved_src(src, rate, normalize)
     return Html(h.audio(src=resolved_src, controls=True))
