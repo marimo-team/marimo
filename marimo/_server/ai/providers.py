@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Generator
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -12,7 +13,6 @@ from typing import (
     cast,
 )
 
-from attr import dataclass
 from starlette.exceptions import HTTPException
 
 from marimo import _loggers
