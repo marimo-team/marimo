@@ -93,15 +93,14 @@ class SearchTableArgs:
     limit: Optional[int] = None
 
 
-CellStyle = dict[str, Any]
-CellStyles = dict[str, CellStyle]
+CellStyles = dict[str, dict[str, dict[str, Any]]]
 
 
 @dataclass(frozen=True)
 class SearchTableResponse:
     data: Union[JSONType, str]
     total_rows: int
-    cell_styles: CellStyles
+    cell_styles: CellStyles = dict()
 
 
 @dataclass(frozen=True)
@@ -283,7 +282,7 @@ class table(
                 None,
             ]
         ] = None,
-        style_cell: Optional[Callable[[int, int, dict], dict]] = None,
+        style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
@@ -698,18 +697,23 @@ class table(
     def _style_cells(self, skip: int, take: int) -> CellStyles:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
-            return []
+            return dict()
         else:
 
-            def do_style_cell(row, col) -> dict:
-                value = self._searched_manager.select_cells(
+            def do_style_cell(row: str, col: str) -> dict[str, Any]:
+                selected_cells = self._searched_manager.select_cells(
                     [TableCoordinate(row_id=row, column_name=col)]
-                )[0].value
-                return self._style_cell(row, col, value)
+                )
+                if len(selected_cells) == 0 or self._style_cell is None:
+                    return dict()
+                else:
+                    return self._style_cell(row, col, selected_cells[0].value)
 
             columns = self._searched_manager.get_column_names()
             return {
-                str(row): {col: do_style_cell(row, col) for col in columns}
+                str(row): {
+                    col: do_style_cell(str(row), col) for col in columns
+                }
                 for row in range(skip, skip + take)
             }
 

@@ -285,7 +285,7 @@ export const LoadingDataTableComponent = memo(
     const { data, loading, error } = useAsyncData<{
       rows: T[];
       totalRows: number | "too_many";
-      cellStyles: CellStyleState;
+      cellStyles: CellStyleState | undefined;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
@@ -295,8 +295,7 @@ export const LoadingDataTableComponent = memo(
       // Table data is a url string or an array of objects
       let tableData = props.data;
       let totalRows = props.totalRows;
-      let cellStyles: CellStyleState =
-        props.cellStyles || ({} as CellStyleState);
+      let cellStyles = props.cellStyles;
 
       // If it is just the first page and no search query,
       // we can show the initial page.
@@ -370,7 +369,6 @@ export const LoadingDataTableComponent = memo(
       searchQuery,
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
-      props.cellStyles, // maybe, not quite sure...
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
