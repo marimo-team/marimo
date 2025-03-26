@@ -65,7 +65,7 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
   },
   {
     id: "formatting",
-    packagesRequired: [isWasm() ? { name: "ruff" } : { name: "black" }],
+    packagesRequired: [isWasm() ? { name: "black" } : { name: "ruff" }],
     additionalPackageInstalls: [],
     description: "Formatting",
   },

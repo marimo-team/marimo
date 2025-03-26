@@ -7,12 +7,12 @@ import socket
 import sys
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager
-from typing import Any, cast
 
 from starlette.applications import Starlette
 
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.file_router import AppFileRouter
+from marimo._server.lsp import any_lsp_server_running
 from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
 
@@ -73,21 +73,10 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     user_config = state.config_manager.get_config()
     session_mgr = state.session_manager
-    run = session_mgr.mode == SessionMode.RUN
 
-    if not run:
-        # Check if any language servers or copilot are enabled
-        copilot_enabled = user_config["completion"]["copilot"]
-        language_servers = user_config.get("language_servers", {})
-        language_servers_enabled = any(
-            cast(dict[str, Any], server).get("enabled", False)
-            for server in language_servers.values()
-        )
-
-        if copilot_enabled:
-            LOGGER.debug("GitHub Copilot is enabled")
-
-        if copilot_enabled or language_servers_enabled:
+    # Only start the LSP server in Edit mode
+    if session_mgr.mode == SessionMode.EDIT:
+        if any_lsp_server_running(user_config):
             LOGGER.debug("Language Servers are enabled")
             await session_mgr.start_lsp_server()
 

@@ -106,8 +106,7 @@ def start(
     config_reader = get_default_config_manager(current_path=start_path)
 
     lsp_composite_server = CompositeLspServer(
-        lsp_config=config_reader.language_servers,
-        completion_config=config_reader.completion,
+        config_reader=config_reader,
         min_port=DEFAULT_PORT + 400,
     )
 
@@ -169,7 +168,7 @@ def start(
         ),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
-        lsp_servers=lsp_composite_server.servers,
+        lsp_servers=list(lsp_composite_server.servers.values()),
     )
 
     app.state.port = external_port
