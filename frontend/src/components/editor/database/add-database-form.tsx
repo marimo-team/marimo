@@ -122,7 +122,7 @@ const SCHEMAS = [
   {
     name: "ClickHouse In-Memory",
     schema: ChdbConnectionSchema,
-    color: "#919103",
+    color: "#e3a909",
     logo: "clickhouse",
     connectionLibraries: {
       libraries: ["chdb"],

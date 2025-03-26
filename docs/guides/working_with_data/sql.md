@@ -141,7 +141,7 @@ Click the "Add Database Connection" button in your notebook to connect to Postgr
 
 <div align="center">
   <figure>
-    <img src="/_static/docs-sql-choose-database.png"/>
+    <img width="700" src="/_static/docs-sql-choose-db.png"/>
     <figcaption>Add a database connection through the UI</figcaption>
   </figure>
 </div>
@@ -150,7 +150,7 @@ If you'd like to connect to a database that isn't supported by the UI, you can u
 
 ### 2. Using Code
 
-You can also bring your own database via a **connection engine** created with a library like [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage), [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine), or a [custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options). By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+You can bring your own database via a **connection engine** created with a library like [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage), [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine), or a [custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options). By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
 
 Define the engine as a Python variable in a cell:
 
@@ -175,6 +175,47 @@ marimo will auto-discover the engine and let you select it in the SQL cell's con
     <figcaption>Choose a custom database connection</figcaption>
   </figure>
 </div>
+
+### ClickHouse Support
+
+marimo supports ClickHouse via [ClickHouse Connect](https://clickhouse.com/docs/integrations/python#introduction) for remote connections or [chDB](https://clickhouse.com/docs/chdb) for in-memory connections.
+
+/// tab | clickhouse_connect
+
+Refer to [the docs](https://clickhouse.com/docs/integrations/python#gather-your-connection-details) for more configuration options.
+
+```python
+import clickhouse_connect
+
+engine = clickhouse_connect.get_client(host="localhost", port=8123, username="default", password="password")
+```
+
+///
+
+/// tab | chDB
+
+!!! warning
+
+    chDB is still new. You may experience issues with your queries. We recommend only using one connection at a time.
+    Refer to [chDB docs](https://github.com/orgs/chdb-io/discussions/295) for more information.
+
+```python
+import chdb
+
+connection = chdb.connect(":memory:")
+
+# Supported formats with examples:
+":memory:"                                   # In-memory database
+"test.db"                                    # Relative path
+"file:test.db"                               # Explicit file protocol
+"/path/to/test.db"                           # Absolute path
+"file:/path/to/test.db"                      # Absolute path with protocol
+"file:test.db?param1=value1&param2=value2"   # With query parameters
+"file::memory:?verbose&log-level=test"       # In-memory with parameters
+"///path/to/test.db?param1=value1"           # Triple slash absolute path
+```
+
+///
 
 ## Database, schema, and table auto-discovery
 
