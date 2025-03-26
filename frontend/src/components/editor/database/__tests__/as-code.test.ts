@@ -54,6 +54,21 @@ describe("generateDatabaseCode", () => {
     credentials_json: '{"type": "service_account", "project_id": "test"}',
   };
 
+  const clickhouseConnection: DatabaseConnection = {
+    type: "clickhouse_connect",
+    host: "localhost",
+    port: 8123,
+    username: "user",
+    password: "pass",
+    secure: false,
+  };
+
+  const chdbConnection: DatabaseConnection = {
+    type: "chdb",
+    database: "file:///path/to/db.chdb",
+    read_only: false,
+  };
+
   describe("basic connections", () => {
     it.each([
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
@@ -61,9 +76,11 @@ describe("generateDatabaseCode", () => {
       ["mysql with SQLModel", baseMysql, "sqlmodel"],
       ["mysql with SQLAlchemy", baseMysql, "sqlalchemy"],
       ["sqlite", sqliteConnection, "sqlmodel"],
-      ["duckdb", duckdbConnection, "sqlmodel"],
+      ["duckdb", duckdbConnection, "duckdb"],
       ["snowflake", snowflakeConnection, "sqlmodel"],
       ["bigquery", bigqueryConnection, "sqlmodel"],
+      ["clickhouse", clickhouseConnection, "clickhouse_connect"],
+      ["chdb", chdbConnection, "chdb"],
     ])("%s", (name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
@@ -106,6 +123,15 @@ describe("generateDatabaseCode", () => {
           role: "",
         },
         "sqlmodel",
+      ],
+      [
+        "clickhouse connect with minimal config",
+        {
+          ...clickhouseConnection,
+          port: undefined,
+          password: undefined,
+        },
+        "clickhouse_connect",
       ],
       [
         "postgres with unicode",
@@ -204,10 +230,33 @@ describe("generateDatabaseCode", () => {
         {
           ...basePostgres,
           host: "/var/run/postgresql",
-          // @ts-expect-error - Testing invalid input
           port: undefined,
         },
         "sqlmodel",
+      ],
+      [
+        "clickhouse with no port",
+        {
+          ...clickhouseConnection,
+          port: undefined,
+        },
+        "clickhouse_connect",
+      ],
+      [
+        "clickhouse with https",
+        {
+          ...clickhouseConnection,
+          secure: true,
+        },
+        "clickhouse_connect",
+      ],
+      [
+        "chdb with no database",
+        {
+          ...chdbConnection,
+          database: "",
+        },
+        "chdb",
       ],
     ];
 

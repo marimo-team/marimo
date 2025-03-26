@@ -159,8 +159,6 @@ class ClickhouseServer(SQLEngine):
 
         import pandas as pd
 
-        # queries will not work unless they are stripped and comments are removed
-        # TODO: remove comments
         query = query.strip()
 
         # If wrapped with try/catch, an error may not be caught
