@@ -73,9 +73,9 @@ class AnyProviderConfig:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="OpenAI config not found",
             )
-        key = AnyProviderConfig._get_key(config["open_ai"], "OpenAI")
+        key = _get_key(config["open_ai"], "OpenAI")
         return AnyProviderConfig(
-            base_url=config["open_ai"].get("base_url", None),
+            base_url=_get_base_url(config["open_ai"]),
             api_key=key,
             ssl_verify=config["open_ai"].get("ssl_verify", True),
             ca_bundle_path=config["open_ai"].get("ca_bundle_path", None),
@@ -89,9 +89,9 @@ class AnyProviderConfig:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Anthropic config not found",
             )
-        key = AnyProviderConfig._get_key(config["anthropic"], "Anthropic")
+        key = _get_key(config["anthropic"], "Anthropic")
         return AnyProviderConfig(
-            base_url=config["anthropic"].get("base_url", None),
+            base_url=_get_base_url(config["anthropic"]),
             api_key=key,
         )
 
@@ -102,17 +102,17 @@ class AnyProviderConfig:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Google config not found",
             )
-        key = AnyProviderConfig._get_key(config["google"], "Google AI")
+        key = _get_key(config["google"], "Google AI")
         return AnyProviderConfig(
-            base_url=config["google"].get("base_url", None),
+            base_url=_get_base_url(config["google"]),
             api_key=key,
         )
 
     @staticmethod
     def for_completion(config: CompletionConfig) -> AnyProviderConfig:
-        key = AnyProviderConfig._get_key(config, "AI completion")
+        key = _get_key(config, "AI completion")
         return AnyProviderConfig(
-            base_url=config.get("base_url", None),
+            base_url=_get_base_url(config),
             api_key=key,
         )
 
@@ -125,16 +125,22 @@ class AnyProviderConfig:
         else:
             return AnyProviderConfig.for_openai(config)
 
-    @staticmethod
-    def _get_key(config: Any, name: str) -> str:
-        if "api_key" in config:
-            key = config["api_key"]
-            if key:
-                return key
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"{name} API key not configured",
-        )
+
+def _get_key(config: Any, name: str) -> str:
+    if "api_key" in config:
+        key = config["api_key"]
+        if key:
+            return cast(str, key)
+    raise HTTPException(
+        status_code=HTTPStatus.BAD_REQUEST,
+        detail=f"{name} API key not configured",
+    )
+
+
+def _get_base_url(config: Any) -> Optional[str]:
+    if "base_url" in config:
+        return cast(str, config["base_url"])
+    return None
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
