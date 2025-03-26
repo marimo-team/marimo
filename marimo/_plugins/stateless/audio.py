@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 import os
 import wave
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
@@ -59,7 +59,9 @@ def convert_numpy_to_wav(
 
 
 def get_resolved_src(
-    src: Union[str, io.BytesIO], rate: Optional[int], normalize: bool
+    src: Union[str, io.BytesIO, NDArray[Any]],
+    rate: Optional[int],
+    normalize: bool,
 ) -> Optional[str]:
     """Determines the correct URL for the given audio source."""
 
@@ -94,7 +96,7 @@ def get_resolved_src(
 
 @mddoc
 def audio(
-    src: Union[str, io.BytesIO],
+    src: Union[str, io.BytesIO, NDArray[Any]],
     rate: Optional[int] = None,
     normalize: bool = True,
 ) -> Html:
