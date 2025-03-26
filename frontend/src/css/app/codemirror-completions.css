@@ -210,6 +210,12 @@
   .cm-tooltip.cm-completionInfo-left {
     border-top-right-radius: 0;
   }
+
+  pre > code {
+    display: inline-block;
+
+    @apply py-2;
+  }
 }
 
 .cm-signature-help {
@@ -245,6 +251,12 @@
 
   code:not(:empty) {
     @apply bg-[var(--gray-3)] rounded-sm px-1;
+  }
+
+  pre > code {
+    display: inline-block;
+
+    @apply py-1;
   }
 
   h4 {
