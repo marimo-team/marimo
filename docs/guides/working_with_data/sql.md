@@ -178,7 +178,7 @@ marimo will auto-discover the engine and let you select it in the SQL cell's con
 
 ### ClickHouse Support
 
-marimo supports ClickHouse via [ClickHouse Connect](https://clickhouse.com/docs/integrations/python#introduction) for remote connections or [chDB](https://clickhouse.com/docs/chdb) for in-memory connections.
+marimo supports ClickHouse via [ClickHouse Connect](https://clickhouse.com/docs/integrations/python#introduction) for remote connections or [chDB](https://clickhouse.com/docs/chdb) for embedded connections.
 
 /// tab | clickhouse_connect
 
