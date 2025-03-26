@@ -190,9 +190,14 @@ class _cache_call:
 
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
-        kwargs = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
-        scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
+        scope = {
+            **self.scope,
+            **get_context().globals,
+            **arg_dict,
+            **kwargs_copy,
+        }
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         attempt = content_cache_attempt_from_base(
             self.base_block,
