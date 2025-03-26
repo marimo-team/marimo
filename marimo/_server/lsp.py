@@ -4,10 +4,11 @@ from __future__ import annotations
 import os
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Literal, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
-from marimo._config.config import CompletionConfig, LanguageServersConfig
+from marimo._config.config import MarimoConfig
+from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
@@ -192,42 +193,77 @@ class NoopLspServer(LspServer):
 
 
 class CompositeLspServer(LspServer):
-    language_servers = {
+    LANGUAGE_SERVERS = {
         "pylsp": PyLspServer,
         "copilot": CopilotLspServer,
     }
 
     def __init__(
         self,
-        lsp_config: LanguageServersConfig,
-        completion_config: CompletionConfig,
+        config_reader: MarimoConfigReader,
         min_port: int,
     ) -> None:
-        is_enabled: dict[str, bool] = {
-            "copilot": (
-                completion_config["copilot"] is True
-                or completion_config["copilot"] == "github"
-            ),
-            **{
-                server_name: cast(dict[str, bool], config)["enabled"]
-                for server_name, config in lsp_config.items()
-            },
-        }
-        self.servers: list[LspServer] = [
-            constructor(find_free_port(min_port + 100 * i))
-            for i, (server_name, constructor) in enumerate(
-                self.language_servers.items()
-            )
-            if is_enabled.get(server_name, False)
-        ]
+        self.config_reader = config_reader
+        self.min_port = min_port
 
-    def start(self) -> None:
-        for server in self.servers:
-            server.start()
+        # NOTE: we construct all servers up front regardless of whether they are enabled
+        # in order to properly mount them as Starlette routes with their own ports
+        # With 2 servers, this is OK, but if we want to support more, we should
+        # lazily construct servers, routes, and ports.
+        # We still lazily start servers as they are enabled.
+        # We also need to ensure that the ports are unique
+        self.servers: dict[str, LspServer] = {
+            # We offset the ports by 2 to ensure they are unique
+            server_name: server_constructor(
+                find_free_port(self.min_port + i * 5)
+            )
+            for i, (server_name, server_constructor) in enumerate(
+                self.LANGUAGE_SERVERS.items()
+            )
+        }
+
+    def _is_enabled(self, server_name: str) -> bool:
+        # .get_config() is not cached
+        config = self.config_reader.get_config()
+        if server_name == "copilot":
+            copilot = config["completion"]["copilot"]
+            return copilot is True or copilot == "github"
+        return cast(
+            bool,
+            cast(Any, config.get("language_servers", {}))
+            .get(server_name, {})
+            .get("enabled", False),
+        )
+
+    def start(self) -> Optional[Alert]:
+        alerts: list[Alert] = []
+        for server_name, server in self.servers.items():
+            if not self._is_enabled(server_name):
+                # We don't shut down the server if it is already running
+                # in case the user wants to re-enable it
+                continue
+            # We call start again even for existing servers in case it failed
+            # to start the first time (e.g. got new dependencies)
+            alert = server.start()
+            if alert is not None:
+                alerts.append(alert)
+
+        return alerts[0] if alerts else None
 
     def stop(self) -> None:
-        for server in self.servers:
+        for server in self.servers.values():
             server.stop()
 
     def is_running(self) -> bool:
-        return any(server.is_running() for server in self.servers)
+        return any(server.is_running() for server in self.servers.values())
+
+
+def any_lsp_server_running(config: MarimoConfig) -> bool:
+    # Check if any language servers or copilot are enabled
+    copilot_enabled = config["completion"]["copilot"]
+    language_servers = config.get("language_servers", {})
+    language_servers_enabled = any(
+        cast(dict[str, Any], server).get("enabled", False)
+        for server in language_servers.values()
+    )
+    return (copilot_enabled is not False) or language_servers_enabled
