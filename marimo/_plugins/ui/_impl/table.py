@@ -10,6 +10,7 @@ from typing import (
     Final,
     Literal,
     Optional,
+    TypeAlias,
     Union,
 )
 
@@ -93,10 +94,15 @@ class SearchTableArgs:
     limit: Optional[int] = None
 
 
+CellStyle: TypeAlias = dict[str, Any]
+CellStyles: TypeAlias = dict[str, CellStyle]
+
+
 @dataclass(frozen=True)
 class SearchTableResponse:
     data: Union[JSONType, str]
     total_rows: int
+    cell_styles: CellStyles
 
 
 @dataclass(frozen=True)
@@ -402,22 +408,6 @@ class table(
             )
             self._has_any_selection = True
 
-        cell_styles = []
-        if style_cell is not None:
-
-            def do_style_cell(row, col) -> dict:
-                value = self._searched_manager.select_cells(
-                    [TableCoordinate(row_id=row, column_name=col)]
-                )[0].value
-                return style_cell(row, col, value)
-
-            total_rows = self._searched_manager.get_num_rows(force=True) or 0
-            columns = self._searched_manager.get_column_names()
-            cell_styles = [
-                [do_style_cell(row, col) for col in columns]
-                for row in range(total_rows)
-            ]
-
         # We will need this when calling table manager's to_data()
         self._format_mapping = format_mapping
 
@@ -433,6 +423,8 @@ class table(
                 pagination = True
             else:
                 pagination = False
+
+        self._style_cell = style_cell
 
         # Search first page
         search_result = self._search(
@@ -483,7 +475,7 @@ class table(
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
-                "cell-styles": cell_styles,
+                "cell-styles": search_result.cell_styles,
             },
             on_change=on_change,
             functions=(
@@ -704,6 +696,24 @@ class table(
 
         return result
 
+    def _style_cells(self, skip: int, take: int) -> CellStyles:
+        """Calculate the styling of the cells in the table."""
+        if self._style_cell is None:
+            return []
+        else:
+
+            def do_style_cell(row, col) -> dict:
+                value = self._searched_manager.select_cells(
+                    [TableCoordinate(row_id=row, column_name=col)]
+                )[0].value
+                return self._style_cell(row, col, value)
+
+            columns = self._searched_manager.get_column_names()
+            return {
+                str(row): {col: do_style_cell(row, col) for col in columns}
+                for row in range(skip, skip + take)
+            }
+
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
@@ -723,6 +733,7 @@ class table(
             SearchTableResponse: Response containing:
                 - data: Filtered and formatted table data for the requested page
                 - total_rows: Total number of rows after applying filters
+                - cell_styles: User defined styling information for each cell in the page
         """
         offset = args.page_number * args.page_size
 
@@ -744,6 +755,7 @@ class table(
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=self._manager.get_num_rows(force=True) or 0,
+                cell_styles=self._style_cells(offset, args.page_size),
             )
 
         # Apply filters, query, and functools.sort using the cached method
@@ -759,6 +771,7 @@ class table(
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=result.get_num_rows(force=True) or 0,
+            cell_styles=self._style_cells(offset, args.page_size),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

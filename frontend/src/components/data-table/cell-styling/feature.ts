@@ -11,13 +11,21 @@ import type {
   InitialTableState,
 } from "@tanstack/react-table";
 
-import type { CellStylingTableState } from "./types";
+import type { CellStyleState, CellStylingTableState } from "./types";
+import { INDEX_COLUMN_NAME } from "../types";
+
+function getRowId<TData>(row: Row<TData>): string {
+  if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
+    return String(row[INDEX_COLUMN_NAME]);
+  }
+  return row.id;
+}
 
 export const CellStylingFeature: TableFeature = {
   getInitialState: (state?: InitialTableState): CellStylingTableState => {
     return {
       ...state,
-      cellStyling: [] as React.CSSProperties[][],
+      cellStyling: {} as CellStyleState,
     };
   },
 
@@ -27,18 +35,10 @@ export const CellStylingFeature: TableFeature = {
     row: Row<TData>,
     table: Table<TData>,
   ) => {
-    const state = table.getState().cellStyling;
-
     cell.getUserStyling = () => {
-      if (row.index < state.length) {
-        const rowStyling = state[row.index];
-        const columnIdx = column.getIndex();
-        if (columnIdx < rowStyling.length) {
-          return rowStyling[columnIdx];
-        }
-      }
-
-      return {};
+      const state = table.getState().cellStyling;
+      const rowId = getRowId(row);
+      return state[rowId]?.[column.id] || {};
     };
   },
 };

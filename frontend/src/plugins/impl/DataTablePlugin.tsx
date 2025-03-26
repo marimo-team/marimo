@@ -46,6 +46,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
+import type { CellStyleState } from "@/components/data-table/cell-styling/types";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -103,6 +104,7 @@ type DataTableFunctions = {
   }) => Promise<{
     data: TableData<T>;
     total_rows: number;
+    cell_styles?: CellStyleState;
   }>;
   get_row_ids?: GetRowIds;
 };
@@ -147,7 +149,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .nullish(),
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
-      cellStyles: z.array(z.array(z.object({}).passthrough())),
+      cellStyles: z.record(z.record(z.object({}).passthrough())),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -189,6 +191,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
           total_rows: z.number(),
+          cell_styles: z.record(z.record(z.object({}).passthrough())),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -223,7 +226,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableSearch: boolean;
   // Filters
   enableFilters?: boolean;
-  cellStyles?: any[][];
+  cellStyles?: CellStyleState;
 }
 
 interface DataTableSearchProps {
@@ -282,15 +285,18 @@ export const LoadingDataTableComponent = memo(
     const { data, loading, error } = useAsyncData<{
       rows: T[];
       totalRows: number | "too_many";
+      cellStyles: CellStyleState;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
-        return { rows: Arrays.EMPTY, totalRows: 0 };
+        return { rows: Arrays.EMPTY, totalRows: 0, cellStyles: {} };
       }
 
       // Table data is a url string or an array of objects
       let tableData = props.data;
       let totalRows = props.totalRows;
+      let cellStyles: CellStyleState =
+        props.cellStyles || ({} as CellStyleState);
 
       // If it is just the first page and no search query,
       // we can show the initial page.
@@ -333,6 +339,7 @@ export const LoadingDataTableComponent = memo(
         const searchResults = await searchResultsPromise;
         tableData = searchResults.data;
         totalRows = searchResults.total_rows;
+        cellStyles = searchResults.cell_styles || {};
       }
 
       // If we already have the data, return it
@@ -340,6 +347,7 @@ export const LoadingDataTableComponent = memo(
         return {
           rows: tableData,
           totalRows: totalRows,
+          cellStyles,
         };
       }
 
@@ -353,6 +361,7 @@ export const LoadingDataTableComponent = memo(
       return {
         rows: tableData,
         totalRows: totalRows,
+        cellStyles,
       };
     }, [
       sorting,
@@ -361,6 +370,7 @@ export const LoadingDataTableComponent = memo(
       searchQuery,
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
+      props.cellStyles, // maybe, not quite sure...
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
@@ -439,6 +449,7 @@ export const LoadingDataTableComponent = memo(
           totalRows={data?.totalRows ?? props.totalRows}
           paginationState={paginationState}
           setPaginationState={setPaginationState}
+          cellStyles={data?.cellStyles ?? props.cellStyles}
         />
       </>
     );

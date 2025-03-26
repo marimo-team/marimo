@@ -35,7 +35,7 @@ import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
-import type { CellStylingState } from "./cell-styling/types";
+import type { CellStyleState } from "./cell-styling/types";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -57,7 +57,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   cellSelection?: CellSelectionState;
-  cellStyling?: CellStylingState;
+  cellStyling?: CellStyleState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;

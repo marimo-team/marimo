@@ -2,11 +2,14 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 import type { RowData } from "@tanstack/react-table";
 
-export type CellStylingState = React.CSSProperties[][];
+export type CellStyleState = Record<
+  string,
+  Record<string, React.CSSProperties>
+>;
 
-export type CellStylingTableState = {
-  cellStyling: CellStylingState;
-};
+export interface CellStylingTableState {
+  cellStyling: CellStyleState;
+}
 
 export interface CellStylingCell {
   /**
