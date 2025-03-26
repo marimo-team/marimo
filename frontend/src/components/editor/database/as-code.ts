@@ -97,15 +97,10 @@ export function generateDatabaseCode(
         role: connection.role,
       };
 
-      const urlParams = Object.entries(params)
-        .filter(([, v]) => v)
-        .map(([k, v]) => `            ${k}=${v}`)
-        .join(",\n");
-
       code = dedent(`
         engine = ${orm}.create_engine(
           URL(
-${urlParams}
+${formatUrlParams(params, (inner) => `            ${inner}`)}
           )
         )
       `);
@@ -127,16 +122,22 @@ ${urlParams}
       `);
       break;
 
-    case "clickhouse_connect":
+    case "clickhouse_connect": {
+      const params = {
+        host: connection.host,
+        port: connection.port,
+        user: connection.username,
+        password: connection.password,
+        secure: convertBooleanToPython(connection.secure),
+      };
+
       code = dedent(`
         engine = ${orm}.get_client(
-            host="${connection.host}", ${connection.port ? `\nport=${connection.port},` : ""}  
-            user="${connection.username}",
-            password="${connection.password}",
-            secure=${convertBooleanToPython(connection.secure)}
+${formatUrlParams(params, (inner) => `          ${inner}`)}
         )
-        `);
+      `);
       break;
+    }
 
     case "chdb":
       code = dedent(`
@@ -153,4 +154,14 @@ ${urlParams}
 
 function convertBooleanToPython(value: boolean): string {
   return value ? "True" : "False";
+}
+
+function formatUrlParams(
+  params: Record<string, string | number | boolean | undefined>,
+  formatLine: (line: string) => string,
+): string {
+  return Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => formatLine(`${k}=${v}`))
+    .join(",\n");
 }

@@ -100,16 +100,6 @@ const SCHEMAS = [
     },
   },
   {
-    name: "BigQuery",
-    schema: BigQueryConnectionSchema,
-    color: "#4285F4",
-    logo: "bigquery",
-    connectionLibraries: {
-      libraries: ["sqlalchemy", "sqlmodel"],
-      preferred: "sqlalchemy",
-    },
-  },
-  {
     name: "ClickHouse",
     schema: ClickhouseConnectionSchema,
     color: "#2C2C1D",
@@ -120,9 +110,19 @@ const SCHEMAS = [
     },
   },
   {
-    name: "chDB",
+    name: "BigQuery",
+    schema: BigQueryConnectionSchema,
+    color: "#4285F4",
+    logo: "bigquery",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
+    },
+  },
+  {
+    name: "ClickHouse In-Memory",
     schema: ChdbConnectionSchema,
-    color: "#53530d",
+    color: "#919103",
     logo: "clickhouse",
     connectionLibraries: {
       libraries: ["chdb"],

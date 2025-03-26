@@ -234,6 +234,14 @@ describe("generateDatabaseCode", () => {
         "clickhouse_connect",
       ],
       [
+        "clickhouse with https",
+        {
+          ...clickhouseConnection,
+          secure: true,
+        },
+        "clickhouse_connect",
+      ],
+      [
         "chdb with no database",
         {
           ...chdbConnection,

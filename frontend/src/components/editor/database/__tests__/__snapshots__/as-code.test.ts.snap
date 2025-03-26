@@ -19,12 +19,12 @@ exports[`generateDatabaseCode > basic connections > clickhouse 1`] = `
 import clickhouse_connect
 
 engine = clickhouse_connect.get_client(
-            host="localhost", 
-port=8123,  
-            user="user",
-            password="pass",
-            secure=False
-        )"
+  host=localhost,
+  port=8123,
+  user=user,
+  password=pass,
+  secure=False
+)"
 `;
 
 exports[`generateDatabaseCode > basic connections > duckdb 1`] = `
@@ -104,15 +104,28 @@ exports[`generateDatabaseCode > edge cases > chdb with no database 1`] = `
 engine = chdb.connect("", read_only=False)"
 `;
 
+exports[`generateDatabaseCode > edge cases > clickhouse with https 1`] = `
+"import os
+import clickhouse_connect
+
+engine = clickhouse_connect.get_client(
+  host=localhost,
+  port=8123,
+  user=user,
+  password=pass,
+  secure=True
+)"
+`;
+
 exports[`generateDatabaseCode > edge cases > clickhouse with no port 1`] = `
 "import os
 import clickhouse_connect
 
 engine = clickhouse_connect.get_client(
-    host="localhost",   
-    user="user",
-    password="pass",
-    secure=False
+  host=localhost,
+  user=user,
+  password=pass,
+  secure=False
 )"
 `;
 
@@ -221,7 +234,10 @@ engine = sqlmodel.create_engine(
     account=account,
     user=user,
     password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-    database=db
+    database=db,
+    warehouse=,
+    schema=,
+    role=
   )
 )"
 `;
