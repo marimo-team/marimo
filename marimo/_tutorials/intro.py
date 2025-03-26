@@ -69,6 +69,15 @@ def __(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        """**Another Tip:** When you have finished using Marimo you can shut it down by
+        clicking on the circled red x at the top right of the page.
+        _It is a good idea to save your work first with ctrl-S :floppy_disk::smiley:!_"""
+    ).callout()
+    return
+
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
