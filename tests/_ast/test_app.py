@@ -424,6 +424,55 @@ class TestApp:
         assert defs["x"] == 0
         assert defs["y"] == 1
 
+    @staticmethod
+    def test_run_mo_stop() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _() -> tuple[int]:
+            y = 1
+            return (y,)
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert defs["y"] == 1
+
+    @staticmethod
+    def test_run_mo_stop_async() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        async def _() -> tuple[int]:
+            y = 1
+            return (y,)
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert defs["y"] == 1
+
+
     @pytest.mark.skipif(
         condition=not DependencyManager.matplotlib.has(),
         reason="requires matplotlib",
