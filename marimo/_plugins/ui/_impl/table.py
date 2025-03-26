@@ -36,6 +36,7 @@ from marimo._plugins.ui._impl.tables.selection import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    RowId,
     TableCell,
     TableCoordinate,
     TableManager,
@@ -93,7 +94,7 @@ class SearchTableArgs:
     limit: Optional[int] = None
 
 
-CellStyles = dict[str, dict[str, dict[str, Any]]]
+CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
 
 
 @dataclass(frozen=True)

@@ -13,6 +13,7 @@ from marimo._plugins.ui._impl.tables.format import FormatMapping
 T = TypeVar("T")
 
 ColumnName = str
+RowId = str
 FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
