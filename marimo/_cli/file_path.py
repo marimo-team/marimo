@@ -111,6 +111,10 @@ class DataFileReader(FileReader):
 
     def read(self, name: str) -> tuple[str, str]:
         path = Path(name)
+        if not path.exists():
+            import click
+
+            raise click.ClickException(f"File {name} does not exist")
         method = {
             ".csv": "scan_csv",
             ".parquet": "scan_parquet",
@@ -136,7 +140,7 @@ class DataFileReader(FileReader):
 
 
 class SQLFileReader(FileReader):
-    EXTENSIONS = {".sql", ".sqlite", ".db", ".duckdb"}
+    EXTENSIONS = {".sql", ".sqlite", ".db", ".sqlite3"}
 
     def can_read(self, name: str) -> bool:
         # Remote SQL files not supported yet
@@ -147,10 +151,16 @@ class SQLFileReader(FileReader):
 
     def read(self, name: str) -> tuple[str, str]:
         path = Path(name)
+        if not path.exists():
+            import click
+
+            raise click.ClickException(f"File {name} does not exist")
 
         cell_code = f'''
-        df = mo.sql(f"""
-        ATTACH '{name}' AS db (TYPE sqlite)
+        _df = mo.sql(f"""
+        ATTACH '{name}' AS db (TYPE sqlite);
+        USE db;
+        SHOW TABLES;
         """)
         '''
 
@@ -297,7 +307,10 @@ class FileContentReader:
         for reader in self.readers:
             if reader.can_read(name):
                 return reader.read(name)
-        raise ValueError(f"Unable to read file contents of {name}")
+
+        import click
+
+        raise click.ClickException(f"Unable to read file contents of {name}")
 
 
 class FileHandler(abc.ABC):
