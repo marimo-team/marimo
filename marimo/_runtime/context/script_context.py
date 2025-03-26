@@ -106,7 +106,7 @@ class ScriptRuntimeContext(RuntimeContext):
         return
 
     @contextmanager
-    def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+    def with_cell_id(self, cell_id: CellId_t) -> Iterator[ExecutionContext]:
         old = self.execution_context
         try:
             if old is not None:
@@ -114,12 +114,12 @@ class ScriptRuntimeContext(RuntimeContext):
             else:
                 setting_element_value = False
             self._app.set_execution_context(
-                ExecutionContext(
+                exc_ctx := ExecutionContext(
                     cell_id=cell_id,
                     setting_element_value=setting_element_value,
                 )
             )
-            yield
+            yield exc_ctx
         finally:
             self._app.set_execution_context(old)
 
