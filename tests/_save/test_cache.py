@@ -1297,6 +1297,10 @@ class TestCacheDecorator:
             assert g(123) == 123
             assert g.hits == 0
             assert g(value="hello") == "hello"
+            # Subjective whether this hits
+            # But add to test to capture behavior.
+            assert g.hits == 0
+            assert g() == "hello"
             assert g.hits == 1
             return
 
