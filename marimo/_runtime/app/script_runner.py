@@ -25,7 +25,6 @@ from marimo._runtime.patches import (
     create_main_module,
     patch_main_module_context,
 )
-from marimo._runtime.runner.cell_runner import Runner
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -40,40 +39,6 @@ class AppScriptRunner:
     def __init__(self, app: InternalApp, filename: str | None) -> None:
         self.app = app
         self.filename = filename
-
-    async def _run_all(
-        self,
-        post_execute_hooks: list[Callable[[], Any]],
-    ) -> RunOutput:
-        with patch_main_module_context(
-            create_main_module(
-                file=self.filename, input_override=None, print_override=None
-            )
-        ) as module:
-            roots = set(
-                cid
-                for cid in self.app.execution_order
-                if cid in self.app.graph.cells
-            )
-
-            ctx = get_context()
-            outputs: dict[CellId_t, Any] = {}
-
-            def store_output(cell, runner, run_result):
-                outputs[cell.cell_id] = run_result.output
-
-            glbls = module.__dict__
-            runner = Runner(
-                roots=roots,
-                graph=self.app.graph,
-                glbls=glbls,
-                execution_mode="autorun",
-                execution_context=ctx.with_cell_id,
-                post_execution_hooks=post_execute_hooks + [store_output],
-                debugger=None,
-            )
-            await runner.run_all()
-        return outputs, glbls
 
     def run(self) -> RunOutput:
         from marimo._runtime.context.script_context import (
@@ -120,11 +85,16 @@ class AppScriptRunner:
 
                 post_execute_hooks.append(close_figures)
 
-            outputs, defs = asyncio.run(
-                self._run_all(
+            if is_async:
+                outputs, defs = asyncio.run(
+                    self._run_asynchronous(
+                        post_execute_hooks=post_execute_hooks,
+                    )
+                )
+            else:
+                outputs, defs = self._run_synchronous(
                     post_execute_hooks=post_execute_hooks,
                 )
-            )
             return outputs, defs
 
         # Cell runner manages the exception handling for kernel
@@ -150,3 +120,53 @@ class AppScriptRunner:
         finally:
             if installed_script_context:
                 teardown_context()
+
+    def _cell_iterator(self) -> Iterator[CellImpl]:
+        app = self.app
+        for cid in app.execution_order:
+            cell = app.cell_manager.cell_data_at(cid).cell
+            if cell is None:
+                continue
+
+            if cell is not None and not app.graph.is_disabled(cid):
+                yield cell._cell
+
+    def _run_synchronous(
+        self,
+        post_execute_hooks: list[Callable[[], Any]],
+    ) -> RunOutput:
+        with patch_main_module_context(
+            create_main_module(
+                file=self.filename, input_override=None, print_override=None
+            )
+        ) as module:
+            glbls = module.__dict__
+            outputs: dict[CellId_t, Any] = {}
+            for cell in self._cell_iterator():
+                with get_context().with_cell_id(cell.cell_id):
+                    output = execute_cell(cell, glbls, self.app.graph)
+                    for hook in post_execute_hooks:
+                        hook()
+                outputs[cell.cell_id] = output
+        return outputs, glbls
+
+    async def _run_asynchronous(
+        self,
+        post_execute_hooks: list[Callable[[], Any]],
+    ) -> RunOutput:
+        with patch_main_module_context(
+            create_main_module(
+                file=self.filename, input_override=None, print_override=None
+            )
+        ) as module:
+            glbls = module.__dict__
+            outputs: dict[CellId_t, Any] = {}
+            for cell in self._cell_iterator():
+                with get_context().with_cell_id(cell.cell_id):
+                    output = await execute_cell_async(
+                        cell, glbls, self.app.graph
+                    )
+                    for hook in post_execute_hooks:
+                        hook()
+                outputs[cell.cell_id] = output
+        return outputs, glbls
