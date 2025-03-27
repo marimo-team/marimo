@@ -255,7 +255,9 @@ def test_get_dependencies_with_nonexistent_file():
 @patch("marimo._cli.sandbox.is_editable", return_value=False)
 def test_normalize_marimo_dependencies(mock_is_editable: Any):
     # Test adding marimo when not present
-    assert _normalize_sandbox_dependencies(["numpy"], "1.0.0") == [
+    assert _normalize_sandbox_dependencies(
+        ["numpy"], "1.0.0", additional_features=[]
+    ) == [
         "numpy",
         "marimo==1.0.0",
     ]
@@ -263,26 +265,53 @@ def test_normalize_marimo_dependencies(mock_is_editable: Any):
 
     # Test preferring bracketed version
     assert _normalize_sandbox_dependencies(
-        ["marimo", "marimo[extras]", "numpy"], "1.0.0"
+        ["marimo", "marimo[extras]", "numpy"], "1.0.0", additional_features=[]
     ) == ["numpy", "marimo[extras]==1.0.0"]
 
     # Test keeping existing version with brackets
     assert _normalize_sandbox_dependencies(
-        ["marimo[extras]>=0.1.0", "numpy"], "1.0.0"
+        ["marimo[extras]>=0.1.0", "numpy"], "1.0.0", additional_features=[]
     ) == ["numpy", "marimo[extras]>=0.1.0"]
 
     # Test adding version when none exists
     assert _normalize_sandbox_dependencies(
-        ["marimo[extras]", "numpy"], "1.0.0"
+        ["marimo[extras]", "numpy"], "1.0.0", additional_features=[]
     ) == ["numpy", "marimo[extras]==1.0.0"]
 
     # Test keeping only one marimo dependency
     assert _normalize_sandbox_dependencies(
-        ["marimo>=0.1.0", "marimo[extras]>=0.2.0", "numpy"], "1.0.0"
+        ["marimo>=0.1.0", "marimo[extras]>=0.2.0", "numpy"],
+        "1.0.0",
+        additional_features=[],
     ) == ["numpy", "marimo[extras]>=0.2.0"]
     assert _normalize_sandbox_dependencies(
-        ["marimo", "marimo[extras]>=0.2.0", "numpy"], "1.0.0"
+        ["marimo", "marimo[extras]>=0.2.0", "numpy"],
+        "1.0.0",
+        additional_features=[],
     ) == ["numpy", "marimo[extras]>=0.2.0"]
+
+    # With additional features
+    assert _normalize_sandbox_dependencies(
+        ["marimo[extras]", "numpy"], "1.0.0", additional_features=["lsp"]
+    ) == ["numpy", "marimo[lsp,extras]==1.0.0"]
+
+    # With multiple additional features
+    assert _normalize_sandbox_dependencies(
+        ["marimo[extras]", "numpy"],
+        "1.0.0",
+        additional_features=["lsp", "recommended"],
+    ) == ["numpy", "marimo[lsp,recommended,extras]==1.0.0"]
+
+    # With additional features when not present
+    assert _normalize_sandbox_dependencies(
+        ["marimo", "numpy"], "1.0.0", additional_features=["lsp"]
+    ) == ["numpy", "marimo[lsp]==1.0.0"]
+
+    # With duplicate additional features
+    # This is ok although it's a bit redundant
+    assert _normalize_sandbox_dependencies(
+        ["marimo[lsp]", "numpy"], "1.0.0", additional_features=["lsp"]
+    ) == ["numpy", "marimo[lsp,lsp]==1.0.0"]
 
     # Test various version specifiers are preserved
     version_specs = [
@@ -295,17 +324,21 @@ def test_normalize_marimo_dependencies(mock_is_editable: Any):
     ]
     for spec in version_specs:
         assert _normalize_sandbox_dependencies(
-            [f"marimo{spec}", "numpy"], "1.0.0"
+            [f"marimo{spec}", "numpy"], "1.0.0", additional_features=[]
         ) == ["numpy", f"marimo{spec}"]
 
 
 def test_normalize_marimo_dependencies_editable():
-    deps = _normalize_sandbox_dependencies(["numpy"], "1.0.0")
+    deps = _normalize_sandbox_dependencies(
+        ["numpy"], "1.0.0", additional_features=[]
+    )
     assert deps[0] == "numpy"
     assert deps[1].startswith("-e")
     assert "marimo" in deps[1]
 
-    deps = _normalize_sandbox_dependencies(["numpy", "marimo"], "1.0.0")
+    deps = _normalize_sandbox_dependencies(
+        ["numpy", "marimo"], "1.0.0", additional_features=[]
+    )
     assert deps[0] == "numpy"
     assert deps[1].startswith("-e")
     assert "marimo" in deps[1]
@@ -334,13 +367,15 @@ def test_is_marimo_dependency():
 
 
 def test_construct_uv_cmd_marimo_new() -> None:
-    uv_cmd = construct_uv_command(["new"], None)
+    uv_cmd = construct_uv_command(["new"], None, additional_features=[])
     assert "--refresh" in uv_cmd
 
 
 def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
     # a file that doesn't yet exist
-    uv_cmd = construct_uv_command(["edit", "foo_123.py"], "foo_123.py")
+    uv_cmd = construct_uv_command(
+        ["edit", "foo_123.py"], "foo_123.py", additional_features=[]
+    )
     assert "--refresh" in uv_cmd
     assert uv_cmd[0] == "uv"
     assert uv_cmd[1] == "run"
@@ -350,7 +385,9 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
     temp_marimo_file: str,
 ) -> None:
     # a file that has no inline metadata yet
-    uv_cmd = construct_uv_command(["edit", temp_marimo_file], temp_marimo_file)
+    uv_cmd = construct_uv_command(
+        ["edit", temp_marimo_file], temp_marimo_file, additional_features=[]
+    )
     assert "--refresh" in uv_cmd
     assert uv_cmd[0] == "uv"
     assert uv_cmd[1] == "run"
@@ -362,7 +399,9 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
     # a file that has inline metadata; shouldn't refresh the cache, uv
     # --isolated will do the right thing.
     uv_cmd = construct_uv_command(
-        ["edit", temp_sandboxed_marimo_file], temp_sandboxed_marimo_file
+        ["edit", temp_sandboxed_marimo_file],
+        temp_sandboxed_marimo_file,
+        additional_features=[],
     )
     assert "--refresh" not in uv_cmd
     assert uv_cmd[0] == "uv"
@@ -382,7 +421,9 @@ import marimo
     """
     )
     uv_cmd = construct_uv_command(
-        ["edit", str(script_path), "--sandbox"], str(script_path)
+        ["edit", str(script_path), "--sandbox"],
+        str(script_path),
+        additional_features=[],
     )
     assert "--python" in uv_cmd
     assert ">=3.11" in uv_cmd
@@ -406,7 +447,7 @@ def test_construct_uv_cmd_with_index_urls() -> None:
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
         mock.return_value = PyProjectReader(pyproject)
         uv_cmd = construct_uv_command(
-            ["edit", "test.py", "--sandbox"], "test.py"
+            ["edit", "test.py", "--sandbox"], "test.py", additional_features=[]
         )
         assert "--index-url" in uv_cmd
         assert "https://custom.pypi.org/simple" in uv_cmd
@@ -431,7 +472,7 @@ def test_construct_uv_cmd_with_index_configs() -> None:
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
         mock.return_value = PyProjectReader(pyproject)
         uv_cmd = construct_uv_command(
-            ["edit", "test.py", "--sandbox"], "test.py"
+            ["edit", "test.py", "--sandbox"], "test.py", additional_features=[]
         )
         assert "--index" in uv_cmd
         assert "https://download.pytorch.org/whl/cu124" in uv_cmd
@@ -439,7 +480,9 @@ def test_construct_uv_cmd_with_index_configs() -> None:
 
 def test_construct_uv_cmd_with_sandbox_flag() -> None:
     # Test --sandbox flag is removed
-    uv_cmd = construct_uv_command(["edit", "test.py", "--sandbox"], "test.py")
+    uv_cmd = construct_uv_command(
+        ["edit", "test.py", "--sandbox"], "test.py", additional_features=[]
+    )
     assert "--sandbox" not in uv_cmd
 
 
@@ -447,7 +490,9 @@ def test_construct_uv_cmd_empty_dependencies() -> None:
     # Test empty dependencies triggers refresh
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
         mock.return_value = PyProjectReader({})
-        uv_cmd = construct_uv_command(["edit", "test.py"], "test.py")
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py"], "test.py", additional_features=[]
+        )
         assert "--refresh" in uv_cmd
         assert "--isolated" in uv_cmd
         assert "--no-project" in uv_cmd
@@ -464,7 +509,7 @@ def test_construct_uv_cmd_with_complex_args() -> None:
         "8000",
         "--sandbox",
     ]
-    uv_cmd = construct_uv_command(args, "test.py")
+    uv_cmd = construct_uv_command(args, "test.py", additional_features=[])
     assert "edit" in uv_cmd
     assert "test.py" in uv_cmd
     assert "--theme" in uv_cmd
