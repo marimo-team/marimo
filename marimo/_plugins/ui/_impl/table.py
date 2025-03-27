@@ -194,6 +194,31 @@ class table(
         )
         ```
 
+        Create a table with conditional cell formatting:
+
+        ```python
+        import random
+
+
+        # rowId and columnName are strings.
+        def style_cell(_rowId, _columnName, value):
+            # Apply inline styling to the visible individual cells.
+            return {
+                "backgroundColor": "lightcoral"
+                if value < 4
+                else "cornflowerblue",
+                "color": "white",
+                "fontStyle": "italic",
+            }
+
+
+        table = mo.ui.table(
+            data=[random.randint(0, 10) for x in range(200)],
+            style_cell=style_cell,
+        )
+        table
+        ```
+
         In each case, access the table data with `table.value`.
 
     Attributes:
