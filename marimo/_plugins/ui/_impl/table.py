@@ -759,7 +759,15 @@ class table(
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=self._manager.get_num_rows(force=True) or 0,
-                cell_styles=self._style_cells(offset, args.page_size),
+                # The __init__ will just call this with an arbitrary offset,
+                # we need to check this is not larger than our actual number of rows.
+                cell_styles=self._style_cells(
+                    offset,
+                    min(
+                        self._searched_manager.get_num_rows(force=True),
+                        args.page_size,
+                    ),
+                ),
             )
 
         # Apply filters, query, and functools.sort using the cached method
