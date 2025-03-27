@@ -83,11 +83,24 @@ class SQLAlchemyEngine(SQLEngine):
             if DependencyManager.polars.has():
                 import polars as pl
 
-                return pl.DataFrame(rows)  # type: ignore
-            else:
+                try:
+                    return pl.DataFrame(rows)  # type: ignore
+                except (
+                    pl.exceptions.PanicException,
+                    pl.exceptions.ComputeError,
+                ):
+                    LOGGER.info(
+                        "Failed to convert to polars, falling back to pandas"
+                    )
+
+            if DependencyManager.pandas.has():
                 import pandas as pd
 
-                return pd.DataFrame(rows)
+                try:
+                    return pd.DataFrame(rows)
+                except Exception as e:
+                    LOGGER.warning("Failed to convert dataframe", exc_info=e)
+                    return None
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

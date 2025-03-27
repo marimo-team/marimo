@@ -56,7 +56,7 @@ class DuckDBEngine(SQLEngine):
 
             try:
                 return relation.pl()
-            except pl.exceptions.PolarsError:
+            except (pl.exceptions.PanicException, pl.exceptions.ComputeError):
                 LOGGER.info(
                     "Failed to convert to polars, falling back to pandas"
                 )
