@@ -764,7 +764,7 @@ class table(
                 cell_styles=self._style_cells(
                     offset,
                     min(
-                        self._searched_manager.get_num_rows(force=True),
+                        self._searched_manager.get_num_rows(force=True) or 0,
                         args.page_size,
                     ),
                 ),
