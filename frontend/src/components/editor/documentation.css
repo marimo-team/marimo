@@ -1,3 +1,4 @@
+.cm-tooltip .documentation,
 .docs-documentation {
   line-height: normal;
 
@@ -53,10 +54,11 @@
   }
 
   code {
-    @apply border px-1 rounded font-mono bg-[var(--slate-1)] text-sm mb-4 mt-2;
+    @apply border px-1 rounded font-mono bg-[var(--slate-2)] text-sm mb-4 mt-2;
   }
 
-  h1 {
+  h1,
+  h2 {
     font-weight: 600;
     @apply text-xl border-b pb-1 mb-1 text-primary;
   }
@@ -79,6 +81,7 @@
     @apply bg-[var(--slate-2)] px-1 border rounded-md text-sm font-mono;
   }
 
+  pre > code,
   .codehilite code {
     width: 100%;
     display: inline-block;
@@ -108,7 +111,8 @@
 }
 
 /* Custom overrides when in a tooltip */
-.mo-cm-tooltip.docs-documentation {
+.cm-tooltip .documentation,
+.cm-tooltip .docs-documentation {
   @apply text-sm;
 
   h1 {

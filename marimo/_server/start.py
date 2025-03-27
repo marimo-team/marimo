@@ -9,12 +9,13 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import get_default_config_manager
-from marimo._config.settings import GlobalSettings
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
+from marimo._server.lsp import CompositeLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
-from marimo._server.sessions import LspServer, SessionManager
+from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import (
     find_free_port,
@@ -23,7 +24,7 @@ from marimo._server.utils import (
 )
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._tracer import LOGGER
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
@@ -92,7 +93,6 @@ def start(
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT)
-    lsp_port = find_free_port(DEFAULT_PORT + 200)  # Add 200 to avoid conflicts
 
     # This is the path that will be used to read the project configuration
     start_path: Optional[str] = None
@@ -104,6 +104,11 @@ def start(
         start_path = os.getcwd()
 
     config_reader = get_default_config_manager(current_path=start_path)
+
+    lsp_composite_server = CompositeLspServer(
+        config_reader=config_reader,
+        min_port=DEFAULT_PORT + 400,
+    )
 
     # If watch is true, disable auto-save and format-on-save,
     # watch is enabled when they are editing in another editor
@@ -119,7 +124,7 @@ def start(
         )
         LOGGER.info("Watch mode enabled, auto-save is disabled")
 
-    if GlobalSettings.MANAGE_SCRIPT_METADATA:
+    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         config_reader = config_reader.with_overrides(
             {
                 # Currently, only uv is supported for managing script metadata
@@ -138,7 +143,7 @@ def start(
         quiet=quiet,
         include_code=include_code,
         ttl_seconds=ttl_seconds,
-        lsp_server=LspServer(lsp_port),
+        lsp_server=lsp_composite_server,
         config_manager=config_reader,
         cli_args=cli_args,
         auth_token=auth_token,
@@ -163,11 +168,10 @@ def start(
         ),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
-        lsp_port=lsp_port,
+        lsp_servers=list(lsp_composite_server.servers.values()),
     )
 
     app.state.port = external_port
-    app.state.lsp_port = lsp_port
     app.state.host = external_host
 
     app.state.headless = headless
@@ -193,9 +197,7 @@ def start(
             # reload=development_mode,
             reload_dirs=(
                 [
-                    os.path.realpath(
-                        str(import_files("marimo").joinpath("_static"))
-                    )
+                    str((marimo_package_path() / "_static").resolve()),
                 ]
                 if development_mode
                 else None

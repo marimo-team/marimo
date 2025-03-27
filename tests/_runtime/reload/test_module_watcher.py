@@ -16,7 +16,7 @@ from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-INTERVAL = 0.1
+INTERVAL = 0.2
 
 
 @pytest.fixture(autouse=True)

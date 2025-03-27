@@ -56,7 +56,7 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
   dataConnectionsMapAtom,
-  DEFAULT_ENGINE,
+  INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
@@ -73,6 +73,9 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
+import { InstallPackageButton } from "./install-package-button";
+import { isSchemaless, sqlCode } from "./utils";
+import { useOnMount } from "@/hooks/useLifecycle";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -102,16 +105,18 @@ const sortedTablesAtom = atom((get) => {
 
 const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
-  const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
 
-  // Filter out the internal duckdb engine if it has no databases
-  if (defaultEngine && defaultEngine.databases.length === 0) {
-    dataConnections.delete(DEFAULT_ENGINE);
+  // Filter out the internal engines if it has no databases
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (connection && connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
   }
 
-  // Sort by name, but put the default engine at the top
+  // Put internal engines last to prioritize user-defined connections
   return sortBy([...dataConnections.values()], (connection) =>
-    connection.name === DEFAULT_ENGINE ? "" : connection.name,
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
   );
 });
 
@@ -196,6 +201,7 @@ export const DataSources: React.FC = () => {
                 <SchemaList
                   schemas={database.schemas}
                   defaultSchema={connection.default_schema}
+                  defaultDatabase={connection.default_database}
                   engineName={connection.name}
                   databaseName={database.name}
                   hasSearch={hasSearch}
@@ -296,6 +302,7 @@ const DatabaseItem: React.FC<{
 const SchemaList: React.FC<{
   schemas: DatabaseSchema[];
   defaultSchema?: string | null;
+  defaultDatabase?: string | null;
   engineName: string;
   databaseName: string;
   hasSearch: boolean;
@@ -303,6 +310,7 @@ const SchemaList: React.FC<{
 }> = ({
   schemas,
   defaultSchema,
+  defaultDatabase,
   engineName,
   databaseName,
   hasSearch,
@@ -338,6 +346,7 @@ const SchemaList: React.FC<{
               database: databaseName,
               schema: schema.name,
               defaultSchema: defaultSchema,
+              defaultDatabase: defaultDatabase,
             }}
           />
         </SchemaItem>
@@ -359,6 +368,10 @@ const SchemaItem: React.FC<{
   React.useEffect(() => {
     setIsExpanded(hasSearch);
   }, [hasSearch]);
+
+  if (isSchemaless(schema.name)) {
+    return children;
+  }
 
   return (
     <>
@@ -503,20 +516,15 @@ const DatasetTableItem: React.FC<{
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
     let code = "";
     if (sqlTableContext) {
-      const { engine, schema, defaultSchema } = sqlTableContext;
-      const tableName =
-        defaultSchema === schema ? table.name : `${schema}.${table.name}`;
-      code = `_df = mo.sql(f"SELECT * FROM ${tableName} LIMIT 100", engine=${engine})`;
+      code = sqlCode(table, "*", sqlTableContext);
     } else {
       switch (table.source_type) {
         case "local":
           code = `mo.ui.table(${table.name})`;
           break;
         case "duckdb":
-          code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
-          break;
         case "connection":
-          code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100", engine=${table.engine})`;
+          code = sqlCode(table, "*", sqlTableContext);
           break;
         default:
           logNever(table.source_type);
@@ -596,7 +604,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          sqlTableContext && "pl-12",
+          sqlTableContext &&
+            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
@@ -733,7 +742,11 @@ const DatasetColumnItem: React.FC<{
               table={table}
               column={column}
               onAddColumnChart={handleAddColumn}
-              preview={columnsPreviews.get(`${table.name}:${column.name}`)}
+              preview={columnsPreviews.get(
+                sqlTableContext
+                  ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}:${column.name}`
+                  : `${table.name}:${column.name}`,
+              )}
               sqlTableContext={sqlTableContext}
             />
           </ErrorBoundary>
@@ -756,12 +769,24 @@ const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
 
+  useOnMount(() => {
+    if (preview) {
+      return;
+    }
+
+    previewDatasetColumn({
+      source: table.source,
+      tableName: table.name,
+      columnName: column.name,
+      sourceType: table.source_type,
+      fullyQualifiedTableName: sqlTableContext
+        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
+        : table.name,
+    });
+  });
+
   // Do not fetch previews for custom SQL connections
-  // or if the table is In-Memory duckdb, but not in the main schema
-  if (
-    table.source_type === "connection" ||
-    (table.source_type === "duckdb" && sqlTableContext?.schema !== "main")
-  ) {
+  if (table.source_type === "connection") {
     return (
       <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
         {column.name} ({column.external_type})
@@ -769,7 +794,7 @@ const DatasetColumnPreview: React.FC<{
           variant="outline"
           size="xs"
           onClick={Events.stopPropagation(() => {
-            onAddColumnChart(sqlCode(table, column, sqlTableContext));
+            onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
           })}
         >
           <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
@@ -779,20 +804,16 @@ const DatasetColumnPreview: React.FC<{
   }
 
   if (!preview) {
-    previewDatasetColumn({
-      source: table.source,
-      tableName: table.name,
-      columnName: column.name,
-      sourceType: table.source_type,
-    });
-  }
-
-  if (!preview) {
     return <span className="text-xs text-muted-foreground">Loading...</span>;
   }
 
   const error = preview.error && (
-    <span className="text-xs text-muted-foreground">{preview.error}</span>
+    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
+      <span>{preview.error}</span>
+      {preview.missing_packages && (
+        <InstallPackageButton packages={preview.missing_packages} />
+      )}
+    </div>
   );
 
   const summary = preview.summary && (
@@ -859,7 +880,7 @@ const DatasetColumnPreview: React.FC<{
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
-          onAddColumnChart(sqlCode(table, column, sqlTableContext));
+          onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
         })}
       >
         <PlusSquareIcon className="h-3 w-3" />
@@ -888,17 +909,3 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 };
-
-function sqlCode(
-  table: DataTable,
-  column: DataTableColumn,
-  sqlTableContext?: SQLTableContext,
-) {
-  if (sqlTableContext) {
-    const { engine, schema, defaultSchema } = sqlTableContext;
-    const tableName =
-      defaultSchema === schema ? table.name : `${schema}.${table.name}`;
-    return `_df = mo.sql(f"SELECT ${column.name} FROM ${tableName} LIMIT 100", engine=${engine})`;
-  }
-  return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
-}

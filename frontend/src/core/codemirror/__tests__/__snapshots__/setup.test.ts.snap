@@ -71,13 +71,13 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
     {
       "key": "Escape",
-      "preventDefault": true,
-      "run": "run",
+      "preventDefault": false,
+      "run": "closeFindReplacePanel",
     },
     {
       "key": "Escape",
-      "preventDefault": false,
-      "run": "closeFindReplacePanel",
+      "preventDefault": true,
+      "run": "run",
     },
   ],
   "PageDown": [

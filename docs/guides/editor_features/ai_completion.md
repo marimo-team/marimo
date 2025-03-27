@@ -70,6 +70,29 @@ copilot = "codeium"
 activate_on_typing = true
 ```
 
+## Custom Copilot
+
+marimo also supports integrating with custom LLM providers for code completion suggestions. This allows you to use your own LLM service to provide in-line code suggestions based on internal providers or local models (e.g. Ollama). You may also use OpenAI, Anthropic, or Google AI by providing your own API keys.
+
+To configure a custom copilot:
+
+1. Ensure you have an LLM provider that offers API access for code completion (either external or running locally)
+2. Add the following configuration to your `marimo.toml` (or configure in the UI settings):
+
+```toml title="marimo.toml"
+[completion]
+copilot = "custom"
+api_key = "your-llm-api-key"
+model = "your-llm-model-name"
+base_url = "http://127.0.0.1:11434/v1" # or https://your-llm-api-endpoint.com
+```
+
+The configuration options include:
+
+- `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
+- `model`: The specific model to use for completion suggestions.
+- `base_url`: The endpoint URL for your LLM provider's API
+
 ## Generate code with our AI assistant
 
 marimo has built-in support for generating and refactoring code with AI, with a variety of providers. marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google, as well as local models served via Ollama.

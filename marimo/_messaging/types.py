@@ -5,7 +5,7 @@ import abc
 import io
 from typing import Any, Optional
 
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._types.ids import CellId_t
 
 # The message from the kernel is a tuple of message type
@@ -40,7 +40,9 @@ class Stdout(io.TextIOBase):
     name = "stdout"
 
     @abc.abstractmethod
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         pass
 
     def write(self, __s: str) -> int:
@@ -55,7 +57,9 @@ class Stderr(io.TextIOBase):
     name = "stderr"
 
     @abc.abstractmethod
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         pass
 
     def write(self, __s: str) -> int:

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   adaptiveLanguageConfiguration,
   getInitialLanguageAdapter,
@@ -8,8 +8,6 @@ import {
 } from "../extension";
 import { EditorState } from "@codemirror/state";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { store } from "@/core/state/jotai";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { EditorView } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { cellConfigExtension } from "../../config/extension";
@@ -25,6 +23,7 @@ function createState(content: string, selection?: { anchor: number }) {
           activate_on_typing: true,
           codeium_api_key: null,
         },
+        lspConfig: {},
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
       }),
@@ -36,6 +35,8 @@ function createState(content: string, selection?: { anchor: number }) {
         },
         new OverridingHotkeyProvider({}),
         "marimo-import",
+        {},
+        {},
       ),
     ],
     selection,
@@ -45,13 +46,6 @@ function createState(content: string, selection?: { anchor: number }) {
 }
 
 describe("getInitialLanguageAdapter", () => {
-  beforeAll(() => {
-    store.set(capabilitiesAtom, {
-      sql: true,
-      terminal: true,
-    });
-  });
-
   it("should return python", () => {
     let state = createState("def f():\n  return 1");
     expect(getInitialLanguageAdapter(state).type).toBe("python");

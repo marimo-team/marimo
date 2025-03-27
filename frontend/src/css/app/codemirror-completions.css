@@ -1,0 +1,273 @@
+/* -- Autocomplete Styling -- */
+
+#root {
+  /* Base styling for autocomplete container */
+  .cm-tooltip-autocomplete {
+    /* CodeMirror's default is too wide. */
+    max-width: 200px;
+    @apply bg-popover shadow-md border border-border;
+  }
+
+  /* Autocomplete list */
+  .cm-tooltip-autocomplete > ul {
+    @apply max-h-[300px] overflow-y-auto;
+    scrollbar-width: thin;
+    min-width: unset;
+  }
+
+  /* Autocomplete list items */
+  .cm-tooltip-autocomplete > ul > li {
+    padding: 0;
+    padding-right: 6px;
+    height: 18px;
+    min-width: 60px;
+    @apply flex items-center gap-2 cursor-pointer;
+  }
+
+  .cm-completionLabel {
+    padding: 1px 0;
+    @apply text-xs;
+  }
+
+  /* Hover state for list items */
+  .cm-tooltip-autocomplete > ul > li:hover {
+    background-color: var(--blue-3);
+  }
+
+  /* Selected item in autocomplete */
+  .cm-tooltip-autocomplete > ul > li[aria-selected] {
+    background-color: var(--blue-4);
+    color: var(--blue-12);
+  }
+
+  /* Completion icons container */
+  .cm-completionIcon {
+    width: 1rem;
+    height: 100%;
+    flex-shrink: 0;
+    line-height: 18px;
+    font-weight: bold;
+    opacity: 0.9;
+    padding: 0 1px;
+    /* Default colors */
+    color: var(--gray-11);
+    background-color: var(--gray-3);
+
+    @apply flex items-center justify-center font-medium;
+
+    /* Default styling for completion icons */
+    &::after {
+      content: "•"; /* Default bullet point for unknown types */
+    }
+  }
+
+  .cm-completionIcon-variable {
+    color: var(--blue-11);
+    background-color: var(--blue-3);
+
+    &::after {
+      content: "𝑣"; /* Italic small v for variables */
+    }
+  }
+
+  .cm-completionIcon-property {
+    color: var(--lime-11);
+    background-color: var(--lime-3);
+
+    &::after {
+      content: "≡"; /* Identical to symbol for properties */
+    }
+  }
+
+  .cm-completionIcon-method {
+    color: var(--amber-11);
+    background-color: var(--amber-3);
+
+    &::after {
+      content: "⚙"; /* Gear symbol for methods */
+    }
+  }
+
+  .cm-completionIcon-function {
+    color: var(--purple-11);
+    background-color: var(--purple-3);
+
+    &::after {
+      content: "ƒ"; /* Function symbol for functions */
+    }
+  }
+
+  .cm-completionIcon-class {
+    color: var(--orange-11);
+    background-color: var(--orange-3);
+
+    &::after {
+      content: "C"; /* Capital C for classes */
+    }
+  }
+
+  .cm-completionIcon-module {
+    color: var(--grass-11);
+    background-color: var(--grass-3);
+
+    &::after {
+      content: "⧉"; /* Interlocking squares for modules */
+    }
+  }
+
+  .cm-completionIcon-statement {
+    color: var(--red-11);
+    background-color: var(--red-3);
+
+    &::after {
+      content: "§"; /* Section symbol for statements */
+    }
+  }
+
+  .cm-completionIcon-keyword {
+    color: var(--cyan-11);
+    background-color: var(--cyan-3);
+
+    &::after {
+      content: "⌘"; /* Command symbol for keywords */
+    }
+  }
+
+  .cm-completionIcon-reference {
+    color: var(--gray-11);
+    background-color: var(--gray-3);
+
+    &::after {
+      content: "→"; /* Right arrow for references */
+    }
+  }
+
+  .cm-completionIcon-file {
+    color: var(--crimson-11);
+    background-color: var(--crimson-3);
+
+    &::after {
+      content: "𝌆"; /* File symbol for files */
+    }
+  }
+
+  /* Completion info tooltip */
+  .cm-completionInfo {
+    @apply max-w-md border-l border-border;
+  }
+
+  /* Completion matching text highlight */
+  .cm-completionMatchedText {
+    @apply font-semibold text-primary underline underline-offset-2;
+  }
+
+  /* Scrollbar styling for autocomplete list */
+  .cm-tooltip-autocomplete > ul::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .cm-tooltip-autocomplete > ul::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .cm-tooltip-autocomplete > ul::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  .cm-tooltip-autocomplete > ul::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Copilot and AI completion styling */
+  .cm-tooltip-autocomplete > ul > li.cm-ai-completion {
+    @apply border-l-2 border-green-500;
+  }
+
+  .cm-tooltip.cm-completionInfo {
+    /* Codemirror generates an inline style for these properties,
+      * so we have to override them with !important. */
+    top: -1px !important;
+
+    /* CodeMirror's default of 400px is often too small. */
+    max-width: 36rem !important;
+  }
+
+  .cm-completionInfo.cm-completionInfo-right-narrow {
+    /* CodeMirror's default makes the completionInfo overlap with the
+      * compeletion symbol */
+    left: 100%;
+  }
+
+  /* Completion Info may show up to the left or right of another menu item.
+    First is the parent (completion list)
+    Second is the child (completion info) */
+  .cm-tooltip:has(.cm-completionInfo-left),
+  .cm-tooltip.cm-completionInfo-right {
+    border-top-left-radius: 0;
+  }
+
+  .cm-tooltip:has(.cm-completionInfo-right),
+  .cm-tooltip.cm-completionInfo-left {
+    border-top-right-radius: 0;
+  }
+}
+
+.cm-signature-help {
+  max-width: 700px !important;
+  margin-right: 16px !important;
+  padding: 10px !important;
+  overflow-y: auto;
+  max-height: 400px;
+  scrollbar-width: thin;
+  @apply bg-popover shadow-md border border-border rounded-md text-sm;
+
+  .cm-signature {
+    @apply text-xs;
+  }
+
+  .cm-signature-parameter {
+    @apply text-xs;
+  }
+
+  .cm-signature {
+    @apply font-mono;
+  }
+
+  .cm-signature-docs {
+    @apply text-xs;
+  }
+
+  ul {
+    @apply list-disc;
+  }
+
+  ol {
+    @apply list-decimal;
+  }
+
+  li {
+    margin-bottom: 2px;
+
+    @apply pl-2;
+  }
+
+  code:not(:empty) {
+    width: 100%;
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-2)] border rounded-sm px-1 font-mono;
+  }
+
+  pre > code {
+    width: 100%;
+    display: inline-block;
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm my-2;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-sm font-semibold mt-2 mb-1;
+  }
+}

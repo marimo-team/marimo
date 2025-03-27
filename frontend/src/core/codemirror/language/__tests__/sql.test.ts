@@ -1,19 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  expect,
-  describe,
-  it,
-  beforeAll,
-  afterAll,
-  afterEach,
-  beforeEach,
-} from "vitest";
+import { expect, describe, it, afterAll, afterEach, beforeEach } from "vitest";
 import { SQLCompletionStore, SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import {
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   type ConnectionName,
 } from "@/core/datasets/data-source-connections";
 import type { DataSourceConnection } from "@/core/kernel/messages";
@@ -22,16 +13,9 @@ import { PostgreSQL } from "@codemirror/lang-sql";
 const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
-  beforeAll(() => {
-    store.set(capabilitiesAtom, {
-      sql: true,
-      terminal: true,
-    });
-  });
-
   describe("transformIn", () => {
     afterAll(() => {
-      adapter.engine = DEFAULT_ENGINE;
+      adapter.engine = DUCKDB_ENGINE;
       adapter.showOutput = true;
     });
 
@@ -255,7 +239,7 @@ _df = mo.sql(
 
   describe("transformOut", () => {
     afterEach(() => {
-      adapter.engine = DEFAULT_ENGINE;
+      adapter.engine = DUCKDB_ENGINE;
       adapter.showOutput = true;
       adapter.dataframeName = "_df";
     });
@@ -308,12 +292,31 @@ _df = mo.sql(
       expect(offset).toBe(26);
     });
 
+    it("should preserve Python comments", () => {
+      const pythonCode = '# hello\n_df = mo.sql("""SELECT * FROM {df}""")';
+      const [innerCode] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM {df}");
+      adapter.lastQuotePrefix = "f";
+      adapter.dataframeName = "my_df";
+      const [wrappedCode, offset] = adapter.transformOut(innerCode);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "# hello
+        my_df = mo.sql(
+            f"""
+            SELECT * FROM {df}
+            """
+        )"
+      `);
+      expect(offset).toBe(26);
+    });
+
     it("should add engine connection when provided", () => {
       const code = "SELECT * FROM table";
       adapter.engine = "postgres_engine" as ConnectionName;
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "_df = mo.sql(
+        "# hello
+        _df = mo.sql(
             f"""
             SELECT * FROM table
             """,
@@ -329,7 +332,8 @@ _df = mo.sql(
       adapter.engine = "postgres_engine" as ConnectionName;
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toMatchInlineSnapshot(`
-        "_df = mo.sql(
+        "# hello
+        _df = mo.sql(
             f"""
             SELECT * FROM table
             """,
@@ -348,6 +352,14 @@ _df = mo.sql(
       ).toBe(true);
       expect(adapter.isSupported("my_df = mo.sql('')")).toBe(true);
       expect(adapter.isSupported('df = mo.sql("")')).toBe(true);
+      expect(adapter.isSupported('# this is a sql cell\ndf = mo.sql("")')).toBe(
+        true,
+      );
+      expect(
+        adapter.isSupported(
+          '# this is a sql cell\n# with multiple comments\ndf = mo.sql("")',
+        ),
+      ).toBe(true);
       expect(adapter.isSupported(new SQLLanguageAdapter().defaultCode)).toBe(
         true,
       );
@@ -461,8 +473,8 @@ _df = mo.sql(
           dialect: "mysql",
           databases: [],
         })
-        .set(DEFAULT_ENGINE, {
-          name: DEFAULT_ENGINE,
+        .set(DUCKDB_ENGINE, {
+          name: DUCKDB_ENGINE,
           source: "duckdb",
           display_name: "DuckDB",
           dialect: "duckdb",
@@ -475,7 +487,7 @@ _df = mo.sql(
     });
 
     it("should use default engine initially", () => {
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
     });
 
     it("should persist the selected engine", () => {
@@ -513,7 +525,7 @@ _df = mo.sql(
       // Don't update for unspecified engine
       const pythonCode2 = '_df = mo.sql("""SELECT 1""")';
       adapter.transformIn(pythonCode2);
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
         "postgres_engine",
       );
@@ -554,11 +566,11 @@ _df = mo.sql(
     it("should restore previous engine when selecting default", () => {
       const engine = "postgres_engine" as ConnectionName;
       adapter.selectEngine(engine);
-      adapter.selectEngine(DEFAULT_ENGINE);
+      adapter.selectEngine(DUCKDB_ENGINE);
 
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        DEFAULT_ENGINE,
+        DUCKDB_ENGINE,
       );
     });
   });
@@ -573,7 +585,7 @@ _df = mo.sql(
     });
 
     it("should not include engine in getDefaultCode when using default engine", () => {
-      adapter.selectEngine(DEFAULT_ENGINE);
+      adapter.selectEngine(DUCKDB_ENGINE);
       expect(adapter.getDefaultCode()).toBe(
         `_df = mo.sql(f"""SELECT * FROM """)`,
       );
@@ -587,13 +599,13 @@ describe("tablesCompletionSource", () => {
 
   beforeEach(() => {
     // Reset the adapter engine
-    adapter.engine = DEFAULT_ENGINE;
+    adapter.engine = DUCKDB_ENGINE;
   });
 
   it("should return null if connection not found", () => {
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map(),
-      latestEngineSelected: DEFAULT_ENGINE,
+      latestEngineSelected: DUCKDB_ENGINE,
     });
 
     const completionSource = completionStore.getCompletionSource(
@@ -1070,5 +1082,94 @@ describe("tablesCompletionSource", () => {
     );
     expect(completionSource?.defaultTable).toBe("users");
     expect(completionSource?.dialect).toBe(PostgreSQL);
+  });
+
+  it("should handle schemaless databases", () => {
+    const mockConnection: DataSourceConnection = {
+      name: "test_engine",
+      dialect: "postgres",
+      display_name: "postgres",
+      default_database: "test_db",
+      source: "postgres",
+      databases: [
+        {
+          name: "test_db",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "", // lack of name indicates schemaless
+              tables: [
+                {
+                  name: "users",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "test_db2",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "",
+              tables: [
+                {
+                  name: "orders",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "order_id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: mockConnection.name as ConnectionName,
+    });
+
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.defaultTable).toBe(undefined);
+    expect(completionSource?.dialect).toBe(PostgreSQL);
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "test_db2": {
+          "orders": [
+            "order_id",
+          ],
+        },
+        "users": [
+          "id",
+        ],
+      }
+      `);
   });
 });

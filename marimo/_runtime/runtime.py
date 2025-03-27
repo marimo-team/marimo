@@ -29,10 +29,11 @@ from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data.preview_column import (
-    get_column_preview_dataframe,
-    get_column_preview_for_sql,
+    get_column_preview_for_dataframe,
+    get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
@@ -142,9 +143,8 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines import SQLAlchemyEngine
+from marimo._sql.engines.types import SQLEngine
 from marimo._sql.get_engines import get_engines_from_variables
-from marimo._sql.types import SQLEngine
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._utils.assert_never import assert_never
@@ -492,6 +492,14 @@ class Kernel:
             )
 
             self._post_execution_hooks.append(_attempt_pytest)
+
+        # Adds in a post_execution hook to run pytest immediately
+        if user_config.get("experimental", {}).get("toplevel_defs", False):
+            from marimo._runtime.runner.hooks_post_execution import (
+                _render_toplevel_defs,
+            )
+
+            self._post_execution_hooks.append(_render_toplevel_defs)
 
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
@@ -1311,38 +1319,62 @@ class Kernel:
         module_not_found_errors = [
             e
             for e in runner.exceptions.values()
-            if isinstance(e, ModuleNotFoundError)
+            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
         ]
-        if (
-            len(module_not_found_errors) > 0
-            and self.package_manager is not None
-        ):
-            # Grab missing modules from module registry and from module not found errors
-            missing_modules = self.module_registry.missing_modules() | set(
-                e.name for e in module_not_found_errors if e.name is not None
-            )
 
-            missing_packages = [
-                pkg
-                for mod in missing_modules
+        if len(module_not_found_errors) == 0:
+            return
+
+        if self.package_manager is None:
+            return
+
+        missing_modules: set[str] = set()
+        missing_packages: set[str] = set()
+
+        # Populate missing_modules and missing_packages
+        # from the errors
+        for e in module_not_found_errors:
+            if isinstance(e, ManyModulesNotFoundError):
                 # filter out packages that we already attempted to install
                 # to prevent an infinite loop
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
+                missing_packages.update(
+                    {
+                        package
+                        for package in e.package_names
+                        if not self.package_manager.attempted_to_install(
+                            package
+                        )
+                    }
                 )
-            ]
+            elif e.name is not None:
+                missing_modules.add(e.name)
 
-            if missing_packages:
-                packages = list(sorted(missing_packages))
-                if self.package_manager.should_auto_install():
-                    self._execute_install_missing_packages_callback(
-                        self.package_manager.name, packages
-                    )
-                else:
-                    MissingPackageAlert(
-                        packages=packages,
-                        isolated=is_python_isolated(),
-                    ).broadcast()
+        # Grab missing modules from module registry and from module not found errors
+        missing_modules = (
+            self.module_registry.missing_modules() | missing_modules
+        )
+
+        # Convert modules to packages
+        for mod in missing_modules:
+            pkg = self.package_manager.module_to_package(mod)
+            # filter out packages that we already attempted to install
+            # to prevent an infinite loop
+            if not self.package_manager.attempted_to_install(pkg):
+                missing_packages.add(pkg)
+
+        if not missing_packages:
+            return
+
+        packages = list(sorted(missing_packages))
+        if self.package_manager.should_auto_install():
+            self._execute_install_missing_packages_callback(
+                self.package_manager.name, packages
+            )
+        else:
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
 
     def _propagate_kernel_errors(
         self,
@@ -2098,13 +2130,16 @@ class Kernel:
 
         try:
             if source_type == "duckdb":
-                column_preview = get_column_preview_for_sql(
-                    table_name=table_name,
+                column_preview = get_column_preview_for_duckdb(
+                    fully_qualified_table_name=request.fully_qualified_table_name
+                    or table_name,
                     column_name=column_name,
                 )
             elif source_type == "local":
                 dataset = self.globals[table_name]
-                column_preview = get_column_preview_dataframe(dataset, request)
+                column_preview = get_column_preview_for_dataframe(
+                    dataset, request
+                )
             elif source_type == "connection":
                 DataColumnPreview(
                     error="Column preview for connection data sources is not supported",
@@ -2166,7 +2201,7 @@ class Kernel:
                 - table_name: Name of the table
         """
         engine_name = cast(VariableName, request.engine)
-        _database_name = request.database
+        database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
 
@@ -2177,18 +2212,26 @@ class Kernel:
             ).broadcast()
             return
 
-        if isinstance(engine, SQLAlchemyEngine):
-            table = engine.get_table_details(table_name, schema_name)
-            if table is None:
-                LOGGER.warning("Table %s not found", table_name)
+        try:
+            table = engine.get_table_details(
+                table_name=table_name,
+                schema_name=schema_name,
+                database_name=database_name,
+            )
+
             SQLTablePreview(
                 request_id=request.request_id, table=table
             ).broadcast()
-        else:
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get preview for table %s in schema %s",
+                table_name,
+                schema_name,
+            )
             SQLTablePreview(
                 request_id=request.request_id,
                 table=None,
-                error="Not an SQLAlchemyEngine",
+                error="Failed to get table details: " + str(e),
             ).broadcast()
 
     @kernel_tracer.start_as_current_span("preview_sql_table_list")
@@ -2204,7 +2247,7 @@ class Kernel:
                 - schema: Name of the schema
         """
         engine_name = cast(VariableName, request.engine)
-        _database_name = request.database
+        database_name = request.database
         schema_name = request.schema
 
         engine, error = self._get_sql_engine(engine_name)
@@ -2214,19 +2257,24 @@ class Kernel:
             ).broadcast()
             return
 
-        if isinstance(engine, SQLAlchemyEngine):
+        try:
             table_list = engine.get_tables_in_schema(
-                schema=schema_name, include_table_details=False
+                schema=schema_name,
+                database=database_name,
+                include_table_details=False,
             )
             SQLTableListPreview(
                 request_id=request.request_id, tables=table_list
             ).broadcast()
-        else:
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get table list for schema %s", schema_name
+            )
             SQLTableListPreview(
                 request_id=request.request_id,
                 tables=[],
-                error="Not an SQLAlchemyEngine",
-            ).broadcast()
+                error="Failed to get table list: " + str(e),
+            )
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.

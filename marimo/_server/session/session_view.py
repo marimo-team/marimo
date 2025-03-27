@@ -26,7 +26,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
@@ -185,7 +185,7 @@ class SessionView:
             self.datasets = Datasets(tables=list(next_tables.values()))
 
             # Remove any data source connections that are no longer in scope.
-            # Keep the default duckdb connection if it exists
+            # Keep internal connections if they exist as these are not defined in variables
             next_connections: dict[str, DataSourceConnection] = {}
             for connection in self.data_connectors.connections:
                 if (

@@ -4,7 +4,6 @@ from __future__ import annotations
 import base64
 import io
 import mimetypes
-import os
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -46,12 +45,12 @@ from marimo._server.templates.templates import (
 from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
-root: str = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+ROOT = (marimo_package_path() / "_static").resolve()
 
 if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
@@ -396,7 +395,7 @@ class Exporter:
         import shutil
 
         shutil.copytree(
-            root,
+            ROOT,
             dirpath,
             dirs_exist_ok=True,
             ignore=(
@@ -527,7 +526,7 @@ def get_html_contents() -> str:
         with urllib.request.urlopen(url) as response:
             return cast(str, response.read().decode("utf-8"))
 
-    index_html = Path(root) / "index.html"
+    index_html = Path(ROOT) / "index.html"
     return index_html.read_text(encoding="utf-8")
 
 

@@ -7,6 +7,8 @@ import shutil
 import sys
 from dataclasses import dataclass
 
+from marimo._dependencies.errors import ManyModulesNotFoundError
+
 
 @dataclass
 class Dependency:
@@ -166,6 +168,8 @@ class DependencyManager:
     numpy = Dependency("numpy")
     altair = Dependency("altair", min_version="5.3.0", max_version="6.0.0")
     duckdb = Dependency("duckdb")
+    chdb = Dependency("chdb")
+    clickhouse_connect = Dependency("clickhouse_connect")
     sqlglot = Dependency("sqlglot")
     pillow = Dependency("PIL")
     plotly = Dependency("plotly")
@@ -188,6 +192,10 @@ class DependencyManager:
     groq = Dependency("groq")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
+    pylsp = Dependency("pylsp")
+    pytest = Dependency("pytest")
+    vegafusion = Dependency("vegafusion")
+    vl_convert_python = Dependency("vl_convert")
     dotenv = Dependency("dotenv")
 
     # Version requirements to properly support the new superfences introduced in
@@ -213,3 +221,12 @@ class DependencyManager:
         Checks if a CLI command is installed.
         """
         return shutil.which(pkg) is not None
+
+    @staticmethod
+    def require_many(why: str, *dependencies: Dependency) -> None:
+        missing = [dep.pkg for dep in dependencies if not dep.has()]
+        if missing:
+            raise ManyModulesNotFoundError(
+                missing,
+                f"The following packages are required {why}: {', '.join(missing)}",
+            )

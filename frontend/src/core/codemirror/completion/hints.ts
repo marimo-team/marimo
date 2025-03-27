@@ -7,19 +7,24 @@ import type { EditorState, Text } from "@codemirror/state";
 import { debounce } from "lodash-es";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { chromeAtom } from "@/components/editor/chrome/state";
 
 export function hintTooltip() {
   return [
-    hoverTooltip(
-      async (view, pos) => {
-        const result = await requestDocumentation(view, pos, ["tooltip"]);
-        if (result === null || result === "cancelled") {
-          return null;
-        }
-        return result;
-      },
-      { hideOnChange: true },
-    ),
+    // Hover tooltip is already covered by LSP
+    getFeatureFlag("lsp")
+      ? []
+      : hoverTooltip(
+          async (view, pos) => {
+            const result = await requestDocumentation(view, pos, ["tooltip"]);
+            if (result === null || result === "cancelled") {
+              return null;
+            }
+            return result;
+          },
+          { hideOnChange: true },
+        ),
     cursorPositionDocumentation,
   ];
 }
@@ -94,6 +99,11 @@ function isCursorInText(state: EditorState) {
 // Debounce the request to avoid spamming the server
 const debouncedAutocomplete = debounce(
   async (view: EditorView, position: number) => {
+    // Only run if the documentation panel is open
+    if (store.get(chromeAtom).selectedPanel !== "documentation") {
+      return;
+    }
+
     const tooltip = await requestDocumentation(view, position);
     // If cancelled, don't update the documentation
     if (tooltip === "cancelled") {

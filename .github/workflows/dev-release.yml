@@ -35,7 +35,7 @@ jobs:
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
           registry-url: 'https://registry.npmjs.org'
@@ -44,6 +44,8 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install

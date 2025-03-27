@@ -16,16 +16,19 @@ export function keymapBundle(config: KeymapConfig): Extension[] {
     case "default":
       return [
         keymap.of(defaultKeymap),
-        keymap.of([
-          {
-            key: "Escape",
-            preventDefault: true,
-            run: (cm) => {
-              cm.contentDOM.blur();
-              return true;
+        // Should be the last thing to close when Escape is pressed
+        Prec.low(
+          keymap.of([
+            {
+              key: "Escape",
+              preventDefault: true,
+              run: (cm) => {
+                cm.contentDOM.blur();
+                return true;
+              },
             },
-          },
-        ]),
+          ]),
+        ),
       ];
     case "vim":
       return [

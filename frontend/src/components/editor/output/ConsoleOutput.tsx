@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { AnsiUp } from "ansi_up";
 import type { WithResponse } from "@/core/cells/types";
 import { invariant } from "@/utils/invariant";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
 const ansiUp = new AnsiUp();
 
@@ -24,7 +25,15 @@ interface Props {
   onSubmitDebugger: (text: string, index: number) => void;
 }
 
-export const ConsoleOutput = (props: Props): React.ReactNode => {
+export const ConsoleOutput = (props: Props) => {
+  return (
+    <ErrorBoundary>
+      <ConsoleOutputInternal {...props} />
+    </ErrorBoundary>
+  );
+};
+
+const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const {
     consoleOutputs,

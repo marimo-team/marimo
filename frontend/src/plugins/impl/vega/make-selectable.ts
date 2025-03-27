@@ -70,6 +70,10 @@ export function makeSelectable<T extends VegaLiteSpec>(
   if (!("mark" in spec)) {
     return spec;
   }
+  // error, errorbar, boxplot are not interactive
+  if (!Marks.isInteractive(spec.mark)) {
+    return spec;
+  }
 
   let resolvedSpec: VegaLiteUnitSpec = spec;
   resolvedSpec = makeLegendSelectable(resolvedSpec, fieldSelection);
@@ -210,7 +214,12 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
     return spec;
   }
 
-  const mark = Marks.getMarkType(spec.mark);
+  let mark: Mark;
+  try {
+    mark = Marks.getMarkType(spec.mark);
+  } catch {
+    return spec;
+  }
 
   // We don't do anything if the mark is text
   if (mark === "text") {

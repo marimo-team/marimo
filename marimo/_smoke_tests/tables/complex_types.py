@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.11.5"
+__generated_with = "0.11.24"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import polars as pl
+    import numpy as np
     from datetime import datetime, date, time
     import marimo as mo
 
@@ -35,10 +36,20 @@ def _():
             "lists": pl.Series(
                 "lists", [[1, 2], [3, 4], [5, 6]], dtype=pl.List(pl.Int64)
             ),
+            "nested_lists": pl.Series(
+                "nested_lists",
+                [[[1, 2]], [[3, 4]], [[5, 6]]],
+                dtype=pl.List(pl.List(pl.Int64)),
+            ),
             "arrays": pl.Series(
                 "arrays",
                 [[1, 2], [3, 4], [5, 6]],
                 dtype=pl.Array(pl.Int64, shape=(2,)),
+            ),
+            "nested_arrays": pl.Series(
+                "nested_arrays",
+                [[[1, 2]], [[3, 4]], [[5, 6]]],
+                dtype=pl.Array(pl.Array(pl.Int64, shape=(2,)), shape=(1,)),
             ),
             # Objects
             "sets": pl.Series(
@@ -54,6 +65,19 @@ def _():
                 [{"a": 1, "b": 2}, {"c": 3, "d": 4}, {"e": 5, "f": 6}],
                 dtype=pl.Struct,
             ),
+            # Mixed
+            "structs_with_list": pl.Series(
+                "mixed",
+                [{"a": [1, 2], "b": 2}, {"a": [3, 4], "b": 4}, [5, 6]],
+            ),
+            "list_with_structs": pl.Series(
+                "list_with_structs",
+                [
+                    [{"a": 1}, {"c": 3}],
+                    [{"e": 5}],
+                    [],
+                ],
+            ),
             # Nulls
             "nulls": pl.Series("nulls", [None, None, None], dtype=pl.Utf8),
             # Complex
@@ -65,7 +89,7 @@ def _():
         }
     )
     mo.ui.table(df)
-    return date, datetime, df, mo, pl, time
+    return date, datetime, df, mo, np, pl, time
 
 
 @app.cell
@@ -73,6 +97,18 @@ def _(df):
     pandas = df.to_pandas()
     pandas
     return (pandas,)
+
+
+@app.cell
+def _(mo, pd, pl):
+    additional_types_pd = pd.DataFrame(
+        {"complex": [1 + 2j, 2 + 3j], "bigint": [2**64, 2**127]}
+    )
+    additional_types_pl = pl.DataFrame(
+        {"complex": [1 + 2j, 2 + 3j], "bigint": [2**64, 2**65]}
+    )
+    mo.vstack([additional_types_pd, additional_types_pl])
+    return additional_types_pd, additional_types_pl
 
 
 @app.cell

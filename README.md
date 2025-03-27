@@ -17,6 +17,8 @@
   <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
   <b> | </b>
   <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
+  <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Spanish.md" target="_blank"><b>Español</b></a>
 </p>
 
 <p align="center">
@@ -126,6 +128,13 @@ quality-of-life features.
 ```bash
 pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
+```
+
+To install with additional dependencies that unlock SQL cells, AI completion, and more,
+run
+
+```bash
+pip install marimo[recommended]
 ```
 
 **Create notebooks.**

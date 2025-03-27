@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
@@ -9,7 +10,11 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
-from marimo._plugins.ui._impl.table import SearchTableArgs, SortArgs
+from marimo._plugins.ui._impl.table import (
+    DownloadAsArgs,
+    SearchTableArgs,
+    SortArgs,
+)
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
@@ -550,6 +555,46 @@ def test_search_sort_nonexistent_columns() -> None:
     assert table._convert_value(["0"]) == ["banana"]
 
 
+def test_invalid_index_in_initial_selection() -> None:
+    """Test that invalid initial selection raises appropriate errors"""
+    with pytest.raises(IndexError):
+        ui.table(
+            data={"a": [1, 2], "b": [3, 4]},
+            initial_selection=[5],  # Invalid index
+        )
+
+
+def test_invalid_initial_cell_selection() -> None:
+    """Test that invalid initial selection raises appropriate errors"""
+    with pytest.raises(TypeError):
+        ui.table(
+            data={"a": [1, 2], "b": [3, 4]},
+            selection="single-cell",
+            initial_selection=[(1, 2, 3)],  # invalid tulple length
+        )
+
+
+def test_initial_row_selection_happy_path() -> None:
+    """Test that initial row selection works with valid indices"""
+    table = ui.table(
+        data={"a": [1, 2, 3], "b": [4, 5, 6]}, initial_selection=[0, 1]
+    )
+    assert table.value == {"a": [1, 2], "b": [4, 5]}
+
+
+def test_initial_cell_selection_happy_path() -> None:
+    """Test that initial cell selection works with valid coordinates"""
+    table = ui.table(
+        data={"a": [1, 2, 3], "b": [4, 5, 6]},
+        selection="multi-cell",
+        initial_selection=[("0", "a"), ("1", "b")],
+    )
+    assert table.value == [
+        TableCell(row="0", column="a", value=1),
+        TableCell(row="1", column="b", value=5),
+    ]
+
+
 def test_get_row_ids() -> None:
     data = {
         "id": [1, 2, 3] * 3,
@@ -692,8 +737,8 @@ def test_can_get_second_page_with_search_df(df: Any) -> None:
         )
     )
     mime_type, data = from_data_uri(result.data)
-    assert mime_type == "text/csv"
-    data = pl.read_csv(data)
+    assert mime_type == "application/json"
+    data = pl.read_json(data)
     assert len(data) == 5
     assert int(data["a"][0]) == 23
     assert int(data["a"][-1]) == 27
@@ -806,7 +851,7 @@ def test__get_column_summaries_after_search_df() -> None:
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    assert summaries.data.startswith("data:text/csv;base64,")
+    assert summaries.data.startswith("data:application/json;base64,")
     assert summaries.summaries[0].min == 0
     assert summaries.summaries[0].max == 19
 
@@ -821,7 +866,7 @@ def test__get_column_summaries_after_search_df() -> None:
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    assert summaries.data.startswith("data:text/csv;base64,")
+    assert summaries.data.startswith("data:application/json;base64,")
     # We don't have column summaries for non-dataframe data
     assert summaries.summaries[0].min == 2
     assert summaries.summaries[0].max == 12
@@ -974,6 +1019,114 @@ def test_show_download():
 
     table_false = ui.table(data, show_download=False)
     assert table_false._component_args["show-download"] is False
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_download_as_pandas() -> None:
+    """Test downloading table data as different formats with pandas DataFrame."""
+    import io
+
+    import pandas as pd
+    from pandas.testing import assert_frame_equal
+
+    data = pd.DataFrame({"cities": ["Newark", "New York", "Los Angeles"]})
+    table = ui.table(data)
+
+    def download_and_convert(
+        format_type: str, table_instance: ui.table
+    ) -> pd.DataFrame:
+        """Helper to download and convert table data to DataFrame."""
+        download_str = table_instance._download_as(
+            DownloadAsArgs(format=format_type)
+        )
+        data_bytes = from_data_uri(download_str)[1]
+
+        if format_type == "json":
+            return pd.read_json(io.BytesIO(data_bytes))
+        return pd.read_csv(io.BytesIO(data_bytes))
+
+    # Test base downloads (full data)
+    for format_type in ["csv", "json"]:
+        downloaded_df = download_and_convert(format_type, table)
+        assert_frame_equal(data, downloaded_df)
+
+    # Test downloads with search filter
+    table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
+    for format_type in ["csv", "json"]:
+        filtered_df = download_and_convert(format_type, table)
+        assert len(filtered_df) == 2
+        assert all(filtered_df["cities"].isin(["Newark", "New York"]))
+
+    # Test downloads with selection (includes search from before)
+    table._convert_value(["1"])
+    for format_type in ["csv", "json"]:
+        selected_df = download_and_convert(format_type, table)
+        assert len(selected_df) == 1
+        assert selected_df["cities"].iloc[0] == "New York"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_download_as_polars() -> None:
+    """Test downloading table data as different formats with polars DataFrame."""
+    import polars as pl
+    from polars.testing import assert_frame_equal
+
+    data = pl.DataFrame({"cities": ["Newark", "New York", "Los Angeles"]})
+    table = ui.table(data)
+
+    def download_and_convert(
+        format_type: str, table_instance: ui.table
+    ) -> pl.DataFrame:
+        """Helper to download and convert table data to DataFrame."""
+        download_str = table_instance._download_as(
+            DownloadAsArgs(format=format_type)
+        )
+        data_bytes = from_data_uri(download_str)[1]
+
+        if format_type == "json":
+            return pl.read_json(data_bytes)
+        return pl.read_csv(data_bytes)
+
+    # Test base downloads (full data)
+    for format_type in ["csv", "json"]:
+        downloaded_df = download_and_convert(format_type, table)
+        assert_frame_equal(data, downloaded_df)
+
+    # Test downloads with search filter
+    table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
+    for format_type in ["csv", "json"]:
+        filtered_df = download_and_convert(format_type, table)
+        assert len(filtered_df) == 2
+        assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
+
+    # Test downloads with selection (includes search from before)
+    table._convert_value(["1"])
+    for format_type in ["csv", "json"]:
+        selected_df = download_and_convert(format_type, table)
+        assert len(selected_df) == 1
+        assert selected_df["cities"][0] == "New York"
+
+
+def test_download_as_for_unsupported_cell_selection() -> None:
+    for selection in ["single-cell", "multi-cell"]:
+        table = ui.table(data=[], selection=selection)
+        with pytest.raises(NotImplementedError):
+            table._download_as(DownloadAsArgs(format="csv"))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() or not DependencyManager.polars.has(),
+    reason="Pandas or Polars not installed",
+)
+def test_download_as_for_supported_cell_selection() -> None:
+    # Assert that download works for other selection types
+    for selection in ["single", "multi", None]:
+        table = ui.table(data=[], selection=selection)
+        table._download_as(DownloadAsArgs(format="csv"))
 
 
 def test_pagination_behavior() -> None:
@@ -1132,8 +1285,9 @@ def test_column_clamping_with_polars():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
-    headers = csv.split("\n")[0].split(",")
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    headers = json_data[0].keys()
     assert len(headers) == 50  # 50 columns
     assert len(table._component_args["field-types"]) == 50
 
@@ -1142,8 +1296,9 @@ def test_column_clamping_with_polars():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
-    headers = csv.split("\n")[0].split(",")
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    headers = json_data[0].keys()
     assert len(headers) == 40  # 40 columns
     assert len(table._component_args["field-types"]) == 40
 
@@ -1152,8 +1307,9 @@ def test_column_clamping_with_polars():
     # Check that the table is not clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    csv = from_data_uri(table._component_args["data"])[1].decode("utf-8")
-    headers = csv.split("\n")[0].split(",")
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    headers = json_data[0].keys()
 
     assert len(headers) == 61  # 60 columns + 1 selection column
     assert len(table._component_args["field-types"]) == 60

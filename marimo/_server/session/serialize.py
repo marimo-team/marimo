@@ -121,10 +121,8 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
         for output in cell["outputs"]:
             if output["type"] == "error":
                 cell_outputs.append(
-                    CellOutput(
-                        channel=CellChannel.MARIMO_ERROR,
-                        mimetype="text/plain",
-                        data=[
+                    CellOutput.errors(
+                        [
                             MarimoExceptionRaisedError(
                                 type="exception",
                                 exception_type=output["ename"],

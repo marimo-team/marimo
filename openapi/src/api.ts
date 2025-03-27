@@ -49,6 +49,36 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/chat": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for AI chat */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ChatRequest"];
+        };
+      };
+      responses: never;
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ai/completion": {
     parameters: {
       query?: never;
@@ -65,7 +95,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      /** @description The prompt to get AI completion for */
+      /** @description The request body for AI completion */
       requestBody: {
         content: {
           "application/json": components["schemas"]["AiCompletionRequest"];
@@ -81,6 +111,46 @@ export interface paths {
             "application/json": {
               [key: string]: unknown;
             };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ai/inline_completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for AI inline completion */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AiInlineCompletionRequest"];
+        };
+      };
+      responses: {
+        /** @description Get AI inline completion for code */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
           };
         };
       };
@@ -2153,22 +2223,22 @@ export interface components {
     AddPackageRequest: {
       package: string;
     };
+    AiCompletionContext: {
+      schema: components["schemas"]["SchemaTable"][];
+    };
     AiCompletionRequest: {
       code: string;
-      context?: {
-        schema: {
-          columns: {
-            name: string;
-            sampleValues: unknown[];
-            type: string;
-          }[];
-          name: string;
-        }[];
-      } | null;
+      context?: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
       prompt: string;
+    };
+    AiInlineCompletionRequest: {
+      /** @enum {string} */
+      language: "python" | "markdown" | "sql";
+      prefix: string;
+      suffix: string;
     };
     Alert: {
       description: string;
@@ -2230,6 +2300,7 @@ export interface components {
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
       run_id?: string | null;
+      serialization?: string | null;
       stale_inputs?: boolean | null;
       status?: components["schemas"]["RuntimeState"];
       timestamp: number;
@@ -2244,6 +2315,26 @@ export interface components {
           };
       mimetype: components["schemas"]["MimeType"];
       timestamp: number;
+    };
+    ChatRequest: {
+      context: components["schemas"]["AiCompletionContext"];
+      includeOtherCode: string;
+      messages: {
+        attachments?:
+          | {
+              contentType?: string | null;
+              name: string;
+              url: string;
+            }[]
+          | null;
+        content: {
+          [key: string]: unknown;
+        };
+        /** @enum {string} */
+        role: "user" | "assistant" | "system";
+      }[];
+      model?: string | null;
+      variables?: string[] | null;
     };
     CodeCompletionRequest: {
       cellId: string;
@@ -2296,6 +2387,7 @@ export interface components {
       chart_spec?: string | null;
       column_name: string;
       error?: string | null;
+      missing_packages?: string[] | null;
       /** @enum {string} */
       name: "data-column-preview";
       summary?: components["schemas"]["ColumnSummary"];
@@ -2580,10 +2672,9 @@ export interface components {
         html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full";
+        width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
-        sql: boolean;
         terminal: boolean;
       };
       cell_ids: string[];
@@ -2678,22 +2769,32 @@ export interface components {
         google?: {
           api_key?: string;
         };
+        max_tokens?: number;
         open_ai?: {
           api_key?: string;
           base_url?: string;
+          ca_bundle_path?: string;
+          client_pem?: string;
           model?: string;
+          ssl_verify?: boolean;
         };
         rules?: string;
       };
       completion: {
         activate_on_typing: boolean;
+        api_key?: string | null;
+        base_url?: string | null;
         codeium_api_key?: string | null;
-        copilot: boolean | ("github" | "codeium");
+        copilot: boolean | ("github" | "codeium" | "custom");
+        model?: string | null;
       };
       datasources?: {
         auto_discover_columns?: boolean | "auto";
         auto_discover_schemas?: boolean | "auto";
         auto_discover_tables?: boolean | "auto";
+      };
+      diagnostics?: {
+        enabled?: boolean;
       };
       display: {
         /** @enum {string} */
@@ -2702,7 +2803,7 @@ export interface components {
         /** @enum {string} */
         dataframes: "rich" | "plain";
         /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full";
+        default_width: "normal" | "compact" | "medium" | "full" | "columns";
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
@@ -2718,6 +2819,17 @@ export interface components {
         };
         /** @enum {string} */
         preset: "default" | "vim";
+      };
+      language_servers?: {
+        pylsp?: {
+          enable_flake8?: boolean;
+          enable_mypy?: boolean;
+          enable_pydocstyle?: boolean;
+          enable_pyflakes?: boolean;
+          enable_pylint?: boolean;
+          enable_ruff?: boolean;
+          enabled?: boolean;
+        };
       };
       package_management: {
         /** @enum {string} */
@@ -2879,6 +2991,7 @@ export interface components {
     };
     PreviewDatasetColumnRequest: {
       columnName: string;
+      fullyQualifiedTableName?: string | null;
       source: string;
       /** @enum {string} */
       sourceType: "local" | "duckdb" | "connection";
@@ -2997,6 +3110,15 @@ export interface components {
     Schema: {
       name: string;
       tables: components["schemas"]["DataTable"][];
+    };
+    SchemaColumn: {
+      name: string;
+      sampleValues: unknown[];
+      type: string;
+    };
+    SchemaTable: {
+      columns: components["schemas"]["SchemaColumn"][];
+      name: string;
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

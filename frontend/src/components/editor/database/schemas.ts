@@ -35,10 +35,9 @@ function usernameField() {
     .describe(FieldOptions.of({ label: "Username", placeholder: "username" }));
 }
 
-function portField(defaultPort: number) {
-  return z.coerce
+function portField(defaultPort: number, optional: boolean) {
+  const field = z.coerce
     .string()
-    .default(defaultPort.toString())
     .describe(
       FieldOptions.of({
         label: "Port",
@@ -50,13 +49,22 @@ function portField(defaultPort: number) {
     .refine((n) => n >= 0 && n <= 65_535, {
       message: "Port must be between 0 and 65535",
     });
+
+  return optional ? field.optional() : field.default(defaultPort.toString());
+}
+
+function readOnlyField() {
+  return z
+    .boolean()
+    .default(false)
+    .describe(FieldOptions.of({ label: "Read Only" }));
 }
 
 export const PostgresConnectionSchema = z
   .object({
     type: z.literal("postgres"),
     host: hostField(),
-    port: portField(5432),
+    port: portField(5432, false),
     database: databaseField(),
     username: usernameField(),
     password: passwordField(),
@@ -71,7 +79,7 @@ export const MySQLConnectionSchema = z
   .object({
     type: z.literal("mysql"),
     host: hostField(),
-    port: portField(3306),
+    port: portField(3306, false),
     database: databaseField(),
     username: usernameField(),
     password: passwordField(),
@@ -97,10 +105,7 @@ export const DuckDBConnectionSchema = z
     database: databaseField().describe(
       FieldOptions.of({ label: "Database Path" }),
     ),
-    read_only: z
-      .boolean()
-      .default(false)
-      .describe(FieldOptions.of({ label: "Read Only" })),
+    read_only: readOnlyField(),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
@@ -148,6 +153,30 @@ export const BigQueryConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const ClickhouseConnectionSchema = z
+  .object({
+    type: z.literal("clickhouse_connect"),
+    host: hostField(),
+    port: portField(8123, true),
+    username: usernameField(),
+    password: passwordField(),
+    secure: z
+      .boolean()
+      .default(false)
+      .describe(FieldOptions.of({ label: "Use HTTPs" })),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
+export const ChdbConnectionSchema = z
+  .object({
+    type: z.literal("chdb"),
+    database: databaseField().describe(
+      FieldOptions.of({ label: "Database Path" }),
+    ),
+    read_only: readOnlyField(),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -155,6 +184,8 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   DuckDBConnectionSchema,
   SnowflakeConnectionSchema,
   BigQueryConnectionSchema,
+  ClickhouseConnectionSchema,
+  ChdbConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

@@ -11,7 +11,6 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
-import { getVegaFieldTypes } from "./vega/utils";
 import { Banner } from "./common/error-banner";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
@@ -113,7 +112,10 @@ type S = Array<number | string | { rowId: string; columnName?: string }>;
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
     z.object({
-      initialValue: z.array(z.number()),
+      initialValue: z.union([
+        z.array(z.number()),
+        z.array(z.object({ rowId: z.string(), columnName: z.string() })),
+      ]),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       totalRows: z.union([z.number(), z.literal("too_many")]),
@@ -339,12 +341,10 @@ export const LoadingDataTableComponent = memo(
         };
       }
 
-      const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
-
       // Otherwise, load the data from the URL
       tableData = await vegaLoadData(
         tableData,
-        { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
+        { type: "json" },
         { handleBigIntAndNumberLike: true },
       );
 
@@ -505,12 +505,14 @@ const DataTableComponent = ({
   const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
+  const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const showDataTypes = Boolean(fieldTypes);
   const columns = useMemo(
     () =>
       generateColumns({
         rowHeaders: memoizedRowHeaders,
         selection: selection,
+        chartSpecModel: memoizedChartSpecModel,
         fieldTypes: memoizedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
@@ -520,6 +522,7 @@ const DataTableComponent = ({
     [
       selection,
       showDataTypes,
+      memoizedChartSpecModel,
       memoizedRowHeaders,
       memoizedFieldTypes,
       memoizedTextJustifyColumns,

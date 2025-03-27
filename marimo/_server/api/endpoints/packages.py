@@ -139,6 +139,11 @@ async def list_packages(request: Request) -> ListPackagesResponse:
 
 
 def _get_package_manager(request: Request) -> PackageManager:
+    if not AppState(request).get_current_session():
+        return create_package_manager(
+            AppState(request).config_manager.package_manager
+        )
+
     config_manager = AppState(request).app_config_manager
     return create_package_manager(config_manager.package_manager)
 

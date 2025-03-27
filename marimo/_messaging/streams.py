@@ -17,7 +17,7 @@ from typing import (
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -236,7 +236,9 @@ class ThreadSafeStdout(Stdout):
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -300,7 +302,9 @@ class ThreadSafeStderr(Stderr):
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(

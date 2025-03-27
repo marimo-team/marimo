@@ -420,6 +420,7 @@ def ipynb(
             from marimo._cli.sandbox import run_in_sandbox
 
             run_in_sandbox(sys.argv[1:], name)
+            return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:

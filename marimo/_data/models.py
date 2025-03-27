@@ -41,6 +41,9 @@ class DataTableColumn:
     sample_values: list[Any]
 
 
+# Local -> Python dataframes
+# DuckDB -> DuckDB tables using the global in-memory DuckDB instance
+# Connection -> SQL tables using a named data source connection (e.g. SQLAlchemy, or a custom DuckDB connection)
 DataTableSource = Literal["local", "duckdb", "connection"]
 DataTableType = Literal["table", "view"]
 

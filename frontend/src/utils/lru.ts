@@ -37,4 +37,12 @@ export class LRUCache<K, V> {
   public keys() {
     return this.cache.keys();
   }
+
+  public values() {
+    return this.cache.values();
+  }
+
+  public entries() {
+    return this.cache.entries();
+  }
 }

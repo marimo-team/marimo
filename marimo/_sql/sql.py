@@ -7,11 +7,9 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
-from marimo._sql.engines import (
-    DuckDBEngine,
-    SQLAlchemyEngine,
-    raise_df_import_error,
-)
+from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.types import ENGINE_REGISTRY
+from marimo._sql.utils import raise_df_import_error
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -20,8 +18,10 @@ def get_default_result_limit() -> Optional[int]:
 
 
 if TYPE_CHECKING:
-    import duckdb
-    import sqlalchemy
+    from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore  # noqa: I001
+    from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
+    from duckdb import DuckDBPyConnection
+    from sqlalchemy.engine import Engine as SAEngine
 
 
 @mddoc
@@ -29,7 +29,9 @@ def sql(
     query: str,
     *,
     output: bool = True,
-    engine: Optional[sqlalchemy.Engine | duckdb.DuckDBPyConnection] = None,
+    engine: Optional[
+        SAEngine | DuckDBPyConnection | ClickhouseClient | ChdbConnection
+    ] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -44,7 +46,7 @@ def sql(
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
-        engine: Optional SQL engine to use. Can be a SQLAlchemy engine or DuckDB connection.
+        engine: Optional SQL engine to use. Can be a SQLAlchemy, Clickhouse, or DuckDB engine.
                If None, uses DuckDB.
 
     Returns:
@@ -54,16 +56,23 @@ def sql(
         return None
 
     if engine is None:
-        DependencyManager.duckdb.require("to execute sql")
-        sql_engine = DuckDBEngine(connection=None)
-    elif SQLAlchemyEngine.is_compatible(engine):
-        sql_engine = SQLAlchemyEngine(engine)  # type: ignore
-    elif DuckDBEngine.is_compatible(engine):
-        sql_engine = DuckDBEngine(engine)  # type: ignore
-    else:
-        raise ValueError(
-            "Unsupported engine. Must be a SQLAlchemy engine or DuckDB connection."
+        DependencyManager.require_many(
+            "to execute sql",
+            DependencyManager.duckdb,
+            DependencyManager.sqlglot,
         )
+        sql_engine = DuckDBEngine(connection=None)
+    else:
+        for engine_cls in ENGINE_REGISTRY:
+            if engine_cls.is_compatible(engine):
+                sql_engine = engine_cls(
+                    connection=engine, engine_name="custom"
+                )  # type: ignore
+                break
+        else:
+            raise ValueError(
+                "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
+            )
 
     df = sql_engine.execute(query)
     if df is None:
@@ -94,7 +103,7 @@ def sql(
             )
             df = df.head(default_result_limit)
         else:
-            raise_df_import_error("polars")
+            raise_df_import_error("polars[pyarrow]")
 
     if output:
         from marimo._plugins.ui._impl import table

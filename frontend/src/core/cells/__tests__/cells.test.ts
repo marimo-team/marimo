@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import {
   type NotebookState,
+  SETUP_CELL_ID,
   exportedForTesting,
   flattenTopLevelNotebookCells,
 } from "../cells";
@@ -87,6 +88,7 @@ function createEditor(content: string) {
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
+        lspConfig: {},
       }),
     ],
   });
@@ -110,7 +112,6 @@ describe("cell reducer", () => {
       if (!handle.current) {
         const handle: CellHandle = {
           editorView: createEditor(state.cellData[cellId as CellId].code),
-          registerRun: vi.fn(),
         };
         state.cellHandles[cellId as CellId] = { current: handle };
       }
@@ -1914,5 +1915,54 @@ describe("cell reducer", () => {
       [1] 'import pandas as pd'
       "
     `);
+  });
+
+  it("can create and update a setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Update the setup cell
+    actions.upsertSetupCell({ code: "# Updated setup code" });
+
+    // Check that the same setup cell was updated, not duplicated
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Updated setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
+
+  it("can delete and undelete the setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Delete the setup cell
+    actions.deleteCell({ cellId: SETUP_CELL_ID });
+
+    // Check that setup cell was deleted
+    expect(state.cellData[SETUP_CELL_ID]).toBeDefined(); // we keep old state
+    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
+
+    // Undo delete the setup cell
+    actions.undoDeleteCell();
+
+    // Check that setup cell was restored
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
 });

@@ -136,8 +136,10 @@ class TestDataframes:
         subject = ui.dataframe(df, page_size=1)
         result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 3
-        assert result.url == "data:text/csv;base64,MSwyCjEsYQo="
-
+        assert (
+            result.url
+            == "data:application/json;base64,W3siMSI6MSwiMiI6ImEifV0="
+        )
         # search
         search_result = subject._search(
             SearchTableArgs(page_size=1, page_number=0)
@@ -149,7 +151,10 @@ class TestDataframes:
         subject = ui.dataframe(df, page_size=2)
         result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 3
-        assert result.url == "data:text/csv;base64,MSwyCjEsYQoyLGEK"
+        assert (
+            result.url
+            == "data:application/json;base64,W3siMSI6MSwiMiI6ImEifSx7IjEiOjIsIjIiOiJhIn1d"
+        )
 
         # search
         search_result = subject._search(

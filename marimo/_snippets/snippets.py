@@ -9,7 +9,7 @@ from typing import Any, Optional
 from marimo import _loggers
 from marimo._ast.codegen import get_app
 from marimo._config.manager import get_default_config_manager
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -119,7 +119,7 @@ def read_snippet_filenames(
 ) -> Generator[str, Any, None]:
     paths: list[Path] = []
     if include_default_snippets:
-        paths.append(import_files("marimo") / "_snippets" / "data")
+        paths.append(marimo_package_path() / "_snippets" / "data")
     if custom_paths:
         paths.extend([Path(p) for p in custom_paths])
     for root_path in paths:

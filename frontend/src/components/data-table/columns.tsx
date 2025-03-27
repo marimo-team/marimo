@@ -7,7 +7,7 @@ import {
   DataTableColumnHeaderWithSummary,
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
-import { isMimeValue, MimeCell } from "./mime-cell";
+import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
@@ -15,6 +15,7 @@ import {
   type DataTableSelection,
   INDEX_COLUMN_NAME,
   type FieldTypesWithExternalType,
+  extractTimezone,
 } from "./types";
 import { UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
@@ -23,6 +24,12 @@ import { DatePopover } from "./date-popover";
 import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
 import { exactDateTime } from "@/utils/dates";
+import { JsonOutput } from "../editor/output/JsonOutput";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
+import { PopoverClose } from "@radix-ui/react-popover";
+import { Button } from "../ui/button";
+import type { ColumnChartSpecModel } from "./chart-spec-model";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -88,6 +95,7 @@ export function generateColumns<T>({
   rowHeaders,
   selection,
   fieldTypes,
+  chartSpecModel,
   textJustifyColumns,
   wrappedColumns,
   showDataTypes,
@@ -95,6 +103,7 @@ export function generateColumns<T>({
   rowHeaders: string[];
   selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
+  chartSpecModel?: ColumnChartSpecModel<unknown>;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   showDataTypes?: boolean;
@@ -144,13 +153,26 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
+        const summary = chartSpecModel?.getColumnSummary(key);
         const dtype = column.columnDef.meta?.dtype;
+        const dtypeHeader =
+          showDataTypes && dtype ? (
+            <div className="flex flex-row gap-1">
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+              {summary &&
+                typeof summary.nulls === "number" &&
+                summary.nulls > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    (nulls: {summary.nulls})
+                  </span>
+                )}
+            </div>
+          ) : null;
+
         const headerWithType = (
           <div className="flex flex-col">
             <span className="font-bold">{key}</span>
-            {showDataTypes && dtype && (
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-            )}
+            {dtypeHeader}
           </div>
         );
 
@@ -238,6 +260,7 @@ export function generateColumns<T>({
           // e.g. 2010-10-07 17:15:00
           const type =
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
+          const timezone = extractTimezone(column.columnDef.meta?.dtype);
           return (
             <div
               onClick={selectCell}
@@ -249,13 +272,14 @@ export function generateColumns<T>({
               )}
             >
               <DatePopover date={value} type={type}>
-                {exactDateTime(value)}
+                {exactDateTime(value, timezone)}
               </DatePopover>
             </div>
           );
         }
 
-        if (isMimeValue(value)) {
+        const mimeValues = getMimeValues(value);
+        if (mimeValues) {
           return (
             <div
               onClick={selectCell}
@@ -266,8 +290,44 @@ export function generateColumns<T>({
                 isCellSelected,
               )}
             >
-              <MimeCell value={value} />
+              {mimeValues.map((mimeValue, idx) => (
+                <MimeCell key={idx} value={mimeValue} />
+              ))}
             </div>
+          );
+        }
+
+        if (Array.isArray(value) || typeof value === "object") {
+          const rawStringValue = renderAny(value);
+          return (
+            <EmotionCacheProvider container={null}>
+              <Popover>
+                <PopoverTrigger
+                  className={getCellStyleClass(
+                    justify,
+                    wrapped,
+                    canSelectCell,
+                    isCellSelected,
+                  )}
+                  onClick={selectCell}
+                >
+                  <span
+                    className="cursor-pointer hover:text-link"
+                    title={rawStringValue}
+                  >
+                    {rawStringValue}
+                  </span>
+                </PopoverTrigger>
+                <PopoverContent>
+                  <PopoverClose className="absolute top-2 right-2">
+                    <Button variant="link" size="xs">
+                      Close
+                    </Button>
+                  </PopoverClose>
+                  <JsonOutput data={value} format="tree" className="max-h-64" />
+                </PopoverContent>
+              </Popover>
+            </EmotionCacheProvider>
           );
         }
 
@@ -373,13 +433,14 @@ function getCellStyleClass(
       "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
+    "truncate",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
     wrapped && "whitespace-pre-wrap min-w-[200px] break-words",
   );
 }
 
-function renderAny(value: unknown): React.ReactNode {
+function renderAny(value: unknown): string {
   if (value == null) {
     return "";
   }

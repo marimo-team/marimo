@@ -33,6 +33,8 @@ to install Python and manage projects. With `uv`, creating a virtual
 environment is as easy as `uv venv`.
 ///
 
+## Install with minimal dependencies
+
 To install marimo, run the following in a terminal:
 
 /// tab | install with pip
@@ -72,3 +74,51 @@ A tutorial notebook should open in your browser.
 
 Having installation issues? Reach out to us [at GitHub](https://github.com/marimo-team/marimo/issues) or [on Discord](https://marimo.io/discord?ref=docs).
 ///
+
+## Install with recommended dependencies
+
+marimo is lightweight, with few dependencies, to maximize compatibility with
+your own environments.
+
+To unlock additional features in the marimo editor, including SQL cells,
+AI completion, server-side plotting of dataframe columns, and more, we
+suggest installing `marimo[recommended]`:
+
+/// tab | install with pip
+
+```bash
+pip install marimo[recommended]
+```
+
+///
+
+/// tab | install with uv
+
+```bash
+uv pip install marimo[recommended]
+```
+
+///
+
+/// tab | install with conda
+
+```bash
+conda install -c conda-forge marimo "duckdb>=1.0.0" "altair>=5.4.0" pyarrow "polars>=1.9.0" "sqlglot>=23.4" "openai>=1.55.3" "ruff" "nbformat>=5.7.0" "vegafusion>=2.0.0" "vl-convert-python>=1.0.0"
+```
+
+///
+
+Installing marimo in this way installs the following additional dependencies and unlocks the following features:
+
+| Dependency                 | Feature                          |
+|----------------------------|----------------------------------|
+| duckdb>=1.0.0              | SQL cells                        |
+| altair>=5.4.0              | Plotting in datasource viewer   |
+| polars[pyarrow]>=1.9.0     | SQL output back in Python       |
+| sqlglot>=23.4              | SQL cells parsing               |
+| openai>=1.55.3             | AI features                     |
+| ruff                       | Formatting                      |
+| nbformat>=5.7.0            | Export as IPYNB                 |
+| vegafusion>=2.0.0          | Performant charting             |
+| vl-convert-python>=1.0.0   | Required by vegafusion          |
+

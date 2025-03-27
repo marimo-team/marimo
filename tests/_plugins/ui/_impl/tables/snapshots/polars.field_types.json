@@ -2,11 +2,14 @@
   ["strings", ["string", "str"]],
   ["bool", ["boolean", "bool"]],
   ["int", ["integer", "i64"]],
+  ["large_int", ["integer", "i128"]],
   ["float", ["number", "f64"]],
   ["datetime", ["datetime", "datetime[\u03bcs]"]],
   ["date", ["date", "date"]],
   ["struct", ["unknown", "struct[2]"]],
   ["list", ["unknown", "list[i64]"]],
+  ["nested_lists", ["unknown", "list[list[i64]]"]],
+  ["nested_arrays", ["unknown", "array[i64, (1, 2)]"]],
   ["array", ["unknown", "array[i64, 1]"]],
   ["nulls", ["string", "str"]],
   ["category", ["string", "cat"]],
@@ -14,5 +17,7 @@
   ["imaginary", ["unknown", "object"]],
   ["time", ["time", "Time"]],
   ["duration", ["number", "duration[\u03bcs]"]],
-  ["mixed_list", ["unknown", "list[str]"]]
+  ["mixed_list", ["unknown", "list[str]"]],
+  ["structs_with_list", ["unknown", "struct[2]"]],
+  ["list_with_structs", ["unknown", "list[struct[2]]"]]
 ]

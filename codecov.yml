@@ -14,3 +14,5 @@ coverage:
         # this allows a 50% drop from the previous base commit coverage
         # we'll decrease this as our testing matures
         threshold: 50%
+  ignore:
+    - 'marimo/_snippets/data/**'

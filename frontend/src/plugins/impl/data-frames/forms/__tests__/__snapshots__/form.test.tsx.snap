@@ -806,6 +806,7 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
               id=":r2a:-form-item"
               inputmode="numeric"
               spellcheck="false"
+              tabindex="0"
               title=""
               type="text"
               value=""

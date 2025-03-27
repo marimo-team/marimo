@@ -46,7 +46,6 @@ __all__ = [
     "icon",
     "iframe",
     "image",
-    "import_guard",
     "latex",
     "lazy",
     "left",
@@ -79,10 +78,11 @@ __all__ = [
     "style",
     "tabs",
     "tree",
+    "json",
     "video",
     "vstack",
 ]
-__version__ = "0.11.17"
+__version__ = "0.11.29"
 
 import marimo._ai as ai
 import marimo._islands as islands
@@ -105,6 +105,7 @@ from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.json_component import json
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.nav_menu import nav_menu
@@ -124,7 +125,7 @@ from marimo._runtime.capture import (
     redirect_stderr,
     redirect_stdout,
 )
-from marimo._runtime.context.utils import import_guard, running_in_notebook
+from marimo._runtime.context.utils import running_in_notebook
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import (
     app_meta,

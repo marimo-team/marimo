@@ -16,7 +16,8 @@ These guides cover marimo's core concepts.
 | [Expensive notebooks](expensive_notebooks.md)         | Tips for working with expensive notebooks                  |
 | [Working with data](working_with_data/index.md)       | Using SQL cells, no-code dataframe, and reactive plots     |
 | [Package reproducibility](package_reproducibility.md) | Making notebooks reproducible down to the packages         |
-| [Editor Features](editor_features/index.md)           | View variables, dataframe schemas, docstrings, and more    |
+| [Editor features](editor_features/index.md)           | View variables, dataframe schemas, docstrings, and more    |
+| [Using your own editor](editor_features/watching.md)  | Edit notebooks in your own editor and stream changes back to the browser |
 | [Apps](apps.md)                                       | Running notebooks as apps                                  |
 | [Scripts](scripts.md)                                 | Running notebooks as scripts                               |
 | [Tests](testing/index.md)                             | Running unit tests in notebooks                            |

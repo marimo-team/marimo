@@ -12,6 +12,7 @@ from starlette.applications import Starlette
 
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.file_router import AppFileRouter
+from marimo._server.lsp import any_lsp_server_running
 from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
 
@@ -72,10 +73,13 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     user_config = state.config_manager.get_config()
     session_mgr = state.session_manager
-    run = session_mgr.mode == SessionMode.RUN
-    if not run and user_config["completion"]["copilot"]:
-        LOGGER.debug("GitHub Copilot is enabled")
-        await session_mgr.start_lsp_server()
+
+    # Only start the LSP server in Edit mode
+    if session_mgr.mode == SessionMode.EDIT:
+        if any_lsp_server_running(user_config):
+            LOGGER.debug("Language Servers are enabled")
+            await session_mgr.start_lsp_server()
+
     yield
 
 

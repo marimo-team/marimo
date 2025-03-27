@@ -128,8 +128,20 @@ const AnyWidgetSlot = (props: Props) => {
     return <ErrorBanner error={error} />;
   }
 
+  // Find the closest parent element with an attribute of `random-id`
+  const randomId = props.host.closest("[random-id]")?.getAttribute("random-id");
+  const key = randomId ?? jsUrl;
+
   return (
-    <LoadedSlot {...props} widget={module.default} value={valueWithBuffer} />
+    <LoadedSlot
+      // Use the a key to force a re-render when the randomId (or jsUrl) changes
+      // Plugins may be stateful and we cannot make assumptions that we won't be
+      // so it is safer to just re-render.
+      key={key}
+      {...props}
+      widget={module.default}
+      value={valueWithBuffer}
+    />
   );
 };
 
@@ -143,7 +155,7 @@ async function runAnyWidgetModule(
   widgetDef: AnyWidget,
   model: Model<T>,
   el: HTMLElement,
-) {
+): Promise<() => void> {
   const experimental: Experimental = {
     invoke: async (name, msg, options) => {
       const message =
@@ -157,7 +169,10 @@ async function runAnyWidgetModule(
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
-  await widget.render?.({ model, el, experimental });
+  const unsub = await widget.render?.({ model, el, experimental });
+  return () => {
+    unsub?.();
+  };
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
@@ -208,7 +223,14 @@ const LoadedSlot = ({
     if (!htmlRef.current) {
       return;
     }
-    runAnyWidgetModule(widget, model.current, htmlRef.current);
+    const unsubPromise = runAnyWidgetModule(
+      widget,
+      model.current,
+      htmlRef.current,
+    );
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
     // We re-run the widget when the jsUrl changes, which means the cell
     // that created the Widget has been re-run.
     // We need to re-run the widget because it may contain initialization code

@@ -2,6 +2,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { codecovVitePlugin } from "@codecov/vite-plugin";
 import { JSDOM } from "jsdom";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
@@ -271,7 +272,11 @@ export default defineConfig({
         ],
       },
     }),
-
     tsconfigPaths(),
+    codecovVitePlugin({
+      enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+      bundleName: "marimo",
+      uploadToken: process.env.CODECOV_TOKEN,
+    }),
   ],
 });

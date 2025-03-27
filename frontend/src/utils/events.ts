@@ -44,4 +44,23 @@ export const Events = {
       target.tagName.startsWith("MARIMO")
     );
   },
+
+  /**
+   * Returns true if the event should be ignored because it's coming from a
+   * form element or code editor.
+   */
+  shouldIgnoreKeyboardEvent(e: KeyboardEvent) {
+    // Check for common form elements where keyboard shortcuts should be ignored
+    return (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement ||
+      e.target instanceof HTMLSelectElement ||
+      (e.target instanceof HTMLElement &&
+        (e.target.isContentEditable ||
+          e.target.tagName === "BUTTON" ||
+          e.target.closest("[role='textbox']") !== null ||
+          e.target.closest("[contenteditable='true']") !== null ||
+          e.target.closest(".cm-editor") !== null)) // Add check for CodeMirror editor
+    );
+  },
 };

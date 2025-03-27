@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { getTopologicalCellIds } from "../getCodes";
 import { notebookAtom } from "@/core/cells/cells";
 import { variablesAtom } from "@/core/variables/state";
@@ -41,6 +41,7 @@ function createMockEditorView(code: string) {
           },
           hotkeys: new OverridingHotkeyProvider({}),
           placeholderType: "marimo-import",
+          lspConfig: {},
         }),
         cellConfigExtension(
           {
@@ -50,6 +51,8 @@ function createMockEditorView(code: string) {
           },
           new OverridingHotkeyProvider({}),
           "marimo-import",
+          {},
+          {},
         ),
       ],
     }),
@@ -57,7 +60,6 @@ function createMockEditorView(code: string) {
 
   return {
     editorView: view,
-    registerRun: vi.fn(),
   };
 }
 

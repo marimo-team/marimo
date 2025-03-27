@@ -52,7 +52,7 @@ def test_serialize_session_with_error():
         status="idle",
         output=CellOutput(
             channel=CellChannel.MARIMO_ERROR,
-            mimetype="text/plain",
+            mimetype="application/vnd.marimo+error",
             data=[UnknownError(type="unknown", msg="Something went wrong")],
         ),
         console=[],
@@ -172,6 +172,7 @@ def test_deserialize_session_with_error():
     cell = view.cell_operations["cell1"]
     assert cell.output is not None
     assert cell.output.channel == CellChannel.MARIMO_ERROR
+    assert cell.output.mimetype == "application/vnd.marimo+error"
     assert isinstance(cell.output.data, list)
     error = cell.output.data[0]
     assert isinstance(error, MarimoExceptionRaisedError)
@@ -356,7 +357,7 @@ def test_serialize_session_with_dict_error():
         status="idle",
         output=CellOutput(
             channel=CellChannel.MARIMO_ERROR,
-            mimetype="text/plain",
+            mimetype="application/vnd.marimo+error",
             data=[
                 {"type": "unknown", "msg": "Something went wrong"}
             ],  # Dictionary instead of Error object

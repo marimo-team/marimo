@@ -10,7 +10,7 @@ import type {
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 
-import { LanguageServerClient } from "codemirror-languageserver";
+import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type {
   CopilotStatus,
   CopilotSignInInitiateParams,
@@ -79,10 +79,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   override async textDocumentCompletion(
     params: CompletionParams,
   ): Promise<CompletionList | CompletionItem[]> {
-    if (this.isDisabled()) {
-      return [];
-    }
-    return super.textDocumentCompletion(params);
+    // Not used in Copilot
+    return [];
   }
 
   override async textDocumentDidChange(
@@ -102,10 +100,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   override textDocumentHover(params: HoverParams): Promise<Hover> {
-    if (this.isDisabled()) {
-      return Promise.resolve({ contents: [] });
-    }
-    return super.textDocumentHover(params);
+    // Not used in Copilot
+    return Promise.resolve({ contents: [] });
   }
 
   // AUTH

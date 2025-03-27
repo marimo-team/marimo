@@ -6,6 +6,7 @@ import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
 import { type Seconds, Time } from "@/utils/time";
 import { invariant } from "@/utils/invariant";
+import type { RuntimeState } from "../network/types";
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -71,6 +72,7 @@ export function transitionCell(
   nextCell.output = message.output ?? nextCell.output;
   nextCell.staleInputs = message.stale_inputs ?? nextCell.staleInputs;
   nextCell.status = message.status ?? nextCell.status;
+  nextCell.serialization = message.serialization;
 
   let didInterruptFromThisMessage = false;
 
@@ -171,6 +173,13 @@ export function prepareCellForExecution(
 }
 
 /**
+ * A cell's output is loading if it is running or queued.
+ */
+export function outputIsLoading(status: RuntimeState): boolean {
+  return status === "running" || status === "queued";
+}
+
+/**
  * A cell's output is stale if it has been edited, is loading, or has errored.
  */
 export function outputIsStale(
@@ -193,7 +202,7 @@ export function outputIsStale(
   }
 
   // The cell is loading
-  const loading = status === "running" || status === "queued";
+  const loading = outputIsLoading(status);
 
   // Output is received while the cell is running (e.g. mo.output.append())
   const outputReceivedWhileRunning =

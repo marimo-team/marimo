@@ -13,6 +13,7 @@ import {
   indentWithTab,
   indentMore,
 } from "@codemirror/commands";
+import { lintGutter } from "@codemirror/lint";
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -36,7 +37,12 @@ import {
 } from "@codemirror/view";
 
 import { EditorState, type Extension, Prec } from "@codemirror/state";
-import type { CompletionConfig, KeymapConfig } from "../config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  KeymapConfig,
+  LSPConfig,
+} from "../config/config-schema";
 import type { Theme } from "../../theme/useTheme";
 
 import { findReplaceBundle } from "./find-replace/extension";
@@ -72,6 +78,8 @@ export interface CodeMirrorSetupOpts {
   keymapConfig: KeymapConfig;
   theme: Theme;
   hotkeys: HotkeyProvider;
+  lspConfig: LSPConfig;
+  diagnosticsConfig: DiagnosticsConfig;
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
@@ -90,6 +98,8 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     enableAI,
     cellActions,
     completionConfig,
+    lspConfig,
+    diagnosticsConfig,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
 
@@ -100,12 +110,19 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     pasteBundle(),
     jupyterHelpExtension(),
     // Cell editing
-    cellConfigExtension(completionConfig, hotkeys, placeholderType),
+    cellConfigExtension(
+      completionConfig,
+      hotkeys,
+      placeholderType,
+      lspConfig,
+      diagnosticsConfig,
+    ),
     cellBundle(cellId, hotkeys, cellActions),
     // Comes last so that it can be overridden
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
+    getFeatureFlag("lsp") && diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({
@@ -139,7 +156,14 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
-  const { theme, hotkeys, completionConfig, cellId } = opts;
+  const {
+    theme,
+    hotkeys,
+    completionConfig,
+    cellId,
+    lspConfig,
+    diagnosticsConfig,
+  } = opts;
   const placeholderType = getPlaceholderType(opts);
 
   return [
@@ -181,6 +205,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
       completionConfig,
       hotkeys,
       cellId,
+      lspConfig: { ...lspConfig, diagnostics: diagnosticsConfig },
     }),
 
     ///// Editing
