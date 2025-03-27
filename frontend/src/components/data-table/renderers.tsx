@@ -98,6 +98,8 @@ export function renderTableBody<TData>(
                 row.toggleSelected();
               }
             }}
+            // These classes ensure that empty rows (nulls) still render
+            className="border-t h-6"
           >
             {renderCells(row, row.getLeftVisibleCells())}
             {renderCells(row, row.getCenterVisibleCells())}
