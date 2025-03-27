@@ -781,17 +781,15 @@ class table(
         # The frontend will just show the original data
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
+            total_rows = self._manager.get_num_rows(force=True) or 0
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
-                total_rows=self._manager.get_num_rows(force=True) or 0,
+                total_rows=total_rows,
                 # The __init__ will just call this with an arbitrary offset,
                 # we need to check this is not larger than our actual number of rows.
                 cell_styles=self._style_cells(
                     offset,
-                    min(
-                        self._searched_manager.get_num_rows(force=True) or 0,
-                        args.page_size,
-                    ),
+                    min(total_rows, args.page_size),
                 ),
             )
 
