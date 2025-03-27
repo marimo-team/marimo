@@ -228,6 +228,11 @@ class CompositeLspServer(LspServer):
         if server_name == "copilot":
             copilot = config["completion"]["copilot"]
             return copilot is True or copilot == "github"
+
+        # If flag not enabled, return False
+        if not config.get("experimental", {}).get("lsp", False):
+            return False
+
         return cast(
             bool,
             cast(Any, config.get("language_servers", {}))

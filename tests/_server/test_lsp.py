@@ -136,7 +136,11 @@ def test_composite_server():
         return cast(
             MarimoConfigReader,
             MarimoConfigReaderWithOverrides(
-                {"completion": completion_config, "language_servers": config}
+                {
+                    "completion": completion_config,
+                    "language_servers": config,
+                    "experimental": {"lsp": True},
+                },
             ),
         )
 
