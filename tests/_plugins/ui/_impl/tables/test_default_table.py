@@ -760,3 +760,18 @@ class TestDictionaryDefaultTable(unittest.TestCase):
             self.manager.to_json()
             == b'[{"key":"a","value":1},{"key":"b","value":2}]'
         )
+
+
+class TestListDefaultTable(unittest.TestCase):
+    def setUp(self) -> None:
+        self.manager = DefaultTableManager([4, 5, 6])
+
+    def test_select_cells(self) -> None:
+        selected_cells = self.manager.select_cells(
+            [
+                TableCoordinate(row_id=2, column_name="value"),
+            ]
+        )
+        assert selected_cells == [
+            TableCell(row=2, column="value", value=6),
+        ]

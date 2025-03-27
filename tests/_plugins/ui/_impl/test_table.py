@@ -1321,3 +1321,38 @@ def test_dataframe_with_int_column_names():
     # Check that the table handles integer column names correctly
     assert table._manager.get_column_names() == [0, 1, 2]
     assert table._component_args["total-columns"] == 3
+
+
+def test_cell_initial_style():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    table = ui.table([1, 2, 3], style_cell=always_green)
+    assert "cell-styles" in table._args.args
+    cell_styles = table._args.args["cell-styles"]
+    assert len(cell_styles) == 3
+    assert "1" in cell_styles
+    assert "value" in cell_styles["1"]
+    assert "backgroundColor" in cell_styles["1"]["value"]
+    assert "green" == cell_styles["1"]["value"]["backgroundColor"]
+
+
+def test_cell_style_of_next_page():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    data = [
+        {"a": 1, "b": 2},
+        {"a": 3, "b": 4},
+        {"a": 5, "b": 6},
+        {"a": 7, "b": 8},
+    ]
+
+    table = ui.table(data, page_size=2, style_cell=always_green)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_styles = last_page.cell_styles
+    assert len(cell_styles) == 2
+    assert "2" in cell_styles
+    assert "a" in cell_styles["2"]
+    assert "backgroundColor" in cell_styles["2"]["a"]
+    assert "green" in cell_styles["2"]["a"]["backgroundColor"]
