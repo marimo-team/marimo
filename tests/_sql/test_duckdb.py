@@ -189,7 +189,7 @@ def test_get_current_database_schema() -> None:
 
 
 @pytest.mark.skipif(
-    not HAS_DUCKDB and not HAS_POLARS and not HAS_PANDAS,
+    not HAS_DUCKDB or not HAS_POLARS or not HAS_PANDAS,
     reason="duckdb, polars and pandas not installed",
 )
 def test_duckdb_engine_execute_polars_fallback() -> None:
