@@ -196,7 +196,7 @@ def test_duckdb_engine_execute_polars_fallback() -> None:
     import pandas as pd
 
     engine = DuckDBEngine(None)
-    # This query currently fails with polars
+    # This dtype is currently not supported by polars
     result = engine.execute(
         "select to_days(cast((current_date - DATE '2025-01-01') as INTEGER));"
     )
