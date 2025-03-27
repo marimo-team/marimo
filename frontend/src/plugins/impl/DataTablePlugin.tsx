@@ -307,9 +307,9 @@ export const LoadingDataTableComponent = memo(
         sort:
           sorting.length > 0
             ? {
-              by: sorting[0].id,
-              descending: sorting[0].desc,
-            }
+                by: sorting[0].id,
+                descending: sorting[0].desc,
+              }
             : undefined,
         query: searchQuery,
         page_number: paginationState.pageIndex,
