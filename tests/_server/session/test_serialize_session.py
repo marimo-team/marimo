@@ -6,11 +6,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+from marimo import __version__
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.ops import CellOp
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.session.serialize import (
+    SessionCacheKey,
     SessionCacheManager,
     SessionCacheWriter,
     _hash_code,
@@ -408,7 +410,12 @@ class TestSessionCacheManager:
         """Test reading session view without path"""
         view = SessionView()
         manager = SessionCacheManager(view, None, 0.1)
-        assert manager.read_session_view() == view
+        assert (
+            manager.read_session_view(
+                SessionCacheKey(codes=tuple(), marimo_version="-1")
+            )
+            == view
+        )
 
     def test_read_session_view_no_cache(self):
         """Test reading session view with no cache file"""
@@ -416,7 +423,12 @@ class TestSessionCacheManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "notebook.py"
             manager = SessionCacheManager(view, path, 0.1)
-            assert manager.read_session_view() == view
+            assert (
+                manager.read_session_view(
+                    SessionCacheKey(codes=tuple(), marimo_version="-1")
+                )
+                == view
+            )
 
     async def test_read_session_view_with_cache(self):
         """Test reading session view from cache file"""
@@ -444,7 +456,9 @@ class TestSessionCacheManager:
 
             # Read back
             manager = SessionCacheManager(SessionView(), path, 0.1)
-            loaded_view = manager.read_session_view()
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(codes=(None,), marimo_version=__version__)
+            )
             assert "cell1" in loaded_view.cell_operations
             cell = loaded_view.cell_operations["cell1"]
             assert cell.output is not None

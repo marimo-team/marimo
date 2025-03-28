@@ -37,6 +37,7 @@ from marimo._server.model import (
     SessionMode,
 )
 from marimo._server.router import APIRouter
+from marimo._server.session.serialize import SessionCacheKey
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
@@ -651,7 +652,16 @@ class WebsocketHandler(SessionConsumer):
             self.status = ConnectionState.OPEN
             # if auto-instantiate if false, replay the previous session
             if not self.auto_instantiate:
-                new_session.sync_session_view_from_cache()
+                from marimo import __version__
+
+                app = new_session.app_file_manager.app
+                codes = tuple(
+                    cell_data.code
+                    for cell_data in app.cell_manager.cell_data()
+                )
+                new_session.sync_session_view_from_cache(
+                    SessionCacheKey(codes=codes, marimo_version=__version__)
+                )
                 self._replay_previous_session(new_session)
             return new_session
 

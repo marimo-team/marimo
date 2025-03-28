@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo import __version__
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import (
     get_default_config_manager,
@@ -32,6 +33,7 @@ from marimo._runtime.requests import (
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionMode
+from marimo._server.session.serialize import SessionCacheKey
 from marimo._server.session.session_view import SessionView
 from marimo._server.sessions import (
     KernelManager,
@@ -967,6 +969,11 @@ def __():
     )
 
     app_file_manager = AppFileManager(filename=str(notebook_path))
+    codes = tuple(
+        cell_data.code
+        for cell_data in app_file_manager.app.cell_manager.cell_data()
+    )
+    key = SessionCacheKey(codes=codes, marimo_version=__version__)
     session = Session(
         session_id,
         session_consumer,
@@ -978,7 +985,7 @@ def __():
     )
 
     # Test syncing when no cache exists
-    session.sync_session_view_from_cache()
+    session.sync_session_view_from_cache(key=key)
     # Should create a new empty session view since no cache exists
     assert session.session_view is not None
     assert session.session_cache_manager is not None
@@ -1008,7 +1015,7 @@ def __():
         get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
-    session2.sync_session_view_from_cache()
+    session2.sync_session_view_from_cache(key=key)
 
     # Verify the session views match
     assert session2.session_view is not None
@@ -1029,16 +1036,52 @@ def __():
         get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
-    session3.sync_session_view_from_cache()
+    session3.sync_session_view_from_cache(key=key)
     # Should create a new empty session view since no path exists
     assert session3.session_view is not None
     assert session3.session_cache_manager is not None
     assert session3.session_cache_manager.path is None
 
+    # Create a new session with mismatching codes
+    session4 = Session(
+        "test4",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        get_default_config_manager(current_path=None),
+        ttl_seconds=None,
+    )
+    session4.sync_session_view_from_cache(
+        SessionCacheKey(codes=("hello", "world"), marimo_version="__version__")
+    )
+
+    # Verify the session view was not restored
+    assert not session4.session_view.operations
+
+    # Create a new session with mismatching version
+    session5 = Session(
+        "test5",
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        app_file_manager,
+        get_default_config_manager(current_path=None),
+        ttl_seconds=None,
+    )
+    session5.sync_session_view_from_cache(
+        SessionCacheKey(codes=codes, marimo_version="-1")
+    )
+
+    # Verify the session view was not restored
+    assert not session5.session_view.operations
+
     # Cleanup
     session.close()
     session2.close()
     session3.close()
+    session4.close()
+    session5.close()
     if kernel_manager.kernel_task:
         kernel_manager.kernel_task.join()
 
