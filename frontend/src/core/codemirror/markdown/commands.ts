@@ -290,7 +290,9 @@ export async function insertImage(view: EditorView, file: File) {
 
       // A cancelled prompt returns null
       if (promptInput !== null) {
-        let filename = promptInput.trim();
+        let filename = promptInput;
+
+        // If user clicks Ok or presses Enter without typing anything
         if (filename.trim() === "") {
           filename = file.name;
         } else if (!filename.endsWith(`.${extension}`)) {
