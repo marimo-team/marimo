@@ -700,18 +700,26 @@ class Session:
             from_consumer_id=None,
         )
 
-    def sync_session_view_from_cache(self, key: SessionCacheKey) -> None:
+    def sync_session_view_from_cache(self) -> None:
         """Sync the session view from a file.
 
         Overwrites the existing session view.
         Mutates the existing session.
         """
+        from marimo import __version__
+
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(
             session_view=self.session_view,
             path=self.app_file_manager.path,
             interval=self.SESSION_CACHE_INTERVAL_SECONDS,
         )
+
+        app = self.app_file_manager.app
+        codes = tuple(
+            cell_data.code for cell_data in app.cell_manager.cell_data()
+        )
+        key = SessionCacheKey(codes=codes, marimo_version=__version__)
         self.session_view = self.session_cache_manager.read_session_view(key)
         self.session_cache_manager.start()
 
