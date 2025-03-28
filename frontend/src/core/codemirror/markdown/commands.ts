@@ -283,26 +283,24 @@ export async function insertImage(view: EditorView, file: File) {
   try {
     if (dataUrl.startsWith("data:")) {
       const base64 = dataUrl.split(",")[1];
-      const promptInput = prompt(
-        "We can save your image as a file. Enter a custom filename or leave blank to use the original filename.",
+      let inputFilename = prompt(
+        "We can save your image as a file. Enter a filename.",
+        file.name,
       );
       const extension = file.type.split("/")[1];
 
       // A cancelled prompt returns null
-      if (promptInput !== null) {
-        let filename = promptInput;
-
-        // If user clicks Ok or presses Enter without typing anything
-        if (filename.trim() === "") {
-          filename = file.name;
-        } else if (!filename.endsWith(`.${extension}`)) {
-          filename = `${filename}.${extension}`;
+      if (inputFilename !== null) {
+        if (inputFilename.trim() === "") {
+          inputFilename = file.name;
+        } else if (!inputFilename.endsWith(`.${extension}`)) {
+          inputFilename = `${inputFilename}.${extension}`;
         }
 
         const fileCreationResponse = await sendCreateFileOrFolder({
           path: "" as FilePath, // Root path
           type: "file",
-          name: filename,
+          name: inputFilename,
           contents: base64,
         });
 
