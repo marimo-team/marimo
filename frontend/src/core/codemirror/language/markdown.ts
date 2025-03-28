@@ -329,7 +329,7 @@ export const latexSymbolCompletionSource = (
 
 // Common LaTeX symbols with their UTF-8 equivalents
 const getLatexSymbolList = once((): Completion[] => {
-  const symbols: Array<[string, string, string?]> = [
+  const symbols: Array<[string, string, string]> = [
     // Greek letters
     ["alpha", "α", "Greek small letter alpha"],
     ["beta", "β", "Greek small letter beta"],
@@ -445,13 +445,17 @@ const getLatexSymbolList = once((): Completion[] => {
     ["vdots", "⋮", "Vertical ellipsis"],
     ["ddots", "⋱", "Down right diagonal ellipsis"],
   ];
-
   return symbols.map(([command, symbol, description]) => ({
-    label: `\\${command}`,
+    label: `\\${command} ${description}`, // Include the description so it's searchable
     displayLabel: command,
     type: "latex-symbol",
     boost: 10,
     apply: symbol,
-    detail: description || "",
+    info: () => {
+      const div = document.createElement("div");
+      div.textContent = `${symbol} ${description}`;
+      return div;
+    },
+    detail: symbol,
   }));
 });
