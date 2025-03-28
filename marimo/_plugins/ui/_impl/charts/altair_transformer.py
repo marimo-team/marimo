@@ -125,8 +125,8 @@ def _maybe_sanitize_dataframe(data: Any) -> Any:
     ):
         narwhals_data = nw.from_native(data)
         try:
-            res: nw.DataFrame[Any] = alt.utils.sanitize_narwhals_dataframe(  # type: ignore[attr-defined]
-                narwhals_data
+            res: nw.DataFrame[Any] = alt.utils.sanitize_narwhals_dataframe(
+                narwhals_data  # type: ignore[arg-type]
             )
             return res.to_native()  # type: ignore[return-value]
         except Exception as e:
