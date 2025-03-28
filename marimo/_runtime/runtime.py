@@ -2004,7 +2004,7 @@ class Kernel:
         if not DependencyManager.dotenv.has():
             return
 
-        from dotenv import load_dotenv
+        from dotenv import load_dotenv  # type: ignore[import-not-found]
 
         for env in self.user_config["runtime"]["dotenv"]:
             if Path(env).exists():
