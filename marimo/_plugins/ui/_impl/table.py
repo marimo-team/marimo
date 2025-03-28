@@ -36,6 +36,7 @@ from marimo._plugins.ui._impl.tables.selection import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    RowId,
     TableCell,
     TableCoordinate,
     TableManager,
@@ -93,10 +94,14 @@ class SearchTableArgs:
     limit: Optional[int] = None
 
 
+CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
+
+
 @dataclass(frozen=True)
 class SearchTableResponse:
     data: Union[JSONType, str]
     total_rows: int
+    cell_styles: Optional[CellStyles] = None
 
 
 @dataclass(frozen=True)
@@ -189,6 +194,31 @@ class table(
         )
         ```
 
+        Create a table with conditional cell formatting:
+
+        ```python
+        import random
+
+
+        # rowId and columnName are strings.
+        def style_cell(_rowId, _columnName, value):
+            # Apply inline styling to the visible individual cells.
+            return {
+                "backgroundColor": "lightcoral"
+                if value < 4
+                else "cornflowerblue",
+                "color": "white",
+                "fontStyle": "italic",
+            }
+
+
+        table = mo.ui.table(
+            data=[random.randint(0, 10) for x in range(200)],
+            style_cell=style_cell,
+        )
+        table
+        ```
+
         In each case, access the table data with `table.value`.
 
     Attributes:
@@ -226,6 +256,7 @@ class table(
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
+        style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
     """
@@ -277,6 +308,7 @@ class table(
                 None,
             ]
         ] = None,
+        style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
@@ -416,6 +448,8 @@ class table(
             else:
                 pagination = False
 
+        self._style_cell = style_cell
+
         # Search first page
         search_result = self._search(
             SearchTableArgs(
@@ -465,6 +499,7 @@ class table(
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
+                "cell-styles": search_result.cell_styles,
             },
             on_change=on_change,
             functions=(
@@ -553,7 +588,13 @@ class table(
 
         Raises:
             ValueError: If format is not 'csv' or 'json'.
+            NotImplementedError: If download is not supported for cell selection.
         """
+        if self._selection in ["single-cell", "multi-cell"]:
+            raise NotImplementedError(
+                "Download is not supported for cell selection."
+            )
+
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
@@ -561,10 +602,7 @@ class table(
         )
 
         # Remove the selection column before downloading
-        if isinstance(manager, TableManager) and self._selection in [
-            "single",
-            "multi",
-        ]:
+        if isinstance(manager, TableManager):
             manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
             ext = args.format
@@ -576,7 +614,7 @@ class table(
                 raise ValueError("format must be one of 'csv' or 'json'.")
         else:
             raise NotImplementedError(
-                "Download is not supported for cell selection."
+                "Download is not supported for this table format."
             )
 
     def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
@@ -685,6 +723,29 @@ class table(
 
         return result
 
+    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
+        """Calculate the styling of the cells in the table."""
+        if self._style_cell is None:
+            return None
+        else:
+
+            def do_style_cell(row: str, col: str) -> dict[str, Any]:
+                selected_cells = self._searched_manager.select_cells(
+                    [TableCoordinate(row_id=row, column_name=col)]
+                )
+                if len(selected_cells) == 0 or self._style_cell is None:
+                    return dict()
+                else:
+                    return self._style_cell(row, col, selected_cells[0].value)
+
+            columns = self._searched_manager.get_column_names()
+            return {
+                str(row): {
+                    col: do_style_cell(str(row), col) for col in columns
+                }
+                for row in range(skip, skip + take)
+            }
+
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
@@ -704,6 +765,7 @@ class table(
             SearchTableResponse: Response containing:
                 - data: Filtered and formatted table data for the requested page
                 - total_rows: Total number of rows after applying filters
+                - cell_styles: User defined styling information for each cell in the page
         """
         offset = args.page_number * args.page_size
 
@@ -722,9 +784,16 @@ class table(
         # The frontend will just show the original data
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
+            total_rows = self._manager.get_num_rows(force=True) or 0
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
-                total_rows=self._manager.get_num_rows(force=True) or 0,
+                total_rows=total_rows,
+                # The __init__ will just call this with an arbitrary offset,
+                # we need to check this is not larger than our actual number of rows.
+                cell_styles=self._style_cells(
+                    offset,
+                    min(total_rows, args.page_size),
+                ),
             )
 
         # Apply filters, query, and functools.sort using the cached method
@@ -740,6 +809,7 @@ class table(
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=result.get_num_rows(force=True) or 0,
+            cell_styles=self._style_cells(offset, args.page_size),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

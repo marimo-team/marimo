@@ -52,11 +52,23 @@ class DuckDBEngine(SQLEngine):
             return None
 
         if DependencyManager.polars.has():
-            return relation.pl()
-        elif DependencyManager.pandas.has():
-            return relation.df()
-        else:
-            raise_df_import_error("polars[pyarrow]")
+            import polars as pl
+
+            try:
+                return relation.pl()
+            except (pl.exceptions.PanicException, pl.exceptions.ComputeError):
+                LOGGER.info(
+                    "Failed to convert to polars, falling back to pandas"
+                )
+
+        if DependencyManager.pandas.has():
+            try:
+                return relation.df()
+            except Exception as e:
+                LOGGER.warning("Failed to convert dataframe", exc_info=e)
+                return None
+
+        raise_df_import_error("polars[pyarrow]")
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

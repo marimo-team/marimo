@@ -118,6 +118,9 @@ class TestOpenAiEndpoints:
                 "messages"
             ][1]["content"]
             assert prompt == ("Help me create a dataframe")
+            # Assert the model it was called with
+            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
+            assert model == "some-openai-model"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -218,6 +221,9 @@ class TestOpenAiEndpoints:
             # Assert the base_url it was called with
             base_url = openai_mock.call_args.kwargs["base_url"]
             assert base_url == "https://my-openai-instance.com"
+            # Assert the model it was called with
+            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
+            assert model == "some-openai-model-with-base-url"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -255,6 +261,9 @@ class TestOpenAiEndpoints:
                 "messages"
             ][0]["content"]
             assert "python" in system_prompt
+            # Assert the model it was called with
+            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
+            assert model == "gpt-marimo-for-inline-completion"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -276,7 +285,9 @@ class TestOpenAiEndpoints:
                 },
             )
         assert response.status_code == 400, response.text
-        assert response.json() == {"detail": "OpenAI API key not configured"}
+        assert response.json() == {
+            "detail": "AI completion API key not configured"
+        }
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -309,6 +320,9 @@ class TestOpenAiEndpoints:
                 "messages"
             ][0]["content"]
             assert "sql" in system_prompt
+            # Assert model
+            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
+            assert model == "gpt-marimo-for-inline-completion"
 
 
 @pytest.mark.skipif(
@@ -372,6 +386,9 @@ class TestAnthropicAiEndpoints:
             assert prompt == (
                 "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
             )
+            # Assert the model it was called with
+            model = anthropic_client.messages.create.call_args.kwargs["model"]
+            assert model == "claude-3.5"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -404,6 +421,9 @@ class TestAnthropicAiEndpoints:
                 "messages"
             ][0]["content"]
             assert prompt == "import pandas as pd\n<FILL_ME>\ndf.head()"
+            # Assert the model it was called with
+            model = anthropic_client.messages.create.call_args.kwargs["model"]
+            assert model == "claude-3.5-for-inline-completion"
 
 
 @pytest.mark.skipif(
@@ -509,7 +529,18 @@ def openai_config(config: UserConfigManager):
     prev_config = config.get_config()
     try:
         config.save_config(
-            {"ai": {"open_ai": {"api_key": "fake-api", "model": ""}}}
+            {
+                "ai": {
+                    "open_ai": {
+                        "api_key": "fake-api",
+                        "model": "some-openai-model",
+                    }
+                },
+                "completion": {
+                    "model": "gpt-marimo-for-inline-completion",
+                    "api_key": "fake-api",
+                },
+            }
         )
         yield
     finally:
@@ -527,7 +558,11 @@ def openai_config_custom_model(config: UserConfigManager):
                         "api_key": "fake-api",
                         "model": "gpt-marimo",
                     }
-                }
+                },
+                "completion": {
+                    "model": "gpt-marimo-for-inline-completion",
+                    "api_key": "fake-api",
+                },
             }
         )
         yield
@@ -545,9 +580,14 @@ def openai_config_custom_base_url(config: UserConfigManager):
                     "open_ai": {
                         "api_key": "fake-api",
                         "base_url": "https://my-openai-instance.com",
-                        "model": "",
+                        "model": "some-openai-model-with-base-url",
                     }
-                }
+                },
+                "completion": {
+                    "model": "gpt-marimo-for-inline-completion",
+                    "api_key": "fake-api",
+                    "base_url": "https://my-openai-instance.com",
+                },
             }
         )
         yield
@@ -559,7 +599,15 @@ def openai_config_custom_base_url(config: UserConfigManager):
 def no_openai_config(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"ai": {"open_ai": {"api_key": "", "model": ""}}})
+        config.save_config(
+            {
+                "ai": {"open_ai": {"api_key": "", "model": ""}},
+                "completion": {
+                    "model": "gpt-marimo-for-inline-completion",
+                    "api_key": "",
+                },
+            }
+        )
         yield
     finally:
         config.save_config(prev_config)
@@ -574,7 +622,11 @@ def no_anthropic_config(config: UserConfigManager):
                 "ai": {
                     "open_ai": {"model": "claude-3.5"},
                     "anthropic": {"api_key": ""},
-                }
+                },
+                "completion": {
+                    "model": "claude-3.5-for-inline-completion",
+                    "api_key": "",
+                },
             }
         )
         yield
@@ -593,7 +645,7 @@ def anthropic_config(config: UserConfigManager):
                     "anthropic": {"api_key": "fake-key"},
                 },
                 "completion": {
-                    "model": "claude-3.5",
+                    "model": "claude-3.5-for-inline-completion",
                     "api_key": "fake-key",
                 },
             }
@@ -614,7 +666,7 @@ def google_ai_config(config: UserConfigManager):
                     "google": {"api_key": "fake-key"},
                 },
                 "completion": {
-                    "model": "gemini-1.5-pro",
+                    "model": "gemini-1.5-pro-for-inline-completion",
                     "api_key": "fake-key",
                 },
             }

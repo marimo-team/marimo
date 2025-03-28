@@ -3,7 +3,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Generator
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, cast
+from dataclasses import dataclass
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Optional,
+    TypeVar,
+    cast,
+)
 
 from starlette.exceptions import HTTPException
 
@@ -14,7 +22,7 @@ from marimo._ai._convert import (
     convert_to_openai_messages,
 )
 from marimo._ai._types import ChatMessage
-from marimo._config.config import AiConfig, MarimoConfig
+from marimo._config.config import AiConfig, CompletionConfig, MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.status import HTTPStatus
 
@@ -50,10 +58,95 @@ DEFAULT_MAX_TOKENS = 4096
 DEFAULT_MODEL = "gpt-4o-mini"
 
 
+@dataclass
+class AnyProviderConfig:
+    base_url: Optional[str]
+    api_key: str
+    ssl_verify: Optional[bool] = None
+    ca_bundle_path: Optional[str] = None
+    client_pem: Optional[str] = None
+
+    @staticmethod
+    def for_openai(config: AiConfig) -> AnyProviderConfig:
+        if "open_ai" not in config:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="OpenAI config not found",
+            )
+        key = _get_key(config["open_ai"], "OpenAI")
+        return AnyProviderConfig(
+            base_url=_get_base_url(config["open_ai"]),
+            api_key=key,
+            ssl_verify=config["open_ai"].get("ssl_verify", True),
+            ca_bundle_path=config["open_ai"].get("ca_bundle_path", None),
+            client_pem=config["open_ai"].get("client_pem", None),
+        )
+
+    @staticmethod
+    def for_anthropic(config: AiConfig) -> AnyProviderConfig:
+        if "anthropic" not in config:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Anthropic config not found",
+            )
+        key = _get_key(config["anthropic"], "Anthropic")
+        return AnyProviderConfig(
+            base_url=_get_base_url(config["anthropic"]),
+            api_key=key,
+        )
+
+    @staticmethod
+    def for_google(config: AiConfig) -> AnyProviderConfig:
+        if "google" not in config:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Google config not found",
+            )
+        key = _get_key(config["google"], "Google AI")
+        return AnyProviderConfig(
+            base_url=_get_base_url(config["google"]),
+            api_key=key,
+        )
+
+    @staticmethod
+    def for_completion(config: CompletionConfig) -> AnyProviderConfig:
+        key = _get_key(config, "AI completion")
+        return AnyProviderConfig(
+            base_url=_get_base_url(config),
+            api_key=key,
+        )
+
+    @staticmethod
+    def for_model(model: str, config: AiConfig) -> AnyProviderConfig:
+        if model.startswith("claude"):
+            return AnyProviderConfig.for_anthropic(config)
+        elif model.startswith("google") or model.startswith("gemini"):
+            return AnyProviderConfig.for_google(config)
+        else:
+            return AnyProviderConfig.for_openai(config)
+
+
+def _get_key(config: Any, name: str) -> str:
+    if "api_key" in config:
+        key = config["api_key"]
+        if key:
+            return cast(str, key)
+    raise HTTPException(
+        status_code=HTTPStatus.BAD_REQUEST,
+        detail=f"{name} API key not configured",
+    )
+
+
+def _get_base_url(config: Any) -> Optional[str]:
+    if "base_url" in config:
+        return cast(str, config["base_url"])
+    return None
+
+
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
     """Base class for AI completion providers."""
 
-    def __init__(self, model: str, config: AiConfig):
+    def __init__(self, model: str, config: AnyProviderConfig):
         self.model = model
         self.config = config
 
@@ -156,7 +249,7 @@ class OpenAIProvider(
         "ChatCompletionChunk", "OpenAiStream[ChatCompletionChunk]"
     ]
 ):
-    def get_client(self, config: AiConfig) -> OpenAI:
+    def get_client(self, config: AnyProviderConfig) -> OpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
         import ssl
@@ -169,32 +262,13 @@ class OpenAIProvider(
         import httpx
         from openai import AzureOpenAI, OpenAI
 
-        if "open_ai" not in config or "api_key" not in config["open_ai"]:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="OpenAI API key not configured",
-            )
-
-        key: str = config["open_ai"]["api_key"]
-        if not key:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="OpenAI API key not configured",
-            )
-
-        base_url: Optional[str] = config["open_ai"].get("base_url", None)
-        if not base_url:
-            base_url = None
-
-        # Extract open_ai config once to avoid multiple dictionary lookups
-        open_ai_config = config["open_ai"]
+        base_url = config.base_url
+        key = config.api_key
 
         # Add SSL parameters/values
-        ssl_verify: bool = open_ai_config.get(
-            "ssl_verify", True
-        )  # Default to True to match httpx behavior
-        ca_bundle_path: Optional[str] = open_ai_config.get("ca_bundle_path")
-        client_pem: Optional[str] = open_ai_config.get("client_pem")
+        ssl_verify: bool = config.ssl_verify or True
+        ca_bundle_path: Optional[str] = config.ca_bundle_path
+        client_pem: Optional[str] = config.client_pem
 
         # Check if ca_bundle_path and client_pem are valid files
         if ca_bundle_path:
@@ -302,26 +376,13 @@ class AnthropicProvider(
         "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
     ]
 ):
-    def get_client(self, config: AiConfig) -> Client:
+    def get_client(self, config: AnyProviderConfig) -> Client:
         DependencyManager.anthropic.require(
             why="for AI assistance with Anthropic"
         )
         from anthropic import Client
 
-        if "anthropic" not in config or "api_key" not in config["anthropic"]:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Anthropic API key not configured",
-            )
-
-        key: str = config["anthropic"]["api_key"]
-        if not key:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Anthropic API key not configured",
-            )
-
-        return Client(api_key=key)
+        return Client(api_key=config.api_key)
 
     def stream_completion(
         self,
@@ -359,7 +420,7 @@ class GoogleProvider(
     CompletionProvider["GenerateContentResponse", "GenerateContentResponse"]
 ):
     def get_client(
-        self, config: AiConfig, model: str, system_prompt: str
+        self, config: AnyProviderConfig, model: str, system_prompt: str
     ) -> GenerativeModel:
         try:
             import google.generativeai as genai
@@ -369,20 +430,7 @@ class GoogleProvider(
             )
             import google.generativeai as genai  # type: ignore
 
-        if "google" not in config or "api_key" not in config["google"]:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Google AI API key not configured",
-            )
-
-        key: str = config["google"]["api_key"]
-        if not key:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Google AI API key not configured",
-            )
-
-        genai.configure(api_key=key)
+        genai.configure(api_key=config.api_key)
         return genai.GenerativeModel(
             model_name=model,
             system_instruction=system_prompt,
@@ -414,10 +462,8 @@ class GoogleProvider(
 
 
 def get_completion_provider(
-    config: AiConfig, model_override: Optional[str] = None
+    config: AnyProviderConfig, model: str
 ) -> CompletionProvider[Any, Any]:
-    model = model_override or get_model(config)
-
     if model.startswith("claude"):
         return AnthropicProvider(model, config)
     elif model.startswith("google") or model.startswith("gemini"):

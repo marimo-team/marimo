@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 import click
 
@@ -22,6 +22,8 @@ from marimo._utils.scripts import read_pyproject_from_script
 from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
+
+DepFeatures = Literal["lsp", "recommended"]
 
 
 class PyProjectReader:
@@ -218,13 +220,26 @@ def _is_versioned(dependency: str) -> bool:
 
 
 def _normalize_sandbox_dependencies(
-    dependencies: list[str], marimo_version: str
+    dependencies: list[str],
+    marimo_version: str,
+    additional_features: list[DepFeatures],
 ) -> list[str]:
     """Normalize marimo dependencies to have only one version.
 
     If multiple marimo dependencies exist, prefer the one with brackets.
     Add version to the remaining one if not already versioned.
     """
+
+    def include_features(dep: str, features: list[DepFeatures]) -> str:
+        if not features:
+            return dep
+
+        # If already bracketed, add the features to the existing bracket
+        if "[" in dep:
+            return dep.replace("marimo[", f"marimo[{','.join(features)},")
+
+        return dep.replace("marimo", f"marimo[{','.join(features)}]")
+
     # Find all marimo dependencies
     marimo_deps = [d for d in dependencies if _is_marimo_dependency(d)]
     if not marimo_deps:
@@ -232,7 +247,9 @@ def _normalize_sandbox_dependencies(
             LOGGER.info("Using editable of marimo for sandbox")
             return dependencies + [f"-e {get_marimo_dir()}"]
 
-        return dependencies + [f"marimo=={marimo_version}"]
+        return dependencies + [
+            include_features(f"marimo=={marimo_version}", additional_features)
+        ]
 
     # Prefer the one with brackets if it exists
     bracketed = next((d for d in marimo_deps if "[" in d), None)
@@ -249,14 +266,18 @@ def _normalize_sandbox_dependencies(
     if not _is_versioned(chosen):
         chosen = f"{chosen}=={marimo_version}"
 
-    return filtered + [chosen]
+    return filtered + [include_features(chosen, additional_features)]
 
 
 def get_marimo_dir() -> Path:
     return Path(__file__).parent.parent.parent
 
 
-def construct_uv_command(args: list[str], name: str | None) -> list[str]:
+def construct_uv_command(
+    args: list[str],
+    name: str | None,
+    additional_features: list[DepFeatures],
+) -> list[str]:
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
@@ -277,7 +298,9 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
     uv_needs_refresh = not dependencies
 
     # Normalize marimo dependencies
-    dependencies = _normalize_sandbox_dependencies(dependencies, __version__)
+    dependencies = _normalize_sandbox_dependencies(
+        dependencies, __version__, additional_features
+    )
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"
@@ -335,10 +358,11 @@ def construct_uv_command(args: list[str], name: str | None) -> list[str]:
 def run_in_sandbox(
     args: list[str],
     name: Optional[str] = None,
+    additional_features: Optional[list[DepFeatures]] = None,
 ) -> int:
     if not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
-    uv_cmd = construct_uv_command(args, name)
+    uv_cmd = construct_uv_command(args, name, additional_features or [])
 
     echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
 

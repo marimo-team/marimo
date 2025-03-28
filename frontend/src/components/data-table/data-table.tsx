@@ -34,6 +34,8 @@ import { INDEX_COLUMN_NAME } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { CellStylingFeature } from "./cell-styling/feature";
+import type { CellStyleState } from "./cell-styling/types";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -55,6 +57,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   cellSelection?: CellSelectionState;
+  cellStyling?: CellStyleState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -84,6 +87,7 @@ const DataTableInternal = <TData,>({
   setSorting,
   rowSelection,
   cellSelection,
+  cellStyling,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -115,6 +119,7 @@ const DataTableInternal = <TData,>({
       ColumnWrappingFeature,
       ColumnFormattingFeature,
       CellSelectionFeature,
+      CellStylingFeature,
     ],
     data,
     columns,
@@ -172,6 +177,7 @@ const DataTableInternal = <TData,>({
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection,
       cellSelection,
+      cellStyling,
       columnPinning: columnPinning,
     },
     onColumnPinningChange: setColumnPinning,

@@ -21,8 +21,10 @@ them but just render their children in a certain way.
 | [`marimo.plain`][marimo.plain] | Display content without styling |
 | [`marimo.right`][marimo.right] | Right-align content |
 | [`marimo.routes`][marimo.routes] | Create page routing |
+| [`marimo.stat`][marimo.stat] | Display statistics |
 | [`marimo.sidebar`][marimo.sidebar] | Create sidebars |
 | [`marimo.tree`][marimo.tree] | Create tree structures |
+| [`marimo.json`][marimo.json] | Create JSON structures |
 | [`marimo.vstack`][marimo.vstack] | Stack elements vertically |
 
 ## Stateful

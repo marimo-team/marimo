@@ -14,6 +14,10 @@ interface Data {
    * The JSON data to display
    */
   jsonData?: unknown;
+  /**
+   * The format of the JSON data. Can be 'auto', 'json', or 'yaml'.
+   */
+  valueTypes?: "json" | "python";
 }
 
 export class JsonOutputPlugin implements IStatelessPlugin<Data> {
@@ -22,6 +26,7 @@ export class JsonOutputPlugin implements IStatelessPlugin<Data> {
   validator = z.object({
     name: z.string().nullish(),
     jsonData: z.unknown(),
+    valueTypes: z.enum(["json", "python"]).default("python"),
   });
 
   render({ data, host }: IStatelessPluginProps<Data>): JSX.Element {
@@ -29,7 +34,12 @@ export class JsonOutputPlugin implements IStatelessPlugin<Data> {
     const name = data.name === undefined ? false : data.name || "";
     return (
       <EmotionCacheProvider container={host.shadowRoot}>
-        <JsonOutput data={data.jsonData} format="auto" name={name} />
+        <JsonOutput
+          data={data.jsonData}
+          format="auto"
+          valueTypes={data.valueTypes}
+          name={name}
+        />
       </EmotionCacheProvider>
     );
   }

@@ -383,7 +383,8 @@ def edit(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        # TODO: consider adding recommended as well
+        run_in_sandbox(sys.argv[1:], name, additional_features=["lsp"])
         return
 
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
@@ -514,7 +515,8 @@ def new(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], None)
+        # TODO: consider adding recommended as well
+        run_in_sandbox(sys.argv[1:], None, additional_features=["lsp"])
         return
 
     start(

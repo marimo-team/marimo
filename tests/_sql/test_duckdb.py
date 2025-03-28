@@ -14,6 +14,7 @@ from marimo._sql.sql import sql
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_PANDAS = DependencyManager.pandas.has()
+HAS_POLARS = DependencyManager.polars.has()
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -185,3 +186,18 @@ def test_get_current_database_schema() -> None:
 
     sql("DROP TABLE test_schema.test_table;", engine=engine)
     sql("DROP SCHEMA test_schema;", engine=engine)
+
+
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS or not HAS_PANDAS,
+    reason="duckdb, polars and pandas not installed",
+)
+def test_duckdb_engine_execute_polars_fallback() -> None:
+    import pandas as pd
+
+    engine = DuckDBEngine(None)
+    # This dtype is currently not supported by polars
+    result = engine.execute(
+        "select to_days(cast((current_date - DATE '2025-01-01') as INTEGER));"
+    )
+    assert isinstance(result, pd.DataFrame)

@@ -96,6 +96,7 @@ nav:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
           - AI completion: guides/editor_features/ai_completion.md
+          - Language Server: guides/editor_features/language_server.md
           - Package management: guides/editor_features/package_management.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
           - Hotkeys: guides/editor_features/hotkeys.md
@@ -189,11 +190,13 @@ nav:
           - Accordion: api/layouts/accordion.md
           - Callout: api/layouts/callout.md
           - Carousel: api/layouts/carousel.md
+          - Json: api/layouts/json.md
           - Justify: api/layouts/justify.md
           - Lazy: api/layouts/lazy.md
           - Plain: api/layouts/plain.md
           - Routes: api/layouts/routes.md
           - Sidebar: api/layouts/sidebar.md
+          - Stat: api/layouts/stat.md
           - Stacks: api/layouts/stacks.md
           - Tree: api/layouts/tree.md
       - Plotting: api/plotting.md

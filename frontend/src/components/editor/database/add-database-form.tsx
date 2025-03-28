@@ -13,6 +13,8 @@ import {
   SnowflakeConnectionSchema,
   BigQueryConnectionSchema,
   type DatabaseConnection,
+  ClickhouseConnectionSchema,
+  ChdbConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -32,8 +34,6 @@ import {
 } from "./as-code";
 import { FormErrorsBanner } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
-import { atomWithStorage } from "jotai/utils";
-import { useAtom, useAtomValue } from "jotai";
 import {
   Select,
   SelectContent,
@@ -43,60 +43,101 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const KEY = "marimo:preferred-connection";
-
-const preferredConnectionAtom = atomWithStorage<ConnectionLibrary>(
-  KEY,
-  // default to sqlalchemy because it has fewer dependencies
-  "sqlalchemy",
-);
-
 interface Props {
-  onSubmit: (data: DatabaseConnection) => void;
+  onSubmit: () => void;
 }
 
+// default to sqlalchemy because it has fewer dependencies
 const SCHEMAS = [
   {
     name: "PostgreSQL",
     schema: PostgresConnectionSchema,
     color: "#336791",
     logo: "postgres",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
+    },
   },
   {
     name: "MySQL",
     schema: MySQLConnectionSchema,
     color: "#00758F",
     logo: "mysql",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
+    },
   },
   {
     name: "SQLite",
     schema: SQLiteConnectionSchema,
     color: "#003B57",
     logo: "sqlite",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
+    },
   },
   {
     name: "DuckDB",
     schema: DuckDBConnectionSchema,
     color: "#FFD700",
     logo: "duckdb",
+    connectionLibraries: {
+      libraries: ["duckdb"],
+      preferred: "duckdb",
+    },
   },
   {
     name: "Snowflake",
     schema: SnowflakeConnectionSchema,
     color: "#29B5E8",
     logo: "snowflake",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
+    },
+  },
+  {
+    name: "ClickHouse",
+    schema: ClickhouseConnectionSchema,
+    color: "#2C2C1D",
+    logo: "clickhouse",
+    connectionLibraries: {
+      libraries: ["clickhouse_connect"],
+      preferred: "clickhouse_connect",
+    },
   },
   {
     name: "BigQuery",
     schema: BigQueryConnectionSchema,
     color: "#4285F4",
     logo: "bigquery",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
+    },
+  },
+  {
+    name: "ClickHouse Embedded",
+    schema: ChdbConnectionSchema,
+    color: "#f2b611",
+    logo: "clickhouse",
+    connectionLibraries: {
+      libraries: ["chdb"],
+      preferred: "chdb",
+    },
   },
 ] satisfies Array<{
   name: string;
   schema: z.ZodType;
   color: string;
   logo: DBLogoName;
+  connectionLibraries: {
+    libraries: ConnectionLibrary[];
+    preferred: ConnectionLibrary;
+  };
 }>;
 
 const DatabaseSchemaSelector: React.FC<{
@@ -125,7 +166,7 @@ const DatabaseSchemaSelector: React.FC<{
 
 const DatabaseForm: React.FC<{
   schema: z.ZodType;
-  onSubmit: (data: DatabaseConnection) => void;
+  onSubmit: () => void;
   onBack: () => void;
 }> = ({ schema, onSubmit, onBack }) => {
   const form = useForm<DatabaseConnection>({
@@ -133,12 +174,33 @@ const DatabaseForm: React.FC<{
     resolver: zodResolver(schema),
     reValidateMode: "onChange",
   });
-  const [preferredConnection, setPreferredConnection] = useAtom(
-    preferredConnectionAtom,
-  );
+
+  const connectionLibraries = SCHEMAS.find(
+    (s) => s.schema === schema,
+  )?.connectionLibraries;
+  const [preferredConnection, setPreferredConnection] =
+    useState<ConnectionLibrary>(connectionLibraries?.preferred ?? "sqlalchemy");
+
+  const { createNewCell } = useCellActions();
+  const lastFocusedCellId = useLastFocusedCellId();
+
+  const handleInsertCode = (code: string) => {
+    createNewCell({
+      code,
+      before: false,
+      cellId: lastFocusedCellId ?? "__end__",
+      skipIfCodeExists: true,
+      autoFocus: true,
+    });
+  };
+
+  const handleSubmit = (values: DatabaseConnection) => {
+    handleInsertCode(generateDatabaseCode(values, preferredConnection));
+    onSubmit();
+  };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
       <ZodForm schema={schema} form={form} renderers={undefined}>
         <FormErrorsBanner />
       </ZodForm>
@@ -168,9 +230,9 @@ const DatabaseForm: React.FC<{
             </div>
             <SelectContent>
               <SelectGroup>
-                {Object.entries(ConnectionDisplayNames).map(([key, value]) => (
-                  <SelectItem key={key} value={key}>
-                    {value}
+                {connectionLibraries?.libraries.map((library) => (
+                  <SelectItem key={library} value={library}>
+                    {ConnectionDisplayNames[library]}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -214,25 +276,6 @@ export const AddDatabaseDialog: React.FC<{
 export const AddDatabaseDialogContent: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const { createNewCell } = useCellActions();
-  const lastFocusedCellId = useLastFocusedCellId();
-  const preferredConnection = useAtomValue(preferredConnectionAtom);
-
-  const handleInsertCode = (code: string) => {
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-      skipIfCodeExists: true,
-      autoFocus: true,
-    });
-  };
-
-  const onSubmit = (values: DatabaseConnection) => {
-    handleInsertCode(generateDatabaseCode(values, preferredConnection));
-    onClose();
-  };
-
   return (
     <DialogContent>
       <DialogHeader className="mb-4">
@@ -250,11 +293,7 @@ export const AddDatabaseDialogContent: React.FC<{
           </a>
         </DialogDescription>
       </DialogHeader>
-      <AddDatabaseForm
-        onSubmit={(values) => {
-          onSubmit(values);
-        }}
-      />
+      <AddDatabaseForm onSubmit={() => onClose()} />
     </DialogContent>
   );
 };

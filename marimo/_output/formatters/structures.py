@@ -13,7 +13,9 @@ from marimo._plugins.stateless import plain_text
 from marimo._utils.flatten import CyclicStructureError, flatten
 
 
-def _leaf_formatter(value: object) -> bool | None | str | int:
+def _leaf_formatter(
+    value: object,
+) -> bool | None | str | int:
     formatter = formatting.get_formatter(value)
     if formatter is not None:
         return ":".join(formatter(value))

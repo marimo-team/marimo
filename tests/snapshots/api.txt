@@ -35,6 +35,7 @@ image
 islands
   MarimoIslandGenerator
   MarimoIslandStub
+json
 latex
 lazy
 left
