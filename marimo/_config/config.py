@@ -123,6 +123,9 @@ class RuntimeConfig(TypedDict):
         Directories will be added to the head of sys.path. Similar to the
         `PYTHONPATH` environment variable, the directories will be included in
         where Python will look for imported modules.
+    - `dotenv`: a list of paths to `.env` files to load.
+        If the file does not exist, it will be silently ignored.
+        The default is `[".env"]`.
     """
 
     auto_instantiate: bool

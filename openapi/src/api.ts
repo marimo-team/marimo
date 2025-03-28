@@ -2839,6 +2839,7 @@ export interface components {
         auto_instantiate: boolean;
         /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
+        dotenv: string[];
         /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;

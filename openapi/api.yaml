@@ -1473,6 +1473,10 @@ components:
               - lazy
               - autorun
               type: string
+            dotenv:
+              items:
+                type: string
+              type: array
             on_cell_change:
               enum:
               - lazy
@@ -1499,6 +1503,7 @@ components:
           - output_max_bytes
           - std_stream_max_bytes
           - pythonpath
+          - dotenv
           type: object
         save:
           properties:
@@ -2402,7 +2407,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.26
+  version: 0.11.29
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

@@ -2001,16 +2001,19 @@ class Kernel:
                 CellOp.broadcast_stale(cell_id=cid, stale=True)
 
     def load_dotenv(self) -> None:
-        try:
-            from dotenv import load_dotenv
+        if not DependencyManager.dotenv.has():
+            return
 
-            for env in self.user_config["runtime"]["dotenv"]:
-                if Path(env).exists():
+        from dotenv import load_dotenv
+
+        for env in self.user_config["runtime"]["dotenv"]:
+            if Path(env).exists():
+                try:
                     load_dotenv(env)
-        except ImportError:
-            pass
-        except Exception:
-            LOGGER.error("Failed to load .env file")
+                except Exception as e:
+                    LOGGER.error(
+                        "Failed to load dotenv file %s", env, exc_info=e
+                    )
 
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
