@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { toast } from "@/components/ui/use-toast";
+import { sendCreateFileOrFolder } from "@/core/network/requests";
+import type { FilePath } from "@/utils/paths";
 import {
   EditorSelection,
   type SelectionRange,
@@ -274,11 +277,61 @@ export async function insertImage(view: EditorView, file: File) {
     reader.readAsDataURL(file);
   });
 
+  let savedFilePath: string | undefined;
+
+  // If the file is base64 encoded, we can save it locally to prevent large file strings
+  try {
+    if (dataUrl.startsWith("data:")) {
+      const base64 = dataUrl.split(",")[1];
+      let inputFilename = prompt(
+        "We can save your image as a file. Enter a filename.",
+        file.name,
+      );
+      const extension = file.type.split("/")[1];
+
+      // A cancelled prompt returns null
+      if (inputFilename !== null) {
+        if (inputFilename.trim() === "") {
+          inputFilename = file.name;
+        } else if (!inputFilename.endsWith(`.${extension}`)) {
+          inputFilename = `${inputFilename}.${extension}`;
+        }
+
+        const fileCreationResponse = await sendCreateFileOrFolder({
+          path: "" as FilePath, // Root path
+          type: "file",
+          name: inputFilename,
+          contents: base64,
+        });
+
+        if (fileCreationResponse.success) {
+          savedFilePath = fileCreationResponse.info?.path;
+          toast({
+            title: "Image uploaded successfully",
+            description: `We've uploaded your image as ${savedFilePath}`,
+          });
+        } else {
+          toast({
+            title: "Failed to upload image. Using raw base64 string.",
+          });
+        }
+      }
+    }
+  } catch {
+    toast({
+      title: "Failed to upload image. Using raw base64 string.",
+    });
+  }
+
   const changes = view.state.changeByRange((range) => {
     const text = view.state.sliceDoc(range.from, range.to);
     return {
       changes: [
-        { from: range.from, to: range.to, insert: `![${text}](${dataUrl})` },
+        {
+          from: range.from,
+          to: range.to,
+          insert: `![${text}](${savedFilePath ?? dataUrl})`,
+        },
       ],
       range,
     };

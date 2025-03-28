@@ -4,15 +4,16 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable
 
-from marimo._ast.cell import CellImpl
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
+from marimo._runtime import dataflow
 from marimo._runtime.app.common import RunOutput
 from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
     teardown_context,
 )
+from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
     MarimoRuntimeException,
@@ -28,8 +29,6 @@ from marimo._runtime.patches import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from marimo._ast.app import InternalApp
 
 
@@ -39,6 +38,87 @@ class AppScriptRunner:
     def __init__(self, app: InternalApp, filename: str | None) -> None:
         self.app = app
         self.filename = filename
+        self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        self.cells_to_run = [
+            cid
+            for cid in self.app.execution_order
+            if app.cell_manager.cell_data_at(cid).cell is not None
+            and not self.app.graph.is_disabled(cid)
+        ]
+
+    def _cancel(self, cell_id: CellId_t) -> None:
+        self.cells_cancelled[cell_id] = set(
+            cid
+            for cid in dataflow.transitive_closure(
+                self.app.graph, set([cell_id])
+            )
+            if cid in self.cells_to_run
+        )
+        for cid in self.cells_cancelled[cell_id]:
+            self.app.graph.cells[cid].set_run_result_status("cancelled")
+
+    def _run_synchronous(
+        self,
+        post_execute_hooks: list[Callable[[], Any]],
+    ) -> RunOutput:
+        with patch_main_module_context(
+            create_main_module(
+                file=self.filename, input_override=None, print_override=None
+            )
+        ) as module:
+            glbls = module.__dict__
+            outputs: dict[CellId_t, Any] = {}
+            while self.cells_to_run:
+                cid = self.cells_to_run.pop(0)
+                cell = self.app.graph.cells[cid]
+                with get_context().with_cell_id(cid):
+                    try:
+                        output = execute_cell(cell, glbls, self.app.graph)
+                        outputs[cid] = output
+                    except MarimoRuntimeException as e:
+                        unwrapped_exception: BaseException | None = e.__cause__
+
+                        if isinstance(unwrapped_exception, MarimoStopError):
+                            self._cancel(cid)
+                        else:
+                            raise e
+                    finally:
+                        for hook in post_execute_hooks:
+                            hook()
+        return outputs, glbls
+
+    async def _run_asynchronous(
+        self,
+        post_execute_hooks: list[Callable[[], Any]],
+    ) -> RunOutput:
+        with patch_main_module_context(
+            create_main_module(
+                file=self.filename, input_override=None, print_override=None
+            )
+        ) as module:
+            glbls = module.__dict__
+            outputs: dict[CellId_t, Any] = {}
+
+            while self.cells_to_run:
+                cid = self.cells_to_run.pop(0)
+                cell = self.app.graph.cells[cid]
+                with get_context().with_cell_id(cid):
+                    try:
+                        output = await execute_cell_async(
+                            cell, glbls, self.app.graph
+                        )
+                        outputs[cid] = output
+                    except MarimoRuntimeException as e:
+                        unwrapped_exception: BaseException | None = e.__cause__
+
+                        if isinstance(unwrapped_exception, MarimoStopError):
+                            self._cancel(cid)
+                        else:
+                            raise e
+                    finally:
+                        for hook in post_execute_hooks:
+                            hook()
+        return outputs, glbls
 
     def run(self) -> RunOutput:
         from marimo._runtime.context.script_context import (
@@ -120,53 +200,3 @@ class AppScriptRunner:
         finally:
             if installed_script_context:
                 teardown_context()
-
-    def _cell_iterator(self) -> Iterator[CellImpl]:
-        app = self.app
-        for cid in app.execution_order:
-            cell = app.cell_manager.cell_data_at(cid).cell
-            if cell is None:
-                continue
-
-            if cell is not None and not app.graph.is_disabled(cid):
-                yield cell._cell
-
-    def _run_synchronous(
-        self,
-        post_execute_hooks: list[Callable[[], Any]],
-    ) -> RunOutput:
-        with patch_main_module_context(
-            create_main_module(
-                file=self.filename, input_override=None, print_override=None
-            )
-        ) as module:
-            glbls = module.__dict__
-            outputs: dict[CellId_t, Any] = {}
-            for cell in self._cell_iterator():
-                with get_context().with_cell_id(cell.cell_id):
-                    output = execute_cell(cell, glbls, self.app.graph)
-                    for hook in post_execute_hooks:
-                        hook()
-                outputs[cell.cell_id] = output
-        return outputs, glbls
-
-    async def _run_asynchronous(
-        self,
-        post_execute_hooks: list[Callable[[], Any]],
-    ) -> RunOutput:
-        with patch_main_module_context(
-            create_main_module(
-                file=self.filename, input_override=None, print_override=None
-            )
-        ) as module:
-            glbls = module.__dict__
-            outputs: dict[CellId_t, Any] = {}
-            for cell in self._cell_iterator():
-                with get_context().with_cell_id(cell.cell_id):
-                    output = await execute_cell_async(
-                        cell, glbls, self.app.graph
-                    )
-                    for hook in post_execute_hooks:
-                        hook()
-                outputs[cell.cell_id] = output
-        return outputs, glbls

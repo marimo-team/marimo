@@ -65,7 +65,12 @@ export function renderTableBody<TData>(
 ): JSX.Element {
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
-      const { className, style } = getPinningStyles(cell.column);
+      const { className, style: pinningstyle } = getPinningStyles(cell.column);
+      const style = Object.assign(
+        {},
+        cell.getUserStyling?.() || {},
+        pinningstyle,
+      );
       return (
         <TableCell
           key={cell.id}
@@ -98,6 +103,8 @@ export function renderTableBody<TData>(
                 row.toggleSelected();
               }
             }}
+            // These classes ensure that empty rows (nulls) still render
+            className="border-t h-6"
           >
             {renderCells(row, row.getLeftVisibleCells())}
             {renderCells(row, row.getCenterVisibleCells())}

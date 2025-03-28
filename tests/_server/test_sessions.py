@@ -967,6 +967,10 @@ def __():
     )
 
     app_file_manager = AppFileManager(filename=str(notebook_path))
+    codes = tuple(
+        cell_data.code
+        for cell_data in app_file_manager.app.cell_manager.cell_data()
+    )
     session = Session(
         session_id,
         session_consumer,

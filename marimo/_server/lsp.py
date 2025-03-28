@@ -39,7 +39,7 @@ class LspServer(ABC):
 class BaseLspServer(LspServer):
     def __init__(self, port: int) -> None:
         self.port = port
-        self.process: Optional[subprocess.Popen[bytes]] = None
+        self.process: Optional[subprocess.Popen[str]] = None
 
     @server_tracer.start_as_current_span("lsp_server.start")
     def start(self) -> Optional[Alert]:
@@ -63,28 +63,51 @@ class BaseLspServer(LspServer):
             if not cmd:
                 return None
 
-            file_out = (
-                None
-                if GLOBAL_SETTINGS.DEVELOPMENT_MODE
-                else subprocess.DEVNULL
-            )
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(
                 cmd,
-                stdout=file_out,
-                stderr=file_out,
+                # only show stdout when in development
+                stdout=subprocess.PIPE
+                if GLOBAL_SETTINGS.DEVELOPMENT_MODE
+                else subprocess.DEVNULL,
+                # pipe error output
+                stderr=subprocess.PIPE,
                 stdin=None,
+                text=True,
             )
+
             LOGGER.debug(
-                "... process return code (`None` means success): %s",
+                "... process return code (`None` means still running): %s",
                 self.process.returncode,
             )
+
+            if (
+                self.process.returncode is not None
+                and self.process.returncode != 0
+            ):
+                # Process failed immediately
+                stderr_output = (
+                    self.process.stderr.read()
+                    if self.process.stderr
+                    else "No error output available"
+                )
+                LOGGER.error(
+                    "LSP server failed to start with return code %s",
+                    self.process.returncode,
+                )
+                LOGGER.error("Error output: %s", stderr_output)
+                return Alert(
+                    title="LSP server failed to start",
+                    description="The LSP server failed to start. Please check the logs for more information.",
+                    variant="danger",
+                )
+
             LOGGER.debug("Started LSP server at port %s", self.port)
+
         except Exception as e:
+            cmd_str = " ".join(cmd or [])
             LOGGER.error(
-                "When starting language server (%s), got error: %s",
-                cmd,
-                e,
+                f"Failed to start {self.id} language server ({cmd_str}), got error: {e}",
             )
             self.process = None
 
@@ -126,7 +149,7 @@ class CopilotLspServer(BaseLspServer):
         )
 
     def _lsp_bin(self) -> str:
-        lsp_bin = marimo_package_path() / "_lsp" / "index.js"
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
         return str(lsp_bin)
 
     def get_command(self) -> list[str]:
@@ -228,6 +251,11 @@ class CompositeLspServer(LspServer):
         if server_name == "copilot":
             copilot = config["completion"]["copilot"]
             return copilot is True or copilot == "github"
+
+        # If flag not enabled, return False
+        if not config.get("experimental", {}).get("lsp", False):
+            return False
+
         return cast(
             bool,
             cast(Any, config.get("language_servers", {}))

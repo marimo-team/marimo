@@ -1015,3 +1015,29 @@ class TestPandasTableManager(unittest.TestCase):
         assert sample_values == [1, 2, 3]
         sample_values = manager.get_sample_values("B")
         assert sample_values == ["a", "b", "c"]
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(), reason="pillow not installed"
+    )
+    def test_get_field_types_with_pil_images(self):
+        import numpy as np
+        import pandas as pd
+        from PIL import Image
+
+        # Create a simple image
+        img_array = np.zeros((10, 10, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+
+        # Create a dataframe with an image column
+        data = pd.DataFrame(
+            {"image_col": [img, img, img], "text_col": ["a", "b", "c"]}
+        )
+
+        manager = self.factory.create()(data)
+
+        # PIL images should be treated as objects
+        assert manager.get_field_type("image_col") == ("string", "object")
+        assert manager.get_field_type("text_col") == ("string", "object")
+
+        as_json = manager.to_json()
+        assert "data:image\\/png" in as_json.decode("utf-8")

@@ -431,6 +431,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "fabric": "Fabric",
         "faker": "Faker",
         "fedora": "python-fedora",
+        "ffmpeg": "ffmpeg-python",
         "fias": "ailove-django-fias",
         "fiftyone_degrees": "51degrees-mobile-detector",
         "five": "five.pt",

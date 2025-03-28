@@ -1,4 +1,5 @@
 {
+  "main": "dist/index.cjs",
   "scripts": {
     "build:ts": "tsup index.ts --format cjs --minify",
     "build:deps": "cp -LR node_modules/copilot-node-server/copilot dist/",
