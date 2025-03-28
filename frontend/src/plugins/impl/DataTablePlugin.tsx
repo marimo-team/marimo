@@ -104,7 +104,7 @@ type DataTableFunctions = {
   }) => Promise<{
     data: TableData<T>;
     total_rows: number;
-    cell_styles: CellStyleState | null;
+    cell_styles?: CellStyleState | null;
   }>;
   get_row_ids?: GetRowIds;
 };
