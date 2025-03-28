@@ -307,7 +307,7 @@ export async function insertImage(view: EditorView, file: File) {
 
         if (createPublicFolderRes.success) {
           const createFileRes = await sendCreateFileOrFolder({
-            path: "public" as FilePath,
+            path: "" as FilePath, // Create at root
             type: "file",
             name: inputFilename,
             contents: base64,
