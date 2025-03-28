@@ -133,7 +133,7 @@ class openai(ChatModel):
         else:
             client = OpenAI(
                 api_key=self._require_api_key,
-                base_url=self.base_url,
+                base_url=self.base_url or None,
             )
 
         openai_messages = convert_to_openai_messages(

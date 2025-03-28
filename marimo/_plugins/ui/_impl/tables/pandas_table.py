@@ -78,6 +78,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             ) -> bytes:
                 from pandas.api.types import (
                     is_complex_dtype,
+                    is_object_dtype,
                     is_timedelta64_dtype,
                     is_timedelta64_ns_dtype,
                 )
@@ -95,6 +96,10 @@ class PandasTableManagerFactory(TableManagerFactory):
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
                             result[col] = result[col].apply(str)
+                        if is_object_dtype(dtype):
+                            result[col] = result[col].apply(
+                                self._sanitize_table_value
+                            )
 
                 except Exception as e:
                     LOGGER.error(

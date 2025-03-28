@@ -262,7 +262,7 @@ class OpenAIProvider(
         import httpx
         from openai import AzureOpenAI, OpenAI
 
-        base_url = config.base_url
+        base_url = config.base_url or None
         key = config.api_key
 
         # Add SSL parameters/values
