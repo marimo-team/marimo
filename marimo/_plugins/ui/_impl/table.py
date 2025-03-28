@@ -739,8 +739,9 @@ class table(
                     return self._style_cell(row, col, selected_cells[0].value)
 
             columns = self._searched_manager.get_column_names()
-            response = self._get_row_ids({})
+            response = self._get_row_ids(EmptyArgs())
 
+            row_ids: list[int] | range
             if response.all_rows is True or response.error is not None:
                 # TODO: Handle sorted rows, they have reverse order of row_ids
                 row_ids = range(skip, skip + take)
