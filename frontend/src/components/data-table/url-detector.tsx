@@ -1,5 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Events } from "@/utils/events";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { useState } from "react";
 
 const urlRegex = /(https?:\/\/\S+)/g;
@@ -9,20 +14,42 @@ const knownImageDomains = ["avatars.githubusercontent.com"];
 
 const ImageWithFallback = ({ url }: { url: string }) => {
   const [error, setError] = useState(false);
+  const [open, setOpen] = useState(false);
 
   if (error) {
     return <URLAnchor url={url} />;
   }
 
   return (
-    <div className="flex max-h-[20px] overflow-hidden">
-      <img
-        src={url}
-        alt="URL preview"
-        className="object-contain max-h-full max-w-full rounded"
-        onError={() => setError(true)}
-      />
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild={true}>
+        <div
+          className="flex max-h-[80px] overflow-hidden cursor-pointer flex"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          <img
+            src={url}
+            alt="URL preview"
+            className="object-contain rounded max-h-[80px]"
+            onError={() => setError(true)}
+          />
+        </div>
+      </PopoverTrigger>
+
+      <PopoverContent
+        className="z-50 p-2 bg-popover rounded-md shadow-lg border w-fit"
+        align="start"
+        side="right"
+      >
+        <img
+          src={url}
+          alt="URL preview"
+          className="object-contain max-h-[500px] rounded"
+          onError={() => setError(true)}
+        />
+      </PopoverContent>
+    </Popover>
   );
 };
 

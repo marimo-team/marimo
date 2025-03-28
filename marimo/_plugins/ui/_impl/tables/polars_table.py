@@ -159,7 +159,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return df.with_columns(
                         # As of writing this, cast(pl.String) doesn't work
                         # for pl.Object types, so we use map_elements
-                        column.map_elements(str, return_dtype=pl.String)
+                        column.map_elements(
+                            lambda v: str(self._sanitize_table_value(v)),
+                            return_dtype=pl.String,
+                        )
                     )
 
             def apply_formatting(

@@ -843,3 +843,29 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "datetime[μs]",
         )
         assert manager.get_field_type("time_col") == ("time", "Time")
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(), reason="pillow not installed"
+    )
+    def test_get_field_types_with_pil_images(self):
+        import numpy as np
+        import polars as pl
+        from PIL import Image
+
+        # Create a simple image
+        img_array = np.zeros((10, 10, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+
+        # Create a dataframe with an image column
+        data = pl.DataFrame(
+            {"image_col": [img, img, img], "text_col": ["a", "b", "c"]}
+        )
+
+        manager = self.factory.create()(data)
+
+        # PIL images should be treated as objects
+        assert manager.get_field_type("image_col") == ("unknown", "object")
+        assert manager.get_field_type("text_col") == ("string", "str")
+
+        as_json = manager.to_json()
+        assert "data:image/png" in as_json.decode("utf-8")
