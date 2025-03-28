@@ -284,7 +284,7 @@ export async function insertImage(view: EditorView, file: File) {
     if (dataUrl.startsWith("data:")) {
       const base64 = dataUrl.split(",")[1];
       const inputFilename = prompt(
-        "Save your image as a file? Please enter a filename.",
+        "We can save your image as a file. Please enter a filename.",
       );
 
       if (inputFilename) {
