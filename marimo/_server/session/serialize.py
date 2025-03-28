@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, Union, cast
 
@@ -240,6 +241,12 @@ class SessionCacheWriter(AsyncBackgroundTask):
                 break
 
 
+@dataclass
+class SessionCacheKey:
+    codes: tuple[str | None, ...]
+    marimo_version: str
+
+
 class SessionCacheManager:
     """Manages the session cache writer.
 
@@ -285,13 +292,38 @@ class SessionCacheManager:
         self.path = new_path
         self.start()
 
-    def read_session_view(self) -> SessionView:
-        """Read the session view from the cache file"""
+    def is_cache_hit(
+        self, notebook_session: NotebookSessionV1, key: SessionCacheKey
+    ) -> bool:
+        if (len(key.codes) != len(notebook_session["cells"])) or any(
+            _hash_code(code) != cell["code_hash"]
+            for code, cell in zip(key.codes, notebook_session["cells"])
+        ):
+            return False
+        if (
+            key.marimo_version
+            != notebook_session["metadata"]["marimo_version"]
+        ):
+            return False
+        return True
+
+    def read_session_view(self, key: SessionCacheKey) -> SessionView:
+        """Read the session view from the cache files.
+
+        Mutates the session view on cache hit.
+        """
         if self.path is None:
             return self.session_view
         cache_file = get_session_cache_file(Path(self.path))
         if not cache_file.exists():
             return self.session_view
+        notebook_session: NotebookSessionV1 = json.loads(
+            cache_file.read_text()
+        )
+        if not self.is_cache_hit(notebook_session, key):
+            LOGGER.debug("Session view cache miss")
+            return self.session_view
+
         self.session_view = deserialize_session(
             json.loads(cache_file.read_text())
         )

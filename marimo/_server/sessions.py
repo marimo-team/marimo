@@ -65,6 +65,7 @@ from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.serialize import (
+    SessionCacheKey,
     SessionCacheManager,
 )
 from marimo._server.session.session_view import SessionView
@@ -705,13 +706,21 @@ class Session:
         Overwrites the existing session view.
         Mutates the existing session.
         """
+        from marimo import __version__
+
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(
             session_view=self.session_view,
             path=self.app_file_manager.path,
             interval=self.SESSION_CACHE_INTERVAL_SECONDS,
         )
-        self.session_view = self.session_cache_manager.read_session_view()
+
+        app = self.app_file_manager.app
+        codes = tuple(
+            cell_data.code for cell_data in app.cell_manager.cell_data()
+        )
+        key = SessionCacheKey(codes=codes, marimo_version=__version__)
+        self.session_view = self.session_cache_manager.read_session_view(key)
         self.session_cache_manager.start()
 
     def __repr__(self) -> str:
