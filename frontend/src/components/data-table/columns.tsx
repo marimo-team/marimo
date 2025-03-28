@@ -222,8 +222,6 @@ export function generateColumns<T>({
         const format = column.getColumnFormatting?.();
 
         if (typeof value === "string" && value.length > MAX_STRING_LENGTH) {
-          const rendered = renderValue();
-
           if (format) {
             const formattedValue = column.applyColumnFormatting(value);
             return (
@@ -245,6 +243,7 @@ export function generateColumns<T>({
           }
 
           // Handle unformatted string values
+          const rendered = renderValue();
           let valueToDisplay: React.ReactNode;
 
           if (rendered === null) {
