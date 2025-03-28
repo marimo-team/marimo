@@ -29,6 +29,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.home as home
     import marimo._server.models.models as models
     import marimo._server.models.packages as packages
+    import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo import __version__
     from marimo._ast.cell import CellConfig, RuntimeStateType
@@ -71,6 +72,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         errors.Error,
         # Outputs
         CellOutput,
+        # Secrets
+        secrets.ListSecretKeysResponse,
+        secrets.CreateSecretRequest,
+        secrets.DeleteSecretRequest,
         # Data
         data.DataTableColumn,
         data.DataTable,

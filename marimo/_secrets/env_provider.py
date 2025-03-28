@@ -10,3 +10,11 @@ class EnvSecretsProvider(SecretProvider):
         import os
 
         return list(os.environ.keys())
+
+    def set_key(self, key: str, value: str) -> None:
+        del key, value
+        raise NotImplementedError
+
+    def delete_key(self, key: str) -> None:
+        del key
+        raise NotImplementedError

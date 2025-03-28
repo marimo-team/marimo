@@ -19,3 +19,11 @@ class SecretProvider(ABC):
     @abstractmethod
     def get_keys(self) -> list[str]:
         pass
+
+    @abstractmethod
+    def set_key(self, key: str, value: str) -> None:
+        pass
+
+    @abstractmethod
+    def delete_key(self, key: str) -> None:
+        pass

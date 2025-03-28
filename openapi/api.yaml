@@ -2402,7 +2402,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.26
+  version: 0.11.28
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3097,6 +3097,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/secrets/keys:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSecretKeysResponse'
+          description: Preview a column in a dataset
   /api/status:
     get:
       responses:

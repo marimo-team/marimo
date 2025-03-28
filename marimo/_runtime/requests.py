@@ -131,7 +131,8 @@ class ExecutionRequest:
 
 
 @dataclass
-class ExecuteStaleRequest: ...
+class ExecuteStaleRequest:
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -326,6 +327,11 @@ class PreviewSQLTableListRequest:
     schema: str
 
 
+@dataclass
+class ListSecretKeysRequest:
+    pass
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -342,4 +348,5 @@ ControlRequest = Union[
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
     PreviewSQLTableListRequest,
+    ListSecretKeysRequest,
 ]
