@@ -104,7 +104,7 @@ type DataTableFunctions = {
   }) => Promise<{
     data: TableData<T>;
     total_rows: number;
-    cell_styles?: CellStyleState;
+    cell_styles?: CellStyleState | null;
   }>;
   get_row_ids?: GetRowIds;
 };
@@ -193,7 +193,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           total_rows: z.number(),
           cell_styles: z
             .record(z.record(z.object({}).passthrough()))
-            .optional(),
+            .nullable(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -228,7 +228,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableSearch: boolean;
   // Filters
   enableFilters?: boolean;
-  cellStyles?: CellStyleState;
+  cellStyles?: CellStyleState | null;
 }
 
 interface DataTableSearchProps {
@@ -287,7 +287,7 @@ export const LoadingDataTableComponent = memo(
     const { data, loading, error } = useAsyncData<{
       rows: T[];
       totalRows: number | "too_many";
-      cellStyles: CellStyleState | undefined;
+      cellStyles: CellStyleState | undefined | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {

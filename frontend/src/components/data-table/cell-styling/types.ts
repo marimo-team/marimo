@@ -8,7 +8,7 @@ export type CellStyleState = Record<
 >;
 
 export interface CellStylingTableState {
-  cellStyling: CellStyleState | undefined;
+  cellStyling: CellStyleState | undefined | null;
 }
 
 export interface CellStylingCell {

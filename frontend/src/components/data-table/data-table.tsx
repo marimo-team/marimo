@@ -57,7 +57,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   cellSelection?: CellSelectionState;
-  cellStyling?: CellStyleState;
+  cellStyling?: CellStyleState | null;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;

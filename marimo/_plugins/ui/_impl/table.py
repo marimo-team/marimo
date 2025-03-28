@@ -739,11 +739,20 @@ class table(
                     return self._style_cell(row, col, selected_cells[0].value)
 
             columns = self._searched_manager.get_column_names()
+            response = self._get_row_ids(EmptyArgs())
+
+            row_ids: list[int] | range
+            if response.all_rows is True or response.error is not None:
+                # TODO: Handle sorted rows, they have reverse order of row_ids
+                row_ids = range(skip, skip + take)
+            else:
+                row_ids = response.row_ids[skip : skip + take]
+
             return {
                 str(row): {
                     col: do_style_cell(str(row), col) for col in columns
                 }
-                for row in range(skip, skip + take)
+                for row in row_ids
             }
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
@@ -813,7 +822,16 @@ class table(
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
-        """Get row IDs of a table. If searched, return searched rows else all rows."""
+        """Get row IDs of a table. If searched, return searched rows else all_rows flag is True.
+
+        Args:
+            args (EmptyArgs): Empty arguments
+
+        Returns:
+            GetRowIdsResponse: Response containing:
+                - row_ids: List of row IDs
+                - all_rows: Whether all rows are selected
+        """
         del args
 
         total_rows = self._manager.get_num_rows()
@@ -837,8 +855,8 @@ class table(
                 error="Select all with search is not supported for large datasets. Please filter to less than 1,000,000 rows",
             )
 
-        # For dictionary data, return sequential indices
-        if isinstance(self.data, dict):
+        # For dictionary or list data, return sequential indices
+        if isinstance(self.data, dict) or isinstance(self.data, list):
             return GetRowIdsResponse(
                 row_ids=list(range(num_rows_searched)),
                 all_rows=False,
