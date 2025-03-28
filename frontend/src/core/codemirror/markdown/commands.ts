@@ -321,13 +321,12 @@ export async function insertImage(view: EditorView, file: File) {
             });
           } else {
             toast({
-              title:
-                "Created public folder but failed to upload image. Using raw base64 string.",
+              title: "Failed to upload image. Using raw base64 string.",
             });
           }
         } else {
           toast({
-            title: "Failed to create public folder",
+            title: "Failed to create public folder to store the image.",
           });
         }
       }
