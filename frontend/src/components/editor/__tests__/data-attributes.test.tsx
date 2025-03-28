@@ -57,6 +57,7 @@ describe("Cell data attributes", () => {
           output_max_bytes: 1_000_000,
           std_stream_max_bytes: 1_000_000,
           pythonpath: [],
+          dotenv: [".env"],
         },
         server: {
           browser: "default",

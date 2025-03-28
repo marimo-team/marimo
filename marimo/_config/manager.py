@@ -14,6 +14,7 @@ from marimo._config.config import (
     LanguageServersConfig,
     MarimoConfig,
     PartialMarimoConfig,
+    RuntimeConfig,
     Theme,
     WidthType,
     merge_config,
@@ -21,6 +22,7 @@ from marimo._config.config import (
 )
 from marimo._config.packages import PackageManagerKind
 from marimo._config.reader import (
+    find_nearest_pyproject_toml,
     get_marimo_config_from_pyproject_dict,
     read_marimo_config,
     read_pyproject_marimo_config,
@@ -171,11 +173,13 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     """Read the project configuration"""
 
     def __init__(self, start_path: str) -> None:
-        self.start_path = start_path
+        self.pyproject_path = find_nearest_pyproject_toml(start_path)
 
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         try:
-            project_config = read_pyproject_marimo_config(self.start_path)
+            if self.pyproject_path is None:
+                return {}
+            project_config = read_pyproject_marimo_config(self.pyproject_path)
             if project_config is None:
                 return {}
             project_config = self._resolve_pythonpath(project_config)
@@ -191,6 +195,9 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     def _resolve_pythonpath(
         self, config: PartialMarimoConfig
     ) -> PartialMarimoConfig:
+        if self.pyproject_path is None:
+            return config
+
         if "runtime" not in config:
             return config
 
@@ -203,7 +210,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             return config
 
         pythonpath = [
-            os.path.abspath(os.path.join(self.start_path, path))
+            str((self.pyproject_path.parent / path).absolute())
             for path in pythonpath
         ]
         return {
@@ -214,22 +221,20 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     def _resolve_dotenv(
         self, config: PartialMarimoConfig
     ) -> PartialMarimoConfig:
-        if "runtime" not in config:
+        if self.pyproject_path is None:
             return config
 
-        if "dotenv" not in config["runtime"]:
-            return config
-
-        dotenv = config["runtime"]["dotenv"]
+        runtime = config.get("runtime", cast(RuntimeConfig, {}))
+        dotenv = runtime.get("dotenv", [".env"])
 
         if not isinstance(dotenv, list):
             return config
 
         dotenv = [
-            os.path.abspath(os.path.join(self.start_path, path))
+            str((self.pyproject_path.parent / path).absolute())
             for path in dotenv
         ]
-        return {**config, "runtime": {**config["runtime"], "dotenv": dotenv}}
+        return {**config, "runtime": {**runtime, "dotenv": dotenv}}
 
 
 class ScriptConfigManager(PartialMarimoConfigReader):

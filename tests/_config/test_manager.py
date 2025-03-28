@@ -201,6 +201,9 @@ def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
             "format_on_save": True,  # From pyproject.toml
             "autosave": "after_delay",  # From pyproject.toml
         },
+        "runtime": {
+            "dotenv": [str(tmp_path / ".env")],
+        },
     }
 
 
@@ -271,3 +274,77 @@ def test_marimo_config_reader_properties() -> None:
     assert manager.default_width is not None
     assert manager.theme is not None
     assert manager.package_manager is not None
+
+
+def test_project_config_manager_resolve_paths(tmp_path: Path) -> None:
+    # Create a pyproject.toml with pythonpath and dotenv settings
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo.runtime]
+    pythonpath = ["src", "lib"]
+    dotenv = [".env", "config/.env"]
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    # Create the directory structure
+    (tmp_path / "src").mkdir()
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "config").mkdir()
+    (tmp_path / ".env").touch()
+    (tmp_path / "config" / ".env").touch()
+
+    # Initialize ProjectConfigManager
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    # Verify pythonpath resolution
+    expected_pythonpath = [
+        str((tmp_path / "src").absolute()),
+        str((tmp_path / "lib").absolute()),
+    ]
+    assert config["runtime"]["pythonpath"] == expected_pythonpath
+
+    # Verify dotenv resolution
+    expected_dotenv = [
+        str((tmp_path / ".env").absolute()),
+        str((tmp_path / "config" / ".env").absolute()),
+    ]
+    assert config["runtime"]["dotenv"] == expected_dotenv
+
+
+def test_project_config_manager_resolve_invalid_paths(tmp_path: Path) -> None:
+    # Create a pyproject.toml with invalid path types
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo.runtime]
+    pythonpath = "not_a_list"
+    dotenv = 123
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    # Initialize ProjectConfigManager
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    # Verify invalid paths are not modified
+    assert config["runtime"]["pythonpath"] == "not_a_list"
+    assert config["runtime"]["dotenv"] == 123
+
+
+def test_project_config_manager_resolve_missing_paths(tmp_path: Path) -> None:
+    # Create a pyproject.toml without path settings
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo.runtime]
+    other_setting = "value"
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    # Initialize ProjectConfigManager
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    # Verify missing paths don't cause issues
+    assert config["runtime"]["pythonpath"] == []
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+    assert config["runtime"]["other_setting"] == "value"

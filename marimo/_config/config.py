@@ -125,7 +125,7 @@ class RuntimeConfig(TypedDict):
         where Python will look for imported modules.
     - `dotenv`: a list of paths to `.env` files to load.
         If the file does not exist, it will be silently ignored.
-        The default is `[".env"]`.
+        The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
     """
 
     auto_instantiate: bool
@@ -407,7 +407,7 @@ DEFAULT_CONFIG: MarimoConfig = {
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
         "pythonpath": [],
-        "dotenv": [".env"],
+        "dotenv": [],
     },
     "save": {
         "autosave": "after_delay",
