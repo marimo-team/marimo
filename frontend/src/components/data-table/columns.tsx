@@ -31,6 +31,9 @@ import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
 import type { ColumnChartSpecModel } from "./chart-spec-model";
 
+// Artificial limit to display long strings
+const MAX_STRING_LENGTH = 50;
+
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
     return ["string", "string"];
@@ -217,6 +220,73 @@ export function generateColumns<T>({
           !isCellSelected;
 
         const format = column.getColumnFormatting?.();
+
+        if (typeof value === "string" && value.length > MAX_STRING_LENGTH) {
+          const rendered = renderValue();
+
+          if (format) {
+            const formattedValue = column.applyColumnFormatting(value);
+            return (
+              <PopoutColumn
+                cellStyles={getCellStyleClass(
+                  justify,
+                  wrapped,
+                  canSelectCell,
+                  isCellSelected,
+                )}
+                selectCell={selectCell}
+                rawStringValue={String(formattedValue)}
+                contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+                buttonText="X"
+              >
+                {formattedValue}
+              </PopoutColumn>
+            );
+          }
+
+          // Handle unformatted string values
+          let valueToDisplay: React.ReactNode;
+
+          if (rendered === null) {
+            valueToDisplay = "";
+          } else if (typeof rendered !== "string") {
+            valueToDisplay = String(rendered);
+          } else if (rendered.length > MAX_STRING_LENGTH) {
+            return (
+              <PopoutColumn
+                cellStyles={getCellStyleClass(
+                  justify,
+                  wrapped,
+                  canSelectCell,
+                  isCellSelected,
+                )}
+                selectCell={selectCell}
+                rawStringValue={rendered}
+                contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+                buttonText="X"
+              >
+                <UrlDetector text={rendered} />
+              </PopoutColumn>
+            );
+          } else {
+            valueToDisplay = <UrlDetector text={rendered} />;
+          }
+
+          return (
+            <div
+              onClick={selectCell}
+              className={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+            >
+              {valueToDisplay}
+            </div>
+          );
+        }
+
         if (format) {
           return (
             <div
@@ -245,13 +315,7 @@ export function generateColumns<T>({
                 isCellSelected,
               )}
             >
-              {rendered == null ? (
-                ""
-              ) : typeof rendered === "string" ? (
-                <UrlDetector text={rendered} />
-              ) : (
-                String(rendered)
-              )}
+              {rendered == null ? "" : String(rendered)}
             </div>
           );
         }
@@ -300,34 +364,18 @@ export function generateColumns<T>({
         if (Array.isArray(value) || typeof value === "object") {
           const rawStringValue = renderAny(value);
           return (
-            <EmotionCacheProvider container={null}>
-              <Popover>
-                <PopoverTrigger
-                  className={getCellStyleClass(
-                    justify,
-                    wrapped,
-                    canSelectCell,
-                    isCellSelected,
-                  )}
-                  onClick={selectCell}
-                >
-                  <span
-                    className="cursor-pointer hover:text-link"
-                    title={rawStringValue}
-                  >
-                    {rawStringValue}
-                  </span>
-                </PopoverTrigger>
-                <PopoverContent>
-                  <PopoverClose className="absolute top-2 right-2">
-                    <Button variant="link" size="xs">
-                      Close
-                    </Button>
-                  </PopoverClose>
-                  <JsonOutput data={value} format="tree" className="max-h-64" />
-                </PopoverContent>
-              </Popover>
-            </EmotionCacheProvider>
+            <PopoutColumn
+              cellStyles={getCellStyleClass(
+                justify,
+                wrapped,
+                canSelectCell,
+                isCellSelected,
+              )}
+              selectCell={selectCell}
+              rawStringValue={rawStringValue}
+            >
+              <JsonOutput data={value} format="tree" className="max-h-64" />
+            </PopoutColumn>
           );
         }
 
@@ -386,6 +434,45 @@ export function generateColumns<T>({
 
   return columns;
 }
+
+const PopoutColumn = ({
+  cellStyles,
+  selectCell,
+  rawStringValue,
+  contentClassName,
+  buttonText,
+  children,
+}: {
+  cellStyles: string;
+  selectCell: () => void;
+  rawStringValue: string;
+  contentClassName?: string;
+  buttonText?: string;
+  children: React.ReactNode;
+}) => {
+  return (
+    <EmotionCacheProvider container={null}>
+      <Popover>
+        <PopoverTrigger className={cellStyles} onClick={selectCell}>
+          <span
+            className="cursor-pointer hover:text-link"
+            title={rawStringValue}
+          >
+            {rawStringValue}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className={contentClassName}>
+          <PopoverClose className="absolute top-2 right-2">
+            <Button variant="link" size="xs">
+              {buttonText ?? "Close"}
+            </Button>
+          </PopoverClose>
+          {children}
+        </PopoverContent>
+      </Popover>
+    </EmotionCacheProvider>
+  );
+};
 
 function isPrimitiveOrNullish(value: unknown): boolean {
   if (value == null) {
