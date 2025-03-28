@@ -595,7 +595,7 @@ def test_initial_cell_selection_happy_path() -> None:
     ]
 
 
-def test_get_row_ids() -> None:
+def test_get_row_ids_dict() -> None:
     data = {
         "id": [1, 2, 3] * 3,
         "fruits": ["banana", "apple", "cherry"] * 3,
@@ -619,6 +619,26 @@ def test_get_row_ids() -> None:
     response = table._get_row_ids(EmptyArgs())
     # For dicts, we do not need to find row_id, we just return the index
     assert response.row_ids == [0, 1, 2]
+    assert response.all_rows is False
+    assert response.error is None
+
+
+def test_get_row_ids_for_lists() -> None:
+    table = ui.table(["apples", "bananas", "bananas", "cherries"])
+    initial_response = table._get_row_ids(EmptyArgs())
+    assert initial_response.all_rows is True
+    assert initial_response.row_ids == []
+    assert initial_response.error is None
+
+    table._search(
+        SearchTableArgs(
+            query="banana",
+            page_size=10,
+            page_number=0,
+        )
+    )
+    response = table._get_row_ids(EmptyArgs())
+    assert response.row_ids == [0, 1]
     assert response.all_rows is False
     assert response.error is None
 
@@ -1368,3 +1388,51 @@ def test_cell_style_of_next_page():
     assert "a" in cell_styles["2"]
     assert "backgroundColor" in cell_styles["2"]["a"]
     assert "green" in cell_styles["2"]["a"]["backgroundColor"]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_cell_search_df_styles():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    import polars as pl
+
+    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
+
+    table = ui.table(pl.DataFrame(data), style_cell=always_green)
+    page = table._search(
+        SearchTableArgs(page_size=2, page_number=0, query="carrot")
+    )
+    assert page.cell_styles == {
+        "4": {"column_0": {"backgroundColor": "green"}},
+        "5": {"column_0": {"backgroundColor": "green"}},
+    }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+@pytest.mark.xfail(reason="Sorted rows are not supported for styling yet")
+def test_cell_search_df_styles_sorted():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    import polars as pl
+
+    data = ["apples", "apples", "bananas", "bananas", "carrots", "carrots"]
+    table = ui.table(pl.DataFrame(data), style_cell=always_green)
+    page = table._search(
+        SearchTableArgs(
+            page_size=2,
+            page_number=0,
+            query="",
+            sort=SortArgs(by="column_0", descending=True),
+        )
+    )
+    # Sorted rows have reverse order of row_ids
+    assert page.cell_styles == {
+        "4": {"column_0": {"backgroundColor": "green"}},
+        "5": {"column_0": {"backgroundColor": "green"}},
+    }
