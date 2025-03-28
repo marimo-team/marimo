@@ -300,14 +300,14 @@ export async function insertImage(view: EditorView, file: File) {
         // Create public folder if it doesn't exist
         // Images must be in this folder as a static file
         const createPublicFolderRes = await sendCreateFileOrFolder({
-          path: "public" as FilePath,
+          path: "" as FilePath, // Create at root dir
           type: "directory",
           name: "public",
         });
 
         if (createPublicFolderRes.success) {
           const createFileRes = await sendCreateFileOrFolder({
-            path: "" as FilePath, // Create at root
+            path: "public" as FilePath,
             type: "file",
             name: inputFilename,
             contents: base64,
