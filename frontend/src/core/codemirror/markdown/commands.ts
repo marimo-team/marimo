@@ -297,22 +297,37 @@ export async function insertImage(view: EditorView, file: File) {
           inputFilename = `${inputFilename}.${extension}`;
         }
 
-        const fileCreationResponse = await sendCreateFileOrFolder({
-          path: "" as FilePath, // Root path
-          type: "file",
-          name: inputFilename,
-          contents: base64,
+        // Create public folder if it doesn't exist
+        // Images must be in this folder as a static file
+        const createPublicFolderRes = await sendCreateFileOrFolder({
+          path: "public" as FilePath,
+          type: "directory",
+          name: "public",
         });
 
-        if (fileCreationResponse.success) {
-          savedFilePath = fileCreationResponse.info?.path;
-          toast({
-            title: "Image uploaded successfully",
-            description: `We've uploaded your image as ${savedFilePath}`,
+        if (createPublicFolderRes.success) {
+          const createFileRes = await sendCreateFileOrFolder({
+            path: "public" as FilePath,
+            type: "file",
+            name: inputFilename,
+            contents: base64,
           });
+
+          if (createFileRes.success) {
+            savedFilePath = createFileRes.info?.path;
+            toast({
+              title: "Image uploaded successfully",
+              description: `We've uploaded your image as ${savedFilePath}`,
+            });
+          } else {
+            toast({
+              title:
+                "Created public folder but failed to upload image. Using raw base64 string.",
+            });
+          }
         } else {
           toast({
-            title: "Failed to upload image. Using raw base64 string.",
+            title: "Failed to create public folder",
           });
         }
       }

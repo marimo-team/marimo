@@ -220,7 +220,20 @@ describe("insertImage", () => {
     vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
       success: true,
       info: {
-        path: "hello.png",
+        path: "public",
+        name: "public",
+        isMarimoFile: true,
+        isDirectory: true,
+        lastModified: null,
+        children: [],
+        id: "",
+      },
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: true,
+      info: {
+        path: "public/hello.png",
         name: "hello.png",
         isMarimoFile: true,
         isDirectory: false,
@@ -232,9 +245,9 @@ describe("insertImage", () => {
 
     await insertImage(view, mockPngFile());
 
-    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(2);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](hello.png)world!"`,
+      `"Hello, ![](public/hello.png)world!"`,
     );
   });
 
@@ -247,7 +260,20 @@ describe("insertImage", () => {
     vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
       success: true,
       info: {
-        path: "hello.jpg",
+        path: "public",
+        name: "public",
+        isMarimoFile: true,
+        isDirectory: true,
+        lastModified: null,
+        children: [],
+        id: "",
+      },
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: true,
+      info: {
+        path: "public/hello.jpg",
         name: "hello.jpg",
         children: [],
         id: "",
@@ -263,9 +289,9 @@ describe("insertImage", () => {
 
     await insertImage(view, mockJpgFile());
 
-    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(2);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](hello.jpg)world!"`,
+      `"Hello, ![](public/hello.jpg)world!"`,
     );
   });
 
