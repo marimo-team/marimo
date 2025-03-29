@@ -245,7 +245,6 @@ extra-dependencies = [
     "pytest-codecov~=0.6.1",
     "pytest-asyncio~=0.25.2",
     "python-lsp-server>=1.10.0",
-    "python-dotenv>=1.0.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",

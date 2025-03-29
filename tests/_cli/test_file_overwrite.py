@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._utils.platform import is_windows
-
 if TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -60,10 +58,6 @@ def test_export_overwrite_confirm(
     assert p.returncode == 0
 
 
-@pytest.mark.skipif(
-    is_windows(),
-    reason="This test is flaky on Windows",
-)
 def test_export_overwrite_with_yes_flag() -> None:
     """Test export command with -y flag to automatically overwrite files."""
     # Create a temporary directory and file
