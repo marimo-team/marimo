@@ -78,6 +78,11 @@ components:
       type: object
     AppMetadata:
       properties:
+        argv:
+          items:
+            type: string
+          nullable: true
+          type: array
         cliArgs:
           additionalProperties:
             oneOf:
@@ -2402,7 +2407,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.26
+  version: 0.11.31
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
