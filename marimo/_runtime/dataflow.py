@@ -450,7 +450,7 @@ def transitive_closure(
         after the relatives are computed
     """
 
-    result: set[CellId_t] = cell_ids if inclusive else set()
+    result: set[CellId_t] = cell_ids.copy() if inclusive else set()
     seen: set[CellId_t] = cell_ids.copy()
     queue: deque[CellId_t] = deque(cell_ids)
     predicate = predicate or (lambda _: True)
