@@ -448,6 +448,20 @@ class Kernel:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
         self.cli_args = CLIArgs(app_metadata.cli_args)
+        self.argv = (
+            [app_metadata.filename or ""] + app_metadata.argv
+            if app_metadata.argv is not None
+            else sys.argv
+        )
+
+        # We update sys.argv to be [filename, args after '--'] so modules like
+        # argparse, simple-parser work out of the box.
+        #
+        # TODO(akshayka): The notebook globals share modules with the kernel
+        # process; if we ever isolate them, push this mutation down into the
+        # kernel globals.
+        sys.argv = self.argv
+
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr

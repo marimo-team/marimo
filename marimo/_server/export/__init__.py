@@ -119,6 +119,7 @@ async def run_app_then_export_as_ipynb(
     path_or_file_manager: Union[MarimoPath, AppFileManager],
     sort_mode: Literal["top-down", "topological"],
     cli_args: SerializedCLIArgs,
+    argv: list[str] | None,
 ) -> ExportResult:
     if isinstance(path_or_file_manager, AppFileManager):
         file_manager = path_or_file_manager
@@ -132,6 +133,7 @@ async def run_app_then_export_as_ipynb(
         (session_view, did_error) = await run_app_until_completion(
             file_manager,
             cli_args,
+            argv,
         )
 
     result = Exporter().export_as_ipynb(
@@ -148,6 +150,7 @@ async def run_app_then_export_as_html(
     path: MarimoPath,
     include_code: bool,
     cli_args: SerializedCLIArgs,
+    argv: list[str],
 ) -> ExportResult:
     # Create a file router and file manager
     file_router = AppFileRouter.from_filename(path)
@@ -162,6 +165,7 @@ async def run_app_then_export_as_html(
     session_view, did_error = await run_app_until_completion(
         file_manager,
         cli_args,
+        argv=argv,
     )
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
@@ -204,6 +208,7 @@ async def run_app_then_export_as_reactive_html(
 async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
+    argv: list[str] | None,
 ) -> tuple[SessionView, bool]:
     from marimo._server.sessions import Session
 
@@ -285,6 +290,7 @@ async def run_app_until_completion(
             query_params={},
             filename=file_manager.path,
             cli_args=cli_args,
+            argv=argv,
         ),
         app_file_manager=file_manager,
         config_manager=config_manager,

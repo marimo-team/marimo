@@ -101,12 +101,42 @@ If you find yourself needing to force execution order often, it might be a sign 
 
 ## General debugging tips
 
+
+### Understanding dependencies
+
 - Use the Variables Panel to inspect variable values and see where they're defined and used.
 - Add print statements or use `mo.md()` to output debug information in cell outputs.
 - Temporarily disable cells to isolate issues.
 - Use the "Lazy" runtime configuration to see which cells are being marked as stale without automatically running them.
 
 Remember, marimo's reactivity is based on global variable definitions and references, and mutations to objects aren't tracked. Keeping this in mind can help you understand and debug unexpected behaviors in your notebooks.
+
+## Patches made by marimo
+
+### Why can't I import a local library?
+
+When using `marimo edit path/to/notebook.py` or `marimo run
+path/to/notebook.py`, marimo sets `sys.path` to match what you would get with
+`python path/to/notebook.py`. In particular, setting `sys.path[0]` to the notebook
+directory:
+
+```
+sys.path[0] == 'path/to/'
+```
+
+You can add entries to `sys.path` in your pyproject.toml [runtime configuration](../guides/configuration/runtime_configuration.md).
+
+
+### Other patches
+
+When running as a notebook, marimo makes the following changes to variables:
+
+- marimo patches `pdb.Pdb` with a custom class to enable interactive debugging
+  with the `breakpoint()` function
+- marimo patches `sys.argv` when running as a notebook to match what you would
+  see when [running as a script](../guides/scripts.md).
+- local variables currently have their names mangled, meaning source code introspection
+  that uses local variables may not work; this behavior may change in the future.
 
 ## Why is the notebook returning 404s on the web assets?
 

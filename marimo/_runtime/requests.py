@@ -233,6 +233,7 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
 

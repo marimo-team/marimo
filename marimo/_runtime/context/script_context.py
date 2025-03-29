@@ -43,6 +43,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     def __post_init__(self) -> None:
         self._cli_args: CLIArgs | None = None
+        self._argv = sys.argv
         self._query_params = QueryParams({}, _registry=self.state_registry)
 
     @property
@@ -83,6 +84,11 @@ class ScriptRuntimeContext(RuntimeContext):
         if self._cli_args is None:
             self._cli_args = CLIArgs(args_from_argv())
         return self._cli_args
+
+    @property
+    def argv(self) -> list[str]:
+        """Get the original argv."""
+        return self._argv
 
     @property
     def query_params(self) -> QueryParams:

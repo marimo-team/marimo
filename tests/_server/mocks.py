@@ -56,6 +56,7 @@ if __name__ == "__main__":
         lsp_server=lsp_server,
         config_manager=get_default_config_manager(current_path=None),
         cli_args={},
+        argv=None,
         auth_token=AuthToken("fake-token"),
         redirect_console_to_browser=False,
         ttl_seconds=None,
