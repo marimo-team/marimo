@@ -52,6 +52,7 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._secrets.models import SecretKeysWithProvider
 from marimo._types.ids import CellId_t, RequestId
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -679,6 +680,12 @@ class UpdateCellCodes(Op):
     # If true, this means the code was not run on the backend when updating
     # the cell codes.
     code_is_stale: bool
+
+
+@dataclass
+class SecretKeysResult(Op):
+    name: ClassVar[str] = "secret-keys-result"
+    secrets: list[SecretKeysWithProvider]
 
 
 @dataclass

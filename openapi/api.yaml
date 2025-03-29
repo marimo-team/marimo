@@ -387,6 +387,21 @@ components:
       - source
       - destination
       type: object
+    CreateSecretRequest:
+      properties:
+        key:
+          type: string
+        provider:
+          enum:
+          - env
+          type: string
+        value:
+          type: string
+      required:
+      - key
+      - value
+      - provider
+      type: object
     CycleError:
       properties:
         edges_with_vars:
@@ -650,6 +665,13 @@ components:
       - cells
       - type
       type: object
+    DeleteSecretRequest:
+      properties:
+        key:
+          type: string
+      required:
+      - key
+      type: object
     Error:
       oneOf:
       - $ref: '#/components/schemas/CycleError'
@@ -695,7 +717,10 @@ components:
       - code
       type: object
     ExecuteStaleRequest:
-      properties: {}
+      properties:
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       type: object
     ExecutionRequest:
       properties:
@@ -1251,6 +1276,27 @@ components:
           type: array
       required:
       - packages
+      type: object
+    ListSecretKeysResponse:
+      properties:
+        keys:
+          items:
+            properties:
+              keys:
+                items:
+                  type: string
+                type: array
+              provider:
+                enum:
+                - env
+                type: string
+            required:
+            - provider
+            - keys
+            type: object
+          type: array
+      required:
+      - keys
       type: object
     MIME:
       properties: {}
@@ -3105,6 +3151,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/secrets/create:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Create a secret
+  /api/secrets/delete:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Delete a secret
+  /api/secrets/keys:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSecretKeysResponse'
+          description: Preview a column in a dataset
   /api/status:
     get:
       responses:

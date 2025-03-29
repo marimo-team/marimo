@@ -1997,6 +1997,111 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/secrets/create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Create a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Delete a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/keys": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Preview a column in a dataset */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ListSecretKeysResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/status": {
     parameters: {
       query?: never;
@@ -2249,6 +2354,7 @@ export interface components {
       variant?: "danger" | null;
     };
     AppMetadata: {
+      argv?: string[] | null;
       cliArgs: {
         [key: string]:
           | string
@@ -2376,6 +2482,12 @@ export interface components {
       destination: string;
       source: string;
     };
+    CreateSecretRequest: {
+      key: string;
+      /** @enum {string} */
+      provider: "env";
+      value: string;
+    };
     CycleError: {
       edges_with_vars: [string, string[], string][];
       /** @enum {string} */
@@ -2468,6 +2580,9 @@ export interface components {
       /** @enum {string} */
       type: "delete-nonlocal";
     };
+    DeleteSecretRequest: {
+      key: string;
+    };
     Error:
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
@@ -2491,7 +2606,9 @@ export interface components {
       code: string;
       request?: components["schemas"]["HTTPRequest"];
     };
-    ExecuteStaleRequest: Record<string, never>;
+    ExecuteStaleRequest: {
+      request?: components["schemas"]["HTTPRequest"];
+    };
     ExecutionRequest: {
       cellId: string;
       code: string;
@@ -2746,6 +2863,13 @@ export interface components {
     };
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
+    };
+    ListSecretKeysResponse: {
+      keys: {
+        keys: string[];
+        /** @enum {string} */
+        provider: "env";
+      }[];
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
