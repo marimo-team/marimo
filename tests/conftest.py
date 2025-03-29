@@ -163,7 +163,10 @@ class MockedKernel:
             cell_configs={},
             user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(
-                query_params={}, filename=None, cli_args={}, argv=None,
+                query_params={},
+                filename=None,
+                cli_args={},
+                argv=None,
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,
