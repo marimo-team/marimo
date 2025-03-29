@@ -302,7 +302,7 @@ async def test_install_missing_packages_micropip_other_modules(
     del sys.modules["already_installed"]
 
 
-async def testmissing_packages_hook(
+async def test_missing_packages_hook(
     mocked_kernel: MockedKernel,
 ) -> None:
     """Test that missing_packages_hook correctly handles missing packages for micropip"""
@@ -436,7 +436,7 @@ async def testmissing_packages_hook(
     del sys.modules["pyodide"]
 
 
-def testmissing_packages_hook_pip(
+def test_missing_packages_hook_pip(
     mocked_kernel: MockedKernel,
 ) -> None:
     """Test that missing_packages_hook correctly handles missing packages for pip"""
