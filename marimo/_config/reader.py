@@ -17,19 +17,16 @@ def read_marimo_config(path: str) -> PartialMarimoConfig:
 
 
 def read_pyproject_marimo_config(
-    start_path: Union[str, Path],
+    pyproject_path: Union[str, Path],
 ) -> Optional[PartialMarimoConfig]:
-    """Find the nearest pyproject.toml file, then read the marimo tool config."""
-    path = find_nearest_pyproject_toml(start_path)
-    if path is None:
-        return None
-    pyproject_config = read_toml(path)
+    """Read the marimo tool config from a pyproject.toml file."""
+    pyproject_config = read_toml(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
         pyproject_config
     )
     if marimo_tool_config is None:
         return None
-    LOGGER.debug("Found marimo config in pyproject.toml at %s", path)
+    LOGGER.debug("Found marimo config in pyproject.toml at %s", pyproject_path)
     return marimo_tool_config
 
 

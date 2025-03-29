@@ -16,6 +16,7 @@ import time
 import traceback
 from copy import copy, deepcopy
 from multiprocessing import connection
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 from uuid import uuid4
 
@@ -1992,6 +1993,8 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
+        self.load_dotenv()
+
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
@@ -2010,6 +2013,21 @@ class Kernel:
             }
             for cid in self._uninstantiated_execution_requests:
                 CellOp.broadcast_stale(cell_id=cid, stale=True)
+
+    def load_dotenv(self) -> None:
+        if not DependencyManager.dotenv.has():
+            return
+
+        from dotenv import load_dotenv  # type: ignore[import-not-found]
+
+        for env in self.user_config["runtime"]["dotenv"]:
+            if Path(env).exists():
+                try:
+                    load_dotenv(env)
+                except Exception as e:
+                    LOGGER.error(
+                        "Failed to load dotenv file %s", env, exc_info=e
+                    )
 
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
