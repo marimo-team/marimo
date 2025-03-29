@@ -8,10 +8,14 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from textwrap import dedent
 from typing import Optional
 from urllib.error import HTTPError
 
 from marimo import _loggers
+from marimo._ast import codegen
+from marimo._ast.app import _AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
@@ -40,8 +44,18 @@ def get_github_src_url(url: str) -> str:
 
 
 class FileReader(abc.ABC):
+    """Base class for file readers that handle different file types and sources."""
+
     @abc.abstractmethod
     def can_read(self, name: str) -> bool:
+        """Check if this reader can handle the given file.
+
+        Args:
+            name: File path or URL
+
+        Returns:
+            bool: True if this reader can handle the file
+        """
         pass
 
     @abc.abstractmethod
@@ -52,7 +66,10 @@ class FileReader(abc.ABC):
 
 class LocalFileReader(FileReader):
     def can_read(self, name: str) -> bool:
-        return not is_url(name)
+        if is_url(name):
+            return False
+        path = Path(name)
+        return path.is_dir() or MarimoPath.is_valid_path(name)
 
     def read(self, name: str) -> tuple[str, str]:
         file_path = Path(name)
@@ -61,6 +78,100 @@ class LocalFileReader(FileReader):
             return "", file_path.name
         content = file_path.read_text(encoding="utf-8")
         return content, file_path.name
+
+
+class IPYNBFileReader(FileReader):
+    def can_read(self, name: str) -> bool:
+        return Path(name).suffix == ".ipynb"
+
+    def read(self, name: str) -> tuple[str, str]:
+        # This doesn't actually, but rather prints a helpful error.
+        import click
+
+        path = Path(name)
+        without_suffix = path.stem
+        raise click.ClickException(
+            f"Invalid NAME - {name} is not a Python file.\n\n"
+            f"  {green('Tip:')} Convert {name} to a marimo notebook with"
+            "\n\n"
+            f"    marimo convert {name} > {without_suffix}.py\n\n"
+            f"  then open with marimo edit {without_suffix}.py"
+        )
+
+
+class DataFileReader(FileReader):
+    EXTENSIONS = {".csv", ".parquet", ".json", ".jsonl"}
+
+    def can_read(self, name: str) -> bool:
+        # Remote data files not supported yet
+        if is_url(name):
+            return False
+
+        return Path(name).suffix in self.EXTENSIONS
+
+    def read(self, name: str) -> tuple[str, str]:
+        path = Path(name)
+        if not path.exists():
+            import click
+
+            raise click.ClickException(f"File {name} does not exist")
+        method = {
+            ".csv": "scan_csv",
+            ".parquet": "scan_parquet",
+            ".json": "scan_json",
+            ".jsonl": "scan_ndjson",
+        }[path.suffix]
+
+        # For simplicity, we are a bit opinionated and opt
+        # for polars
+        cell_code = f"""
+        import polars as pl
+        df = pl.{method}(r"{name}")
+        df.head(10).collect()
+        """
+
+        app_code = codegen.generate_filecontents(
+            [dedent(cell_code)],
+            ["_"],
+            [CellConfig()],
+            _AppConfig(width="medium"),
+        )
+        return app_code, f"data_{path.stem}.py"
+
+
+class SQLFileReader(FileReader):
+    EXTENSIONS = {".sql", ".sqlite", ".db", ".sqlite3"}
+
+    def can_read(self, name: str) -> bool:
+        # Remote SQL files not supported yet
+        if is_url(name):
+            return False
+
+        return Path(name).suffix in self.EXTENSIONS
+
+    def read(self, name: str) -> tuple[str, str]:
+        path = Path(name)
+        if not path.exists():
+            import click
+
+            raise click.ClickException(f"File {name} does not exist")
+
+        cell_code = f'''
+        _df = mo.sql(f"""
+        ATTACH '{name}' AS db (TYPE sqlite);
+        USE db;
+        SHOW TABLES;
+        """)
+        '''
+
+        cells = ["import marimo as mo\nimport duckdb", dedent(cell_code)]
+        app_code = codegen.generate_filecontents(
+            ["import marimo as mo", dedent(cell_code)],
+            ["_"] * len(cells),
+            [CellConfig()] * len(cells),
+            _AppConfig(width="medium"),
+        )
+        return app_code, f"sql_{path.stem}.py"
 
 
 class GitHubIssueReader(FileReader):
@@ -171,6 +282,9 @@ class FileContentReader:
     def __init__(self) -> None:
         self.readers = [
             LocalFileReader(),
+            DataFileReader(),
+            SQLFileReader(),
+            IPYNBFileReader(),
             GitHubIssueReader(),
             StaticNotebookReader(),
             GitHubSourceReader(),
@@ -193,7 +307,10 @@ class FileContentReader:
         for reader in self.readers:
             if reader.can_read(name):
                 return reader.read(name)
-        raise ValueError(f"Unable to read file contents of {name}")
+
+        import click
+
+        raise click.ClickException(f"Unable to read file contents of {name}")
 
 
 class FileHandler(abc.ABC):
@@ -208,13 +325,17 @@ class FileHandler(abc.ABC):
         pass
 
 
-class LocalFileHandler(FileHandler):
+class NotebookOrDirectoryFileHandler(FileHandler):
     def __init__(self, allow_new_file: bool, allow_directory: bool):
         self.allow_new_file = allow_new_file
         self.allow_directory = allow_directory
 
     def can_handle(self, name: str) -> bool:
-        return not is_url(name)
+        # Must be local
+        # Must be a directory or marimo file
+        if is_url(name):
+            return False
+        return Path(name).is_dir() or MarimoPath.is_valid_path(name)
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
@@ -226,16 +347,6 @@ class LocalFileHandler(FileHandler):
 
         if self.allow_directory and path.is_dir():
             return name, None
-
-        if path.suffix == ".ipynb":
-            prefix = str(path)[: -len(".ipynb")]
-            raise click.ClickException(
-                f"Invalid NAME - {name} is not a Python file.\n\n"
-                f"  {green('Tip:')} Convert {name} to a marimo notebook with"
-                "\n\n"
-                f"    marimo convert {name} > {prefix}.py\n\n"
-                f"  then open with marimo edit {prefix}.py"
-            )
 
         if not MarimoPath.is_valid_path(path):
             raise click.ClickException(
@@ -255,12 +366,18 @@ class LocalFileHandler(FileHandler):
         return name, None
 
 
-class RemoteFileHandler(FileHandler):
+class TempNotebookFileHandler(FileHandler):
+    """
+    Handles URLs and data files (csv, parquet, json, etc.)
+    """
+
     def __init__(self) -> None:
         self.reader = FileContentReader()
 
     def can_handle(self, name: str) -> bool:
-        return is_url(name)
+        del name
+        # Just attempt to run through all readers
+        return True
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
@@ -308,8 +425,8 @@ def validate_name(
         Path to the file and temporary directory
     """
     handlers = [
-        LocalFileHandler(allow_new_file, allow_directory),
-        RemoteFileHandler(),
+        NotebookOrDirectoryFileHandler(allow_new_file, allow_directory),
+        TempNotebookFileHandler(),
     ]
 
     temp_dir = TemporaryDirectory()
