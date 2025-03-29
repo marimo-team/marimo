@@ -331,131 +331,131 @@ def python_print_polars(
 def python_print_ibis(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    del df_name, all_columns, transform
-    # TODO: this does not fully work yet, but we can output the SQL for Ibis so
-    # let's table this for now
-    return ""
+    def generate_where_clause(df_name: str, where: Condition) -> str:
+        column_id, operator, value = (
+            where.column_id,
+            where.operator,
+            where.value,
+        )
 
+        if operator == "==" or operator == "equals":
+            return (
+                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
+            )
+        elif operator == "does_not_equal" or operator == "!=":
+            return f"({_as_literal(column_id)}) != {_as_literal(value)}"
+        elif operator == "does_not_equal" or operator == "!=":
+            return (
+                f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)})"  # noqa: E501
+            )
+        elif operator == "contains":
+            return f"{df_name}[{_as_literal(column_id)}].contains({_as_literal(value)})"  # noqa: E501
+        elif operator == "regex":
+            return f"{df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)})"  # noqa: E501
+        elif operator == "starts_with":
+            return f"{df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)})"  # noqa: E501
+        elif operator == "ends_with":
+            return f"{df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)})"  # noqa: E501
+        elif operator == "in":
+            return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+        elif operator in [">", ">=", "<", "<="]:
+            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
+        elif operator == "is_nan":
+            return f"{df_name}[{_as_literal(column_id)}].isnull()"
+        elif operator == "is_not_nan":
+            return f"{df_name}[{_as_literal(column_id)}].notnull()"
+        elif operator == "is_true":
+            return f"{df_name}[{_as_literal(column_id)}] == True"
+        elif operator == "is_false":
+            return f"{df_name}[{_as_literal(column_id)}] == False"
+        else:
+            raise ValueError(f"Unknown operator: {operator}")
 
-#     def generate_where_clause(df_name: str, where: Condition) -> str:
-#         column_id, operator, value = (
-#             where.column_id,
-#             where.operator,
-#             where.value,
-#         )
+    if transform.type == TransformType.COLUMN_CONVERSION:
+        column_id, data_type, errors = (
+            transform.column_id,
+            transform.data_type,
+            transform.errors,
+        )
+        transform_data_type = _as_literal(data_type).replace("_", "")
+        if errors == "ignore":
+            return (
+                f"{df_name}.mutate("
+                f"ibis.coalesce("
+                f"{df_name}[{_as_literal(column_id)}].cast(ibis.dtype({transform_data_type})), "  # noqa: E501
+                f"{df_name}[{_as_literal(column_id)}]"
+                f").name({_as_literal(column_id)}))"
+            )
+        else:
+            return (
+                f"{df_name}.mutate("
+                f"{df_name}[{_as_literal(column_id)}]"
+                f".cast(ibis.dtype({transform_data_type}))"
+                f".name({_as_literal(column_id)}))"
+            )
 
-#         if operator == "==":
-#             return (
-#                 f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}" # noqa: E501
-#             )
-#         elif operator == "equals":
-#             return (
-#                 f"{df_name}[{_as_literal(column_id)}].eq({_as_literal(value)})"  # noqa: E501
-#             )
-#         elif operator == "does_not_equal" or operator == "!=":
-#             return (
-#                 f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"  # noqa: E501
-#             )
-#         elif operator == "contains":
-#             return f"{df_name}[{_as_literal(column_id)}].contains({_as_literal(value)})"  # noqa: E501
-#         elif operator == "regex":
-#             return f"{df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)})"  # noqa: E501
-#         elif operator == "starts_with":
-#             return f"{df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)})"  # noqa: E501
-#         elif operator == "ends_with":
-#             return f"{df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)})"  # noqa: E501
-#         elif operator == "in":
-#             return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
-#         elif operator in [">", ">=", "<", "<="]:
-#             return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
-#         elif operator == "is_nan":
-#             return f"{df_name}[{_as_literal(column_id)}].isnull()"
-#         elif operator == "is_not_nan":
-#             return f"{df_name}[{_as_literal(column_id)}].notnull()"
-#         elif operator == "is_true":
-#             return f"{df_name}[{_as_literal(column_id)}] == True"
-#         elif operator == "is_false":
-#             return f"{df_name}[{_as_literal(column_id)}] == False"
-#         else:
-#             raise ValueError(f"Unknown operator: {operator}")
+    elif transform.type == TransformType.RENAME_COLUMN:
+        column_id, new_column_id = transform.column_id, transform.new_column_id  # noqa: E501
+        return f"{df_name}.rename({{{_as_literal(new_column_id)}: {_as_literal(column_id)}}})"  # noqa: E501
 
-#     if transform.type == TransformType.COLUMN_CONVERSION:
-#         column_id, data_type, errors = (
-#             transform.column_id,
-#             transform.data_type,
-#             transform.errors,
-#         )
-#         if errors == "ignore":
-#             return (
-#                 f"{df_name}.select('*', "
-#                 f"ibis.coalesce("
-#                 f"{df_name}[{_as_literal(column_id)}].cast(ibis.dtype({_as_literal(data_type)})), "  # noqa: E501
-#                 f"{df_name}[{_as_literal(column_id)}]"
-#                 f").name({_as_literal(column_id)}))"
-#             )
-#         else:
-#             return (
-#                 f"{df_name}.select('*', "
-#                 f"{df_name}[{_as_literal(column_id)}]"
-#                 f".cast(ibis.dtype({_as_literal(data_type)}))"
-#                 f".name({_as_literal(column_id)}))"
-#             )
+    elif transform.type == TransformType.SORT_COLUMN:
+        column_id, ascending = transform.column_id, transform.ascending
+        return f"{df_name}.order_by([{df_name}[{_as_literal(column_id)}].{'asc' if ascending else 'desc'}()])"  # noqa: E501
 
-#     elif transform.type == TransformType.RENAME_COLUMN:
-#         column_id, new_column_id = transform.column_id, transform.new_column_id  # noqa: E501
-#         return f"{df_name}.rename({{{_as_literal(new_column_id)}: {_as_literal(column_id)}}})"  # noqa: E501
+    elif transform.type == TransformType.FILTER_ROWS:
+        conditions, operation = transform.where, transform.operation
+        expressions = [
+            generate_where_clause(df_name, condition)
+            for condition in conditions
+        ]
+        expression = " & ".join(expressions)
+        return (
+            f"{df_name}.filter({expression})"
+            if operation == "keep_rows"
+            else f"{df_name}.filter(~({expression}))"
+        )
 
-#     elif transform.type == TransformType.SORT_COLUMN:
-#         column_id, ascending = transform.column_id, transform.ascending
-#         return f"{df_name}.order_by([{df_name}[{_as_literal(column_id)}].{'asc' if ascending else 'desc'}()])"  # noqa: E501
+    elif transform.type == TransformType.AGGREGATE:
+        agg_dict = []
+        for agg_func in transform.aggregations:
+            for column_id in transform.column_ids:
+                name = f"{column_id}_{agg_func}"
+                agg_dict.append(
+                    f"'{name}' : {df_name}['{column_id}'].{agg_func}()"
+                )
+        return f"{df_name}.agg(**{{{','.join(agg_dict)}}})"
 
-#     elif transform.type == TransformType.FILTER_ROWS:
-#         conditions, operation = transform.where, transform.operation
-#         expressions = [
-#             generate_where_clause(df_name, condition)
-#             for condition in conditions
-#         ]
-#         expression = " & ".join(expressions)
-#         return (
-#             f"{df_name}.filter({expression})"
-#             if operation == "keep_rows"
-#             else f"{df_name}.filter(~({expression}))"
-#         )
+    elif transform.type == TransformType.GROUP_BY:
+        column_ids, aggregation = transform.column_ids, transform.aggregation
+        aggs: list[str] = []
+        for column_id in all_columns:
+            if column_id not in column_ids:
+                agg_alias = f"{column_id}_{aggregation}"
+                aggs.append(
+                    f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
+                )
+        return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"  # noqa: E501
 
-#     elif transform.type == TransformType.AGGREGATE:
-#         column_ids, aggregations = transform.column_ids, transform.aggregations  # noqa: E501
-#         agg_dict: Dict[str, str] = {}
-#         for col, aggs in zip(column_ids, aggregations):
-#             for agg in aggs:
-#                 agg_dict[f"{col}_{agg}"] = (
-#                     f"{df_name}[{_as_literal(col)}].{agg}()"
-#                 )
-#         return f"{df_name}.agg({{{', '.join(f'{_as_literal(k)}: {v}' for k, v in agg_dict.items())}}})"  # noqa: E501
+    elif transform.type == TransformType.SELECT_COLUMNS:
+        column_ids = transform.column_ids
+        return f"{df_name}.select({_list_of_strings(column_ids)})"
 
-#     elif transform.type == TransformType.GROUP_BY:
-#         column_ids, aggregation = transform.column_ids, transform.aggregation
-#         return f"{df_name}.group_by({_list_of_strings(column_ids)}).{aggregation}()"  # noqa: E501
+    elif transform.type == TransformType.SAMPLE_ROWS:
+        n, seed = transform.n, transform.seed
+        return f"{df_name}.sample({n} / {df_name}.count().execute(), method='row', seed={seed})"  # noqa: E501
 
-#     elif transform.type == TransformType.SELECT_COLUMNS:
-#         column_ids = transform.column_ids
-#         return f"{df_name}.select({_list_of_strings(column_ids)})"
+    elif transform.type == TransformType.SHUFFLE_ROWS:
+        return f"{df_name}.order_by(ibis.random())"
 
-#     elif transform.type == TransformType.SAMPLE_ROWS:
-#         n, seed = transform.n, transform.seed
-#         return f"{df_name}.sample({n} / {df_name}.count().execute(), method='row', seed={seed})"  # noqa: E501
+    elif transform.type == TransformType.EXPLODE_COLUMNS:
+        column_ids = transform.column_ids
+        return f"{df_name}.unnest({_list_of_strings(column_ids)})"
 
-#     elif transform.type == TransformType.SHUFFLE_ROWS:
-#         return f"{df_name}.order_by(ibis.random())"
+    elif transform.type == TransformType.EXPAND_DICT:
+        column_id = transform.column_id
+        return f"{df_name}.unpack({_as_literal(column_id)})"
 
-#     elif transform.type == TransformType.EXPLODE_COLUMNS:
-#         column_ids = transform.column_ids
-#         return f"{df_name}.unnest({_list_of_strings(column_ids)})"
-
-#     elif transform.type == TransformType.EXPAND_DICT:
-#         column_id = transform.column_id
-#         return f"{df_name}.unpack({_as_literal(column_id)})"
-
-#     assert_never(transform.type)
+    assert_never(transform.type)
 
 
 def _as_literal(value: Any) -> str:
