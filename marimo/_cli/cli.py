@@ -383,7 +383,8 @@ def edit(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        # TODO: consider adding recommended as well
+        run_in_sandbox(sys.argv[1:], name, additional_features=["lsp"])
         return
 
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
@@ -433,6 +434,7 @@ def edit(
         include_code=True,
         watch=watch,
         cli_args=parse_args(args),
+        argv=list(args),
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
         allow_origins=allow_origins,
@@ -514,7 +516,8 @@ def new(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], None)
+        # TODO: consider adding recommended as well
+        run_in_sandbox(sys.argv[1:], None, additional_features=["lsp"])
         return
 
     start(
@@ -529,6 +532,7 @@ def new(
         include_code=True,
         watch=False,
         cli_args={},
+        argv=[],
         auth_token=_resolve_token(token, token_password),
         base_url=base_url,
         redirect_console_to_browser=True,
@@ -718,6 +722,7 @@ def run(
         base_url=base_url,
         allow_origins=allow_origins,
         cli_args=parse_args(args),
+        argv=list(args),
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=redirect_console_to_browser,
     )
@@ -821,6 +826,7 @@ def tutorial(
         headless=headless,
         watch=False,
         cli_args={},
+        argv=[],
         auth_token=_resolve_token(token, token_password),
         redirect_console_to_browser=False,
         ttl_seconds=None,

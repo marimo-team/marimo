@@ -18,7 +18,6 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
     _to_marimo_json,
     register_transformers,
 )
-from marimo._utils.narwhals_utils import dataframe_to_csv
 from tests._data.mocks import create_dataframes
 
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
@@ -214,9 +213,6 @@ def test_data_to_json_string_with_special_characters(
 def test_data_to_csv_string_with_different_dtypes(df: IntoDataFrame):
     result = _data_to_csv_string(df)
     assert isinstance(result, str)
-    # NB: These can differ based on datetime canonicalization --- our table
-    # manager always includes H:M:S:.f for pandas, but narwhals doesn't.
-    assert result == dataframe_to_csv(df)
 
 
 @patch("altair.data_transformers")

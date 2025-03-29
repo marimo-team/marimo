@@ -9,12 +9,12 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
     get_table_manager_or_none,
 )
 from marimo._utils.data_uri import build_data_url
+from marimo._utils.narwhals_utils import can_narwhalify
 
 LOGGER = _loggers.marimo_logger()
 
@@ -66,6 +66,7 @@ def _to_marimo_arrow(data: Data, **kwargs: Any) -> _TransformResult:
     Convert data to arrow format, falls back to CSV if not possible.
     """
     del kwargs
+    data = _maybe_sanitize_dataframe(data)
     try:
         data_arrow = get_table_manager(data).to_arrow_ipc()
     except NotImplementedError:
@@ -96,28 +97,7 @@ def _to_marimo_inline_csv(data: Data, **kwargs: Any) -> _TransformResult:
 # Copied from https://github.com/altair-viz/altair/blob/0ca83784e2455f2b84d0f6d789af2abbe8814348/altair/utils/data.py#L263C1-L288C10
 def _data_to_json_string(data: _DataType) -> str:
     """Return a JSON string representation of the input data"""
-    import altair as alt
-    import pandas as pd
-
-    if isinstance(data, pd.DataFrame):
-        if "sanitize_pandas_dataframe" in dir(alt.utils):
-            sanitized = alt.utils.sanitize_pandas_dataframe(data)  # type: ignore[attr-defined]
-        elif "sanitize_dataframe" in dir(alt.utils):
-            sanitized = alt.utils.sanitize_dataframe(data)  # type: ignore[attr-defined]
-        else:
-            raise NotImplementedError(
-                "No sanitize_pandas_dataframe or "
-                "sanitize_dataframe in altair.utils."
-            )
-        as_str = sanitized.to_json(orient="records", double_precision=15)
-        assert isinstance(as_str, str)
-        return as_str
-
-    if DependencyManager.narwhals.has():
-        import narwhals
-
-        if isinstance(data, narwhals.DataFrame):
-            return _data_to_json_string(narwhals.to_native(data))
+    data = _maybe_sanitize_dataframe(data)
 
     tm = get_table_manager_or_none(data)
     if tm:
@@ -131,7 +111,29 @@ def _data_to_json_string(data: _DataType) -> str:
 
 def _data_to_csv_string(data: _DataType) -> str:
     """Return a CSV string representation of the input data"""
+    data = _maybe_sanitize_dataframe(data)
+
     return get_table_manager(data).to_csv().decode("utf-8")
+
+
+def _maybe_sanitize_dataframe(data: Any) -> Any:
+    """Sanitize a pandas or narwhals DataFrame for JSON serialization"""
+    import altair as alt
+
+    if can_narwhalify(data) and "sanitize_narwhals_dataframe" in dir(
+        alt.utils
+    ):
+        narwhals_data = nw.from_native(data)
+        try:
+            res: nw.DataFrame[Any] = alt.utils.sanitize_narwhals_dataframe(
+                narwhals_data  # type: ignore[arg-type]
+            )
+            return res.to_native()  # type: ignore[return-value]
+        except Exception as e:
+            LOGGER.warning(f"Failed to sanitize narwhals dataframe: {e}")
+            return data
+
+    return data
 
 
 def register_transformers() -> None:

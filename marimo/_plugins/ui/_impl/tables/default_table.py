@@ -182,6 +182,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
                             value=row[column_name],
                         )
                     )
+                elif not isinstance(row, list) and column_name == "value":
+                    selected_cells.append(
+                        TableCell(row=row_id, column=column_name, value=row)
+                    )
 
         return selected_cells
 

@@ -1155,7 +1155,10 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1216,7 +1219,10 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1224,6 +1230,65 @@ class TestExecution:
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
         finally:
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+
+    def test_sys_argv_updated(self, tmp_path: pathlib.Path) -> None:
+        old_argv = sys.argv
+        try:
+            filename = str(tmp_path / "notebook.py")
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=["foo", "bar"],
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+
+            assert len(sys.argv) == 3
+            assert filename == sys.argv[0]
+            assert sys.argv[1] == "foo"
+            assert sys.argv[2] == "bar"
+        finally:
+            sys.argv = old_argv
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+
+    def test_sys_argv_not_updated_when_none(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        argv = sys.argv
+        try:
+            filename = str(tmp_path / "notebook.py")
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+            assert argv == sys.argv
+        finally:
+            # restore argv in case test failed or accidentally mutated it
+            sys.argv = argv
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
@@ -1248,7 +1313,10 @@ class TestExecution:
                     },
                 },
                 app_metadata=AppMetadata(
-                    query_params={}, filename=str(filename), cli_args={}
+                    query_params={},
+                    filename=str(filename),
+                    cli_args={},
+                    argv=None,
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),

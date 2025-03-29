@@ -43,4 +43,8 @@ def tree(
         json_data = format_structure(items)
     except CyclicStructureError:
         json_data = str(items)
-    return json_output.json_output(json_data=json_data, name=label)
+    return json_output.json_output(
+        json_data=json_data,
+        name=label,
+        value_types="python",
+    )

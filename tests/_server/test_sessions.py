@@ -48,7 +48,10 @@ initialize_asyncio()
 F = TypeVar("F", bound=Callable[..., Any])
 
 app_metadata = AppMetadata(
-    query_params={"some_param": "some_value"}, filename="test.py", cli_args={}
+    query_params={"some_param": "some_value"},
+    filename="test.py",
+    cli_args={},
+    argv=None,
 )
 
 
@@ -317,7 +320,7 @@ def test_session_disconnect_reconnect() -> None:
         queue_manager,
         SessionMode.RUN,
         {},
-        AppMetadata(query_params={}, cli_args={}),
+        AppMetadata(query_params={}, cli_args={}, argv=None),
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
@@ -471,6 +474,7 @@ def __():
                 }
             ),
             cli_args={},
+            argv=None,
             auth_token=None,
             redirect_console_to_browser=False,
             ttl_seconds=None,
@@ -627,6 +631,7 @@ def test_watch_mode_config_override() -> None:
         lsp_server=MagicMock(),
         config_manager=config_reader_watch,
         cli_args={},
+        argv=None,
         auth_token=None,
         redirect_console_to_browser=False,
         ttl_seconds=None,
@@ -642,6 +647,7 @@ def test_watch_mode_config_override() -> None:
         lsp_server=MagicMock(),
         config_manager=config_reader,
         cli_args={},
+        argv=None,
         auth_token=None,
         redirect_console_to_browser=False,
         ttl_seconds=None,
@@ -709,6 +715,7 @@ def __():
             lsp_server=MagicMock(),
             config_manager=config_reader_autorun,
             cli_args={},
+            argv=None,
             auth_token=None,
             redirect_console_to_browser=False,
             ttl_seconds=None,
@@ -856,6 +863,7 @@ def __():
             lsp_server=MagicMock(),
             config_manager=get_default_config_manager(current_path=None),
             cli_args={},
+            argv=None,
             auth_token=None,
             redirect_console_to_browser=False,
             ttl_seconds=None,
@@ -967,6 +975,10 @@ def __():
     )
 
     app_file_manager = AppFileManager(filename=str(notebook_path))
+    codes = tuple(
+        cell_data.code
+        for cell_data in app_file_manager.app.cell_manager.cell_data()
+    )
     session = Session(
         session_id,
         session_consumer,

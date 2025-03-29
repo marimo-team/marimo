@@ -17,6 +17,7 @@ import traceback
 from copy import copy, deepcopy
 from functools import cached_property
 from multiprocessing import connection
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 from uuid import uuid4
 
@@ -143,6 +144,9 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._secrets.load_dotenv import (
+    load_dotenv_with_fallback,
+)
 from marimo._secrets.secrets import get_secret_keys
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
@@ -452,6 +456,20 @@ class Kernel:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
         self.cli_args = CLIArgs(app_metadata.cli_args)
+        self.argv = (
+            [app_metadata.filename or ""] + app_metadata.argv
+            if app_metadata.argv is not None
+            else sys.argv
+        )
+
+        # We update sys.argv to be [filename, args after '--'] so modules like
+        # argparse, simple-parser work out of the box.
+        #
+        # TODO(akshayka): The notebook globals share modules with the kernel
+        # process; if we ever isolate them, push this mutation down into the
+        # kernel globals.
+        sys.argv = self.argv
+
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
@@ -1888,6 +1906,8 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
+        self.load_dotenv()
+
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
@@ -1906,6 +1926,21 @@ class Kernel:
             }
             for cid in self._uninstantiated_execution_requests:
                 CellOp.broadcast_stale(cell_id=cid, stale=True)
+
+    def load_dotenv(self) -> None:
+        dotenvs = self.user_config["runtime"].get("dotenv", [])
+        if not isinstance(dotenvs, list):
+            LOGGER.warning("dotenv configuration is not a list")
+            return
+
+        for env in dotenvs:
+            if Path(env).exists():
+                try:
+                    load_dotenv_with_fallback(env)
+                except Exception as e:
+                    LOGGER.error(
+                        "Failed to load dotenv file %s", env, exc_info=e
+                    )
 
     @cached_property
     def request_handler(self) -> RequestHandler:

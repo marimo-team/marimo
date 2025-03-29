@@ -9,6 +9,8 @@ import { python, pythonLanguage } from "@codemirror/lang-python";
 import dedent from "string-dedent";
 import {
   type Completion,
+  type CompletionContext,
+  type CompletionResult,
   type CompletionSource,
   autocompletion,
 } from "@codemirror/autocomplete";
@@ -197,7 +199,11 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       enhancedMarkdownExtension(hotkeys),
       autocompletion({
         activateOnTyping: true,
-        override: [emojiCompletionSource, lucideIconCompletionSource],
+        override: [
+          emojiCompletionSource,
+          lucideIconCompletionSource,
+          latexSymbolCompletionSource,
+        ],
       }),
       // Markdown autorun
       markdownAutoRunExtension(),
@@ -303,4 +309,155 @@ const getLucideIconList = once(async (): Promise<Completion[]> => {
       },
     }),
   );
+});
+
+// Completion provider for LaTeX-style UTF-8 symbols
+export const latexSymbolCompletionSource = (
+  context: CompletionContext,
+): CompletionResult | null => {
+  const filter = context.matchBefore(/\\\w*$/)?.text.slice(1) ?? "";
+  if (!filter && !context.explicit) {
+    return null;
+  }
+
+  return {
+    from: context.pos - filter.length - 1,
+    options: getLatexSymbolList(),
+    validFor: /^[\w\\]*$/,
+  };
+};
+
+// Common LaTeX symbols with their UTF-8 equivalents
+const getLatexSymbolList = once((): Completion[] => {
+  const symbols: Array<[string, string, string]> = [
+    // Greek letters
+    ["alpha", "α", "Greek small letter alpha"],
+    ["beta", "β", "Greek small letter beta"],
+    ["gamma", "γ", "Greek small letter gamma"],
+    ["delta", "δ", "Greek small letter delta"],
+    ["epsilon", "ε", "Greek small letter epsilon"],
+    ["zeta", "ζ", "Greek small letter zeta"],
+    ["eta", "η", "Greek small letter eta"],
+    ["theta", "θ", "Greek small letter theta"],
+    ["iota", "ι", "Greek small letter iota"],
+    ["kappa", "κ", "Greek small letter kappa"],
+    ["lambda", "λ", "Greek small letter lambda"],
+    ["mu", "μ", "Greek small letter mu"],
+    ["nu", "ν", "Greek small letter nu"],
+    ["xi", "ξ", "Greek small letter xi"],
+    ["omicron", "ο", "Greek small letter omicron"],
+    ["pi", "π", "Greek small letter pi"],
+    ["rho", "ρ", "Greek small letter rho"],
+    ["sigma", "σ", "Greek small letter sigma"],
+    ["tau", "τ", "Greek small letter tau"],
+    ["upsilon", "υ", "Greek small letter upsilon"],
+    ["phi", "φ", "Greek small letter phi"],
+    ["chi", "χ", "Greek small letter chi"],
+    ["psi", "ψ", "Greek small letter psi"],
+    ["omega", "ω", "Greek small letter omega"],
+
+    // Capital Greek letters
+    ["Gamma", "Γ", "Greek capital letter gamma"],
+    ["Delta", "Δ", "Greek capital letter delta"],
+    ["Theta", "Θ", "Greek capital letter theta"],
+    ["Lambda", "Λ", "Greek capital letter lambda"],
+    ["Xi", "Ξ", "Greek capital letter xi"],
+    ["Pi", "Π", "Greek capital letter pi"],
+    ["Sigma", "Σ", "Greek capital letter sigma"],
+    ["Phi", "Φ", "Greek capital letter phi"],
+    ["Psi", "Ψ", "Greek capital letter psi"],
+    ["Omega", "Ω", "Greek capital letter omega"],
+
+    // Math symbols
+    ["pm", "±", "Plus-minus sign"],
+    ["mp", "∓", "Minus-plus sign"],
+    ["times", "×", "Multiplication sign"],
+    ["div", "÷", "Division sign"],
+    ["cdot", "⋅", "Dot operator"],
+    ["ast", "∗", "Asterisk operator"],
+    ["star", "⋆", "Star operator"],
+    ["circ", "∘", "Ring operator"],
+    ["bullet", "•", "Bullet"],
+    ["cap", "∩", "Intersection"],
+    ["cup", "∪", "Union"],
+    ["uplus", "⊎", "Multiset union"],
+    ["sqcap", "⊓", "Square cap"],
+    ["sqcup", "⊔", "Square cup"],
+    ["vee", "∨", "Logical or"],
+    ["wedge", "∧", "Logical and"],
+    ["setminus", "∖", "Set minus"],
+    ["oplus", "⊕", "Circled plus"],
+    ["ominus", "⊖", "Circled minus"],
+    ["otimes", "⊗", "Circled times"],
+    ["oslash", "⊘", "Circled division slash"],
+    ["odot", "⊙", "Circled dot operator"],
+
+    // Relation symbols
+    ["leq", "≤", "Less than or equal to"],
+    ["geq", "≥", "Greater than or equal to"],
+    ["equiv", "≡", "Identical to"],
+    ["prec", "≺", "Precedes"],
+    ["succ", "≻", "Succeeds"],
+    ["sim", "∼", "Tilde operator"],
+    ["perp", "⊥", "Up tack"],
+    ["mid", "∣", "Divides"],
+    ["parallel", "∥", "Parallel to"],
+    ["subset", "⊂", "Subset of"],
+    ["supset", "⊃", "Superset of"],
+    ["subseteq", "⊆", "Subset of or equal to"],
+    ["supseteq", "⊇", "Superset of or equal to"],
+    ["cong", "≅", "Approximately equal to"],
+    ["approx", "≈", "Almost equal to"],
+    ["neq", "≠", "Not equal to"],
+    ["ne", "≠", "Not equal to"],
+    ["propto", "∝", "Proportional to"],
+
+    // Arrows
+    ["leftarrow", "←", "Leftward arrow"],
+    ["rightarrow", "→", "Rightward arrow"],
+    ["Leftarrow", "⇐", "Leftward double arrow"],
+    ["Rightarrow", "⇒", "Rightward double arrow"],
+    ["leftrightarrow", "↔", "Left right arrow"],
+    ["Leftrightarrow", "⇔", "Left right double arrow"],
+    ["uparrow", "↑", "Upward arrow"],
+    ["downarrow", "↓", "Downward arrow"],
+    ["Uparrow", "⇑", "Upward double arrow"],
+    ["Downarrow", "⇓", "Downward double arrow"],
+
+    // Miscellaneous
+    ["infty", "∞", "Infinity"],
+    ["nabla", "∇", "Nabla"],
+    ["partial", "∂", "Partial differential"],
+    ["forall", "∀", "For all"],
+    ["exists", "∃", "There exists"],
+    ["nexists", "∄", "There does not exist"],
+    ["emptyset", "∅", "Empty set"],
+    ["in", "∈", "Element of"],
+    ["notin", "∉", "Not an element of"],
+    ["sum", "∑", "N-ary summation"],
+    ["prod", "∏", "N-ary product"],
+    ["int", "∫", "Integral"],
+    ["oint", "∮", "Contour integral"],
+    ["sqrt", "√", "Square root"],
+    ["hbar", "ℏ", "Planck constant over 2pi"],
+    ["ldots", "…", "Horizontal ellipsis"],
+    ["cdots", "⋯", "Midline horizontal ellipsis"],
+    ["vdots", "⋮", "Vertical ellipsis"],
+    ["ddots", "⋱", "Down right diagonal ellipsis"],
+  ];
+  return symbols.map(([command, symbol, description]) => ({
+    label: `\\${command} ${description}`, // Include the description so it's searchable
+    displayLabel: command,
+    type: "latex-symbol",
+    boost: 10,
+    // We complete the command, instead of the symbol since
+    // some commands take arguments.
+    apply: `\\${command}`,
+    info: () => {
+      const div = document.createElement("div");
+      div.textContent = `${symbol} ${description}`;
+      return div;
+    },
+    detail: symbol,
+  }));
 });

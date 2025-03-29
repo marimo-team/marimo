@@ -316,6 +316,7 @@ class MarimoIslandGenerator:
         (session, did_error) = await run_app_until_completion(
             file_manager=AppFileManager.from_app(self._app),
             cli_args={},
+            argv=None,
         )
         del did_error
         self.has_run = True

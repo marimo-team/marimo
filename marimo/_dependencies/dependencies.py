@@ -197,6 +197,7 @@ class DependencyManager:
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
+    dotenv = Dependency("dotenv")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

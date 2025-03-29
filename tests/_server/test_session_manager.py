@@ -49,6 +49,7 @@ def session_manager():
         lsp_server=MagicMock(spec=LspServer),
         config_manager=get_default_config_manager(current_path=None),
         cli_args={},
+        argv=None,
         auth_token=None,
         redirect_console_to_browser=False,
         ttl_seconds=None,
