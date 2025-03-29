@@ -249,7 +249,7 @@ export function generateColumns<T>({
 
           return (
             <div onClick={selectCell} className={cellStyles}>
-              {stringValue}
+              <UrlDetector text={stringValue} />
             </div>
           );
         }
