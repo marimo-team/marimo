@@ -12,18 +12,25 @@ like writing to disk. Print statements and other console outputs will show
 up in your terminal.
 
 
-!!! note "Producing notebook outputs"
+!!! note "Saving notebook outputs"
 
-    To run as a script while also producing HTML of the notebook outputs, use
+    To run as a script while also saving HTML of the notebook outputs, use
 
     ```bash
     marimo export html notebook.py -o notebook.html
     ```
 
-    Separate CLI args for your notebook with two dashes:
+    You can also pass command-line arguments to your notebook during export.
+    Separate these args from the command with two dashes:
 
     ```bash
     marimo export html notebook.py -o notebook.html -- -arg value
+    ```
+
+    Exporting to other formats, such as ipynb, is also possible:
+
+    ```bash
+    marimo export ipynb notebook.py -o notebook.ipynb -- -arg value
     ```
 
 ## Command-line arguments
@@ -44,16 +51,8 @@ running as a notebook.
     filepath: examples/running_as_a_script/with_argparse.py
 ///
 
-### simpler-parsing
+### simple-parsing
 
 /// marimo-embed-file
     filepath: examples/running_as_a_script/with_simple_parsing.py
 ///
-
-
-### Parsing extra command-line arguments passed to marimo edit
-
-You can also parametrize `marimo edit` and `marimo run` sessions with command-line
-arguments; however, tools like argparse don't work out of the box, since they are
-expecting the first argument to be the notebook executable. For these cases,
-see the [docs page on CLI args](../api/cli_args.md) to learn more.
