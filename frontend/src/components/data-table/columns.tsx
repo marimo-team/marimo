@@ -228,21 +228,29 @@ export function generateColumns<T>({
 
         const format = column.getColumnFormatting?.();
 
-        if (typeof value === "string" && value.length > MAX_STRING_LENGTH) {
+        if (typeof value === "string") {
           const stringValue = format
             ? String(column.applyColumnFormatting(value))
             : String(renderValue());
 
+          if (stringValue.length > MAX_STRING_LENGTH) {
+            return (
+              <PopoutColumn
+                cellStyles={cellStyles}
+                selectCell={selectCell}
+                rawStringValue={stringValue}
+                contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+                buttonText="X"
+              >
+                <UrlDetector text={stringValue} />
+              </PopoutColumn>
+            );
+          }
+
           return (
-            <PopoutColumn
-              cellStyles={cellStyles}
-              selectCell={selectCell}
-              rawStringValue={stringValue}
-              contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
-              buttonText="X"
-            >
-              <UrlDetector text={stringValue} />
-            </PopoutColumn>
+            <div onClick={selectCell} className={cellStyles}>
+              {stringValue}
+            </div>
           );
         }
 
@@ -347,13 +355,6 @@ export function generateColumns<T>({
   }
 
   return columns;
-}
-
-function isLongString(value: unknown): boolean {
-  if (typeof value === "string") {
-    return value.length > MAX_STRING_LENGTH;
-  }
-  return false;
 }
 
 const PopoutColumn = ({
