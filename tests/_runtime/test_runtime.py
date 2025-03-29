@@ -1234,6 +1234,7 @@ class TestExecution:
                 sys.path.remove(str(tmp_path))
 
     def test_sys_argv_updated(self, tmp_path: pathlib.Path) -> None:
+        old_argv = sys.argv
         try:
             filename = str(tmp_path / "notebook.py")
             Kernel(
@@ -1258,15 +1259,16 @@ class TestExecution:
             assert sys.argv[1] == "foo"
             assert sys.argv[2] == "bar"
         finally:
+            sys.argv = old_argv
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
     def test_sys_argv_not_updated_when_none(
         self, tmp_path: pathlib.Path
     ) -> None:
+        argv = sys.argv
         try:
             filename = str(tmp_path / "notebook.py")
-            argv = sys.argv
             Kernel(
                 stream=NoopStream(),
                 stdout=None,
@@ -1285,6 +1287,8 @@ class TestExecution:
             )
             assert argv == sys.argv
         finally:
+            # restore argv in case test failed or accidentally mutated it
+            sys.argv = argv
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
