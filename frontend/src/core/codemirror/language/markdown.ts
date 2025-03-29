@@ -450,7 +450,9 @@ const getLatexSymbolList = once((): Completion[] => {
     displayLabel: command,
     type: "latex-symbol",
     boost: 10,
-    apply: symbol,
+    // We complete the command, instead of the symbol since
+    // some commands take arguments.
+    apply: `\\${command}`,
     info: () => {
       const div = document.createElement("div");
       div.textContent = `${symbol} ${description}`;
