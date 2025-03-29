@@ -24,8 +24,6 @@ from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 default_config = merge_default_config({})
-if "dotenv" in default_config["runtime"]:
-    del default_config["runtime"]["dotenv"]
 
 
 class TestNotebookPageTemplate(unittest.TestCase):

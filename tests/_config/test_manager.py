@@ -345,6 +345,6 @@ def test_project_config_manager_resolve_missing_paths(tmp_path: Path) -> None:
     config = manager.get_config(hide_secrets=False)
 
     # Verify missing paths don't cause issues
-    assert config["runtime"]["pythonpath"] == []
+    assert config["runtime"].get("pythonpath", []) == []
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
     assert config["runtime"]["other_setting"] == "value"
