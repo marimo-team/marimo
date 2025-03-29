@@ -5,7 +5,7 @@ import tempfile
 
 import pytest
 
-from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config import merge_default_config
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.requests import (
     CreationRequest,
@@ -26,8 +26,14 @@ class TestDotEnv:
             env_file.flush()
 
             # Create a custom config with the path to our temp .env file
-            custom_config = DEFAULT_CONFIG.copy()
-            custom_config["runtime"]["dotenv"] = [env_file.name]
+            custom_config = merge_default_config(
+                {
+                    "runtime": {
+                        "dotenv": [env_file.name],
+                    },
+                }
+            )
+            mocked_kernel.k.user_config = custom_config
 
             # Load the .env file
             mocked_kernel.k.load_dotenv()
@@ -38,8 +44,14 @@ class TestDotEnv:
 
     def test_load_dotenv_nonexistent_file(self, mocked_kernel: MockedKernel):
         # Create a config with a nonexistent .env file
-        custom_config = DEFAULT_CONFIG.copy()
-        custom_config["runtime"]["dotenv"] = ["nonexistent.env"]
+        custom_config = merge_default_config(
+            {
+                "runtime": {
+                    "dotenv": ["nonexistent.env"],
+                },
+            }
+        )
+        mocked_kernel.k.user_config = custom_config
 
         # Create a kernel with our custom config
         # This should not raise an exception
@@ -54,8 +66,14 @@ class TestDotEnv:
             env_file.flush()
 
             # Create a custom config with the path to our temp .env file
-            custom_config = DEFAULT_CONFIG.copy()
-            custom_config["runtime"]["dotenv"] = [env_file.name]
+            custom_config = merge_default_config(
+                {
+                    "runtime": {
+                        "dotenv": [env_file.name],
+                    },
+                }
+            )
+            mocked_kernel.k.user_config = custom_config
 
             # Create a CreationRequest
             request = CreationRequest(
@@ -77,7 +95,7 @@ class TestDotEnv:
 
 
 @pytest.mark.skipif(
-    DependencyManager.dotenv.has(), reason="dotenv should notbe installed"
+    DependencyManager.dotenv.has(), reason="dotenv should not be installed"
 )
 class TestDotEnvNotInstalled:
     def test_load_dotenv_import_error(self, mocked_kernel: MockedKernel):
@@ -97,8 +115,14 @@ class TestDotEnvNotInstalled:
             env_file.flush()
 
             # Create a custom config with the path to our temp .env file
-            custom_config = DEFAULT_CONFIG.copy()
-            custom_config["runtime"]["dotenv"] = [env_file.name]
+            custom_config = merge_default_config(
+                {
+                    "runtime": {
+                        "dotenv": [env_file.name],
+                    },
+                }
+            )
+            mocked_kernel.k.user_config = custom_config
 
             # Create a CreationRequest
             request = CreationRequest(
