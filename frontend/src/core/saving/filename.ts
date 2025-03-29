@@ -12,7 +12,7 @@ import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { connectionAtom } from "../network/connection";
 import { getAppConfig } from "../config/config";
 
-const filenameAtom = atom<string | null>(getFilenameFromDOM());
+export const filenameAtom = atom<string | null>(getFilenameFromDOM());
 
 export function useFilename() {
   return useAtomValue(filenameAtom);

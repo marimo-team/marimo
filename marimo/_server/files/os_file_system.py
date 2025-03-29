@@ -144,6 +144,7 @@ class OSFileSystem(FileSystem):
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
         else:
+            full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_bytes(contents or b"")
         # encoding latin-1 to get an invertible representation of the
         # bytes as a string ...

@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
-import type { FilePath } from "@/utils/paths";
+import { filenameAtom } from "@/core/saving/filename";
+import { store } from "@/core/state/jotai";
+import { Paths, type FilePath } from "@/utils/paths";
 import {
   EditorSelection,
   type SelectionRange,
@@ -297,36 +299,28 @@ export async function insertImage(view: EditorView, file: File) {
           inputFilename = `${inputFilename}.${extension}`;
         }
 
-        // Create public folder if it doesn't exist
-        // Images must be in this folder as a static file
-        const createPublicFolderRes = await sendCreateFileOrFolder({
-          path: "" as FilePath, // Create at root dir
-          type: "directory",
-          name: "public",
+        const filepath = store.get(filenameAtom);
+        const notebookDir = filepath ? Paths.dirname(filepath) : null;
+        const publicFolderPath = notebookDir
+          ? `${notebookDir}/public`
+          : "public";
+
+        const createFileRes = await sendCreateFileOrFolder({
+          path: publicFolderPath as FilePath,
+          type: "file",
+          name: inputFilename,
+          contents: base64,
         });
 
-        if (createPublicFolderRes.success) {
-          const createFileRes = await sendCreateFileOrFolder({
-            path: "public" as FilePath,
-            type: "file",
-            name: inputFilename,
-            contents: base64,
+        if (createFileRes.success) {
+          savedFilePath = createFileRes.info?.path;
+          toast({
+            title: "Image uploaded successfully",
+            description: `We've uploaded your image at ${savedFilePath}`,
           });
-
-          if (createFileRes.success) {
-            savedFilePath = createFileRes.info?.path;
-            toast({
-              title: "Image uploaded successfully",
-              description: `We've uploaded your image as ${savedFilePath}`,
-            });
-          } else {
-            toast({
-              title: "Failed to upload image. Using raw base64 string.",
-            });
-          }
         } else {
           toast({
-            title: "Failed to create public folder to store the image.",
+            title: "Failed to upload image. Using raw base64 string.",
           });
         }
       }
