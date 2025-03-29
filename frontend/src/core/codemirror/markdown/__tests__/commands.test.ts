@@ -21,6 +21,8 @@ import {
   insertUL,
 } from "../commands";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/filename";
+import { store } from "@/core/state/jotai";
 
 function createEditor(content: string) {
   const state = EditorState.create({
@@ -220,7 +222,7 @@ describe("insertImage", () => {
     vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
       success: true,
       info: {
-        path: "hello.png",
+        path: "public/hello.png",
         name: "hello.png",
         isMarimoFile: true,
         isDirectory: false,
@@ -233,8 +235,56 @@ describe("insertImage", () => {
     await insertImage(view, mockPngFile());
 
     expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "public",
+      type: "file",
+      name: "hello.png",
+      contents: "AQID",
+    });
+
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](hello.png)world!"`,
+      `"Hello, ![](public/hello.png)world!"`,
+    );
+  });
+
+  test("saves image in public folder of notebook directory", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // mock filenameAtom
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === filenameAtom) {
+        return "nested/hello.py";
+      }
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: true,
+      info: {
+        path: "nested/public/hello.png",
+        name: "hello.png",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: true,
+        lastModified: null,
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "nested/public", // store in public folder of notebook directory
+      type: "file",
+      name: "hello.png",
+      contents: "AQID",
+    });
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![](nested/public/hello.png)world!"`,
     );
   });
 
@@ -247,7 +297,7 @@ describe("insertImage", () => {
     vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
       success: true,
       info: {
-        path: "hello.jpg",
+        path: "public/hello.jpg",
         name: "hello.jpg",
         children: [],
         id: "",
@@ -265,7 +315,7 @@ describe("insertImage", () => {
 
     expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](hello.jpg)world!"`,
+      `"Hello, ![](public/hello.jpg)world!"`,
     );
   });
 
