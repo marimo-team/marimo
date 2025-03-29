@@ -3,16 +3,23 @@ from __future__ import annotations
 import os
 import tempfile
 
+import pytest
+
 from marimo._config.config import merge_default_config
 from marimo._runtime.requests import (
     CreationRequest,
     SetUIElementValueRequest,
 )
+from marimo._utils.platform import is_windows
 from tests.conftest import MockedKernel
 
 # These tests work with and without python-dotenv installed.
 
 
+@pytest.mark.skipif(
+    is_windows(),
+    reason="Does not work on Windows",
+)
 def test_load_dotenv_success(mocked_kernel: MockedKernel):
     # Create a temporary .env file
     with tempfile.NamedTemporaryFile(suffix=".env", mode="w+") as env_file:
@@ -54,6 +61,10 @@ def test_load_dotenv_nonexistent_file(mocked_kernel: MockedKernel):
     mocked_kernel.k.load_dotenv()
 
 
+@pytest.mark.skipif(
+    is_windows(),
+    reason="Does not work on Windows",
+)
 async def test_load_dotenv_on_instantiate(mocked_kernel: MockedKernel):
     # Create a temporary .env file
     with tempfile.NamedTemporaryFile(suffix=".env", mode="w+") as env_file:
