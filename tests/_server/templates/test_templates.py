@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import tempfile
 import unittest
@@ -11,9 +10,9 @@ from typing import Literal
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._config.config import (
-    DEFAULT_CONFIG,
     MarimoConfig,
     PartialMarimoConfig,
+    merge_default_config,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._server.export.exporter import hash_code
@@ -24,6 +23,9 @@ from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+default_config = merge_default_config({})
+if "dotenv" in default_config["runtime"]:
+    del default_config["runtime"]["dotenv"]
 
 
 class TestNotebookPageTemplate(unittest.TestCase):
@@ -35,7 +37,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         self.html = index_html.read_text(encoding="utf-8")
 
         self.base_url = "/subpath"
-        self.user_config: MarimoConfig = {**DEFAULT_CONFIG}
+        self.user_config: MarimoConfig = default_config
         self.config_overrides: PartialMarimoConfig = {}
         self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
@@ -103,21 +105,18 @@ class TestNotebookPageTemplate(unittest.TestCase):
         css_file = self.filename.parent / "custom.css"
         css_file.write_text(css)
 
-        try:
-            result = templates.notebook_page_template(
-                self.html,
-                self.base_url,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(css_file="custom.css"),
-                str(self.filename),
-                self.mode,
-            )
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(css_file="custom.css"),
+            str(self.filename),
+            self.mode,
+        )
 
-            assert css in result
-        finally:
-            os.remove(css_file)
+        assert css in result
 
     def test_notebook_page_template_custom_head(self) -> None:
         # Create html head file
@@ -133,25 +132,21 @@ class TestNotebookPageTemplate(unittest.TestCase):
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         """
 
-        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
-        with open(head_file, "w") as f:
-            f.write(head)
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
 
-        try:
-            result = templates.notebook_page_template(
-                self.html,
-                self.base_url,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(html_head_file="head.html"),
-                str(self.filename),
-                self.mode,
-            )
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(html_head_file="head.html"),
+            str(self.filename),
+            self.mode,
+        )
 
-            assert head in result
-        finally:
-            os.remove(head_file)
+        assert head in result
 
 
 class TestHomePageTemplate(unittest.TestCase):
@@ -162,7 +157,7 @@ class TestHomePageTemplate(unittest.TestCase):
         self.html = index_html.read_text(encoding="utf-8")
 
         self.base_url = "/subpath"
-        self.user_config: MarimoConfig = {**DEFAULT_CONFIG}
+        self.user_config: MarimoConfig = default_config
         self.config_overrides: PartialMarimoConfig = {
             "formatting": {"line_length": 100},
         }
@@ -197,7 +192,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         index_html = root / "index.html"
         self.html = index_html.read_text(encoding="utf-8")
 
-        self.user_config = DEFAULT_CONFIG
+        self.user_config = default_config
         self.config_overrides: PartialMarimoConfig = {
             "formatting": {"line_length": 100},
         }
@@ -307,32 +302,28 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         # Create css file
         css = "/* custom css */"
 
-        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
-        with open(css_file, "w") as f:
-            f.write(css)
+        css_file = self.filename.parent / "custom.css"
+        css_file.write_text(css)
 
-        try:
-            result = templates.static_notebook_template(
-                self.html,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(css_file="custom.css"),
-                str(self.filename),
-                "",
-                hash_code(self.code),
-                [],
-                [],
-                [],
-                [],
-                {},
-                {},
-                {},
-            )
+        result = templates.static_notebook_template(
+            self.html,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(css_file="custom.css"),
+            str(self.filename),
+            "",
+            hash_code(self.code),
+            [],
+            [],
+            [],
+            [],
+            {},
+            {},
+            {},
+        )
 
-            snapshot("export4.txt", normalize_index_html(result))
-        finally:
-            os.remove(css_file)
+        snapshot("export4.txt", normalize_index_html(result))
 
     def test_static_notebook_template_with_head(self) -> None:
         # Create html head file
@@ -348,32 +339,28 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         """
 
-        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
-        with open(head_file, "w") as f:
-            f.write(head)
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
 
-        try:
-            result = templates.static_notebook_template(
-                self.html,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(html_head_file="head.html", app_title="My App"),
-                str(self.filename),
-                "",
-                hash_code(self.code),
-                [],
-                [],
-                [],
-                [],
-                {},
-                {},
-                {},
-            )
+        result = templates.static_notebook_template(
+            self.html,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(html_head_file="head.html", app_title="My App"),
+            str(self.filename),
+            "",
+            hash_code(self.code),
+            [],
+            [],
+            [],
+            [],
+            {},
+            {},
+            {},
+        )
 
-            snapshot("export5.txt", normalize_index_html(result))
-        finally:
-            os.remove(head_file)
+        snapshot("export5.txt", normalize_index_html(result))
 
 
 class TestWasmNotebookTemplate(unittest.TestCase):
@@ -387,7 +374,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         self.version = "1.0.0"
         self.filename = tmp_path / "notebook.py"
         self.mode: Literal["edit", "run"] = "run"
-        self.user_config: MarimoConfig = {**DEFAULT_CONFIG}
+        self.user_config: MarimoConfig = default_config
         self.app_config = _AppConfig()
         self.code = "print('Hello, World!')"
         self.config_overrides: PartialMarimoConfig = {}
@@ -422,26 +409,23 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         css_file = self.filename.parent / "custom.css"
         css_file.write_text(css)
 
-        try:
-            result = templates.wasm_notebook_template(
-                html=self.html,
-                version=self.version,
-                filename=str(self.filename),
-                mode=self.mode,
-                user_config=self.user_config,
-                config_overrides=self.config_overrides,
-                app_config=_AppConfig(css_file="custom.css"),
-                code=self.code,
-                asset_url="https://my.cdn.com",
-                show_code=True,
-            )
+        result = templates.wasm_notebook_template(
+            html=self.html,
+            version=self.version,
+            filename=str(self.filename),
+            mode=self.mode,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            app_config=_AppConfig(css_file="custom.css"),
+            code=self.code,
+            asset_url="https://my.cdn.com",
+            show_code=True,
+        )
 
-            assert css in result
-            assert '<marimo-wasm hidden="">' in result
-            assert "https://my.cdn.com/assets/" in result
-            assert '<marimo-code hidden="" data-show-code="true">' in result
-        finally:
-            os.remove(css_file)
+        assert css in result
+        assert '<marimo-wasm hidden="">' in result
+        assert "https://my.cdn.com/assets/" in result
+        assert '<marimo-code hidden="" data-show-code="true">' in result
 
     def test_wasm_notebook_template_custom_head(self) -> None:
         # Create html head file
@@ -460,26 +444,23 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         head_file = self.filename.parent / "head.html"
         head_file.write_text(head)
 
-        try:
-            result = templates.wasm_notebook_template(
-                html=self.html,
-                version=self.version,
-                filename=str(self.filename),
-                mode=self.mode,
-                user_config=self.user_config,
-                config_overrides=self.config_overrides,
-                app_config=_AppConfig(
-                    html_head_file="head.html", app_title="My App"
-                ),
-                code=self.code,
-                show_code=False,
-            )
+        result = templates.wasm_notebook_template(
+            html=self.html,
+            version=self.version,
+            filename=str(self.filename),
+            mode=self.mode,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            app_config=_AppConfig(
+                html_head_file="head.html", app_title="My App"
+            ),
+            code=self.code,
+            show_code=False,
+        )
 
-            assert head in result
-            assert '<marimo-wasm hidden="">' in result
-            assert '<marimo-code hidden="" data-show-code="false">' in result
-            assert "#save-button" in result
-            assert "#filename-input" in result
-            assert "<title>My App</title>" in result
-        finally:
-            os.remove(head_file)
+        assert head in result
+        assert '<marimo-wasm hidden="">' in result
+        assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert "#save-button" in result
+        assert "#filename-input" in result
+        assert "<title>My App</title>" in result
