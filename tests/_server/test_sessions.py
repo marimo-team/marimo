@@ -51,7 +51,7 @@ app_metadata = AppMetadata(
     query_params={"some_param": "some_value"},
     filename="test.py",
     cli_args={},
-    argv=[],
+    argv=None,
 )
 
 
@@ -320,7 +320,7 @@ def test_session_disconnect_reconnect() -> None:
         queue_manager,
         SessionMode.RUN,
         {},
-        AppMetadata(query_params={}, cli_args={}, argv=[]),
+        AppMetadata(query_params={}, cli_args={}, argv=None),
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
