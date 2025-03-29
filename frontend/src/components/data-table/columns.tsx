@@ -203,8 +203,6 @@ export function generateColumns<T>({
         }
 
         const value = getValue();
-        const justify = textJustifyColumns?.[key];
-        const wrapped = wrappedColumns?.includes(key);
 
         function selectCell() {
           if (selection !== "single-cell" && selection !== "multi-cell") {
@@ -214,89 +212,43 @@ export function generateColumns<T>({
           cell.toggleSelected?.();
         }
 
+        const justify = textJustifyColumns?.[key];
+        const wrapped = wrappedColumns?.includes(key);
         const isCellSelected = cell?.getIsSelected?.() || false;
         const canSelectCell =
           (selection === "single-cell" || selection === "multi-cell") &&
           !isCellSelected;
 
+        const cellStyles = getCellStyleClass(
+          justify,
+          wrapped,
+          canSelectCell,
+          isCellSelected,
+        );
+
         const format = column.getColumnFormatting?.();
 
         if (typeof value === "string" && value.length > MAX_STRING_LENGTH) {
-          if (format) {
-            const formattedValue = column.applyColumnFormatting(value);
-            return (
-              <PopoutColumn
-                cellStyles={getCellStyleClass(
-                  justify,
-                  wrapped,
-                  canSelectCell,
-                  isCellSelected,
-                )}
-                selectCell={selectCell}
-                rawStringValue={String(formattedValue)}
-                contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
-                buttonText="X"
-              >
-                {formattedValue}
-              </PopoutColumn>
-            );
-          }
-
-          // Handle unformatted string values
-          const rendered = renderValue();
-          let valueToDisplay: React.ReactNode;
-
-          if (rendered === null) {
-            valueToDisplay = "";
-          } else if (typeof rendered !== "string") {
-            valueToDisplay = String(rendered);
-          } else if (rendered.length > MAX_STRING_LENGTH) {
-            return (
-              <PopoutColumn
-                cellStyles={getCellStyleClass(
-                  justify,
-                  wrapped,
-                  canSelectCell,
-                  isCellSelected,
-                )}
-                selectCell={selectCell}
-                rawStringValue={rendered}
-                contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
-                buttonText="X"
-              >
-                <UrlDetector text={rendered} />
-              </PopoutColumn>
-            );
-          } else {
-            valueToDisplay = <UrlDetector text={rendered} />;
-          }
+          const stringValue = format
+            ? String(column.applyColumnFormatting(value))
+            : String(renderValue());
 
           return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
+            <PopoutColumn
+              cellStyles={cellStyles}
+              selectCell={selectCell}
+              rawStringValue={stringValue}
+              contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+              buttonText="X"
             >
-              {valueToDisplay}
-            </div>
+              <UrlDetector text={stringValue} />
+            </PopoutColumn>
           );
         }
 
         if (format) {
           return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
+            <div onClick={selectCell} className={cellStyles}>
               {column.applyColumnFormatting(value)}
             </div>
           );
@@ -305,15 +257,7 @@ export function generateColumns<T>({
         if (isPrimitiveOrNullish(value)) {
           const rendered = renderValue();
           return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
+            <div onClick={selectCell} className={cellStyles}>
               {rendered == null ? "" : String(rendered)}
             </div>
           );
@@ -325,15 +269,7 @@ export function generateColumns<T>({
             column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
           const timezone = extractTimezone(column.columnDef.meta?.dtype);
           return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
+            <div onClick={selectCell} className={cellStyles}>
               <DatePopover date={value} type={type}>
                 {exactDateTime(value, timezone)}
               </DatePopover>
@@ -344,15 +280,7 @@ export function generateColumns<T>({
         const mimeValues = getMimeValues(value);
         if (mimeValues) {
           return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
+            <div onClick={selectCell} className={cellStyles}>
               {mimeValues.map((mimeValue, idx) => (
                 <MimeCell key={idx} value={mimeValue} />
               ))}
@@ -364,12 +292,7 @@ export function generateColumns<T>({
           const rawStringValue = renderAny(value);
           return (
             <PopoutColumn
-              cellStyles={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
+              cellStyles={cellStyles}
               selectCell={selectCell}
               rawStringValue={rawStringValue}
             >
@@ -379,15 +302,7 @@ export function generateColumns<T>({
         }
 
         return (
-          <div
-            onClick={selectCell}
-            className={getCellStyleClass(
-              justify,
-              wrapped,
-              canSelectCell,
-              isCellSelected,
-            )}
-          >
+          <div onClick={selectCell} className={cellStyles}>
             {renderAny(getValue())}
           </div>
         );
@@ -432,6 +347,13 @@ export function generateColumns<T>({
   }
 
   return columns;
+}
+
+function isLongString(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.length > MAX_STRING_LENGTH;
+  }
+  return false;
 }
 
 const PopoutColumn = ({
