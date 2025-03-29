@@ -2442,12 +2442,15 @@ class PackagesCallbacks:
 
 class RequestHandler:
     def __init__(self) -> None:
-        self._handlers: dict[type[Any], Callable[[Any], Awaitable[None]]] = {}
+        self._handlers: dict[
+            type[ControlRequest],
+            Callable[[ControlRequest], Awaitable[None]],
+        ] = {}
 
     def register(
         self,
         request_type: type[ControlRequest],
-        handler: Callable[[ControlRequest], Awaitable[None]],
+        handler: Callable[[Any], Awaitable[None]],
     ) -> None:
         self._handlers[request_type] = handler
 
