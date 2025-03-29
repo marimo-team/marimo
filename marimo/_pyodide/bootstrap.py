@@ -121,7 +121,12 @@ def create_session(
         app_file_manager,
         SessionMode.EDIT,
         write_kernel_message,
-        AppMetadata(query_params=query_params, filename=filename, cli_args={}),
+        AppMetadata(
+            query_params=query_params,
+            filename=filename,
+            cli_args={},
+            argv=[""],
+        ),
         user_config,
     )
 

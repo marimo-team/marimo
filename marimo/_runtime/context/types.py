@@ -121,6 +121,12 @@ class RuntimeContext(abc.ABC):
 
     @property
     @abc.abstractmethod
+    def argv(self) -> list[str]:
+        """The original argv the context was created with."""
+        pass
+
+    @property
+    @abc.abstractmethod
     def cli_args(self) -> CLIArgs:
         """Get the CLI args."""
         pass

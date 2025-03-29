@@ -67,7 +67,9 @@ class AppKernelRunner:
         filename = "<unknown>"
         self._kernel = Kernel(
             cell_configs={},
-            app_metadata=AppMetadata({}, {}, filename),
+            app_metadata=AppMetadata(
+                {}, ctx.cli_args.to_dict(), argv=ctx.argv, filename=filename
+            ),
             stream=ctx.stream,
             stdout=None,
             stderr=None,

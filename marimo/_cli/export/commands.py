@@ -183,6 +183,7 @@ def html(
                 file_path,
                 include_code=include_code,
                 cli_args=cli_args,
+                argv=list(args),
             )
         )
 
@@ -426,7 +427,10 @@ def ipynb(
         if include_outputs:
             return asyncio_run(
                 run_app_then_export_as_ipynb(
-                    file_path, sort_mode=sort, cli_args={}
+                    file_path,
+                    sort_mode=sort,
+                    cli_args={},
+                    argv=None,
                 )
             )
         return export_as_ipynb(file_path, sort_mode=sort)

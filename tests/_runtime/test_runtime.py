@@ -1155,7 +1155,10 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=[],
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1216,7 +1219,10 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=[],
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1248,7 +1254,10 @@ class TestExecution:
                     },
                 },
                 app_metadata=AppMetadata(
-                    query_params={}, filename=str(filename), cli_args={}
+                    query_params={},
+                    filename=str(filename),
+                    cli_args={},
+                    argv=[],
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
