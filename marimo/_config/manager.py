@@ -209,13 +209,16 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         if not isinstance(pythonpath, list):
             return config
 
-        pythonpath = [
+        resolved_pythonpath = [
             str((self.pyproject_path.parent / path).absolute())
             for path in pythonpath
         ]
         return {
             **config,
-            "runtime": {**config["runtime"], "pythonpath": pythonpath},
+            "runtime": {
+                **config["runtime"],
+                "pythonpath": resolved_pythonpath,
+            },
         }
 
     def _resolve_dotenv(
@@ -230,11 +233,11 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         if not isinstance(dotenv, list):
             return config
 
-        dotenv = [
+        resolved_dotenv = [
             str((self.pyproject_path.parent / path).absolute())
             for path in dotenv
         ]
-        return {**config, "runtime": {**runtime, "dotenv": dotenv}}
+        return {**config, "runtime": {**runtime, "dotenv": resolved_dotenv}}
 
 
 class ScriptConfigManager(PartialMarimoConfigReader):
