@@ -152,6 +152,20 @@ def hstack(
         mo.hstack([mo.md("..."), mo.ui.text_area()])
         ```
 
+        Build a row of items with equal width:
+        ```python
+        mo.hstack([mo.md("..."), mo.ui.text_area()], widths="equal")
+        ```
+
+        Have one item stretch to fill the available space,
+        while another fits its content:
+        ```python
+        mo.hstack(
+            [mo.plain_text("..."), mo.ui.text_area(full_width=True)],
+            widths=[0, 1],
+        )
+        ```
+
         Build a grid:
         ```python
         # Build a grid.
