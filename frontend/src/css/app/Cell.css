@@ -142,6 +142,8 @@
 
   /* Needs Run */
   &.needs-run {
+    /* TODO(akshayka): Can give this an outline to make more visible. */
+    outline: none;
     @apply divide-stale shadow-mdSolid shadow-stale;
 
     &:hover {
