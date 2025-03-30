@@ -20,10 +20,12 @@ _LOGGER = _loggers.marimo_logger()
 _MAX_SQLITE_TIMEOUT_MS = 2_000_000_000 - 1
 
 
-def timeout_for_sqlite(timeout: float, blocking: bool, already_waited: float) -> int:
+def timeout_for_sqlite(
+    timeout: float, blocking: bool, already_waited: float
+) -> int:
     """Calculates the timeout in milliseconds for SQLite's busy_timeout pragma."""
     if blocking is False:
-        return 0 # `PRAGMA busy_timeout=0;` means non-blocking behaviour in SQLite
+        return 0  # `PRAGMA busy_timeout=0;` means non-blocking behaviour in SQLite
 
     if timeout == -1:
         return _MAX_SQLITE_TIMEOUT_MS
@@ -42,7 +44,9 @@ def timeout_for_sqlite(timeout: float, blocking: bool, already_waited: float) ->
     if timeout_ms > _MAX_SQLITE_TIMEOUT_MS:
         _LOGGER.warning(
             "Timeout %s (remaining %s) exceeds SQLite max; using %s ms.",
-            timeout, remaining_timeout, _MAX_SQLITE_TIMEOUT_MS
+            timeout,
+            remaining_timeout,
+            _MAX_SQLITE_TIMEOUT_MS,
         )
         return _MAX_SQLITE_TIMEOUT_MS
 
@@ -62,12 +66,14 @@ class _ReadWriteLockMeta(type):
         is_singleton: bool = True,
         *args: Any,
         **kwargs: Any,
-    ) -> "ReadWriteLock":
+    ) -> ReadWriteLock:
         if is_singleton:
             # Pass only relevant args to get_lock
             return cls.get_lock(lock_file, timeout, blocking)
         # If not singleton, create directly, passing all args/kwargs
-        return super().__call__(lock_file, timeout, blocking, is_singleton, *args, **kwargs)
+        return super().__call__(
+            lock_file, timeout, blocking, is_singleton, *args, **kwargs
+        )
 
 
 # This is a helper class which is returned by :meth:`ReadWriteLock.acquire_read` and :meth:`ReadWriteLock.acquire_write`
@@ -77,10 +83,10 @@ class _ReadWriteLockMeta(type):
 class AcquireReturnProxy:
     """A context-aware object that will release the lock file when exiting."""
 
-    def __init__(self, lock: "ReadWriteLock") -> None:
+    def __init__(self, lock: ReadWriteLock) -> None:
         self.lock = lock
 
-    def __enter__(self) -> "ReadWriteLock":
+    def __enter__(self) -> ReadWriteLock:
         # Simply return the lock instance for use within the 'with' block
         return self.lock
 
@@ -116,13 +122,13 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
     - Default singleton behavior: `ReadWriteLock('path')` returns the same
       instance for the same absolute path within a process. Use
       `is_singleton=False` to create independent instances (and connections).
-    
+
     Usage:
     - Explicit release required: Use the `read_lock()` or `write_lock()`
       context managers, or manually call `release()` in a `finally` block.
     - Explicit close recommended: Call `close()` when the lock is definitively
       no longer needed to release the SQLite connection and file handle.
-    
+
     Limitation:
     - No lock upgrade (read -> write) or downgrade (write -> read) is allowed.
 
@@ -135,8 +141,9 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
     These separate instances still correctly coordinate both intra- and
     inter-process locking.
     """
+
     # Singleton storage and its lock.
-    _instances: WeakValueDictionary[str, "ReadWriteLock"] = WeakValueDictionary()
+    _instances: WeakValueDictionary[str, ReadWriteLock] = WeakValueDictionary()
     _instances_lock = threading.Lock()
 
     @classmethod
@@ -144,8 +151,8 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
         cls,
         lock_file: Union[str, os.PathLike[str]],
         timeout: float = -1,
-        blocking: bool = True
-    ) -> "ReadWriteLock":
+        blocking: bool = True,
+    ) -> ReadWriteLock:
         """
         Return the singleton ReadWriteLock instance for a given file path.
 
@@ -161,7 +168,9 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             ValueError: If an existing singleton instance for this file was
                         created with different timeout/blocking parameters.
         """
-        normalized = os.path.abspath(str(lock_file)) # Ensure string for dict key
+        normalized = os.path.abspath(
+            str(lock_file)
+        )  # Ensure string for dict key
         with cls._instances_lock:
             instance = cls._instances.get(normalized)
             if instance is None:
@@ -170,7 +179,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
                     lock_file=lock_file,
                     timeout=timeout,
                     blocking=blocking,
-                    is_singleton=False
+                    is_singleton=False,
                 )
                 cls._instances[normalized] = instance
             elif instance.timeout != timeout or instance.blocking != blocking:
@@ -190,11 +199,17 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
                 )
             # Ensure the existing instance isn't closed
             if instance._closed:
-                 _LOGGER.warning("Re-requesting a singleton lock that was already closed: %s", normalized)
-                 instance = super(_ReadWriteLockMeta, cls).__call__(
-                     lock_file=lock_file, timeout=timeout, blocking=blocking, is_singleton=False
-                 )
-                 cls._instances[normalized] = instance
+                _LOGGER.warning(
+                    "Re-requesting a singleton lock that was already closed: %s",
+                    normalized,
+                )
+                instance = super(_ReadWriteLockMeta, cls).__call__(
+                    lock_file=lock_file,
+                    timeout=timeout,
+                    blocking=blocking,
+                    is_singleton=False,
+                )
+                cls._instances[normalized] = instance
 
             return instance
 
@@ -203,7 +218,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
         lock_file: Union[str, os.PathLike[str]],
         timeout: float = -1,
         blocking: bool = True,
-        is_singleton: bool = True, # Parameter needed for metaclass logic
+        is_singleton: bool = True,  # Parameter needed for metaclass logic
     ) -> None:
         self.lock_file = str(lock_file)
         self.timeout = timeout
@@ -223,7 +238,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
         self._acquisition_in_progress: bool = False
         self._acquisition_mode: Optional[Literal["read", "write"]] = None
         self._acquisition_blocking: Optional[bool] = None
-        self._closed = False # If the ReadWriteLock is closed
+        self._closed = False  # If the ReadWriteLock is closed
 
         # Per-thread state (reentrancy and mode)
         self._thread_local = threading.local()
@@ -246,8 +261,10 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
         if self._thread_local.__dict__.get("reentrancy_level") is None:
             self._thread_local.reentrancy_level = 0
             self._thread_local.mode = None
-    
-    def _check_timeout(self, timeout: Optional[float], blocking: Optional[bool]) -> tuple[float, bool]:
+
+    def _check_timeout(
+        self, timeout: Optional[float], blocking: Optional[bool]
+    ) -> tuple[float, bool]:
         _timeout = self.timeout if timeout is None else timeout
         _blocking = self.blocking if blocking is None else blocking
 
@@ -255,7 +272,9 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
         if _timeout < 0 and _timeout != -1:
             raise ValueError("timeout must be non-negative or -1")
         if _blocking and _timeout == 0:
-            raise ValueError("timeout must be positive or -1 if blocking is True")
+            raise ValueError(
+                "timeout must be positive or -1 if blocking is True"
+            )
 
         return _timeout, _blocking
 
@@ -296,16 +315,17 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             )
 
         start_time: Optional[float] = None
-        
+
         with self._internal_lock:
             # --- Wait for Conflicting Locks ---
-            while not self._closed and \
-                (self._current_mode == "write" or self._acquisition_in_progress):
+            while not self._closed and (
+                self._current_mode == "write" or self._acquisition_in_progress
+            ):
                 if not blocking:
                     if (
-                        not self._acquisition_in_progress or
-                        self._acquisition_mode == "write" or
-                        self._acquisition_blocking
+                        not self._acquisition_in_progress
+                        or self._acquisition_mode == "write"
+                        or self._acquisition_blocking
                     ):
                         raise Timeout(self.lock_file)
                     # If there are two threads entering acquire_read() simultaneously
@@ -331,7 +351,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             if self._closed:
                 raise RuntimeError(f"Lock on {self.lock_file} is closed.")
 
-            # Read lock is alrady held by another thread, quick acquisition
+            # Read lock is already held by another thread, quick acquisition
             # skipping SQLite.
             if self._current_mode == "read":
                 self._reader_count += 1
@@ -342,7 +362,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             self._acquisition_in_progress = True
             self._acquisition_mode = "read"
             self._acquisition_blocking = blocking
-        
+
         # --- Acquire SQLite Lock (outside _internal_lock) ---
         # At this point, _current_mode should be None.
 
@@ -450,14 +470,15 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
                 f"Cannot acquire write lock on {self.lock_file}: "
                 "Thread already holds a read lock (upgrade forbidden)."
             )
-        
+
         start_time: Optional[float] = None
-        
+
         with self._internal_lock:
             # --- Wait for Conflicting Locks ---
             # Wait if any lock is held (read or write)
-            while not self._closed and \
-                (self._current_mode is not None or self._acquisition_in_progress):
+            while not self._closed and (
+                self._current_mode is not None or self._acquisition_in_progress
+            ):
                 if not blocking:
                     raise Timeout(self.lock_file)
 
@@ -481,7 +502,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             self._acquisition_in_progress = True
             self._acquisition_mode = "write"
             self._acquisition_blocking = blocking
-        
+
         # --- Acquire SQLite Lock (outside _internal_lock) ---
         # At this point, _current_mode should be None.
 
@@ -530,7 +551,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
                     self._current_mode = "write"
                     self._thread_local.mode = "write"
                     self._thread_local.reentrancy_level = 1
-                
+
                 self._internal_lock_cond.notify_all()
 
     def release(self) -> None:
@@ -561,11 +582,11 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             )
         self._thread_local.reentrancy_level = level
         if level > 0:
-            return # Haven't unwinded the reentrancy stack per thread yet
+            return  # Haven't unwinded the reentrancy stack per thread yet
 
         # Now level == 0, need to release the lock.
         mode = self._thread_local.mode
-        self._thread_local.mode = None # Clear thread-local state first
+        self._thread_local.mode = None  # Clear thread-local state first
 
         with self._internal_lock:
             if self._closed:
@@ -595,7 +616,7 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
                         "Unexpected error during SQLite rollback for %s: %s",
                         self.lock_file,
                         e,
-                        exc_info=True
+                        exc_info=True,
                     )
                 # Propagate other errors (such as I/O)
 
@@ -616,22 +637,33 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
                         f"Lock on {self.lock_file} is held by the current thread "
                         f"in {mode} mode when close() is called. Confused close() with release()?"
                     )
-                raise RuntimeError(f"Lock on {self.lock_file} is still held when close().")
+                raise RuntimeError(
+                    f"Lock on {self.lock_file} is still held when close()."
+                )
             if self._acquisition_in_progress:
-                raise RuntimeError(f"Lock on {self.lock_file} is being acquired when close() is called.")
-            
+                raise RuntimeError(
+                    f"Lock on {self.lock_file} is being acquired when close() is called."
+                )
+
             if self._closed:
                 return
 
-            self._closed = True # Mark as closed early
+            self._closed = True  # Mark as closed early
 
             # Notify any waiters that the lock is now defunct
             self._internal_lock_cond.notify_all()
 
             try:
                 self.con.close()
-            except Exception as e: # Try to make close() relatively quiet in term s
-                _LOGGER.error("Error when closing SQLite connection for %s: %s", self.lock_file, e, exc_info=True)
+            except (
+                Exception
+            ) as e:  # Try to make close() relatively quiet in term s
+                _LOGGER.error(
+                    "Error when closing SQLite connection for %s: %s",
+                    self.lock_file,
+                    e,
+                    exc_info=True,
+                )
 
         # Note: don't need to remove the ReadWriteLock instance from _instances
         # because get_lock() checks _closed flag and creates a new instance
@@ -640,7 +672,9 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
     # ----- Context Manager Protocol -----
 
     @contextmanager
-    def read_lock(self, timeout: Optional[float] = None, blocking: Optional[bool] = None):
+    def read_lock(
+        self, timeout: Optional[float] = None, blocking: Optional[bool] = None
+    ):
         """
         Context manager for acquiring and releasing a read lock.
 
@@ -656,7 +690,9 @@ class ReadWriteLock(metaclass=_ReadWriteLockMeta):
             self.release()
 
     @contextmanager
-    def write_lock(self, timeout: Optional[float] = None, blocking: Optional[bool] = None):
+    def write_lock(
+        self, timeout: Optional[float] = None, blocking: Optional[bool] = None
+    ):
         """
         Context manager for acquiring and releasing a write lock.
 

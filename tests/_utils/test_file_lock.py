@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import multiprocessing as mp
+import threading
 import time
 from contextlib import contextmanager
-import threading
 
 import pytest
 
@@ -20,7 +20,14 @@ def set_multiprocessing_start_method():
 
 
 # Helper function to run in a separate process to acquire a read lock
-def acquire_read_lock(lock_file, acquired_event, release_event=None, timeout=-1, blocking=True, ready_event=None) -> bool | None:
+def acquire_read_lock(
+    lock_file,
+    acquired_event,
+    release_event=None,
+    timeout=-1,
+    blocking=True,
+    ready_event=None,
+) -> bool | None:
     # Get error queue from current process if available
     current_process = mp.current_process()
     error_queue = getattr(current_process, "_error_queue", None)
@@ -51,7 +58,14 @@ def acquire_read_lock(lock_file, acquired_event, release_event=None, timeout=-1,
 
 
 # Helper function to run in a separate process to acquire a write lock
-def acquire_write_lock(lock_file, acquired_event, release_event=None, timeout=-1, blocking=True, ready_event=None) -> bool | None:
+def acquire_write_lock(
+    lock_file,
+    acquired_event,
+    release_event=None,
+    timeout=-1,
+    blocking=True,
+    ready_event=None,
+) -> bool | None:
     if ready_event:
         ready_event.wait(timeout=10)
 
@@ -73,7 +87,9 @@ def acquire_write_lock(lock_file, acquired_event, release_event=None, timeout=-1
 
 
 # Helper function to try upgrading a read lock to a write lock (should fail)
-def try_upgrade_lock(lock_file, read_acquired_event, upgrade_attempted_event, upgrade_result) -> None:
+def try_upgrade_lock(
+    lock_file, read_acquired_event, upgrade_attempted_event, upgrade_result
+) -> None:
     lock = ReadWriteLock(lock_file)
     try:
         with lock.read_lock():
@@ -96,7 +112,12 @@ def try_upgrade_lock(lock_file, read_acquired_event, upgrade_attempted_event, up
 
 
 # Helper function to try downgrading a write lock to a read lock (should fail)
-def try_downgrade_lock(lock_file, write_acquired_event, downgrade_attempted_event, downgrade_result) -> None:
+def try_downgrade_lock(
+    lock_file,
+    write_acquired_event,
+    downgrade_attempted_event,
+    downgrade_result,
+) -> None:
     lock = ReadWriteLock(lock_file)
     try:
         with lock.write_lock():
@@ -147,7 +168,11 @@ def cleanup_processes(processes):
             pass
 
         if errors:
-            pytest.fail(f"Errors occurred in subprocess(es):\n" + "\n---\n".join(errors), pytrace=False)
+            pytest.fail(
+                "Errors occurred in subprocess(es):\n"
+                + "\n---\n".join(errors),
+                pytrace=False,
+            )
 
 
 @pytest.fixture
@@ -172,8 +197,12 @@ def test_read_locks_are_shared(lock_file) -> None:
         p2.start()
 
         # Both processes should be able to acquire read locks
-        assert read1_acquired.wait(timeout=2), f"First read lock not acquired on {lock_file}"
-        assert read2_acquired.wait(timeout=2), f"Second read lock not acquired on {lock_file}"
+        assert read1_acquired.wait(timeout=2), (
+            f"First read lock not acquired on {lock_file}"
+        )
+        assert read2_acquired.wait(timeout=2), (
+            f"Second read lock not acquired on {lock_file}"
+        )
 
         # Wait for processes to finish
         p1.join(timeout=2)
@@ -191,11 +220,17 @@ def test_write_lock_excludes_other_write_locks(lock_file) -> None:
     write2_acquired = mp.Event()
 
     # Start first process to acquire write lock
-    p1 = mp.Process(target=acquire_write_lock, args=(lock_file, write1_acquired, release_write1))
+    p1 = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, write1_acquired, release_write1),
+    )
 
     # Second process will try to acquire with a short timeout
     # We'll restart it after the first process releases the lock
-    p2 = mp.Process(target=acquire_write_lock, args=(lock_file, write2_acquired, None, 0.5, True))
+    p2 = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, write2_acquired, None, 0.5, True),
+    )
 
     with cleanup_processes([p1]):
         p1.start()
@@ -204,7 +239,9 @@ def test_write_lock_excludes_other_write_locks(lock_file) -> None:
         # Second process should not be able to acquire write lock
         with cleanup_processes([p2]):
             p2.start()
-            assert not write2_acquired.wait(timeout=1), "Second write lock should not be acquired"
+            assert not write2_acquired.wait(timeout=1), (
+                "Second write lock should not be acquired"
+            )
 
             # Release first write lock
             release_write1.set()
@@ -213,12 +250,16 @@ def test_write_lock_excludes_other_write_locks(lock_file) -> None:
 
         # Create a new process to try acquiring the lock now that it's released
         write2_acquired.clear()  # Reset the event
-        p3 = mp.Process(target=acquire_write_lock, args=(lock_file, write2_acquired, None))
+        p3 = mp.Process(
+            target=acquire_write_lock, args=(lock_file, write2_acquired, None)
+        )
 
         with cleanup_processes([p3]):
             p3.start()
             # Now the new process should be able to acquire the lock
-            assert write2_acquired.wait(timeout=2), "Second write lock not acquired after first released"
+            assert write2_acquired.wait(timeout=2), (
+                "Second write lock not acquired after first released"
+            )
             p3.join(timeout=2)
             assert not p3.is_alive(), "Process 3 did not exit cleanly"
 
@@ -233,11 +274,17 @@ def test_write_lock_excludes_read_locks(lock_file) -> None:
     read_started = mp.Event()  # New event to signal when read attempt starts
 
     # Start process to acquire write lock
-    p1 = mp.Process(target=acquire_write_lock, args=(lock_file, write_acquired, release_write))
+    p1 = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, write_acquired, release_write),
+    )
 
     # Start process to try to acquire read lock with no timeout
     # Use a ready_event to control when the read lock attempt should start
-    p2 = mp.Process(target=acquire_read_lock, args=(lock_file, read_acquired, None, -1, True, read_started))
+    p2 = mp.Process(
+        target=acquire_read_lock,
+        args=(lock_file, read_acquired, None, -1, True, read_started),
+    )
 
     with cleanup_processes([p1, p2]):
         p1.start()
@@ -251,14 +298,18 @@ def test_write_lock_excludes_read_locks(lock_file) -> None:
 
         # Wait a short time - read lock should NOT be acquired while write lock is held
         time.sleep(2)
-        assert not read_acquired.is_set(), "Read lock should not be acquired while write lock held"
+        assert not read_acquired.is_set(), (
+            "Read lock should not be acquired while write lock held"
+        )
 
         # Release write lock
         release_write.set()
         p1.join(timeout=2)
 
         # Now read process should be able to acquire the lock
-        assert read_acquired.wait(timeout=2), "Read lock not acquired after write released"
+        assert read_acquired.wait(timeout=2), (
+            "Read lock not acquired after write released"
+        )
 
         p2.join(timeout=2)
         assert not p2.is_alive(), "Process 2 did not exit cleanly"
@@ -274,11 +325,16 @@ def test_read_lock_excludes_write_locks(lock_file) -> None:
     write_started = mp.Event()  # New event to signal when write attempt starts
 
     # Start process to acquire read lock
-    p1 = mp.Process(target=acquire_read_lock, args=(lock_file, read_acquired, release_read))
+    p1 = mp.Process(
+        target=acquire_read_lock, args=(lock_file, read_acquired, release_read)
+    )
 
     # Start process to try to acquire write lock with no timeout
     # Use a ready_event to control when the write lock attempt should start
-    p2 = mp.Process(target=acquire_write_lock, args=(lock_file, write_acquired, None, -1, True, write_started))
+    p2 = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, write_acquired, None, -1, True, write_started),
+    )
 
     with cleanup_processes([p1, p2]):
         p1.start()
@@ -292,21 +348,33 @@ def test_read_lock_excludes_write_locks(lock_file) -> None:
 
         # Wait a short time - write lock should NOT be acquired while read lock is held
         time.sleep(2)
-        assert not write_acquired.is_set(), "Write lock should not be acquired while read lock held"
+        assert not write_acquired.is_set(), (
+            "Write lock should not be acquired while read lock held"
+        )
 
         # Release read lock
         release_read.set()
         p1.join(timeout=2)
 
         # Now write process should be able to acquire the lock
-        assert write_acquired.wait(timeout=2), "Write lock not acquired after read released"
+        assert write_acquired.wait(timeout=2), (
+            "Write lock not acquired after read released"
+        )
 
         p2.join(timeout=2)
         assert not p2.is_alive(), "Process 2 did not exit cleanly"
 
 
 # Move this function to module level (before the test functions)
-def chain_reader(idx, lock_file, release_count, forward_wait, backward_wait, forward_set, backward_set) -> None:
+def chain_reader(
+    idx,
+    lock_file,
+    release_count,
+    forward_wait,
+    backward_wait,
+    forward_set,
+    backward_set,
+) -> None:
     # Wait for signal to start acquiring
     forward_wait.wait(timeout=10)
 
@@ -358,8 +426,12 @@ def test_write_non_starvation(lock_file) -> None:
     NUM_READERS = 7
 
     # Create events for coordination
-    chain_forward = [mp.Event() for _ in range(NUM_READERS)]  # Signal to start acquiring
-    chain_backward = [mp.Event() for _ in range(NUM_READERS)]  # Signal to release
+    chain_forward = [
+        mp.Event() for _ in range(NUM_READERS)
+    ]  # Signal to start acquiring
+    chain_backward = [
+        mp.Event() for _ in range(NUM_READERS)
+    ]  # Signal to release
     writer_ready = mp.Event()
     writer_acquired = mp.Event()
 
@@ -373,12 +445,23 @@ def test_write_non_starvation(lock_file) -> None:
         backward_set = chain_backward[i - 1] if i > 0 else writer_ready
         reader = mp.Process(
             target=chain_reader,
-            args=(i, lock_file, release_count, chain_forward[i], chain_backward[i], forward_set, backward_set),
+            args=(
+                i,
+                lock_file,
+                release_count,
+                chain_forward[i],
+                chain_backward[i],
+                forward_set,
+                backward_set,
+            ),
         )
         readers.append(reader)
 
     # Create writer process that will try to acquire after first reader is established
-    writer = mp.Process(target=acquire_write_lock, args=(lock_file, writer_acquired, None, 20, True, writer_ready))
+    writer = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, writer_acquired, None, 20, True, writer_ready),
+    )
 
     with cleanup_processes([*readers, writer]):
         # Start all reader processes (they'll wait for their start signal)
@@ -389,17 +472,23 @@ def test_write_non_starvation(lock_file) -> None:
         chain_forward[0].set()
 
         # Wait a bit for the first reader to acquire and signal the writer
-        assert writer_ready.wait(timeout=10), "First reader did not acquire lock"
+        assert writer_ready.wait(timeout=10), (
+            "First reader did not acquire lock"
+        )
 
         # Start the writer process (it will wait for writer_ready event)
         writer.start()
 
-        assert writer_acquired.wait(timeout=22), "Writer couldn't acquire lock - possible starvation"
+        assert writer_acquired.wait(timeout=22), (
+            "Writer couldn't acquire lock - possible starvation"
+        )
 
         with release_count.get_lock():
             read_releases = release_count.value
 
-        assert read_releases < 3, f"Writer acquired after {read_releases} readers released - this indicates starvation"
+        assert read_releases < 3, (
+            f"Writer acquired after {read_releases} readers released - this indicates starvation"
+        )
 
         # Wait for writer to finish
         writer.join(timeout=2)
@@ -528,7 +617,9 @@ def test_write_lock_release_on_process_termination(lock_file) -> None:
     lock_acquired = mp.Event()
 
     # Start a process that will acquire the lock and then "crash"
-    p1 = mp.Process(target=acquire_write_lock_and_crash, args=(lock_file, lock_acquired))
+    p1 = mp.Process(
+        target=acquire_write_lock_and_crash, args=(lock_file, lock_acquired)
+    )
     p1.start()
 
     # Wait for lock to be acquired
@@ -536,7 +627,9 @@ def test_write_lock_release_on_process_termination(lock_file) -> None:
 
     # Create second process that will try to acquire the lock
     write_acquired = mp.Event()
-    p2 = mp.Process(target=acquire_write_lock, args=(lock_file, write_acquired))
+    p2 = mp.Process(
+        target=acquire_write_lock, args=(lock_file, write_acquired)
+    )
 
     with cleanup_processes([p1, p2]):
         # Terminate the first process (simulating a crash)
@@ -548,7 +641,9 @@ def test_write_lock_release_on_process_termination(lock_file) -> None:
         p2.start()
 
         # Check if second process can acquire the lock
-        assert write_acquired.wait(timeout=5), "Lock not acquired after process termination"
+        assert write_acquired.wait(timeout=5), (
+            "Lock not acquired after process termination"
+        )
 
         p2.join(timeout=2)
         assert not p2.is_alive(), "Second process did not exit cleanly"
@@ -570,7 +665,9 @@ def test_read_lock_release_on_process_termination(lock_file) -> None:
     lock_acquired = mp.Event()
 
     # Start a process that will acquire the lock and then "crash"
-    p1 = mp.Process(target=acquire_read_lock_and_crash, args=(lock_file, lock_acquired))
+    p1 = mp.Process(
+        target=acquire_read_lock_and_crash, args=(lock_file, lock_acquired)
+    )
     p1.start()
 
     # Wait for lock to be acquired
@@ -578,7 +675,9 @@ def test_read_lock_release_on_process_termination(lock_file) -> None:
 
     # Create second process that will try to acquire the lock
     write_acquired = mp.Event()
-    p2 = mp.Process(target=acquire_write_lock, args=(lock_file, write_acquired))
+    p2 = mp.Process(
+        target=acquire_write_lock, args=(lock_file, write_acquired)
+    )
 
     with cleanup_processes([p1, p2]):
         # Terminate the first process (simulating a crash)
@@ -590,7 +689,9 @@ def test_read_lock_release_on_process_termination(lock_file) -> None:
         p2.start()
 
         # Check if second process can acquire the lock
-        assert write_acquired.wait(timeout=5), "Lock not acquired after process termination"
+        assert write_acquired.wait(timeout=5), (
+            "Lock not acquired after process termination"
+        )
 
         p2.join(timeout=2)
         assert not p2.is_alive(), "Second process did not exit cleanly"
@@ -673,10 +774,16 @@ def test_timeout_behavior(lock_file) -> None:
     read_acquired = mp.Event()
 
     # Start process to acquire write lock and hold it
-    p1 = mp.Process(target=acquire_write_lock, args=(lock_file, write_acquired, release_write))
+    p1 = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, write_acquired, release_write),
+    )
 
     # Start process to try to acquire read lock with timeout
-    p2 = mp.Process(target=acquire_read_lock, args=(lock_file, read_acquired, None, 0.5, True))
+    p2 = mp.Process(
+        target=acquire_read_lock,
+        args=(lock_file, read_acquired, None, 0.5, True),
+    )
 
     with cleanup_processes([p1, p2]):
         p1.start()
@@ -687,7 +794,9 @@ def test_timeout_behavior(lock_file) -> None:
         p2.start()
 
         # Process should not acquire read lock and should exit after timeout
-        assert not read_acquired.wait(timeout=1), "Read lock should not be acquired"
+        assert not read_acquired.wait(timeout=1), (
+            "Read lock should not be acquired"
+        )
         p2.join(timeout=5)  # Allow more time for joining
 
         # Verify timeout duration was approximately correct
@@ -712,7 +821,10 @@ def test_non_blocking_behavior(lock_file) -> None:
     release_write = mp.Event()
 
     # Start process to acquire write lock and hold it
-    p1 = mp.Process(target=acquire_write_lock, args=(lock_file, write_acquired, release_write))
+    p1 = mp.Process(
+        target=acquire_write_lock,
+        args=(lock_file, write_acquired, release_write),
+    )
 
     with cleanup_processes([p1]):
         p1.start()
@@ -749,7 +861,10 @@ def test_lock_upgrade_prohibited(lock_file) -> None:
     upgrade_attempted = mp.Event()
     upgrade_result = mp.Value("i", -1)
 
-    p = mp.Process(target=try_upgrade_lock, args=(lock_file, read_acquired, upgrade_attempted, upgrade_result))
+    p = mp.Process(
+        target=try_upgrade_lock,
+        args=(lock_file, read_acquired, upgrade_attempted, upgrade_result),
+    )
 
     with cleanup_processes([p]):
         p.start()
@@ -765,7 +880,9 @@ def test_lock_upgrade_prohibited(lock_file) -> None:
         assert not p.is_alive(), "Process did not exit cleanly"
 
         # Verify result
-        assert upgrade_result.value == 0, "Read lock was incorrectly upgraded to write lock"
+        assert upgrade_result.value == 0, (
+            "Read lock was incorrectly upgraded to write lock"
+        )
 
 
 @pytest.mark.timeout(10)
@@ -775,7 +892,15 @@ def test_lock_downgrade_prohibited(lock_file) -> None:
     downgrade_attempted = mp.Event()
     downgrade_result = mp.Value("i", -1)
 
-    p = mp.Process(target=try_downgrade_lock, args=(lock_file, write_acquired, downgrade_attempted, downgrade_result))
+    p = mp.Process(
+        target=try_downgrade_lock,
+        args=(
+            lock_file,
+            write_acquired,
+            downgrade_attempted,
+            downgrade_result,
+        ),
+    )
 
     with cleanup_processes([p]):
         p.start()
@@ -791,70 +916,78 @@ def test_lock_downgrade_prohibited(lock_file) -> None:
         assert not p.is_alive(), "Process did not exit cleanly"
 
         # Verify result
-        assert downgrade_result.value == 0, "Write lock was incorrectly downgraded to read lock"
+        assert downgrade_result.value == 0, (
+            "Write lock was incorrectly downgraded to read lock"
+        )
 
 
 @pytest.mark.timeout(10)
 def test_threaded_read_locks_shared(lock_file) -> None:
     """Test that multiple threads can acquire read locks simultaneously."""
     lock = ReadWriteLock(lock_file)
-    
+
     # Use events for synchronization
     thread1_acquired = threading.Event()
     thread2_acquired = threading.Event()
     threads_can_release = threading.Event()
-    
+
     # Define thread functions
     def thread_read_lock_1():
         with lock.read_lock():
             thread1_acquired.set()
             threads_can_release.wait(timeout=5)
-    
+
     def thread_read_lock_2():
         with lock.read_lock():
             thread2_acquired.set()
             threads_can_release.wait(timeout=5)
-    
+
     # Start threads
     t1 = threading.Thread(target=thread_read_lock_1)
     t2 = threading.Thread(target=thread_read_lock_2)
-    
+
     t1.start()
     # Wait for first thread to acquire read lock
-    assert thread1_acquired.wait(timeout=2), "First thread couldn't acquire read lock"
-    
+    assert thread1_acquired.wait(timeout=2), (
+        "First thread couldn't acquire read lock"
+    )
+
     t2.start()
     # Second thread should also be able to acquire read lock
-    assert thread2_acquired.wait(timeout=2), "Second thread couldn't acquire read lock"
-    
+    assert thread2_acquired.wait(timeout=2), (
+        "Second thread couldn't acquire read lock"
+    )
+
     # Release threads
     threads_can_release.set()
-    
+
     # Wait for threads to finish
     t1.join(timeout=2)
     t2.join(timeout=2)
-    
-    assert not t1.is_alive() and not t2.is_alive(), "Threads did not exit cleanly"
+
+    assert not t1.is_alive() and not t2.is_alive(), (
+        "Threads did not exit cleanly"
+    )
 
 
 @pytest.mark.timeout(10)
 def test_threaded_write_locks_exclusive(lock_file) -> None:
     """Test that write locks are exclusive between threads."""
     lock = ReadWriteLock(lock_file)
-    
+
     # Use events for synchronization
     write1_acquired = threading.Event()
     write1_released = threading.Event()
     write2_attempted = threading.Event()
     write2_acquired = threading.Event()
-    
+
     # Define thread functions
     def thread_write_lock_1():
         with lock.write_lock():
             write1_acquired.set()
             # Hold the lock until signaled
             write1_released.wait(timeout=5)
-    
+
     def thread_write_lock_2():
         write2_attempted.set()
         # Try to acquire with timeout
@@ -863,31 +996,39 @@ def test_threaded_write_locks_exclusive(lock_file) -> None:
                 write2_acquired.set()
         except Timeout:
             pass
-    
+
     # Start first thread and wait for it to acquire
     t1 = threading.Thread(target=thread_write_lock_1)
     t1.start()
-    assert write1_acquired.wait(timeout=2), "First thread couldn't acquire write lock"
-    
+    assert write1_acquired.wait(timeout=2), (
+        "First thread couldn't acquire write lock"
+    )
+
     # Start second thread
     t2 = threading.Thread(target=thread_write_lock_2)
     t2.start()
-    
+
     # Wait for second thread to attempt acquiring
-    assert write2_attempted.wait(timeout=2), "Second thread didn't attempt to acquire"
-    
+    assert write2_attempted.wait(timeout=2), (
+        "Second thread didn't attempt to acquire"
+    )
+
     # Give some time for potential acquisition (should not happen)
     time.sleep(1)
-    assert not write2_acquired.is_set(), "Second thread shouldn't acquire write lock while first holds it"
-    
+    assert not write2_acquired.is_set(), (
+        "Second thread shouldn't acquire write lock while first holds it"
+    )
+
     # Release first thread's lock
     write1_released.set()
-    
+
     # Wait for threads to finish
     t1.join(timeout=2)
     t2.join(timeout=2)
-    
-    assert not t1.is_alive() and not t2.is_alive(), "Threads did not exit cleanly"
+
+    assert not t1.is_alive() and not t2.is_alive(), (
+        "Threads did not exit cleanly"
+    )
 
 
 @pytest.mark.timeout(10)
@@ -895,17 +1036,21 @@ def test_singleton_behavior(lock_file) -> None:
     """Test that locks with the same path use the same instance."""
     lock1 = ReadWriteLock(lock_file)
     lock2 = ReadWriteLock(lock_file)
-    
+
     # Same path should return the same instance
     assert lock1 is lock2, "Locks with same path should be the same instance"
-    
+
     # Different paths should return different instances
     lock3 = ReadWriteLock(lock_file + ".different")
-    assert lock1 is not lock3, "Locks with different paths should be different instances"
-    
+    assert lock1 is not lock3, (
+        "Locks with different paths should be different instances"
+    )
+
     # Parameter mismatch should raise ValueError
     with pytest.raises(ValueError):
-        ReadWriteLock(lock_file, timeout=5)  # Different timeout than the original
+        ReadWriteLock(
+            lock_file, timeout=5
+        )  # Different timeout than the original
 
 
 @pytest.mark.timeout(10)
@@ -913,21 +1058,23 @@ def test_non_singleton_behavior(lock_file) -> None:
     """Test that non-singleton locks can be created independently."""
     lock1 = ReadWriteLock(lock_file, is_singleton=False)
     lock2 = ReadWriteLock(lock_file, is_singleton=False)
-    
+
     # Same path with is_singleton=False should return different instances
-    assert lock1 is not lock2, "Non-singleton locks should be different instances"
-    
+    assert lock1 is not lock2, (
+        "Non-singleton locks should be different instances"
+    )
+
     # Test that they still coordinate via the underlying file lock
     thread1_acquired = threading.Event()
     thread1_ready_to_release = threading.Event()
     thread2_attempted = threading.Event()
     thread2_acquired = threading.Event()
-    
+
     def thread_acquire_write_lock1():
         with lock1.write_lock():
             thread1_acquired.set()
             thread1_ready_to_release.wait(timeout=5)
-    
+
     def thread_acquire_write_lock2():
         thread2_attempted.set()
         try:
@@ -935,53 +1082,61 @@ def test_non_singleton_behavior(lock_file) -> None:
                 thread2_acquired.set()
         except Timeout:
             pass
-    
+
     t1 = threading.Thread(target=thread_acquire_write_lock1)
     t2 = threading.Thread(target=thread_acquire_write_lock2)
-    
+
     t1.start()
-    assert thread1_acquired.wait(timeout=2), "First thread couldn't acquire write lock"
-    
+    assert thread1_acquired.wait(timeout=2), (
+        "First thread couldn't acquire write lock"
+    )
+
     t2.start()
-    assert thread2_attempted.wait(timeout=2), "Second thread didn't attempt to acquire"
-    
+    assert thread2_attempted.wait(timeout=2), (
+        "Second thread didn't attempt to acquire"
+    )
+
     # Give time for potential acquisition (should not happen while t1 holds lock)
     time.sleep(1)
-    assert not thread2_acquired.is_set(), "Second lock instance shouldn't acquire while first holds lock"
-    
+    assert not thread2_acquired.is_set(), (
+        "Second lock instance shouldn't acquire while first holds lock"
+    )
+
     # Release first lock
     thread1_ready_to_release.set()
-    
+
     # Wait for threads to finish
     t1.join(timeout=2)
     t2.join(timeout=2)
-    
-    assert not t1.is_alive() and not t2.is_alive(), "Threads did not exit cleanly"
+
+    assert not t1.is_alive() and not t2.is_alive(), (
+        "Threads did not exit cleanly"
+    )
 
 
 @pytest.mark.timeout(10)
 def test_exception_safety(lock_file) -> None:
     """Test that locks are released when exceptions occur in the with block."""
     lock = ReadWriteLock(lock_file)
-    
+
     # Test read lock exception safety
     try:
         with lock.read_lock():
             raise ValueError("Test exception")
     except ValueError:
         pass
-    
+
     # If read lock was properly released, we should be able to acquire a write lock
     with lock.write_lock(timeout=0.1):
         pass
-    
+
     # Test write lock exception safety
     try:
         with lock.write_lock():
             raise ValueError("Test exception")
     except ValueError:
         pass
-    
+
     # If write lock was properly released, we should be able to acquire a read lock
     with lock.read_lock(timeout=0.1):
         pass
