@@ -165,7 +165,6 @@
     }
   }
 
-
   /* Focus state */
   &.focus-outline {
     transition: all 0.6s;
