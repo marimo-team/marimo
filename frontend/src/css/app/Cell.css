@@ -118,6 +118,28 @@
     }
   }
 
+  /* Error styles for Cell, less precedence than needs run */
+  &.has-error,
+  &.error-outline {
+    outline: 1px solid var(--red-4);
+    @apply shadow-mdSolid shadow-[var(--red-8)];
+  }
+
+  &.has-error:hover {
+    @apply shadow-lgSolid shadow-[var(--red-8)];
+  }
+
+  &.has-error:focus-within,
+  &.has-error:focus-within:hover {
+    @apply shadow-xlSolid shadow-[var(--red-8)];
+  }
+
+  &.error-outline,
+  &.error-outline:focus-within {
+    box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
+    background-color: var(--red-2);
+  }
+
   /* Needs Run */
   &.needs-run {
     @apply divide-stale shadow-mdSolid shadow-stale;
@@ -141,27 +163,6 @@
     }
   }
 
-  /* Error styles for Cell */
-  &.has-error,
-  &.error-outline {
-    outline: 1px solid var(--red-4);
-    @apply shadow-mdSolid shadow-[var(--red-8)];
-  }
-
-  &.has-error:hover {
-    @apply shadow-lgSolid shadow-[var(--red-8)];
-  }
-
-  &.has-error:focus-within,
-  &.has-error:focus-within:hover {
-    @apply shadow-xlSolid shadow-[var(--red-8)];
-  }
-
-  &.error-outline,
-  &.error-outline:focus-within {
-    box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
-    background-color: var(--red-2);
-  }
 
   /* Focus state */
   &.focus-outline {
