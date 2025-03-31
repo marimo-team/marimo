@@ -6,9 +6,6 @@ const PREFIX = "env:";
 export type SecretPlaceholder = TypedString<"secret">;
 
 export function displaySecret(value: string) {
-  if (typeof value === "string" && value.startsWith(PREFIX)) {
-    return value.replace(PREFIX, "$");
-  }
   return value;
 }
 

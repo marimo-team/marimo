@@ -56,8 +56,7 @@ abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
   abstract generateConnectionCode(): string;
 }
 
-// const makePrivate = (name: string) => `_${name}`;
-const makePrivate = (name: string) => name;
+const makePrivate = (name: string) => `_${name}`;
 
 class SecretContainer {
   private secrets: Record<string, string> = {};
