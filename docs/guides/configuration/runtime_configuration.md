@@ -110,3 +110,5 @@ The `.env` next to your `pyproject.toml` is loaded by default. To configure mult
 [tool.marimo.runtime]
 dotenv = [".env", ".env.testing"]
 ```
+
+Environment variables from your `dotenv` will be surfaced in the UI when creating databases.
