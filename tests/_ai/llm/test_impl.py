@@ -260,7 +260,7 @@ class TestOpenAI:
         assert call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
         assert call_args["messages"][1]["role"] == "user"
         assert call_args["messages"][1]["content"] == "Test prompt"
-        assert call_args["max_tokens"] == 100
+        assert call_args["max_completion_tokens"] == 100
         # Use pytest.approx for floating point comparisons
         assert call_args["temperature"] == pytest.approx(0.7)
         assert call_args["top_p"] == pytest.approx(0.9)

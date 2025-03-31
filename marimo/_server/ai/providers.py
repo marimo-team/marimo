@@ -356,7 +356,7 @@ class OpenAIProvider(
                     + messages
                 ),
             ),
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
             stream=True,
             timeout=15,
         )
