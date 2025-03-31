@@ -102,7 +102,7 @@ const SlidesComponent = ({
               )}
             >
               {/* this centers the contents */}
-              <div className="m-auto">{child}</div>
+              <div className="m-auto max-w-full">{child}</div>
             </div>
           </SwiperSlide>
         );
