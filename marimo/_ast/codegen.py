@@ -177,9 +177,6 @@ def to_functiondef(
     # other static analysis tools can capture unused variables across cells.
     defs: tuple[str, ...] = tuple()
     if cell.defs:
-        # There are possible name error cases where a cell defines, and also
-        # requires a variable. We remove defs from the signature such that
-        # this causes a lint error in pyright.
         if used_refs is None:
             defs = tuple(name for name in sorted(cell.defs))
         else:
@@ -255,9 +252,9 @@ def serialize_cell(
         return to_functiondef(
             cell,
             status.name,
-            # There are possible name error cases where a cell defines, and also
+            # There are possible NameError cases where a cell defines and also
             # requires a variable. We remove defs from the signature such that
-            # this causes a lint error in pyright.
+            # this causes a lint error in programs like pyright.
             extraction.allowed_refs | cell.defs,
             extraction.used_refs,
             fn="cell",

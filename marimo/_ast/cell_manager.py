@@ -212,7 +212,7 @@ class CellManager:
             name: Optional name for the cell
             cell_config: Configuration for the cell
         """
-        # If this is the first cell, and it's name is setup, assume that it's
+        # If this is the first cell, and its name is setup, assume that it's
         # the setup cell.
         if len(self._cell_data) == 0 and name == SETUP_CELL_NAME:
             cell_id = CellId_t(SETUP_CELL_NAME)
