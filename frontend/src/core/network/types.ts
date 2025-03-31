@@ -40,6 +40,7 @@ export type FileUpdateResponse = schemas["FileUpdateResponse"];
 export type FormatRequest = schemas["FormatRequest"];
 export type FormatResponse = schemas["FormatResponse"];
 export type FunctionCallRequest = schemas["FunctionCallRequest"];
+export type ListSecretKeysResponse = schemas["ListSecretKeysResponse"];
 export type InstallMissingPackagesRequest =
   schemas["InstallMissingPackagesRequest"];
 export type AddPackageRequest = schemas["AddPackageRequest"];
@@ -49,6 +50,7 @@ export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
+export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
@@ -160,6 +162,8 @@ export interface EditRequests {
   removePackage: (
     request: RemovePackageRequest,
   ) => Promise<PackageOperationResponse>;
+  // Secrets requests
+  listSecretKeys: (request: ListSecretKeysRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

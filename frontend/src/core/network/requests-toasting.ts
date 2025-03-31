@@ -55,6 +55,7 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    listSecretKeys: "Failed to fetch secrets",
   };
 
   const handlers = {} as EditRequests & RunRequests;

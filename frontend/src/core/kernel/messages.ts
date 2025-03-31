@@ -34,6 +34,7 @@ export type DataColumnPreview = OperationMessageData<"data-column-preview">;
 export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
 export type SQLTableListPreview =
   OperationMessageData<"sql-table-list-preview">;
+export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
 
 export type OperationMessageType = schemas["MessageOperation"]["name"];
 export type OperationMessage = {

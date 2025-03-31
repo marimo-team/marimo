@@ -23,7 +23,9 @@ async def test_list_secrets_with_values(
     test_secrets = ["DUMMY_SECRET"]
     os.environ["DUMMY_SECRET"] = "dummy-value"
 
-    await secrets_callbacks.list_secrets(ListSecretKeysRequest())
+    await secrets_callbacks.list_secrets(
+        ListSecretKeysRequest(request_id="test")
+    )
 
     # Check that the broadcast message was sent with the correct secrets
     messages = [

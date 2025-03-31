@@ -2230,9 +2230,10 @@ class SecretsCallbacks:
         self._kernel = kernel
 
     async def list_secrets(self, request: ListSecretKeysRequest) -> None:
-        del request
         secrets = get_secret_keys()
-        SecretKeysResult(secrets=secrets).broadcast()
+        SecretKeysResult(
+            request_id=request.request_id, secrets=secrets
+        ).broadcast()
 
 
 class PackagesCallbacks:

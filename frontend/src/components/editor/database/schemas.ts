@@ -11,6 +11,7 @@ function passwordField() {
         label: "Password",
         inputType: "password",
         placeholder: "password",
+        optionRegex: ".*password.*",
       }),
     );
 }
@@ -19,30 +20,46 @@ function hostField() {
   return z
     .string()
     .nonempty()
-    .describe(FieldOptions.of({ label: "Host", placeholder: "localhost" }));
+    .describe(
+      FieldOptions.of({
+        label: "Host",
+        placeholder: "localhost",
+        optionRegex: ".*host.*",
+      }),
+    );
 }
 
 function databaseField() {
-  return z
-    .string()
-    .describe(FieldOptions.of({ label: "Database", placeholder: "db name" }));
+  return z.string().describe(
+    FieldOptions.of({
+      label: "Database",
+      placeholder: "db name",
+      optionRegex: ".*database.*",
+    }),
+  );
 }
 
 function usernameField() {
   return z
     .string()
     .nonempty()
-    .describe(FieldOptions.of({ label: "Username", placeholder: "username" }));
+    .describe(
+      FieldOptions.of({
+        label: "Username",
+        placeholder: "username",
+        optionRegex: ".*username.*",
+      }),
+    );
 }
 
-function portField(defaultPort: number, optional: boolean) {
+function portField(defaultPort?: number) {
   const field = z.coerce
     .string()
     .describe(
       FieldOptions.of({
         label: "Port",
         inputType: "number",
-        placeholder: defaultPort.toString(),
+        placeholder: defaultPort?.toString(),
       }),
     )
     .transform(Number)
@@ -50,7 +67,11 @@ function portField(defaultPort: number, optional: boolean) {
       message: "Port must be between 0 and 65535",
     });
 
-  return optional ? field.optional() : field.default(defaultPort.toString());
+  if (defaultPort !== undefined) {
+    return field.default(defaultPort.toString());
+  }
+
+  return field;
 }
 
 function readOnlyField() {
@@ -64,7 +85,7 @@ export const PostgresConnectionSchema = z
   .object({
     type: z.literal("postgres"),
     host: hostField(),
-    port: portField(5432, false),
+    port: portField(5432).optional(),
     database: databaseField(),
     username: usernameField(),
     password: passwordField(),
@@ -79,7 +100,7 @@ export const MySQLConnectionSchema = z
   .object({
     type: z.literal("mysql"),
     host: hostField(),
-    port: portField(3306, false),
+    port: portField(3306),
     database: databaseField(),
     username: usernameField(),
     password: passwordField(),
@@ -115,16 +136,31 @@ export const SnowflakeConnectionSchema = z
     account: z
       .string()
       .nonempty()
-      .describe(FieldOptions.of({ label: "Account" })),
+      .describe(
+        FieldOptions.of({
+          label: "Account",
+          optionRegex: ".*snowflake.*",
+        }),
+      ),
     warehouse: z
       .string()
       .optional()
-      .describe(FieldOptions.of({ label: "Warehouse" })),
+      .describe(
+        FieldOptions.of({
+          label: "Warehouse",
+          optionRegex: ".*snowflake.*",
+        }),
+      ),
     database: databaseField(),
     schema: z
       .string()
       .optional()
-      .describe(FieldOptions.of({ label: "Schema" })),
+      .describe(
+        FieldOptions.of({
+          label: "Schema",
+          optionRegex: ".*snowflake.*",
+        }),
+      ),
     username: usernameField(),
     password: passwordField(),
     role: z
@@ -140,11 +176,21 @@ export const BigQueryConnectionSchema = z
     project: z
       .string()
       .nonempty()
-      .describe(FieldOptions.of({ label: "Project ID" })),
+      .describe(
+        FieldOptions.of({
+          label: "Project ID",
+          optionRegex: ".*bigquery.*",
+        }),
+      ),
     dataset: z
       .string()
       .nonempty()
-      .describe(FieldOptions.of({ label: "Dataset" })),
+      .describe(
+        FieldOptions.of({
+          label: "Dataset",
+          optionRegex: ".*bigquery.*",
+        }),
+      ),
     credentials_json: z
       .string()
       .describe(
@@ -157,7 +203,7 @@ export const ClickhouseConnectionSchema = z
   .object({
     type: z.literal("clickhouse_connect"),
     host: hostField(),
-    port: portField(8123, true),
+    port: portField(8123).optional(),
     username: usernameField(),
     password: passwordField(),
     secure: z

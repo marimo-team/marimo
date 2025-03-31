@@ -61,10 +61,6 @@ import {
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import {
-  PreviewSQLTable,
-  PreviewSQLTableList,
-} from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   DatasourceLabel,
@@ -76,6 +72,10 @@ import {
 import { InstallPackageButton } from "./install-package-button";
 import { isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
+import {
+  PreviewSQLTableList,
+  PreviewSQLTable,
+} from "@/core/datasets/request-registry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);

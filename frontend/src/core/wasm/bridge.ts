@@ -496,6 +496,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",

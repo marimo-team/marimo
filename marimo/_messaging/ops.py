@@ -684,6 +684,9 @@ class UpdateCellCodes(Op):
 
 @dataclass
 class SecretKeysResult(Op):
+    """Result of listing secret keys."""
+
+    request_id: RequestId
     name: ClassVar[str] = "secret-keys-result"
     secrets: list[SecretKeysWithProvider]
 
@@ -734,6 +737,8 @@ MessageOperation = Union[
     SQLTablePreview,
     SQLTableListPreview,
     DataSourceConnections,
+    # Secrets
+    SecretKeysResult,
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,

@@ -2083,9 +2083,13 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: never;
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ListSecretKeysRequest"];
+        };
+      };
       responses: {
-        /** @description Preview a column in a dataset */
+        /** @description List all secret keys */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2864,12 +2868,11 @@ export interface components {
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
+    ListSecretKeysRequest: {
+      requestId: string;
+    };
     ListSecretKeysResponse: {
-      keys: {
-        keys: string[];
-        /** @enum {string} */
-        provider: "env";
-      }[];
+      keys: components["schemas"]["SecretKeysWithProvider"][];
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
@@ -3048,11 +3051,8 @@ export interface components {
       | components["schemas"]["DataColumnPreview"]
       | components["schemas"]["SQLTablePreview"]
       | components["schemas"]["SQLTableListPreview"]
-      | {
-          connections: components["schemas"]["DataSourceConnection"][];
-          /** @enum {string} */
-          name: "data-source-connections";
-        }
+      | components["schemas"]["DataSourceConnections"]
+      | components["schemas"]["SecretKeysResult"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -3244,6 +3244,17 @@ export interface components {
     SchemaTable: {
       columns: components["schemas"]["SchemaColumn"][];
       name: string;
+    };
+    SecretKeysResult: {
+      /** @enum {string} */
+      name: "secret-keys-result";
+      request_id: string;
+      secrets: components["schemas"]["SecretKeysWithProvider"][];
+    };
+    SecretKeysWithProvider: {
+      keys: string[];
+      /** @enum {string} */
+      provider: "env";
     };
     SendUIElementMessage: {
       buffers?: string[] | null;
