@@ -172,6 +172,9 @@ def to_functiondef(
     # other static analysis tools can capture unused variables across cells.
     defs: tuple[str, ...] = tuple()
     if cell.defs:
+        # There are possible name error cases where a cell defines, and also
+        # requires a variable. We remove defs from the signature such that
+        # this causes a lint error in pyright.
         if used_refs is None:
             defs = tuple(name for name in sorted(cell.defs))
         else:
@@ -230,7 +233,7 @@ def generate_unparsable_cell(
     return "\n".join(text)
 
 
-def serialize(
+def serialize_cell(
     extraction: TopLevelExtraction, status: TopLevelStatus, toplevel_fn: bool
 ) -> str:
     if status.is_unparsable:
@@ -247,7 +250,10 @@ def serialize(
         return to_functiondef(
             cell,
             status.name,
-            extraction.allowed_refs,
+            # There are possible name error cases where a cell defines, and also
+            # requires a variable. We remove defs from the signature such that
+            # this causes a lint error in pyright.
+            extraction.allowed_refs | cell.defs,
             extraction.used_refs,
             fn="cell",
         )
@@ -328,7 +334,7 @@ def generate_filecontents(
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
     cell_blocks = [
-        serialize(extraction, status, toplevel_fn) for status in extraction
+        serialize_cell(extraction, status, toplevel_fn) for status in extraction
     ]
 
     if not toplevel_fn:

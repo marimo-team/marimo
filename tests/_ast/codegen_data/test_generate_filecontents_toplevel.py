@@ -74,5 +74,13 @@ def fun_that_uses_another():
     return fun_that_uses_mo()
 
 
+@app.cell
+def cell_with_ref_and_def():
+    if mo is None:
+        var = maybe
+    maybe = 1
+    return (maybe,)
+
+
 if __name__ == "__main__":
     app.run()
