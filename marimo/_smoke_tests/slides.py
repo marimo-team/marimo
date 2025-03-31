@@ -10,24 +10,24 @@
 
 import marimo
 
-__generated_with = "0.8.11"
+__generated_with = "0.11.31"
 app = marimo.App(layout_file="layouts/slides.slides.json")
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# A Presentation on `Iris` Data""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""## By the marimo team (`@marimo_io`)""")
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import pandas as pd
     import altair as alt
@@ -35,22 +35,23 @@ def __():
 
 
 @app.cell
-def __(pd):
+def _(pd):
     df = pd.read_csv(
         "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
     )
-    return df,
+    df = pd.concat([df, df.add_suffix("_2")], axis=1)
+    return (df,)
 
 
 @app.cell
-def __(df, mo):
-    table = mo.ui.table(df, label="Iris Data in a table")
+def _(df, mo):
+    table = mo.ui.table(df, label="Wide Iris Data in a table")
     table
-    return table,
+    return (table,)
 
 
 @app.cell
-def __(alt, df, mo):
+def _(alt, df, mo):
     chart = mo.ui.altair_chart(
         alt.Chart(df)
         .mark_point()
@@ -58,23 +59,23 @@ def __(alt, df, mo):
         label="Iris Data in chart",
     )
     chart
-    return chart,
+    return (chart,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""# Thank you!""")
     return
 
 
 @app.cell
-def __():
+def _():
     # Some markdown testing
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # H1 (`H1`)
@@ -89,7 +90,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         - Item 1
@@ -102,7 +103,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         !!! note "Callouts"
@@ -113,7 +114,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.callout("""
     This is another callout
     """)
@@ -121,24 +122,24 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(r"""## Items that don't quite work in slides""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion({"Accodrions too small": mo.md("Content")})
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.ui.tabs({"Tabs to small": mo.md("Content")})
     return
 
