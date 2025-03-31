@@ -5,6 +5,11 @@ import builtins
 from enum import Enum
 from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 
+from tokenize import tokenize
+import token as token_types
+from io import BytesIO
+from tokenize import TokenInfo
+
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
@@ -25,6 +30,7 @@ TopLevelInvalidHints = Literal[
     "Signature and decorators depend on {} defined out of correct cell order",
     "Function contains references to variables {} which are not top level.",
     "Function contains references to variables {} which failed to be toplevel.",
+    "Cell cannot contain non-indented trailing comments.",
 ]
 (
     HINT_UNPARSABLE,
@@ -33,10 +39,28 @@ TopLevelInvalidHints = Literal[
     HINT_ORDER_DEPENDENT,
     HINT_HAS_REFS,
     HINT_HAS_CLOSE_REFS,
+    HINT_HAS_COMMENT,
 ) = get_args(TopLevelInvalidHints)
 
 TopLevelHints = Union[Literal["Valid"], TopLevelInvalidHints]
 HINT_VALID, *_ = get_args(TopLevelHints)
+
+
+def has_trailing_comment(code: str) -> bool:
+    # Requires tokenization because multiline strings can start a line with #.
+    tokens = tokenize(BytesIO(code.strip().encode("utf-8")).readline)
+    for token in reversed(list(tokens)):
+        if token.type in (
+            token_types.ENDMARKER,
+            token_types.NEWLINE,
+            token_types.NL,
+            token_types.INDENT,
+            token_types.DEDENT,
+            token_types.ENCODING,
+        ):
+            continue
+        return token.type == token_types.COMMENT and token.start[1] == 0
+    return False
 
 
 class TopLevelType(Enum):
@@ -107,6 +131,12 @@ class TopLevelStatus:
         (self.name,) = self._cell.defs
         if self.name in ("app", "__generated_with", "__name__"):
             self.demote(HINT_BAD_NAME)
+            return
+
+        # Trailing comments are not allowed, since no easy way to recapture
+        # them.
+        if has_trailing_comment(self.code):
+            self.demote(HINT_HAS_COMMENT)
             return
 
         allowed_refs = set(allowed_refs) | {self.name}

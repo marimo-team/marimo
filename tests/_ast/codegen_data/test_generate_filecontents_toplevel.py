@@ -46,7 +46,6 @@ def shadow_case(shadow):
 def _(shadow):
     def reference_case():
         return shadow
-
     return
 
 
@@ -55,7 +54,6 @@ def _(globe):
     def global_case():
         global globe
         return globe
-
     return
 
 
@@ -80,6 +78,15 @@ def cell_with_ref_and_def():
         var = maybe
     maybe = 1
     return (maybe,)
+
+
+@app.cell
+def _():
+    # Trailing comments should break function serialization.
+    def addition_with_trailing_comments(a, b):
+        return a + b
+    # This is a comment
+    return
 
 
 if __name__ == "__main__":

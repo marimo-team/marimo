@@ -136,6 +136,7 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
         [
             "with app.setup:",
             indent_text(block),
+            "\n",
         ]
     )
 
@@ -334,7 +335,8 @@ def generate_filecontents(
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
     cell_blocks = [
-        serialize_cell(extraction, status, toplevel_fn) for status in extraction
+        serialize_cell(extraction, status, toplevel_fn)
+        for status in extraction
     ]
 
     if not toplevel_fn:
@@ -352,7 +354,6 @@ def generate_filecontents(
             generate_app_constructor(config),
             "",
             build_setup_section(setup_cell),
-            "\n",
             "\n\n\n".join(cell_blocks),
             "\n",
             'if __name__ == "__main__":',
