@@ -6,7 +6,7 @@ from typing import Literal
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
-from marimo._plugins.stateless.flex import vstack
+from marimo._plugins.stateless.flex import vstack, hstack
 from marimo._plugins.ui._impl.input import code_editor
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
@@ -33,7 +33,7 @@ def substitute_show_code_with_arg(code: str) -> str:
 
 
 def show_code(
-    output: object = None, *, position: Literal["above", "below"] = "below"
+    output: object = None, *, position: Literal["above", "below", "left", "right"] = "below"
 ) -> Html:
     """Display an output along with the code of the current cell.
 
@@ -74,15 +74,16 @@ def show_code(
     - `output`: the output to display with the cell's code; omit the output
       to just show the cell's code.
     - `position`: Where to display the code relative to the output.
-      Use "above" to show code above the output, or "below" (default) to show
-      code below the output.
+      Use "above" to show code above the output, "below" (default) to show
+      code below the output, "left" to show code left of the ouptut, or
+      "right" to show code right of the output.
 
     **Returns:**
 
     HTML of the `output` arg displayed with its code.
     """
-    assert position in ["above", "below"], (
-        "position must be 'above' or 'below'"
+    assert position in ["above", "below", "left", "right"], (
+        "position must be 'above', 'below', 'left' or 'right'."
     )
 
     try:
@@ -105,12 +106,27 @@ def show_code(
                     as_html(output),
                 ]
             )
-        else:
+        elif position == "below":
             return vstack(
                 [
                     as_html(output),
                     code_editor(value=code, disabled=True, min_height=1),
                 ]
             )
+        elif position == "left":
+            return hstack(
+                [
+                    code_editor(value=code, disabled=True, min_height=1),
+                    as_html(output),
+                ]
+            )
+        else:
+            return hstack(
+                [
+                    as_html(output),
+                    code_editor(value=code, disabled=True, min_height=1),
+                ]
+            )
+
     else:
         return code_editor(value=code, disabled=True, min_height=1)
