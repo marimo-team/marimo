@@ -76,6 +76,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         secrets.ListSecretKeysResponse,
         secrets.CreateSecretRequest,
         secrets.DeleteSecretRequest,
+        secrets.SecretKeysWithProvider,
         # Data
         data.DataTableColumn,
         data.DataTable,
@@ -107,6 +108,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.DataColumnPreview,
         ops.SQLTablePreview,
         ops.SQLTableListPreview,
+        ops.DataSourceConnections,
+        ops.SecretKeysResult,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -115,7 +118,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
-        ops.DataSourceConnections,
     ]
 
     # dataclass components used in requests/responses
@@ -191,6 +193,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.PreviewDatasetColumnRequest,
         requests.PreviewSQLTableRequest,
         requests.PreviewSQLTableListRequest,
+        requests.ListSecretKeysRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,

@@ -330,7 +330,7 @@ class PreviewSQLTableListRequest:
 
 @dataclass
 class ListSecretKeysRequest:
-    pass
+    request_id: RequestId
 
 
 ControlRequest = Union[

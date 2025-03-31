@@ -1,9 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`generateDatabaseCode > basic connections > bigquery 1`] = `
-"import os
+"import json
 import sqlmodel
-import json
 
 credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
 engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
@@ -16,14 +15,16 @@ engine = chdb.connect("file:///path/to/db.chdb", read_only=False)"
 `;
 
 exports[`generateDatabaseCode > basic connections > clickhouse 1`] = `
-"import os
-import clickhouse_connect
+"import clickhouse_connect
+import os
 
+password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 engine = clickhouse_connect.get_client(
   host="localhost",
   user="user",
+  secure=False,
   port=8123,
-  password=os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+  password=password,
 )"
 `;
 
@@ -71,10 +72,11 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > basic connections > snowflake 1`] = `
-"import os
+"from snowflake.sqlalchemy import URL
+import os
 import sqlmodel
-from snowflake.sqlalchemy import URL
 
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
 engine = sqlmodel.create_engine(
   URL(
     account="account",
@@ -83,7 +85,7 @@ engine = sqlmodel.create_engine(
     warehouse="warehouse",
     schema="schema",
     role="role",
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=password,
   )
 )"
 `;
@@ -95,10 +97,86 @@ DATABASE_URL = "sqlite:////path/to/db.sqlite"
 engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
-exports[`generateDatabaseCode > edge cases > bigquery with long credentials 1`] = `
+exports[`generateDatabaseCode > connections with secrets > bigquery with credentials as secret 1`] = `
+"import json
+import os
+import sqlmodel
+
+project = os.environ.get("ENV_PROJECT")
+dataset = os.environ.get("ENV_DATASET")
+credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+engine = sqlmodel.create_engine(f"bigquery://{project}/{dataset}", credentials_info=credentials)"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > clickhouse with all connection details as secrets 1`] = `
+"import clickhouse_connect
+import os
+
+password = os.environ.get("ENV_PASSWORD")
+host = os.environ.get("ENV_HOST")
+user = os.environ.get("ENV_USER")
+engine = clickhouse_connect.get_client(
+  host=host,
+  user=user,
+  secure=False,
+  port=8123,
+  password=password,
+)"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > mysql with username and password as secrets 1`] = `
+"import os
+import sqlalchemy
+
+password = os.environ.get("ENV_PASSWORD")
+username = os.environ.get("ENV_USER")
+DATABASE_URL = f"mysql+pymysql://{username}:{password}@localhost:3306/test"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > postgres with password as secret 1`] = `
 "import os
 import sqlmodel
-import json
+
+password = os.environ.get("ENV_PASSWORD")
+host = os.environ.get("ENV_HOST")
+DATABASE_URL = f"postgresql://user:{password}@{host}:5432/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > snowflake with multiple secrets 1`] = `
+"from snowflake.sqlalchemy import URL
+import os
+import sqlmodel
+
+password = os.environ.get("ENV_PASSWORD")
+account = os.environ.get("ENV_ACCOUNT")
+user = os.environ.get("ENV_USER")
+engine = sqlmodel.create_engine(
+  URL(
+    account=account,
+    user=user,
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    password=password,
+  )
+)"
+`;
+
+exports[`generateDatabaseCode > edge cases > ENV with special chars SQLModel 1`] = `
+"import os
+import sqlmodel
+
+password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
+DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-db.special"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+`;
+
+exports[`generateDatabaseCode > edge cases > bigquery with long credentials 1`] = `
+"import json
+import sqlmodel
 
 credentials = json.loads("""xxxxxxxxxx""")
 engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
@@ -111,37 +189,39 @@ engine = chdb.connect("", read_only=False)"
 `;
 
 exports[`generateDatabaseCode > edge cases > clickhouse connect with minimal config 1`] = `
-"import os
-import clickhouse_connect
+"import clickhouse_connect
 
 engine = clickhouse_connect.get_client(
   host="localhost",
   user="user",
-
+  secure=False,
 )"
 `;
 
 exports[`generateDatabaseCode > edge cases > clickhouse with https 1`] = `
-"import os
-import clickhouse_connect
+"import clickhouse_connect
+import os
 
+password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 engine = clickhouse_connect.get_client(
   host="localhost",
   user="user",
   secure=True,
   port=8123,
-  password=os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+  password=password,
 )"
 `;
 
 exports[`generateDatabaseCode > edge cases > clickhouse with no port 1`] = `
-"import os
-import clickhouse_connect
+"import clickhouse_connect
+import os
 
+password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
 engine = clickhouse_connect.get_client(
   host="localhost",
   user="user",
-  password=os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+  secure=False,
+  password=password,
 )"
 `;
 
@@ -193,7 +273,7 @@ exports[`generateDatabaseCode > edge cases > postgres with domain socket 1`] = `
 import sqlmodel
 
 password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@/var/run/postgresql:undefined/test"
+DATABASE_URL = f"postgresql://user:{password}@/var/run/postgresql:/test"
 engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
@@ -215,15 +295,6 @@ DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-d
 engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
-exports[`generateDatabaseCode > edge cases > postgres with special chars SQLModel 1`] = `
-"import os
-import sqlmodel
-
-password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
-DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-db.special"
-engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
-`;
-
 exports[`generateDatabaseCode > edge cases > postgres with unicode 1`] = `
 "import os
 import sqlmodel
@@ -234,10 +305,11 @@ engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'
 `;
 
 exports[`generateDatabaseCode > edge cases > snowflake with all optional fields filled 1`] = `
-"import os
+"from snowflake.sqlalchemy import URL
+import os
 import sqlmodel
-from snowflake.sqlalchemy import URL
 
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
 engine = sqlmodel.create_engine(
   URL(
     account="org-account",
@@ -246,22 +318,23 @@ engine = sqlmodel.create_engine(
     warehouse="compute_wh",
     schema="public",
     role="accountadmin",
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=password,
   )
 )"
 `;
 
 exports[`generateDatabaseCode > edge cases > snowflake with minimal config SQLModel 1`] = `
-"import os
+"from snowflake.sqlalchemy import URL
+import os
 import sqlmodel
-from snowflake.sqlalchemy import URL
 
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
 engine = sqlmodel.create_engine(
   URL(
     account="account",
     user="user",
     database="db",
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=password,
   )
 )"
 `;
@@ -274,18 +347,16 @@ engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 1`] = `
-"import os
+"import json
 import sqlmodel
-import json
 
 credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
 engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 2`] = `
-"import os
+"import json
 import sqlalchemy
-import json
 
 credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
 engine = sqlalchemy.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
@@ -346,10 +417,11 @@ engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'requir
 `;
 
 exports[`generateDatabaseCode > security cases > snowflake with sensitive info in account 1`] = `
-"import os
+"from snowflake.sqlalchemy import URL
+import os
 import sqlmodel
-from snowflake.sqlalchemy import URL
 
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
 engine = sqlmodel.create_engine(
   URL(
     account="account-with-password123",
@@ -358,16 +430,17 @@ engine = sqlmodel.create_engine(
     warehouse="warehouse",
     schema="schema",
     role="role",
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=password,
   )
 )"
 `;
 
 exports[`generateDatabaseCode > security cases > snowflake with sensitive info in account 2`] = `
-"import os
+"from snowflake.sqlalchemy import URL
+import os
 import sqlalchemy
-from snowflake.sqlalchemy import URL
 
+password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
 engine = sqlalchemy.create_engine(
   URL(
     account="account-with-password123",
@@ -376,7 +449,7 @@ engine = sqlalchemy.create_engine(
     warehouse="warehouse",
     schema="schema",
     role="role",
-    password=os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+    password=password,
   )
 )"
 `;

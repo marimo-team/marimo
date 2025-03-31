@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
-import { ZodForm } from "@/components/forms/form";
+import { type FormRenderer, ZodForm } from "@/components/forms/form";
 import {
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ENV_RENDERER, SecretsProvider } from "./form-renderers";
 
 interface Props {
   onSubmit: () => void;
@@ -164,6 +165,8 @@ const DatabaseSchemaSelector: React.FC<{
   );
 };
 
+const RENDERERS: FormRenderer[] = [ENV_RENDERER];
+
 const DatabaseForm: React.FC<{
   schema: z.ZodType;
   onSubmit: () => void;
@@ -201,9 +204,11 @@ const DatabaseForm: React.FC<{
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-      <ZodForm schema={schema} form={form} renderers={undefined}>
-        <FormErrorsBanner />
-      </ZodForm>
+      <SecretsProvider>
+        <ZodForm schema={schema} form={form} renderers={RENDERERS}>
+          <FormErrorsBanner />
+        </ZodForm>
+      </SecretsProvider>
       <div className="flex gap-2 justify-between">
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onBack}>

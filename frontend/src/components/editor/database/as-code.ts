@@ -3,6 +3,7 @@ import { assertNever } from "@/utils/assertNever";
 import { DatabaseConnectionSchema, type DatabaseConnection } from "./schemas";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
+import { isSecret, unprefixSecret } from "./secrets";
 
 export type ConnectionLibrary =
   | "sqlmodel"
@@ -10,6 +11,7 @@ export type ConnectionLibrary =
   | "duckdb"
   | "clickhouse_connect"
   | "chdb";
+
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
   sqlalchemy: "SQLAlchemy",
@@ -17,6 +19,378 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   clickhouse_connect: "ClickHouse Connect",
   chdb: "chDB",
 };
+
+abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
+  protected connection: Extract<DatabaseConnection, { type: T }>;
+  protected orm: ConnectionLibrary;
+  protected secrets: SecretContainer;
+
+  constructor(
+    connection: Extract<DatabaseConnection, { type: T }>,
+    orm: ConnectionLibrary,
+    secrets: SecretContainer,
+  ) {
+    this.connection = connection;
+    this.orm = orm;
+    this.secrets = secrets;
+  }
+
+  get imports(): Set<string> {
+    const imports = new Set<string>(this.generateImports());
+    switch (this.orm) {
+      case "sqlalchemy":
+        imports.add("import sqlalchemy");
+        break;
+      case "sqlmodel":
+        imports.add("import sqlmodel");
+        break;
+      case "duckdb":
+        imports.add("import duckdb");
+        break;
+    }
+    return imports;
+  }
+
+  protected abstract generateImports(): string[];
+
+  abstract generateConnectionCode(): string;
+}
+
+// const makePrivate = (name: string) => `_${name}`;
+const makePrivate = (name: string) => name;
+
+class SecretContainer {
+  private secrets: Record<string, string> = {};
+
+  get imports(): Set<string> {
+    if (Object.keys(this.secrets).length === 0) {
+      return new Set<string>();
+    }
+    return new Set<string>(["import os"]);
+  }
+
+  print(
+    varName: string,
+    secretKeyOrValue: string | number | boolean,
+    defaultValue?: string | undefined,
+  ): string {
+    varName = makePrivate(varName);
+    if (isSecret(secretKeyOrValue)) {
+      const withoutPrefix = unprefixSecret(secretKeyOrValue);
+      const secretGetter = defaultValue
+        ? `os.environ.get("${withoutPrefix}", "${defaultValue}")`
+        : `os.environ.get("${withoutPrefix}")`;
+      this.secrets[varName] = secretGetter;
+      return varName;
+    }
+    if (defaultValue != null) {
+      const secretGetter = `os.environ.get("${secretKeyOrValue}", "${defaultValue}")`;
+      this.secrets[varName] = secretGetter;
+      return varName;
+    }
+
+    if (typeof secretKeyOrValue === "number") {
+      return `${secretKeyOrValue}`;
+    }
+    // If its a number, return it as is
+    if (typeof secretKeyOrValue === "number") {
+      return `${secretKeyOrValue}`;
+    }
+    if (typeof secretKeyOrValue === "boolean") {
+      return formatBoolean(secretKeyOrValue);
+    }
+    if (!secretKeyOrValue) {
+      return "";
+    }
+
+    return `"${secretKeyOrValue}"`;
+  }
+
+  printInFString(
+    varName: string,
+    secretKeyOrValue: string | number | undefined | boolean,
+    defaultValue?: string | undefined,
+  ): string {
+    if (secretKeyOrValue === undefined) {
+      return "";
+    }
+    // If its a number, return it as is
+    if (typeof secretKeyOrValue === "number") {
+      return `${secretKeyOrValue}`;
+    }
+    if (typeof secretKeyOrValue === "boolean") {
+      return formatBoolean(secretKeyOrValue);
+    }
+
+    const value = this.print(varName, secretKeyOrValue, defaultValue);
+    // If its a string, remove the quotes
+    if (value.startsWith('"') && value.endsWith('"')) {
+      return value.slice(1, -1);
+    }
+    // If its a variable, wrap it in curly braces
+    return `{${value}}`;
+  }
+
+  getSecrets(): Record<string, string> {
+    return this.secrets;
+  }
+
+  formatSecrets(): string {
+    if (Object.keys(this.secrets).length === 0) {
+      return "";
+    }
+
+    return Object.entries(this.secrets)
+      .map(([k, v]) => `${k} = ${v}`)
+      .join("\n");
+  }
+}
+
+class PostgresGenerator extends CodeGenerator<"postgres"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const ssl = this.connection.ssl
+      ? ", connect_args={'sslmode': 'require'}"
+      : "";
+    const password = isSecret(this.connection.password)
+      ? this.secrets.printInFString("password", this.connection.password)
+      : this.secrets.printInFString(
+          "password",
+          "POSTGRES_PASSWORD",
+          this.connection.password,
+        );
+    const username = this.secrets.printInFString(
+      "username",
+      this.connection.username,
+    );
+    const host = this.secrets.printInFString("host", this.connection.host);
+    const port = this.secrets.printInFString("port", this.connection.port);
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database,
+    );
+
+    return dedent(`
+      DATABASE_URL = f"postgresql://${username}:${password}@${host}:${port}/${database}"
+      engine = ${this.orm}.create_engine(DATABASE_URL${ssl})
+    `);
+  }
+}
+
+class MySQLGenerator extends CodeGenerator<"mysql"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const ssl = this.connection.ssl
+      ? ", connect_args={'ssl': {'ssl-mode': 'preferred'}}"
+      : "";
+    const password = isSecret(this.connection.password)
+      ? this.secrets.printInFString("password", this.connection.password)
+      : this.secrets.printInFString(
+          "password",
+          "MYSQL_PASSWORD",
+          this.connection.password,
+        );
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database,
+    );
+    const username = this.secrets.printInFString(
+      "username",
+      this.connection.username,
+    );
+    const host = this.secrets.printInFString("host", this.connection.host);
+    const port = this.secrets.printInFString("port", this.connection.port);
+
+    return dedent(`
+      DATABASE_URL = f"mysql+pymysql://${username}:${password}@${host}:${port}/${database}"
+      engine = ${this.orm}.create_engine(DATABASE_URL${ssl})
+    `);
+  }
+}
+
+class SQLiteGenerator extends CodeGenerator<"sqlite"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const database = this.connection.database
+      ? this.secrets.printInFString("database", this.connection.database)
+      : "";
+
+    const databaseCode =
+      database.startsWith("{") && database.endsWith("}")
+        ? `DATABASE_URL = f"sqlite:///${database}"`
+        : `DATABASE_URL = "sqlite:///${database}"`;
+
+    return dedent(`
+      ${databaseCode}
+      engine = ${this.orm}.create_engine(DATABASE_URL)
+    `);
+  }
+}
+
+class SnowflakeGenerator extends CodeGenerator<"snowflake"> {
+  generateImports(): string[] {
+    return ["from snowflake.sqlalchemy import URL"];
+  }
+
+  generateConnectionCode(): string {
+    const password = isSecret(this.connection.password)
+      ? this.secrets.print("password", this.connection.password)
+      : this.secrets.print(
+          "password",
+          "SNOWFLAKE_PASSWORD",
+          this.connection.password,
+        );
+    const params = {
+      account: this.secrets.print("account", this.connection.account),
+      user: this.secrets.print("user", this.connection.username),
+      database: this.secrets.print("database", this.connection.database),
+      warehouse: this.connection.warehouse
+        ? this.secrets.print("warehouse", this.connection.warehouse)
+        : undefined,
+      schema: this.connection.schema
+        ? this.secrets.print("schema", this.connection.schema)
+        : undefined,
+      role: this.connection.role
+        ? this.secrets.print("role", this.connection.role)
+        : undefined,
+      password: password,
+    };
+
+    return dedent(`
+      engine = ${this.orm}.create_engine(
+        URL(
+${formatUrlParams(params, (inner) => `          ${inner}`)},
+        )
+      )
+    `);
+  }
+}
+
+class BigQueryGenerator extends CodeGenerator<"bigquery"> {
+  generateImports(): string[] {
+    return ["import json"];
+  }
+
+  generateConnectionCode(): string {
+    const project = this.secrets.printInFString(
+      "project",
+      this.connection.project,
+    );
+    const dataset = this.secrets.printInFString(
+      "dataset",
+      this.connection.dataset,
+    );
+
+    return dedent(`
+      credentials = json.loads("""${this.connection.credentials_json}""")
+      engine = ${this.orm}.create_engine(f"bigquery://${project}/${dataset}", credentials_info=credentials)
+    `);
+  }
+}
+
+class DuckDBGenerator extends CodeGenerator<"duckdb"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database || ":memory:",
+    );
+
+    return dedent(`
+      DATABASE_URL = "${database}"
+      engine = ${this.orm}.connect(DATABASE_URL, read_only=${formatBoolean(this.connection.read_only)})
+    `);
+  }
+}
+
+class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
+  generateImports(): string[] {
+    return ["import clickhouse_connect"];
+  }
+
+  generateConnectionCode(): string {
+    const password = isSecret(this.connection.password)
+      ? this.secrets.print("password", this.connection.password)
+      : this.secrets.print(
+          "password",
+          "CLICKHOUSE_PASSWORD",
+          this.connection.password,
+        );
+
+    const params = {
+      host: this.secrets.print("host", this.connection.host),
+      user: this.secrets.print("user", this.connection.username),
+      secure: this.secrets.print("secure", this.connection.secure),
+      port: this.connection.port
+        ? this.secrets.print("port", this.connection.port)
+        : undefined,
+      password: this.connection.password ? password : undefined,
+    };
+
+    return dedent(`
+      engine = ${this.orm}.get_client(
+${formatUrlParams(params, (inner) => `        ${inner}`)},
+      )
+    `);
+  }
+}
+
+class ChDBGenerator extends CodeGenerator<"chdb"> {
+  generateImports(): string[] {
+    return ["import chdb"];
+  }
+
+  generateConnectionCode(): string {
+    const database =
+      this.secrets.print("database", this.connection.database) || '""';
+
+    return dedent(`
+      engine = ${this.orm}.connect(${database}, read_only=${formatBoolean(this.connection.read_only)})
+    `);
+  }
+}
+
+class CodeGeneratorFactory {
+  public secrets = new SecretContainer();
+
+  createGenerator(
+    connection: DatabaseConnection,
+    orm: ConnectionLibrary,
+  ): CodeGenerator<DatabaseConnection["type"]> {
+    switch (connection.type) {
+      case "postgres":
+        return new PostgresGenerator(connection, orm, this.secrets);
+      case "mysql":
+        return new MySQLGenerator(connection, orm, this.secrets);
+      case "sqlite":
+        return new SQLiteGenerator(connection, orm, this.secrets);
+      case "snowflake":
+        return new SnowflakeGenerator(connection, orm, this.secrets);
+      case "bigquery":
+        return new BigQueryGenerator(connection, orm, this.secrets);
+      case "duckdb":
+        return new DuckDBGenerator(connection, orm, this.secrets);
+      case "clickhouse_connect":
+        return new ClickHouseGenerator(connection, orm, this.secrets);
+      case "chdb":
+        return new ChDBGenerator(connection, orm, this.secrets);
+      default:
+        assertNever(connection);
+    }
+  }
+}
 
 export function generateDatabaseCode(
   connection: DatabaseConnection,
@@ -29,136 +403,25 @@ export function generateDatabaseCode(
   // Parse the connection to ensure it's valid
   DatabaseConnectionSchema.parse(connection);
 
-  const connectionsWithPasswords: Array<DatabaseConnection["type"]> = [
-    "postgres",
-    "mysql",
-    "snowflake",
-    "bigquery",
-    "clickhouse_connect",
-  ];
+  const factory = new CodeGeneratorFactory();
+  const generator = factory.createGenerator(connection, orm);
+  const code = generator.generateConnectionCode();
 
-  const imports = connectionsWithPasswords.includes(connection.type)
-    ? ["import os"]
-    : [];
+  const secretsContainer = factory.secrets;
 
-  switch (orm) {
-    case "duckdb":
-      imports.push("import duckdb");
-      break;
-    case "sqlmodel":
-      imports.push("import sqlmodel");
-      break;
-    case "sqlalchemy":
-      imports.push("import sqlalchemy");
-      break;
-    case "clickhouse_connect":
-      imports.push("import clickhouse_connect");
-      break;
-    case "chdb":
-      imports.push("import chdb");
-      break;
-    default:
-      assertNever(orm);
+  const imports = new Set<string>([
+    ...secretsContainer.imports,
+    ...generator.imports,
+  ]);
+
+  const lines = [...imports].sort();
+  lines.push("");
+  const secrets = secretsContainer.formatSecrets();
+  if (secrets) {
+    lines.push(secrets);
   }
-
-  let code = "";
-  switch (connection.type) {
-    case "postgres":
-      code = dedent(`
-        password = os.environ.get("POSTGRES_PASSWORD", "${connection.password}")
-        DATABASE_URL = f"postgresql://${connection.username}:{password}@${connection.host}:${connection.port}/${connection.database}"
-        engine = ${orm}.create_engine(DATABASE_URL${connection.ssl ? ", connect_args={'sslmode': 'require'}" : ""})
-      `);
-      break;
-
-    case "mysql":
-      code = dedent(`
-        password = os.environ.get("MYSQL_PASSWORD", "${connection.password}")
-        DATABASE_URL = f"mysql+pymysql://${connection.username}:{password}@${connection.host}:${connection.port}/${connection.database}"
-        engine = ${orm}.create_engine(DATABASE_URL${connection.ssl ? ", connect_args={'ssl': {'ssl-mode': 'preferred'}}" : ""})
-      `);
-      break;
-
-    case "sqlite":
-      code = dedent(`
-        DATABASE_URL = "sqlite:///${connection.database}"
-        engine = ${orm}.create_engine(DATABASE_URL)
-      `);
-      break;
-
-    case "snowflake": {
-      imports.push("from snowflake.sqlalchemy import URL");
-
-      const params = {
-        account: connection.account,
-        user: connection.username,
-        database: connection.database,
-        warehouse: connection.warehouse,
-        schema: connection.schema,
-        role: connection.role,
-      };
-
-      code = dedent(`
-        engine = ${orm}.create_engine(
-          URL(
-${formatUrlParams(params, (inner) => `            ${inner}`)},
-            ${formatPassword(connection.password, "SNOWFLAKE_PASSWORD")}
-          )
-        )
-      `);
-      break;
-    }
-
-    case "bigquery":
-      imports.push("import json");
-      code = dedent(`
-        credentials = json.loads("""${connection.credentials_json}""")
-        engine = ${orm}.create_engine(f"bigquery://${connection.project}/${connection.dataset}", credentials_info=credentials)
-      `);
-      break;
-
-    case "duckdb":
-      code = dedent(`
-        DATABASE_URL = ${connection.database ? `"${connection.database}"` : "':memory:'"}
-        engine = ${orm}.connect(DATABASE_URL, read_only=${formatBoolean(connection.read_only)})
-      `);
-      break;
-
-    case "clickhouse_connect": {
-      const params = {
-        host: connection.host,
-        user: connection.username,
-        secure: connection.secure,
-        port: connection.port,
-      };
-
-      code = dedent(`
-        engine = ${orm}.get_client(
-${formatUrlParams(params, (inner) => `          ${inner}`)},
-          ${formatPassword(connection.password, "CLICKHOUSE_PASSWORD")}
-        )
-      `);
-      break;
-    }
-
-    case "chdb":
-      code = dedent(`
-        engine = ${orm}.connect("${connection.database}", read_only=${formatBoolean(connection.read_only)})
-        `);
-      break;
-
-    default:
-      assertNever(connection);
-  }
-
-  return `${imports.join("\n")}\n\n${code.trim()}`;
-}
-
-function formatPassword(password: string | undefined, envVar: string): string {
-  if (!password) {
-    return "";
-  }
-  return `password=os.environ.get("${envVar}", "${password}")`;
+  lines.push(code.trim());
+  return lines.join("\n");
 }
 
 function formatBoolean(value: boolean): string {
@@ -170,16 +433,15 @@ function formatUrlParams(
   formatLine: (line: string) => string,
 ): string {
   return Object.entries(params)
-    .filter(([, v]) => v)
+    .filter(([, v]) => v != null && v !== "")
     .map(([k, v]) => {
       if (typeof v === "boolean") {
-        // uppercase the first letter, but do not quote it
         return formatLine(`${k}=${formatBoolean(v)}`);
       }
       if (typeof v === "number") {
         return formatLine(`${k}=${v}`);
       }
-      return formatLine(`${k}="${v}"`);
+      return formatLine(`${k}=${v}`);
     })
     .join(",\n");
 }

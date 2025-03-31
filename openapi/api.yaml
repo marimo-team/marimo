@@ -1277,6 +1277,13 @@ components:
       required:
       - packages
       type: object
+    ListSecretKeysRequest:
+      properties:
+        requestId:
+          type: string
+      required:
+      - requestId
+      type: object
     ListSecretKeysResponse:
       properties:
         keys:
@@ -1720,19 +1727,8 @@ components:
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/SQLTablePreview'
       - $ref: '#/components/schemas/SQLTableListPreview'
-      - properties:
-          connections:
-            items:
-              $ref: '#/components/schemas/DataSourceConnection'
-            type: array
-          name:
-            enum:
-            - data-source-connections
-            type: string
-        required:
-        - connections
-        - name
-        type: object
+      - $ref: '#/components/schemas/DataSourceConnections'
+      - $ref: '#/components/schemas/SecretKeysResult'
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -2201,6 +2197,37 @@ components:
       - name
       - columns
       type: object
+    SecretKeysResult:
+      properties:
+        name:
+          enum:
+          - secret-keys-result
+          type: string
+        request_id:
+          type: string
+        secrets:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - request_id
+      - secrets
+      - name
+      type: object
+    SecretKeysWithProvider:
+      properties:
+        keys:
+          items:
+            type: string
+          type: array
+        provider:
+          enum:
+          - env
+          type: string
+      required:
+      - provider
+      - keys
+      type: object
     SendUIElementMessage:
       properties:
         buffers:
@@ -2456,7 +2483,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.31
+  version: 0.12.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3171,13 +3198,19 @@ paths:
           description: Delete a secret
   /api/secrets/keys:
     post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListSecretKeysRequest'
+        required: true
       responses:
         200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListSecretKeysResponse'
-          description: Preview a column in a dataset
+          description: List all secret keys
   /api/status:
     get:
       responses:

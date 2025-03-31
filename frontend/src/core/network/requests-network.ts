@@ -314,5 +314,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     getPackageList: () => {
       return marimoClient.GET("/api/packages/list").then(handleResponse);
     },
+    listSecretKeys: (request) => {
+      return marimoClient
+        .POST("/api/secrets/keys", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
   };
 }
