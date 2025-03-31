@@ -16,6 +16,7 @@ export interface ExperimentalFeatures {
   reactive_tests: boolean;
   toplevel_defs: boolean;
   secrets: boolean;
+  experimental_data_table: boolean;
   // Add new feature flags here
 }
 
@@ -29,6 +30,7 @@ const defaultValues: ExperimentalFeatures = {
   reactive_tests: false,
   toplevel_defs: false,
   secrets: false,
+  experimental_data_table: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

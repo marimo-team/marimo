@@ -1326,6 +1326,30 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.experimental_data_table"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Table Transform & Charts
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="data-table-plugin-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental transform and charting feature on
+                    tables.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
