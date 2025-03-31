@@ -2872,11 +2872,7 @@ export interface components {
       requestId: string;
     };
     ListSecretKeysResponse: {
-      keys: {
-        keys: string[];
-        /** @enum {string} */
-        provider: "env";
-      }[];
+      keys: components["schemas"]["SecretKeysWithProvider"][];
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {

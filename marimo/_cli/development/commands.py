@@ -23,6 +23,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._messaging.errors as errors
     import marimo._messaging.ops as ops
     import marimo._runtime.requests as requests
+    import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
     import marimo._server.models.files as files
@@ -72,11 +73,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         errors.Error,
         # Outputs
         CellOutput,
-        # Secrets
-        secrets.ListSecretKeysResponse,
-        secrets.CreateSecretRequest,
-        secrets.DeleteSecretRequest,
-        secrets.SecretKeysWithProvider,
         # Data
         data.DataTableColumn,
         data.DataTable,
@@ -84,6 +80,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Secrets
+        secrets_models.SecretKeysWithProvider,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -155,6 +153,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileOpenRequest,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
+        secrets.ListSecretKeysResponse,
+        secrets.CreateSecretRequest,
+        secrets.DeleteSecretRequest,
         packages.AddPackageRequest,
         PackageDescription,
         packages.ListPackagesResponse,

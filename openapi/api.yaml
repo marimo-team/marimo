@@ -1288,19 +1288,7 @@ components:
       properties:
         keys:
           items:
-            properties:
-              keys:
-                items:
-                  type: string
-                type: array
-              provider:
-                enum:
-                - env
-                type: string
-            required:
-            - provider
-            - keys
-            type: object
+            $ref: '#/components/schemas/SecretKeysWithProvider'
           type: array
       required:
       - keys
