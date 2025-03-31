@@ -137,7 +137,7 @@ def __(client, mo):
 
         response = client.chat_completion(
             chat_messages,
-            max_tokens=max_tokens.value,
+            max_completion_tokens=max_tokens.value,
             temperature=temperature.value,
             top_p=top_p.value,
             stream=False,
