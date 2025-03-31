@@ -31,7 +31,7 @@ NOTICE = "\n".join(
 )
 
 
-def get_setup_cell(
+def pop_setup_cell(
     code: list[str],
     names: list[str],
     configs: list[CellConfig],
@@ -41,12 +41,16 @@ def get_setup_cell(
     if SETUP_CELL_NAME not in names or not toplevel_fn:
         return None
     setup_index = names.index(SETUP_CELL_NAME)
-    setup_code = code.pop(setup_index)
+    try:
+        cell = compile_cell(
+            code[setup_index], cell_id=CellId_t(SETUP_CELL_NAME)
+        ).configure(configs[setup_index])
+    except SyntaxError:
+        return None
+    code.pop(setup_index)
     names.pop(setup_index)
-    setup_config = configs.pop(setup_index)
-    return compile_cell(
-        setup_code, cell_id=CellId_t(SETUP_CELL_NAME)
-    ).configure(setup_config)
+    configs.pop(setup_index)
+    return cell
 
 
 def indent_text(text: str) -> str:
@@ -329,7 +333,7 @@ def generate_filecontents(
             names[idx] = DEFAULT_CELL_NAME
 
     # TODO: replace with dedicated cell
-    setup_cell = get_setup_cell(codes, names, cell_configs, toplevel_fn)
+    setup_cell = pop_setup_cell(codes, names, cell_configs, toplevel_fn)
     toplevel_defs: set[Name] = set()
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
