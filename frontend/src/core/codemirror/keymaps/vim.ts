@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { type CodeMirror, getCM, Vim } from "@replit/codemirror-vim";
+import {
+  type CodeMirror,
+  type CodeMirrorV,
+  getCM,
+  Vim,
+} from "@replit/codemirror-vim";
 import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   isAtEndOfEditor,
@@ -143,11 +148,11 @@ class CodeMirrorVimSync {
           return [];
         };
 
-        const vim = cm.state.vim;
-        if (!vim) {
+        if (!hasVimState(cm)) {
           Logger.warn("Expected CodeMirror instance to have Vim state");
           continue;
         }
+        const vim = cm.state.vim;
 
         switch (mode) {
           case "normal":
@@ -176,4 +181,8 @@ class CodeMirrorVimSync {
       }
     }
   }
+}
+
+function hasVimState(cm: CodeMirror): cm is CodeMirrorV {
+  return cm.state.vim !== undefined;
 }
