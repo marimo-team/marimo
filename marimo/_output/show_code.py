@@ -6,7 +6,7 @@ from typing import Literal
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
-from marimo._plugins.stateless.flex import vstack, hstack
+from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.ui._impl.input import code_editor
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
@@ -33,7 +33,9 @@ def substitute_show_code_with_arg(code: str) -> str:
 
 
 def show_code(
-    output: object = None, *, position: Literal["above", "below", "left", "right"] = "below"
+    output: object = None,
+    *,
+    position: Literal["above", "below", "left", "right"] = "below",
 ) -> Html:
     """Display an output along with the code of the current cell.
 
@@ -75,7 +77,7 @@ def show_code(
       to just show the cell's code.
     - `position`: Where to display the code relative to the output.
       Use "above" to show code above the output, "below" (default) to show
-      code below the output, "left" to show code left of the ouptut, or
+      code below the output, "left" to show code left of the output, or
       "right" to show code right of the output.
 
     **Returns:**
