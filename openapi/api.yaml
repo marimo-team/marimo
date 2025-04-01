@@ -394,6 +394,7 @@ components:
         provider:
           enum:
           - env
+          - dotenv
           type: string
         value:
           type: string
@@ -2208,12 +2209,16 @@ components:
           items:
             type: string
           type: array
+        name:
+          type: string
         provider:
           enum:
           - env
+          - dotenv
           type: string
       required:
       - provider
+      - name
       - keys
       type: object
     SendUIElementMessage:

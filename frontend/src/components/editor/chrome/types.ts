@@ -15,6 +15,7 @@ import {
   BoxIcon,
   BotMessageSquareIcon,
   ActivityIcon,
+  KeyIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -30,6 +31,7 @@ export type PanelType =
   | "datasources"
   | "scratchpad"
   | "chat"
+  | "secrets"
   | "logs";
 
 export interface PanelDescriptor {
@@ -108,9 +110,15 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
+    type: "secrets",
+    Icon: KeyIcon,
+    tooltip: "Secrets",
+    hidden: !getFeatureFlag("secrets"),
+    position: "sidebar",
+  },
+  {
     type: "scratchpad",
     Icon: NotebookPenIcon,
-    hidden: !getFeatureFlag("scratchpad"),
     tooltip: "Scratchpad",
     position: "sidebar",
   },

@@ -57,7 +57,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
     reload,
   } = useAsyncData(async () => {
     const result = await SECRETS_REGISTRY.request({});
-    return result?.secrets?.[0]?.keys || [];
+    return result.secrets.flatMap((secret) => secret.keys).sort();
   }, []);
 
   return (

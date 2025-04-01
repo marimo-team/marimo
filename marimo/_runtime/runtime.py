@@ -511,6 +511,8 @@ class Kernel:
             on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
         )
 
+        self._original_environ = os.environ.copy()
+
         # Adds in a post_execution hook to run pytest immediately
         if user_config.get("experimental", {}).get("reactive_tests", False):
             from marimo._runtime.runner.hooks_post_execution import (
@@ -2230,7 +2232,9 @@ class SecretsCallbacks:
         self._kernel = kernel
 
     async def list_secrets(self, request: ListSecretKeysRequest) -> None:
-        secrets = get_secret_keys()
+        secrets = get_secret_keys(
+            self._kernel.user_config, self._kernel._original_environ
+        )
         SecretKeysResult(
             request_id=request.request_id, secrets=secrets
         ).broadcast()
