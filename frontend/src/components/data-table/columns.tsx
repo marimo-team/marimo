@@ -17,7 +17,7 @@ import {
   type FieldTypesWithExternalType,
   extractTimezone,
 } from "./types";
-import { UrlDetector } from "./url-detector";
+import { parseContent, UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
 import { DatePopover } from "./date-popover";
@@ -233,24 +233,26 @@ export function generateColumns<T>({
             ? String(column.applyColumnFormatting(value))
             : String(renderValue());
 
-          if (stringValue.length > MAX_STRING_LENGTH) {
+          const parts = parseContent(stringValue);
+          const hasMarkup = parts.some((part) => part.type !== "text");
+          if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
             return (
-              <PopoutColumn
-                cellStyles={cellStyles}
-                selectCell={selectCell}
-                rawStringValue={stringValue}
-                contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
-                buttonText="X"
-              >
-                <UrlDetector text={stringValue} />
-              </PopoutColumn>
+              <div onClick={selectCell} className={cellStyles}>
+                <UrlDetector parts={parts} />
+              </div>
             );
           }
 
           return (
-            <div onClick={selectCell} className={cellStyles}>
-              <UrlDetector text={stringValue} />
-            </div>
+            <PopoutColumn
+              cellStyles={cellStyles}
+              selectCell={selectCell}
+              rawStringValue={stringValue}
+              contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+              buttonText="X"
+            >
+              <UrlDetector parts={parts} />
+            </PopoutColumn>
           );
         }
 
