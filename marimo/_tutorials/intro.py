@@ -464,6 +464,15 @@ def __():
            of the screen.
            """
         ),
+        "Exit & Shutdown": (
+            """
+           You can leave Marimo & shut down the server by clicking the
+           circled X at the top right of the screen and responding
+           to the prompt. 
+
+           :floppy_disk: _Be sure to save your work first!_ 
+           """
+        ),
     }
     return (tips,)
 

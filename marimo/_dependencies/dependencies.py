@@ -165,6 +165,7 @@ class DependencyManager:
     pandas = Dependency("pandas")
     polars = Dependency("polars")
     ibis = Dependency("ibis")
+    dotenv = Dependency("dotenv")
     numpy = Dependency("numpy")
     altair = Dependency("altair", min_version="5.3.0", max_version="6.0.0")
     duckdb = Dependency("duckdb")
@@ -196,6 +197,7 @@ class DependencyManager:
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
+    dotenv = Dependency("dotenv")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

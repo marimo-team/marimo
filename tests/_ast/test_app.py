@@ -77,6 +77,48 @@ class TestApp:
         assert defs["a"] == 2
 
     @staticmethod
+    def test_setup() -> None:
+        app = App()
+
+        with app.setup:
+            x = 0
+            x
+
+        @app.cell
+        def two(z: int) -> tuple[int]:
+            a = x + z
+            a + 1
+            return (a,)
+
+        @app.cell
+        def __() -> tuple[int, int]:
+            y = x + 1
+            z = y + 1
+            return y, z
+
+        cell_manager = app._cell_manager
+        cell_names = tuple(cell_manager.names())
+        assert cell_names[0] == "setup"
+        assert cell_names[1] == "two"
+        assert cell_names[2] == "__"
+
+        codes = tuple(cell_manager.codes())
+        assert codes[0] == "x = 0\nx"
+        assert codes[1] == "a = x + z\na + 1"
+        assert codes[2] == "y = x + 1\nz = y + 1"
+
+        outputs, defs = app.run()
+
+        assert outputs[0] == defs["x"]
+        assert outputs[1] == defs["a"] + 1
+        assert outputs[2] is None
+
+        assert defs["x"] == 0
+        assert (defs["y"], defs["z"]) == (1, 2)
+        assert defs["a"] == 2
+
+
+    @staticmethod
     def test_cycle() -> None:
         app = App()
 
@@ -604,6 +646,38 @@ class TestApp:
         assert list(InternalApp(clone).cell_manager.cell_ids()) != list(
             InternalApp(app).cell_manager.cell_ids()
         )
+
+
+class TestInvalidSetup:
+    @staticmethod
+    def test_initial_setup() -> None:
+        app = App()
+        app._unparsable_cell(";",
+                             name="setup")
+
+        assert app._cell_manager.has_cell("setup")
+        assert app._cell_manager.cell_name("setup") == "setup"
+
+    @staticmethod
+    def test_not_initial_setup() -> None:
+        app = App()
+        app._unparsable_cell(";",
+                             name="other")
+        app._unparsable_cell(";",
+                             name="setup")
+
+        assert not app._cell_manager.has_cell("setup")
+
+    @staticmethod
+    def test_not_initial_setup_cell() -> None:
+        app = App()
+        @app.cell
+        def _():
+            def B() -> float:
+                return 1.0
+        app._unparsable_cell(";",
+                             name="setup")
+        assert not app._cell_manager.has_cell("setup")
 
 
 def test_app_config() -> None:

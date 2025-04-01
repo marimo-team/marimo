@@ -27,6 +27,10 @@ export interface FieldOptions {
     | "date"
     | "datetime"
     | "time";
+  /**
+   * Only show options that match the regex
+   */
+  optionRegex?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare

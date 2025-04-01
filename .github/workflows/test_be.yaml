@@ -131,7 +131,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     name: Test coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1

@@ -137,7 +137,7 @@ There are two ways to connect to a database in marimo:
 
 ### 1. Using the UI
 
-Click the "Add Database Connection" button in your notebook to connect to PostgreSQL, MySQL, SQLite, DuckDB, Snowflake, or BigQuery databases. The UI will guide you through entering your connection details securely.
+Click the "Add Database Connection" button in your notebook to connect to PostgreSQL, MySQL, SQLite, DuckDB, Snowflake, or BigQuery databases. The UI will guide you through entering your connection details securely. Environment variables picked up from your [`dotenv`](../configuration/runtime_configuration.md#environment-variables) can be used to fill out the database configuration fields.
 
 <div align="center">
   <figure>

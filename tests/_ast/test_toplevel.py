@@ -143,6 +143,38 @@ class TestTopLevelExtraction:
         assert [TopLevelType.TOPLEVEL] == [s.type for s in extraction]
 
     @staticmethod
+    def test_function_trailing_comment(app) -> None:
+        @app.cell
+        def cell():
+            def add(a: int, b: int) -> float:
+                return a + b
+
+            # Comment
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.CELL] == [s.type for s in extraction]
+        assert extraction.statuses[0].hint == toplevel.HINT_HAS_COMMENT
+
+    @staticmethod
+    def test_function_trailing_comment_ok(app) -> None:
+        @app.cell
+        def cell():
+            def add(a: int, b: int) -> float:
+                return a + b
+                # Comment
+
+        @app.cell
+        def tricky_cell():
+            def md() -> float:
+                return """
+            #"""
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.TOPLEVEL, TopLevelType.TOPLEVEL] == [
+            s.type for s in extraction
+        ]
+
+    @staticmethod
     def test_function_uses_top_fn_unresolved(app) -> None:
         @app.cell
         def cell(c):

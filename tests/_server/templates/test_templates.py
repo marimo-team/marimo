@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import json
-import os
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 from typing import Literal
 
 from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._config.config import DEFAULT_CONFIG, PartialMarimoConfig
+from marimo._config.config import (
+    MarimoConfig,
+    PartialMarimoConfig,
+    merge_default_config,
+)
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._server.export.exporter import hash_code
 from marimo._server.model import SessionMode
@@ -17,24 +23,27 @@ from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+default_config = merge_default_config({})
 
 
 class TestNotebookPageTemplate(unittest.TestCase):
     def setUp(self) -> None:
-        root = os.path.realpath(
-            os.path.join(os.path.dirname(__file__), "data")
-        )
-        index_html = os.path.join(root, "index.html")
-        with open(index_html) as f:
-            self.html = f.read()
+        tmp_path = Path(tempfile.mkdtemp())
+        self.tmp_path = tmp_path
+        root = Path(__file__).parent / "data"
+        index_html = root / "index.html"
+        self.html = index_html.read_text(encoding="utf-8")
 
         self.base_url = "/subpath"
-        self.user_config = DEFAULT_CONFIG
+        self.user_config: MarimoConfig = default_config
         self.config_overrides: PartialMarimoConfig = {}
         self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
-        self.filename = "notebook.py"
+        self.filename = tmp_path / "notebook.py"
         self.mode = SessionMode.RUN
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp_path)
 
     def test_notebook_page_template(self) -> None:
         result = templates.notebook_page_template(
@@ -44,13 +53,13 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.config_overrides,
             self.server_token,
             self.app_config,
-            self.filename,
+            str(self.filename),
             self.mode,
         )
 
         assert self.base_url not in result
         assert str(self.server_token) in result
-        assert self.filename in result
+        assert self.filename.name in result
         assert "read" in result
 
     def test_notebook_page_template_no_filename(self) -> None:
@@ -78,38 +87,34 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.config_overrides,
             self.server_token,
             self.app_config,
-            self.filename,
+            str(self.filename),
             SessionMode.EDIT,
         )
 
         assert self.base_url not in result
         assert str(self.server_token) in result
-        assert self.filename in result
+        assert self.filename.name in result
         assert "edit" in result
 
     def test_notebook_page_template_custom_css(self) -> None:
         # Create css file
         css = "/* custom css */"
 
-        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
-        with open(css_file, "w") as f:
-            f.write(css)
+        css_file = self.filename.parent / "custom.css"
+        css_file.write_text(css)
 
-        try:
-            result = templates.notebook_page_template(
-                self.html,
-                self.base_url,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(css_file="custom.css"),
-                self.filename,
-                self.mode,
-            )
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(css_file="custom.css"),
+            str(self.filename),
+            self.mode,
+        )
 
-            assert css in result
-        finally:
-            os.remove(css_file)
+        assert css in result
 
     def test_notebook_page_template_custom_head(self) -> None:
         # Create html head file
@@ -125,42 +130,39 @@ class TestNotebookPageTemplate(unittest.TestCase):
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         """
 
-        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
-        with open(head_file, "w") as f:
-            f.write(head)
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
 
-        try:
-            result = templates.notebook_page_template(
-                self.html,
-                self.base_url,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(html_head_file="head.html"),
-                self.filename,
-                self.mode,
-            )
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(html_head_file="head.html"),
+            str(self.filename),
+            self.mode,
+        )
 
-            assert head in result
-        finally:
-            os.remove(head_file)
+        assert head in result
 
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self) -> None:
-        root = os.path.realpath(
-            os.path.join(os.path.dirname(__file__), "data")
-        )
-        index_html = os.path.join(root, "index.html")
-        with open(index_html) as f:
-            self.html = f.read()
+        self.tmp_path = Path(tempfile.mkdtemp())
+        root = Path(__file__).parent / "data"
+        index_html = root / "index.html"
+        self.html = index_html.read_text(encoding="utf-8")
 
         self.base_url = "/subpath"
-        self.user_config = DEFAULT_CONFIG
+        self.user_config: MarimoConfig = default_config
         self.config_overrides: PartialMarimoConfig = {
             "formatting": {"line_length": 100},
         }
         self.server_token = SkewProtectionToken("token")
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp_path)
 
     def test_home_page_template(self) -> None:
         result = templates.home_page_template(
@@ -182,20 +184,19 @@ class TestHomePageTemplate(unittest.TestCase):
 
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self) -> None:
-        root = os.path.realpath(
-            os.path.join(os.path.dirname(__file__), "data")
-        )
-        index_html = os.path.join(root, "index.html")
-        with open(index_html) as f:
-            self.html = f.read()
+        tmp_path = Path(tempfile.mkdtemp())
+        self.tmp_path = tmp_path
+        root = Path(__file__).parent / "data"
+        index_html = root / "index.html"
+        self.html = index_html.read_text(encoding="utf-8")
 
-        self.user_config = DEFAULT_CONFIG
+        self.user_config = default_config
         self.config_overrides: PartialMarimoConfig = {
             "formatting": {"line_length": 100},
         }
         self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
-        self.filename = "notebook.py"
+        self.filename = tmp_path / "notebook.py"
         self.filepath = "path/to/notebook.py"
         self.code = "print('Hello, World!')"
         self.cell_ids = ["cell1", "cell2"]
@@ -228,6 +229,9 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             "cell2": [],
         }
         self.files = {"file1": "File 1 content", "file2": "File 2 content"}
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp_path)
 
     def test_static_notebook_template(self) -> None:
         result = templates.static_notebook_template(
@@ -296,32 +300,28 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         # Create css file
         css = "/* custom css */"
 
-        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
-        with open(css_file, "w") as f:
-            f.write(css)
+        css_file = self.filename.parent / "custom.css"
+        css_file.write_text(css)
 
-        try:
-            result = templates.static_notebook_template(
-                self.html,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(css_file="custom.css"),
-                self.filename,
-                "",
-                hash_code(self.code),
-                [],
-                [],
-                [],
-                [],
-                {},
-                {},
-                {},
-            )
+        result = templates.static_notebook_template(
+            self.html,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(css_file="custom.css"),
+            str(self.filename),
+            "",
+            hash_code(self.code),
+            [],
+            [],
+            [],
+            [],
+            {},
+            {},
+            {},
+        )
 
-            snapshot("export4.txt", normalize_index_html(result))
-        finally:
-            os.remove(css_file)
+        snapshot("export4.txt", normalize_index_html(result))
 
     def test_static_notebook_template_with_head(self) -> None:
         # Create html head file
@@ -337,56 +337,54 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         """
 
-        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
-        with open(head_file, "w") as f:
-            f.write(head)
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
 
-        try:
-            result = templates.static_notebook_template(
-                self.html,
-                self.user_config,
-                self.config_overrides,
-                self.server_token,
-                _AppConfig(html_head_file="head.html", app_title="My App"),
-                self.filename,
-                "",
-                hash_code(self.code),
-                [],
-                [],
-                [],
-                [],
-                {},
-                {},
-                {},
-            )
+        result = templates.static_notebook_template(
+            self.html,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            _AppConfig(html_head_file="head.html", app_title="My App"),
+            str(self.filename),
+            "",
+            hash_code(self.code),
+            [],
+            [],
+            [],
+            [],
+            {},
+            {},
+            {},
+        )
 
-            snapshot("export5.txt", normalize_index_html(result))
-        finally:
-            os.remove(head_file)
+        snapshot("export5.txt", normalize_index_html(result))
 
 
 class TestWasmNotebookTemplate(unittest.TestCase):
     def setUp(self) -> None:
-        root = os.path.realpath(
-            os.path.join(os.path.dirname(__file__), "data")
-        )
-        index_html = os.path.join(root, "index.html")
-        with open(index_html) as f:
-            self.html = f.read()
+        tmp_path = Path(tempfile.mkdtemp())
+        self.tmp_path = tmp_path
+        root = Path(__file__).parent / "data"
+        index_html = root / "index.html"
+        self.html = index_html.read_text(encoding="utf-8")
 
         self.version = "1.0.0"
-        self.filename = "notebook.py"
+        self.filename = tmp_path / "notebook.py"
         self.mode: Literal["edit", "run"] = "run"
-        self.user_config = DEFAULT_CONFIG
+        self.user_config: MarimoConfig = default_config
         self.app_config = _AppConfig()
         self.code = "print('Hello, World!')"
         self.config_overrides: PartialMarimoConfig = {}
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp_path)
 
     def test_wasm_notebook_template(self) -> None:
         result = templates.wasm_notebook_template(
             html=self.html,
             version=self.version,
-            filename=self.filename,
+            filename=str(self.filename),
             mode=self.mode,
             user_config=self.user_config,
             config_overrides=self.config_overrides,
@@ -395,7 +393,7 @@ class TestWasmNotebookTemplate(unittest.TestCase):
             show_code=False,
         )
 
-        assert self.filename in result
+        assert self.filename.name in result
         assert self.mode in result
         assert json.dumps(self.user_config) in result
         assert '<marimo-wasm hidden="">' in result
@@ -406,30 +404,26 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         # Create css file
         css = "/* custom css */"
 
-        css_file = os.path.join(os.path.dirname(self.filename), "custom.css")
-        with open(css_file, "w") as f:
-            f.write(css)
+        css_file = self.filename.parent / "custom.css"
+        css_file.write_text(css)
 
-        try:
-            result = templates.wasm_notebook_template(
-                html=self.html,
-                version=self.version,
-                filename=self.filename,
-                mode=self.mode,
-                user_config=self.user_config,
-                config_overrides=self.config_overrides,
-                app_config=_AppConfig(css_file="custom.css"),
-                code=self.code,
-                asset_url="https://my.cdn.com",
-                show_code=True,
-            )
+        result = templates.wasm_notebook_template(
+            html=self.html,
+            version=self.version,
+            filename=str(self.filename),
+            mode=self.mode,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            app_config=_AppConfig(css_file="custom.css"),
+            code=self.code,
+            asset_url="https://my.cdn.com",
+            show_code=True,
+        )
 
-            assert css in result
-            assert '<marimo-wasm hidden="">' in result
-            assert "https://my.cdn.com/assets/" in result
-            assert '<marimo-code hidden="" data-show-code="true">' in result
-        finally:
-            os.remove(css_file)
+        assert css in result
+        assert '<marimo-wasm hidden="">' in result
+        assert "https://my.cdn.com/assets/" in result
+        assert '<marimo-code hidden="" data-show-code="true">' in result
 
     def test_wasm_notebook_template_custom_head(self) -> None:
         # Create html head file
@@ -445,30 +439,26 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         """
 
-        head_file = os.path.join(os.path.dirname(self.filename), "head.html")
-        with open(head_file, "w") as f:
-            f.write(head)
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
 
-        try:
-            result = templates.wasm_notebook_template(
-                html=self.html,
-                version=self.version,
-                filename=self.filename,
-                mode=self.mode,
-                user_config=self.user_config,
-                config_overrides=self.config_overrides,
-                app_config=_AppConfig(
-                    html_head_file="head.html", app_title="My App"
-                ),
-                code=self.code,
-                show_code=False,
-            )
+        result = templates.wasm_notebook_template(
+            html=self.html,
+            version=self.version,
+            filename=str(self.filename),
+            mode=self.mode,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            app_config=_AppConfig(
+                html_head_file="head.html", app_title="My App"
+            ),
+            code=self.code,
+            show_code=False,
+        )
 
-            assert head in result
-            assert '<marimo-wasm hidden="">' in result
-            assert '<marimo-code hidden="" data-show-code="false">' in result
-            assert "#save-button" in result
-            assert "#filename-input" in result
-            assert "<title>My App</title>" in result
-        finally:
-            os.remove(head_file)
+        assert head in result
+        assert '<marimo-wasm hidden="">' in result
+        assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert "#save-button" in result
+        assert "#filename-input" in result
+        assert "<title>My App</title>" in result

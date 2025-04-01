@@ -131,7 +131,8 @@ class ExecutionRequest:
 
 
 @dataclass
-class ExecuteStaleRequest: ...
+class ExecuteStaleRequest:
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -233,6 +234,7 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
 
@@ -326,6 +328,11 @@ class PreviewSQLTableListRequest:
     schema: str
 
 
+@dataclass
+class ListSecretKeysRequest:
+    request_id: RequestId
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -342,4 +349,5 @@ ControlRequest = Union[
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
     PreviewSQLTableListRequest,
+    ListSecretKeysRequest,
 ]

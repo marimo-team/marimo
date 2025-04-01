@@ -23,12 +23,14 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._messaging.errors as errors
     import marimo._messaging.ops as ops
     import marimo._runtime.requests as requests
+    import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
     import marimo._server.models.files as files
     import marimo._server.models.home as home
     import marimo._server.models.models as models
     import marimo._server.models.packages as packages
+    import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo import __version__
     from marimo._ast.cell import CellConfig, RuntimeStateType
@@ -78,6 +80,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Secrets
+        secrets_models.SecretKeysWithProvider,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -102,6 +106,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.DataColumnPreview,
         ops.SQLTablePreview,
         ops.SQLTableListPreview,
+        ops.DataSourceConnections,
+        ops.SecretKeysResult,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -110,7 +116,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
-        ops.DataSourceConnections,
     ]
 
     # dataclass components used in requests/responses
@@ -148,6 +153,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileOpenRequest,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
+        secrets.ListSecretKeysResponse,
+        secrets.CreateSecretRequest,
+        secrets.DeleteSecretRequest,
         packages.AddPackageRequest,
         PackageDescription,
         packages.ListPackagesResponse,
@@ -186,6 +194,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.PreviewDatasetColumnRequest,
         requests.PreviewSQLTableRequest,
         requests.PreviewSQLTableListRequest,
+        requests.ListSecretKeysRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
         requests.SetUserConfigRequest,

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.26"
+__generated_with = "0.11.30"
 app = marimo.App(width="medium")
 
 
@@ -103,6 +103,10 @@ def _(alt, mo, pd):
         "raw_lists": [
             ["fruits", "trees", "animals"],
             ["humans", "aliens", "life"],
+        ],
+        "long_text": [
+            "lorem_ipsum_dollar_sit" * 20,
+            "lorem_ipsum_dollar_sit" * 20,
         ],
         "images": [img, html_img],
         "batch": user_info,

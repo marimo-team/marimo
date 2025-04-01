@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { type ConnectionLibrary, generateDatabaseCode } from "../as-code";
 import type { DatabaseConnection } from "../schemas";
+import { prefixSecret } from "../secrets";
 
 describe("generateDatabaseCode", () => {
   // Test fixtures
@@ -88,10 +89,66 @@ describe("generateDatabaseCode", () => {
     });
   });
 
+  describe("connections with secrets", () => {
+    it.each([
+      [
+        "postgres with password as secret",
+        {
+          ...basePostgres,
+          host: prefixSecret("ENV_HOST"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "mysql with username and password as secrets",
+        {
+          ...baseMysql,
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "sqlalchemy",
+      ],
+      [
+        "snowflake with multiple secrets",
+        {
+          ...snowflakeConnection,
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+          account: prefixSecret("ENV_ACCOUNT"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "bigquery with credentials as secret",
+        {
+          ...bigqueryConnection,
+          project: prefixSecret("ENV_PROJECT"),
+          dataset: prefixSecret("ENV_DATASET"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "clickhouse with all connection details as secrets",
+        {
+          ...clickhouseConnection,
+          host: prefixSecret("ENV_HOST"),
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "clickhouse_connect",
+      ],
+    ])("%s", (name, connection, orm) => {
+      expect(
+        generateDatabaseCode(connection, orm as ConnectionLibrary),
+      ).toMatchSnapshot();
+    });
+  });
+
   describe("edge cases", () => {
     const testCases: Array<[string, DatabaseConnection, string]> = [
       [
-        "postgres with special chars SQLModel",
+        "ENV with special chars SQLModel",
         {
           ...basePostgres,
           password: "pass@#$%^&*",

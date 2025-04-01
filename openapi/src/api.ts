@@ -1997,6 +1997,115 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/secrets/create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Create a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Delete a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/keys": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ListSecretKeysRequest"];
+        };
+      };
+      responses: {
+        /** @description List all secret keys */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ListSecretKeysResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/status": {
     parameters: {
       query?: never;
@@ -2249,6 +2358,7 @@ export interface components {
       variant?: "danger" | null;
     };
     AppMetadata: {
+      argv?: string[] | null;
       cliArgs: {
         [key: string]:
           | string
@@ -2376,6 +2486,12 @@ export interface components {
       destination: string;
       source: string;
     };
+    CreateSecretRequest: {
+      key: string;
+      /** @enum {string} */
+      provider: "env";
+      value: string;
+    };
     CycleError: {
       edges_with_vars: [string, string[], string][];
       /** @enum {string} */
@@ -2468,6 +2584,9 @@ export interface components {
       /** @enum {string} */
       type: "delete-nonlocal";
     };
+    DeleteSecretRequest: {
+      key: string;
+    };
     Error:
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
@@ -2491,7 +2610,9 @@ export interface components {
       code: string;
       request?: components["schemas"]["HTTPRequest"];
     };
-    ExecuteStaleRequest: Record<string, never>;
+    ExecuteStaleRequest: {
+      request?: components["schemas"]["HTTPRequest"];
+    };
     ExecutionRequest: {
       cellId: string;
       code: string;
@@ -2747,6 +2868,12 @@ export interface components {
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
+    ListSecretKeysRequest: {
+      requestId: string;
+    };
+    ListSecretKeysResponse: {
+      keys: components["schemas"]["SecretKeysWithProvider"][];
+    };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
       blamed_cell?: string | null;
@@ -2839,10 +2966,11 @@ export interface components {
         auto_instantiate: boolean;
         /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
+        dotenv?: string[];
         /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
-        pythonpath: string[];
+        pythonpath?: string[];
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
@@ -2923,11 +3051,8 @@ export interface components {
       | components["schemas"]["DataColumnPreview"]
       | components["schemas"]["SQLTablePreview"]
       | components["schemas"]["SQLTableListPreview"]
-      | {
-          connections: components["schemas"]["DataSourceConnection"][];
-          /** @enum {string} */
-          name: "data-source-connections";
-        }
+      | components["schemas"]["DataSourceConnections"]
+      | components["schemas"]["SecretKeysResult"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -3119,6 +3244,17 @@ export interface components {
     SchemaTable: {
       columns: components["schemas"]["SchemaColumn"][];
       name: string;
+    };
+    SecretKeysResult: {
+      /** @enum {string} */
+      name: "secret-keys-result";
+      request_id: string;
+      secrets: components["schemas"]["SecretKeysWithProvider"][];
+    };
+    SecretKeysWithProvider: {
+      keys: string[];
+      /** @enum {string} */
+      provider: "env";
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

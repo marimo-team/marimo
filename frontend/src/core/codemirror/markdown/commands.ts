@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
-import type { FilePath } from "@/utils/paths";
+import { filenameAtom } from "@/core/saving/filename";
+import { store } from "@/core/state/jotai";
+import { Paths, type FilePath } from "@/utils/paths";
 import {
   EditorSelection,
   type SelectionRange,
@@ -297,18 +299,24 @@ export async function insertImage(view: EditorView, file: File) {
           inputFilename = `${inputFilename}.${extension}`;
         }
 
-        const fileCreationResponse = await sendCreateFileOrFolder({
-          path: "" as FilePath, // Root path
+        const filepath = store.get(filenameAtom);
+        const notebookDir = filepath ? Paths.dirname(filepath) : null;
+        const publicFolderPath = notebookDir
+          ? `${notebookDir}/public`
+          : "public";
+
+        const createFileRes = await sendCreateFileOrFolder({
+          path: publicFolderPath as FilePath,
           type: "file",
           name: inputFilename,
           contents: base64,
         });
 
-        if (fileCreationResponse.success) {
-          savedFilePath = fileCreationResponse.info?.path;
+        if (createFileRes.success) {
+          savedFilePath = createFileRes.info?.path;
           toast({
             title: "Image uploaded successfully",
-            description: `We've uploaded your image as ${savedFilePath}`,
+            description: `We've uploaded your image at ${savedFilePath}`,
           });
         } else {
           toast({

@@ -78,6 +78,11 @@ components:
       type: object
     AppMetadata:
       properties:
+        argv:
+          items:
+            type: string
+          nullable: true
+          type: array
         cliArgs:
           additionalProperties:
             oneOf:
@@ -382,6 +387,21 @@ components:
       - source
       - destination
       type: object
+    CreateSecretRequest:
+      properties:
+        key:
+          type: string
+        provider:
+          enum:
+          - env
+          type: string
+        value:
+          type: string
+      required:
+      - key
+      - value
+      - provider
+      type: object
     CycleError:
       properties:
         edges_with_vars:
@@ -645,6 +665,13 @@ components:
       - cells
       - type
       type: object
+    DeleteSecretRequest:
+      properties:
+        key:
+          type: string
+      required:
+      - key
+      type: object
     Error:
       oneOf:
       - $ref: '#/components/schemas/CycleError'
@@ -690,7 +717,10 @@ components:
       - code
       type: object
     ExecuteStaleRequest:
-      properties: {}
+      properties:
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       type: object
     ExecutionRequest:
       properties:
@@ -1247,6 +1277,22 @@ components:
       required:
       - packages
       type: object
+    ListSecretKeysRequest:
+      properties:
+        requestId:
+          type: string
+      required:
+      - requestId
+      type: object
+    ListSecretKeysResponse:
+      properties:
+        keys:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - keys
+      type: object
     MIME:
       properties: {}
       type: object
@@ -1473,6 +1519,10 @@ components:
               - lazy
               - autorun
               type: string
+            dotenv:
+              items:
+                type: string
+              type: array
             on_cell_change:
               enum:
               - lazy
@@ -1498,7 +1548,6 @@ components:
           - watcher_on_save
           - output_max_bytes
           - std_stream_max_bytes
-          - pythonpath
           type: object
         save:
           properties:
@@ -1666,19 +1715,8 @@ components:
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/SQLTablePreview'
       - $ref: '#/components/schemas/SQLTableListPreview'
-      - properties:
-          connections:
-            items:
-              $ref: '#/components/schemas/DataSourceConnection'
-            type: array
-          name:
-            enum:
-            - data-source-connections
-            type: string
-        required:
-        - connections
-        - name
-        type: object
+      - $ref: '#/components/schemas/DataSourceConnections'
+      - $ref: '#/components/schemas/SecretKeysResult'
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -2147,6 +2185,37 @@ components:
       - name
       - columns
       type: object
+    SecretKeysResult:
+      properties:
+        name:
+          enum:
+          - secret-keys-result
+          type: string
+        request_id:
+          type: string
+        secrets:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - request_id
+      - secrets
+      - name
+      type: object
+    SecretKeysWithProvider:
+      properties:
+        keys:
+          items:
+            type: string
+          type: array
+        provider:
+          enum:
+          - env
+          type: string
+      required:
+      - provider
+      - keys
+      type: object
     SendUIElementMessage:
       properties:
         buffers:
@@ -2402,7 +2471,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.26
+  version: 0.12.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3097,6 +3166,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/secrets/create:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Create a secret
+  /api/secrets/delete:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Delete a secret
+  /api/secrets/keys:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListSecretKeysRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSecretKeysResponse'
+          description: List all secret keys
   /api/status:
     get:
       responses:

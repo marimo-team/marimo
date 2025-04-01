@@ -143,7 +143,7 @@ class openai(ChatModel):
         response = client.chat.completions.create(
             model=self.model,
             messages=cast(list[ChatCompletionMessageParam], openai_messages),
-            max_tokens=config.max_tokens,
+            max_completion_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
             frequency_penalty=config.frequency_penalty,

@@ -325,7 +325,7 @@ button .prose.prose {
 }
 
 .markdown details summary {
-  @apply flex cursor-pointer items-center justify-between p-4 font-medium;
+  @apply cursor-pointer p-4 font-medium;
 
   list-style: none;
   user-select: none;
@@ -335,20 +335,21 @@ button .prose.prose {
   display: none;
 }
 
-.markdown details summary::after {
+.markdown details summary::before {
   content: "";
   border-style: solid;
   border-color: var(--slate-8);
   border-width: 0.15rem 0.15rem 0 0;
   display: inline-block;
   padding: 0.2rem;
-  transform: rotate(135deg);
+  margin-right: 1rem;
+  transform: rotate(45deg);
   transition: transform 0.2s;
   vertical-align: middle;
 }
 
-.markdown details[open] summary::after {
-  transform: rotate(-45deg);
+.markdown details[open] summary::before {
+  transform: rotate(135deg);
 }
 
 .markdown details > :not(summary) {
