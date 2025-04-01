@@ -48,7 +48,7 @@ running as a notebook.
 ### argparse
 
 /// marimo-embed-file
-    filepath: examples/running_as_a_script/with_argparse.py
+    filepath: examples/running_as_a_script/sharing_arguments.py
 ///
 
 ### simple-parsing
