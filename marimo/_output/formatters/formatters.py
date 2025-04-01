@@ -8,6 +8,7 @@ from marimo._config.config import Theme
 from marimo._output.formatters.ai_formatters import (
     GoogleAiFormatter,
     OpenAIFormatter,
+    TransformersFormatter,
 )
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
@@ -64,6 +65,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     PanelFormatter.package_name(): PanelFormatter(),
     GoogleAiFormatter.package_name(): GoogleAiFormatter(),
     OpenAIFormatter.package_name(): OpenAIFormatter(),
+    TransformersFormatter.package_name(): TransformersFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
