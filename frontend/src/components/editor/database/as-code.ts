@@ -130,6 +130,21 @@ class SecretContainer {
     return `{${value}}`;
   }
 
+  printPassword(
+    password: string | undefined,
+    passwordPlaceholder: string,
+    inFString: boolean,
+  ): string {
+    // Inline passwords should use printInFString, otherwise use print
+    const printMethod = inFString
+      ? this.printInFString.bind(this)
+      : this.print.bind(this);
+
+    return isSecret(password)
+      ? printMethod("password", password)
+      : printMethod("password", passwordPlaceholder, password);
+  }
+
   getSecrets(): Record<string, string> {
     return this.secrets;
   }
@@ -154,13 +169,11 @@ class PostgresGenerator extends CodeGenerator<"postgres"> {
     const ssl = this.connection.ssl
       ? ", connect_args={'sslmode': 'require'}"
       : "";
-    const password = isSecret(this.connection.password)
-      ? this.secrets.printInFString("password", this.connection.password)
-      : this.secrets.printInFString(
-          "password",
-          "POSTGRES_PASSWORD",
-          this.connection.password,
-        );
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "POSTGRES_PASSWORD",
+      true,
+    );
     const username = this.secrets.printInFString(
       "username",
       this.connection.username,
@@ -188,13 +201,11 @@ class MySQLGenerator extends CodeGenerator<"mysql"> {
     const ssl = this.connection.ssl
       ? ", connect_args={'ssl': {'ssl-mode': 'preferred'}}"
       : "";
-    const password = isSecret(this.connection.password)
-      ? this.secrets.printInFString("password", this.connection.password)
-      : this.secrets.printInFString(
-          "password",
-          "MYSQL_PASSWORD",
-          this.connection.password,
-        );
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "MYSQL_PASSWORD",
+      true,
+    );
     const database = this.secrets.printInFString(
       "database",
       this.connection.database,
@@ -241,13 +252,11 @@ class SnowflakeGenerator extends CodeGenerator<"snowflake"> {
   }
 
   generateConnectionCode(): string {
-    const password = isSecret(this.connection.password)
-      ? this.secrets.print("password", this.connection.password)
-      : this.secrets.print(
-          "password",
-          "SNOWFLAKE_PASSWORD",
-          this.connection.password,
-        );
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "SNOWFLAKE_PASSWORD",
+      false,
+    );
     const params = {
       account: this.secrets.print("account", this.connection.account),
       user: this.secrets.print("user", this.connection.username),
@@ -320,13 +329,11 @@ class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
   }
 
   generateConnectionCode(): string {
-    const password = isSecret(this.connection.password)
-      ? this.secrets.print("password", this.connection.password)
-      : this.secrets.print(
-          "password",
-          "CLICKHOUSE_PASSWORD",
-          this.connection.password,
-        );
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "CLICKHOUSE_PASSWORD",
+      false,
+    );
 
     const params = {
       host: this.secrets.print("host", this.connection.host),
@@ -361,6 +368,39 @@ class ChDBGenerator extends CodeGenerator<"chdb"> {
   }
 }
 
+class TrinoGenerator extends CodeGenerator<"trino"> {
+  generateImports(): string[] {
+    return this.connection.async_support
+      ? ["import aiotrino"]
+      : ["import trino.sqlalchemy"];
+  }
+
+  generateConnectionCode(): string {
+    const trinoExtension = this.connection.async_support ? "aiotrino" : "trino";
+    const schema = this.connection.schema ? `/${this.connection.schema}` : "";
+
+    const username = this.secrets.printInFString(
+      "username",
+      this.connection.username,
+    );
+    const host = this.secrets.printInFString("host", this.connection.host);
+    const port = this.secrets.printInFString("port", this.connection.port);
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database,
+    );
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "TRINO_PASSWORD",
+      true,
+    );
+
+    return dedent(`
+      engine = ${this.orm}.create_engine(f"${trinoExtension}://${username}:${password}@${host}:${port}/${database}${schema}")
+    `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -385,6 +425,8 @@ class CodeGeneratorFactory {
         return new ClickHouseGenerator(connection, orm, this.secrets);
       case "chdb":
         return new ChDBGenerator(connection, orm, this.secrets);
+      case "trino":
+        return new TrinoGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

@@ -97,6 +97,15 @@ DATABASE_URL = "sqlite:////path/to/db.sqlite"
 engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
+exports[`generateDatabaseCode > basic connections > trino 1`] = `
+"import os
+import sqlmodel
+import trino.sqlalchemy
+
+_password = os.environ.get("TRINO_PASSWORD", "pass")
+engine = sqlmodel.create_engine(f"trino://user:{_password}@localhost:8080/test")"
+`;
+
 exports[`generateDatabaseCode > connections with secrets > bigquery with credentials as secret 1`] = `
 "import json
 import os
@@ -344,6 +353,15 @@ exports[`generateDatabaseCode > edge cases > sqlite with empty path 1`] = `
 
 DATABASE_URL = "sqlite:///"
 engine = sqlmodel.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > trino with async support 1`] = `
+"import aiotrino
+import os
+import sqlalchemy
+
+_password = os.environ.get("TRINO_PASSWORD", "pass")
+engine = sqlalchemy.create_engine(f"aiotrino://user:{_password}@localhost:8080/test")"
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 1`] = `

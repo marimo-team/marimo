@@ -70,6 +70,16 @@ describe("generateDatabaseCode", () => {
     read_only: false,
   };
 
+  const trinoConnection: DatabaseConnection = {
+    type: "trino",
+    host: "localhost",
+    port: 8080,
+    database: "test",
+    username: "user",
+    password: "pass",
+    async_support: false,
+  };
+
   describe("basic connections", () => {
     it.each([
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
@@ -82,6 +92,7 @@ describe("generateDatabaseCode", () => {
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
       ["chdb", chdbConnection, "chdb"],
+      ["trino", trinoConnection, "sqlmodel"],
     ])("%s", (name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
@@ -314,6 +325,14 @@ describe("generateDatabaseCode", () => {
           database: "",
         },
         "chdb",
+      ],
+      [
+        "trino with async support",
+        {
+          ...trinoConnection,
+          async_support: true,
+        },
+        "sqlalchemy",
       ],
     ];
 

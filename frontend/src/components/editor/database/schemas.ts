@@ -39,6 +39,16 @@ function databaseField() {
   );
 }
 
+function schemaField() {
+  return z.string().describe(
+    FieldOptions.of({
+      label: "Schema",
+      placeholder: "schema name",
+      optionRegex: ".*schema.*",
+    }),
+  );
+}
+
 function usernameField() {
   return z
     .string()
@@ -223,6 +233,22 @@ export const ChdbConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const TrinoConnectionSchema = z
+  .object({
+    type: z.literal("trino"),
+    host: hostField(),
+    port: portField(8080),
+    database: databaseField(),
+    schema: schemaField().optional(),
+    username: usernameField(),
+    password: passwordField(),
+    async_support: z
+      .boolean()
+      .default(false)
+      .describe(FieldOptions.of({ label: "Async Support" })),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -232,6 +258,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   BigQueryConnectionSchema,
   ClickhouseConnectionSchema,
   ChdbConnectionSchema,
+  TrinoConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;
