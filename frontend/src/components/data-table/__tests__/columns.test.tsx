@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, test } from "vitest";
 import { uniformSample } from "../uniformSample";
-import { UrlDetector } from "../url-detector";
+import { parseContent, UrlDetector } from "../url-detector";
 import { render } from "@testing-library/react";
 import { generateColumns, inferFieldTypes } from "../columns";
 import type { FieldTypesWithExternalType } from "../types";
@@ -29,7 +29,7 @@ test("uniformSample", () => {
 
 test("UrlDetector renders URLs as hyperlinks", () => {
   const text = "Check this link: https://example.com";
-  const { container } = render(<UrlDetector text={text} />);
+  const { container } = render(<UrlDetector parts={parseContent(text)} />);
   const link = container.querySelector("a");
   expect(link).toBeTruthy();
   expect(link?.href).toBe("https://example.com/");
