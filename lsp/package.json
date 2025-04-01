@@ -12,13 +12,13 @@
   "devDependencies": {
     "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^20.17.19",
-    "@types/ws": "^8.5.14",
+    "@types/node": "^20.17.28",
+    "@types/ws": "^8.18.0",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.4.0",
     "typescript": "^5.8.2",
     "ws": "^8.18.1"
   },
-  "packageManager": "pnpm@9.15.6"
+  "packageManager": "pnpm@9.15.9"
 }
