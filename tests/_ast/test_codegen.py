@@ -66,10 +66,6 @@ def wrap_generate_filecontents(
     )
 
 
-def strip_blank_lines(text: str) -> str:
-    return "\n".join([line for line in text.splitlines() if line.strip()])
-
-
 def get_idempotent_marimo_source(name: str) -> str:
     from marimo._utils.formatter import Formatter
 
@@ -89,15 +85,11 @@ def get_idempotent_marimo_source(name: str) -> str:
     with open(path) as f:
         python_source = sanitized_version(f.read())
 
-    # TODO(dmadisetti): not totally idempotent for now. Revise; seems to strip
-    # on imports (possibly during compile?).
     formatted = Formatter(codegen.MAX_LINE_LENGTH).format(
         {"source": python_source, "generated": generated_contents}
     )
 
-    assert strip_blank_lines(formatted["source"]) == strip_blank_lines(
-        formatted["generated"]
-    )
+    assert formatted["source"] == formatted["generated"]
     return formatted["generated"]
 
 

@@ -67,6 +67,9 @@ def ends_with_semicolon(code: str) -> bool:
             token_types.NEWLINE,
             token_types.NL,
             token_types.COMMENT,
+            token_types.INDENT,
+            token_types.DEDENT,
+            token_types.ENCODING,
         ):
             continue
         return token.string == ";"

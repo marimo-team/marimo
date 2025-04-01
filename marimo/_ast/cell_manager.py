@@ -212,6 +212,13 @@ class CellManager:
             name: Optional name for the cell
             cell_config: Configuration for the cell
         """
+        # If this is the first cell, and its name is setup, assume that it's
+        # the setup cell.
+        if len(self._cell_data) == 0 and name == SETUP_CELL_NAME:
+            cell_id = CellId_t(SETUP_CELL_NAME)
+        else:
+            cell_id = self.create_cell_id()
+
         # - code.split("\n")[1:-1] disregards first and last lines, which are
         #   empty
         # - line[4:] removes leading indent in multiline string
@@ -222,7 +229,7 @@ class CellManager:
         )
 
         self.register_cell(
-            cell_id=self.create_cell_id(),
+            cell_id=cell_id,
             code=code,
             config=cell_config,
             name=name or DEFAULT_CELL_NAME,

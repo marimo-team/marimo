@@ -31,7 +31,7 @@ NOTICE = "\n".join(
 )
 
 
-def get_setup_cell(
+def pop_setup_cell(
     code: list[str],
     names: list[str],
     configs: list[CellConfig],
@@ -41,12 +41,16 @@ def get_setup_cell(
     if SETUP_CELL_NAME not in names or not toplevel_fn:
         return None
     setup_index = names.index(SETUP_CELL_NAME)
-    setup_code = code.pop(setup_index)
+    try:
+        cell = compile_cell(
+            code[setup_index], cell_id=CellId_t(SETUP_CELL_NAME)
+        ).configure(configs[setup_index])
+    except SyntaxError:
+        return None
+    code.pop(setup_index)
     names.pop(setup_index)
-    setup_config = configs.pop(setup_index)
-    return compile_cell(
-        setup_code, cell_id=CellId_t(SETUP_CELL_NAME)
-    ).configure(setup_config)
+    configs.pop(setup_index)
+    return cell
 
 
 def indent_text(text: str) -> str:
@@ -136,6 +140,7 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
         [
             "with app.setup:",
             indent_text(block),
+            "\n",
         ]
     )
 
@@ -230,7 +235,7 @@ def generate_unparsable_cell(
     return "\n".join(text)
 
 
-def serialize(
+def serialize_cell(
     extraction: TopLevelExtraction, status: TopLevelStatus, toplevel_fn: bool
 ) -> str:
     if status.is_unparsable:
@@ -247,7 +252,10 @@ def serialize(
         return to_functiondef(
             cell,
             status.name,
-            extraction.allowed_refs,
+            # There are possible NameError cases where a cell defines and also
+            # requires a variable. We remove defs from the signature such that
+            # this causes a lint error in programs like pyright.
+            extraction.allowed_refs | cell.defs,
             extraction.used_refs,
             fn="cell",
         )
@@ -322,13 +330,14 @@ def generate_filecontents(
             names[idx] = DEFAULT_CELL_NAME
 
     # TODO: replace with dedicated cell
-    setup_cell = get_setup_cell(codes, names, cell_configs, toplevel_fn)
+    setup_cell = pop_setup_cell(codes, names, cell_configs, toplevel_fn)
     toplevel_defs: set[Name] = set()
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
     cell_blocks = [
-        serialize(extraction, status, toplevel_fn) for status in extraction
+        serialize_cell(extraction, status, toplevel_fn)
+        for status in extraction
     ]
 
     if not toplevel_fn:
@@ -346,7 +355,6 @@ def generate_filecontents(
             generate_app_constructor(config),
             "",
             build_setup_section(setup_cell),
-            "\n",
             "\n\n\n".join(cell_blocks),
             "\n",
             'if __name__ == "__main__":',
