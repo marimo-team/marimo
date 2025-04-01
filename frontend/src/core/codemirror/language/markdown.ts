@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
-import { markdown } from "@codemirror/lang-markdown";
-import { languages } from "@codemirror/language-data";
-import { parseMixed } from "@lezer/common";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { python, pythonLanguage } from "@codemirror/lang-python";
+import { languages } from "@codemirror/language-data";
+import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import {
+  autocompletion,
   type Completion,
   type CompletionContext,
   type CompletionResult,
   type CompletionSource,
-  autocompletion,
 } from "@codemirror/autocomplete";
 import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
@@ -23,6 +23,9 @@ import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
 import { markdownAutoRunExtension } from "../cells/extensions";
 import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
+import { parseMixed } from "@lezer/common";
+import { parseLatex } from "./latex";
+import { StreamLanguage } from "@codemirror/language";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -166,8 +169,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   ): Extension[] {
     return [
       markdown({
+        base: markdownLanguage,
         codeLanguages: languages,
         extensions: [
+          parseLatex(StreamLanguage.define(stexMath).parser),
           // Wrapper extension to handle f-string substitutions
           {
             wrap: parseMixed((node, input) => {
