@@ -15,6 +15,7 @@ import {
   type DatabaseConnection,
   ClickhouseConnectionSchema,
   ChdbConnectionSchema,
+  TrinoConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -128,6 +129,16 @@ const SCHEMAS = [
     connectionLibraries: {
       libraries: ["chdb"],
       preferred: "chdb",
+    },
+  },
+  {
+    name: "Trino",
+    schema: TrinoConnectionSchema,
+    color: "#d466b6",
+    logo: "trino",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
     },
   },
 ] satisfies Array<{

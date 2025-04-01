@@ -361,6 +361,22 @@ class ChDBGenerator extends CodeGenerator<"chdb"> {
   }
 }
 
+class TrinoGenerator extends CodeGenerator<"trino"> {
+  generateImports(): string[] {
+    return this.connection.async_support
+      ? ["import aiotrino"]
+      : ["import trino.sqlalchemy"];
+  }
+
+  generateConnectionCode(): string {
+    const trinoExtension = this.connection.async_support ? "aiotrino" : "trino";
+    const schema = this.connection.schema ? `/${this.connection.schema}` : "";
+    return dedent(`
+      engine = ${this.orm}.create_engine(f"${trinoExtension}://${this.connection.username}:${this.connection.password}@${this.connection.host}:${this.connection.port}/${this.connection.database}${schema}")
+    `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -385,6 +401,8 @@ class CodeGeneratorFactory {
         return new ClickHouseGenerator(connection, orm, this.secrets);
       case "chdb":
         return new ChDBGenerator(connection, orm, this.secrets);
+      case "trino":
+        return new TrinoGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

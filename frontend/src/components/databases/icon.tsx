@@ -8,6 +8,7 @@ import SnowflakeIcon from "./icons/snowflake.svg";
 import DatabricksIcon from "./icons/databricks.svg";
 import ClickhouseIcon from "./icons/clickhouse.svg";
 import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
+import TrinoIcon from "./icons/trino.svg";
 import { cn } from "@/utils/cn";
 
 export type DBLogoName =
@@ -19,7 +20,8 @@ export type DBLogoName =
   | "snowflake"
   | "databricks"
   | "clickhouse"
-  | "bigquery";
+  | "bigquery"
+  | "trino";
 
 /**
  * Icons are from https://simpleicons.org/
@@ -40,6 +42,7 @@ const URLS: Record<DBLogoName, string | undefined> = {
   databricks: DatabricksIcon,
   clickhouse: ClickhouseIcon,
   bigquery: GoogleBigQueryIcon,
+  trino: TrinoIcon,
 };
 
 export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
