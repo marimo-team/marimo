@@ -14,6 +14,7 @@ with app.setup:
     import textwrap
     import typing
     from pathlib import Path
+    import dataclasses
 
     import marimo as mo
 
@@ -87,6 +88,17 @@ def _():
         return a + b
     # This is a comment
     return
+
+
+@app.class_definition
+@dataclasses.dataclass
+class ExampleClass:
+    ...
+
+
+@app.class_definition
+class SubClass(ExampleClass):
+    ...
 
 
 if __name__ == "__main__":

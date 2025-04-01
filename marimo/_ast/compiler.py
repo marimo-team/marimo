@@ -7,10 +7,11 @@ import io
 import linecache
 import os
 import re
+import sys
 import textwrap
 import token as token_types
 from tokenize import TokenInfo, tokenize
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeAlias
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -27,6 +28,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
 
 LOGGER = _loggers.marimo_logger()
+Cls: TypeAlias = type
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -282,6 +284,26 @@ def compile_cell(
     )
 
 
+def get_class_position(
+    f: Callable[..., Any], lineno: int, col_offset: int
+) -> Optional[SourcePosition]:
+    # Fallback won't capture embedded scripts
+    is_script = f.__module__ == "__main__"
+    # TODO: spec is None for markdown notebooks, which is fine for now
+    if module := inspect.getmodule(f):
+        spec = module.__spec__
+        is_script = spec is None or spec.name != "marimo_app"
+
+    if not is_script:
+        return None
+
+    return SourcePosition(
+        filename=inspect.getfile(f),
+        lineno=lineno,
+        col_offset=col_offset,
+    )
+
+
 def get_source_position(
     f: Callable[..., Any], lineno: int, col_offset: int
 ) -> Optional[SourcePosition]:
@@ -344,6 +366,57 @@ def context_cell_factory(
             source_position=source_position,
             test_rewrite=False,
         ),
+    )
+
+
+def class_cell_factory(
+    cls: Cls,
+    cell_id: CellId_t,
+    anonymous_file: bool = False,
+    test_rewrite: bool = False,
+) -> Cell:
+    """Creates a cell containing a function.
+
+    NB: Unlike cell_factory, this utilizes the function itself as the cell
+    definition. As such, signature and return type are important.
+    """
+    sys.modules.get(cls.__module__)
+
+    # print(module.__file__)
+    code, lnum = inspect.getsourcelines(cls)
+    class_code = textwrap.dedent("".join(code))
+
+    # We need to scrub through the initial decorator. Since we don't care about
+    # indentation etc, easiest just to use AST.
+
+    tree = ast.parse(class_code, type_comments=True)
+    try:
+        decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
+        # NB. We don't unparse from the AST because it strips comments.
+        cell_code = textwrap.dedent(
+            "".join(code[decorator.end_lineno :])
+        ).strip()
+    except (IndexError, AttributeError) as e:
+        raise ValueError("Unexpected usage (expected decorated class)") from e
+
+    source_position = None
+    if not anonymous_file:
+        source_position = get_class_position(
+            cls,
+            lnum + decorator.end_lineno - 1,  # Scrub the decorator
+            0,
+        )
+
+    cell = compile_cell(
+        cell_code,
+        cell_id=cell_id,
+        source_position=source_position,
+        test_rewrite=test_rewrite,
+    )
+    return Cell(
+        _name=cls.__name__,
+        _cell=cell,
+        _test_allowed=cell._test or cls.__name__.startswith("Test"),
     )
 
 

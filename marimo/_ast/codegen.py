@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import re
+import sys
 import textwrap
 from typing import Any, Literal, Optional, cast
 
@@ -177,6 +178,9 @@ def to_functiondef(
     # other static analysis tools can capture unused variables across cells.
     defs: tuple[str, ...] = tuple()
     if cell.defs:
+        # There are possible name error cases where a cell defines, and also
+        # requires a variable. We remove defs from the signature such that
+        # this causes a lint error in pyright.
         if used_refs is None:
             defs = tuple(name for name in sorted(cell.defs))
         else:
@@ -410,13 +414,19 @@ def get_app(filename: Optional[str]) -> Optional[App]:
     if has_only_comments:
         return None
 
+    # TODO(dmadisetti): Consider replacing with a completely static load for
+    # edit.
     spec = importlib.util.spec_from_file_location("marimo_app", filename)
     if spec is None:
         raise RuntimeError("Failed to load module spec")
     marimo_app = importlib.util.module_from_spec(spec)
     if spec.loader is None:
         raise RuntimeError("Failed to load module spec's loader")
-    spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
+    try:
+        sys.modules["marimo_app"] = marimo_app
+        spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
+    finally:
+        sys.modules.pop("marimo_app", None)
     if not hasattr(marimo_app, "app"):
         raise MarimoFileError(f"{filename} missing attribute `app`.")
     if not isinstance(marimo_app.app, App):
