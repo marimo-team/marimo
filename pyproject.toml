@@ -248,7 +248,7 @@ extra-dependencies = [
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",
-    "pyarrow>=19.0.0",
+    "pyarrow>=19.0.1",
     "pyarrow_hotfix",
     "altair>=5.4.0",
     "polars~=1.24.0",
