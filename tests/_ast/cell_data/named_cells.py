@@ -3,6 +3,10 @@ import marimo
 __generated_with = "0.2.8"
 app = marimo.App()
 
+with app.setup:
+    # Purposefully named a, such that in ordering it would be first.
+    a = 1
+
 
 @app.cell
 def f():
@@ -43,6 +47,13 @@ def multiple():
     B = 1
     (A, B)
     return (A, B)
+
+
+@app.cell
+def called_with_global(x):
+    Y = a + x
+    Y
+    return (Y,)
 
 if __name__ == "__main__":
     app.run()

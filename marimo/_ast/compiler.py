@@ -601,4 +601,5 @@ def cell_factory(
         _name=f.__name__,
         _cell=cell,
         _test_allowed=cell._test or f.__name__.startswith("test_"),
+        _expected_signature=tuple(inspect.signature(f).parameters.keys()),
     )
