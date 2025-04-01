@@ -7,6 +7,7 @@ import pytest
 from marimo._messaging.ops import SecretKeysResult
 from marimo._runtime.requests import ListSecretKeysRequest
 from marimo._runtime.runtime import SecretsCallbacks
+from marimo._types.ids import RequestId
 from marimo._utils.parse_dataclass import parse_raw
 from tests._runtime.test_runtime import MockedKernel
 
@@ -22,9 +23,10 @@ async def test_list_secrets_with_values(
     # Set some test secrets
     test_secrets = ["DUMMY_SECRET"]
     os.environ["DUMMY_SECRET"] = "dummy-value"
+    mocked_kernel.k._original_environ = os.environ.copy()
 
     await secrets_callbacks.list_secrets(
-        ListSecretKeysRequest(request_id="test")
+        ListSecretKeysRequest(request_id=RequestId("test"))
     )
 
     # Check that the broadcast message was sent with the correct secrets
