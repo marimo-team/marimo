@@ -26,7 +26,7 @@ def read_dotenv_with_fallback(file: str) -> dict[str, str]:
     if DependencyManager.dotenv.has():
         from dotenv import dotenv_values  # type: ignore[import-not-found]
 
-        return dotenv_values(file)
+        return dotenv_values(file)  # type: ignore[no-any-return]
     else:
         return parse_dotenv(file)
 
