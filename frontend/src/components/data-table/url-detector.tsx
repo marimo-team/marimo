@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/popover";
 import { useState } from "react";
 
-const urlRegex = /(https?:\/\/\S+)/g;
+const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
 const dataImageRegex = /^data:image\//i;
 const knownImageDomains = ["avatars.githubusercontent.com"];
@@ -63,9 +63,10 @@ export function parseContent(text: string): ContentPart[] {
     return [{ type: "image", url: text }];
   }
 
-  const parts = text.split(urlRegex);
+  const parts = text.split(urlRegex).filter((part) => part.trim() !== "");
   return parts.map((part) => {
-    if (urlRegex.test(part)) {
+    const isUrl = urlRegex.test(part);
+    if (isUrl) {
       const isImage =
         imageRegex.test(part) ||
         dataImageRegex.test(part) ||
