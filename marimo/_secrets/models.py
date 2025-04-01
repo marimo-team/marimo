@@ -4,20 +4,26 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal
 
-SecretProviderType = Literal["env"]
+SecretProviderType = Literal["env", "dotenv"]
 
 
 @dataclass
 class SecretKeysWithProvider:
     provider: SecretProviderType
+    name: str
     keys: list[str]
 
 
 class SecretProvider(ABC):
     type: SecretProviderType
 
+    @property
     @abstractmethod
-    def get_keys(self) -> list[str]:
+    def name(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_keys(self) -> set[str]:
         pass
 
     @abstractmethod

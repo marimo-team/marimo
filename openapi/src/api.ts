@@ -2489,7 +2489,7 @@ export interface components {
     CreateSecretRequest: {
       key: string;
       /** @enum {string} */
-      provider: "env";
+      provider: "env" | "dotenv";
       value: string;
     };
     CycleError: {
@@ -3253,8 +3253,9 @@ export interface components {
     };
     SecretKeysWithProvider: {
       keys: string[];
+      name: string;
       /** @enum {string} */
-      provider: "env";
+      provider: "env" | "dotenv";
     };
     SendUIElementMessage: {
       buffers?: string[] | null;

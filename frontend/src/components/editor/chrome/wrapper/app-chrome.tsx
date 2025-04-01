@@ -31,6 +31,7 @@ import { PackagesPanel } from "../panels/packages-panel";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { TracingPanel } from "../panels/tracing-panel";
+import { SecretsPanel } from "../panels/secrets-panel";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -155,6 +156,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "chat" && <ChatPanel />}
             {selectedPanel === "logs" && <LogsPanel />}
             {selectedPanel === "tracing" && <TracingPanel />}
+            {selectedPanel === "secrets" && <SecretsPanel />}
           </TooltipProvider>
         </div>
       </Suspense>

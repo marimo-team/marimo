@@ -12,9 +12,23 @@ def load_dotenv_with_fallback(file: str) -> None:
     if DependencyManager.dotenv.has():
         from dotenv import load_dotenv  # type: ignore[import-not-found]
 
+        # By default, load_dotenv does not override existing keys in the
+        # environment.
         load_dotenv(file)
     else:
         load_to_environ(parse_dotenv(file))
+
+
+def read_dotenv_with_fallback(file: str) -> dict[str, str]:
+    """Read a .env file using the dotenv library, falling to our custom
+    implementation if the dotenv library is not installed.
+    """
+    if DependencyManager.dotenv.has():
+        from dotenv import dotenv_values  # type: ignore[import-not-found]
+
+        return dotenv_values(file)  # type: ignore[no-any-return]
+    else:
+        return parse_dotenv(file)
 
 
 def parse_dotenv(filepath: str) -> dict[str, str]:
@@ -48,6 +62,10 @@ def parse_dotenv(filepath: str) -> dict[str, str]:
 def load_to_environ(env_dict: dict[str, str]) -> None:
     """Load a dictionary of key-value pairs into the environment."""
     for key, value in env_dict.items():
+        if key in os.environ:
+            # By default, load_dotenv does not override existing keys in the
+            # environment, so we should do the same.
+            continue
         os.environ[key] = value
 
 

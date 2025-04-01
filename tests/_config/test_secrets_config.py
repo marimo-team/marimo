@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.secrets import mask_secrets, remove_secret_placeholders
 
@@ -8,7 +10,10 @@ def test_mask_secrets() -> None:
             "open_ai": {"api_key": "super_secret"},
             "anthropic": {"api_key": "anthropic_secret"},
             "google": {"api_key": "google_secret"},
-        }
+        },
+        runtime={
+            "dotenv": [".env"],
+        },
     )
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
@@ -31,7 +36,10 @@ def test_mask_secrets_empty() -> None:
             "open_ai": {"model": "davinci"},
             "google": {},
             "anthropic": {},
-        }
+        },
+        runtime={
+            "dotenv": [],
+        },
     )
     assert config["ai"]["open_ai"]["model"] == "davinci"
 
@@ -64,7 +72,7 @@ def test_remove_secret_placeholders() -> None:
             "open_ai": {"api_key": "********"},
             "google": {"api_key": "********"},
             "anthropic": {"api_key": "********"},
-        }
+        },
     )
     assert config["ai"]["open_ai"]["api_key"] == "********"
     assert config["ai"]["google"]["api_key"] == "********"

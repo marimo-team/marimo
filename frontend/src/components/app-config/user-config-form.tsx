@@ -1239,6 +1239,33 @@ export const UserConfigForm: React.FC = () => {
               ⚠️ These features are experimental and may require restarting your
               notebook to take effect.
             </p>
+
+            <FormField
+              control={form.control}
+              name="experimental.secrets"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Secrets Management
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="secrets-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable secrets management. This allows you to manage secrets
+                    in your notebooks. Currently only reading{" "}
+                    <Kbd className="inline">.env</Kbd> files are supported.
+                  </FormDescription>
+                </div>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="experimental.lsp"
