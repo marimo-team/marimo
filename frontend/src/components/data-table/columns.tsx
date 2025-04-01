@@ -30,7 +30,6 @@ import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
 import type { ColumnChartSpecModel } from "./chart-spec-model";
-import React from "react";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
