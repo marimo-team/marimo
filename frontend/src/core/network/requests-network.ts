@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { API, marimoClient } from "./api";
+import { waitForConnectionOpen } from "./connection";
 import type { RunRequests, EditRequests } from "./types";
 
 const { handleResponse, handleResponseReturnNull } = API;
@@ -311,12 +312,23 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    getPackageList: () => {
+    getPackageList: async () => {
+      // If the sidebar is already open, it may try to load before the session has been initialized
+      await waitForConnectionOpen();
       return marimoClient.GET("/api/packages/list").then(handleResponse);
     },
-    listSecretKeys: (request) => {
+    listSecretKeys: async (request) => {
+      // If the sidebar is already open, it may try to load before the session has been initialized
+      await waitForConnectionOpen();
       return marimoClient
         .POST("/api/secrets/keys", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    writeSecret: async (request) => {
+      return marimoClient
+        .POST("/api/secrets/create", {
           body: request,
         })
         .then(handleResponseReturnNull);

@@ -391,6 +391,8 @@ components:
       properties:
         key:
           type: string
+        name:
+          type: string
         provider:
           enum:
           - env
@@ -402,6 +404,7 @@ components:
       - key
       - value
       - provider
+      - name
       type: object
     CycleError:
       properties:
@@ -3173,6 +3176,12 @@ paths:
           description: Uninstall package
   /api/secrets/create:
     post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecretRequest'
+        required: true
       responses:
         200:
           content:

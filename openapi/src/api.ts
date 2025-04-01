@@ -2013,7 +2013,11 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: never;
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateSecretRequest"];
+        };
+      };
       responses: {
         /** @description Create a secret */
         200: {
@@ -2488,6 +2492,7 @@ export interface components {
     };
     CreateSecretRequest: {
       key: string;
+      name: string;
       /** @enum {string} */
       provider: "env" | "dotenv";
       value: string;

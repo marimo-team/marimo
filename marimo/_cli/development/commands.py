@@ -82,6 +82,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.Database,
         # Secrets
         secrets_models.SecretKeysWithProvider,
+        secrets_models.CreateSecretRequest,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -154,7 +155,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileUpdateRequest,
         files.FileUpdateResponse,
         secrets.ListSecretKeysResponse,
-        secrets.CreateSecretRequest,
         secrets.DeleteSecretRequest,
         packages.AddPackageRequest,
         PackageDescription,

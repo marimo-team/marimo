@@ -75,5 +75,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     removePackage: throwNotInEditMode,
     getPackageList: throwNotInEditMode,
     listSecretKeys: throwNotInEditMode,
+    writeSecret: throwNotInEditMode,
   };
 }

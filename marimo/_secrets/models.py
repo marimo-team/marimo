@@ -14,6 +14,21 @@ class SecretKeysWithProvider:
     keys: list[str]
 
 
+@dataclass
+class CreateSecretRequest:
+    key: str
+    value: str
+    provider: SecretProviderType
+    name: str
+
+    def __post_init__(self) -> None:
+        assert len(self.key) > 0, "Key must be non-empty"
+        assert len(self.value) > 0, "Value must be non-empty"
+        # Validate key doesn't contain whitespace
+        if any(char.isspace() for char in self.key):
+            raise ValueError("Key cannot contain spaces or whitespace")
+
+
 class SecretProvider(ABC):
     type: SecretProviderType
 
@@ -27,7 +42,7 @@ class SecretProvider(ABC):
         pass
 
     @abstractmethod
-    def set_key(self, key: str, value: str) -> None:
+    def write_key(self, key: str, value: str) -> None:
         pass
 
     @abstractmethod

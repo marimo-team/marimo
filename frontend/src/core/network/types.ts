@@ -51,6 +51,7 @@ export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
 export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
+export type CreateSecretRequest = schemas["CreateSecretRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
@@ -164,6 +165,7 @@ export interface EditRequests {
   ) => Promise<PackageOperationResponse>;
   // Secrets requests
   listSecretKeys: (request: ListSecretKeysRequest) => Promise<null>;
+  writeSecret: (request: CreateSecretRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

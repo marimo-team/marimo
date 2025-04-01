@@ -15,6 +15,7 @@ class CreateSecretRequest:
     key: str
     value: str
     provider: SecretProviderType
+    name: str
 
     def __post_init__(self) -> None:
         assert len(self.key) > 0, "Key must be non-empty"

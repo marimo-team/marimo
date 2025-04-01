@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import { type ConnectionStatus, WebSocketState } from "../websocket/types";
+import { waitFor } from "../state/jotai";
 
 /**
  * Atom for storing the connection status.
@@ -9,3 +10,9 @@ import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 export const connectionAtom = atom<ConnectionStatus>({
   state: WebSocketState.CONNECTING,
 });
+
+export function waitForConnectionOpen() {
+  return waitFor(connectionAtom, (value) => {
+    return value.state === WebSocketState.OPEN;
+  });
+}
