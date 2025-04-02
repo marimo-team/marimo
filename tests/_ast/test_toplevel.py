@@ -143,6 +143,48 @@ class TestTopLevelExtraction:
         assert [TopLevelType.TOPLEVEL] == [s.type for s in extraction]
 
     @staticmethod
+    def test_decorator_reversed(app) -> None:
+        with app.setup:
+            from typing import Callable
+
+        @app.cell
+        def second(wrap):
+            @wrap
+            def c() -> float:
+                return 1 + 1
+
+        @app.cell
+        def first():
+            def wrap(fn: Callable[[], float]) -> float:
+                return lambda: fn() + 1
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.CELL, TopLevelType.TOPLEVEL] == [
+            s.type for s in extraction
+        ], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_decorator(app) -> None:
+        with app.setup:
+            from typing import Callable
+
+        @app.cell
+        def first():
+            def wrap(fn: Callable[[], float]) -> float:
+                return lambda: fn() + 1
+
+        @app.cell
+        def second(wrap):
+            @wrap
+            def c() -> float:
+                return 1 + 1
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.TOPLEVEL, TopLevelType.TOPLEVEL] == [
+            s.type for s in extraction
+        ], [s.hint for s in extraction]
+
+    @staticmethod
     def test_function_trailing_comment(app) -> None:
         @app.cell
         def cell():
@@ -305,3 +347,109 @@ class TestTopLevelExtraction:
         assert [TopLevelType.TOPLEVEL, TopLevelType.TOPLEVEL] == [
             s.type for s in extraction
         ], [s.hint for s in extraction]
+
+
+class TestTopLevelClasses:
+    @staticmethod
+    def test_class_converted(app) -> None:
+        @app.cell
+        def cell():
+            class Example: ...
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order(app) -> None:
+        @app.cell
+        def Example():
+            class Example: ...
+
+        @app.cell
+        def SubExample(Example):
+            class SubExample(Example): ...
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_scoped_vars(app) -> None:
+        @app.cell
+        def Example():
+            class Example: ...
+
+        @app.cell
+        def SubExample(A, Example):
+            class SubExample(Example):
+                def __init__(self):
+                    self.a = A()
+
+        @app.cell
+        def _():
+            def A() -> float:
+                return 1.0
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order_vars(app) -> None:
+        @app.cell
+        def Example(A):
+            class Example:
+                a = A()
+
+        @app.cell
+        def _():
+            def A() -> float:
+                return 1.0
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order_vars_recursion(app) -> None:
+        @app.cell
+        def Example(A):
+            class Example:
+                class SubExample:
+                    a = A()
+
+        @app.cell
+        def _():
+            def A() -> float:
+                return 1.0
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order_breaks(app) -> None:
+        @app.cell
+        def cell(Example):
+            class SubExample(Example): ...
+
+        @app.cell
+        def _():
+            class Example: ...
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]

@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 from collections.abc import Awaitable
 
 import pytest
@@ -250,11 +250,11 @@ class TestCellRun:
             os.environ["PYTEST_VERSION"] = old_version
 
     @staticmethod
-    def test_mismatch_args(app, caplog) -> none:
+    def test_mismatch_args(app, caplog) -> None:
         # poor practice, but possible cell.
         @app.cell
-        def basic(lots, of_, incorrect, args):
-            1
+        def basic(lots, of_, incorrect, args):  # noqa: ARG001
+            1  # noqa: B018
             return
 
         assert basic.run() == (1, {})
@@ -266,16 +266,16 @@ class TestCellRun:
         assert "signature" in caplog.text
 
     @staticmethod
-    def test_direct_cyclic_call(app) -> none:
+    def test_direct_cyclic_call(app) -> None:
         # poor practice, but possible cell.
         @app.cell
         def cyclic():
             a = 1
             if False:
-                a = b  # noqa: f821
+                a = b  # noqa: F821
             else:
                 b = a
-            b  # noqa: b018
+            b  # noqa: B018
             return
 
         assert cyclic.run() == (1, {"a": 1, "b": 1})

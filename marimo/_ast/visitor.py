@@ -392,17 +392,34 @@ class ScopedVisitor(ast.NodeVisitor):
         scope and then return the body refs and unbounded refs."""
 
         self.ref_stack.append(set())
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            # Handle function refs that are evaluated in the outer scope
-            # Remove the body, which keeps signature and non-scoped parts.
-            mock = deepcopy(node)
-            mock.body.clear()
-            self.generic_visit(mock)
-            # Collect the unbounded refs
-            unbounded_refs = set(self.ref_stack[-1])
-        else:
-            # TODO: Update for class_definition toplevel decorator.
-            unbounded_refs = set()
+
+        mock = deepcopy(node)
+        unbounded_refs = set()
+        if isinstance(mock, (ast.ClassDef)):
+            # The Class ast is surprising loose, and anything can be defined
+            # inside. Python runs the ClassDef body on definition and anything
+            # defined in the scope gets added to the class.
+            mock_module = ast.Module(body=mock.body, type_ignores=[])
+            mock_vistor = ScopedVisitor(self.id)
+            mock_vistor.visit(mock_module)
+            # The unbounded defs are carried from the recursive visitor
+            # excluding all references found in exclusively in scope.
+            ignore_refs = set()
+            for var in mock_vistor.variable_data:
+                for data in mock_vistor.variable_data[var]:
+                    if data.kind in ("function", "class"):
+                        unbounded_refs |= data.unbounded_refs
+                        ignore_refs |= data.required_refs
+                    else:
+                        unbounded_refs |= data.required_refs
+                unbounded_refs |= mock_vistor.refs - ignore_refs
+
+        # Handle function/class refs that are evaluated in the outer scope
+        # Remove the body, which keeps signature and non-scoped parts.
+        mock.body.clear()
+        self.generic_visit(mock)
+        # Collect the unbounded refs
+        unbounded_refs |= set(self.ref_stack[-1])
 
         # Process the function body
         self.generic_visit(node)
@@ -422,11 +439,13 @@ class ScopedVisitor(ast.NodeVisitor):
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs, _ = self._visit_and_get_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
-            VariableData(kind="class", required_refs=refs),
+            VariableData(
+                kind="class", required_refs=refs, unbounded_refs=unbounded_refs
+            ),
         )
         return node
 

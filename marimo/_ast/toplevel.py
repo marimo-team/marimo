@@ -103,11 +103,14 @@ class TopLevelStatus:
         allowed_refs: set[Name],
         unresolved: set[Name] | None = None,
         potential_refs: set[Name] | None = None,
+        toplevel: set[Name] | None = None,
     ) -> None:
         if potential_refs is None:
             potential_refs = set()
         if unresolved is None:
             unresolved = set()
+        if toplevel is None:
+            toplevel = set()
 
         if self._cell is None:
             try:
@@ -137,8 +140,9 @@ class TopLevelStatus:
             self.demote(HINT_HAS_COMMENT)
             return
 
-        allowed_refs = set(allowed_refs) | {self.name}
+        allowed_refs = set(allowed_refs) | {self.name, "_lambda"}
         order_dependent_refs = var.unbounded_refs - allowed_refs
+
         if order_dependent_refs and order_dependent_refs - unresolved:
             self.dependencies = order_dependent_refs
             if not order_dependent_refs - (unresolved | potential_refs):
@@ -147,7 +151,7 @@ class TopLevelStatus:
                 self.demote(HINT_HAS_REFS.format(self.dependencies))
             return
 
-        dependent_refs = var.required_refs - allowed_refs
+        dependent_refs = self._cell.refs - (allowed_refs | toplevel)
         if not dependent_refs:
             self.type = TopLevelType.TOPLEVEL
             return
@@ -239,15 +243,16 @@ class TopLevelExtraction:
                 CellId_t(str(idx)), code, name, config, self.allowed_refs
             )
             self._statuses[status.type][status.name] = status
+
             self.statuses.append(status)
             if not status.is_unparsable:
                 defs.update(status.defs)
                 refs.update(status.refs)
-            if status.is_toplevel:
-                self.allowed_refs.add(status.name)
 
         # Refresh names
-        names = [status.name for status in self.statuses]
+        potential_refs = set(
+            [status.name for status in self.statuses if not status.is_toplevel]
+        )
 
         self.unshadowed = set(builtins.__dict__.keys()) - defs
         self.allowed_refs.update(self.unshadowed)
@@ -259,12 +264,19 @@ class TopLevelExtraction:
         for status in self.statuses:
             if status.is_unresolved or status.is_cell:
                 self._statuses[status.type].pop(status.name)
-                status.update(self.allowed_refs, unresolved, set(names))
+                status.update(
+                    self.allowed_refs,
+                    unresolved,
+                    potential_refs,
+                    set(self.toplevel.keys()),
+                )
                 if status.is_toplevel:
                     self.allowed_refs.add(status.name)
                 elif status.is_unresolved:
                     unresolved.add(status.name)
                 self._statuses[status.type][status.name] = status
+            else:
+                self.allowed_refs.add(status.name)
 
         self._resolve_dependencies()
         # Don't change names of objects that are not toplevel.

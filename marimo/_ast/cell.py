@@ -307,7 +307,8 @@ class CellImpl:
         if not (
             len(tree.body) == 1
             and isinstance(
-                tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)
+                tree.body[0],
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
             )
         ):
             return None
@@ -411,7 +412,7 @@ class Cell:
     # Whether to expose this cell as a test cell.
     _test_allowed: bool = False
 
-    _expected_signature: Optional[tuple[str]] = None
+    _expected_signature: Optional[tuple[str, ...]] = None
 
     @property
     def name(self) -> str:
