@@ -20,7 +20,6 @@ else:
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import (
     cell_factory,
-    class_cell_factory,
     context_cell_factory,
     toplevel_cell_factory,
 )
@@ -110,12 +109,9 @@ class CellManager:
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
             )
-            factory: Callable[..., Cell] = cell_factory
-            if top_level:
-                if isinstance(obj, type):
-                    factory = class_cell_factory
-                else:
-                    factory = toplevel_cell_factory
+            factory: Callable[..., Cell] = (
+                toplevel_cell_factory if top_level else cell_factory
+            )
             cell = factory(
                 obj,
                 cell_id=self.create_cell_id(),

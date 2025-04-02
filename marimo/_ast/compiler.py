@@ -7,7 +7,6 @@ import io
 import linecache
 import os
 import re
-import sys
 import textwrap
 import token as token_types
 from tokenize import TokenInfo, tokenize
@@ -284,11 +283,14 @@ def compile_cell(
     )
 
 
-def get_class_position(
-    f: Callable[..., Any], lineno: int, col_offset: int
+def get_source_position(
+    f: Cls | Callable[..., Any], lineno: int, col_offset: int
 ) -> Optional[SourcePosition]:
     # Fallback won't capture embedded scripts
-    is_script = f.__module__ == "__main__"
+    if inspect.isclass(f):
+        is_script = f.__module__ == "__main__"
+    else:
+        is_script = f.__globals__["__name__"] == "__main__"  # type: ignore
     # TODO: spec is None for markdown notebooks, which is fine for now
     if module := inspect.getmodule(f):
         spec = module.__spec__
@@ -299,26 +301,6 @@ def get_class_position(
 
     return SourcePosition(
         filename=inspect.getfile(f),
-        lineno=lineno,
-        col_offset=col_offset,
-    )
-
-
-def get_source_position(
-    f: Callable[..., Any], lineno: int, col_offset: int
-) -> Optional[SourcePosition]:
-    # Fallback won't capture embedded scripts
-    is_script = f.__globals__["__name__"] == "__main__"
-    # TODO: spec is None for markdown notebooks, which is fine for now
-    if module := inspect.getmodule(f):
-        spec = module.__spec__
-        is_script = spec is None or spec.name != "marimo_app"
-
-    if not is_script:
-        return None
-
-    return SourcePosition(
-        filename=f.__code__.co_filename,
         lineno=lineno,
         col_offset=col_offset,
     )
@@ -369,59 +351,8 @@ def context_cell_factory(
     )
 
 
-def class_cell_factory(
-    cls: Cls,
-    cell_id: CellId_t,
-    anonymous_file: bool = False,
-    test_rewrite: bool = False,
-) -> Cell:
-    """Creates a cell containing a function.
-
-    NB: Unlike cell_factory, this utilizes the function itself as the cell
-    definition. As such, signature and return type are important.
-    """
-    sys.modules.get(cls.__module__)
-
-    # print(module.__file__)
-    code, lnum = inspect.getsourcelines(cls)
-    class_code = textwrap.dedent("".join(code))
-
-    # We need to scrub through the initial decorator. Since we don't care about
-    # indentation etc, easiest just to use AST.
-
-    tree = ast.parse(class_code, type_comments=True)
-    try:
-        decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
-        # NB. We don't unparse from the AST because it strips comments.
-        cell_code = textwrap.dedent(
-            "".join(code[decorator.end_lineno :])
-        ).strip()
-    except (IndexError, AttributeError) as e:
-        raise ValueError("Unexpected usage (expected decorated class)") from e
-
-    source_position = None
-    if not anonymous_file:
-        source_position = get_class_position(
-            cls,
-            lnum + decorator.end_lineno - 1,  # Scrub the decorator
-            0,
-        )
-
-    cell = compile_cell(
-        cell_code,
-        cell_id=cell_id,
-        source_position=source_position,
-        test_rewrite=test_rewrite,
-    )
-    return Cell(
-        _name=cls.__name__,
-        _cell=cell,
-        _test_allowed=cell._test or cls.__name__.startswith("Test"),
-    )
-
-
 def toplevel_cell_factory(
-    f: Callable[..., Any],
+    obj: Cls | Callable[..., Any],
     cell_id: CellId_t,
     anonymous_file: bool = False,
     test_rewrite: bool = False,
@@ -431,7 +362,7 @@ def toplevel_cell_factory(
     NB: Unlike cell_factory, this utilizes the function itself as the cell
     definition. As such, signature and return type are important.
     """
-    code, lnum = inspect.getsourcelines(f)
+    code, lnum = inspect.getsourcelines(obj)
     function_code = textwrap.dedent("".join(code))
 
     # We need to scrub through the initial decorator. Since we don't care about
@@ -452,7 +383,7 @@ def toplevel_cell_factory(
     source_position = None
     if not anonymous_file:
         source_position = get_source_position(
-            f,
+            obj,
             lnum + decorator.end_lineno - 1,  # Scrub the decorator
             0,
         )
@@ -463,10 +394,14 @@ def toplevel_cell_factory(
         source_position=source_position,
         test_rewrite=test_rewrite,
     )
+    if isinstance(obj, Cls):
+        is_test = obj.__name__.startswith("Test")
+    else:
+        is_test = obj.__name__.startswith("test_")
     return Cell(
-        _name=f.__name__,
+        _name=obj.__name__,
         _cell=cell,
-        _test_allowed=cell._test or f.__name__.startswith("test_"),
+        _test_allowed=cell._test or is_test,
     )
 
 
