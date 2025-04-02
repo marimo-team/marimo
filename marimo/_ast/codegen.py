@@ -9,7 +9,7 @@ import os
 import re
 import sys
 import textwrap
-from typing import Any, Literal, Optional, TypeAlias, cast
+from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
@@ -20,6 +20,11 @@ from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.visitor import Name
 from marimo._config.manager import get_default_config_manager
 from marimo._types.ids import CellId_t
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 Cls: TypeAlias = type
 

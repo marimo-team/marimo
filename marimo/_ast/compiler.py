@@ -7,10 +7,11 @@ import io
 import linecache
 import os
 import re
+import sys
 import textwrap
 import token as token_types
 from tokenize import TokenInfo, tokenize
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -25,6 +26,11 @@ from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
