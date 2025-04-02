@@ -503,6 +503,7 @@ def edit(
     type=bool,
     help=sandbox_message,
 )
+@click.argument("prompt", required=False)
 def new(
     port: Optional[int],
     host: str,
@@ -512,6 +513,7 @@ def new(
     token_password: Optional[str],
     base_url: str,
     sandbox: Optional[bool],
+    prompt: Optional[str],
 ) -> None:
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -520,8 +522,27 @@ def new(
         run_in_sandbox(sys.argv[1:], None, additional_features=["lsp"])
         return
 
+    file_router: Optional[AppFileRouter] = None
+    if prompt:
+        import tempfile
+
+        from marimo._ai.text_to_notebook import text_to_notebook
+
+        try:
+            notebook_content = text_to_notebook(prompt)
+            temp_file = tempfile.NamedTemporaryFile(suffix=".py")
+            Path(temp_file.name).write_text(notebook_content, encoding="utf-8")
+            file_router = AppFileRouter.infer(temp_file.name)
+        except Exception as e:
+            raise click.ClickException(
+                f"Failed to generate notebook: {str(e)}"
+            ) from e
+
+    if file_router is None:
+        file_router = AppFileRouter.new_file()
+
     start(
-        file_router=AppFileRouter.new_file(),
+        file_router=file_router,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
