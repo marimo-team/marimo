@@ -38,7 +38,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
 Cls: TypeAlias = type
-Obj : TypeAlias = "Cls | Fn[P, R]"
+Obj: TypeAlias = "Cls | Fn[P, R]"
 
 
 class CellManager:
