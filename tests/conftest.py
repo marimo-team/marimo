@@ -633,7 +633,7 @@ def app() -> Generator[App, None, None]:
 
 # A pytest hook to fail when raw marimo cells are not collected.
 # Meta testing gets a little messy, and may leave you a little testy. This is
-# increasingly coupled with the the following specific tests that test testing:
+# increasingly coupled with the following specific tests that test testing:
 # _ast/
 #    ./test_pytest
 #    ./test_pytest_toplevel
