@@ -1,0 +1,3 @@
+.table-container {
+  @apply rounded-md border overflow-hidden;
+}

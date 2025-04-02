@@ -36,6 +36,7 @@ import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
+import "./tables.css";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -186,7 +187,7 @@ const DataTableInternal = <TData,>({
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
-      <div className={cn(className || "rounded-md border overflow-hidden")}>
+      <div className={cn(className || "table-container")}>
         {onSearchQueryChange && enableSearch && (
           <SearchBar
             value={searchQuery || ""}
