@@ -174,6 +174,11 @@ class TestConsoleOutputWorker:
             # Use a longer timeout to ensure the message is processed
             time.sleep(TIMEOUT_S * 5)
 
+            for _ in range(10):
+                time.sleep(0.1)
+                if len(stream.messages) == 1:
+                    break
+
             # Check that the message was written to the stream
             assert len(stream.messages) == 1
             assert stream.messages[0][1]["console"]["data"] == "Hello"
