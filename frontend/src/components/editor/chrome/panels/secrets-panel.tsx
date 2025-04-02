@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import { KeyIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, KeyIcon, PlusIcon } from "lucide-react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Spinner } from "@/components/icons/spinner";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -217,7 +217,7 @@ export const SecretsPanel: React.FC = () => {
           <PlusIcon className="h-4 w-4" />
         </button>
       </div>
-      <Table className="overflow-auto flex-1">
+      <Table className="overflow-auto flex-1 mb-16">
         <TableHeader>
           <TableRow>
             <TableHead>Environment Variable</TableHead>
@@ -238,9 +238,9 @@ export const SecretsPanel: React.FC = () => {
                   )}
                 </TableCell>
                 <TableCell>
-                  <button
-                    type="button"
-                    onClick={async () => {
+                  <CopyButton
+                    ariaLabel={`Copy ${key}`}
+                    onCopy={async () => {
                       await copyToClipboard(`os.environ["${key}"]`);
                       toast({
                         title: "Copied to clipboard",
@@ -251,9 +251,7 @@ export const SecretsPanel: React.FC = () => {
                       "float-right px-2 h-full text-xs text-muted-foreground hover:text-foreground",
                       "invisible group-hover:visible",
                     )}
-                  >
-                    Copy
-                  </button>
+                  />
                 </TableCell>
               </TableRow>
             ));
@@ -261,5 +259,34 @@ export const SecretsPanel: React.FC = () => {
         </TableBody>
       </Table>
     </div>
+  );
+};
+
+const CopyButton: React.FC<{
+  className?: string;
+  ariaLabel: string;
+  onCopy: () => void;
+}> = ({ className, ariaLabel, onCopy }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    onCopy();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
+
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={handleCopy}
+      aria-label={ariaLabel}
+    >
+      {copied ? (
+        <CheckIcon className="w-3 h-3 text-green-700 rounded" />
+      ) : (
+        <CopyIcon className="w-3 h-3 hover:bg-muted rounded" />
+      )}
+    </button>
   );
 };

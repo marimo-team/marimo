@@ -82,7 +82,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.Database,
         # Secrets
         secrets_models.SecretKeysWithProvider,
-        secrets_models.CreateSecretRequest,
+        secrets.CreateSecretRequest,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,

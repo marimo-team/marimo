@@ -174,6 +174,53 @@ def test_write_secret(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         )
 
 
+def test_write_invalid_secret(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("EXISTING_SECRET=value")
+
+    config = MarimoConfig(
+        runtime={
+            "dotenv": [str(env_file)],
+        }
+    )
+
+    # Empty key
+    with pytest.raises(AssertionError):
+        write_secret(
+            CreateSecretRequest(
+                key="",
+                value="new_env_value",
+                provider="dotenv",
+                name=".env",
+            ),
+            config,
+        )
+
+    # Empty value
+    with pytest.raises(AssertionError):
+        write_secret(
+            CreateSecretRequest(
+                key="NEW_SECRET",
+                value="",
+                provider="dotenv",
+                name=".env",
+            ),
+            config,
+        )
+
+    # Key with whitespace
+    with pytest.raises(ValueError):
+        write_secret(
+            CreateSecretRequest(
+                key="NEW SECRET",
+                value="new_env_value",
+                provider="dotenv",
+                name=".env",
+            ),
+            config,
+        )
+
+
 def test_write_secret_multiple_dotenv(tmp_path: Path):
     # Create two .env files
     env_file1 = tmp_path / ".env1"
