@@ -303,7 +303,7 @@ def construct_uv_command(
     )
 
     with tempfile.NamedTemporaryFile(
-        mode="w", delete=False, suffix=".txt"
+        mode="w", encoding="utf-8", delete=False, suffix=".txt"
     ) as temp_file:
         temp_file.write("\n".join(dependencies))
         temp_file_path = temp_file.name
