@@ -62,14 +62,14 @@ class ClickhouseEmbedded(SQLEngine):
 
         # TODO: this will fail weirdly / silently when there is another connection
 
+        # Do not catch exceptions here or it may silently fail
         if self._cursor:
-            try:
-                self._cursor.execute(query)
-                rows = self._cursor.fetchall()
-                return pd.DataFrame(rows)
-            except Exception:
-                LOGGER.exception("Failed to execute query")
-                return None
+            self._cursor.execute(query)
+            rows = self._cursor.fetchall()
+            col_names = self._cursor.column_names()
+            # col_types = self._cursor.column_types()
+
+            return pd.DataFrame(rows, columns=col_names)
 
         try:
             result = chdb.query(query, "Dataframe")
