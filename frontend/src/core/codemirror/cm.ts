@@ -68,6 +68,7 @@ import { aiExtension } from "@marimo-team/codemirror-ai";
 import { getFeatureFlag } from "../config/feature-flag";
 import type { CodemirrorCellActions } from "./cells/state";
 import { cellConfigExtension } from "./config/extension";
+import { completionKeymap } from "./completion/keymap";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -191,6 +192,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     copilotBundle(completionConfig),
     foldGutter(),
     closeBrackets(),
+    completionKeymap(),
     // to avoid clash with charDeleteBackward keymap
     Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),

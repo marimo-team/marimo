@@ -150,6 +150,9 @@ export class PythonLanguageAdapter implements LanguageAdapter {
   ): Extension[] {
     const getCompletionsExtension = () => {
       const autocompleteOptions = {
+        // We remove the default keymap because we use our own which
+        // handles the Escape key correctly in Vim
+        defaultKeymap: false,
         // Whether or not to require keypress to activate autocompletion (default
         // keymap is Ctrl+Space)
         activateOnTyping: completionConfig.activate_on_typing,
