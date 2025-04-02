@@ -1,4 +1,11 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.10.1",
+#     "numpy==2.2.4",
+# ]
+# ///
 
 import marimo
 
