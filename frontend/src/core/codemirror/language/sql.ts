@@ -177,6 +177,9 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         dialect: StandardSQL,
       }),
       autocompletion({
+        // We remove the default keymap because we use our own which
+        // handles the Escape key correctly in Vim
+        defaultKeymap: false,
         activateOnTyping: true,
       }),
       StandardSQL.language.data.of({
