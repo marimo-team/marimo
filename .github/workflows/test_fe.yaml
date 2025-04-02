@@ -73,6 +73,13 @@ jobs:
       - name: 🧪 Test
         run: pnpm test
 
+      - name: 🔍 Check pinned deps
+        run: |
+          if ! grep -q '"react-hook-form": "7.54.2"' package.json; then
+            echo "Error: react-hook-form version in package.json must be exactly 7.54.2. As it breaks mo.ui.dataframe"
+            exit 1
+          fi
+
       - name: 📦 Build
         run: pnpm turbo build
         env:
