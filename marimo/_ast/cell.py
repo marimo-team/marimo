@@ -655,8 +655,12 @@ class Cell:
         #
         # pytest is an exception here, since it enables testing directly on
         # notebooks, and the graph will be executed if needed.
-        if argc == call_argc == actual_count and (
-            is_pytest or all(name in call_args for name in arg_names)
+        if argc == call_argc and (
+            is_pytest
+            or (
+                all(name in call_args for name in arg_names)
+                and argc == actual_count
+            )
         ):
             # Function invoked successfully, but let the user know there is a
             # mismatch in the signature.

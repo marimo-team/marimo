@@ -154,7 +154,11 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["f"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "f": [VariableData(kind="function", required_refs={"x"})]
+        "f": [
+            VariableData(
+                kind="function", required_refs={"x"}, unbounded_refs=set()
+            )
+        ]
     }
 
     expr = "class F(): x = x"
@@ -164,7 +168,11 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["F"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "F": [VariableData(kind="class", required_refs={"x"})]
+        "F": [
+            VariableData(
+                kind="class", required_refs={"x"}, unbounded_refs={"x"}
+            )
+        ]
     }
 
     expr = "{x: x}"
