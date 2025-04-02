@@ -33,5 +33,11 @@ def test_add_bad(a, b, c):
     assert add(a, b) == c
 
 
+@app.class_definition
+class TestClassWorks:
+    def test_sanity(self):
+        assert True
+
+
 if __name__ == "__main__":
     app.run()

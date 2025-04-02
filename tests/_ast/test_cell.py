@@ -1,10 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
+import os
+import sys
 from collections.abc import Awaitable
 
 import pytest
 
+from marimo import _loggers
 from marimo._ast.app import App
 from marimo._ast.cell import CellConfig
 
@@ -215,6 +219,67 @@ class TestCellRun:
         assert h(1) == 2
         assert multiple() == (0, 1)
         assert unhashable_defined() == {0, 1, 2}
+
+    @staticmethod
+    def test_direct_call_with_global() -> None:
+        old = os.environ.pop("PYTEST_CURRENT_TEST")
+        old_version = os.environ.pop("PYTEST_VERSION")
+        try:
+            if "cell_data.named_cells" in sys.modules:
+                del sys.modules["cell_data.named_cells"]
+            from cell_data.named_cells import called_with_global
+
+            # NB. depends on a variable `a` defined on module level.
+            assert called_with_global(1) == 2
+            assert called_with_global(x=1) == 2
+
+            # Raise errors
+            with pytest.raises(TypeError) as e:
+                called_with_global(1, 1)
+
+            with pytest.raises(TypeError) as e:
+                called_with_global(x=1, a=1)
+            assert "unexpected argument" in str(e.value)
+
+            with pytest.raises(TypeError) as e:
+                called_with_global(a=1)
+            assert "unexpected argument" in str(e.value)
+
+        finally:
+            os.environ["PYTEST_CURRENT_TEST"] = old
+            os.environ["PYTEST_VERSION"] = old_version
+
+    @staticmethod
+    def test_mismatch_args(app, caplog) -> None:
+        # poor practice, but possible cell.
+        @app.cell
+        def basic(lots, of_, incorrect, args):  # noqa: ARG001
+            1  # noqa: B018
+            return
+
+        assert basic.run() == (1, {})
+        assert len(caplog.records) == 0
+        with caplog.at_level(logging.WARNING):
+            _loggers.marimo_logger().propagate = True
+            assert basic() == 1
+        assert len(caplog.records) == 1
+        assert "signature" in caplog.text
+
+    @staticmethod
+    def test_direct_cyclic_call(app) -> None:
+        # poor practice, but possible cell.
+        @app.cell
+        def cyclic():
+            a = 1
+            if False:
+                a = b  # noqa: F821
+            else:
+                b = a
+            b  # noqa: B018
+            return
+
+        assert cyclic.run() == (1, {"a": 1, "b": 1})
+        assert cyclic() == 1
 
 
 def help_smoke() -> None:

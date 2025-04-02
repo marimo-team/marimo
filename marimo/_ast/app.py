@@ -68,10 +68,10 @@ if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
-
 P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
+Cls: TypeAlias = type
 LOGGER = _loggers.marimo_logger()
 
 
@@ -372,7 +372,7 @@ class App:
         hide_code: bool = False,
         **kwargs: Any,
     ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
-        """A decorator to wrap a callable function into a cell in the app.
+        """A decorator to wrap a callable function into a marimo cell.
 
         This decorator can be called with or without parentheses. Each of the
         following is valid:
@@ -406,6 +406,61 @@ class App:
             Union[Fn[P, R], Callable[[Fn[P, R]], Fn[P, R]]],
             self._cell_manager.cell_decorator(
                 func,
+                column,
+                disabled,
+                hide_code,
+                app=InternalApp(self),
+                top_level=True,
+            ),
+        )
+
+    @overload
+    def class_definition(self, cls: Cls) -> Cls: ...
+
+    @overload
+    def class_definition(self, **kwargs: Any) -> Callable[[Cls], Cls]: ...
+
+    def class_definition(
+        self,
+        cls: Cls | None = None,
+        *,
+        column: Optional[int] = None,
+        disabled: bool = False,
+        hide_code: bool = False,
+        **kwargs: Any,
+    ) -> Cls | Callable[[Cls], Cls]:
+        """A decorator to wrap a class into a marimo cell.
+
+        This decorator can be called with or without parentheses. Each of the
+        following is valid:
+
+        ```
+        @app.class_definition
+        class MyClass: ...
+
+
+        @app.class_definition()
+        class TestClass: ...
+
+
+        @app.class_definition(disabled=True)
+        @dataclasses.dataclass
+        class MyStruct: ...
+        ```
+
+        Args:
+            cls: The decorated class.
+            column: The column number to place this cell in.
+            disabled: Whether to disable the cell.
+            hide_code: Whether to hide the cell's code.
+            **kwargs: For forward-compatibility with future arguments.
+        """
+        del kwargs
+
+        return cast(
+            Union[Cls, Callable[[Cls], Cls]],
+            self._cell_manager.cell_decorator(
+                cls,
                 column,
                 disabled,
                 hide_code,

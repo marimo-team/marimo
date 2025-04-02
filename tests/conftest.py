@@ -632,6 +632,12 @@ def app() -> Generator[App, None, None]:
 
 
 # A pytest hook to fail when raw marimo cells are not collected.
+# Meta testing gets a little messy, and may leave you a little testy. This is
+# increasingly coupled with the following specific tests that test testing:
+# _ast/
+#    ./test_pytest
+#    ./test_pytest_toplevel
+#    ./test_pytest_scoped
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
     report = runner.pytest_make_collect_report(collector)
@@ -669,13 +675,20 @@ def pytest_make_collect_report(collector):
             if len(classes) == 0:
                 report.outcome = "failed"
                 report.longrepr = (
-                    f"Expected class in {collector.path}, found none."
+                    f"Expected class in {collector.path}, found none "
+                    " (tests/conftest.py)."
                 )
                 return report
         for cls in classes:
-            if not cls.startswith("MarimoTestBlock"):
+            if not (
+                cls.startswith("MarimoTestBlock") or cls == "TestClassWorks"
+            ):
                 report.outcome = "failed"
-                report.longrepr = f"Unknown class '{cls}' in {collector.path}"
+                report.longrepr = (
+                    f"Unknown class '{cls}' in {collector.path}"
+                    " (tests/conftest.py)."
+                )
+
                 return report
 
         # Check the functions match cells in the app.
@@ -688,5 +701,6 @@ def pytest_make_collect_report(collector):
             report.outcome = "failed"
             report.longrepr = (
                 f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+                " (tests/conftest.py)."
             )
     return report

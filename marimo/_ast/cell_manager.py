@@ -37,6 +37,8 @@ if TYPE_CHECKING:
 P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
+Cls: TypeAlias = type
+Obj: TypeAlias = "Cls | Fn[P, R]"
 
 
 class CellManager:
@@ -87,29 +89,31 @@ class CellManager:
     # TODO: maybe remove this, it is leaky
     def cell_decorator(
         self,
-        func: Fn[P, R] | None,
+        obj: Obj[P, R] | None,
         column: Optional[int],
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
         *,
         top_level: bool = False,
-    ) -> Cell | Fn[P, R] | Callable[[Fn[P, R]], Cell | Fn[P, R]]:
+    ) -> Cell | Obj[P, R] | Callable[[Obj[P, R]], Cell | Obj[P, R]]:
         """Create a cell decorator for marimo notebook cells."""
         cell_config = CellConfig(
             column=column, disabled=disabled, hide_code=hide_code
         )
 
-        def _register(func: Fn[P, R]) -> Cell | Fn[P, R]:
+        def _register(obj: Obj[P, R]) -> Cell | Obj[P, R]:
             # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
             # order to allow execution during test collection.
             is_top_level_pytest = (
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
             )
-            factory = toplevel_cell_factory if top_level else cell_factory
+            factory: Callable[..., Cell] = (
+                toplevel_cell_factory if top_level else cell_factory
+            )
             cell = factory(
-                func,
+                obj,
                 cell_id=self.create_cell_id(),
                 anonymous_file=app._app._anonymous_file if app else False,
                 test_rewrite=is_top_level_pytest
@@ -120,24 +124,24 @@ class CellManager:
 
             # Top level functions are exposed as the function itself.
             if top_level:
-                return func
+                return obj
 
             # Manually set the signature for pytest.
             if is_top_level_pytest:
                 # NB. in place metadata update.
-                process_for_pytest(func, cell)
+                process_for_pytest(obj, cell)
             return cell
 
-        if func is None:
+        if obj is None:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
             # argument
-            def decorator(func: Fn[P, R]) -> Cell | Fn[P, R]:
-                return _register(func)
+            def decorator(obj: Obj[P, R]) -> Cell | Obj[P, R]:
+                return _register(obj)
 
             return decorator
         else:
-            return _register(func)
+            return _register(obj)
 
     def cell_context(
         self,
