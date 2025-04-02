@@ -5,7 +5,7 @@ import datetime
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Optional
+from typing import Optional, cast
 
 from marimo import __version__
 from marimo._cli.print import bold, green, muted
@@ -16,11 +16,11 @@ from marimo._config.cli_state import (
 from marimo._server.utils import print_
 
 TERMS = """
-Before using marimo's Text-To-Notebook AI feature, you must accept the following terms:
+Before using marimo's Text-To-Notebook AI feature, you should know:
 
 1. Your prompt will be sent to marimo's API at `https://ai.marimo.app/`
 2. The API uses OpenAI/Anthropic's models to convert your prompt into a notebook
-3. Your prompt is securely stored for caching and service improvement purposes
+3. Your prompt is securely stored for caching purposes (fast response times)
 4. No personal data beyond the prompt itself is collected
 5. You can revoke consent at any time by modifying ~/.marimo/state.toml
 """
@@ -74,7 +74,7 @@ def text_to_notebook(prompt: str) -> str:
         req = urllib.request.Request(url, headers=headers)
 
         with urllib.request.urlopen(req) as response:
-            result = response.read().decode()
+            result = response.read().decode("utf-8")  # type: ignore[attr-defined]
 
         print_(green("Notebook generated successfully."))
 
@@ -84,7 +84,7 @@ def text_to_notebook(prompt: str) -> str:
                 "Invalid response from API: missing 'marimo.App' key"
             )
 
-        return result
+        return cast(str, result)
 
     except Exception as e:
         raise RuntimeError(f"Failed to generate notebook: {str(e)}") from e
