@@ -75,10 +75,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
     # querying pypi is +250kb and there is not a better API
     # this endpoint just returns the version
     # so we only use pypi in tests
-    is_test = (
-        os.environ.get("MARIMO_PYTEST_HOME_DIR") is not None
-        or os.environ.get("PYTEST_CURRENT_TEST") is not None
-    )
+    is_test = os.environ.get("MARIMO_PYTEST_HOME_DIR") is not None
     if is_test:
         api_url = "https://pypi.org/pypi/marimo/json"
     else:
