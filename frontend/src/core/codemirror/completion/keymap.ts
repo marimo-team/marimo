@@ -6,11 +6,25 @@ import {
   completionKeymap as defaultCompletionKeymap,
 } from "@codemirror/autocomplete";
 import { keymap } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 
 export function completionKeymap(): Extension {
   const withoutEscape = defaultCompletionKeymap.filter(
     (binding) => binding.key !== "Escape",
   );
+
+  const closeCompletionIfActive = (view: EditorView) => {
+    const status = completionStatus(view.state);
+    if (status === "pending") {
+      closeCompletion(view);
+      // Return false to propagate the Escape key
+      return false;
+    }
+    // Use the default behavior: when the completion is Active
+    // Return true to stop propagation of the Escape key
+    return closeCompletion(view);
+  };
+
   return Prec.highest(
     keymap.of([
       ...withoutEscape,
@@ -25,17 +39,7 @@ export function completionKeymap(): Extension {
       // When the completion is Active, we just want to close the completion.
       {
         key: "Escape",
-        run: (view) => {
-          const status = completionStatus(view.state);
-          if (status === "pending") {
-            closeCompletion(view);
-            // Return false to propagate the Escape key
-            return false;
-          }
-          // Use the default behavior: when the completion is Active
-          // Return true to stop propagation of the Escape key
-          return closeCompletion(view);
-        },
+        run: closeCompletionIfActive,
       },
     ]),
   );
