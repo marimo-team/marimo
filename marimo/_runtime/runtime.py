@@ -229,7 +229,7 @@ def query_params() -> QueryParams:
         Keep the text input in sync with the URL query parameters:
 
         ```python3
-        # In it's own cell
+        # In its own cell
         query_params = mo.query_params()
 
         # In another cell
