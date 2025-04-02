@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -27,7 +28,7 @@ class SecretProvider(ABC):
         pass
 
     @abstractmethod
-    def set_key(self, key: str, value: str) -> None:
+    def write_key(self, key: str, value: str) -> None:
         pass
 
     @abstractmethod

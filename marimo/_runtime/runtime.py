@@ -120,6 +120,7 @@ from marimo._runtime.requests import (
     PreviewDatasetColumnRequest,
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
+    RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -2036,6 +2037,9 @@ class Kernel:
         handler.register(
             ListSecretKeysRequest, self.secrets_callbacks.list_secrets
         )
+        handler.register(
+            RefreshSecretsRequest, self.secrets_callbacks.refresh_secrets
+        )
 
         return handler
 
@@ -2238,6 +2242,10 @@ class SecretsCallbacks:
         SecretKeysResult(
             request_id=request.request_id, secrets=secrets
         ).broadcast()
+
+    async def refresh_secrets(self, request: RefreshSecretsRequest) -> None:
+        del request
+        self._kernel.load_dotenv()
 
 
 class PackagesCallbacks:

@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,10 +16,14 @@ class CreateSecretRequest:
     key: str
     value: str
     provider: SecretProviderType
+    name: str
 
     def __post_init__(self) -> None:
         assert len(self.key) > 0, "Key must be non-empty"
         assert len(self.value) > 0, "Value must be non-empty"
+        # Validate key doesn't contain whitespace
+        if any(char.isspace() for char in self.key):
+            raise ValueError("Key cannot contain spaces or whitespace")
 
 
 @dataclass

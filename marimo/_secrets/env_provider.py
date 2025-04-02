@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,7 +20,7 @@ class EnvSecretsProvider(SecretProvider):
     def get_keys(self) -> set[str]:
         return set(self.original_environ.keys())
 
-    def set_key(self, key: str, value: str) -> None:
+    def write_key(self, key: str, value: str) -> None:
         del key, value
         raise NotImplementedError("Cannot set keys for env provider")
 
@@ -42,12 +43,27 @@ class DotEnvSecretsProvider(SecretProvider):
         env_dict = read_dotenv_with_fallback(self.file)
         return set(env_dict.keys())
 
-    def set_key(self, key: str, value: str) -> None:
+    def write_key(self, key: str, value: str) -> None:
         filepath = Path(self.file)
         if not filepath.exists():
-            raise FileNotFoundError(f"File {filepath} does not exist")
+            # If is `.env`, then create it.
+            if filepath.name == ".env":
+                filepath.touch()
+            else:
+                raise FileNotFoundError(f"File {filepath} does not exist")
 
+        with open(filepath, encoding="utf-8") as f:
+            content = f.read()
+
+        # Check if file ends with a newline
+        ends_with_newline = content.endswith("\n")
+
+        # Note: there could be a race condition here, but it's unlikely
         with open(filepath, "a", encoding="utf-8") as f:
+            # Add a newline if the file doesn't end with one
+            if content and not ends_with_newline:
+                f.write("\n")
+
             # Escape quotes in value if needed
             escaped_value = value.replace('"', '\\"')
             f.write(f'{key}="{escaped_value}"\n')

@@ -333,6 +333,11 @@ class ListSecretKeysRequest:
     request_id: RequestId
 
 
+@dataclass
+class RefreshSecretsRequest:
+    pass
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -350,4 +355,5 @@ ControlRequest = Union[
     PreviewSQLTableRequest,
     PreviewSQLTableListRequest,
     ListSecretKeysRequest,
+    RefreshSecretsRequest,
 ]

@@ -6,10 +6,15 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo import _loggers
-from marimo._runtime.requests import ListSecretKeysRequest
+from marimo._runtime.requests import (
+    ListSecretKeysRequest,
+    RefreshSecretsRequest,
+)
+from marimo._secrets.secrets import write_secret
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import BaseResponse, SuccessResponse
+from marimo._server.models.secrets import CreateSecretRequest
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
 
@@ -53,6 +58,12 @@ async def list_keys(request: Request) -> SuccessResponse:
 @requires("edit")
 async def create_secret(request: Request) -> BaseResponse:
     """
+    requestBody:
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/CreateSecretRequest"
     responses:
         200:
             description: Create a secret
@@ -61,8 +72,19 @@ async def create_secret(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/BaseResponse"
     """
-    del request
-    raise NotImplementedError("Not implemented")
+    body = await parse_request(request, cls=CreateSecretRequest)
+    app_state = AppState(request)
+    session_id = app_state.require_current_session_id()
+
+    # Write to the provider
+    write_secret(body, app_state.config_manager.get_config(hide_secrets=False))
+
+    # Refresh the secrets
+    app_state.require_current_session().put_control_request(
+        RefreshSecretsRequest(),
+        from_consumer_id=ConsumerId(session_id),
+    )
+    return SuccessResponse(success=True)
 
 
 @router.post("/delete")
