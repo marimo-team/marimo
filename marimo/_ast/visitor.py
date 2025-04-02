@@ -400,19 +400,19 @@ class ScopedVisitor(ast.NodeVisitor):
             # inside. Python runs the ClassDef body on definition and anything
             # defined in the scope gets added to the class.
             mock_module = ast.Module(body=mock.body, type_ignores=[])
-            mock_vistor = ScopedVisitor(self.id)
-            mock_vistor.visit(mock_module)
+            mock_visitor = ScopedVisitor(self.id)
+            mock_visitor.visit(mock_module)
             # The unbounded defs are carried from the recursive visitor
             # excluding all references found in exclusively in scope.
             ignore_refs = set()
-            for var in mock_vistor.variable_data:
-                for data in mock_vistor.variable_data[var]:
+            for var in mock_visitor.variable_data:
+                for data in mock_visitor.variable_data[var]:
                     if data.kind in ("function", "class"):
                         unbounded_refs |= data.unbounded_refs
                         ignore_refs |= data.required_refs
                     else:
                         unbounded_refs |= data.required_refs
-                unbounded_refs |= mock_vistor.refs - ignore_refs
+                unbounded_refs |= mock_visitor.refs - ignore_refs
 
         # Handle function/class refs that are evaluated in the outer scope
         # Remove the body, which keeps signature and non-scoped parts.
