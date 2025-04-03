@@ -46,11 +46,12 @@ def test_read_toml_valid() -> None:
 def test_write_toml_valid() -> None:
     with NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
         config = ConfigReader(f.name)
-        config.write_toml(TestConfig(value="test"))
+        written = TestConfig(value="test", nullable_value="value")
+        config.write_toml(written)
 
         fallback = TestConfig(value="fallback")
         result = config.read_toml(TestConfig, fallback=fallback)
-        assert result == TestConfig(value="test")
+        assert result == written
 
     os.unlink(f.name)
 
