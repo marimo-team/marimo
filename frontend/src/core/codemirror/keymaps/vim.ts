@@ -72,6 +72,7 @@ export function vimKeymapExtension(): Extension[] {
           const vim = cm.state.vim;
           if (vim.insertMode) {
             Vim.exitInsertMode(cm, true);
+            return true;
           }
           return false;
         },
