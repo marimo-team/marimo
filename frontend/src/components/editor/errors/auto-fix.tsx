@@ -11,7 +11,7 @@ import { LightbulbIcon } from "lucide-react";
 export const AutoFixButton = ({
   errors,
   cellId,
-}: { errors: MarimoError[]; cellId: CellId }) => {
+}: { errors: MarimoError[]; cellId: CellId; className?: string }) => {
   const { createNewCell } = useCellActions();
   const autoFixes = errors.flatMap((error) => getAutoFixes(error));
 
@@ -27,7 +27,8 @@ export const AutoFixButton = ({
     <Tooltip content={firstFix.description} align="start">
       <Button
         size="xs"
-        variant="secondary"
+        variant="outline"
+        className="my-2 font-normal"
         onClick={() => {
           const editorView =
             store.get(notebookAtom).cellHandles[cellId].current?.editorView;

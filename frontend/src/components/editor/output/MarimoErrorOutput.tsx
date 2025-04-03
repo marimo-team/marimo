@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { cn } from "../../../utils/cn";
-import { logNever } from "../../../utils/assertNever";
 import type { MarimoError } from "../../../core/kernel/messages";
 import { Alert } from "../../ui/alert";
 import { AlertTitle } from "../../ui/alert";
@@ -18,22 +17,6 @@ import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";
 
 const Tip = (props: {
-  className?: string;
-  children: React.ReactNode;
-}): JSX.Element => {
-  return (
-    <Accordion type="single" collapsible={true} className={props.className}>
-      <AccordionItem value="item-1" className="text-muted-foreground">
-        <AccordionTrigger className="pt-4 pb-2">Tip</AccordionTrigger>
-        <AccordionContent className="mr-24 text-[0.84375rem]">
-          {props.children}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
-};
-
-const Explainer = (props: {
   title?: string;
   className?: string;
   children: React.ReactNode;
@@ -41,8 +24,8 @@ const Explainer = (props: {
   return (
     <Accordion type="single" collapsible={true} className={props.className}>
       <AccordionItem value="item-1" className="text-muted-foreground">
-        <AccordionTrigger className="pt-4 pb-2">
-          {props.title ?? "Learn more"}
+        <AccordionTrigger className="pt-2 pb-2 font-normal">
+          {props.title ?? "Tip"}
         </AccordionTrigger>
         <AccordionContent className="mr-24 text-[0.84375rem]">
           {props.children}
@@ -68,193 +51,356 @@ export const MarimoErrorOutput = ({
 }: Props): JSX.Element => {
   let titleContents = "This cell wasn't run because it has errors";
   let alertVariant: "destructive" | "default" = "destructive";
-  let textColor = "text-error";
+  let titleColor = "text-error";
   const liStyle = "my-0.5 ml-8 text-muted-foreground/40";
-  const msgs = errors.map((error, idx) => {
-    switch (error.type) {
-      case "syntax":
-      case "unknown":
-        return <p key={idx}>{error.msg}</p>;
 
-      case "cycle":
-        return (
-          <Fragment key={idx}>
-            <p className="text-muted-foreground">
-              {"This cell is in a cycle:"}
-            </p>
-            <ul className="list-disc">
-              {error.edges_with_vars.map((edge) => (
-                <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
+  // Check for certain error types to adjust title and appearance
+  if (errors.some((e) => e.type === "interruption")) {
+    titleContents = "Interrupted";
+  } else if (errors.some((e) => e.type === "internal")) {
+    titleContents = "An internal error occurred";
+  } else if (errors.some((e) => e.type === "ancestor-prevented")) {
+    titleContents = "Ancestor prevented from running";
+    alertVariant = "default";
+    titleColor = "text-muted-foreground";
+    titleColor = "text-secondary-foreground";
+  } else if (errors.some((e) => e.type === "ancestor-stopped")) {
+    titleContents = "Ancestor stopped";
+    alertVariant = "default";
+    titleColor = "text-secondary-foreground";
+  } else {
+    // Check for exception type
+    const exceptionError = errors.find((e) => e.type === "exception");
+    if (exceptionError && "exception_type" in exceptionError) {
+      titleContents = exceptionError.exception_type;
+    }
+  }
+
+  // Group errors by type
+  const cycleErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "cycle" }> => e.type === "cycle",
+  );
+  const multipleDefsErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "multiple-defs" }> =>
+      e.type === "multiple-defs",
+  );
+  const importStarErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "import-star" }> =>
+      e.type === "import-star",
+  );
+  const deleteNonlocalErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "delete-nonlocal" }> =>
+      e.type === "delete-nonlocal",
+  );
+  const interruptionErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "interruption" }> =>
+      e.type === "interruption",
+  );
+  const exceptionErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "exception" }> =>
+      e.type === "exception",
+  );
+  const strictExceptionErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "strict-exception" }> =>
+      e.type === "strict-exception",
+  );
+  const internalErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "internal" }> =>
+      e.type === "internal",
+  );
+  const ancestorPreventedErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "ancestor-prevented" }> =>
+      e.type === "ancestor-prevented",
+  );
+  const ancestorStoppedErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "ancestor-stopped" }> =>
+      e.type === "ancestor-stopped",
+  );
+  const syntaxErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "syntax" }> => e.type === "syntax",
+  );
+  const unknownErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
+  );
+
+  const renderMessages = () => {
+    const messages: JSX.Element[] = [];
+
+    if (syntaxErrors.length > 0 || unknownErrors.length > 0) {
+      messages.push(
+        <li key="syntax-unknown">
+          {syntaxErrors.map((error, idx) => (
+            <p key={`syntax-${idx}`}>{error.msg}</p>
+          ))}
+          {unknownErrors.map((error, idx) => (
+            <p key={`unknown-${idx}`}>{error.msg}</p>
+          ))}
+          {cellId && (
+            <AutoFixButton
+              errors={[...syntaxErrors, ...unknownErrors]}
+              cellId={cellId}
+            />
+          )}
+        </li>,
+      );
+    }
+
+    if (cycleErrors.length > 0) {
+      messages.push(
+        <li key="cycle">
+          <p className="text-muted-foreground font-medium">
+            This cell is in a cycle.
+          </p>
+          <ul className="list-disc">
+            {cycleErrors.flatMap((error, errorIdx) =>
+              error.edges_with_vars.map((edge, edgeIdx) => (
+                <li className={liStyle} key={`cycle-${errorIdx}-${edgeIdx}`}>
                   <CellLinkError cellId={edge[0] as CellId} />
                   <span className="text-muted-foreground">
                     {" -> "}
-                    {edge[1].length === 1 ? edge[1] : edge[1].join(", ")}
+                    {edge[1].length === 1 ? edge[1][0] : edge[1].join(", ")}
                     {" -> "}
                   </span>
                   <CellLinkError cellId={edge[2] as CellId} />
                 </li>
-              ))}
-            </ul>
-            <Tip>Merge these cells into a single cell.</Tip>
-          </Fragment>
-        );
+              )),
+            )}
+          </ul>
+          {cellId && <AutoFixButton errors={cycleErrors} cellId={cellId} />}
+          <Tip title="Resolving cycles" className="mb-2">
+            Merge these cells into a single cell.
+          </Tip>
+        </li>,
+      );
+    }
 
-      case "multiple-defs":
-        return (
-          <Fragment key={idx}>
-            <p className="text-muted-foreground">{`The variable '${error.name}' was defined by another cell:`}</p>
-            <ul className="list-disc">
-              {error.cells.map((cid) => (
-                <li className={liStyle} key={cid}>
-                  <CellLinkError cellId={cid as CellId} />
-                </li>
-              ))}
-            </ul>
-            <Tip>
-              <p className="pb-2">
-                marimo requires that each variable is defined in just one cell.
-                This constraint enables reactive and reproducible execution,
-                arbitrary cell reordering, seamless UI elements, execution as a
-                script, and more.
-              </p>
+    if (multipleDefsErrors.length > 0) {
+      messages.push(
+        <li key="multiple-defs">
+          <p className="text-muted-foreground font-medium">
+            This cell redefines variables from other cells.
+          </p>
+          {multipleDefsErrors.map((error, idx) => (
+            <Fragment key={`multiple-defs-${idx}`}>
+              <p className="text-muted-foreground mt-2">{`'${error.name}' was also defined by:`}</p>
+              <ul className="list-disc">
+                {error.cells.map((cid, cidIdx) => (
+                  <li className={liStyle} key={`cell-${cidIdx}`}>
+                    <CellLinkError cellId={cid as CellId} />
+                  </li>
+                ))}
+              </ul>
+            </Fragment>
+          ))}
+          {cellId && (
+            <AutoFixButton errors={multipleDefsErrors} cellId={cellId} />
+          )}
+          <Tip title="Why can't I redefine variables?">
+            <p className="pb-2">
+              marimo requires that each variable is defined in just one cell.
+              This constraint enables reactive and reproducible execution,
+              arbitrary cell reordering, seamless UI elements, execution as a
+              script, and more.
+            </p>
 
-              <p className="py-2">
-                Try merging this cell with the above cells or wrapping it in a
-                function. Alternatively, rename '{error.name}' to '_{error.name}
-                ' to make the variable private to this cell.
-              </p>
-            </Tip>
-          </Fragment>
-        );
+            <p className="py-2">
+              Try merging this cell with the mentioned cells or wrapping it in a
+              function. Alternatively, rename variables to make them private to
+              this cell by prefixing them with an underscore.
+            </p>
+          </Tip>
+        </li>,
+      );
+    }
 
-      case "import-star":
-        return (
-          <Fragment key={idx}>
-            <p className="text-muted-foreground">{error.msg}</p>
+    if (importStarErrors.length > 0) {
+      messages.push(
+        <li key="import-star">
+          {importStarErrors.map((error, idx) => (
+            <p key={`import-star-${idx}`} className="text-muted-foreground">
+              {error.msg}
+            </p>
+          ))}
+          {cellId && (
+            <AutoFixButton errors={importStarErrors} cellId={cellId} />
+          )}
+          <Tip title="Why can't I use `import *`?">
+            <p className="pb-2">
+              Star imports are incompatible with marimo's git-friendly file
+              format and reproducible reactive execution.
+            </p>
 
-            <Explainer>
-              <p className="pb-2">
-                Star imports are incompatible with marimo's git-friendly file
-                format and reproducible reactive execution.
-              </p>
+            <p className="py-2">
+              marimo's Python file format stores code in functions, so notebooks
+              can be imported as regular Python modules without executing all
+              their code. But Python disallows `import *` everywhere except at
+              the top-level of a module.
+            </p>
 
-              <p className="py-2">
-                marimo's Python file format stores code in functions, so
-                notebooks can be imported as regular Python modules without
-                executing all their code. But Python disallows `import *`
-                everywhere except at the top-level of a module.
-              </p>
+            <p className="py-2">
+              Star imports would also silently add names to globals, which would
+              be incompatible with reactive execution.
+            </p>
+          </Tip>
+        </li>,
+      );
+    }
 
-              <p className="py-2">
-                Star imports would also silently add names to globals, which
-                would be incompatible with reactive execution.
-              </p>
-            </Explainer>
-          </Fragment>
-        );
-
-      case "delete-nonlocal":
-        return (
-          <Fragment key={idx}>
-            <div>
+    if (deleteNonlocalErrors.length > 0) {
+      messages.push(
+        <li key="delete-nonlocal">
+          {deleteNonlocalErrors.map((error, idx) => (
+            <div key={`delete-nonlocal-${idx}`}>
               {`The variable '${error.name}' can't be deleted because it was defined by another cell (`}
               <CellLinkError cellId={error.cells[0] as CellId} />
               {")"}
             </div>
-            <Tip>
-              Try refactoring so that you can delete '{error.name}' in the cell
-              that creates it.
-            </Tip>
-          </Fragment>
-        );
-
-      case "interruption":
-        titleContents = "Interrupted";
-        return (
-          <p key={idx}>{"This cell was interrupted and needs to be re-run."}</p>
-        );
-
-      case "exception":
-        titleContents = error.exception_type;
-        return error.raising_cell == null ? (
-          <Fragment key={idx}>
-            <p className="text-muted-foreground">{error.msg}</p>
-            <div className="text-muted-foreground mt-2">
-              See the console area for a traceback.
-            </div>
-          </Fragment>
-        ) : (
-          <div key={idx}>
-            {error.msg}
-            <CellLinkError cellId={error.raising_cell as CellId} />
-            <Tip>
-              Fix the error in{" "}
-              <CellLinkError cellId={error.raising_cell as CellId} />, or handle
-              the exception in with a try/except block.
-            </Tip>
-          </div>
-        );
-      case "strict-exception":
-        return error.blamed_cell == null ? (
-          <Fragment key={idx}>
-            <p>{error.msg}</p>
-            <Tip>
-              Something is wrong with your declaration of `{error.ref}`. Fix any
-              discrepancies, or turn off strict execution.
-            </Tip>
-          </Fragment>
-        ) : (
-          <div key={idx}>
-            {error.msg}
-            <CellLinkError cellId={error.blamed_cell as CellId} />
-            <Tip>
-              Ensure that&nbsp;
-              <CellLinkError cellId={error.blamed_cell as CellId} />
-              &nbsp;defines the variable `{error.ref}`, or turn off strict
-              execution.
-            </Tip>
-          </div>
-        );
-      case "internal":
-        titleContents = "An internal error occurred";
-        return <p key={idx}>{error.msg}</p>;
-
-      case "ancestor-prevented":
-        titleContents = "Ancestor prevented from running";
-        alertVariant = "default";
-        textColor = "text-secondary-foreground";
-        return error.blamed_cell == null ? (
-          <div key={idx}>
-            {error.msg}
-            (<CellLinkError cellId={error.raising_cell as CellId} />)
-          </div>
-        ) : (
-          <div key={idx}>
-            {error.msg}
-            (<CellLinkError cellId={error.raising_cell as CellId} />
-            &nbsp;blames&nbsp;
-            <CellLinkError cellId={error.blamed_cell as CellId} />)
-          </div>
-        );
-      case "ancestor-stopped":
-        titleContents = "Ancestor stopped";
-        alertVariant = "default";
-        textColor = "text-secondary-foreground";
-        return (
-          <div key={idx}>
-            {error.msg}
-            <CellLinkError cellId={error.raising_cell as CellId} />
-          </div>
-        );
-
-      default:
-        logNever(error);
-        return null;
+          ))}
+          {cellId && (
+            <AutoFixButton errors={deleteNonlocalErrors} cellId={cellId} />
+          )}
+          <Tip title="Why can't I delete other cells' variables?">
+            marimo determines how to run your notebook based on variables
+            definitions and references only. When a cell deletes a variable it
+            didn't define, marimo cannot determine an unambiguous execution
+            order. Try refactoring so that you can delete variables in the cells
+            that create them.
+          </Tip>
+        </li>,
+      );
     }
-  });
+
+    if (interruptionErrors.length > 0) {
+      messages.push(
+        <li key="interruption">
+          {interruptionErrors.map((_, idx) => (
+            <p key={`interruption-${idx}`}>
+              {"This cell was interrupted and needs to be re-run."}
+            </p>
+          ))}
+          {cellId && (
+            <AutoFixButton errors={interruptionErrors} cellId={cellId} />
+          )}
+        </li>,
+      );
+    }
+
+    if (exceptionErrors.length > 0) {
+      messages.push(
+        <li key="exception">
+          {exceptionErrors.map((error, idx) => (
+            <li className="my-2" key={`exception-${idx}`}>
+              {error.raising_cell == null ? (
+                <li>
+                  <p className="text-muted-foreground">{error.msg}</p>
+                  <div className="text-muted-foreground mt-2">
+                    See the console area for a traceback.
+                  </div>
+                </li>
+              ) : (
+                <div>
+                  {error.msg}
+                  <CellLinkError cellId={error.raising_cell as CellId} />
+                </div>
+              )}
+            </li>
+          ))}
+          {exceptionErrors.some((e) => e.raising_cell != null) && (
+            <Tip>
+              Fix the error in the mentioned cells, or handle the exceptions
+              with try/except blocks.
+            </Tip>
+          )}
+          {cellId && <AutoFixButton errors={exceptionErrors} cellId={cellId} />}
+        </li>,
+      );
+    }
+
+    if (strictExceptionErrors.length > 0) {
+      messages.push(
+        <li key="strict-exception">
+          {strictExceptionErrors.map((error, idx) => (
+            <li className="my-2" key={`strict-exception-${idx}`}>
+              {error.blamed_cell == null ? (
+                <p>{error.msg}</p>
+              ) : (
+                <div>
+                  {error.msg}
+                  <CellLinkError cellId={error.blamed_cell as CellId} />
+                </div>
+              )}
+            </li>
+          ))}
+          {cellId && (
+            <AutoFixButton errors={strictExceptionErrors} cellId={cellId} />
+          )}
+          <Tip>
+            {strictExceptionErrors.some((e) => e.blamed_cell != null)
+              ? "Ensure that the referenced cells define the required variables, or turn off strict execution."
+              : "Something is wrong with your declarations. Fix any discrepancies, or turn off strict execution."}
+          </Tip>
+        </li>,
+      );
+    }
+
+    if (internalErrors.length > 0) {
+      messages.push(
+        <li key="internal">
+          {internalErrors.map((error, idx) => (
+            <p key={`internal-${idx}`}>{error.msg}</p>
+          ))}
+          {cellId && <AutoFixButton errors={internalErrors} cellId={cellId} />}
+        </li>,
+      );
+    }
+
+    if (ancestorPreventedErrors.length > 0) {
+      messages.push(
+        <li key="ancestor-prevented">
+          {ancestorPreventedErrors.map((error, idx) => (
+            <div key={`ancestor-prevented-${idx}`}>
+              {error.msg}
+              {error.blamed_cell == null ? (
+                <span>
+                  (<CellLinkError cellId={error.raising_cell as CellId} />)
+                </span>
+              ) : (
+                <span>
+                  (<CellLinkError cellId={error.raising_cell as CellId} />
+                  &nbsp;blames&nbsp;
+                  <CellLinkError cellId={error.blamed_cell as CellId} />)
+                </span>
+              )}
+            </div>
+          ))}
+          {cellId && (
+            <AutoFixButton errors={ancestorPreventedErrors} cellId={cellId} />
+          )}
+        </li>,
+      );
+    }
+
+    if (ancestorStoppedErrors.length > 0) {
+      messages.push(
+        <li key="ancestor-stopped">
+          {ancestorStoppedErrors.map((error, idx) => (
+            <div key={`ancestor-stopped-${idx}`}>
+              {error.msg}
+              <CellLinkError cellId={error.raising_cell as CellId} />
+            </div>
+          ))}
+          {cellId && (
+            <AutoFixButton errors={ancestorStoppedErrors} cellId={cellId} />
+          )}
+        </li>,
+      );
+    }
+
+    return messages;
+  };
 
   const title = (
-    <AlertTitle className="font-code font-bold tracking-wide">
+    <AlertTitle className={`font-code font-medium tracking-wide ${titleColor}`}>
       {titleContents}
     </AlertTitle>
   );
@@ -263,15 +409,14 @@ export const MarimoErrorOutput = ({
     <Alert
       variant={alertVariant}
       className={cn(
-        `border-none font-code text-sm text-[0.84375rem] px-0 ${textColor} normal [&:has(svg)]:pl-0 space-y-4`,
+        "border-none font-code text-sm text-[0.84375rem] px-0 text-muted-foreground normal [&:has(svg)]:pl-0 space-y-4",
         className,
       )}
     >
       {title}
       <div>
-        <ul>{msgs}</ul>
+        <ul className="flex flex-col gap-8">{renderMessages()}</ul>
       </div>
-      {cellId && <AutoFixButton errors={errors} cellId={cellId} />}
     </Alert>
   );
 };

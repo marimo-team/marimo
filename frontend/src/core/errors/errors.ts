@@ -19,7 +19,7 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
   if (error.type === "multiple-defs") {
     return [
       {
-        title: "Wrap in a function",
+        title: "Fix: Wrap in a function",
         description:
           "Make this cell's variables local by wrapping the cell in a function.",
         onFix: async (ctx) => {
@@ -48,7 +48,7 @@ export function getAutoFixes(error: MarimoError): AutoFix[] {
 
     return [
       {
-        title: `Add '${cellCode}'`,
+        title: `Fix: Add '${cellCode}'`,
         description: "Add a new cell for the missing import",
         onFix: async (ctx) => {
           ctx.addCodeBelow(cellCode);
