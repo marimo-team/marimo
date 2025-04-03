@@ -338,9 +338,7 @@ def context_cell_factory(
     end_line = end_node.end_lineno + 1
     if start_node == end_node and lines[end_line - 1].strip() == "pass":
         end_line -= 1
-    cell_code = textwrap.dedent(
-        "\n".join(lines[entry_line : end_line])
-    ).rstrip()
+    cell_code = textwrap.dedent("\n".join(lines[entry_line:end_line])).rstrip()
 
     source_position = None
     if not anonymous_file:
