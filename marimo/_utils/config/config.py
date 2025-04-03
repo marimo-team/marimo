@@ -43,8 +43,13 @@ class ConfigReader:
         import tomlkit
 
         _maybe_create_directory(self.filepath)
+
+        dict_data = asdict(data)
+        # None values is not valid toml, so we remove them
+        dict_data = {k: v for k, v in dict_data.items() if v is not None}
+
         with open(self.filepath, "w") as file:
-            tomlkit.dump(asdict(data), file)
+            tomlkit.dump(dict_data, file)
 
     @staticmethod
     def _get_home_directory() -> str:
