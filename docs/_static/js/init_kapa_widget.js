@@ -8,6 +8,14 @@ document.addEventListener("DOMContentLoaded", () => {
   script.setAttribute("data-project-name", "marimo");
   script.setAttribute("data-project-color", "#1c7362");
   script.setAttribute("data-project-logo", "https://marimo.io/logo.png");
+  script.setAttribute(
+    "data-modal-disclaimer",
+    "This is a custom LLM for marimo with access to all [documentation](https://docs.marimo.io) and the [API reference.](https://docs.marimo.io/api/).",
+  );
+  script.setAttribute(
+    "data-modal-example-questions",
+    "How is marimo different from Jupyter?,How can I run my marimo notebook as a script?",
+  );
   script.async = true;
   document.head.appendChild(script);
 });
