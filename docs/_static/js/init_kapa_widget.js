@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   script.setAttribute(
     "data-modal-disclaimer",
-    "This is a custom LLM for marimo with access to all [documentation](https://docs.marimo.io) and the [API reference.](https://docs.marimo.io/api/).",
+    "This is a custom LLM for marimo with access to all [documentation](https://docs.marimo.io) and the [API reference](https://docs.marimo.io/api/).",
   );
   // TODO: Add example questions
   // Currently this makes the styling weird
