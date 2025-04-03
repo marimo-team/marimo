@@ -41,6 +41,7 @@ def home_page_template(
 
     # Add custom CSS from display config
     html = _inject_custom_css_for_config(html, user_config)
+    html = _inject_custom_css_for_config(html, config_overrides)
     return html
 
 
