@@ -16,10 +16,12 @@ document.addEventListener("DOMContentLoaded", () => {
     "data-modal-disclaimer",
     "This is a custom LLM for marimo with access to all [documentation](https://docs.marimo.io) and the [API reference.](https://docs.marimo.io/api/).",
   );
-  script.setAttribute(
-    "data-modal-example-questions",
-    "How is marimo different from Jupyter?,How can I run my marimo notebook as a script?",
-  );
+  // TODO: Add example questions
+  // Currently this makes the styling weird
+  // script.setAttribute(
+  //   "data-modal-example-questions",
+  //   "How is marimo different from Jupyter?,How can I run my marimo notebook as a script?",
+  // );
   script.setAttribute("data-user-analytics-fingerprint-enabled", "true");
   script.async = true;
   document.head.appendChild(script);
