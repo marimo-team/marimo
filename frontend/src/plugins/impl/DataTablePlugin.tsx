@@ -51,6 +51,7 @@ import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
 import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import { specSchema } from "./vega/VegaPlugin";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -63,6 +64,23 @@ interface ColumnSummaries<T = unknown> {
 export type GetRowIds = (opts: {}) => Promise<{
   row_ids: number[];
   all_rows: boolean;
+  error: string | null;
+}>;
+
+export type PlotChart = (req: {
+  chart_type: string;
+  chart_args: {
+    x_column: string;
+    y_column: string;
+    x_axis: {
+      label: string | null;
+    };
+    y_axis: {
+      label: string | null;
+    };
+  };
+}) => Promise<{
+  spec: any;
   error: string | null;
 }>;
 
@@ -112,6 +130,7 @@ type DataTableFunctions = {
     cell_styles?: CellStyleState | null;
   }>;
   get_row_ids?: GetRowIds;
+  plot_chart: PlotChart;
 };
 
 type S = Array<number | string | { rowId: string; columnName?: string }>;
@@ -213,6 +232,27 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         error: z.string().nullable(),
       }),
     ),
+    plot_chart: rpc
+      .input(
+        z.object({
+          chart_type: z.string(),
+          chart_args: z.object({
+            x_column: z.string(),
+            y_column: z.string(),
+            x_axis: z.object({
+              label: z.string().nullable(),
+            }),
+            y_axis: z.object({
+              label: z.string().nullable(),
+            }),
+          }),
+        }),
+      )
+      .output(
+        specSchema.extend({
+          error: z.string().nullable(),
+        }),
+      ),
   })
   .renderer((props) => {
     return (
@@ -502,7 +542,7 @@ export const LoadingDataTableComponent = memo(
       <>
         {errorComponent}
         {transformChartsFeature ? (
-          <TablePanel dataTable={dataTable} />
+          <TablePanel dataTable={dataTable} plotChart={props.plot_chart} />
         ) : (
           dataTable
         )}

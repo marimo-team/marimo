@@ -24,10 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
-import "../tables.css";
 import type { z } from "zod";
 import { useForm } from "react-hook-form";
-import { getDefaults } from "@/components/forms/form-utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LineChartSchema } from "./chart-schemas";
 import {
@@ -37,7 +35,15 @@ import {
   FormField,
   FormItem,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DebouncedInput } from "@/components/ui/input";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import type { PlotChart } from "@/plugins/impl/DataTablePlugin";
+import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
+import { VegaLite } from "react-vega";
+import { resolveVegaSpecData } from "@/plugins/impl/vega/resolve-data";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import "@/plugins/impl/vega/vega.css";
+import { useTheme } from "@/theme/useTheme";
 
 interface AdditionalTab {
   name: string;
@@ -45,10 +51,36 @@ interface AdditionalTab {
   component: JSX.Element;
 }
 
+const Chart = ({ spec }: { spec: VegaLiteSpec }) => {
+  const { data: resolvedSpec, error } = useAsyncData(async () => {
+    return resolveVegaSpecData(spec);
+  }, [spec]);
+
+  const theme = useTheme();
+
+  if (error) {
+    return <ErrorBanner error={error} />;
+  }
+
+  if (!resolvedSpec) {
+    return null;
+  }
+
+  return (
+    <VegaLite
+      spec={resolvedSpec}
+      width={350}
+      theme={theme.theme === "dark" ? "dark" : undefined}
+      actions={true}
+    />
+  );
+};
+
 // todo: change from jsx.element
-export const TablePanel: React.FC<{ dataTable: JSX.Element }> = ({
-  dataTable,
-}) => {
+export const TablePanel: React.FC<{
+  dataTable: JSX.Element;
+  plotChart: PlotChart;
+}> = ({ dataTable, plotChart }) => {
   const [additionalTabs, setAdditionalTabs] = useState<AdditionalTab[]>([]);
 
   const handleAddChart = () => {
@@ -57,7 +89,7 @@ export const TablePanel: React.FC<{ dataTable: JSX.Element }> = ({
       {
         name: "Chart",
         value: "chart",
-        component: <ChartPanel />,
+        component: <ChartPanel plotChart={plotChart} />,
       },
     ]);
   };
@@ -105,9 +137,22 @@ export const TablePanel: React.FC<{ dataTable: JSX.Element }> = ({
   );
 };
 
-export const ChartPanel = () => {
+export const ChartPanel: React.FC<{
+  plotChart: PlotChart;
+}> = ({ plotChart }) => {
   const form = useForm<z.infer<typeof LineChartSchema>>({
-    defaultValues: getDefaults(LineChartSchema),
+    defaultValues: {
+      general: {
+        xColumn: "",
+        yColumn: "",
+      },
+      xAxis: {
+        label: "",
+      },
+      yAxis: {
+        label: "",
+      },
+    },
     resolver: zodResolver(LineChartSchema),
   });
 
@@ -117,8 +162,30 @@ export const ChartPanel = () => {
     form: form,
   });
 
+  const { data, loading, error } = useAsyncData(async () => {
+    const vegaSpec = await plotChart({
+      chart_type: "line",
+      chart_args: {
+        x_column: "peaches",
+        y_column: "quantity",
+        x_axis: chartSelected.form.getValues().xAxis,
+        y_axis: chartSelected.form.getValues().yAxis,
+      },
+    });
+    return vegaSpec;
+  }, [chartSelected.form.getValues()]);
+
+  let chart = null;
+  if (error) {
+    chart = <p>Error plotting chart: {error.message}</p>;
+  } else if (loading) {
+    chart = <p>Loading...</p>;
+  } else if (data?.spec) {
+    chart = <Chart spec={data.spec} />;
+  }
+
   return (
-    <div className="flex flex-row gap-6 p-3 table-container h-full">
+    <div className="flex flex-row gap-6 p-3 h-full rounded-md border overflow-auto">
       <div className="flex flex-col gap-3">
         <Select
           value={chartSelected.chartName}
@@ -155,7 +222,12 @@ export const ChartPanel = () => {
         </Select>
 
         <Form {...chartSelected.form}>
-          <form onSubmit={(e) => e.preventDefault()}>
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            onChange={() => {
+              console.log(chartSelected.form.getValues());
+            }}
+          >
             <Tabs defaultValue="general">
               <TabsList>
                 <TabsTrigger value="general">General</TabsTrigger>
@@ -171,6 +243,7 @@ export const ChartPanel = () => {
                       <FormLabel>X column</FormLabel>
                       <FormControl>
                         <Select
+                          {...field}
                           onValueChange={field.onChange}
                           value={field.value}
                         >
@@ -194,6 +267,7 @@ export const ChartPanel = () => {
                       <FormLabel>Y column</FormLabel>
                       <FormControl>
                         <Select
+                          {...field}
                           onValueChange={field.onChange}
                           value={field.value}
                         >
@@ -217,7 +291,11 @@ export const ChartPanel = () => {
                     <FormItem>
                       <FormLabel>X-axis Label</FormLabel>
                       <FormControl>
-                        <Input value={field.value} onChange={field.onChange} />
+                        <DebouncedInput
+                          {...field}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -231,7 +309,11 @@ export const ChartPanel = () => {
                     <FormItem>
                       <FormLabel>Y-axis Label</FormLabel>
                       <FormControl>
-                        <Input value={field.value} onChange={field.onChange} />
+                        <DebouncedInput
+                          {...field}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -242,20 +324,7 @@ export const ChartPanel = () => {
         </Form>
       </div>
 
-      <div className="m-auto">
-        <img
-          src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
-          alt="google logo"
-        />
-      </div>
+      <div className="m-auto">{chart}</div>
     </div>
   );
 };
-
-// <DataExplorerComponent
-// data="https://raw.githubusercontent.com/kirenz/datasets/b8f17b8fc4907748b3317554d65ffd780edcc057/gapminder.csv"
-// value={value}
-// setValue={(v) => {
-//   setValue(v);
-// }}
-// />

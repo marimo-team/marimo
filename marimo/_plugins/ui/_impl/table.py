@@ -23,6 +23,14 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.charts.chart_builder import (
+    BarChartArgs,
+    LineChartArgs,
+    PieChartArgs,
+    PlotChartArgs,
+    PlotChartResponse,
+    return_vega_spec,
+)
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     get_handler_for_dataframe,
 )
@@ -589,6 +597,11 @@ class table(
                     arg_cls=EmptyArgs,
                     function=self._get_row_ids,
                 ),
+                Function(
+                    name="plot_chart",
+                    arg_cls=PlotChartArgs,
+                    function=self._plot_chart,
+                ),
             ),
         )
 
@@ -764,6 +777,10 @@ class table(
             summaries=summaries,
             is_disabled=False,
         )
+
+    def _plot_chart(self, args: PlotChartArgs) -> PlotChartResponse:
+        """Plot a chart. Return vega spec(?)"""
+        return return_vega_spec()
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort(
