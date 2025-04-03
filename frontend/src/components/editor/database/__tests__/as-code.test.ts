@@ -64,6 +64,15 @@ describe("generateDatabaseCode", () => {
     secure: false,
   };
 
+  const timeplusConnection: DatabaseConnection = {
+    type: "timeplus_connect",
+    host: "localhost",
+    port: 8123,
+    username: "default",
+    password: "",
+    secure: false,
+  };
+
   const chdbConnection: DatabaseConnection = {
     type: "chdb",
     database: "file:///path/to/db.chdb",
@@ -92,6 +101,7 @@ describe("generateDatabaseCode", () => {
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
       ["chdb", chdbConnection, "chdb"],
+      ["timeplus", timeplusConnection, "timeplus_connect"],
       ["trino", trinoConnection, "sqlmodel"],
     ])("%s", (name, connection, orm) => {
       expect(
@@ -149,6 +159,16 @@ describe("generateDatabaseCode", () => {
         },
         "clickhouse_connect",
       ],
+      [
+        "timeplus with all connection details as secrets",
+        {
+          ...timeplusConnection,
+          host: prefixSecret("ENV_HOST"),
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "timeplus_connect",
+      ],
     ])("%s", (name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
@@ -200,6 +220,15 @@ describe("generateDatabaseCode", () => {
           password: undefined,
         },
         "clickhouse_connect",
+      ],
+      [
+        "timeplus connect with minimal config",
+        {
+          ...timeplusConnection,
+          port: undefined,
+          password: undefined,
+        },
+        "timeplus_connect",
       ],
       [
         "postgres with unicode",
@@ -317,6 +346,22 @@ describe("generateDatabaseCode", () => {
           secure: true,
         },
         "clickhouse_connect",
+      ],
+      [
+        "timeplus with no port",
+        {
+          ...timeplusConnection,
+          port: undefined,
+        },
+        "timeplus_connect",
+      ],
+      [
+        "timeplus with https",
+        {
+          ...timeplusConnection,
+          secure: true,
+        },
+        "timeplus_connect",
       ],
       [
         "chdb with no database",

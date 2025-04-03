@@ -14,6 +14,7 @@ import {
   BigQueryConnectionSchema,
   type DatabaseConnection,
   ClickhouseConnectionSchema,
+  TimeplusConnectionSchema,
   ChdbConnectionSchema,
   TrinoConnectionSchema,
 } from "./schemas";
@@ -109,6 +110,16 @@ const SCHEMAS = [
     connectionLibraries: {
       libraries: ["clickhouse_connect"],
       preferred: "clickhouse_connect",
+    },
+  },
+  {
+    name: "Timeplus",
+    schema: TimeplusConnectionSchema,
+    color: "#B83280",
+    logo: "timeplus",
+    connectionLibraries: {
+      libraries: ["timeplus_connect"],
+      preferred: "timeplus_connect",
     },
   },
   {

@@ -23,120 +23,23 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore # noqa: I001
-    from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
+    from timeplus_connect.driver.client import (
+        Client as TimeplusClient,  # type: ignore
+    )
 
 
 PANDAS_REQUIRED_MSG = (
-    "Pandas is required to convert Clickhouse results to a DataFrame"
+    "Pandas is required to convert Timeplus results to a DataFrame"
 )
 
 
 @register_engine
-class ClickhouseEmbedded(SQLEngine):
-    """Use chdb to connect to an embedded Clickhouse"""
+class TimeplusServer(SQLEngine):
+    """Use timeplus.connect to connect to a Timeplus server"""
 
     def __init__(
         self,
-        connection: Optional[ChdbConnection] = None,
-        engine_name: Optional[VariableName] = None,
-    ) -> None:
-        self._connection = connection
-        self._engine_name = engine_name
-        self._cursor = None if connection is None else connection.cursor()
-
-    @property
-    def source(self) -> str:
-        return "clickhouse"
-
-    @property
-    def dialect(self) -> str:
-        return "clickhouse"
-
-    def execute(self, query: str) -> Any:
-        # chdb currently only supports pandas
-        DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
-
-        import chdb  # type: ignore
-        import pandas as pd
-
-        # TODO: this will fail weirdly / silently when there is another connection
-
-        # Do not catch exceptions here or it may silently fail
-        if self._cursor:
-            self._cursor.execute(query)
-            rows = self._cursor.fetchall()
-            col_names = self._cursor.column_names()
-            # col_types = self._cursor.column_types()
-
-            return pd.DataFrame(rows, columns=col_names)
-
-        try:
-            result = chdb.query(query, "Dataframe")
-        except Exception:
-            LOGGER.exception("Failed to execute query")
-            return None
-        if isinstance(result, pd.DataFrame):
-            return result
-        return None
-
-    # TODO: Implement the following functionalities
-    def get_databases(
-        self,
-        *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
-    ) -> list[Database]:
-        _, _, _ = include_schemas, include_tables, include_table_details
-        return []
-
-    def get_tables_in_schema(
-        self, *, database: str, schema: str, include_table_details: bool
-    ) -> list[DataTable]:
-        """Return all tables in a schema."""
-        _, _, _ = database, schema, include_table_details
-        return []
-
-    def get_table_details(
-        self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
-        """Get a single table from the engine."""
-        _, _, _ = table_name, schema_name, database_name
-        return None
-
-    def get_default_database(self) -> Optional[str]:
-        return None
-
-    def get_default_schema(self) -> Optional[str]:
-        return None
-
-    @staticmethod
-    def is_compatible(var: Any) -> bool:
-        if not DependencyManager.chdb.imported():
-            return False
-
-        from chdb.state.sqlitelike import Connection
-
-        return isinstance(var, Connection)
-
-    @property
-    def inference_config(self) -> InferenceConfig:
-        # Because chdb is a local connection, we can auto-discover everything
-        return InferenceConfig(
-            auto_discover_schemas=True,
-            auto_discover_tables=True,
-            auto_discover_columns=True,
-        )
-
-
-@register_engine
-class ClickhouseServer(SQLEngine):
-    """Use clickhouse.connect to connect to a Clickhouse server"""
-
-    def __init__(
-        self,
-        connection: Optional[ClickhouseClient] = None,
+        connection: Optional[TimeplusClient] = None,
         engine_name: Optional[VariableName] = None,
     ) -> None:
         self._connection = connection
@@ -144,17 +47,17 @@ class ClickhouseServer(SQLEngine):
 
     @property
     def source(self) -> str:
-        return "clickhouse"
+        return "timeplus"
 
     @property
     def dialect(self) -> str:
-        return "clickhouse"
+        return "timeplus"
 
     def execute(self, query: str) -> Any:
         if self._connection is None:
             return None
 
-        # clickhouse connect supports pandas and arrow format
+        # timeplus connect supports pandas and arrow format
         DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
 
         import pandas as pd
@@ -170,10 +73,10 @@ class ClickhouseServer(SQLEngine):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
-        if not DependencyManager.clickhouse_connect.imported():
+        if not DependencyManager.timeplus_connect.imported():
             return False
 
-        from clickhouse_connect.driver.client import Client
+        from timeplus_connect.driver.client import Client
 
         return isinstance(var, Client)
 
@@ -193,17 +96,17 @@ class ClickhouseServer(SQLEngine):
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
         """
-        Get all databases from the ClickHouse server.
+        Get all databases from the Timeplus server.
 
         Args:
-            include_schemas: Whether to include schema information. (ignored for ClickHouse)
+            include_schemas: Whether to include schema information. (ignored for Timeplus)
             include_tables: Whether to include table information.
             include_table_details: Whether to include detailed table metadata.
 
         Returns:
             List of Database objects representing the server's databases.
         """
-        _ = include_schemas  # ClickHouse doesn't have schemas
+        _ = include_schemas  # Timeplus doesn't have schemas
 
         if self._connection is None:
             return []
@@ -255,7 +158,7 @@ class ClickhouseServer(SQLEngine):
                     name=db,
                     dialect=self.dialect,
                     engine=self._engine_name,
-                    # ClickHouse does not have schemas
+                    # Timeplus does not have schemas
                     schemas=[Schema(name="", tables=tables)],
                 )
             )
@@ -277,23 +180,23 @@ class ClickhouseServer(SQLEngine):
         include_table_details: bool,
     ) -> list[DataTable]:
         """
-        Return all tables in a given ClickHouse database.
+        Return all tables in a given Timeplus database.
 
         Args:
-            schema: The schema name. (ignored for ClickHouse)
+            schema: The schema name. (ignored for Timeplus)
             database: The name of the database.
             include_table_details: Whether to retrieve detailed table metadata.
 
         Returns:
             List of DataTable objects.
         """
-        _ = schema  # ClickHouse does not have schemas
+        _ = schema  # Timeplus does not have schemas
         if self._connection is None:
             return []
 
         tables: list[DataTable] = []
         try:
-            query = f"SHOW TABLES FROM {database}"
+            query = f"SHOW STREAMS FROM {database}"
             table_df = self._connection.query_df(query)
         except Exception:
             LOGGER.warning(
@@ -345,7 +248,7 @@ class ClickhouseServer(SQLEngine):
 
         Args:
             database_name: The database name.
-            schema_name: The schema name. (ignored for ClickHouse)
+            schema_name: The schema name. (ignored for Timeplus)
             table_name: The table name.
 
         Returns:
@@ -391,7 +294,7 @@ class ClickhouseServer(SQLEngine):
             pass
 
         try:
-            query = f"DESCRIBE TABLE {database_name}.{table_name}"
+            query = f"DESCRIBE STREAM {database_name}.{table_name}"
             desc_df = self._connection.query_df(query)
         except Exception:
             LOGGER.warning(
@@ -452,7 +355,7 @@ class ClickhouseServer(SQLEngine):
             return None
 
         try:
-            query = "SELECT currentDatabase()"
+            query = "SELECT current_database()"
             db_name = self._connection.query_df(query)
         except Exception:
             LOGGER.warning("Failed to get current database", exc_info=True)
@@ -468,5 +371,5 @@ class ClickhouseServer(SQLEngine):
         return str(db_name.iloc[0, 0])
 
     def get_default_schema(self) -> Optional[str]:
-        # ClickHouse does not have schemas
+        # Timeplus does not have schemas
         return None

@@ -20,6 +20,7 @@ def get_default_result_limit() -> Optional[int]:
 if TYPE_CHECKING:
     from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore  # noqa: I001
     from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
+    from timeplus_connect.driver.client import Client as TimeplusClient  # type: ignore
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
 
@@ -30,7 +31,11 @@ def sql(
     *,
     output: bool = True,
     engine: Optional[
-        SAEngine | DuckDBPyConnection | ClickhouseClient | ChdbConnection
+        SAEngine
+        | DuckDBPyConnection
+        | ClickhouseClient
+        | ChdbConnection
+        | TimeplusClient
     ] = None,
 ) -> Any:
     """
@@ -46,7 +51,7 @@ def sql(
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
-        engine: Optional SQL engine to use. Can be a SQLAlchemy, Clickhouse, or DuckDB engine.
+        engine: Optional SQL engine to use. Can be a SQLAlchemy, Clickhouse, Timeplus, or DuckDB engine.
                If None, uses DuckDB.
 
     Returns:
@@ -71,7 +76,7 @@ def sql(
                 break
         else:
             raise ValueError(
-                "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
+                "Unsupported engine. Must be a SQLAlchemy, Clickhouse, Timeplus,or DuckDB engine."
             )
 
     df = sql_engine.execute(query)
