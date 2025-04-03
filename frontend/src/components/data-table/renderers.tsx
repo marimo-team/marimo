@@ -98,11 +98,6 @@ export function renderTableBody<TData>(
           <TableRow
             key={row.id}
             data-state={row.getIsSelected() && "selected"}
-            onClick={() => {
-              if (table.getIsSomeRowsSelected()) {
-                row.toggleSelected();
-              }
-            }}
             // These classes ensure that empty rows (nulls) still render
             className="border-t h-6"
           >
