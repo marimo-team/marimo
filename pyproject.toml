@@ -520,6 +520,7 @@ lsp = true
 
 [tool.marimo.display]
 dataframes = "rich"
+custom_css = ["marimo/_smoke_tests/theming/custom.css"]
 
 [tool.marimo.runtime]
 watcher_on_save = "autorun"

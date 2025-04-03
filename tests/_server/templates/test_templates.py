@@ -146,6 +146,104 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert head in result
 
+    def test_notebook_page_template_with_custom_css_config(self) -> None:
+        # Create CSS files
+        css1 = "/* custom css 1 */"
+        css2 = "/* custom css 2 */"
+
+        css_file1 = self.filename.parent / "custom1.css"
+        css_file2 = self.filename.parent / "custom2.css"
+        css_file1.write_text(css1)
+        css_file2.write_text(css2)
+
+        # Update config with custom CSS paths
+        config = merge_default_config(self.user_config)
+        config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
+
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            config,
+            self.config_overrides,
+            self.server_token,
+            self.app_config,
+            str(self.filename),
+            self.mode,
+        )
+
+        assert css1 in result
+        assert css2 in result
+        assert "<style title='marimo-custom'>" in result
+
+    def test_notebook_page_template_with_absolute_custom_css(self) -> None:
+        # Create CSS file with absolute path
+        css = "/* absolute path css */"
+        css_file = self.filename.parent / "absolute.css"
+        css_file.write_text(css)
+
+        # Update config with absolute CSS path
+        config = merge_default_config(self.user_config)
+        config["display"]["custom_css"] = [str(css_file)]
+
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            config,
+            self.config_overrides,
+            self.server_token,
+            self.app_config,
+            str(self.filename),
+            self.mode,
+        )
+
+        assert css in result
+        assert "<style title='marimo-custom'>" in result
+
+    def test_notebook_page_template_with_config_overrides_custom_css(
+        self,
+    ) -> None:
+        # Create CSS files
+        css1 = "/* config override css */"
+        css_file1 = self.filename.parent / "override.css"
+        css_file1.write_text(css1)
+
+        # Update config_overrides with custom CSS path
+        config_overrides = self.config_overrides.copy()
+        config_overrides["display"] = {"custom_css": ["override.css"]}
+
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            config_overrides,
+            self.server_token,
+            self.app_config,
+            str(self.filename),
+            self.mode,
+        )
+
+        assert css1 in result
+        assert "<style title='marimo-custom'>" in result
+
+    def test_notebook_page_template_with_nonexistent_custom_css(self) -> None:
+        # Update config with nonexistent CSS path
+        config = merge_default_config(self.user_config)
+        config["display"]["custom_css"] = ["nonexistent.css"]
+
+        result = templates.notebook_page_template(
+            self.html,
+            self.base_url,
+            config,
+            self.config_overrides,
+            self.server_token,
+            self.app_config,
+            str(self.filename),
+            self.mode,
+        )
+
+        assert "nonexistent.css" in result
+        assert "<style title='marimo-custom'>" not in result
+
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self) -> None:
