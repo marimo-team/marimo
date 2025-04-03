@@ -47,10 +47,6 @@ body.printing #App {
     max-width: none;
   }
 
-  a[href]:after {
-    content: " (" attr(href) ")";
-  }
-
   * {
     box-shadow: none !important;
     text-shadow: none !important;
