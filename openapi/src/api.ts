@@ -2932,6 +2932,7 @@ export interface components {
         /** @enum {string} */
         cell_output: "above" | "below";
         code_editor_font_size: number;
+        custom_css?: string[];
         /** @enum {string} */
         dataframes: "rich" | "plain";
         /** @enum {string} */

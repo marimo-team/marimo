@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/favicon.ico" />
+    <!-- Preload is necessary because we show these images when we disconnect from the server,
+    but at that point we cannot load these images from the server -->
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/gradient.png"" as="image" />
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/noise.png"" as="image" />
+    <!-- Preload the fonts -->
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/Lora-VariableFont_wght.ttf"" as="font" crossorigin="anonymous" />
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/PTSans-Regular.ttf"" as="font" crossorigin="anonymous" />
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/PTSans-Bold.ttf"" as="font" crossorigin="anonymous" />
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/FiraMono-Regular.ttf"" as="font" crossorigin="anonymous" />
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/FiraMono-Medium.ttf"" as="font" crossorigin="anonymous" />
+    <link rel="preload" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/FiraMono-Bold.ttf"" as="font" crossorigin="anonymous" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="a marimo app" />
+    <link rel="apple-touch-icon" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/apple-touch-icon.png" />
+    <link rel="manifest" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/manifest.json" />
+
+    <script data-marimo="true">
+      function __resizeIframe(obj) {
+        var scrollbarHeight = 20; // Max between windows, mac, and linux
+
+        function setHeight() {
+          var element = obj.contentWindow.document.documentElement;
+          // If there is no vertical scrollbar, we don't need to resize the iframe
+          if (element.scrollHeight === element.clientHeight) {
+            return;
+          }
+
+          // Create a new height that includes the scrollbar height if it's visible
+          var hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+          var newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+
+          // Only update the height if it's different from the current height
+          if (obj.style.height !== `${newHeight}px`) {
+            obj.style.height = `${newHeight}px`;
+          }
+        }
+
+        // Resize the iframe to the height of the content and bottom scrollbar height
+        setHeight();
+
+        // Resize the iframe when the content changes
+        const resizeObserver = new ResizeObserver((entries) => {
+          setHeight();
+        });
+        resizeObserver.observe(obj.contentWindow.document.body);
+      }
+    </script>
+    <marimo-filename hidden>notebook.py</marimo-filename>
+    <marimo-mode data-mode='read' hidden></marimo-mode>
+    <marimo-version data-version='0.0.0' hidden></marimo-version>
+    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "custom_css": ["custom1.css", "custom2.css"], "dataframes": "rich", "default_width": "medium", "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"overrides": {}, "preset": "default"}, "language_servers": {"pylsp": {"enable_flake8": false, "enable_mypy": true, "enable_pydocstyle": false, "enable_pyflakes": false, "enable_pylint": false, "enable_ruff": true, "enabled": true}}, "package_management": {"manager": "uv"}, "runtime": {"auto_instantiate": true, "auto_reload": "off", "on_cell_change": "autorun", "output_max_bytes": 8000000, "std_stream_max_bytes": 1000000, "watcher_on_save": "lazy"}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default", "follow_symlink": false}, "snippets": {"custom_paths": [], "include_default_snippets": true}}' data-overrides='{"formatting": {"line_length": 100}}' hidden></marimo-user-config>
+    <marimo-app-config data-config='{"width": "compact"}' hidden></marimo-app-config>
+    <marimo-server-token data-token='token' hidden></marimo-server-token>
+    <title>notebook</title>
+    <script type="module" crossorigin crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.js""></script>
+    <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
+  
+<script data-marimo="true">
+    window.__MARIMO_STATIC__ = {};
+    window.__MARIMO_STATIC__.version = "0.0.0";
+    window.__MARIMO_STATIC__.notebookState = {"cellIds": [], "cellNames": [], "cellCodes": [], "cellConfigs": [], "cellOutputs": {}, "cellConsoleOutputs": {}};
+    window.__MARIMO_STATIC__.assetUrl = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist";
+    window.__MARIMO_STATIC__.files = {};
+</script>
+<style title='marimo-custom'>/* custom css 1 */</style>
+<style title='marimo-custom'>/* custom css 2 */</style></head>
+  <body>
+    <div id="root"></div>
+  <marimo-code hidden=""></marimo-code>
+<marimo-code-hash hidden="">2b33215fadf3c54926d5c4100348afc158dbff4c94b15044e3a7fe804f80ed2d</marimo-code-hash>
+</body>
+</html>
