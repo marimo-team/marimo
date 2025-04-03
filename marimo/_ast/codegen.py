@@ -147,9 +147,19 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
     block = setup_cell.code
     if not block.strip():
         return ""
+    prefix = "" if not setup_cell.is_coroutine() else "async "
+
+    has_only_comments = all(
+        not line.strip() or line.strip().startswith("#")
+        for line in contents.splitlines()
+    )
+    # Fails otherwise
+    if has_only_comments:
+        return block += "\npass"
+
     return "\n".join(
         [
-            "with app.setup:",
+            f"{prefix}with app.setup:",
             indent_text(block),
             "\n",
         ]
