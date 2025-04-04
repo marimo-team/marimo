@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   script.setAttribute("data-modal-title", "Ask marimo");
   script.setAttribute("data-project-name", "marimo");
-  script.setAttribute("data-project-color", "rgba(28, 115, 98, 0.2)");
+  script.setAttribute("data-project-color", "rgb(3, 41, 33)");
 
   // Alternative logo
   // "https://marimo.io/favicon-32x32.png",
@@ -46,6 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
   script.setAttribute("data-button-image-width", "24");
 
   // Modal size
+  script.setAttribute("data-modal-image-height", "24");
+  script.setAttribute("data-modal-image-width", "24");
   script.setAttribute("data-modal-title-font-size", "1rem");
   script.setAttribute("data-modal-header-padding", "12px");
   script.setAttribute("data-modal-body-padding-top", "8px");
