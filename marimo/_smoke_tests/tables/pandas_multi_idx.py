@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.20"
+__generated_with = "0.12.4"
 app = marimo.App(width="medium")
 
 
@@ -47,6 +47,12 @@ def _(pd):
 
     column_multi_idx
     return cols, column_multi_idx, idx
+
+
+@app.cell
+def _(column_multi_idx):
+    print("Raw data:\n", column_multi_idx)
+    return
 
 
 if __name__ == "__main__":

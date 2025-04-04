@@ -36,15 +36,6 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
-                if isinstance(data.columns, pd.MultiIndex):
-                    LOGGER.debug(
-                        "Multicolumn indexes aren't supported, converting to single index"
-                    )
-                    single_col_names = [
-                        " x ".join(col) for col in data.columns
-                    ]
-                    data.columns = pd.Index(single_col_names)
-
                 self._original_data = data
                 super().__init__(nw.from_native(data))
 
@@ -108,7 +99,19 @@ class PandasTableManagerFactory(TableManagerFactory):
                     )
                     return result.to_json(orient="records").encode("utf-8")
 
-                # Flatten indexes
+                # Flatten col multi-index
+                if isinstance(result.columns, pd.MultiIndex):
+                    LOGGER.debug(
+                        "Multicolumn indexes aren't supported, converting to single index"
+                    )
+                    # Multi-index cols must be joined with commas,
+                    # as the frontend will join by commas too so the names must match
+                    single_col_names = [
+                        ",".join(col) for col in result.columns
+                    ]
+                    result.columns = pd.Index(single_col_names)
+
+                # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
                     isinstance(result.index, pd.Index)
                     and not isinstance(result.index, pd.RangeIndex)
