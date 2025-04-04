@@ -360,7 +360,7 @@ class TimeplusGenerator extends CodeGenerator<"timeplus"> {
   generateConnectionCode(): string {
     const password = this.secrets.printPassword(
       this.connection.password,
-      "",
+      "TIMEPLUS_PASSWORD",
       true,
     );
     const username = this.secrets.printInFString(

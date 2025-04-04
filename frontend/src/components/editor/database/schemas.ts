@@ -226,14 +226,10 @@ export const ClickhouseConnectionSchema = z
 export const TimeplusConnectionSchema = z
   .object({
     type: z.literal("timeplus"),
-    host: hostField(),
+    host: hostField().default("localhost"),
     port: portField(8123).optional(),
-    username: usernameField(),
-    password: passwordField(),
-    secure: z
-      .boolean()
-      .default(false)
-      .describe(FieldOptions.of({ label: "Use HTTPs" })),
+    username: usernameField().default("default"),
+    password: passwordField().default(""),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
