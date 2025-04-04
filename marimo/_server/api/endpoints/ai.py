@@ -141,7 +141,6 @@ async def ai_chat(
     # Get the system prompt
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
-        variables=body.variables,
         context=body.context,
         include_other_code=body.include_other_code,
     )
