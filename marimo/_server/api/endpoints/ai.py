@@ -21,6 +21,7 @@ from marimo._server.ai.providers import (
     get_completion_provider,
     get_max_tokens,
     get_model,
+    without_wrapping_backticks,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
@@ -108,7 +109,9 @@ async def ai_completion(
     )
 
     return StreamingResponse(
-        content=provider.as_stream_response(response),
+        content=without_wrapping_backticks(
+            provider.as_stream_response(response)
+        ),
         media_type="application/json",
     )
 

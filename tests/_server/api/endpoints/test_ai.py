@@ -145,7 +145,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "code": "import pandas as pd",
+                    "code": "<rewrite_this>import pandas as pd</rewrite_this>",
                     "include_other_code": "",
                 },
             )
@@ -154,9 +154,7 @@ class TestOpenAiEndpoints:
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][1]["content"]
-            assert prompt == (
-                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
-            )
+            assert prompt == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -181,7 +179,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "code": "import pandas as pd",
+                    "code": "<rewrite_this>import pandas as pd</rewrite_this>",
                     "include_other_code": "",
                 },
             )
@@ -213,7 +211,7 @@ class TestOpenAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "code": "import pandas as pd",
+                    "code": "<rewrite_this>import pandas as pd</rewrite_this>",
                     "include_other_code": "",
                 },
             )
@@ -374,7 +372,7 @@ class TestAnthropicAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "code": "import pandas as pd",
+                    "code": "<rewrite_this>import pandas as pd</rewrite_this>",
                     "include_other_code": "",
                 },
             )
@@ -383,9 +381,7 @@ class TestAnthropicAiEndpoints:
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert prompt == (
-                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
-            )
+            assert prompt == "Help me create a dataframe"
             # Assert the model it was called with
             model = anthropic_client.messages.create.call_args.kwargs["model"]
             assert model == "claude-3.5"
@@ -451,7 +447,7 @@ class TestGoogleAiEndpoints:
                 headers=HEADERS,
                 json={
                     "prompt": "Help me create a dataframe",
-                    "code": "import pandas as pd",
+                    "code": "<rewrite_this>import pandas as pd</rewrite_this>",
                     "include_other_code": "",
                 },
             )
@@ -460,9 +456,7 @@ class TestGoogleAiEndpoints:
             prompt = google_client.generate_content.call_args.kwargs[
                 "contents"
             ]
-            assert prompt[0]["parts"][0] == (
-                "Help me create a dataframe\n\n<current-code>\nimport pandas as pd\n</current-code>"
-            )
+            assert prompt[0]["parts"][0] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -693,92 +687,6 @@ def no_google_ai_config(config: UserConfigManager):
         config.save_config(prev_config)
 
 
-class TestStreamResponse(unittest.TestCase):
-    def simulate_stream(self, contents: list[str]) -> Any:
-        @dataclass
-        class MockContent:
-            content: str
-
-        class MockDelta:
-            def __init__(self, content: str) -> None:
-                self.delta = MockContent(content)
-
-        class MockChunk:
-            def __init__(self, content: str) -> None:
-                self.choices = [MockDelta(content)]
-
-        for content in contents:
-            yield MockChunk(content)
-
-    def test_no_code_fence(self):
-        provider = OpenAIProvider(model="gpt-4o", config={})
-        response = self.simulate_stream(["Hello, world!"])
-        result = list(provider.make_stream_response(response))
-        assert result == ["Hello, world!"]
-
-    def test_single_complete_code_fence(self):
-        provider = OpenAIProvider(model="gpt-4o", config={})
-        response = self.simulate_stream(
-            ["```python\nprint('Hello, world!')\n```"]
-        )
-        result = list(provider.make_stream_response(response))
-        assert result == ["print('Hello, world!')\n"]
-
-    def test_code_fence_across_chunks(self):
-        provider = OpenAIProvider(model="gpt-4o", config={})
-        response = self.simulate_stream(
-            [
-                "```python\nprint('Hello,",
-                " world!')\n```",
-            ]
-        )
-        result = list(provider.make_stream_response(response))
-        assert result == [
-            "print('Hello,",
-            " world!')\n",
-        ]
-
-    def test_code_fence_across_more_chunks(self):
-        provider = OpenAIProvider(model="gpt-4o", config={})
-        response = self.simulate_stream(
-            [
-                "```",
-                "python",
-                "\nprint('Hello,",
-                " world!')\n",
-                "```",
-            ]
-        )
-        result = list(provider.make_stream_response(response))
-        assert result == ["print('Hello,", " world!')\n", ""]
-
-    def test_multiple_code_fences(self):
-        response = self.simulate_stream(
-            [
-                "```python\nprint('Hello',",
-                " 'world!')\n```",
-                "No code here",
-                "```sql\nSELECT * FROM users;\n```",
-            ]
-        )
-        provider = OpenAIProvider(model="gpt-4o", config={})
-        result = list(provider.make_stream_response(response))
-        assert result == [
-            "print('Hello',",
-            " 'world!')\n",
-            "No code here",
-            "SELECT * FROM users;\n",
-        ]
-
-    def test_nested_code_fences(self):
-        response = self.simulate_stream(
-            ["```python\nprint('```nested```')\n```"]
-        )
-        provider = OpenAIProvider(model="gpt-4o", config={})
-        result = list(provider.make_stream_response(response))
-        assert result == ["print('```nested```')\n"]
-
-
 @with_session(SESSION_ID)
 def test_chat_without_code(client: TestClient) -> None:
     user_config_manager = get_session_config_manager(client)
@@ -886,3 +794,77 @@ class TestGetContent(unittest.TestCase):
 
         # Assert that the result is the expected content
         assert result == "Test content"
+
+
+class TestWithoutWrappingBackticks(unittest.TestCase):
+    def test_no_backticks(self) -> None:
+        """Test when there are no backticks in the chunks."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["Hello", " world", "!"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["Hello", " world", "!"]
+
+    def test_with_starting_backticks(self) -> None:
+        """Test when there are starting backticks but no ending backticks."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["```", "print('hello')", "print('world')"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["", "print('hello')", "print('world')"]
+
+    def test_with_ending_backticks(self) -> None:
+        """Test when there are ending backticks but no starting backticks."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["print('hello')", "print('world')", "```"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["print('hello')", "print('world')", "```"]
+
+    def test_with_both_backticks(self) -> None:
+        """Test when there are both starting and ending backticks."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["```", "print('hello')", "print('world')", "```"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["", "print('hello')", "print('world')", ""]
+
+    def test_with_backticks_in_middle(self) -> None:
+        """Test when there are backticks in the middle of the text."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["Hello", " ``` ", "world"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["Hello", " ``` ", "world"]
+
+    def test_with_partial_backticks(self) -> None:
+        """Test when there are partial backticks at the start or end."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["``python", "print('hello')", "print('world')", "``"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["``python", "print('hello')", "print('world')", "``"]
+
+    def test_empty_chunks(self) -> None:
+        """Test with empty chunks."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = []
+        result = list(without_wrapping_backticks(chunks))
+        assert result == []
+
+    def test_single_chunk(self) -> None:
+        """Test with a single chunk."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["```python```"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["python"]
+
+    def test_single_chunk_no_backticks(self) -> None:
+        """Test with a single chunk without backticks."""
+        from marimo._server.ai.providers import without_wrapping_backticks
+
+        chunks = ["Hello world"]
+        result = list(without_wrapping_backticks(chunks))
+        assert result == ["Hello world"]
