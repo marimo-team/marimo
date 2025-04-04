@@ -116,7 +116,7 @@ export const AddCellWithAI: React.FC<{
         value={input}
         onChange={(newValue) => {
           setInput(newValue);
-          setCompletionBody(getAICompletionBody(newValue));
+          setCompletionBody(getAICompletionBody({ input: newValue }));
         }}
         onSubmit={() => {
           if (!isLoading) {

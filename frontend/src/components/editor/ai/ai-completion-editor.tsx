@@ -149,7 +149,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               value={input}
               onChange={(newValue) => {
                 setInput(newValue);
-                setCompletionBody(getAICompletionBody(newValue));
+                setCompletionBody(getAICompletionBody({ input: newValue }));
               }}
               onSubmit={() => {
                 if (!isLoading) {

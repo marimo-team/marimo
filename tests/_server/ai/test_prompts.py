@@ -4,11 +4,16 @@ from __future__ import annotations
 from typing import cast
 
 from marimo._ast.visitor import Language
-from marimo._server.ai.prompts import Prompter
+from marimo._server.ai.prompts import (
+    get_chat_system_prompt,
+    get_inline_system_prompt,
+    get_refactor_or_insert_notebook_cell_system_prompt,
+)
 from marimo._server.models.completion import (
     AiCompletionContext,
     SchemaColumn,
     SchemaTable,
+    VariableContext,
 )
 from tests.mocks import snapshotter
 
@@ -23,15 +28,29 @@ def test_system_prompts():
     result = ""
     for language in ("python", "markdown", "sql", "idk"):
         result += _header(language)
-        result += Prompter.get_system_prompt(language=cast(Language, language))
+        result += get_refactor_or_insert_notebook_cell_system_prompt(
+            language=cast(Language, language),
+            is_insert=False,
+            custom_rules=None,
+            cell_code=None,
+            selected_text=None,
+            other_cell_codes=None,
+            context=None,
+        )
 
     result += _header("with custom rules")
-    result += Prompter.get_system_prompt(
-        language="python", custom_rules="Always use type hints."
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        custom_rules="Always use type hints.",
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=None,
     )
 
     result += _header("with context")
-    result += Prompter.get_system_prompt(
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
         context=AiCompletionContext(
             schema=[
@@ -50,93 +69,162 @@ def test_system_prompts():
                 )
             ]
         ),
+        is_insert=False,
+        custom_rules=None,
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+    )
+
+    # New test cases for get_refactor_or_insert_notebook_cell_system_prompt
+    result += _header("with is_insert=True")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=True,
+        custom_rules=None,
+        cell_code="def fib(n):\n    <insert_here></insert_here>",
+        selected_text=None,
+        other_cell_codes=None,
+        context=None,
+    )
+
+    result += _header("with cell_code")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        custom_rules=None,
+        cell_code="def hello():\n    <rewrite_this>print('Hello, world!')</rewrite_this>",
+        selected_text="print('Hello, world!')",
+        other_cell_codes=None,
+        context=None,
+    )
+
+    result += _header("with selected_text")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        custom_rules=None,
+        cell_code="def hello():\n    <rewrite_this>print('Hello, world!')</rewrite_this>",
+        selected_text="print('Hello, world!')",
+        other_cell_codes=None,
+        context=None,
+    )
+
+    result += _header("with other_cell_codes")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        custom_rules=None,
+        cell_code="<rewrite_this>pl.DataFrame()</rewrite_this>",
+        selected_text="pl.DataFrame()",
+        other_cell_codes="import pandas as pd\nimport numpy as np",
+        context=None,
+    )
+
+    result += _header("with VariableContext objects")
+    result += get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
+        custom_rules=None,
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=AiCompletionContext(
+            variables=[
+                VariableContext(
+                    name="df",
+                    value_type="DataFrame",
+                    preview_value="<DataFrame with 100 rows and 5 columns>",
+                ),
+                VariableContext(
+                    name="model",
+                    value_type="Model",
+                    preview_value="<Model object>",
+                ),
+            ]
+        ),
     )
 
     snapshot("system_prompts.txt", result)
 
 
 def test_empty_rules():
-    assert Prompter.get_system_prompt(
-        language="python"
-    ) == Prompter.get_system_prompt(
+    assert get_refactor_or_insert_notebook_cell_system_prompt(
         language="python",
+        is_insert=False,
+        custom_rules=None,
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=None,
+    ) == get_refactor_or_insert_notebook_cell_system_prompt(
+        language="python",
+        is_insert=False,
         custom_rules="  ",
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=None,
     )
-
-
-def test_user_prompts():
-    prompt = "Create a pandas dataframe"
-
-    result: str = ""
-    result += _header("no code")
-    result += Prompter(code="").get_prompt(
-        user_prompt=prompt, include_other_code=""
-    )
-
-    result += _header("with code")
-    result += Prompter(
-        code="df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})",
-    ).get_prompt(user_prompt=prompt, include_other_code="")
-
-    result += _header("with code and other code")
-    result += Prompter(
-        code="df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})",
-    ).get_prompt(
-        user_prompt=prompt,
-        include_other_code="import pandas as pd\nimport numpy as np\n",
-    )
-
-    result += _header("with just other code")
-    result += Prompter(
-        code="",
-    ).get_prompt(
-        user_prompt=prompt,
-        include_other_code="import pandas as pd\nimport numpy as np\n",
-    )
-
-    result += _header("with context")
-    result += Prompter(code="import pandas as pd").get_prompt(
-        user_prompt=prompt, include_other_code="import marimo as mo"
-    )
-
-    snapshot("user_prompts.txt", result)
 
 
 def test_edit_inline_prompts():
-    # Nothing fancy here, just making sure
-    # that if we already give a fully formatted prompt without
-    # any code, we don't add any more instructions
-    prompt = """
-    Given the following code context, {opts.prompt}
-
-    SELECTED CODE:
-    {opts.selection}
-
-    Instructions:
-    1. Modify ONLY the selected code`;
-    """
-
-    result = Prompter(code="").get_prompt(
-        user_prompt=prompt,
-        include_other_code="",
-    )
-
-    assert result == prompt
+    result = get_inline_system_prompt(language="python")
+    snapshot("edit_inline_prompts.txt", result)
+    # <FILL_ME> is sent from the client, this cannot change without
+    # coordination
+    assert "<FILL_ME>" in result
 
 
 def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")
-    result += Prompter.get_chat_system_prompt()
+    result += get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        context=None,
+    )
 
     result += _header("with custom rules")
-    result += Prompter.get_chat_system_prompt(custom_rules="Always be polite.")
+    result += get_chat_system_prompt(
+        custom_rules="Always be polite.",
+        include_other_code="",
+        context=None,
+    )
 
     result += _header("with variables")
-    result += Prompter.get_chat_system_prompt(variables=["var1", "var2"])
+    result += get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        context=AiCompletionContext(
+            variables=["var1", "var2"],
+        ),
+    )
+
+    result += _header("with VariableContext objects")
+    result += get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        context=AiCompletionContext(
+            variables=[
+                VariableContext(
+                    name="df",
+                    value_type="DataFrame",
+                    preview_value="<DataFrame with 100 rows and 5 columns>",
+                ),
+                VariableContext(
+                    name="model",
+                    value_type="Model",
+                    preview_value="<Model object>",
+                ),
+            ]
+        ),
+    )
 
     result += _header("with context")
-    result += Prompter.get_chat_system_prompt(
+    result += get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
         context=AiCompletionContext(
             schema=[
                 SchemaTable(
@@ -164,20 +252,22 @@ def test_chat_system_prompts():
                     ],
                 ),
             ],
-        )
+        ),
     )
 
     result += _header("with other code")
-    result += Prompter.get_chat_system_prompt(
-        include_other_code="import pandas as pd\nimport numpy as np\n"
+    result += get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="import pandas as pd\nimport numpy as np\n",
+        context=None,
     )
 
     result += _header("kitchen sink")
-    result += Prompter.get_chat_system_prompt(
+    result += get_chat_system_prompt(
         custom_rules="Always be polite.",
-        variables=["var1", "var2"],
         include_other_code="import pandas as pd\nimport numpy as np\n",
         context=AiCompletionContext(
+            variables=["var1", "var2"],
             schema=[
                 SchemaTable(
                     name="df_1",
