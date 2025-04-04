@@ -167,8 +167,20 @@ export const MarimoErrorOutput = ({
             )}
           </ul>
           {cellId && <AutoFixButton errors={cycleErrors} cellId={cellId} />}
-          <Tip title="Resolving cycles" className="mb-2">
-            Merge these cells into a single cell.
+          <Tip
+            title="What are cycles and how do I resolve them?"
+            className="mb-2"
+          >
+            <p className="pb-2">
+              An example of a cycle is if one cell declares a variable 'a' and
+              reads 'b', and another cell declares 'b' and and reads 'a'. Cycles
+              like this make it impossible for marimo to know how to run your
+              cells, and generally suggest that your code has a bug.
+            </p>
+
+            <p className="py-2">
+              Try merging these cells into a single cell to eliminate the cycle.
+            </p>
           </Tip>
         </li>,
       );
