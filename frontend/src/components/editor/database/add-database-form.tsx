@@ -118,8 +118,8 @@ const SCHEMAS = [
     color: "#B83280",
     logo: "timeplus",
     connectionLibraries: {
-      libraries: ["timeplus_connect"],
-      preferred: "timeplus_connect",
+      libraries: ["sqlalchemy", "sqlmodel"],
+      preferred: "sqlalchemy",
     },
   },
   {

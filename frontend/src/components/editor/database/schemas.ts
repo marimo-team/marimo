@@ -225,7 +225,7 @@ export const ClickhouseConnectionSchema = z
 
 export const TimeplusConnectionSchema = z
   .object({
-    type: z.literal("timeplus_connect"),
+    type: z.literal("timeplus"),
     host: hostField(),
     port: portField(8123).optional(),
     username: usernameField(),

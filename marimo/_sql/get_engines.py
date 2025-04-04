@@ -20,9 +20,6 @@ from marimo._sql.engines.duckdb import (
     DuckDBEngine,
 )
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.engines.timeplus import (
-    TimeplusServer,
-)
 from marimo._sql.engines.types import SQLEngine
 from marimo._types.ids import VariableName
 
@@ -39,7 +36,6 @@ def get_engines_from_variables(
         DuckDBEngine,
         ClickhouseEmbedded,
         ClickhouseServer,
-        TimeplusServer,
     ]
 
     for variable_name, value in variables:

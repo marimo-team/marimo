@@ -10,7 +10,6 @@ export type ConnectionLibrary =
   | "sqlalchemy"
   | "duckdb"
   | "clickhouse_connect"
-  | "timeplus_connect"
   | "chdb";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
@@ -19,7 +18,6 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   duckdb: "DuckDB",
   clickhouse_connect: "ClickHouse Connect",
   chdb: "chDB",
-  timeplus_connect: "Timeplus Connect",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -354,32 +352,27 @@ ${formatUrlParams(params, (inner) => `        ${inner}`)},
     `);
   }
 }
-class TimeplusGenerator extends CodeGenerator<"timeplus_connect"> {
+class TimeplusGenerator extends CodeGenerator<"timeplus"> {
   generateImports(): string[] {
-    return ["import timeplus_connect"];
+    return [];
   }
 
   generateConnectionCode(): string {
     const password = this.secrets.printPassword(
       this.connection.password,
-      "TIMEPLUS_PASSWORD",
-      false,
+      "",
+      true,
     );
-
-    const params = {
-      host: this.secrets.print("host", this.connection.host),
-      user: this.secrets.print("user", this.connection.username),
-      secure: this.secrets.print("secure", this.connection.secure),
-      port: this.connection.port
-        ? this.secrets.print("port", this.connection.port)
-        : undefined,
-      password: this.connection.password ? password : undefined,
-    };
+    const username = this.secrets.printInFString(
+      "username",
+      this.connection.username,
+    );
+    const host = this.secrets.printInFString("host", this.connection.host);
+    const port = this.secrets.printInFString("port", this.connection.port);
 
     return dedent(`
-      engine = ${this.orm}.get_client(
-${formatUrlParams(params, (inner) => `        ${inner}`)},
-      )
+      DATABASE_URL = f"timeplus://${username}:${password}@${host}:${port}"
+      engine = ${this.orm}.create_engine(DATABASE_URL)
     `);
   }
 }
@@ -454,7 +447,7 @@ class CodeGeneratorFactory {
         return new DuckDBGenerator(connection, orm, this.secrets);
       case "clickhouse_connect":
         return new ClickHouseGenerator(connection, orm, this.secrets);
-      case "timeplus_connect":
+      case "timeplus":
         return new TimeplusGenerator(connection, orm, this.secrets);
       case "chdb":
         return new ChDBGenerator(connection, orm, this.secrets);

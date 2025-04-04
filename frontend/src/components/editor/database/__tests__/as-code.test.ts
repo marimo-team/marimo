@@ -65,7 +65,7 @@ describe("generateDatabaseCode", () => {
   };
 
   const timeplusConnection: DatabaseConnection = {
-    type: "timeplus_connect",
+    type: "timeplus",
     host: "localhost",
     port: 8123,
     username: "default",
@@ -101,7 +101,7 @@ describe("generateDatabaseCode", () => {
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
       ["chdb", chdbConnection, "chdb"],
-      ["timeplus", timeplusConnection, "timeplus_connect"],
+      ["timeplus", timeplusConnection, "sqlalchemy"],
       ["trino", trinoConnection, "sqlmodel"],
     ])("%s", (name, connection, orm) => {
       expect(
@@ -167,7 +167,7 @@ describe("generateDatabaseCode", () => {
           username: prefixSecret("ENV_USER"),
           password: prefixSecret("ENV_PASSWORD"),
         },
-        "timeplus_connect",
+        "sqlalchemy",
       ],
     ])("%s", (name, connection, orm) => {
       expect(
@@ -228,7 +228,7 @@ describe("generateDatabaseCode", () => {
           port: undefined,
           password: undefined,
         },
-        "timeplus_connect",
+        "sqlalchemy",
       ],
       [
         "postgres with unicode",
@@ -353,7 +353,7 @@ describe("generateDatabaseCode", () => {
           ...timeplusConnection,
           port: undefined,
         },
-        "timeplus_connect",
+        "sqlalchemy",
       ],
       [
         "timeplus with https",
@@ -361,7 +361,7 @@ describe("generateDatabaseCode", () => {
           ...timeplusConnection,
           secure: true,
         },
-        "timeplus_connect",
+        "sqlalchemy",
       ],
       [
         "chdb with no database",
