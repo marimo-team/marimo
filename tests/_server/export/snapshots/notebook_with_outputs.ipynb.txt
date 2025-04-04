@@ -163,7 +163,7 @@
     {
      "data": {
       "text/html": [
-       "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">hello</span></span></div><div><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">world</span></span></div></div>"
+       "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">hello</span></span><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">world</span></span></div>"
       ]
      },
      "metadata": {},
