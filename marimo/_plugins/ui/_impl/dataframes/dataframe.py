@@ -197,7 +197,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             field_types=manager.get_field_types(),
             python_code=self._handler.as_python_code(
                 self._dataframe_name,
-                manager.get_column_names(),
+                # manager.get_column_names(),
+                self._manager.get_column_names(),
                 self._last_transforms.transforms,
             ),
             sql_code=self._handler.as_sql_code(manager.data),
