@@ -7,6 +7,7 @@ import MySQLIcon from "./icons/mysql.svg";
 import SnowflakeIcon from "./icons/snowflake.svg";
 import DatabricksIcon from "./icons/databricks.svg";
 import ClickhouseIcon from "./icons/clickhouse.svg";
+import TimeplusIcon from "./icons/timeplus.svg";
 import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
 import TrinoIcon from "./icons/trino.svg";
 import { cn } from "@/utils/cn";
@@ -20,6 +21,7 @@ export type DBLogoName =
   | "snowflake"
   | "databricks"
   | "clickhouse"
+  | "timeplus"
   | "bigquery"
   | "trino";
 
@@ -41,6 +43,7 @@ const URLS: Record<DBLogoName, string | undefined> = {
   snowflake: SnowflakeIcon,
   databricks: DatabricksIcon,
   clickhouse: ClickhouseIcon,
+  timeplus: TimeplusIcon,
   bigquery: GoogleBigQueryIcon,
   trino: TrinoIcon,
 };

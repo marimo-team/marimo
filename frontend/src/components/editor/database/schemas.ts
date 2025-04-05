@@ -223,6 +223,16 @@ export const ClickhouseConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const TimeplusConnectionSchema = z
+  .object({
+    type: z.literal("timeplus"),
+    host: hostField().default("localhost"),
+    port: portField(8123).optional(),
+    username: usernameField().default("default"),
+    password: passwordField().default(""),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const ChdbConnectionSchema = z
   .object({
     type: z.literal("chdb"),
@@ -257,6 +267,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   SnowflakeConnectionSchema,
   BigQueryConnectionSchema,
   ClickhouseConnectionSchema,
+  TimeplusConnectionSchema,
   ChdbConnectionSchema,
   TrinoConnectionSchema,
 ]);

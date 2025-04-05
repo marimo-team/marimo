@@ -352,6 +352,30 @@ ${formatUrlParams(params, (inner) => `        ${inner}`)},
     `);
   }
 }
+class TimeplusGenerator extends CodeGenerator<"timeplus"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const password = this.secrets.printPassword(
+      this.connection.password,
+      "TIMEPLUS_PASSWORD",
+      true,
+    );
+    const username = this.secrets.printInFString(
+      "username",
+      this.connection.username,
+    );
+    const host = this.secrets.printInFString("host", this.connection.host);
+    const port = this.secrets.printInFString("port", this.connection.port);
+
+    return dedent(`
+      DATABASE_URL = f"timeplus://${username}:${password}@${host}:${port}"
+      engine = ${this.orm}.create_engine(DATABASE_URL)
+    `);
+  }
+}
 
 class ChDBGenerator extends CodeGenerator<"chdb"> {
   generateImports(): string[] {
@@ -423,6 +447,8 @@ class CodeGeneratorFactory {
         return new DuckDBGenerator(connection, orm, this.secrets);
       case "clickhouse_connect":
         return new ClickHouseGenerator(connection, orm, this.secrets);
+      case "timeplus":
+        return new TimeplusGenerator(connection, orm, this.secrets);
       case "chdb":
         return new ChDBGenerator(connection, orm, this.secrets);
       case "trino":

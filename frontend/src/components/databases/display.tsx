@@ -24,6 +24,8 @@ export function dbDisplayName(name: string) {
       return "Google BigQuery";
     case "clickhouse":
       return "ClickHouse";
+    case "timeplus":
+      return "Timeplus";
     case "databricks":
       return "Databricks";
     case "db2":
