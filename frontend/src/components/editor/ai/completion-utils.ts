@@ -15,9 +15,12 @@ import type { Extension } from "@codemirror/state";
 /**
  * Gets the request body for the AI completion API.
  */
-export function getAICompletionBody(
-  input: string,
-): Omit<AiCompletionRequest, "language" | "prompt" | "code"> {
+export function getAICompletionBody({
+  input,
+}: { input: string }): Omit<
+  AiCompletionRequest,
+  "language" | "prompt" | "code"
+> {
   const datasets = extractDatasets(input);
   Logger.debug("Included datasets", datasets);
 
