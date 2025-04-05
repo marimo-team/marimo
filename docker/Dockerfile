@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.12
 FROM python:3.13-slim AS base
 
+# Make `uv` and `uvx` available in the PATH for all target images
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Create a non-root user
 RUN useradd -m appuser
 
