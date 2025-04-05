@@ -62,7 +62,7 @@ def _static_load(filename: str) -> Optional[App]:
     app = App(**notebook.app.options)
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
-            app._unparseable(cell.code, *cell.options)
+            app._unparsable(cell.code, *cell.options)
             continue
 
         app._cell_manager.register_ir_cell(cell)

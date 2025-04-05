@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import ast
-from typing import TYPE_CHECKING, Any, Optional
-
 from textwrap import dedent
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -336,7 +335,7 @@ def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
 
         violations.append(
             Violation(
-                "Expected `__generated_with` assigment for marimo version number.",
+                "Expected `__generated_with` assignment for marimo version number.",
                 lineno=node.lineno,
             )
         )

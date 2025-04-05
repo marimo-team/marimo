@@ -8,6 +8,7 @@ from marimo._ast.names import DEFAULT_CELL_NAME
 
 if TYPE_CHECKING:
     import ast
+
     from typing_extensions import TypeAlias
 
 
@@ -101,12 +102,12 @@ class NotebookSerializationV1:
         notebook = header? + app + setup? + cells* + run_guard
         header = (docstring | comments)*
         app = import marimo + __generated_with + App(kwargs*)
-        cells = cell | function | class_definition | unparseable
+        cells = cell | function | class_definition | unparsable
         setup = Async?With(kwargs*, stmt*)
         cell = Async?Function(kwargs*, stmt*, @cell)
         function = Async?Function(kwargs*, stmt*, @function + decorators*)
         class_definition = ClassDef(kwargs*, stmt*, @class_definition + decorators*)
-        unparseable = app._unparseable(code, kwargs*)
+        unparsable = app._unparsable(code, kwargs*)
         run_guard = if __name__ == "__main__": app.run()
 
     This is meant to be a representation of the notebook as extracted directly
