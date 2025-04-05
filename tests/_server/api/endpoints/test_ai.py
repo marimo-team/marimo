@@ -12,7 +12,10 @@ import pytest
 from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.prompts import FILL_ME_TAG
-from marimo._server.ai.providers import OpenAIProvider
+from marimo._server.ai.providers import (
+    OpenAIProvider,
+    without_wrapping_backticks,
+)
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -797,75 +800,48 @@ class TestGetContent(unittest.TestCase):
         assert result == "Test content"
 
 
-class TestWithoutWrappingBackticks(unittest.TestCase):
-    def test_no_backticks(self) -> None:
-        """Test when there are no backticks in the chunks."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["Hello", " world", "!"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["Hello", " world", "!"]
-
-    def test_with_starting_backticks(self) -> None:
-        """Test when there are starting backticks but no ending backticks."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["```", "print('hello')", "print('world')"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["", "print('hello')", "print('world')"]
-
-    def test_with_ending_backticks(self) -> None:
-        """Test when there are ending backticks but no starting backticks."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["print('hello')", "print('world')", "```"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["print('hello')", "print('world')", "```"]
-
-    def test_with_both_backticks(self) -> None:
-        """Test when there are both starting and ending backticks."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["```", "print('hello')", "print('world')", "```"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["", "print('hello')", "print('world')", ""]
-
-    def test_with_backticks_in_middle(self) -> None:
-        """Test when there are backticks in the middle of the text."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["Hello", " ``` ", "world"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["Hello", " ``` ", "world"]
-
-    def test_with_partial_backticks(self) -> None:
-        """Test when there are partial backticks at the start or end."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["``python", "print('hello')", "print('world')", "``"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["``python", "print('hello')", "print('world')", "``"]
-
-    def test_empty_chunks(self) -> None:
-        """Test with empty chunks."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = []
-        result = list(without_wrapping_backticks(chunks))
-        assert result == []
-
-    def test_single_chunk(self) -> None:
-        """Test with a single chunk."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["```python```"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["python"]
-
-    def test_single_chunk_no_backticks(self) -> None:
-        """Test with a single chunk without backticks."""
-        from marimo._server.ai.providers import without_wrapping_backticks
-
-        chunks = ["Hello world"]
-        result = list(without_wrapping_backticks(chunks))
-        assert result == ["Hello world"]
+@pytest.mark.parametrize(
+    ("chunks", "expected"),
+    [
+        (["Hello", " world", "!"], "Hello world!"),
+        (
+            ["```", "print('hello')", "print('world')"],
+            "print('hello')print('world')",
+        ),
+        (
+            ["print('hello')", "print('world')", "```"],
+            "print('hello')print('world')```",
+        ),
+        (
+            ["```", "print('hello')", "```"],
+            "print('hello')",
+        ),
+        (["Hello", " ``` ", "world"], "Hello ``` world"),
+        (
+            ["``", "`print('hello')", "``", "`"],
+            "print('hello')",
+        ),
+        (
+            ["``", "`", "\n", "print('hello')", "\n", "``", "`"],
+            "print('hello')\n",
+        ),
+        (
+            ["```\n", "print('hello')", "print('world')", "\n```"],
+            "print('hello')print('world')",
+        ),
+        (
+            ["```\nprint('hello')\n", "print('world')\n```"],
+            "print('hello')\nprint('world')",
+        ),
+        (
+            ["```\n", "def test():\n    ", "return True\n```"],
+            "def test():\n    return True",
+        ),
+        ([], ""),
+        (["```idk```"], "idk"),
+        (["Hello world"], "Hello world"),
+    ],
+)
+def test_without_wrapping_backticks(chunks: list[str], expected: str) -> None:
+    result = list(without_wrapping_backticks(iter(chunks)))
+    assert "".join(result) == expected
