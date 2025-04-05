@@ -5,6 +5,8 @@ from typing import cast
 
 from marimo._ast.visitor import Language
 from marimo._server.ai.prompts import (
+    FILL_ME_TAG,
+    _format_variables,
     get_chat_system_prompt,
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
@@ -173,7 +175,7 @@ def test_edit_inline_prompts():
     snapshot("edit_inline_prompts.txt", result)
     # <FILL_ME> is sent from the client, this cannot change without
     # coordination
-    assert "<FILL_ME>" in result
+    assert FILL_ME_TAG in result
 
 
 def test_chat_system_prompts():
@@ -287,3 +289,53 @@ def test_chat_system_prompts():
     )
 
     snapshot("chat_system_prompts.txt", result)
+
+
+def test_format_variables():
+    """Test the _format_variables function."""
+    # Test empty variables
+    assert _format_variables(None) == ""
+    assert _format_variables([]) == ""
+
+    variables = [
+        "var1",
+        VariableContext(
+            name="df",
+            value_type="DataFrame",
+            preview_value="<DataFrame with 100 rows and 5 columns>",
+        ),
+        "var2",
+    ]
+    expected = (
+        "\n\n## Available variables from other cells:\n"
+        "- variable: `var1`"
+        "- variable: `df`\n"
+        "  - value_type: DataFrame\n"
+        "  - value_preview: <DataFrame with 100 rows and 5 columns>\n"
+        "- variable: `var2`"
+    )
+    assert _format_variables(variables) == expected
+
+    # Test private variables
+    variables = [
+        "var1",
+        "_private_var",
+        VariableContext(
+            name="df",
+            value_type="DataFrame",
+            preview_value="<DataFrame with 100 rows and 5 columns>",
+        ),
+        VariableContext(
+            name="_private_df",
+            value_type="DataFrame",
+            preview_value="<Private DataFrame>",
+        ),
+    ]
+    expected = (
+        "\n\n## Available variables from other cells:\n"
+        "- variable: `var1`"
+        "- variable: `df`\n"
+        "  - value_type: DataFrame\n"
+        "  - value_preview: <DataFrame with 100 rows and 5 columns>\n"
+    )
+    assert _format_variables(variables) == expected

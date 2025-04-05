@@ -11,6 +11,7 @@ import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.prompts import FILL_ME_TAG
 from marimo._server.ai.providers import OpenAIProvider
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
@@ -253,7 +254,7 @@ class TestOpenAiEndpoints:
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][1]["content"]
-            assert prompt == "import pandas as pd\n<FILL_ME>\ndf.head()"
+            assert prompt == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
             # Assert the system prompt includes language-specific instructions
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
@@ -416,7 +417,7 @@ class TestAnthropicAiEndpoints:
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert prompt == "import pandas as pd\n<FILL_ME>\ndf.head()"
+            assert prompt == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
             # Assert the model it was called with
             model = anthropic_client.messages.create.call_args.kwargs["model"]
             assert model == "claude-3.5-for-inline-completion"
@@ -514,7 +515,7 @@ class TestGoogleAiEndpoints:
             ]
             assert (
                 prompt[0]["parts"][0]
-                == "import pandas as pd\n<FILL_ME>\ndf.head()"
+                == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
             )
 
 

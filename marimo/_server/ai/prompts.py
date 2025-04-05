@@ -10,11 +10,13 @@ from marimo._server.models.completion import (
     VariableContext,
 )
 
+FILL_ME_TAG = "<FILL_ME>"
+
 language_rules = {
     "python": [
         "For matplotlib: use plt.gca() as the last expression instead of plt.show().",
         "For plotly: return the figure object directly.",
-        "For altair: return the chart object directly.",
+        "For altair: return the chart object directly. Add tooltips where appropriate.",
         "Include proper labels, titles, and color schemes.",
         "Make visualizations interactive where appropriate.",
         "If an import already exists, do not import it again.",
@@ -53,10 +55,14 @@ def _format_variables(
     variable_info = "\n\n## Available variables from other cells:\n"
     for variable in variables:
         if isinstance(variable, VariableContext):
+            if _is_private_variable := variable.name.startswith("_"):
+                continue
             variable_info += f"- variable: `{variable.name}`\n"
             variable_info += f"  - value_type: {variable.value_type}\n"
             variable_info += f"  - value_preview: {variable.preview_value}\n"
         else:
+            if _is_private_variable := variable.startswith("_"):
+                continue
             variable_info += f"- variable: `{variable}`"
 
     return variable_info
@@ -83,11 +89,11 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt = (
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
             "You goal is to create a new cell in the notebook.\n"
-            "Your output must be valid {language} code.\n"
+            f"Your output must be valid {language} code.\n"
             "You can use the provided context to help you write the new cell.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format with no remarks. \n\n"
-            "```\n{CELL_CODE}\n```"
+            "Immediately start with the following format:\n"
+            "\n{CELL_CODE}\n"
         )
 
     # When we are modifying or inserting into an existing cell, we need to
@@ -109,8 +115,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Immediately start with the following format with no remarks:\n\n"
-                "```\n{INSERTED_CODE}\n```"
+                "Immediately start with the following format:\n"
+                "\n{INSERTED_CODE}\n"
             )
         else:
             system_prompt += (
@@ -119,8 +125,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Immediately start with the following format with no remarks:\n\n"
-                "```\n{REWRITTEN_CODE}\n```"
+                "Immediately start with the following format:\n"
+                "\n{REWRITTEN_CODE}\n"
             )
 
     if selected_text:
@@ -149,8 +155,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 
 def get_inline_system_prompt(*, language: Language) -> str:
     return (
-        f"You are a {language} programmer that replaces <FILL_ME> part with the right code. "
-        "Only output the code that replaces <FILL_ME> part. Do not add any explanation or markdown."
+        f"You are a {language} programmer that replaces {FILL_ME_TAG} part with the right code. "
+        f"Only output the code that replaces {FILL_ME_TAG} part. Do not add any explanation or markdown."
     )
 
 
@@ -174,6 +180,8 @@ It will be up to you to decide which of these you are doing based on what the us
 
 You can respond with markdown, code, or a combination of both. You only work with two languages: Python and SQL.
 When responding in code, think of each block of code as a separate cell in the notebook.
+
+A cell is wrapped in @app.cell decorator and takes in some arguments and returns some values.
 
 You have the following rules:
 
@@ -243,28 +251,38 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
-import marimo as mo
-import matplotlib.pyplot as plt
-import numpy as np
+@app.cell
+def _():
+    import marimo as mo
+    import matplotlib.pyplot as plt
+    import numpy as np
 
-# Cell 2
-# Create a slider and display it
-n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
-n_points  # Display the slider
+    return (mo, plt, np)
 
-# Cell 3
-# Generate random data based on slider value
-# This cell automatically re-executes when n_points.value changes
-x = np.random.rand(n_points.value)
-y = np.random.rand(n_points.value)
+@app.cell
+def _(mo):
+    # Create a slider and display it
+    n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
+    n_points  # Display the slider
+    return (n_points,)
 
-plt.figure(figsize=(8, 6))
-plt.scatter(x, y, alpha=0.7)
-plt.title(f"Scatter plot with {n_points.value} points")
-plt.xlabel("X axis")
-plt.ylabel("Y axis")
-plt.gca()  # Return the current axes to display the plot
+@app.cell
+def _(np, n_points):
+    # Generate random data based on slider value
+    # This cell automatically re-executes when n_points.value changes
+    x = np.random.rand(n_points.value)
+    y = np.random.rand(n_points.value)
+    return (x, y)
+
+@app.cell
+def _(plt, n_points, x, y):
+    plt.figure(figsize=(8, 6))
+    plt.scatter(x, y, alpha=0.7)
+    plt.title(f"Scatter plot with {n_points.value} points")
+    plt.xlabel("X axis")
+    plt.ylabel("Y axis")
+    plt.gca()  # Return the current axes to display the plot
+    return (plt,)
 </example>"""
 
     for language in language_rules:
