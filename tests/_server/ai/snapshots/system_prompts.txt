@@ -4,7 +4,7 @@
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -16,7 +16,7 @@ Immediately start with the following format with no remarks.
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -26,7 +26,7 @@ Immediately start with the following format with no remarks.
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid markdown code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -39,7 +39,7 @@ Immediately start with the following format with no remarks.
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid sql code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -55,7 +55,7 @@ Immediately start with the following format with no remarks.
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid idk code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -68,7 +68,7 @@ Immediately start with the following format with no remarks.
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -80,7 +80,7 @@ Immediately start with the following format with no remarks.
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -93,7 +93,7 @@ Always use type hints.
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -105,7 +105,7 @@ Immediately start with the following format with no remarks.
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -144,7 +144,7 @@ Immediately start with the following format with no remarks:
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -179,7 +179,7 @@ print('Hello, world!')
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -214,7 +214,7 @@ print('Hello, world!')
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -248,7 +248,7 @@ pl.DataFrame()
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -263,7 +263,7 @@ import numpy as np
 
 You are an AI assistant integrated into the marimo notebook code editor.
 You goal is to create a new cell in the notebook.
-Your output must be valid {language} code.
+Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
 Immediately start with the following format with no remarks. 
@@ -275,7 +275,7 @@ Immediately start with the following format with no remarks.
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.

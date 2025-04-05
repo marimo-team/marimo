@@ -11,6 +11,7 @@ from marimo import _loggers
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.prompts import (
+    FILL_ME_TAG,
     get_chat_system_prompt,
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
@@ -195,7 +196,7 @@ async def ai_inline_completion(
     body = await parse_request(
         request, cls=AiInlineCompletionRequest, allow_unknown_keys=True
     )
-    prompt = f"{body.prefix}<FILL_ME>{body.suffix}"
+    prompt = f"{body.prefix}{FILL_ME_TAG}{body.suffix}"
     messages = [ChatMessage(role="user", content=prompt)]
     system_prompt = get_inline_system_prompt(language=body.language)
 

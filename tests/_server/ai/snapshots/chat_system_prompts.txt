@@ -85,17 +85,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -112,7 +109,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -206,17 +203,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -233,7 +227,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -330,17 +324,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -357,7 +348,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -454,17 +445,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -481,7 +469,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -584,17 +572,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -611,7 +596,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -722,17 +707,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -749,7 +731,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
@@ -848,17 +830,14 @@ Marimo's reactivity means:
 ## Examples
 
 <example title="Basic UI with reactivity">
-# Cell 1
 import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Cell 2
 # Create a slider and display it
 n_points = mo.ui.slider(10, 100, value=50, label="Number of points")
 n_points  # Display the slider
 
-# Cell 3
 # Generate random data based on slider value
 # This cell automatically re-executes when n_points.value changes
 x = np.random.rand(n_points.value)
@@ -875,7 +854,7 @@ plt.gca()  # Return the current axes to display the plot
 ## Rules for python:
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
 2. For plotly: return the figure object directly.
-3. For altair: return the chart object directly.
+3. For altair: return the chart object directly. Add tooltips where appropriate.
 4. Include proper labels, titles, and color schemes.
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
