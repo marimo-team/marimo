@@ -3,14 +3,14 @@
 If you're coming from Jupyter, here are a few tips to help you adapt to marimo
 notebooks.
 
-## Adapting to marimo's execution model
+## How marimo runs cells
 
-The biggest difference between marimo and Jupyter is the execution model.
+The biggest difference between marimo and Jupyter is the [execution model](../reactivity.md).
 
 A **Jupyter** notebook is a **REPL**: you execute blocks of code one at a time,
 and Jupyter has no understanding of how different blocks are related to each
 other. As a result a Jupyter notebook can easily
-accumulate "hidden state" (and hidden bugs) --- you might accidentally execute
+accumulate **"hidden state"** (and hidden bugs) --- you might accidentally execute
 cells out of order, or you might run (or delete) a cell but forget to re-run
 cells that depended on its variables. Because of this, Jupyter notebooks
 suffer from a [reproducibility crisis](../../faq.md#faq-problems), with over
@@ -76,7 +76,7 @@ def __():
 For more tips on adapting to marimo's execution model, see our guide
 on [working with expensive notebooks](../expensive_notebooks.md).
 
-## Adapting to marimo's restriction on redefining variables
+## Redefining variables
 
 marimo "compiles" your notebook cells into a directed graph on cells,
 linked by variable declarations and references, reusing this graph to
@@ -125,7 +125,7 @@ augmented_df = df
 augmented_df["another_column"] = [3, 4]
 ```
 
-## Adapting to marimo's file format
+## marimo's file format
 
 marimo stores notebooks as Python, not JSON. This lets you version notebooks
 with git, [execute them as scripts](../scripts.md), and import named
@@ -133,8 +133,8 @@ cells into other Python files. However, it does mean that your notebook outputs
 (e.g., plots) are not stored in the file.
 
 If you'd like to keep a visual record of your notebook work, [enable
-the "Auto-download as HTML" setting](../configuration/index.md), which will
-periodically snapshot your notebook as HTML to a `__marimo__` folder in the
+the "Auto-download as HTML/IPYNB" setting](../configuration/index.md), which will
+periodically snapshot your notebook as HTML or IPYNB to a `__marimo__` folder in the
 notebook directory.
 
 ### Converting Jupyter notebooks to marimo notebooks
@@ -145,7 +145,18 @@ Convert Jupyter notebooks to marimo notebooks at the command-line:
 marimo convert your_notebook.ipynb -o your_notebook.py
 ```
 
-## Adapting to the absence of magic commands
+### Exporting marimo notebooks to Jupyter notebooks
+
+Export to an `ipynb` file with
+
+```bash
+marimo export ipynb notebook.py -o notebook.ipynb
+```
+
+Note that some marimo library functions, including UI elements,
+won't work in Jupyter notebooks.
+
+## Magic commands
 
 Because marimo notebooks are just Python (improving maintainability), marimo
 doesn't support IPython magic commands or `!`-prefixed console commands. Here
