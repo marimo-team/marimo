@@ -64,6 +64,14 @@ describe("generateDatabaseCode", () => {
     secure: false,
   };
 
+  const timeplusConnection: DatabaseConnection = {
+    type: "timeplus",
+    host: "localhost",
+    port: 8123,
+    username: "default",
+    password: "",
+  };
+
   const chdbConnection: DatabaseConnection = {
     type: "chdb",
     database: "file:///path/to/db.chdb",
@@ -92,6 +100,7 @@ describe("generateDatabaseCode", () => {
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
       ["chdb", chdbConnection, "chdb"],
+      ["timeplus", timeplusConnection, "sqlalchemy"],
       ["trino", trinoConnection, "sqlmodel"],
     ])("%s", (name, connection, orm) => {
       expect(
@@ -149,6 +158,16 @@ describe("generateDatabaseCode", () => {
         },
         "clickhouse_connect",
       ],
+      [
+        "timeplus with all connection details as secrets",
+        {
+          ...timeplusConnection,
+          host: prefixSecret("ENV_HOST"),
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "sqlalchemy",
+      ],
     ])("%s", (name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
@@ -200,6 +219,15 @@ describe("generateDatabaseCode", () => {
           password: undefined,
         },
         "clickhouse_connect",
+      ],
+      [
+        "timeplus connect with minimal config",
+        {
+          ...timeplusConnection,
+          port: undefined,
+          password: "",
+        },
+        "sqlalchemy",
       ],
       [
         "postgres with unicode",
@@ -317,6 +345,14 @@ describe("generateDatabaseCode", () => {
           secure: true,
         },
         "clickhouse_connect",
+      ],
+      [
+        "timeplus with no port",
+        {
+          ...timeplusConnection,
+          port: undefined,
+        },
+        "sqlalchemy",
       ],
       [
         "chdb with no database",

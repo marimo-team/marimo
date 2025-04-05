@@ -142,6 +142,7 @@ class SQLAlchemyEngine(SQLEngine):
         dialect_queries = {
             "postgresql": "SELECT current_database()",
             "mssql": "SELECT DB_NAME()",
+            "timeplus": "SELECT current_database()",
         }
 
         # Try to get the database name by querying the database directly
