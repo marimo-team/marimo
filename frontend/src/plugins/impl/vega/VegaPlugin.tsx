@@ -12,17 +12,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 const LazyVegaComponent = React.lazy(() => import("./vega-component"));
 
-export const specSchema = z.object({
-  spec: z
-    .object({})
-    .passthrough()
-    .transform((spec) => spec as unknown as VegaLiteSpec),
-});
-
 export class VegaPlugin implements IPlugin<VegaComponentState, Data> {
   tagName = "marimo-vega";
 
-  validator = specSchema.extend({
+  validator = z.object({
+    spec: z
+      .object({})
+      .passthrough()
+      .transform((spec) => spec as unknown as VegaLiteSpec),
     chartSelection: z
       .union([z.boolean(), z.literal("point"), z.literal("interval")])
       .default(true),

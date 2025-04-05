@@ -49,6 +49,18 @@ export const HTMLCellId = {
   },
 };
 
+export const findActiveCellId = (): CellId | null => {
+  const element = document.activeElement;
+  let cellId: CellId | null = null;
+  if (element !== null) {
+    const cellContainer = HTMLCellId.findElement(element);
+    if (cellContainer !== null) {
+      cellId = HTMLCellId.parse(cellContainer.id);
+    }
+  }
+  return cellId;
+};
+
 /**
  * A typed UIElementId
  */

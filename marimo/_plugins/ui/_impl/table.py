@@ -23,14 +23,6 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.charts.chart_builder import (
-    BarChartArgs,
-    LineChartArgs,
-    PieChartArgs,
-    PlotChartArgs,
-    PlotChartResponse,
-    return_vega_spec,
-)
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     get_handler_for_dataframe,
 )
@@ -130,6 +122,11 @@ class GetRowIdsResponse:
     row_ids: list[int]
     all_rows: bool
     error: Optional[str] = None
+
+
+@dataclass
+class GetDataUrlResponse:
+    data_url: str
 
 
 LAZY_PREVIEW_ROWS = 10
@@ -598,9 +595,9 @@ class table(
                     function=self._get_row_ids,
                 ),
                 Function(
-                    name="plot_chart",
-                    arg_cls=PlotChartArgs,
-                    function=self._plot_chart,
+                    name="get_data_url",
+                    arg_cls=EmptyArgs,
+                    function=self._get_data_url,
                 ),
             ),
         )
@@ -778,9 +775,11 @@ class table(
             is_disabled=False,
         )
 
-    def _plot_chart(self, args: PlotChartArgs) -> PlotChartResponse:
-        """Plot a chart. Return vega spec(?)"""
-        return return_vega_spec()
+    def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
+        """Get the data URL for the entire table. Used for charting."""
+        del args
+        # TODO: May want to filter data here
+        return GetDataUrlResponse(data_url=self._searched_manager.to_data({}))
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort(
