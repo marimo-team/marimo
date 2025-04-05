@@ -433,6 +433,31 @@ def get_max_tokens(config: MarimoConfig) -> int:
     return config["ai"]["max_tokens"]
 
 
+def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:
+    buffer: Optional[str] = None
+
+    for chunk in chunks:
+        if buffer is None:
+            buffer = chunk
+        else:
+            # If buffer contains backticks, keep merging until we have no backticks,
+            # encounter a newline, or run out of chunks
+            if "`" in buffer:
+                buffer += chunk
+                # If we've hit a newline or no more backticks, yield the buffer
+                if "\n" in chunk or "`" not in buffer:
+                    yield buffer
+                    buffer = None
+            else:
+                # No backticks in buffer, yield it separately
+                yield buffer
+                buffer = chunk
+
+    # Return the last chunk if there's anything left
+    if buffer is not None:
+        yield buffer
+
+
 def without_wrapping_backticks(
     chunks: Iterator[str],
 ) -> Generator[str, None, None]:
@@ -445,6 +470,10 @@ def without_wrapping_backticks(
     Yields:
         Text chunks with the first and last backticks removed if they exist
     """
+
+    # First, merge backticks across chunks
+    chunks = merge_backticks(chunks)
+
     first_chunk = True
     buffer: Optional[str] = None
     has_starting_backticks = False
@@ -456,6 +485,9 @@ def without_wrapping_backticks(
             if chunk.startswith("```"):
                 has_starting_backticks = True
                 chunk = chunk[3:]  # Remove the starting backticks
+                # Also remove starting newline if present
+                if chunk.startswith("\n"):
+                    chunk = chunk[1:]
 
         # If we have a buffered chunk, yield it now
         if buffer is not None:
@@ -466,6 +498,9 @@ def without_wrapping_backticks(
 
     # Handle the last chunk
     if buffer is not None:
-        if has_starting_backticks and buffer.endswith("```"):
-            buffer = buffer[:-3]  # Remove the ending backticks
+        # Remove ending newline if present
+        if buffer.endswith("\n```"):
+            buffer = buffer[:-4]  # Remove the ending newline and backticks
+        elif has_starting_backticks and buffer.endswith("```"):
+            buffer = buffer[:-3]  # Remove just the ending backticks
         yield buffer
