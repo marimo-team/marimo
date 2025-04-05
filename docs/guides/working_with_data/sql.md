@@ -217,7 +217,6 @@ connection = chdb.connect(":memory:")
 
 ///
 
-
 ## Database, schema, and table auto-discovery
 
 marimo will automatically discover the database connection and display the database, schemas, tables, and columns in the Data Sources panel. This panels lets you quickly navigate your database schema and reference tables and columns to pull in your SQL queries.
