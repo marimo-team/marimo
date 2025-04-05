@@ -51,7 +51,6 @@ import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
 import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { specSchema } from "./vega/VegaPlugin";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -67,21 +66,8 @@ export type GetRowIds = (opts: {}) => Promise<{
   error: string | null;
 }>;
 
-export type PlotChart = (req: {
-  chart_type: string;
-  chart_args: {
-    x_column: string;
-    y_column: string;
-    x_axis: {
-      label: string | null;
-    };
-    y_axis: {
-      label: string | null;
-    };
-  };
-}) => Promise<{
-  spec: any;
-  error: string | null;
+export type GetDataUrl = (opts: {}) => Promise<{
+  data_url: string;
 }>;
 
 /**
@@ -129,8 +115,8 @@ type DataTableFunctions = {
     total_rows: number | "too_many";
     cell_styles?: CellStyleState | null;
   }>;
+  get_data_url: GetDataUrl;
   get_row_ids?: GetRowIds;
-  plot_chart: PlotChart;
 };
 
 type S = Array<number | string | { rowId: string; columnName?: string }>;
@@ -232,27 +218,11 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         error: z.string().nullable(),
       }),
     ),
-    plot_chart: rpc
-      .input(
-        z.object({
-          chart_type: z.string(),
-          chart_args: z.object({
-            x_column: z.string(),
-            y_column: z.string(),
-            x_axis: z.object({
-              label: z.string().nullable(),
-            }),
-            y_axis: z.object({
-              label: z.string().nullable(),
-            }),
-          }),
-        }),
-      )
-      .output(
-        specSchema.extend({
-          error: z.string().nullable(),
-        }),
-      ),
+    get_data_url: rpc.input(z.object({}).passthrough()).output(
+      z.object({
+        data_url: z.string(),
+      }),
+    ),
   })
   .renderer((props) => {
     return (
@@ -268,7 +238,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            transformAndChartsEnabled={true}
+            experimentalChartsEnabled={true}
         />
         </LazyDataTableComponent>
       </TooltipProvider>
@@ -309,7 +279,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
-  transformAndChartsEnabled?: boolean;
+  experimentalChartsEnabled?: boolean;
 }
 
 interface DataTableSearchProps {
@@ -515,9 +485,11 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
-    const transformChartsFeature =
+    const chartsFeature =
       getFeatureFlag("experimental_data_table") &&
-      props.transformAndChartsEnabled;
+      props.experimentalChartsEnabled;
+
+    const fieldTypes = props.fieldTypes;
 
     const dataTable = (
       <DataTableComponent
@@ -541,8 +513,12 @@ export const LoadingDataTableComponent = memo(
     return (
       <>
         {errorComponent}
-        {transformChartsFeature ? (
-          <TablePanel dataTable={dataTable} plotChart={props.plot_chart} />
+        {chartsFeature ? (
+          <TablePanel
+            dataTable={dataTable}
+            getDataUrl={props.get_data_url}
+            fieldTypes={fieldTypes}
+          />
         ) : (
           dataTable
         )}
