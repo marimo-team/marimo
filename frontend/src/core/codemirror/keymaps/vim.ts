@@ -52,6 +52,32 @@ export function vimKeymapExtension(): Extension[] {
         },
       },
     ]),
+    keymap.of([
+      {
+        // Ctrl-[ by default is to dedent
+        // But for Vim (on Linux), it should exit insert mode when in Insert mode
+        linux: "Ctrl-[",
+        run: (ev) => {
+          const cm = getCM(ev);
+          if (!cm) {
+            Logger.warn(
+              "Expected CodeMirror instance to have CodeMirror instance state",
+            );
+            return false;
+          }
+          if (!hasVimState(cm)) {
+            Logger.warn("Expected CodeMirror instance to have Vim state");
+            return false;
+          }
+          const vim = cm.state.vim;
+          if (vim.insertMode) {
+            Vim.exitInsertMode(cm, true);
+            return true;
+          }
+          return false;
+        },
+      },
+    ]),
     ViewPlugin.define((view) => {
       // Wait for the next animation frame so the CodeMirror instance is ready
       requestAnimationFrame(() => {

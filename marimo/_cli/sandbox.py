@@ -277,6 +277,7 @@ def construct_uv_command(
     args: list[str],
     name: str | None,
     additional_features: list[DepFeatures],
+    additional_deps: list[str],
 ) -> list[str]:
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
@@ -301,6 +302,9 @@ def construct_uv_command(
     dependencies = _normalize_sandbox_dependencies(
         dependencies, __version__, additional_features
     )
+
+    # Add additional dependencies
+    dependencies.extend(additional_deps)
 
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt"
@@ -357,12 +361,16 @@ def construct_uv_command(
 
 def run_in_sandbox(
     args: list[str],
+    *,
     name: Optional[str] = None,
     additional_features: Optional[list[DepFeatures]] = None,
+    additional_deps: Optional[list[str]] = None,
 ) -> int:
     if not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
-    uv_cmd = construct_uv_command(args, name, additional_features or [])
+    uv_cmd = construct_uv_command(
+        args, name, additional_features or [], additional_deps or []
+    )
 
     echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
 

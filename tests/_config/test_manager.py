@@ -348,3 +348,44 @@ def test_project_config_manager_resolve_missing_paths(tmp_path: Path) -> None:
     assert config["runtime"].get("pythonpath", []) == []
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
     assert config["runtime"]["other_setting"] == "value"
+
+
+def test_project_config_manager_resolve_custom_css(tmp_path: Path) -> None:
+    # Create a pyproject.toml with custom_css paths
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo.display]
+    custom_css = ["styles.css", "themes/dark.css"]
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    # Initialize ProjectConfigManager
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    # Verify custom_css paths are resolved correctly
+    expected_custom_css = [
+        str((tmp_path / "styles.css").absolute()),
+        str((tmp_path / "themes" / "dark.css").absolute()),
+    ]
+    assert config["display"]["custom_css"] == expected_custom_css
+
+
+def test_project_config_manager_resolve_invalid_custom_css(
+    tmp_path: Path,
+) -> None:
+    # Create a pyproject.toml with invalid custom_css type
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo.display]
+    custom_css = "not_a_list"
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    # Initialize ProjectConfigManager
+    # Initialize ProjectConfigManager
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    # Verify invalid custom_css is not modified
+    assert config["display"]["custom_css"] == "not_a_list"

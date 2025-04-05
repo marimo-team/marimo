@@ -275,8 +275,8 @@ class TestPandasTableManager(unittest.TestCase):
 
         json_data = self.factory_create_json_from_df(data)
         assert json_data == [
-            {"": "All", "basic_amt x NSW": 1, "basic_amt x QLD": 1},
-            {"": "Full", "basic_amt x NSW": 0, "basic_amt x QLD": 1},
+            {"": "All", "basic_amt,NSW": 1, "basic_amt,QLD": 1},
+            {"": "Full", "basic_amt,NSW": 0, "basic_amt,QLD": 1},
         ]
 
     def test_complex_data_field_types(self) -> None:

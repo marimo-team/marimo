@@ -16,6 +16,7 @@ from marimo._plugins.ui._impl.table import (
     SortArgs,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
@@ -1436,3 +1437,53 @@ def test_cell_search_df_styles_sorted():
         "4": {"column_0": {"backgroundColor": "green"}},
         "5": {"column_0": {"backgroundColor": "green"}},
     }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(),
+    reason="Pandas not installed, only pandas has multi-col idx",
+)
+def test_json_multi_col_idx_table() -> None:
+    import pandas as pd
+
+    cols = pd.MultiIndex.from_arrays(
+        [["basic_amt"] * 2, ["NSW", "QLD"]], names=[None, "Faculty"]
+    )
+    idx = pd.Index(["All", "Full"])
+    data = pd.DataFrame([(1, 1), (0, 1)], index=idx, columns=cols)
+    table = ui.table(data)
+
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    assert json_data == [
+        {
+            "": "All",
+            INDEX_COLUMN_NAME: 0,
+            "basic_amt,NSW": 1,
+            "basic_amt,QLD": 1,
+        },
+        {
+            "": "Full",
+            INDEX_COLUMN_NAME: 1,
+            "basic_amt,NSW": 0,
+            "basic_amt,QLD": 1,
+        },
+    ]
+
+    # If col name looks like a tuple
+    df = pd.DataFrame(
+        {
+            "('basic_amt', 'NSW')": [1],
+            "('basic_amt', 'QLD')": [2],
+        }
+    )
+    table = ui.table(df)
+    json_data = from_data_uri(table._component_args["data"])[1].decode("utf-8")
+    json_data = json.loads(json_data)
+    assert json_data == [
+        {
+            INDEX_COLUMN_NAME: 0,
+            "('basic_amt', 'NSW')": 1,
+            "('basic_amt', 'QLD')": 2,
+        }
+    ]

@@ -26,7 +26,7 @@ describe("getAutoFixes", () => {
 
     const fixes = getAutoFixes(error);
     expect(fixes).toHaveLength(1);
-    expect(fixes[0].title).toBe("Wrap in a function");
+    expect(fixes[0].title).toBe("Fix: Wrap in a function");
   });
 
   it("returns import fix for NameError with known import", () => {
@@ -38,7 +38,7 @@ describe("getAutoFixes", () => {
 
     const fixes = getAutoFixes(error);
     expect(fixes).toHaveLength(1);
-    expect(fixes[0].title).toBe("Add 'import numpy as np'");
+    expect(fixes[0].title).toBe("Fix: Add 'import numpy as np'");
   });
 
   it("returns no fixes for NameError with unknown import", () => {

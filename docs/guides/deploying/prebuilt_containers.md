@@ -12,7 +12,7 @@ We provide the following variants:
 
 or any particular version of marimo; for example, `marimo:0.8.3`, `marimo:0.8.3-data`, `marimo:0.8.3-sql`.
 
-Each container is built on `3.12-slim`, but if you'd like to see different configurations, please file an issue or submit a PR!
+Each container is built on `3.13-slim`, but if you'd like to see different configurations, please file an issue or submit a PR!
 
 ## Running locally
 

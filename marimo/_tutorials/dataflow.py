@@ -1,13 +1,20 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.10.1",
+#     "numpy==2.2.4",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.9.30"
+__generated_with = "0.12.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # How marimo notebooks run
@@ -24,7 +31,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         **Tip: disabling automatic execution.**
@@ -44,7 +51,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## References and definitions
@@ -67,7 +74,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Example
@@ -80,7 +87,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: inspecting refs and defs": f"""
@@ -97,7 +104,7 @@ def __(mo):
 
 
 @app.cell
-def __(amplitude, mo, period, plot_wave):
+def _(amplitude, mo, period, plot_wave):
     mo.md(
         f"""
         {mo.as_html(plot_wave(amplitude, period))}
@@ -110,7 +117,7 @@ def __(amplitude, mo, period, plot_wave):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     period = 2 * 3.14159
 
     mo.md(
@@ -123,7 +130,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     amplitude = 1
 
     mo.md(
@@ -136,16 +143,8 @@ def __(mo):
 
 
 @app.cell
-def __(matplotlib_installed, mo, np, numpy_installed, plt):
+def _(mo, np, plt):
     def plot_wave(amplitude, period):
-        if not numpy_installed:
-            return mo.md(
-                "> Oops! It looks like you don't have `numpy` installed."
-            )
-        if not matplotlib_installed:
-            return mo.md(
-                "> Oops! It looks like you don't have `matplotlib` installed."
-            )
         x = np.linspace(0, 2 * np.pi, 256)
         plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
         plt.xlim(0, 2 * np.pi)
@@ -168,7 +167,7 @@ def __(matplotlib_installed, mo, np, numpy_installed, plt):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         🌊 **Try it!** In the above cells, try changing the value `period` or 
@@ -180,7 +179,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         Here is the dataflow graph for the cells that make the sine wave plot, plus
@@ -210,7 +209,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Dataflow programming
@@ -224,7 +223,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Execution order is not cell order
@@ -239,7 +238,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Global variable names must be unique
@@ -256,21 +255,21 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     planet = "Mars"
     planet
     return (planet,)
 
 
 @app.cell
-def __():
+def _():
     planet = "Earth"
     planet
     return (planet,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         **🌊 Try it!** In the previous cell, change the name `planet` to `home`, 
@@ -281,7 +280,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         Because defs must be unique, global variables cannot be modified with
@@ -296,19 +295,19 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     count = 0
     return (count,)
 
 
 @app.cell
-def __():
+def _():
     count += 1
     return (count,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Underscore-prefixed variables are local to cells
@@ -325,28 +324,28 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     _private_variable, _ = 1, 2
     _private_variable, _
     return
 
 
 @app.cell
-def __():
+def _():
     _private_variable, _ = 3, 4
     _private_variable, _
     return
 
 
 @app.cell
-def __():
+def _():
     # `_private_variable` and `_` are not defined in this cell
     _private_variable, _
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Deleting a cell deletes its variables
@@ -361,7 +360,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     to_be_deleted = "variable still exists"
 
     mo.md(
@@ -375,13 +374,13 @@ def __(mo):
 
 
 @app.cell
-def __(to_be_deleted):
+def _(to_be_deleted):
     to_be_deleted
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Cycles are not allowed
@@ -393,19 +392,19 @@ def __(mo):
 
 
 @app.cell
-def __(two):
+def _(two):
     one = two - 1
     return (one,)
 
 
 @app.cell
-def __(one):
+def _(one):
     two = one + 1
     return (two,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### marimo doesn't track attributes
@@ -421,19 +420,19 @@ def __(mo):
 
 
 @app.cell
-def __(state):
+def _(state):
     state.number = 1
     return
 
 
 @app.cell
-def __(state):
+def _(state):
     state.number
     return
 
 
 @app.cell
-def __():
+def _():
     class namespace:
         pass
 
@@ -443,7 +442,7 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Why not track attributes?": """
@@ -457,7 +456,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### marimo doesn't track mutations
@@ -471,7 +470,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip (advanced): mutable state": (
@@ -487,7 +486,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Best practices
@@ -507,13 +506,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo, tips):
+def _(mo, tips):
     mo.accordion(tips)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## What's next?
@@ -528,29 +527,15 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
-def __():
-    matplotlib_installed = False
-    numpy_installed = False
-
-    try:
-        import matplotlib.pyplot as plt
-
-        matplotlib_installed = True
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        import numpy as np
-
-        numpy_installed = True
-    except ModuleNotFoundError:
-        pass
-    return matplotlib_installed, np, numpy_installed, plt
+@app.cell
+def _():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    return np, plt
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     tips = {
         "Use global variables sparingly": (
             """
@@ -652,7 +637,7 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

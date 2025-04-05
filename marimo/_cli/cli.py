@@ -384,7 +384,7 @@ def edit(
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name, additional_features=["lsp"])
+        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
         return
 
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
@@ -519,7 +519,7 @@ def new(
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], None, additional_features=["lsp"])
+        run_in_sandbox(sys.argv[1:], name=None, additional_features=["lsp"])
         return
 
     file_router: Optional[AppFileRouter] = None
@@ -716,7 +716,7 @@ def run(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        run_in_sandbox(sys.argv[1:], name=name)
         return
 
     # Validate name, or download from URL

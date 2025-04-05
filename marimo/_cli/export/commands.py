@@ -172,7 +172,7 @@ def html(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        run_in_sandbox(sys.argv[1:], name=name)
         return
 
     cli_args = parse_args(args)
@@ -253,7 +253,7 @@ def script(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        run_in_sandbox(sys.argv[1:], name=name)
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
@@ -325,7 +325,7 @@ def md(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        run_in_sandbox(sys.argv[1:], name=name)
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
@@ -404,10 +404,6 @@ def ipynb(
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
     """
-    DependencyManager.nbformat.require(
-        why="to convert marimo notebooks to ipynb"
-    )
-
     import sys
 
     if include_outputs:
@@ -420,8 +416,16 @@ def ipynb(
         if sandbox:
             from marimo._cli.sandbox import run_in_sandbox
 
-            run_in_sandbox(sys.argv[1:], name)
+            run_in_sandbox(
+                sys.argv[1:],
+                name=name,
+                additional_deps=["nbformat"],
+            )
             return
+
+    DependencyManager.nbformat.require(
+        why="to convert marimo notebooks to ipynb"
+    )
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
@@ -521,7 +525,7 @@ def html_wasm(
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name)
+        run_in_sandbox(sys.argv[1:], name=name)
         return
 
     out_dir = output

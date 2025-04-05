@@ -31,6 +31,7 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.9.0/katex.min.js
   - _static/js/analytics.js
   - _static/js/math.js
+  - _static/js/init_kapa_widget.js
 markdown_extensions:
   - blocks:MarimoBlocksExtension
   - admonition

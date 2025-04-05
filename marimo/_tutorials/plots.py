@@ -1,25 +1,32 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.10.1",
+#     "numpy==2.2.4",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.8.22"
+__generated_with = "0.12.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""# Plotting""")
     return
 
 
 @app.cell(hide_code=True)
-def __(check_dependencies):
+def _(check_dependencies):
     check_dependencies()
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         marimo supports several popular plotting libraries, including matplotlib,
@@ -33,13 +40,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Matplotlib""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         To show a plot, include it in the last expression of a cell (just
@@ -56,13 +63,13 @@ def __(mo):
 
 
 @app.cell
-def __(plt):
+def _(plt):
     plt.plot([1, 2])
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ```python3
@@ -78,7 +85,7 @@ def __(mo):
 
 
 @app.cell
-def __(plt):
+def _(plt):
     plt.plot([1, 2])
     # ... do some work ...
     # make plt.gca() the last line of the cell
@@ -87,13 +94,13 @@ def __(plt):
 
 
 @app.cell(hide_code=True)
-def __(mo, plt_show_explainer):
+def _(mo, plt_show_explainer):
     mo.accordion(plt_show_explainer)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         **A new figure every cell.** Every cell starts with an empty figure for 
@@ -104,13 +111,13 @@ def __(mo):
 
 
 @app.cell
-def __(np):
+def _(np):
     x = np.linspace(start=-4, stop=4, num=100, dtype=float)
     return (x,)
 
 
 @app.cell
-def __(plt, x):
+def _(plt, x):
     plt.plot(x, x)
     plt.plot(x, x**2)
     plt.gca()
@@ -118,13 +125,13 @@ def __(plt, x):
 
 
 @app.cell
-def __(plt, x):
+def _(plt, x):
     plt.plot(x, x**3)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         To build a figure over multiple cells, use the object-oriented API and
@@ -135,7 +142,7 @@ def __(mo):
 
 
 @app.cell
-def __(plt, x):
+def _(plt, x):
     _, axis = plt.subplots()
     axis.plot(x, x)
     axis.plot(x, x**2)
@@ -144,14 +151,14 @@ def __(plt, x):
 
 
 @app.cell
-def __(axis, x):
+def _(axis, x):
     axis.plot(x, x**3)
     axis
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ### Draw plots interactively
@@ -163,7 +170,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     exponent = mo.ui.slider(1, 5, value=1, step=1, label='exponent')
 
     mo.md(
@@ -177,7 +184,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo, plt, x):
+def _(mo, plt, x):
     @mo.cache
     def plot_power(exponent):
         plt.plot(x, x**exponent)
@@ -186,7 +193,7 @@ def __(mo, plt, x):
 
 
 @app.cell
-def __(exponent, mo, plot_power):
+def _(exponent, mo, plot_power):
     _tex = (
         f"$$f(x) = x^{exponent.value}$$" if exponent.value > 1 else "$$f(x) = x$$"
     )
@@ -203,13 +210,13 @@ def __(exponent, mo, plot_power):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Other libraries""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         marimo also supports these other plotting libraries:
@@ -229,7 +236,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(missing_packages, mo):
+def _(missing_packages, mo):
     module_not_found_explainer = mo.md(
         """
         ## Oops!
@@ -237,16 +244,16 @@ def __(missing_packages, mo):
         It looks like you're missing a package that this tutorial 
         requires.
 
-        Close marimo, install **`numpy`** and **`matplotlib`**, then 
-        open this tutorial once more.
+        Use the package manager panel on the left to install **numpy** and **matplotlib**,
+        then restart the tutorial.
 
-        If you use `pip`, run
+        Or, if you use `uv`, open the tutorial with
 
         ```
-        pip install numpy matplotlib
+        uvx marimo tutorial plots
         ```
 
-        at your command line.
+        at the command line.
         """
     ).callout(kind='warn')
 
@@ -257,7 +264,7 @@ def __(missing_packages, mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     plt_show_explainer = {
         "Using `plt.show()`": """
         You can use `plt.show()` or `figure.show()` to display
@@ -269,7 +276,7 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     try:
         import matplotlib
         import matplotlib.pyplot as plt
@@ -284,7 +291,7 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

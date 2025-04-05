@@ -155,6 +155,7 @@ class DisplayConfig(TypedDict):
     - `code_editor_font_size`: font size for the code editor
     - `cell_output`: `"above"` or `"below"`
     - `dataframes`: `"rich"` or `"plain"`
+    - `custom_css`: list of paths to custom CSS files
     """
 
     theme: Theme
@@ -162,6 +163,7 @@ class DisplayConfig(TypedDict):
     cell_output: Literal["above", "below"]
     default_width: WidthType
     dataframes: Literal["rich", "plain"]
+    custom_css: NotRequired[list[str]]
 
 
 @mddoc
