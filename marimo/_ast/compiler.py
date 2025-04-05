@@ -24,6 +24,7 @@ from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._schemas.serialization import CellDef, ClassCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
 
@@ -338,9 +339,7 @@ def context_cell_factory(
     end_line = end_node.end_lineno + 1
     if start_node == end_node and lines[end_line - 1].strip() == "pass":
         end_line -= 1
-    cell_code = textwrap.dedent(
-        "\n".join(lines[entry_line : end_line])
-    ).rstrip()
+    cell_code = textwrap.dedent("\n".join(lines[entry_line:end_line])).rstrip()
 
     source_position = None
     if not anonymous_file:
@@ -412,6 +411,22 @@ def toplevel_cell_factory(
         _name=obj.__name__,
         _cell=cell,
         _test_allowed=cell._test or is_test,
+    )
+
+
+def ir_cell_factory(cell_def: CellDef, cell_id: CellId_t) -> Cell:
+    test_name = isinstance(cell_def, ClassCell) and cell_def.name.startswith(
+        "Test"
+    )
+    test_name |= not isinstance(
+        cell_def, ClassCell
+    ) and cell_def.name.startswith("test_")
+    return Cell(
+        _name=cell_def.name,
+        _cell=compile_cell(
+            cell_def.code,
+            cell_id=cell_id,
+        ),
     )
 
 
