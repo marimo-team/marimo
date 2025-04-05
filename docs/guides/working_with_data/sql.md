@@ -217,17 +217,6 @@ connection = chdb.connect(":memory:")
 
 ///
 
-### Timeplus Support
-
-marimo supports Timeplus via [Timeplus Connect](https://github.com/timeplus-io/timeplus-connect/tree/timeplus) for remote connections.
-
-Refer to [the repo](https://github.com/timeplus-io/timeplus-connect/) for more configuration options.
-
-```python
-import timeplus_connect
-
-engine = timeplus_connect.get_client(host="localhost", port=8123, username="default", password="")
-```
 
 ## Database, schema, and table auto-discovery
 
