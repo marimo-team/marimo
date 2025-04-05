@@ -92,8 +92,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             f"Your output must be valid {language} code.\n"
             "You can use the provided context to help you write the new cell.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format: \n\n"
-            "\n{CELL_CODE}\n"
+            "Immediately start with the following format with no remarks. \n\n"
+            "```\n{CELL_CODE}\n```"
         )
 
     # When we are modifying or inserting into an existing cell, we need to
@@ -115,8 +115,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Immediately start with the following format: \n\n"
-                "\n{INSERTED_CODE}\n"
+                "Immediately start with the following format with no remarks:\n\n"
+                "```\n{INSERTED_CODE}\n```"
             )
         else:
             system_prompt += (
@@ -125,8 +125,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Immediately start with the following format: \n\n"
-                "\n{REWRITTEN_CODE}\n"
+                "Immediately start with the following format with no remarks:\n\n"
+                "```\n{REWRITTEN_CODE}\n```"
             )
 
     if selected_text:

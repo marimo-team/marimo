@@ -7,11 +7,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
@@ -29,11 +29,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid markdown code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ==================== sql ====================
 
@@ -42,11 +42,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid sql code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ## Rules for sql
 1. The SQL must use duckdb syntax.
@@ -58,11 +58,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid idk code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ==================== with custom rules ====================
 
@@ -71,11 +71,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
@@ -96,11 +96,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
@@ -135,11 +135,11 @@ def fib(n):
 
 You can't replace the content, your answer will be inserted in place of the <insert_here></insert_here> tags. Don't include the insert_here tags in your output.
 Match the indentation in the original file in the inserted content, don't include any indentation on blank lines.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks:
 
-
+```
 {INSERTED_CODE}
-
+```
 
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
@@ -164,11 +164,11 @@ def hello():
 
 Only make changes that are necessary to fulfill the prompt, leave everything else as-is. All surrounding content will be preserved.
 Start at the indentation level in the original file in the rewritten content. Don't stop until you've rewritten the entire section, even if you have no more changes to make, always write out the whole section with no unnecessary elisions.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks:
 
-
+```
 {REWRITTEN_CODE}
-
+```
 
 And here's the section to rewrite based on that prompt again for reference:
 
@@ -199,11 +199,11 @@ def hello():
 
 Only make changes that are necessary to fulfill the prompt, leave everything else as-is. All surrounding content will be preserved.
 Start at the indentation level in the original file in the rewritten content. Don't stop until you've rewritten the entire section, even if you have no more changes to make, always write out the whole section with no unnecessary elisions.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks:
 
-
+```
 {REWRITTEN_CODE}
-
+```
 
 And here's the section to rewrite based on that prompt again for reference:
 
@@ -233,11 +233,11 @@ The section you'll need to rewrite is marked with <rewrite_this></rewrite_this> 
 
 Only make changes that are necessary to fulfill the prompt, leave everything else as-is. All surrounding content will be preserved.
 Start at the indentation level in the original file in the rewritten content. Don't stop until you've rewritten the entire section, even if you have no more changes to make, always write out the whole section with no unnecessary elisions.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks:
 
-
+```
 {REWRITTEN_CODE}
-
+```
 
 And here's the section to rewrite based on that prompt again for reference:
 
@@ -266,11 +266,11 @@ You goal is to create a new cell in the notebook.
 Your output must be valid python code.
 You can use the provided context to help you write the new cell.
 You can reference variables from other cells, but you cannot redefine a variable if it already exists.
-Immediately start with the following format: 
+Immediately start with the following format with no remarks. 
 
-
+```
 {CELL_CODE}
-
+```
 
 ## Rules for python
 1. For matplotlib: use plt.gca() as the last expression instead of plt.show().
