@@ -70,7 +70,6 @@ describe("generateDatabaseCode", () => {
     port: 8123,
     username: "default",
     password: "",
-    secure: false,
   };
 
   const chdbConnection: DatabaseConnection = {
@@ -226,7 +225,7 @@ describe("generateDatabaseCode", () => {
         {
           ...timeplusConnection,
           port: undefined,
-          password: undefined,
+          password: "",
         },
         "sqlalchemy",
       ],
@@ -352,14 +351,6 @@ describe("generateDatabaseCode", () => {
         {
           ...timeplusConnection,
           port: undefined,
-        },
-        "sqlalchemy",
-      ],
-      [
-        "timeplus with https",
-        {
-          ...timeplusConnection,
-          secure: true,
         },
         "sqlalchemy",
       ],
