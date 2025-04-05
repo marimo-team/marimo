@@ -155,7 +155,7 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
     )
     # Fails otherwise
     if has_only_comments:
-        return block += "\npass"
+        block += "\npass"
 
     return "\n".join(
         [

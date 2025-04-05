@@ -52,6 +52,29 @@ def check_for_delete_nonlocal(
     return errors
 
 
+def check_for_invalid_root(
+    graph: DirectedGraph,
+) -> dict[CellId_t, list[CycleError]]:
+    """Setup cell cannot have parents."""
+    errors = defaultdict(list)
+    if SETUP_CELL_ID not in graph.cells:
+        return errors
+    if ancestors := graph.ancestors(SETUP_CELL_ID):
+        invalid_refs = tuple(
+            (
+                ancestor,
+                graph.cells[ancestor].defs & graph.cells[SETUP_CELL_ID].refs,
+            )
+            for ancestor in ancestors
+        )
+        errors[SETUP_CELL_ID].append(
+            SetupRootError(
+                edges_with_vars=invalid_refs,
+            )
+        )
+    return errors
+
+
 def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
     """Return cycle errors, if any."""
     errors = defaultdict(list)
@@ -92,6 +115,7 @@ def check_for_errors(
             multiple_definition_errors.keys(),
             delete_nonlocal_errors.keys(),
             cycle_errors.keys(),
+            check_for_invalid_root.keys(),
         )
     ):
         errors[cid] = tuple(
@@ -99,6 +123,7 @@ def check_for_errors(
                 multiple_definition_errors[cid],
                 cycle_errors[cid],
                 delete_nonlocal_errors[cid],
+                check_for_invalid_root[cid],
             )
         )
     return errors
