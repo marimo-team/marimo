@@ -1,21 +1,56 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { DATA_TYPES } from "@/core/kernel/messages";
+import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { z } from "zod";
+import { DEFAULT_AGGREGATION } from "./chart-spec";
 
-export const LineChartSchema = z.object({
+const axisSchema = {
+  xAxis: z
+    .object({
+      label: z.string().optional(),
+    })
+    .optional(),
+  yAxis: z
+    .object({
+      label: z.string().optional(),
+    })
+    .optional(),
+};
+
+const BaseChartSchema = z.object({
+  general: z.object({}).passthrough(),
+  ...axisSchema,
+});
+
+export const ChartSchema = BaseChartSchema.extend({
   general: z.object({
-    // xColumn: z.string().nullable(),
     xColumn: z.object({
-      name: z.string(),
-      type: z.enum(DATA_TYPES),
+      field: z.string().optional(),
+      type: z.enum(DATA_TYPES).optional(),
     }),
-    yColumn: z.string().nullable(),
+    yColumn: z.object({
+      field: z.string().optional(),
+      type: z.enum(DATA_TYPES).optional(),
+      agg: z
+        .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
+        .default(DEFAULT_AGGREGATION)
+        .optional(),
+    }),
   }),
-  xAxis: z.object({
-    label: z.string().nullable(),
-  }),
-  yAxis: z.object({
-    label: z.string().nullable(),
+});
+
+export const PieChartSchema = BaseChartSchema.extend({
+  general: z.object({
+    theta: z
+      .object({
+        name: z.string().optional(),
+        type: z.enum(DATA_TYPES).optional(),
+      })
+      .optional(),
+    color: z.object({
+      name: z.string().optional(),
+      type: z.enum(DATA_TYPES).optional(),
+    }),
   }),
 });
