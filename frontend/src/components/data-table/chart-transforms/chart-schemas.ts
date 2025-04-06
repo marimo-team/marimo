@@ -39,18 +39,3 @@ export const ChartSchema = BaseChartSchema.extend({
     }),
   }),
 });
-
-export const PieChartSchema = BaseChartSchema.extend({
-  general: z.object({
-    theta: z
-      .object({
-        name: z.string().optional(),
-        type: z.enum(DATA_TYPES).optional(),
-      })
-      .optional(),
-    color: z.object({
-      name: z.string().optional(),
-      type: z.enum(DATA_TYPES).optional(),
-    }),
-  }),
-});
