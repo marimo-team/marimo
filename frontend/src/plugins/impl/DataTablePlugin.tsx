@@ -489,8 +489,6 @@ export const LoadingDataTableComponent = memo(
       getFeatureFlag("experimental_data_table") &&
       props.experimentalChartsEnabled;
 
-    const fieldTypes = props.fieldTypes;
-
     const dataTable = (
       <DataTableComponent
         {...props}
@@ -517,7 +515,7 @@ export const LoadingDataTableComponent = memo(
           <TablePanel
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
-            fieldTypes={fieldTypes}
+            fieldTypes={props.fieldTypes}
           />
         ) : (
           dataTable
