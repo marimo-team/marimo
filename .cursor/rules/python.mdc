@@ -70,8 +70,3 @@ Unit tests
     - focus on a single use-case at a time
     - have a minimal set of assertions per test
     - demonstrate every use case. The rule of thumb is: if it can happen, it should be covered
-
-
-
-
-  
