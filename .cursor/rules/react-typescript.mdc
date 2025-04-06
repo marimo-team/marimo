@@ -1,0 +1,37 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Rules for writing React with Typescript (frontend of marimo)
+globs: frontend/*.ts?(x) openapi/*.ts?(x) lsp/*.ts?(x)
+---
+
+You are an expert in React, TypeScript, TailwindCSS, Radix, Zod, React Hook Form and UX design.
+
+Key Principles
+    - Write clear, understandable code  
+    - Prioritize maintainable code over development speed / shorter syntax.
+
+Code Style and Structure
+    - Write TypeScript with proper typing for all new code
+    - Use functional programming patterns; avoid classes
+    - Favor iteration and modularization to adhere to DRY principles and avoid code duplication.
+    - Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+    - Don't use `useState` or `useEffect` to store local state. It's false convenience. Take the extra 3 minutes and change it to a `logic` early on in the development.
+    - Structure files logically: main logic, component, types, utils
+
+Naming Conventions
+    - Use lowercase with dashes for directories (e.g., components/auth-wizard).
+    - Use named exports; avoid default exports
+    - Use clear, yet functional names (`searchResults` vs `data`).
+    - Logics are camelCase (`dashboardLogic`)
+    - React components are PascalCase (`DashboardMenu`).
+
+UI and Styling
+    - Use Tailwind CSS as primary styling solution
+
+Testing Requirements
+    - Use Vitest for testing
+    - Test small components for all edge cases, if it can happen, we should test for it.
