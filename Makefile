@@ -23,6 +23,14 @@ marimo/_lsp: $(shell find lsp)
 py:
 	pip install -e ".[dev]"
 
+.PHONY: dev
+dev:
+	@echo "Starting development servers..."
+	@# Start both processes, with marimo in background
+	@(trap 'kill %1; exit' INT; \
+	marimo edit --no-token --headless /tmp & \
+	cd frontend && pnpm dev && cd ..)
+
 .PHONY: check
 # run all checks
 check: fe-check py-check
