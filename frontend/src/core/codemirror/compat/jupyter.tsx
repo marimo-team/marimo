@@ -91,7 +91,7 @@ export function jupyterHelpExtension(): Extension {
       ),
     },
     {
-      match: "!uv pip install",
+      match: "!uv add",
       onMatch: () => {
         store.set(chromeAtom, (prev) => ({
           ...prev,

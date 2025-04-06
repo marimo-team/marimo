@@ -52,10 +52,10 @@ describe("jupyterHelpExtension", () => {
     });
   });
 
-  it("handles uv pip install command", () => {
+  it("handles uv add command", () => {
     view.dispatch({
-      changes: { from: 0, insert: "!uv pip install" },
-      selection: { anchor: 15 },
+      changes: { from: 0, insert: "!uv add" },
+      selection: { anchor: 10 },
     });
 
     expect(store.set).toHaveBeenCalled();

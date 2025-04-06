@@ -47,7 +47,7 @@ def __(mo):
         ## Installation
 
         ```bash
-        uv pip install duckdb
+        uv add duckdb
         ```
         """
     )
