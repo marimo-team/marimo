@@ -55,7 +55,7 @@ describe("jupyterHelpExtension", () => {
   it("handles uv add command", () => {
     view.dispatch({
       changes: { from: 0, insert: "!uv add" },
-      selection: { anchor: 10 },
+      selection: { anchor: 7 },
     });
 
     expect(store.set).toHaveBeenCalled();
