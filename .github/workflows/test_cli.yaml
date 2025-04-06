@@ -129,7 +129,7 @@ jobs:
 
       - name: Install marimo
         shell: bash
-        run: uv add marimo*whl
+        run: uv pip install marimo*whl
 
       - name: Test CLI
         shell: bash
@@ -162,7 +162,7 @@ jobs:
       - name: Install Python deps
         run: |
           uv add pytest pytest-asyncio
-          uv add marimo*whl
+          uv pip install marimo*whl
 
       - name: Test examples
         shell: bash
