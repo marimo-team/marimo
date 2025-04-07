@@ -77,7 +77,7 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
     lines: list[str] = []
 
     def _sep(desc: str) -> str:
-        return ":" if desc else ""
+        return " " if desc else ""
 
     for key, desc in items:
         # "\b" tells click not to reformat our text
@@ -210,6 +210,38 @@ def main(
     GLOBAL_SETTINGS.LOG_LEVEL = _loggers.log_level_string_to_int(log_level)
 
 
+def _get_stdin_contents() -> str | None:
+    # Utiity to get data from stdin a nonblocking way.
+    #
+    # Not supported on Windows.
+    #
+    # We support unix-style piping, e.g. cat notebook.py | marimo edit
+    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
+    #
+    # This check is complicated, because we need to support running
+    #
+    #   marimo edit
+    #
+    # without a filename as well. To distinguish between `marimo edit` and
+    # `... | marimo edit`, we need to check if sys.stdin() has data on it in a
+    # nonblocking way. This does not seem to be possible on Windows, but it
+    # is possible on unix-like systems with select.
+    if not is_windows():
+        import select
+
+        try:
+            if (
+                not sys.stdin.isatty()
+                and select.select([sys.stdin], [], [], 0)[0]
+                and (contents := sys.stdin.read().strip())
+            ):
+                return contents
+        except Exception:
+            ...
+
+    return None
+
+
 edit_help_msg = "\n".join(
     [
         "\b",
@@ -334,32 +366,12 @@ def edit(
     args: tuple[str, ...],
 ) -> None:
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
-    # Utility to support unix-style piping, e.g. cat notebook.py | marimo edit
-    #
-    # This check is complicated, because we need to support running
-    #
-    #   marimo edit
-    #
-    # without a filename as well. To distinguish between `marimo edit` and
-    # `... | marimo edit`, we need to check if sys.stdin() has data on it in a
-    # nonblocking way. This does not seem to be possible on Windows, but it
-    # is possible on unix-like systems with select.
-    if name is None and not is_windows():
-        import select
-
-        try:
-            if (
-                not sys.stdin.isatty()
-                and select.select([sys.stdin], [], [], 0)[0]
-                and (contents := sys.stdin.read().strip())
-            ):
-                temp_dir = tempfile.TemporaryDirectory()
-                path = create_temp_notebook_file(
-                    "notebook.py", "py", contents, temp_dir
-                )
-                name = path.absolute_name
-        except Exception:
-            pass
+    if name is None and (stdin_contents := _get_stdin_contents()) is not None:
+        temp_dir = tempfile.TemporaryDirectory()
+        path = create_temp_notebook_file(
+            "notebook.py", "py", stdin_contents, temp_dir
+        )
+        name = path.absolute_name
 
     # If file is a url, we prompt to run in docker
     # We only do this for remote files,
@@ -443,7 +455,34 @@ def edit(
     )
 
 
-@main.command(help="Create a new notebook.")
+new_help_msg = "\n".join(
+    [
+        "\b",
+        "Create an empty notebook, or generate from a prompt with AI",
+        "",
+        _key_value_bullets(
+            [
+                (
+                    "marimo new",
+                    "Create an empty notebook",
+                ),
+                (
+                    'marimo new "Plot an interactive 3D surface with matplotlib."',
+                    "Generate a notebook from a prompt.",
+                ),
+                (
+                    "marimo new prompt.txt",
+                    "Generate a notebook from a file containing a prompt.",
+                ),
+            ]
+        ),
+        "",
+        "Visit https://marimo.app/ai for more prompt examples.",
+    ]
+)
+
+
+@main.command(help=new_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -523,10 +562,19 @@ def new(
         return
 
     file_router: Optional[AppFileRouter] = None
-    if prompt:
+
+    if prompt is None:
+        # We support unix-style prompting, cat prompt.txt | marimo new
+        prompt = _get_stdin_contents()
+
+    if prompt is not None:
         import tempfile
 
         from marimo._ai.text_to_notebook import text_to_notebook
+
+        maybe_path = Path(prompt)
+        if maybe_path.is_file():
+            prompt = maybe_path.read_text()
 
         try:
             notebook_content = text_to_notebook(prompt)
