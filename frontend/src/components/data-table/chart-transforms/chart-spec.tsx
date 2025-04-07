@@ -41,7 +41,32 @@ export function createVegaSpec(
 
   const xEncodingKey = chartType === ChartType.PIE ? "theta" : "x";
   const yEncodingKey = chartType === ChartType.PIE ? "color" : "y";
-  const groupBy = getGroupBy(chartType, formValues);
+
+  const xEncoding = {
+    field: formValues.general.xColumn?.field,
+    type: convertDataTypeToVegaType(
+      formValues.general.xColumn?.type ?? "unknown",
+    ),
+    title: xAxisLabel,
+  };
+
+  const yEncoding = {
+    field: formValues.general.yColumn?.field,
+    type: convertDataTypeToVegaType(
+      formValues.general.yColumn?.type ?? "unknown",
+    ),
+    title: yAxisLabel,
+  };
+
+  let xOffset: object | undefined;
+  if (formValues.general.stacking) {
+    xOffset = {
+      field:
+        formValues.general.groupByColumn?.field === NONE_GROUP_BY
+          ? undefined
+          : formValues.general.groupByColumn?.field,
+    };
+  }
 
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
@@ -56,30 +81,16 @@ export function createVegaSpec(
       type: convertChartTypeToMark(chartType),
     },
     encoding: {
-      [xEncodingKey]: {
-        field: formValues.general.xColumn?.field,
-        type: convertDataTypeToVegaType(
-          formValues.general.xColumn?.type ?? "unknown",
-        ),
-        title: xAxisLabel,
-      },
-      [yEncodingKey]: {
-        field: formValues.general.yColumn?.field,
-        type: convertDataTypeToVegaType(
-          formValues.general.yColumn?.type ?? "unknown",
-        ),
-        title: yAxisLabel,
-        aggregate:
-          formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
-            ? undefined
-            : formValues.general.yColumn?.agg,
-      },
-      ...groupBy,
+      [xEncodingKey]: formValues.general.horizontal ? yEncoding : xEncoding,
+      [yEncodingKey]: formValues.general.horizontal ? xEncoding : yEncoding,
+      xOffset: xOffset,
+      ...getGroupBy(chartType, formValues),
       tooltip: getTooltips(formValues),
     },
   };
 }
 
+// groupBy can conflict with the color encoding for pie charts
 function getGroupBy(
   chartType: ChartType,
   formValues: z.infer<typeof ChartSchema>,

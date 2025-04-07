@@ -20,12 +20,14 @@ export const ChartSchema = z.object({
         .default(DEFAULT_AGGREGATION)
         .optional(),
     }),
+    horizontal: z.boolean().optional(),
     groupByColumn: z
       .object({
         field: z.string().default(NONE_GROUP_BY).optional(),
         type: z.enum(DATA_TYPES).optional(),
       })
       .optional(),
+    stacking: z.boolean().optional(),
     tooltips: z
       .array(
         z.object({

@@ -19,6 +19,8 @@ import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { DebouncedInput } from "@/components/ui/input";
 import { NONE_GROUP_BY } from "./chart-spec";
 import { SquareFunctionIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/utils/cn";
 
 export const ColumnSelector = <T extends object>({
   form,
@@ -117,6 +119,37 @@ export const InputField = <T extends object>({
               {...field}
               value={field.value ?? ""}
               onValueChange={field.onChange}
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+export const BooleanField = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  className,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  className?: string;
+}) => {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={cn("flex flex-row items-center gap-2", className)}>
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormControl>
+            <Checkbox
+              checked={field.value}
+              onCheckedChange={field.onChange}
+              className="w-4 h-4"
             />
           </FormControl>
         </FormItem>

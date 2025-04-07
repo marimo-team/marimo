@@ -48,7 +48,7 @@ import { createVegaSpec, DEFAULT_AGGREGATION } from "./chart-spec";
 import { useTheme } from "@/theme/useTheme";
 import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
-import { ColumnSelector, InputField } from "./form-components";
+import { BooleanField, ColumnSelector, InputField } from "./form-components";
 import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
@@ -393,7 +393,12 @@ const ChartForm = ({
               </>
             )}
           </TabsList>
-          <TabsContent value="general" className="flex flex-col gap-2">
+          <TabsContent value="general" className="flex flex-col gap-3">
+            <BooleanField
+              form={form}
+              name="general.horizontal"
+              formFieldLabel="Horizontal chart"
+            />
             <ColumnSelector
               form={form}
               name="general.xColumn.field"
@@ -455,17 +460,32 @@ const ChartForm = ({
             </div>
 
             {chartType !== ChartType.PIE && (
-              <ColumnSelector
-                form={form}
-                name="general.groupByColumn.field"
-                formFieldLabel="Group by"
-                columns={fields ?? []}
-                includeNoneOption={true}
-              />
+              <div className="flex flex-row gap-2">
+                <ColumnSelector
+                  form={form}
+                  name="general.groupByColumn.field"
+                  formFieldLabel="Group by"
+                  columns={fields ?? []}
+                  includeNoneOption={true}
+                />
+                {chartType === ChartType.BAR && (
+                  <BooleanField
+                    form={form}
+                    name="general.stacking"
+                    formFieldLabel="Stacked"
+                    className="self-end"
+                  />
+                )}
+              </div>
             )}
 
             <hr className="my-2" />
 
+            <InputField
+              form={form}
+              formFieldLabel="Plot title"
+              name="general.title"
+            />
             <FormField
               control={form.control}
               name="general.tooltips"
@@ -503,11 +523,6 @@ const ChartForm = ({
                   </FormControl>
                 </FormItem>
               )}
-            />
-            <InputField
-              form={form}
-              formFieldLabel="Plot title"
-              name="general.title"
             />
           </TabsContent>
           {chartType !== ChartType.PIE && (
