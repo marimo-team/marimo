@@ -436,7 +436,15 @@ class TestExportHtmlSmokeTests:
         file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
-            ["marimo", "export", "html", str(file), "-o", str(out)],
+            [
+                "marimo",
+                "export",
+                "html",
+                str(file),
+                "-o",
+                str(out),
+                "--no-sandbox",
+            ],
             capture_output=True,
         )
         self.assert_has_errors(p)
