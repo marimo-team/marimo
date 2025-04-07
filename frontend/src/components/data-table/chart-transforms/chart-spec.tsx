@@ -11,6 +11,7 @@ import { logNever } from "@/utils/assertNever";
 import type { Type } from "vega-lite/build/src/type";
 
 export const DEFAULT_AGGREGATION = "default";
+export const NONE_GROUP_BY = "None";
 
 export function createVegaSpec(
   chartType: ChartType,
@@ -19,7 +20,7 @@ export function createVegaSpec(
   theme: ResolvedTheme,
   width: number,
   height: number,
-): TopLevelSpec {
+): TopLevelSpec | null {
   let xAxisLabel = formValues.general.xColumn?.field;
   let yAxisLabel = formValues.general.yColumn?.field;
 
@@ -40,10 +41,12 @@ export function createVegaSpec(
 
   const xEncodingKey = chartType === ChartType.PIE ? "theta" : "x";
   const yEncodingKey = chartType === ChartType.PIE ? "color" : "y";
+  const groupBy = getGroupBy(chartType, formValues);
 
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v6.json",
     background: theme === "dark" ? "dark" : "white",
+    title: formValues.general.title,
     data: {
       values: data,
     },
@@ -71,14 +74,43 @@ export function createVegaSpec(
             ? undefined
             : formValues.general.yColumn?.agg,
       },
+      ...groupBy,
       tooltip: formValues.general.tooltips?.map((tooltip) => ({
         field: tooltip,
+        aggregate: (() => {
+          if (tooltip !== formValues.general.yColumn?.field) {
+            return undefined;
+          }
+          return formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
+            ? undefined
+            : formValues.general.yColumn?.agg;
+        })(),
       })),
     },
   };
 }
 
-// https://vega.github.io/vega-lite/docs/type.html
+function getGroupBy(
+  chartType: ChartType,
+  formValues: z.infer<typeof ChartSchema>,
+) {
+  if (
+    chartType === ChartType.PIE ||
+    formValues.general.groupByColumn?.field === NONE_GROUP_BY
+  ) {
+    return undefined;
+  }
+
+  return {
+    color: {
+      field: formValues.general.groupByColumn?.field,
+      type: convertDataTypeToVegaType(
+        formValues.general.groupByColumn?.type ?? "unknown",
+      ),
+    },
+  };
+}
+
 function convertDataTypeToVegaType(dataType: DataType): Type {
   switch (dataType) {
     case "number":
@@ -104,7 +136,9 @@ function convertChartTypeToMark(chartType: ChartType): Mark {
   switch (chartType) {
     case ChartType.PIE:
       return "arc";
+    case ChartType.SCATTER:
+      return "point";
     default:
-      return chartType as Mark;
+      return chartType;
   }
 }

@@ -6,8 +6,7 @@ import {
   FormLabel,
   FormControl,
 } from "@/components/ui/form";
-import type { UseFormReturn } from "react-hook-form";
-import type { ChartSchema } from "./chart-schemas";
+import type { UseFormReturn, Path, PathValue } from "react-hook-form";
 import type { DataType } from "@/core/kernel/messages";
 import {
   Select,
@@ -17,24 +16,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
-import type { z } from "zod";
 import { DebouncedInput } from "@/components/ui/input";
+import { NONE_GROUP_BY } from "./chart-spec";
+import { SquareFunctionIcon } from "lucide-react";
 
-export const ColumnSelector = ({
+export const ColumnSelector = <T extends object>({
   form,
-  formFieldName,
+  name,
   formFieldLabel,
   columns,
+  includeNoneOption = false,
 }: {
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  formFieldName: "general.xColumn.field" | "general.yColumn.field";
+  form: UseFormReturn<T>;
+  name: Path<T>;
   formFieldLabel: string;
   columns: Array<{ name: string; type: DataType }>;
+  includeNoneOption?: boolean;
 }) => {
   return (
     <FormField
       control={form.control}
-      name={formFieldName}
+      name={name}
       render={({ field }) => (
         <FormItem>
           <FormLabel>{formFieldLabel}</FormLabel>
@@ -42,14 +44,22 @@ export const ColumnSelector = ({
             <Select
               {...field}
               onValueChange={(value) => {
+                if (value === NONE_GROUP_BY) {
+                  form.setValue(name, value as PathValue<T, Path<T>>);
+                  return;
+                }
+
                 const column = columns.find((column) => column.name === value);
                 if (column) {
-                  form.setValue(formFieldName, value);
-                  const typeFieldName = formFieldName.replace(
+                  form.setValue(name, value as PathValue<T, Path<T>>);
+                  const typeFieldName = name.replace(
                     ".field",
                     ".type",
-                  ) as "general.xColumn.type" | "general.yColumn.type";
-                  form.setValue(typeFieldName, column.type);
+                  ) as Path<T>;
+                  form.setValue(
+                    typeFieldName,
+                    column.type as PathValue<T, Path<T>>,
+                  );
                 }
               }}
               value={field.value ?? ""}
@@ -58,6 +68,14 @@ export const ColumnSelector = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                {includeNoneOption && (
+                  <SelectItem value={NONE_GROUP_BY}>
+                    <div className="flex items-center">
+                      <SquareFunctionIcon className="w-3 h-3 mr-2" />
+                      None
+                    </div>
+                  </SelectItem>
+                )}
                 {columns.map((column) => {
                   const DataTypeIcon = DATA_TYPE_ICON[column.type];
                   return (
@@ -78,19 +96,19 @@ export const ColumnSelector = ({
   );
 };
 
-export const AxisLabelForm = ({
+export const InputField = <T extends object>({
   form,
-  formFieldName,
+  name,
   formFieldLabel,
 }: {
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  formFieldName: "xAxis.label" | "yAxis.label";
+  form: UseFormReturn<T>;
+  name: Path<T>;
   formFieldLabel: string;
 }) => {
   return (
     <FormField
       control={form.control}
-      name={formFieldName}
+      name={name}
       render={({ field }) => (
         <FormItem>
           <FormLabel>{formFieldLabel}</FormLabel>

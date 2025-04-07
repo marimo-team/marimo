@@ -14,6 +14,7 @@ export enum ChartType {
   LINE = "line",
   BAR = "bar",
   PIE = "pie",
+  SCATTER = "scatter",
 }
 export const CHART_TYPES = Object.values(ChartType);
 

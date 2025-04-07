@@ -9,6 +9,7 @@ import {
   MinusIcon,
   PlusIcon,
   BinaryIcon,
+  ChartScatterIcon,
 } from "lucide-react";
 import type { ChartType } from "./storage";
 import type { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
@@ -17,6 +18,7 @@ export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,
   bar: BarChartIcon,
   pie: PieChartIcon,
+  scatter: ChartScatterIcon,
 };
 
 export const AGGREGATION_TYPE_ICON: Record<

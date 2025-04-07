@@ -48,7 +48,7 @@ import { createVegaSpec, DEFAULT_AGGREGATION } from "./chart-spec";
 import { useTheme } from "@/theme/useTheme";
 import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
-import { AxisLabelForm, ColumnSelector } from "./form-components";
+import { ColumnSelector, InputField } from "./form-components";
 import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
@@ -304,7 +304,7 @@ export const ChartPanel: React.FC<{
 
   return (
     <div className="flex flex-row gap-6 p-3 h-full rounded-md border overflow-auto">
-      <div className="flex flex-col gap-3 w-1/4">
+      <div className="flex flex-col gap-3">
         <Select
           value={chartTypeSelected}
           onValueChange={(value) => {
@@ -332,8 +332,7 @@ export const ChartPanel: React.FC<{
           chartType={chartTypeSelected}
         />
       </div>
-
-      <div className="m-auto">{memoizedChart}</div>
+      {memoizedChart}
     </div>
   );
 };
@@ -376,16 +375,14 @@ const ChartForm = ({
     [saveChart],
   );
 
+  const saveForm = () => {
+    const values = form.getValues();
+    debouncedSave(values);
+  };
+
   return (
     <Form {...form}>
-      <form
-        onSubmit={(e) => e.preventDefault()}
-        onChange={() => {
-          // Get the latest form values and save them
-          const values = form.getValues();
-          debouncedSave(values);
-        }}
-      >
+      <form onSubmit={(e) => e.preventDefault()} onChange={saveForm}>
         <Tabs defaultValue="general">
           <TabsList>
             <TabsTrigger value="general">General</TabsTrigger>
@@ -399,7 +396,7 @@ const ChartForm = ({
           <TabsContent value="general" className="flex flex-col gap-2">
             <ColumnSelector
               form={form}
-              formFieldName="general.xColumn.field"
+              name="general.xColumn.field"
               formFieldLabel={
                 chartType === ChartType.PIE ? "Theta" : "X column"
               }
@@ -408,7 +405,7 @@ const ChartForm = ({
             <div className="flex flex-row gap-2">
               <ColumnSelector
                 form={form}
-                formFieldName="general.yColumn.field"
+                name="general.yColumn.field"
                 formFieldLabel={
                   chartType === ChartType.PIE ? "Color" : "Y column"
                 }
@@ -456,6 +453,19 @@ const ChartForm = ({
                 )}
               />
             </div>
+
+            {chartType !== ChartType.PIE && (
+              <ColumnSelector
+                form={form}
+                name="general.groupByColumn.field"
+                formFieldLabel="Group by"
+                columns={fields ?? []}
+                includeNoneOption={true}
+              />
+            )}
+
+            <hr className="my-2" />
+
             <FormField
               control={form.control}
               name="general.tooltips"
@@ -465,7 +475,10 @@ const ChartForm = ({
                     <Multiselect
                       options={fields?.map((field) => field.name) ?? []}
                       value={field.value ?? []}
-                      setValue={field.onChange}
+                      setValue={(values) => {
+                        field.onChange(values);
+                        saveForm(); // need to manually trigger for multiselect
+                      }}
                       label="Tooltips"
                       fullWidth={false}
                     />
@@ -473,20 +486,25 @@ const ChartForm = ({
                 </FormItem>
               )}
             />
+            <InputField
+              form={form}
+              formFieldLabel="Plot title"
+              name="general.title"
+            />
           </TabsContent>
           {chartType !== ChartType.PIE && (
             <>
               <TabsContent value="x-axis">
-                <AxisLabelForm
+                <InputField
                   form={form}
-                  formFieldName="xAxis.label"
+                  name="xAxis.label"
                   formFieldLabel="X-axis Label"
                 />
               </TabsContent>
               <TabsContent value="y-axis">
-                <AxisLabelForm
+                <InputField
                   form={form}
-                  formFieldName="yAxis.label"
+                  name="yAxis.label"
                   formFieldLabel="Y-axis Label"
                 />
               </TabsContent>
@@ -510,10 +528,15 @@ const Chart: React.FC<{
   }
 
   const vegaSpec = createVegaSpec(chartType, data, formValues, theme, 350, 300);
+
+  if (!vegaSpec) {
+    return <div>This configuration is not supported</div>;
+  }
+
   const compiledSpec = compile(vegaSpec).spec;
 
   return (
-    <div className="w-full h-full">
+    <div className="h-full m-auto rounded-md">
       <LazyVega
         spec={compiledSpec}
         theme={theme === "dark" ? "dark" : undefined}
