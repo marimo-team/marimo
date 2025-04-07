@@ -22,7 +22,7 @@ importers:
         specifier: ^6.18.6
         version: 6.18.6
       '@codemirror/commands':
-        specifier: ^6.8.0
+        specifier: ^6.8.1
         version: 6.8.1
       '@codemirror/lang-markdown':
         specifier: ^6.3.2
@@ -34,7 +34,7 @@ importers:
         specifier: ^6.8.0
         version: 6.8.0
       '@codemirror/language':
-        specifier: ^6.10.8
+        specifier: ^6.11.0
         version: 6.11.0
       '@codemirror/language-data':
         specifier: ^6.5.1
@@ -43,7 +43,7 @@ importers:
         specifier: ^6.5.0
         version: 6.5.0
       '@codemirror/lint':
-        specifier: ^6.8.4
+        specifier: ^6.8.5
         version: 6.8.5
       '@codemirror/search':
         specifier: ^6.5.10
@@ -55,7 +55,7 @@ importers:
         specifier: ^6.1.2
         version: 6.1.2
       '@codemirror/view':
-        specifier: ^6.36.4
+        specifier: ^6.36.5
         version: 6.36.5
       '@dagrejs/dagre':
         specifier: ^1.1.4
@@ -100,8 +100,8 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2
       '@lezer/python':
-        specifier: ^1.1.16
-        version: 1.1.16
+        specifier: ^1.1.17
+        version: 1.1.17
       '@marimo-team/codemirror-ai':
         specifier: ^0.1.11
         version: 0.1.11(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
@@ -1504,8 +1504,8 @@ packages:
   '@lezer/php@1.0.1':
     resolution: {integrity: sha512-aqdCQJOXJ66De22vzdwnuC502hIaG9EnPK2rSi+ebXyUd+j7GAX1mRjWZOVOmf3GST1YUfUCu6WXDiEgDGOVwA==}
 
-  '@lezer/python@1.1.16':
-    resolution: {integrity: sha512-ievIWylIZA5rNgAyHgA06/Y76vMUISKaYL9WrtjU8rCTTEzyZYo2jz9ER2YBdnN6dxCyS7eaK4HJCzamoAMKZw==}
+  '@lezer/python@1.1.17':
+    resolution: {integrity: sha512-Iz0doICPko9uv2chIfSsViNSugNa4PWhxs17jtFd0ZMt+OieDq3wxtFOdmj7wtst3FWDeJkB0CxWNot0BlYixw==}
 
   '@lezer/rust@1.0.1':
     resolution: {integrity: sha512-j+ToFKM6Wpglv3OQ4ebHYdYIMT2dh0ziCCV0rTf47AWiHOVhR0WjaKrBq+yuvDQNEhr5sxPxVI7+naJIgpqcsQ==}
@@ -9671,7 +9671,7 @@ snapshots:
       '@codemirror/language': 6.11.0
       '@codemirror/state': 6.5.2
       '@lezer/common': 1.2.3
-      '@lezer/python': 1.1.16
+      '@lezer/python': 1.1.17
 
   '@codemirror/lang-rust@6.0.1':
     dependencies:
@@ -10278,7 +10278,7 @@ snapshots:
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
 
-  '@lezer/python@1.1.16':
+  '@lezer/python@1.1.17':
     dependencies:
       '@lezer/common': 1.2.3
       '@lezer/highlight': 1.2.1
