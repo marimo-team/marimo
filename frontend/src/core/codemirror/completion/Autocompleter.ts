@@ -42,6 +42,12 @@ export const AUTOCOMPLETER = new DeferredRequestRegistry<
   // because they may be used for tooltips or live documentation.
 );
 
+const BOOSTS: Record<CompletionOption["type"], number> = {
+  param: 3,
+  property: 2,
+  // everything else is equal so alphabetically sorted
+};
+
 export const Autocompleter = {
   /**
    * Convert a CompletionResultMessage to a CompletionResult
@@ -56,6 +62,9 @@ export const Autocompleter = {
         return {
           label: option.name,
           type: option.type,
+          // Boost params so they appear first
+          // This appears inside parentheses
+          boost: BOOSTS[option.type] ?? 1,
           info: () => constructCompletionInfoNode(option.completion_info),
         };
       }),
