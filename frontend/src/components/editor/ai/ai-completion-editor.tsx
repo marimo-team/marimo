@@ -95,6 +95,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
         description: prettyError(error),
       });
     },
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
+    },
   });
 
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
