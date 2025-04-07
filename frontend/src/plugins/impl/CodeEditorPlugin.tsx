@@ -16,6 +16,7 @@ interface Data {
   disabled?: boolean;
   minHeight?: number;
   maxHeight?: number;
+  showCopyButton?: boolean;
 }
 
 export class CodeEditorPlugin implements IPlugin<T, Data> {
@@ -30,6 +31,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
     minHeight: z.number().optional(),
     maxHeight: z.number().optional(),
+    showCopyButton: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -66,6 +68,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
         value={props.value}
         language={props.language}
         onChange={props.setValue}
+        showCopyButton={props.showCopyButton}
       />
     </Labeled>
   );
