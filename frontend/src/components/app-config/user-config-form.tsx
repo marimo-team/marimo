@@ -1342,7 +1342,8 @@ export const UserConfigForm: React.FC = () => {
                     </FormControl>
                   </FormItem>
                   <FormDescription>
-                    Enable experimental charting feature on tables.
+                    Enable experimental charting feature on tables. Data is
+                    saved in local storage. May not be performant.
                   </FormDescription>
                 </div>
               )}
