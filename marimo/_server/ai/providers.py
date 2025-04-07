@@ -298,7 +298,9 @@ class OpenAIProvider(
             messages=cast(
                 Any,
                 convert_to_openai_messages(
-                    [ChatMessage(role="system", content=system_prompt)]
+                    self._maybe_convert_roles(
+                        [ChatMessage(role="system", content=system_prompt)]
+                    )
                     + messages
                 ),
             ),
@@ -315,6 +317,21 @@ class OpenAIProvider(
         ):
             return response.choices[0].delta.content
         return None
+
+    def _maybe_convert_roles(
+        self, messages: list[ChatMessage]
+    ) -> list[ChatMessage]:
+        # https://community.openai.com/t/o1-models-do-not-support-system-role-in-chat-completion/953880/3
+        if self.model.startswith("o1") or self.model.startswith("o3"):
+
+            def update_role(message: ChatMessage) -> ChatMessage:
+                if message.role == "system":
+                    return ChatMessage(role="user", content=message.content)
+                return message
+
+            return [update_role(message) for message in messages]
+
+        return messages
 
 
 class AnthropicProvider(
