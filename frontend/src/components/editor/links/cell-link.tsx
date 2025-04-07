@@ -30,7 +30,7 @@ export const CellLink = (props: Props): JSX.Element => {
   return (
     <div
       className={cn(
-        "inline-block cursor-pointer text-[var(--blue-10)] hover:underline",
+        "inline-block cursor-pointer text-link hover:underline",
         className,
       )}
       role="link"
