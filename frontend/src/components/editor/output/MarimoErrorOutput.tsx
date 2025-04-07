@@ -16,6 +16,7 @@ import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";
 import { SquareArrowOutUpRightIcon } from "lucide-react";
+import { ExternalLink } from "@/components/ui/links";
 
 const Tip = (props: {
   title?: string;
@@ -184,17 +185,12 @@ export const MarimoErrorOutput = ({
             </p>
 
             <p className="py-2">
-              <a
-                className={cn(
-                  "cursor-pointer text-[var(--blue-10)] hover:underline",
-                )}
+              <ExternalLink
                 href="https://links.marimo.app/errors-cycles"
-                target="_blank"
-                rel="noreferrer"
               >
                 Learn more at our docs{" "}
                 <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
-              </a>
+              </ExternalLink>
               .
             </p>
           </Tip>
@@ -239,17 +235,12 @@ export const MarimoErrorOutput = ({
             </p>
 
             <p className="py-2">
-              <a
-                className={cn(
-                  "cursor-pointer text-[var(--blue-10)] hover:underline",
-                )}
+              <ExternalLink
                 href="https://links.marimo.app/errors-multiple-definitions"
-                target="_blank"
-                rel="noreferrer"
               >
                 Learn more at our docs{" "}
                 <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
-              </a>
+              </ExternalLink>
               .
             </p>
           </Tip>
@@ -287,17 +278,12 @@ export const MarimoErrorOutput = ({
             </p>
 
             <p className="py-2">
-              <a
-                className={cn(
-                  "cursor-pointer text-[var(--blue-10)] hover:underline",
-                )}
+              <ExternalLink
                 href="https://links.marimo.app/errors-import-star"
-                target="_blank"
-                rel="noreferrer"
               >
                 Learn more at our docs{" "}
                 <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
-              </a>
+              </ExternalLink>
               .
             </p>
           </Tip>
