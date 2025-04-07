@@ -545,6 +545,10 @@ def new(
 
         from marimo._ai.text_to_notebook import text_to_notebook
 
+        maybe_path = Path(prompt)
+        if maybe_path.is_file():
+            prompt = maybe_path.read_text()
+
         try:
             notebook_content = text_to_notebook(prompt)
             temp_file = tempfile.NamedTemporaryFile(suffix=".py")
