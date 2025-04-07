@@ -330,3 +330,5 @@ export const allTablesAtom = atom((get) => {
 
   return tableNames;
 });
+
+export type DatasetTablesMap = ReturnType<(typeof allTablesAtom)["read"]>;

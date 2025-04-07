@@ -4,6 +4,8 @@ import { allTablesAtom } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
+import { variablesAtom } from "@/core/variables/state";
+import type { Variable, VariableName } from "@/core/variables/types";
 import { Logger } from "@/utils/Logger";
 import {
   autocompletion,
@@ -21,8 +23,9 @@ export function getAICompletionBody({
   AiCompletionRequest,
   "language" | "prompt" | "code"
 > {
-  const datasets = extractDatasets(input);
+  const { datasets, variables } = extractDatasetsAndVariables(input);
   Logger.debug("Included datasets", datasets);
+  Logger.debug("Included variables", variables);
 
   return {
     includeOtherCode: getCodes(""),
@@ -35,26 +38,50 @@ export function getAICompletionBody({
           sampleValues: column.sample_values,
         })),
       })),
-      variables: [],
+      variables: variables.map((variable) => ({
+        name: variable.name,
+        valueType: variable.dataType ?? "",
+        previewValue: variable.value,
+      })),
     },
   };
 }
 
 /**
- * Extracts datasets from the input.
- * Datasets are referenced with @<dataset_name> in the input.
+ * Extracts datasets and variables from the input.
+ * References are with @<name> in the input.
+ * Prioritizes datasets over variables if there's a name conflict.
  */
-function extractDatasets(input: string): DataTable[] {
+function extractDatasetsAndVariables(input: string): {
+  datasets: DataTable[];
+  variables: Variable[];
+} {
   const allTables = store.get(allTablesAtom);
+  const allVariables = store.get(variablesAtom);
 
-  // Extract dataset mentions from the input
-  const mentionedDatasets = input.match(/@([\w.]+)/g) || [];
+  // Extract mentions from the input
+  const mentions = input.match(/@([\w.]+)/g) || [];
+  const mentionedNames = mentions.map((mention) => mention.slice(1));
 
-  // Filter to only include datasets that exist
-  return mentionedDatasets
-    .map((mention) => mention.slice(1))
-    .map((name) => allTables.get(name))
-    .filter(Boolean);
+  const datasets: DataTable[] = [];
+  const variables: Variable[] = [];
+
+  for (const name of mentionedNames) {
+    // First process datasets (higher priority)
+    const dataset = allTables.get(name);
+    if (dataset) {
+      datasets.push(dataset);
+      continue;
+    }
+
+    // Then process variables if not already processed as datasets
+    const variable = allVariables[name as VariableName];
+    if (variable) {
+      variables.push(variable);
+    }
+  }
+
+  return { datasets, variables };
 }
 
 /**
