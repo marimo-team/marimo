@@ -15,6 +15,7 @@ import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";
+import { SquareArrowOutUpRightIcon } from "lucide-react";
 
 const Tip = (props: {
   title?: string;
@@ -181,6 +182,21 @@ export const MarimoErrorOutput = ({
             <p className="py-2">
               Try merging these cells into a single cell to eliminate the cycle.
             </p>
+
+            <p className="py-2">
+              <a
+                className={cn(
+                  "cursor-pointer text-[var(--blue-10)] hover:underline",
+                )}
+                href="https://links.marimo.app/errors-cycles"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </a>
+              .
+            </p>
           </Tip>
         </li>,
       );
@@ -192,6 +208,7 @@ export const MarimoErrorOutput = ({
           <p className="text-muted-foreground font-medium">
             This cell redefines variables from other cells.
           </p>
+
           {multipleDefsErrors.map((error, idx) => (
             <Fragment key={`multiple-defs-${idx}`}>
               <p className="text-muted-foreground mt-2">{`'${error.name}' was also defined by:`}</p>
@@ -219,6 +236,21 @@ export const MarimoErrorOutput = ({
               Try merging this cell with the mentioned cells or wrapping it in a
               function. Alternatively, rename variables to make them private to
               this cell by prefixing them with an underscore.
+            </p>
+
+            <p className="py-2">
+              <a
+                className={cn(
+                  "cursor-pointer text-[var(--blue-10)] hover:underline",
+                )}
+                href="https://links.marimo.app/errors-multiple-definitions"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </a>
+              .
             </p>
           </Tip>
         </li>,
@@ -252,6 +284,21 @@ export const MarimoErrorOutput = ({
             <p className="py-2">
               Star imports would also silently add names to globals, which would
               be incompatible with reactive execution.
+            </p>
+
+            <p className="py-2">
+              <a
+                className={cn(
+                  "cursor-pointer text-[var(--blue-10)] hover:underline",
+                )}
+                href="https://links.marimo.app/errors-import-star"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </a>
+              .
             </p>
           </Tip>
         </li>,
