@@ -97,7 +97,7 @@ pip install "marimo[recommended]"
 /// tab | install with uv
 
 ```bash
-uv pip install "marimo[recommended]"
+uv add "marimo[recommended]"
 ```
 
 ///

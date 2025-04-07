@@ -65,6 +65,19 @@ describe("jupyterHelpExtension", () => {
     });
   });
 
+  it("handles uv add command", () => {
+    view.dispatch({
+      changes: { from: 0, insert: "!uv add" },
+      selection: { anchor: 7 },
+    });
+
+    expect(store.set).toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith({
+      title: "Package Installation",
+      description: expect.any(Object),
+    });
+  });
+
   it("handles autoreload commands", async () => {
     // @ts-expect-error eh typescript
     store.get.mockReturnValue({ runtime: {} });

@@ -120,7 +120,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv pip install pytest pytest-asyncio pytest-timeout nbformat
+          uv add pytest pytest-asyncio pytest-timeout nbformat
 
       - name: Download wheel
         uses: actions/download-artifact@v4
@@ -161,7 +161,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv pip install pytest pytest-asyncio
+          uv add pytest pytest-asyncio
           uv pip install marimo*whl
 
       - name: Test examples
