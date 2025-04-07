@@ -25,7 +25,7 @@ WORKDIR /app
 COPY --link requirements.txt .
 
 # Install the requirements using uv
-RUN uv add -r requirements.txt
+RUN uv pip install -r requirements.txt
 
 # Copy application files
 COPY --link app.py .

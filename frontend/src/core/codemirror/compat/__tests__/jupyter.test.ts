@@ -52,6 +52,19 @@ describe("jupyterHelpExtension", () => {
     });
   });
 
+  it("handles uv pip install command", () => {
+    view.dispatch({
+      changes: { from: 0, insert: "!uv pip install" },
+      selection: { anchor: 15 },
+    });
+
+    expect(store.set).toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith({
+      title: "Package Installation",
+      description: expect.any(Object),
+    });
+  });
+
   it("handles uv add command", () => {
     view.dispatch({
       changes: { from: 0, insert: "!uv add" },

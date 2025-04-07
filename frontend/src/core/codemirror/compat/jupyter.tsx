@@ -91,6 +91,26 @@ export function jupyterHelpExtension(): Extension {
       ),
     },
     {
+      match: "!uv pip install",
+      onMatch: () => {
+        store.set(chromeAtom, (prev) => ({
+          ...prev,
+          isSidebarOpen: true,
+          selectedPanel: "packages",
+        }));
+
+        focusPackagesInput();
+      },
+      title: "Package Installation",
+      description: (
+        <>
+          The package manager sidebar has been opened.
+          <br />
+          Install packages directly from there instead.
+        </>
+      ),
+    },
+    {
       match: "!uv add",
       onMatch: () => {
         store.set(chromeAtom, (prev) => ({
