@@ -83,7 +83,7 @@ That's what clicking on the "Fix: Wrap in a function" button does. Note the func
 ### Merge cells
 
 Often you can simply merge the cells that define the same variable into a single cell.
-To incrementally show outputs in the cell, use [`mo.output.append`](marimo.output.append)
+To incrementally show outputs in the cell, use [`mo.output.append`][marimo.output.append]
 or `print()`.
 
 ### Chain dataframe methods
