@@ -35,6 +35,7 @@ export function getAICompletionBody({
           sampleValues: column.sample_values,
         })),
       })),
+      variables: [],
     },
   };
 }
