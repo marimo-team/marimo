@@ -23,7 +23,7 @@ const BaseChartSchema = z.object({
   ...axisSchema,
 });
 
-export const ChartSchema = BaseChartSchema.extend({
+export const ChartSchema = z.object({
   general: z.object({
     xColumn: z.object({
       field: z.string().optional(),
@@ -37,5 +37,16 @@ export const ChartSchema = BaseChartSchema.extend({
         .default(DEFAULT_AGGREGATION)
         .optional(),
     }),
+    tooltips: z.array(z.string()).optional(),
   }),
+  xAxis: z
+    .object({
+      label: z.string().optional(),
+    })
+    .optional(),
+  yAxis: z
+    .object({
+      label: z.string().optional(),
+    })
+    .optional(),
 });

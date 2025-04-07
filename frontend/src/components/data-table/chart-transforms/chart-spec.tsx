@@ -9,7 +9,6 @@ import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";
 import type { Type } from "vega-lite/build/src/type";
-import { capitalize } from "lodash-es";
 
 export const DEFAULT_AGGREGATION = "default";
 
@@ -24,8 +23,11 @@ export function createVegaSpec(
   let xAxisLabel = formValues.general.xColumn?.field;
   let yAxisLabel = formValues.general.yColumn?.field;
 
-  if (formValues.general.yColumn?.agg) {
-    yAxisLabel = `${capitalize(formValues.general.yColumn.agg)} of ${yAxisLabel}`;
+  if (
+    formValues.general.yColumn?.agg &&
+    formValues.general.yColumn.agg !== DEFAULT_AGGREGATION
+  ) {
+    yAxisLabel = `${formValues.general.yColumn.agg.toUpperCase()}(${yAxisLabel})`;
   }
 
   if (formValues.xAxis?.label && formValues.xAxis.label.trim() !== "") {
@@ -69,6 +71,9 @@ export function createVegaSpec(
             ? undefined
             : formValues.general.yColumn?.agg,
       },
+      tooltip: formValues.general.tooltips?.map((tooltip) => ({
+        field: tooltip,
+      })),
     },
   };
 }

@@ -2,7 +2,12 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChartBarIcon, TableIcon } from "lucide-react";
+import {
+  ChartBarIcon,
+  SquareFunctionIcon,
+  TableIcon,
+  XIcon,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +49,8 @@ import { useTheme } from "@/theme/useTheme";
 import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { AxisLabelForm, ColumnSelector } from "./form-components";
-import { CHART_TYPE_ICON } from "./icons";
+import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
+import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -184,15 +190,13 @@ export const TablePanel: React.FC<TablePanelProps> = ({
             onClick={() => setSelectedTab(tab.tabName)}
           >
             {tab.tabName}
-            <span
-              className="ml-1.5 text-red-400 hover:font-bold"
+            <XIcon
+              className="w-3 h-3 ml-1 mt-[0.5px] hover:text-red-500 hover:font-semibold"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteTab(tab.tabName);
               }}
-            >
-              X
-            </span>
+            />
           </TabsTrigger>
         ))}
         <DropdownMenu>
@@ -428,13 +432,22 @@ const ChartForm = ({
                           <SelectGroup>
                             <SelectLabel>Aggregation</SelectLabel>
                             <SelectItem value={DEFAULT_AGGREGATION}>
-                              {capitalize(DEFAULT_AGGREGATION)}
+                              <div className="flex items-center">
+                                <SquareFunctionIcon className="w-3 h-3 mr-2" />
+                                {capitalize(DEFAULT_AGGREGATION)}
+                              </div>
                             </SelectItem>
-                            {AGGREGATION_FNS.map((agg) => (
-                              <SelectItem key={agg} value={agg}>
-                                {capitalize(agg)}
-                              </SelectItem>
-                            ))}
+                            {AGGREGATION_FNS.map((agg) => {
+                              const Icon = AGGREGATION_TYPE_ICON[agg];
+                              return (
+                                <SelectItem key={agg} value={agg}>
+                                  <div className="flex items-center">
+                                    <Icon className="w-3 h-3 mr-2" />
+                                    {capitalize(agg)}
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
                           </SelectGroup>
                         </SelectContent>
                       </Select>
@@ -443,6 +456,23 @@ const ChartForm = ({
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="general.tooltips"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Multiselect
+                      options={fields?.map((field) => field.name) ?? []}
+                      value={field.value ?? []}
+                      setValue={field.onChange}
+                      label="Tooltips"
+                      fullWidth={false}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </TabsContent>
           {chartType !== ChartType.PIE && (
             <>
