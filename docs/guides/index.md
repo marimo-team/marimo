@@ -14,6 +14,7 @@ These guides cover marimo's core concepts.
 | [Visualizing outputs](outputs.md)                     | Creating markdown, plots, and other visual outputs         |
 | [Migrating from Jupyter](coming_from/jupyter.md)      | Tips for transitioning from Jupyter                        |
 | [Expensive notebooks](expensive_notebooks.md)         | Tips for working with expensive notebooks                  |
+| [Understanding errors](understanding_errors/index.md) | Understanding marimo's constraints on notebook code        |
 | [Working with data](working_with_data/index.md)       | Using SQL cells, no-code dataframe, and reactive plots     |
 | [Package reproducibility](package_reproducibility.md) | Making notebooks reproducible down to the packages         |
 | [Editor features](editor_features/index.md)           | View variables, dataframe schemas, docstrings, and more    |
