@@ -840,6 +840,22 @@ class TestGetContent(unittest.TestCase):
         ([], ""),
         (["```idk```"], "idk"),
         (["Hello world"], "Hello world"),
+        (
+            ["```python\n", "def hello():\n    ", "print('world')\n```"],
+            "def hello():\n    print('world')",
+        ),
+        (
+            ["```python", "\ndef hello():\n    ", "print('world')\n```"],
+            "def hello():\n    print('world')",
+        ),
+        (
+            ["```sql", "SELECT * FROM table", " WHERE id = 1", "```"],
+            "SELECT * FROM table WHERE id = 1",
+        ),
+        (
+            ["```sql\n", "SELECT * FROM table\n", "WHERE id = 1\n```"],
+            "SELECT * FROM table\nWHERE id = 1",
+        ),
     ],
 )
 def test_without_wrapping_backticks(chunks: list[str], expected: str) -> None:

@@ -81,6 +81,10 @@ export const AddCellWithAI: React.FC<{
         description: prettyError(error),
       });
     },
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
+    },
   });
 
   const inputComponent = (

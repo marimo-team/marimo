@@ -474,6 +474,8 @@ def without_wrapping_backticks(
     # First, merge backticks across chunks
     chunks = merge_backticks(chunks)
 
+    langs = ["python", "sql"]
+
     first_chunk = True
     buffer: Optional[str] = None
     has_starting_backticks = False
@@ -482,12 +484,25 @@ def without_wrapping_backticks(
         # Handle the first chunk
         if first_chunk:
             first_chunk = False
-            if chunk.startswith("```"):
-                has_starting_backticks = True
-                chunk = chunk[3:]  # Remove the starting backticks
-                # Also remove starting newline if present
-                if chunk.startswith("\n"):
-                    chunk = chunk[1:]
+            # Check for language-specific fences first
+            for lang in langs:
+                if chunk.startswith(f"```{lang}"):
+                    has_starting_backticks = True
+                    chunk = chunk[
+                        3 + len(lang) :
+                    ]  # Remove the starting backticks with lang
+                    # Also remove starting newline if present
+                    if chunk.startswith("\n"):
+                        chunk = chunk[1:]
+                    break
+            # If no language-specific fence was found, check for plain backticks
+            else:
+                if chunk.startswith("```"):
+                    has_starting_backticks = True
+                    chunk = chunk[3:]  # Remove the starting backticks
+                    # Also remove starting newline if present
+                    if chunk.startswith("\n"):
+                        chunk = chunk[1:]
 
         # If we have a buffered chunk, yield it now
         if buffer is not None:
