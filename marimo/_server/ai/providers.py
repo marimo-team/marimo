@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -165,6 +165,10 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         """Extract content from a response chunk."""
         pass
 
+    def collect_stream(self, response: StreamT) -> str:
+        """Collect a stream into a single string."""
+        return "".join(self.as_stream_response(response))
+
     def as_stream_response(
         self, response: StreamT
     ) -> Generator[str, None, None]:
@@ -179,64 +183,6 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
 
             buffer += content
             original_content += content
-
-            yield buffer
-            buffer = ""
-
-        LOGGER.debug(f"Completion content: {original_content}")
-
-    def collect_stream(self, response: StreamT) -> str:
-        """Collect a stream into a single string."""
-        return "".join(self.as_stream_response(response))
-
-    def make_stream_response(
-        self, response: StreamT
-    ) -> Generator[str, None, None]:
-        """Convert a stream to a generator of strings, handling code blocks."""
-        original_content = ""
-        buffer = ""
-        in_code_fence = False
-
-        for chunk in cast(Generator[ResponseT, None, None], response):
-            content = self.extract_content(chunk)
-            if not content:
-                continue
-
-            buffer += content
-            original_content += content
-            first_newline = buffer.find("\n")
-
-            # Open code-fence, with no newline
-            # wait for the next newline
-            if (
-                buffer.startswith("```")
-                and first_newline == -1
-                and not in_code_fence
-            ):
-                continue
-
-            if (
-                buffer.startswith("```")
-                and first_newline > 0
-                and not in_code_fence
-            ):
-                # And also ends with ```
-                if buffer.endswith("```"):
-                    yield buffer[first_newline + 1 : -3]
-                    buffer = ""
-                    in_code_fence = False
-                    continue
-
-                yield buffer[first_newline + 1 :]
-                buffer = ""
-                in_code_fence = True
-                continue
-
-            if buffer.endswith("```") and in_code_fence:
-                yield buffer[:-3]
-                buffer = ""
-                in_code_fence = False
-                continue
 
             yield buffer
             buffer = ""
@@ -485,3 +431,76 @@ def get_max_tokens(config: MarimoConfig) -> int:
     if "max_tokens" not in config["ai"]:
         return DEFAULT_MAX_TOKENS
     return config["ai"]["max_tokens"]
+
+
+def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:
+    buffer: Optional[str] = None
+
+    for chunk in chunks:
+        if buffer is None:
+            buffer = chunk
+        else:
+            # If buffer contains backticks, keep merging until we have no backticks,
+            # encounter a newline, or run out of chunks
+            if "`" in buffer:
+                buffer += chunk
+                # If we've hit a newline or no more backticks, yield the buffer
+                if "\n" in chunk or "`" not in buffer:
+                    yield buffer
+                    buffer = None
+            else:
+                # No backticks in buffer, yield it separately
+                yield buffer
+                buffer = chunk
+
+    # Return the last chunk if there's anything left
+    if buffer is not None:
+        yield buffer
+
+
+def without_wrapping_backticks(
+    chunks: Iterator[str],
+) -> Generator[str, None, None]:
+    """
+    Removes the first and last backticks (```) from a stream of text chunks.
+
+    Args:
+        chunks: An iterator of text chunks
+
+    Yields:
+        Text chunks with the first and last backticks removed if they exist
+    """
+
+    # First, merge backticks across chunks
+    chunks = merge_backticks(chunks)
+
+    first_chunk = True
+    buffer: Optional[str] = None
+    has_starting_backticks = False
+
+    for chunk in chunks:
+        # Handle the first chunk
+        if first_chunk:
+            first_chunk = False
+            if chunk.startswith("```"):
+                has_starting_backticks = True
+                chunk = chunk[3:]  # Remove the starting backticks
+                # Also remove starting newline if present
+                if chunk.startswith("\n"):
+                    chunk = chunk[1:]
+
+        # If we have a buffered chunk, yield it now
+        if buffer is not None:
+            yield buffer
+
+        # Store the current chunk as buffer for the next iteration
+        buffer = chunk
+
+    # Handle the last chunk
+    if buffer is not None:
+        # Remove ending newline if present
+        if buffer.endswith("\n```"):
+            buffer = buffer[:-4]  # Remove the ending newline and backticks
+        elif has_starting_backticks and buffer.endswith("```"):
+            buffer = buffer[:-3]  # Remove just the ending backticks
+        yield buffer

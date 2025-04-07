@@ -49,7 +49,7 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const input = "Use @dataset1 and @dataset2 for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -70,18 +70,20 @@ describe("getAICompletionBody", () => {
             ],
           },
         ],
+        variables: [],
       },
     });
   });
 
   it("should handle input with no mentioned datasets", () => {
     const input = "Perform some analysis without mentioning datasets";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
       context: {
         schema: [],
+        variables: [],
       },
     });
   });
@@ -100,7 +102,7 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const input = "Use @existingDataset and @nonExistentDataset for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -114,6 +116,7 @@ describe("getAICompletionBody", () => {
             ],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -136,7 +139,7 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const input = "Use @dataset.with.dots and @regular_dataset for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -154,6 +157,7 @@ describe("getAICompletionBody", () => {
             columns: [{ name: "col3", type: "boolean" }],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -191,7 +195,7 @@ describe("getAICompletionBody", () => {
     });
 
     const input = "Use @table1 for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -202,6 +206,7 @@ describe("getAICompletionBody", () => {
             columns: [{ name: "col1", type: "number" }],
           },
         ],
+        variables: [],
       },
     });
   });
