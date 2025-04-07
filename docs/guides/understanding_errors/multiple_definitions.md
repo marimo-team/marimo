@@ -20,7 +20,7 @@ cells defined the multiply defined variable. You can click on the cell name,
 and marimo will highlight it.
 
 **Why can't I redefine variables?** marimo guarantees that the code on the page
-matches the outputs you see by determing a deterministic execution order on
+matches the outputs you see by determining a deterministic execution order on
 cells; when one cell runs, marimo knows which others should run. But if two
 cells defined `x`, and a third showed `x`, the output of the third cell would
 be ambiguous, depending on which of the defining cells ran first (should it be
