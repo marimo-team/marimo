@@ -18,11 +18,37 @@ export enum ChartType {
 export const CHART_TYPES = Object.values(ChartType);
 
 export interface TabStorage {
-  cellId: CellId;
   tabName: TabName; // unique within cell
   chartType: ChartType;
   config: z.infer<typeof ChartSchema>;
 }
 
-export const tabsStorageAtom = atomWithStorage<TabStorage[]>(KEY, []);
+// Custom storage adapter to ensure objects are serialized as maps
+const mapStorage = {
+  getItem: (key: string): Map<CellId, TabStorage[]> => {
+    try {
+      const value = localStorage.getItem(key);
+      if (!value) {
+        return new Map();
+      }
+      const parsed = JSON.parse(value);
+      return new Map(parsed as Array<[CellId, TabStorage[]]>);
+    } catch {
+      return new Map();
+    }
+  },
+  setItem: (key: string, value: Map<CellId, TabStorage[]>): void => {
+    localStorage.setItem(key, JSON.stringify([...value.entries()]));
+  },
+  removeItem: (key: string): void => {
+    localStorage.removeItem(key);
+  },
+};
+
+export const tabsStorageAtom = atomWithStorage<Map<CellId, TabStorage[]>>(
+  KEY,
+  new Map(),
+  mapStorage,
+);
+
 export const tabNumberAtom = atom(0);

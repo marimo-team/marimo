@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChartBarIcon, TableIcon } from "lucide-react";
 import {
@@ -25,9 +25,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ChartSchema } from "./chart-schemas";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
-import { useLastFocusedCellId } from "@/core/cells/focus";
 import { useAtom } from "jotai";
-import { findActiveCellId } from "@/core/cells/ids";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { capitalize, debounce } from "lodash-es";
 import {
   type TabName,
@@ -44,7 +43,6 @@ import { createVegaSpec, DEFAULT_AGGREGATION } from "./chart-spec";
 import { useTheme } from "@/theme/useTheme";
 import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
-import { Logger } from "@/utils/Logger";
 import { AxisLabelForm, ColumnSelector } from "./form-components";
 import { CHART_TYPE_ICON } from "./icons";
 
@@ -62,23 +60,40 @@ export interface TablePanelProps {
   fieldTypes?: FieldTypesWithExternalType | null;
 }
 
-// todo: change from jsx.element
 export const TablePanel: React.FC<TablePanelProps> = ({
   dataTable,
   getDataUrl,
   fieldTypes,
 }) => {
-  const [tabs, saveTabs] = useAtom(tabsStorageAtom);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cellId, setCellId] = useState<CellId | null>(null);
+
+  const [tabsMap, saveTabsMap] = useAtom(tabsStorageAtom);
+  const tabs = cellId ? (tabsMap.get(cellId) ?? []) : [];
+
   const [tabNum, setTabNum] = useAtom(tabNumberAtom);
   const [selectedTab, setSelectedTab] = useState(DEFAULT_TAB_NAME);
 
-  const lastFocusedCellId = useLastFocusedCellId();
-  const activeCellId = findActiveCellId();
-  // TODO: This isn't finding the correct cell
-  const cellId = activeCellId || lastFocusedCellId;
+  // Finds cellId in shadow / light DOM
+  useEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+    const root = containerRef.current.getRootNode();
+    let element: Element | null = containerRef.current;
+    while (element && element !== root) {
+      if (element.id?.startsWith("cell-")) {
+        setCellId(HTMLCellId.parse(element.id as `cell-${CellId}`));
+        break;
+      }
+      element =
+        element.getRootNode() instanceof ShadowRoot
+          ? (element.getRootNode() as ShadowRoot).host
+          : element.parentElement;
+    }
+  }, [containerRef]);
 
   const handleAddTab = () => {
-    Logger.debug("handleAddTab", { cellId, tabNum });
     if (!cellId) {
       return;
     }
@@ -86,26 +101,32 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       tabNum === 0
         ? NEW_TAB_NAME
         : (`${NEW_TAB_NAME} ${tabNum + 1}` as TabName);
-    setTabNum(tabNum + 1);
-    setSelectedTab(tabName);
 
-    saveTabs([
+    const newTabs = new Map(tabsMap);
+    newTabs.set(cellId, [
       ...tabs,
       {
-        cellId,
         tabName,
         chartType: NEW_CHART_TYPE,
         config: getDefaults(ChartSchema),
       },
     ]);
+
+    saveTabsMap(newTabs);
+    setTabNum(tabNum + 1);
+    setSelectedTab(tabName);
   };
 
   const handleDeleteTab = (tabName: TabName) => {
-    Logger.debug("handleDeleteTab", { tabName });
     if (!cellId) {
       return;
     }
-    saveTabs(tabs.filter((tab) => tab.tabName !== tabName));
+    const newTabs = new Map(tabsMap);
+    newTabs.set(
+      cellId,
+      tabs.filter((tab) => tab.tabName !== tabName),
+    );
+    saveTabsMap(newTabs);
     setSelectedTab(DEFAULT_TAB_NAME);
   };
 
@@ -118,43 +139,34 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       return;
     }
 
-    const updatedTabs = [...tabs];
-    const existingIndex = tabs.findIndex(
-      (tab) => tab.tabName === tabName && tab.cellId === cellId,
+    const updatedTabs = new Map(tabsMap);
+    updatedTabs.set(
+      cellId,
+      tabs.map((tab) =>
+        tab.tabName === tabName
+          ? { ...tab, chartType, config: chartConfig }
+          : tab,
+      ),
     );
-
-    if (existingIndex >= 0) {
-      updatedTabs[existingIndex] = {
-        ...updatedTabs[existingIndex],
-        config: chartConfig,
-      };
-    } else {
-      updatedTabs.push({
-        cellId,
-        tabName,
-        chartType,
-        config: chartConfig,
-      });
-    }
-
-    saveTabs(updatedTabs);
+    saveTabsMap(updatedTabs);
   };
 
   const saveTabChartType = (tabName: TabName, chartType: ChartType) => {
     if (!cellId) {
       return;
     }
-    saveTabs(
+    const newTabs = new Map(tabsMap);
+    newTabs.set(
+      cellId,
       tabs.map((tab) =>
-        tab.tabName === tabName && tab.cellId === cellId
-          ? { ...tab, chartType }
-          : tab,
+        tab.tabName === tabName ? { ...tab, chartType } : tab,
       ),
     );
+    saveTabsMap(newTabs);
   };
 
   return (
-    <Tabs value={selectedTab}>
+    <Tabs value={selectedTab} ref={containerRef}>
       <TabsList>
         <TabsTrigger
           className="text-xs py-1"
