@@ -70,6 +70,7 @@ describe("getAICompletionBody", () => {
             ],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -82,6 +83,7 @@ describe("getAICompletionBody", () => {
       includeOtherCode: "// Some other code",
       context: {
         schema: [],
+        variables: [],
       },
     });
   });
@@ -114,6 +116,7 @@ describe("getAICompletionBody", () => {
             ],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -154,6 +157,7 @@ describe("getAICompletionBody", () => {
             columns: [{ name: "col3", type: "boolean" }],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -202,6 +206,7 @@ describe("getAICompletionBody", () => {
             columns: [{ name: "col1", type: "number" }],
           },
         ],
+        variables: [],
       },
     });
   });
