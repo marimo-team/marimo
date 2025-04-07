@@ -185,9 +185,7 @@ export const MarimoErrorOutput = ({
             </p>
 
             <p className="py-2">
-              <ExternalLink
-                href="https://links.marimo.app/errors-cycles"
-              >
+              <ExternalLink href="https://links.marimo.app/errors-cycles">
                 Learn more at our docs{" "}
                 <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
               </ExternalLink>
@@ -235,9 +233,7 @@ export const MarimoErrorOutput = ({
             </p>
 
             <p className="py-2">
-              <ExternalLink
-                href="https://links.marimo.app/errors-multiple-definitions"
-              >
+              <ExternalLink href="https://links.marimo.app/errors-multiple-definitions">
                 Learn more at our docs{" "}
                 <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
               </ExternalLink>
@@ -278,9 +274,7 @@ export const MarimoErrorOutput = ({
             </p>
 
             <p className="py-2">
-              <ExternalLink
-                href="https://links.marimo.app/errors-import-star"
-              >
+              <ExternalLink href="https://links.marimo.app/errors-import-star">
                 Learn more at our docs{" "}
                 <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
               </ExternalLink>
