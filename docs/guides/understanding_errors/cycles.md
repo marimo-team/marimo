@@ -4,7 +4,7 @@ You're probably on this page because you just saw an error like this one:
 
 <div align="center">
 <figure>
-<img src="/_static/docs_cycle_error.png" width="700px"/>
+<img src="/_static/docs_cycles_error.png" width="700px"/>
 </figure>
 </div>
 
