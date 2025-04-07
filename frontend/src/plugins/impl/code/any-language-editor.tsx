@@ -27,7 +27,7 @@ const AnyLanguageCodeMirror: React.FC<
   ReactCodeMirrorProps & {
     language: string | undefined;
     theme: ResolvedTheme;
-    showCopyButton: boolean | undefined;
+    showCopyButton?: boolean;
   }
 > = ({ language, showCopyButton, extensions = [], ...props }) => {
   const isNotSupported = language && !(language in langs);
