@@ -77,7 +77,7 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
     lines: list[str] = []
 
     def _sep(desc: str) -> str:
-        return ":" if desc else ""
+        return " " if desc else ""
 
     for key, desc in items:
         # "\b" tells click not to reformat our text
@@ -455,7 +455,34 @@ def edit(
     )
 
 
-@main.command(help="Create a new notebook.")
+new_help_msg = "\n".join(
+    [
+        "\b",
+        "Create an empty notebook, or generate from a prompt with AI",
+        "",
+        _key_value_bullets(
+            [
+                (
+                    "marimo new",
+                    "Create an empty notebook",
+                ),
+                (
+                    'marimo new "Plot an interactive 3D surface with matplotlib."',
+                    "Generate a notebook from a prompt.",
+                ),
+                (
+                    "marimo new prompt.txt",
+                    "Generate a notebook from a file containing a prompt.",
+                ),
+            ]
+        ),
+        "",
+        "Visit https://marimo.app/ai for more prompt examples.",
+    ]
+)
+
+
+@main.command(help=new_help_msg)
 @click.option(
     "-p",
     "--port",
