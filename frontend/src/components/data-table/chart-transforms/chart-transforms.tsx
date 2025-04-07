@@ -474,10 +474,28 @@ const ChartForm = ({
                   <FormControl>
                     <Multiselect
                       options={fields?.map((field) => field.name) ?? []}
-                      value={field.value ?? []}
+                      value={field.value?.map((item) => item.field) ?? []}
                       setValue={(values) => {
-                        field.onChange(values);
-                        saveForm(); // need to manually trigger for multiselect
+                        const selectedValues =
+                          typeof values === "function" ? values([]) : values;
+
+                        // find the field types and form objects
+                        const tooltipObjects = selectedValues.map(
+                          (fieldName) => {
+                            const fieldType = fields?.find(
+                              (f) => f.name === fieldName,
+                            )?.type;
+
+                            return {
+                              field: fieldName,
+                              type: fieldType ?? "string",
+                            };
+                          },
+                        );
+
+                        field.onChange(tooltipObjects);
+                        // Multiselect doesn't trigger onChange, so we need to save the form manually
+                        saveForm();
                       }}
                       label="Tooltips"
                       fullWidth={false}

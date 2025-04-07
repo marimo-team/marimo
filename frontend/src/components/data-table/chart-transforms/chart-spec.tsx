@@ -75,17 +75,7 @@ export function createVegaSpec(
             : formValues.general.yColumn?.agg,
       },
       ...groupBy,
-      tooltip: formValues.general.tooltips?.map((tooltip) => ({
-        field: tooltip,
-        aggregate: (() => {
-          if (tooltip !== formValues.general.yColumn?.field) {
-            return undefined;
-          }
-          return formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
-            ? undefined
-            : formValues.general.yColumn?.agg;
-        })(),
-      })),
+      tooltip: getTooltips(formValues),
     },
   };
 }
@@ -109,6 +99,32 @@ function getGroupBy(
       ),
     },
   };
+}
+
+function getTooltips(formValues: z.infer<typeof ChartSchema>) {
+  return formValues.general.tooltips?.map((tooltip) => ({
+    field: tooltip.field,
+    aggregate: (() => {
+      if (tooltip.field !== formValues.general.yColumn?.field) {
+        return undefined;
+      }
+      return formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
+        ? undefined
+        : formValues.general.yColumn?.agg;
+    })(),
+    format: getTooltipFormat(tooltip.type),
+  }));
+}
+
+function getTooltipFormat(dataType: DataType): string | undefined {
+  switch (dataType) {
+    case "integer":
+      return ",d";
+    case "number":
+      return ".2f";
+    default:
+      return undefined;
+  }
 }
 
 function convertDataTypeToVegaType(dataType: DataType): Type {

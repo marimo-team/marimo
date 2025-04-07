@@ -26,7 +26,14 @@ export const ChartSchema = z.object({
         type: z.enum(DATA_TYPES).optional(),
       })
       .optional(),
-    tooltips: z.array(z.string()).optional(),
+    tooltips: z
+      .array(
+        z.object({
+          field: z.string(),
+          type: z.enum(DATA_TYPES),
+        }),
+      )
+      .optional(),
   }),
   xAxis: z
     .object({
