@@ -28,3 +28,4 @@ bit of time with marimo and adhering to these constraints will become second nat
 | [Multiple definitions](multiple_definitions.md) | How to deal with variables defined in multiple cells |
 | [Import `*`](import_star.md) | Why you can't use `import *` |
 | [Cycles](cycles.md) | How to resolve cycle errors |
+| [setup](setup.md) | How to enable top level definitions |

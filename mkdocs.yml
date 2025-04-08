@@ -92,6 +92,7 @@ nav:
           - Multiple definitions: guides/understanding_errors/multiple_definitions.md
           - Import star: guides/understanding_errors/import_star.md
           - Cycles: guides/understanding_errors/cycles.md
+          - Setup References: guides/understanding_errors/setup.md
       - SQL, dataframes, and plots:
           - SQL, dataframes, and plots: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md

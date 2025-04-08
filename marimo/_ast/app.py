@@ -40,6 +40,7 @@ from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
+    SetupRootError,
     UnparsableError,
 )
 from marimo._config.config import WidthType
@@ -62,7 +63,7 @@ from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from types import TracebackType
+    from types import FrameType, TracebackType
 
     from marimo._messaging.ops import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
@@ -161,10 +162,26 @@ class _SetupContext(SkipContext):
     def __init__(self, cell: Cell):
         super().__init__()
         self._cell = cell
+        self._glbls: dict[str, Any] = {}
+        self._frame = None
+        self._previous: dict[str, Any] = {}
 
-    def trace(self, _frame: Any) -> None:
-        if self._cell.refs - set(builtins.__dict__.keys()):
-            self.skip()
+    def trace(self, with_frame: FrameType) -> None:
+        if refs := self._cell.refs - set(builtins.__dict__.keys()):
+            if runtime_context_installed():
+                self.skip()
+                return
+            # Otherwise fail in say a script context.
+            raise SetupRootError(
+                f"The setup cell cannot reference any additional variables: {refs}"
+            )
+        self._frame = with_frame
+        self._previous = {**with_frame.f_locals}
+        # A reference to the key app must be maintained in the frame.
+        # This may be a python quirk, so just remove refs to explicit defs
+        for var in self._cell.defs:
+            if var in self._previous:
+                del self._frame.f_locals[var]
 
     def __exit__(
         self,
@@ -176,13 +193,35 @@ class _SetupContext(SkipContext):
         # Whether to suppress a given exception.
         self.teardown()
 
+        # Manually hold on to defs for injection into script mode.
+        if self._frame is not None:
+            for var in self._cell.defs:
+                self._glbls[var] = self._frame.f_locals.get(var, None)
+
+            self._frame.f_locals.update(self._previous)
+            # What was just run should take precident.
+            self._frame.f_locals.update(self._glbls)
+            # Previous after to ensure that app and other builtins are not
+            # changed during import or execution.
+            app = None
+            if self._cell._app is not None:
+                app = self._cell._app._app
+            self._frame.f_locals["app"] = self._previous.get("app", app)
+            # lose ref
+            self._previous = {}
+
         if exception is not None:
             LOGGER.warning(
                 "The setup cell was unable to execute, your notebook may not "
                 "work as expected."
             )
             LOGGER.debug("Exception: %s", exception)
-            return True  # type: ignore
+
+            # Always should fail, since static loading still allows bad apps to
+            # load.
+            # TODO(dmadisetti): Allow error to propagate on static app loads.
+            return False  # type: ignore
+
         return False
 
 
@@ -257,6 +296,8 @@ class App:
         self._anonymous_file = False
         # injection hook to rewrite cells for pytest
         self._pytest_rewrite = False
+        # setup context for script mode and module imports
+        self._setup: Optional[_SetupContext] = None
 
         # Filename is derived from the callsite of the app
         self._filename: str | None = None
@@ -489,7 +530,8 @@ class App:
         cell = self._cell_manager.cell_context(
             app=InternalApp(self), frame=frame
         )
-        return _SetupContext(cell)
+        self._setup = _SetupContext(cell)
+        return self._setup
 
     def _unparsable_cell(
         self,
@@ -582,8 +624,13 @@ class App:
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
+        glbls: dict[str, Any] = {}
+        if self._setup is not None:
+            glbls = self._setup._glbls
         outputs, glbls = AppScriptRunner(
-            InternalApp(self), filename=self._filename
+            InternalApp(self),
+            filename=self._filename,
+            glbls=glbls,
         ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 

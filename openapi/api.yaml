@@ -690,6 +690,7 @@ components:
       type: object
     Error:
       oneOf:
+      - $ref: '#/components/schemas/SetupRootError'
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
@@ -2297,6 +2298,26 @@ components:
       required:
       - config
       type: object
+    SetupRootError:
+      properties:
+        edges_with_vars:
+          items:
+            prefixItems:
+            - type: string
+            - items:
+                type: string
+              type: array
+            - type: string
+            type: array
+          type: array
+        type:
+          enum:
+          - setup-refs
+          type: string
+      required:
+      - edges_with_vars
+      - type
+      type: object
     ShutdownSessionRequest:
       properties:
         sessionId:
@@ -2507,7 +2528,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.4
+  version: 0.12.5
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

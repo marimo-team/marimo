@@ -79,6 +79,10 @@ export const MarimoErrorOutput = ({
   }
 
   // Group errors by type
+  const setupErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "setup-refs" }> =>
+      e.type === "setup-refs",
+  );
   const cycleErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "cycle" }> => e.type === "cycle",
   );
@@ -143,6 +147,59 @@ export const MarimoErrorOutput = ({
               cellId={cellId}
             />
           )}
+        </li>,
+      );
+    }
+
+    if (setupErrors.length > 0) {
+      messages.push(
+        <li key="setup-refs">
+          <p className="text-muted-foreground font-medium">
+            The setup cell cannot be run because it has references.
+          </p>
+          <ul className="list-disc">
+            {setupErrors.flatMap((error, errorIdx) =>
+              error.edges_with_vars.map((edge, edgeIdx) => (
+                <li
+                  className={liStyle}
+                  key={`setup-refs-${errorIdx}-${edgeIdx}`}
+                >
+                  <CellLinkError cellId={edge[0] as CellId} />
+                  <span className="text-muted-foreground">
+                    {": "}{" "}
+                    {edge[1].length === 1 ? edge[1][0] : edge[1].join(", ")}
+                  </span>
+                </li>
+              )),
+            )}
+          </ul>
+          {cellId && <AutoFixButton errors={setupErrors} cellId={cellId} />}
+          <Tip
+            title="Why can't the setup cell have references?"
+            className="mb-2"
+          >
+            <p className="pb-2">
+              While the most cells can be in any order and contain any
+              references (as long as they run in a DAG), the setup cell must be
+              run first. This is because the setup cell is saved in python in
+              such a way that it is immediately run when the notebook on import.
+              As such, it cannot contain any references to variables defined by
+              other cells.
+            </p>
+
+            <p className="py-2">
+              Try simplifying the setup cell to only contain only necessary
+              variables.
+            </p>
+
+            <p className="py-2">
+              <ExternalLink href="https://links.marimo.app/errors-setup">
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </ExternalLink>
+              .
+            </p>
+          </Tip>
         </li>,
       );
     }

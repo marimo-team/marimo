@@ -58,6 +58,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         CellConfig,
         MarimoConfig,
         # Errors
+        errors.SetupRootError,
+        errors.MultipleDefinitionError,
         errors.CycleError,
         errors.MultipleDefinitionError,
         errors.ImportStarError,

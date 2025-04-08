@@ -59,7 +59,9 @@ fe-typecheck:
 
 .PHONY: fe-codegen
 fe-codegen:
-	cd openapi; pnpm install; pnpm codegen
+	uv run marimo development openapi > openapi/api.yaml; \
+	cd openapi; pnpm install; pnpm codegen; \
+	biome format --fix src/api.ts;
 
 .PHONY: py-check
 # typecheck, lint, format python
