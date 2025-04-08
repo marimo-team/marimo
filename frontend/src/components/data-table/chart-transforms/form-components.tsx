@@ -17,10 +17,10 @@ import {
 } from "@/components/ui/select";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { DebouncedInput } from "@/components/ui/input";
-import { NONE_GROUP_BY } from "./chart-spec";
 import { SquareFunctionIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
+import { NONE_GROUP_BY } from "./chart-schemas";
 
 export const ColumnSelector = <T extends object>({
   form,

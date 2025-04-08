@@ -4,14 +4,15 @@ import type { TopLevelSpec } from "vega-lite";
 import { ChartType } from "./storage";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { DataType } from "@/core/kernel/messages";
-import type { ChartSchema } from "./chart-schemas";
+import {
+  DEFAULT_AGGREGATION,
+  NONE_GROUP_BY,
+  type ChartSchema,
+} from "./chart-schemas";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";
 import type { Type } from "vega-lite/build/src/type";
-
-export const DEFAULT_AGGREGATION = "default";
-export const NONE_GROUP_BY = "None";
 
 export function createVegaSpec(
   chartType: ChartType,

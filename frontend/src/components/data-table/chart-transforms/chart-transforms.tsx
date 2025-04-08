@@ -27,7 +27,7 @@ import {
 import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema } from "./chart-schemas";
+import { ChartSchema, DEFAULT_AGGREGATION } from "./chart-schemas";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -44,7 +44,7 @@ import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import { createVegaSpec, DEFAULT_AGGREGATION } from "./chart-spec";
+import { createVegaSpec } from "./chart-spec";
 import { useTheme } from "@/theme/useTheme";
 import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
