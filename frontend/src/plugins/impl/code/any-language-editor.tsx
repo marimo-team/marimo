@@ -45,7 +45,7 @@ const AnyLanguageCodeMirror: React.FC<
   }, [language, extensions]);
 
   return (
-    <div className="flex flex-col">
+    <div className="relative w-full  hover-actions-parent">
       {isNotSupported && (
         <ErrorBanner
           className="mb-1 rounded-sm"
@@ -54,12 +54,13 @@ const AnyLanguageCodeMirror: React.FC<
           ).join(", ")}`}
         />
       )}
-      {showCopyButton && (
+      {showCopyButton && !isNotSupported && (
         <Button
           key="copy-button"
           data-testid="any-language-editor-copy-button"
           variant="secondary"
-          className="self-end mb-2"
+          size="xs"
+          className="absolute top-0 right-0 z-10 hover-action"
           onClick={async () => {
             await copyToClipboard(props.value || "");
             toast({ title: "Copied to clipboard" });
