@@ -68,6 +68,7 @@ export type GetRowIds = (opts: {}) => Promise<{
 
 export type GetDataUrl = (opts: {}) => Promise<{
   data_url: string;
+  format: "csv" | "json" | "arrow";
 }>;
 
 /**
@@ -221,6 +222,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     get_data_url: rpc.input(z.object({}).passthrough()).output(
       z.object({
         data_url: z.string(),
+        format: z.enum(["csv", "json", "arrow"]),
       }),
     ),
   })

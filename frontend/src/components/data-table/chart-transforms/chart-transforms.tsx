@@ -269,9 +269,11 @@ export const ChartPanel: React.FC<{
     const response = await getDataUrl({});
     const chartData = await vegaLoadData(
       response.data_url,
-      {
-        type: "json",
-      },
+      response.format === "arrow"
+        ? { type: "arrow" }
+        : response.format === "json"
+          ? { type: "json" }
+          : { type: "csv", parse: "auto" },
       {
         replacePeriod: true,
       },

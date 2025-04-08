@@ -23,6 +23,7 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.charts.altair_transformer import _to_marimo_arrow
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     get_handler_for_dataframe,
 )
@@ -127,6 +128,7 @@ class GetRowIdsResponse:
 @dataclass
 class GetDataUrlResponse:
     data_url: str
+    format: Literal["csv", "json", "arrow"]
 
 
 LAZY_PREVIEW_ROWS = 10
@@ -779,7 +781,11 @@ class table(
         """Get the data URL for the entire table. Used for charting."""
         del args
         # TODO: May want to filter data here
-        return GetDataUrlResponse(data_url=self._searched_manager.to_data({}))
+        result = _to_marimo_arrow(self._searched_manager.data)
+        return GetDataUrlResponse(
+            data_url=result["url"],
+            format=result["format"]["type"],
+        )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort(
