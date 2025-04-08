@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 
-
 from marimo._runtime.capture import capture_stdout
 
 # 4 methods of execution
