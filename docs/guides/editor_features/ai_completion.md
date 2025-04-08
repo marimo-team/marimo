@@ -279,7 +279,7 @@ marimo using `pip`/`uv` if you need Copilot._
 
 ### Windsurf Copilot
 
-Windsurf (formely codeium) provides a free coding copilot. You can try
+Windsurf (formerly codeium) provides a free coding copilot. You can try
 setting up Windsurf with the following:
 
 1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
