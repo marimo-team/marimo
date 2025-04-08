@@ -9,7 +9,7 @@ import { ZodLocalStorage } from "@/utils/localStorage";
 import { ChartSchema } from "./chart-schemas";
 
 export type TabName = TypedString<"TabName">;
-const KEY = "marimo:charts";
+export const KEY = "marimo:charts";
 
 export enum ChartType {
   LINE = "line",
@@ -39,6 +39,28 @@ const tabStorageSchema = z.map(
   ),
 );
 
+// Custom storage adapter to ensure objects are serialized as maps
+const mapStorage = {
+  getItem: (key: string): TabStorageMap => {
+    try {
+      const value = localStorage.getItem(key);
+      if (!value) {
+        return new Map();
+      }
+      const parsed = JSON.parse(value);
+      return new Map(parsed as Array<[CellId, TabStorage[]]>);
+    } catch {
+      return new Map();
+    }
+  },
+  setItem: (key: string, value: TabStorageMap): void => {
+    localStorage.setItem(key, JSON.stringify([...value.entries()]));
+  },
+  removeItem: (key: string): void => {
+    localStorage.removeItem(key);
+  },
+};
+
 const storage = new ZodLocalStorage<TabStorageMap>(
   KEY,
   tabStorageSchema,
@@ -53,6 +75,6 @@ const storageMechanism = {
 export const tabsStorageAtom = atomWithStorage<TabStorageMap>(
   KEY,
   new Map(),
-  storageMechanism,
+  mapStorage,
 );
 export const tabNumberAtom = atom(0);

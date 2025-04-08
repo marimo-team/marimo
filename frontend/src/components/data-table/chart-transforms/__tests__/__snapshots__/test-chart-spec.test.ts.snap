@@ -1,0 +1,1060 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`createVegaSpec > Bar Chart > should create a bar chart with aggregation 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "SUM(value)",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Bar Chart > should create a bar chart with custom axis labels 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "Categories",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "Values",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Bar Chart > should create a bar chart with tooltips 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": [
+      {
+        "aggregate": undefined,
+        "field": "category",
+        "format": undefined,
+      },
+      {
+        "aggregate": undefined,
+        "field": "value",
+        "format": ".2f",
+      },
+      {
+        "aggregate": undefined,
+        "field": "group",
+        "format": undefined,
+      },
+    ],
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Bar Chart > should create a basic bar chart spec 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Bar Chart > should create a horizontal bar chart 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Bar Chart > should create a stacked bar chart with grouping 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": "group",
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": {
+      "field": "group",
+    },
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Edge cases > should handle NONE_GROUP_BY for groupByColumn 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": {
+      "field": undefined,
+    },
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Edge cases > should handle missing xColumn field 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": undefined,
+      "title": undefined,
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Edge cases > should handle missing yColumn field 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": undefined,
+      "title": undefined,
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Line Chart > should create a basic line chart spec 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "line",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Line Chart > should create a line chart with grouping 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": "group",
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "line",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Pie Chart > should create a basic pie chart spec 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+    "theta": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "xOffset": undefined,
+  },
+  "height": 300,
+  "mark": {
+    "type": "arc",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Pie Chart > should create a pie chart with tooltips 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+    "theta": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "tooltip": [
+      {
+        "aggregate": undefined,
+        "field": "category",
+        "format": undefined,
+      },
+      {
+        "aggregate": undefined,
+        "field": "value",
+        "format": ".2f",
+      },
+    ],
+    "xOffset": undefined,
+  },
+  "height": 300,
+  "mark": {
+    "type": "arc",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Scatter Chart > should create a basic scatter chart spec 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "point",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Scatter Chart > should create a scatter chart with grouping 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": "group",
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "point",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > Theme variations > should create a chart with dark theme 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "dark",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
