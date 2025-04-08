@@ -11,6 +11,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
+    LAZY_PREVIEW_ROWS,
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
@@ -285,7 +286,8 @@ def test_value_with_sorting_then_selection() -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": ["x", "z", "y"]}, exclude=["ibis", "duckdb", "pyarrow"]
+        {"a": ["x", "z", "y"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
@@ -358,7 +360,8 @@ def test_value_with_search_then_selection() -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+        {"a": ["foo", "bar", "baz"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_value_with_search_then_selection_dfs(df: Any) -> None:
@@ -403,7 +406,8 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+        {"a": ["foo", "bar", "baz"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
@@ -652,7 +656,7 @@ def test_get_row_ids_for_lists() -> None:
             "fruits": ["banana", "apple", "cherry"] * 3,
             "quantity": [10, 20, 30] * 3,
         },
-        exclude=["ibis", "duckdb", "pyarrow"],
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_get_row_ids_with_df(df: any) -> None:
@@ -1487,3 +1491,58 @@ def test_json_multi_col_idx_table() -> None:
             "('basic_amt', 'QLD')": 2,
         }
     ]
+
+
+# Test for lazy dataframes
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Polars not installed",
+)
+def test_lazy_dataframe() -> None:
+    import warnings
+
+    # Capture warnings that might be raised during lazy dataframe operations
+    with warnings.catch_warnings(record=True) as recorded_warnings:
+        import polars as pl
+
+        # Create a large dataframe that would trigger lazy loading
+        large_df = pl.LazyFrame(
+            {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
+        )
+
+        # Create table with _internal_lazy=True to simulate lazy loading
+        table = ui.table.lazy(large_df)
+
+        # Verify the lazy flag is set
+        assert table._lazy is True
+
+        # Check that the banner text indicates lazy loading
+        assert (
+            table._get_banner_text()
+            == f"Previewing only the first {LAZY_PREVIEW_ROWS} rows."
+        )
+
+        # Verify the component args are set
+        assert table._component_args["lazy"] is True
+        assert table._component_args["total-rows"] == "too_many"
+        assert table._component_args["page-size"] == LAZY_PREVIEW_ROWS
+        assert table._component_args["pagination"] is False
+        assert table._component_args["data"] == []
+        assert table._component_args["total-columns"] == 0
+        assert table._component_args["field-types"] is None
+
+        assert len(recorded_warnings) == 0, recorded_warnings[0].message
+
+        # Verify that search response indicates "too_many" for total_rows
+        # but returns the preview rows
+        search_args = SearchTableArgs(page_size=10, page_number=0)
+        search_response = table._search(search_args)
+        assert search_response.total_rows == "too_many"
+
+        # Check that only the preview rows are returned
+        json_data = from_data_uri(search_response.data)[1].decode("utf-8")
+        json_data = json.loads(json_data)
+        assert len(json_data) == LAZY_PREVIEW_ROWS
+
+    # Warning comes from search
+    assert len(recorded_warnings) == 1

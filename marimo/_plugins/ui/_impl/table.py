@@ -13,7 +13,7 @@ from typing import (
     Union,
 )
 
-from narwhals.typing import IntoDataFrame
+from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -100,7 +100,7 @@ CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
 @dataclass(frozen=True)
 class SearchTableResponse:
     data: Union[JSONType, str]
-    total_rows: int
+    total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
 
 
@@ -115,6 +115,9 @@ class GetRowIdsResponse:
     row_ids: list[int]
     all_rows: bool
     error: Optional[str] = None
+
+
+LAZY_PREVIEW_ROWS = 10
 
 
 @mddoc
@@ -263,6 +266,31 @@ class table(
 
     _name: Final[str] = "marimo-table"
 
+    @staticmethod
+    def lazy(data: IntoLazyFrame) -> table:
+        return table(
+            data=data,
+            pagination=False,
+            selection=None,
+            initial_selection=None,
+            page_size=LAZY_PREVIEW_ROWS,
+            show_column_summaries=False,
+            show_download=False,
+            format_mapping=None,
+            freeze_columns_left=None,
+            freeze_columns_right=None,
+            text_justify_columns=None,
+            wrapped_columns=None,
+            label="",
+            on_change=None,
+            style_cell=None,
+            max_columns=50,
+            _internal_column_charts_row_limit=None,
+            _internal_summary_row_limit=None,
+            _internal_total_rows="too_many",
+            _internal_lazy=True,
+        )
+
     def __init__(
         self,
         data: Union[
@@ -314,9 +342,11 @@ class table(
         _internal_column_charts_row_limit: Optional[int] = None,
         _internal_summary_row_limit: Optional[int] = None,
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
+        _internal_lazy: bool = False,
     ) -> None:
         validate_no_integer_columns(data)
         validate_page_size(page_size)
+        self._lazy = _internal_lazy
 
         has_stable_row_id = False
         if selection is not None:
@@ -405,7 +435,7 @@ class table(
                         self._searched_manager.select_cells(coordinates)
                     )
                 else:
-                    indexes = []
+                    indexes: list[int] = []
                     for v in initial_selection:
                         if not isinstance(v, int):
                             raise TypeError(
@@ -435,8 +465,6 @@ class table(
         # We will need this when calling table manager's to_data()
         self._format_mapping = format_mapping
 
-        field_types = self._manager.get_field_types()
-
         if pagination is False and total_rows != "too_many":
             page_size = total_rows
         # pagination defaults to True if there are more than page_size rows
@@ -450,38 +478,49 @@ class table(
 
         self._style_cell = style_cell
 
-        # Search first page
-        search_result = self._search(
-            SearchTableArgs(
-                page_size=page_size,
-                page_number=0,
-                query=None,
-                sort=None,
-                filters=None,
+        search_result_styles: Optional[CellStyles] = None
+        search_result_data: JSONType = []
+        field_types = {}
+        num_columns = 0
+
+        if not _internal_lazy:
+            # Search first page
+            search_result = self._search(
+                SearchTableArgs(
+                    page_size=page_size,
+                    page_number=0,
+                    query=None,
+                    sort=None,
+                    filters=None,
+                )
             )
-        )
+            search_result_styles = search_result.cell_styles
+            search_result_data = search_result.data
 
-        column_names_set = set(self._manager.get_column_names())
+            # Validate column configurations
+            column_names_set = set(self._manager.get_column_names())
+            num_columns = len(column_names_set)
+            _validate_frozen_columns(
+                freeze_columns_left, freeze_columns_right, column_names_set
+            )
+            _validate_column_formatting(
+                text_justify_columns, wrapped_columns, column_names_set
+            )
 
-        # Validate column configurations
-        _validate_frozen_columns(
-            freeze_columns_left, freeze_columns_right, column_names_set
-        )
-        _validate_column_formatting(
-            text_justify_columns, wrapped_columns, column_names_set
-        )
-
-        # Clamp field types to max columns
-        field_types = _get_clamped_field_types(field_types, self._max_columns)
+            # Clamp field types to max columns
+            field_types = self._manager.get_field_types()
+            field_types = _get_clamped_field_types(
+                field_types, self._max_columns
+            )
 
         super().__init__(
             component_name=table._name,
             label=label,
             initial_value=initial_value,
             args={
-                "data": search_result.data,
+                "data": search_result_data,
                 "total-rows": total_rows,
-                "total-columns": self._manager.get_num_columns(),
+                "total-columns": num_columns,
                 "banner-text": self._get_banner_text(),
                 "pagination": pagination,
                 "page-size": page_size,
@@ -499,7 +538,8 @@ class table(
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
-                "cell-styles": search_result.cell_styles,
+                "cell-styles": search_result_styles,
+                "lazy": _internal_lazy,
             },
             on_change=on_change,
             functions=(
@@ -539,6 +579,9 @@ class table(
         return self._data
 
     def _get_banner_text(self) -> str:
+        if self._lazy:
+            return f"Previewing only the first {LAZY_PREVIEW_ROWS} rows."
+
         total_columns = self._manager.get_num_columns()
         if self._max_columns is not None and total_columns > self._max_columns:
             return (
@@ -793,7 +836,11 @@ class table(
         # The frontend will just show the original data
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
-            total_rows = self._manager.get_num_rows(force=True) or 0
+            if self._lazy:
+                total_rows = "too_many"
+            else:
+                total_rows = self._manager.get_num_rows(force=True) or 0
+
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=total_rows,
@@ -801,7 +848,9 @@ class table(
                 # we need to check this is not larger than our actual number of rows.
                 cell_styles=self._style_cells(
                     offset,
-                    min(total_rows, args.page_size),
+                    min(total_rows, args.page_size)
+                    if total_rows != "too_many"
+                    else args.page_size,
                 ),
             )
 
@@ -815,9 +864,14 @@ class table(
         # Save the manager to be used for selection
         self._searched_manager = result
 
+        if self._lazy:
+            total_rows = "too_many"
+        else:
+            total_rows = result.get_num_rows(force=True) or 0
+
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
-            total_rows=result.get_num_rows(force=True) or 0,
+            total_rows=total_rows,
             cell_styles=self._style_cells(offset, args.page_size),
         )
 
