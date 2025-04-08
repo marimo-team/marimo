@@ -69,3 +69,6 @@ Unit tests
     - focus on a single use-case at a time
     - have a minimal set of assertions per test
     - demonstrate every use case. The rule of thumb is: if it can happen, it should be covered
+    - To run a test using hatch, you can run the following command:
+      `hatch run +py=3.12 test:test tests/path/to/test.py`
+      `hatch run +py=3.12 test-optional:test tests/path/to/test.py` (when the test includes an optional dependency)

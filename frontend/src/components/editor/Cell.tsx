@@ -265,36 +265,44 @@ function useCellHiddenLogic(
   const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
   // Callback to show the code editor temporarily
-  const temporarilyShowCode = useCallback(() => {
-    if (!isCellCodeShown) {
-      setTemporarilyVisible(true);
+  const temporarilyShowCode = useEvent((opts?: { focus?: boolean }) => {
+    if (isCellCodeShown) {
+      return;
+    }
+
+    // Default to true
+    const focus = opts?.focus ?? true;
+    setTemporarilyVisible(true);
+
+    if (focus) {
       editorView.current?.focus();
-      // Reach one parent up
-      const parent = editorViewParentRef.current?.parentElement;
-      if (!parent) {
-        Logger.error("Cell: No parent element found for editor view");
-        return;
-      }
-
-      const handleFocusOut = () => {
-        requestAnimationFrame(() => {
-          if (!parent.contains(document.activeElement)) {
-            // Hide the code editor
-            setTemporarilyVisible(false);
-            editorView.current?.dom.blur();
-            parent.removeEventListener("focusout", handleFocusOut);
-          }
-        });
-      };
-      parent.addEventListener("focusout", handleFocusOut);
     }
-  }, [isCellCodeShown, editorView, editorViewParentRef, setTemporarilyVisible]);
 
-  const showHiddenMarkdownCode = useCallback(() => {
+    // Reach one parent up
+    const parent = editorViewParentRef.current?.parentElement;
+    if (!parent) {
+      Logger.error("Cell: No parent element found for editor view");
+      return;
+    }
+
+    const handleFocusOut = () => {
+      requestAnimationFrame(() => {
+        if (!parent.contains(document.activeElement)) {
+          // Hide the code editor
+          setTemporarilyVisible(false);
+          editorView.current?.dom.blur();
+          parent.removeEventListener("focusout", handleFocusOut);
+        }
+      });
+    };
+    parent.addEventListener("focusout", handleFocusOut);
+  });
+
+  const showHiddenMarkdownCode = useEvent(() => {
     if (isMarkdownCodeHidden) {
-      temporarilyShowCode();
+      temporarilyShowCode({ focus: true });
     }
-  }, [isMarkdownCodeHidden, temporarilyShowCode]);
+  });
 
   return {
     isCellCodeShown,

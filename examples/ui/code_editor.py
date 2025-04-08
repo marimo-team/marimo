@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.12.4"
 app = marimo.App(width="medium")
 
 
@@ -29,6 +29,17 @@ def _(mo):
 def _(editor):
     editor.value
     return
+
+
+@app.cell
+def _(mo):
+    copy_editor = mo.ui.code_editor(
+        value="let a = 'b';",
+        language="javascript",
+        show_copy_button = True
+    )
+    copy_editor
+    return (copy_editor,)
 
 
 if __name__ == "__main__":

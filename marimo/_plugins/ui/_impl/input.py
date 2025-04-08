@@ -834,6 +834,7 @@ class code_editor(UIElement[str, str]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[str], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        show_copy_button (bool, optional): Whether to show a button to copy the code
     """
 
     _name: Final[str] = "marimo-code-editor"
@@ -847,6 +848,7 @@ class code_editor(UIElement[str, str]):
         disabled: bool = False,
         min_height: Optional[int] = None,
         max_height: Optional[int] = None,
+        show_copy_button: Optional[bool] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -871,6 +873,7 @@ class code_editor(UIElement[str, str]):
                 "disabled": disabled,
                 "min-height": min_height,
                 "max-height": max_height,
+                "show-copy-button": show_copy_button,
             },
             on_change=on_change,
         )

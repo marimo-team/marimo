@@ -395,11 +395,11 @@ class NarwhalsTableManager(
     ) -> TableManager[Any]:
         if isinstance(self.data, nw.LazyFrame):
             return self.with_new_data(
-                self.data.sort(by, descending=descending)
+                self.data.sort(by, descending=descending, nulls_last=True)
             )
         else:
             return self.with_new_data(
-                self.data.sort(by, descending=descending)
+                self.data.sort(by, descending=descending, nulls_last=True)
             )
 
     def __repr__(self) -> str:
