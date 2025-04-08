@@ -66,7 +66,7 @@ export interface CellEditorProps
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
-  temporarilyShowCode: () => void;
+  temporarilyShowCode: (opts?: { focus?: boolean }) => void;
 }
 
 const CellEditorInternal = ({
@@ -186,6 +186,19 @@ const CellEditorInternal = ({
           },
         };
       }),
+      // Listen to selection changes, and show the code if it is hidden
+      EditorView.updateListener.of((update) => {
+        if (update.selectionSet) {
+          const selection = update.state.selection;
+          const selectedText = selection.ranges
+            .map((range) => update.state.doc.sliceString(range.from, range.to))
+            .join("\n");
+
+          if (selectedText) {
+            temporarilyShowCode({ focus: false });
+          }
+        }
+      }),
     );
 
     return extensions;
@@ -206,6 +219,7 @@ const CellEditorInternal = ({
     setAiCompletionCell,
     afterToggleMarkdown,
     setLanguageAdapter,
+    temporarilyShowCode,
   ]);
 
   const handleInitializeEditor = useEvent(() => {
