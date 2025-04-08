@@ -14,13 +14,12 @@ Key Principles
   - Write clear, technical responses with precise examples.
   - Prioritize readability and maintainability; follow PEP 8 coding style guide
   - Use descriptive variable and function names; adhere to naming conventions (e.g., lowercase with underscores for functions and variables).
-  - Always write the appropriate types for the code
+  - Use type hints consistently throughout the codebase
+  - Keep comments to a minimum; be concise when writing them
 
 Error Handling and Validation
   - Use try-except blocks to handle cases where the code can fail
-  - You can also use result pattern: 
-      def do_something(x, y) -> result_type, error:
-        ...
+  - Follow established error handling patterns with specific or custom exceptions
 
 Logging
   - As a general rule, we should have logs for every unexpected action of the application, using the appropriate log level.
@@ -31,7 +30,7 @@ Logging
     - error: should be used when the application hits an issue preventing one or more functionalities from properly functioning
 
 Logging Format
-  - We have a custom logger, to use it in a Python file:
+  - Always use marimo's logger:
 
   ```python
   from marimo import _loggers

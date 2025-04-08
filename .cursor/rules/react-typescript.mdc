@@ -16,11 +16,12 @@ Key Principles
 
 Code Style and Structure
     - Write TypeScript with proper typing for all new code
-    - Use functional programming patterns; avoid classes
+    - Use functional programming patterns; avoid classes. Prefer composition over inheritance.
     - Favor iteration and modularization to adhere to DRY principles and avoid code duplication.
     - Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
     - Don't use `useState` or `useEffect` to store local state. It's false convenience. Take the extra 3 minutes and change it to a `logic` early on in the development.
     - Structure files logically: main logic, component, types, utils
+    - Keep comments to a minimum; be concise when writing them
 
 Naming Conventions
     - Use lowercase with dashes for directories (e.g., components/auth-wizard).
@@ -31,7 +32,14 @@ Naming Conventions
 
 UI and Styling
     - Use Tailwind CSS as primary styling solution
+    - There are many UI components taken from radix and customized in '@/components/ui'. Develop reusable UI components in that folder instead of directly importing from radix.
+
+Build System
+    - Use Vite
+
+Forms
+    - Use React Hook Form with Zod
 
 Testing Requirements
     - Use Vitest for testing
-    - Test small components for all edge cases, if it can happen, we should test for it.
+    - Test components for all edge cases. The rule of thumb is: if it can happen, it should be covered
