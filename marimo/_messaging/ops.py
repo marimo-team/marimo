@@ -323,7 +323,7 @@ class CellOp(Op):
         stream: Stream | None = None,
     ) -> None:
         status: Optional[TopLevelHints] = serialization.hint
-        CellOp(cell_id=cell_id, serialization=status).broadcast(stream)
+        CellOp(cell_id=cell_id, serialization=str(status)).broadcast(stream)
 
 
 @dataclass
