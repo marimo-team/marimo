@@ -190,11 +190,11 @@ const CellEditorInternal = ({
       EditorView.updateListener.of((update) => {
         if (update.selectionSet) {
           const selection = update.state.selection;
-          const selectedText = selection.ranges
-            .map((range) => update.state.doc.sliceString(range.from, range.to))
-            .join("\n");
+          const hasSelection = selection.ranges.some(
+            (range) => range.from !== range.to,
+          );
 
-          if (selectedText) {
+          if (hasSelection) {
             temporarilyShowCode({ focus: false });
           }
         }
