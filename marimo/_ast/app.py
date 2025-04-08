@@ -162,7 +162,7 @@ class _SetupContext(SkipContext):
     def __init__(self, app: App, cell: Cell):
         super().__init__()
         self._cell = cell
-        self._glbls = {}
+        self._glbls: dict[str, Any] = {}
         self._frame = None
         self._app = app
 
@@ -194,13 +194,16 @@ class _SetupContext(SkipContext):
             )
             LOGGER.debug("Exception: %s", exception)
 
-            # Always fail, since static loading still allows bad apps to load.
-            return False
+            # Always should fail, since static loading still allows bad apps to
+            # load.
+            # TODO(dmadisetti): Allow error to propagate on static app loads.
+            return True  # type: ignore
 
         # Manually hold on to defs for injection into script mode.
-        for var in self._cell.defs:
-            self._glbls[var] = self._frame.f_locals.get(var, None)
-        self._frame.f_locals["app"] = self._app
+        if self._frame is not None:
+            for var in self._cell.defs:
+                self._glbls[var] = self._frame.f_locals.get(var, None)
+            self._frame.f_locals["app"] = self._app
         return False
 
 
