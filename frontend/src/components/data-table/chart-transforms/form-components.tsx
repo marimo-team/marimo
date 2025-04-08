@@ -16,11 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
-import { DebouncedInput } from "@/components/ui/input";
+import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
 import { SquareFunctionIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
-import { NONE_GROUP_BY } from "./chart-schemas";
+import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "./chart-schemas";
+import type { NumberFieldProps } from "@/components/ui/number-field";
 
 export const ColumnSelector = <T extends object>({
   form,
@@ -119,6 +120,39 @@ export const InputField = <T extends object>({
               {...field}
               value={field.value ?? ""}
               onValueChange={field.onChange}
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+export const NumberField = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  className,
+  ...props
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  className?: string;
+} & Omit<NumberFieldProps, "value" | "onValueChange">) => {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={cn("flex flex-row items-center gap-2", className)}>
+          <FormLabel className="whitespace-nowrap">{formFieldLabel}</FormLabel>
+          <FormControl>
+            <DebouncedNumberInput
+              {...field}
+              value={field.value ?? DEFAULT_BIN_VALUE}
+              onValueChange={field.onChange}
+              {...props}
             />
           </FormControl>
         </FormItem>

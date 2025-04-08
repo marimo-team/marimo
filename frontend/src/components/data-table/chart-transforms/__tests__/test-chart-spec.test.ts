@@ -3,7 +3,11 @@
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec";
 import { ChartType } from "../storage";
-import { DEFAULT_AGGREGATION, NONE_GROUP_BY } from "../chart-schemas";
+import {
+  DEFAULT_AGGREGATION,
+  DEFAULT_BIN_VALUE,
+  NONE_GROUP_BY,
+} from "../chart-schemas";
 import type { z } from "zod";
 import type { ChartSchema } from "../chart-schemas";
 
@@ -167,6 +171,24 @@ describe("createVegaSpec", () => {
 
       expect(spec).toMatchSnapshot();
     });
+  });
+
+  it("should create a bar chart with binning", () => {
+    const formValues = {
+      ...createBasicFormValues(),
+      xAxis: { bin: { binned: true, step: DEFAULT_BIN_VALUE } },
+    };
+
+    const spec = createVegaSpec(
+      ChartType.BAR,
+      sampleData,
+      formValues,
+      "light",
+      width,
+      height,
+    );
+
+    expect(spec).toMatchSnapshot();
   });
 
   describe("Line Chart", () => {

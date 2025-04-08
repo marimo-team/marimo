@@ -5,7 +5,9 @@ import { ChartType } from "./storage";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { DataType } from "@/core/kernel/messages";
 import {
+  type BinSchema,
   DEFAULT_AGGREGATION,
+  DEFAULT_BIN_VALUE,
   NONE_GROUP_BY,
   type ChartSchema,
 } from "./chart-schemas";
@@ -48,6 +50,7 @@ export function createVegaSpec(
     type: convertDataTypeToVegaType(
       formValues.general.xColumn?.type ?? "unknown",
     ),
+    bin: formValues.xAxis?.bin ? getBin(formValues.xAxis.bin) : undefined,
     title: xAxisLabel,
   };
 
@@ -56,6 +59,7 @@ export function createVegaSpec(
     type: convertDataTypeToVegaType(
       formValues.general.yColumn?.type ?? "unknown",
     ),
+    bin: formValues.yAxis?.bin ? getBin(formValues.yAxis.bin) : undefined,
     title: yAxisLabel,
   };
 
@@ -111,6 +115,19 @@ function getGroupBy(
       ),
     },
   };
+}
+
+function getBin(binValues: z.infer<typeof BinSchema>) {
+  if (binValues.binned) {
+    if (binValues.step === DEFAULT_BIN_VALUE) {
+      return true;
+    }
+
+    return {
+      binned: true,
+      step: binValues.step,
+    };
+  }
 }
 
 function getTooltips(formValues: z.infer<typeof ChartSchema>) {

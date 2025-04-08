@@ -45,12 +45,14 @@ exports[`createVegaSpec > Bar Chart > should create a bar chart with aggregation
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "SUM(value)",
       "type": "quantitative",
@@ -110,12 +112,14 @@ exports[`createVegaSpec > Bar Chart > should create a bar chart with custom axis
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "Categories",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "Values",
       "type": "quantitative",
@@ -191,12 +195,14 @@ exports[`createVegaSpec > Bar Chart > should create a bar chart with tooltips 1`
       },
     ],
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -256,12 +262,14 @@ exports[`createVegaSpec > Bar Chart > should create a basic bar chart spec 1`] =
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -321,12 +329,14 @@ exports[`createVegaSpec > Bar Chart > should create a horizontal bar chart 1`] =
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
@@ -386,6 +396,7 @@ exports[`createVegaSpec > Bar Chart > should create a stacked bar chart with gro
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
@@ -394,6 +405,7 @@ exports[`createVegaSpec > Bar Chart > should create a stacked bar chart with gro
       "field": "group",
     },
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -449,6 +461,7 @@ exports[`createVegaSpec > Edge cases > should handle NONE_GROUP_BY for groupByCo
   "encoding": {
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
@@ -457,6 +470,7 @@ exports[`createVegaSpec > Edge cases > should handle NONE_GROUP_BY for groupByCo
       "field": undefined,
     },
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -516,12 +530,14 @@ exports[`createVegaSpec > Edge cases > should handle missing xColumn field 1`] =
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": undefined,
       "title": undefined,
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -581,12 +597,14 @@ exports[`createVegaSpec > Edge cases > should handle missing yColumn field 1`] =
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": undefined,
       "title": undefined,
       "type": "quantitative",
@@ -646,12 +664,14 @@ exports[`createVegaSpec > Line Chart > should create a basic line chart spec 1`]
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -711,12 +731,14 @@ exports[`createVegaSpec > Line Chart > should create a line chart with grouping 
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -771,11 +793,13 @@ exports[`createVegaSpec > Pie Chart > should create a basic pie chart spec 1`] =
   },
   "encoding": {
     "color": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
     },
     "theta": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
@@ -832,11 +856,13 @@ exports[`createVegaSpec > Pie Chart > should create a pie chart with tooltips 1`
   },
   "encoding": {
     "color": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
     },
     "theta": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
@@ -909,12 +935,14 @@ exports[`createVegaSpec > Scatter Chart > should create a basic scatter chart sp
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -974,12 +1002,14 @@ exports[`createVegaSpec > Scatter Chart > should create a scatter chart with gro
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",
@@ -1039,12 +1069,81 @@ exports[`createVegaSpec > Theme variations > should create a chart with dark the
     },
     "tooltip": undefined,
     "x": {
+      "bin": undefined,
       "field": "category",
       "title": "category",
       "type": "nominal",
     },
     "xOffset": undefined,
     "y": {
+      "bin": undefined,
+      "field": "value",
+      "title": "value",
+      "type": "quantitative",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;
+
+exports[`createVegaSpec > should create a bar chart with binning 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "background": "white",
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "group": "Group 1",
+        "value": 10,
+      },
+      {
+        "category": "B",
+        "group": "Group 1",
+        "value": 20,
+      },
+      {
+        "category": "C",
+        "group": "Group 1",
+        "value": 15,
+      },
+      {
+        "category": "A",
+        "group": "Group 2",
+        "value": 5,
+      },
+      {
+        "category": "B",
+        "group": "Group 2",
+        "value": 10,
+      },
+      {
+        "category": "C",
+        "group": "Group 2",
+        "value": 25,
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": undefined,
+      "type": "nominal",
+    },
+    "tooltip": undefined,
+    "x": {
+      "bin": true,
+      "field": "category",
+      "title": "category",
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "bin": undefined,
       "field": "value",
       "title": "value",
       "type": "quantitative",

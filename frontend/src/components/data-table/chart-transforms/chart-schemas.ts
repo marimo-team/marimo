@@ -5,7 +5,13 @@ import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { z } from "zod";
 
 export const DEFAULT_AGGREGATION = "default";
+export const DEFAULT_BIN_VALUE = 0;
 export const NONE_GROUP_BY = "None";
+
+export const BinSchema = z.object({
+  binned: z.boolean().optional(),
+  step: z.number().optional(),
+});
 
 export const ChartSchema = z.object({
   general: z.object({
@@ -42,11 +48,13 @@ export const ChartSchema = z.object({
   xAxis: z
     .object({
       label: z.string().optional(),
+      bin: BinSchema.optional(),
     })
     .optional(),
   yAxis: z
     .object({
       label: z.string().optional(),
+      bin: BinSchema.optional(),
     })
     .optional(),
 });

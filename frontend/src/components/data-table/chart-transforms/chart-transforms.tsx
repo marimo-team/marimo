@@ -48,7 +48,12 @@ import { createVegaSpec } from "./chart-spec";
 import { useTheme } from "@/theme/useTheme";
 import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
-import { BooleanField, ColumnSelector, InputField } from "./form-components";
+import {
+  BooleanField,
+  ColumnSelector,
+  InputField,
+  NumberField,
+} from "./form-components";
 import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
@@ -488,7 +493,7 @@ const ChartForm = ({
               </div>
             )}
 
-            <hr className="my-2" />
+            <hr />
 
             <InputField
               form={form}
@@ -536,25 +541,45 @@ const ChartForm = ({
           </TabsContent>
           {chartType !== ChartType.PIE && (
             <>
-              <TabsContent value="x-axis">
-                <InputField
-                  form={form}
-                  name="xAxis.label"
-                  formFieldLabel="X-axis Label"
-                />
-              </TabsContent>
-              <TabsContent value="y-axis">
-                <InputField
-                  form={form}
-                  name="yAxis.label"
-                  formFieldLabel="Y-axis Label"
-                />
-              </TabsContent>
+              <AxisTabContent axis="x" form={form} />
+              <AxisTabContent axis="y" form={form} />
             </>
           )}
         </Tabs>
       </form>
     </Form>
+  );
+};
+
+interface AxisTabContentProps {
+  axis: "x" | "y";
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+}
+
+const AxisTabContent: React.FC<AxisTabContentProps> = ({ axis, form }) => {
+  const axisName = axis === "x" ? "X" : "Y";
+
+  return (
+    <TabsContent value={`${axis}-axis`} className="flex flex-col gap-3">
+      <InputField
+        form={form}
+        name={`${axis}Axis.label`}
+        formFieldLabel={`${axisName}-axis Label`}
+      />
+      <div className="flex flex-row gap-2 w-full">
+        <BooleanField
+          form={form}
+          name={`${axis}Axis.bin.binned`}
+          formFieldLabel="Binned"
+        />
+        <NumberField
+          form={form}
+          name={`${axis}Axis.bin.step`}
+          formFieldLabel="Bin step"
+          step={0.05}
+        />
+      </div>
+    </TabsContent>
   );
 };
 
@@ -569,7 +594,7 @@ const Chart: React.FC<{
     return <div>No data</div>;
   }
 
-  const vegaSpec = createVegaSpec(chartType, data, formValues, theme, 350, 300);
+  const vegaSpec = createVegaSpec(chartType, data, formValues, theme, 400, 300);
 
   if (!vegaSpec) {
     return <div>This configuration is not supported</div>;
@@ -578,7 +603,7 @@ const Chart: React.FC<{
   const compiledSpec = compile(vegaSpec).spec;
 
   return (
-    <div className="h-full m-auto rounded-md">
+    <div className="h-full m-auto rounded-md mt-4">
       <LazyVega
         spec={compiledSpec}
         theme={theme === "dark" ? "dark" : undefined}
