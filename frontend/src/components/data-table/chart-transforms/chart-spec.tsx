@@ -113,6 +113,7 @@ function getGroupBy(
       type: convertDataTypeToVegaType(
         formValues.general.groupByColumn?.type ?? "unknown",
       ),
+      bin: formValues.general.groupByColumn?.binned,
     },
   };
 }

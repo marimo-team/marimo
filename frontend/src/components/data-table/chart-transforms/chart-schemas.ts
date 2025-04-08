@@ -33,6 +33,7 @@ export const ChartSchema = z.object({
       .object({
         field: z.string().default(NONE_GROUP_BY).optional(),
         type: z.enum(DATA_TYPES).optional(),
+        binned: z.boolean().optional(),
       })
       .optional(),
     stacking: z.boolean().optional(),

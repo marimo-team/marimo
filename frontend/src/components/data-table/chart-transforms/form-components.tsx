@@ -177,7 +177,7 @@ export const BooleanField = <T extends object>({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormItem className={cn("flex flex-row items-center gap-2", className)}>
+        <FormItem className={cn("flex flex-row items-center gap-1", className)}>
           <FormLabel>{formFieldLabel}</FormLabel>
           <FormControl>
             <Checkbox

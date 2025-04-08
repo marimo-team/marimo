@@ -57,6 +57,7 @@ import {
 import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
+import { cn } from "@/utils/cn";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -482,14 +483,25 @@ const ChartForm = ({
                   columns={fields ?? []}
                   includeNoneOption={true}
                 />
-                {chartType === ChartType.BAR && (
+                <div
+                  className={cn(
+                    "flex flex-col self-end gap-1 items-end",
+                    chartType === ChartType.BAR && "mt-1.5",
+                  )}
+                >
                   <BooleanField
                     form={form}
-                    name="general.stacking"
-                    formFieldLabel="Stacked"
-                    className="self-end"
+                    name="general.groupByColumn.binned"
+                    formFieldLabel="Binned"
                   />
-                )}
+                  {chartType === ChartType.BAR && (
+                    <BooleanField
+                      form={form}
+                      name="general.stacking"
+                      formFieldLabel="Stacked"
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -577,6 +589,7 @@ const AxisTabContent: React.FC<AxisTabContentProps> = ({ axis, form }) => {
           name={`${axis}Axis.bin.step`}
           formFieldLabel="Bin step"
           step={0.05}
+          className="w-32"
         />
       </div>
     </TabsContent>
