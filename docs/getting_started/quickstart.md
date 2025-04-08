@@ -125,8 +125,8 @@ _Get started with Copilot_:
 _Note_: Copilot is not yet available in our conda distribution; please install
 marimo from `PyPI` if you need Copilot.
 
-marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#codeium-copilot),
-and a built-in [AI assistant](../guides/editor_features/ai_completion.md#generate-code-with-our-ai-assistant) that helps you write code.
+marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#custom-copilots),
+and a built-in [AI assistant](../guides/editor_features/ai_completion.md) that helps you write code.
 
 ## Try our VS Code extension
 
