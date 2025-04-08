@@ -32,7 +32,7 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { capitalize, debounce } from "lodash-es";
+import { capitalize } from "lodash-es";
 import {
   type TabName,
   tabsStorageAtom,
@@ -51,6 +51,7 @@ import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { BooleanField, ColumnSelector, InputField } from "./form-components";
 import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -369,20 +370,14 @@ const ChartForm = ({
     };
   });
 
-  const debouncedSave = useMemo(
-    () =>
-      debounce((values: z.infer<typeof ChartSchema>) => saveChart(values), 300),
-    [saveChart],
-  );
-
-  const saveForm = () => {
+  const debouncedSave = useDebouncedCallback(() => {
     const values = form.getValues();
-    debouncedSave(values);
-  };
+    saveChart(values);
+  }, 300);
 
   return (
     <Form {...form}>
-      <form onSubmit={(e) => e.preventDefault()} onChange={saveForm}>
+      <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
         <Tabs defaultValue="general">
           <TabsList>
             <TabsTrigger value="general">General</TabsTrigger>
@@ -515,7 +510,7 @@ const ChartForm = ({
 
                         field.onChange(tooltipObjects);
                         // Multiselect doesn't trigger onChange, so we need to save the form manually
-                        saveForm();
+                        debouncedSave();
                       }}
                       label="Tooltips"
                       fullWidth={false}

@@ -486,8 +486,7 @@ export const LoadingDataTableComponent = memo(
     }
 
     const chartsFeature =
-      getFeatureFlag("experimental_data_table") &&
-      props.experimentalChartsEnabled;
+      getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
 
     const dataTable = (
       <DataTableComponent

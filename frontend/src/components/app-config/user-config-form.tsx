@@ -1328,7 +1328,7 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.experimental_data_table"
+              name="experimental.table_charts"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
