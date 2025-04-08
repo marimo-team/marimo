@@ -159,12 +159,12 @@ class _SetupContext(SkipContext):
     See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
     """
 
-    def __init__(self, app: App, cell: Cell):
+    def __init__(self, cell: Cell):
         super().__init__()
         self._cell = cell
         self._glbls: dict[str, Any] = {}
         self._frame = None
-        self._app = app
+        self._previous: dict[str, Any] = {}
 
     def trace(self, with_frame: Any) -> None:
         if refs := self._cell.refs - set(builtins.__dict__.keys()):
@@ -176,6 +176,9 @@ class _SetupContext(SkipContext):
                 f"The setup cell cannot reference any additional variables: {refs}"
             )
         self._frame = with_frame
+        self._previous = {**with_frame.f_globals}
+        self._frame.f_globals.clear()
+        self._frame.f_globals.update(builtins.__dict__)
 
     def __exit__(
         self,
@@ -186,6 +189,21 @@ class _SetupContext(SkipContext):
         # Must be a Literal[False], for linters.
         # Whether to suppress a given exception.
         self.teardown()
+
+        # Manually hold on to defs for injection into script mode.
+        if self._frame is not None:
+            for var in self._cell.defs:
+                self._glbls[var] = self._frame.f_locals.get(var, None)
+
+            self._frame.f_locals.update(self._previous)
+            # What was just run should take precident.
+            self._frame.f_locals.update(self._glbls)
+            # Previous after to ensure that app and other builtins are not
+            # changed during import or execution.
+            self._frame.f_globals["app"] = self._previous["app"]
+            self._frame.f_globals["marimo"] = self._previous["marimo"]
+            self._frame.f_globals["__name__"] = self._previous["__name__"]
+            self._previous = None
 
         if exception is not None:
             LOGGER.warning(
@@ -199,11 +217,6 @@ class _SetupContext(SkipContext):
             # TODO(dmadisetti): Allow error to propagate on static app loads.
             return True  # type: ignore
 
-        # Manually hold on to defs for injection into script mode.
-        if self._frame is not None:
-            for var in self._cell.defs:
-                self._glbls[var] = self._frame.f_locals.get(var, None)
-            self._frame.f_locals["app"] = self._app
         return False
 
 
@@ -510,7 +523,7 @@ class App:
         cell = self._cell_manager.cell_context(
             app=InternalApp(self), frame=frame
         )
-        self._setup = _SetupContext(self, cell)
+        self._setup = _SetupContext(cell)
         return self._setup
 
     def _unparsable_cell(
