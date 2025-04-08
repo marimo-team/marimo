@@ -2595,6 +2595,7 @@ export interface components {
       key: string;
     };
     Error:
+      | components["schemas"]["SetupRootError"]
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["ImportStarError"]
@@ -3289,6 +3290,11 @@ export interface components {
     };
     SetUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    SetupRootError: {
+      edges_with_vars: [string, string[], string][];
+      /** @enum {string} */
+      type: "setup-refs";
     };
     ShutdownSessionRequest: {
       sessionId: string;
