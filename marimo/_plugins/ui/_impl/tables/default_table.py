@@ -324,7 +324,16 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 )
             except TypeError:
                 # Handle when values are not comparable
-                def sort_func(i: int) -> tuple[bool, str] | str:
+                def sort_func_str(i: int) -> tuple[bool, str] | str:
+                    # For ascending, generate a tuple of (is_none, value)
+                    # (True, None) will be for None values
+                    # (False, x) will be for other values.
+                    # As False < True, None values will be sorted to the end.
+
+                    # For descending, (is_not_none, value) tuple
+                    # (False, None) will be for None values.
+                    # (True, x) will be for other values.
+                    # As True > False, other values come before None values
                     if descending:
                         return (
                             sort_column[i] is not None,
@@ -335,7 +344,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
                 sorted_indices = sorted(
                     range(len(sort_column)),
-                    key=sort_func,
+                    key=sort_func_str,
                     reverse=descending,
                 )
             # Apply sorted indices to each column while maintaining column orientation
@@ -355,27 +364,20 @@ class DefaultTableManager(TableManager[JsonTableData]):
         normalized = self._normalize_data(self.data)
         try:
 
-            def sort_func(x: dict[str, Any]) -> tuple[bool, Any]:
-                # For ascending, generate a tuple of (is_none, value)
-                # (True, None) will be for None values
-                # (False, x) will be for other values.
-                # As False < True, None values will be sorted to the end.
-
-                # For descending, (is_not_none, value) tuple
-                # (False, None) will be for None values.
-                # (True, x) will be for other values.
-                # As True > False, other values come before None values
+            def sort_func_col(x: dict[str, Any]) -> tuple[bool, Any]:
                 is_none = x[by] is not None if descending else x[by] is None
                 return (is_none, x[by])
 
-            data = sorted(normalized, key=sort_func, reverse=descending)
+            data = sorted(normalized, key=sort_func_col, reverse=descending)
         except TypeError:
             # Handle when all values are not comparable
-            def sort_func(x: dict[str, Any]) -> tuple[bool, str]:
+            def sort_func_col_str(x: dict[str, Any]) -> tuple[bool, str]:
                 is_none = x[by] is not None if descending else x[by] is None
                 return (is_none, str(x[by]))
 
-            data = sorted(normalized, key=sort_func, reverse=descending)
+            data = sorted(
+                normalized, key=sort_func_col_str, reverse=descending
+            )
         return DefaultTableManager(data)
 
     @staticmethod
