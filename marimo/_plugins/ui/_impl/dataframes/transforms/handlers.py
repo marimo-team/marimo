@@ -647,7 +647,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def as_python_code(
-        df_name: str, columns: List[str], transforms: List[Transform]
+        df_name: str, columns: list[str], transforms: list[Transform]
     ) -> str | None:
         return python_print_transforms(
             df_name, columns, transforms, python_print_ibis
