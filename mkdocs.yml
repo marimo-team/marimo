@@ -98,6 +98,10 @@ nav:
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
       - Package reproducibility: guides/package_reproducibility.md
+      - Generate with AI:
+          - Generate with AI: guides/generate_with_ai/index.md
+          - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
+          - AI-assisted coding: guides/editor_features/ai_completion.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
