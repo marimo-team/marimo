@@ -176,9 +176,12 @@ class _SetupContext(SkipContext):
                 f"The setup cell cannot reference any additional variables: {refs}"
             )
         self._frame = with_frame
-        self._previous = {**with_frame.f_globals}
-        self._frame.f_globals.clear()
-        self._frame.f_globals.update(builtins.__dict__)
+        self._previous = {**with_frame.f_locals}
+        # A reference to the key app must be maintained in the frame.
+        # This may be a python quirk, so just remove refs to explicit defs
+        for var in self._cell.defs:
+            if var in self._previous:
+                del self._frame.f_locals[var]
 
     def __exit__(
         self,
@@ -200,9 +203,10 @@ class _SetupContext(SkipContext):
             self._frame.f_locals.update(self._glbls)
             # Previous after to ensure that app and other builtins are not
             # changed during import or execution.
-            self._frame.f_globals["app"] = self._previous["app"]
-            self._frame.f_globals["marimo"] = self._previous["marimo"]
-            self._frame.f_globals["__name__"] = self._previous["__name__"]
+            app = None
+            if self._cell._app is not None:
+                app = self._cell._app._app
+            self._frame.f_locals["app"] = self._previous.get("app", app)
             # lose ref
             self._previous = {}
 
@@ -216,7 +220,7 @@ class _SetupContext(SkipContext):
             # Always should fail, since static loading still allows bad apps to
             # load.
             # TODO(dmadisetti): Allow error to propagate on static app loads.
-            return True  # type: ignore
+            return False  # type: ignore
 
         return False
 
@@ -620,13 +624,13 @@ class App:
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
-        glbs: dict[str, Any] = {}
+        glbls: dict[str, Any] = {}
         if self._setup is not None:
             glbls = self._setup._glbls
         outputs, glbls = AppScriptRunner(
             InternalApp(self),
             filename=self._filename,
-            glbls=glbs,
+            glbls=glbls,
         ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
