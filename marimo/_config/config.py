@@ -142,6 +142,7 @@ class RuntimeConfig(TypedDict):
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
+SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 
 
 @mddoc

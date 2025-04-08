@@ -43,7 +43,7 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
-from marimo._config.config import WidthType
+from marimo._config.config import SqlOutputType, WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -85,6 +85,7 @@ class _AppConfig:
     """
 
     width: WidthType = "compact"
+
     app_title: Optional[str] = None
 
     # The file path of the layout file, relative to the app file.
@@ -100,6 +101,9 @@ class _AppConfig:
     auto_download: list[Literal["html", "markdown"]] = field(
         default_factory=list
     )
+
+    # The type of SQL output to display
+    sql_output: SqlOutputType = "auto"
 
     # Experimental top-level cell support
     _toplevel_fn: bool = False

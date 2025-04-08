@@ -51,6 +51,17 @@ class DuckDBEngine(SQLEngine):
         if relation is None:
             return None
 
+        sql_output_format = self.sql_output_format()
+        if sql_output_format == "polars":
+            return relation.pl()
+        if sql_output_format == "lazy-polars":
+            return relation.pl().lazy()
+        if sql_output_format == "native":
+            return relation
+        if sql_output_format == "pandas":
+            return relation.df()
+
+        # Auto
         if DependencyManager.polars.has():
             import polars as pl
 

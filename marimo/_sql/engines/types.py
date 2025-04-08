@@ -5,7 +5,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Literal, Optional, Union
 
+from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+    runtime_context_installed,
+)
 
 ENGINE_REGISTRY: list[type[SQLEngine]] = []
 
@@ -22,8 +29,29 @@ class InferenceConfig(ABC):
     auto_discover_columns: Union[bool | Literal["auto"]]
 
 
+def _validate_sql_output_format(sql_output: SqlOutputType) -> SqlOutputType:
+    if sql_output in ("lazy-polars", "polars"):
+        DependencyManager.polars.require(
+            why="to display SQL results as a Polars DataFrame"
+        )
+    elif sql_output == "pandas":
+        DependencyManager.pandas.require(
+            why="to display SQL results as a Pandas DataFrame"
+        )
+    return sql_output
+
+
 class SQLEngine(ABC):
     """Protocol for SQL engines that can execute queries."""
+
+    def sql_output_format(self) -> SqlOutputType:
+        if runtime_context_installed():
+            try:
+                ctx = get_context()
+                return _validate_sql_output_format(ctx.app.config.sql_output)
+            except ContextNotInitializedError:
+                return "auto"
+        return "auto"
 
     @abstractmethod
     def __init__(self, connection: Any, engine_name: str) -> None:

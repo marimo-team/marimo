@@ -234,6 +234,32 @@ export const AppConfigForm: React.FC = () => {
             </div>
           )}
         />
+        <FormField
+          control={form.control}
+          name="sql_output"
+          render={({ field }) => (
+            <FormItem
+              className={"flex flex-row items-center space-x-1 space-y-0"}
+            >
+              <FormLabel>SQL Output Type</FormLabel>
+              <FormControl>
+                <NativeSelect
+                  data-testid="sql-output-select"
+                  onChange={(e) => field.onChange(e.target.value)}
+                  value={field.value}
+                  disabled={field.disabled}
+                  className="inline-flex mr-2"
+                >
+                  <option value="auto">Auto (Default)</option>
+                  <option value="polars">Polars</option>
+                  <option value="lazy-polars">Lazy Polars</option>
+                  <option value="native">Native</option>
+                </NativeSelect>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </form>
     </Form>
   );
