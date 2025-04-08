@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from marimo import _loggers
-from marimo._ast import codegen
+from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._config.config import WidthType
@@ -160,7 +160,7 @@ class AppFileManager:
 
     def _load_app(self, path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
-        app = codegen.get_app(path)
+        app = load.load_app(path)
         if app is None:
             kwargs = (
                 {"width": self._default_width}

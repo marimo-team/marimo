@@ -223,7 +223,7 @@ class CellManager:
             pass
 
         cell_config = CellConfig(
-            *cell_def.options,
+            **cell_def.options,
         )
         cell._cell.configure(cell_config)
 

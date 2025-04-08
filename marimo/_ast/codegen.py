@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 import builtins
-import importlib.util
 import json
 import os
 import re
@@ -12,7 +11,7 @@ import textwrap
 from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
@@ -399,69 +398,6 @@ def generate_filecontents(
 
 class MarimoFileError(Exception):
     pass
-
-
-def get_app(filename: Optional[str]) -> Optional[App]:
-    """Load and return app from a marimo-generated module.
-
-    Args:
-        filename: Path to a marimo notebook file (.py or .md)
-
-    Returns:
-        The marimo App instance if the file exists and contains valid code,
-        None if the file is empty or contains only comments.
-
-    Raises:
-        MarimoFileError: If the file exists but doesn't define a valid marimo app
-        RuntimeError: If there are issues loading the module
-        SyntaxError: If the file contains a syntax error
-        FileNotFoundError: If the file doesn't exist
-    """
-    if filename is None:
-        return None
-
-    with open(filename, encoding="utf-8") as f:
-        contents = f.read().strip()
-
-    if not contents:
-        return None
-
-    if filename.endswith(".md"):
-        from marimo._cli.convert.markdown import convert_from_md_to_app
-
-        return convert_from_md_to_app(contents)
-
-    # Below assumes it's a Python file
-
-    # This means it could have only the package dependencies
-    # but no actual code yet.
-    has_only_comments = all(
-        not line.strip() or line.strip().startswith("#")
-        for line in contents.splitlines()
-    )
-    if has_only_comments:
-        return None
-
-    # TODO(dmadisetti): Consider replacing with a completely static load for
-    # edit.
-    spec = importlib.util.spec_from_file_location("marimo_app", filename)
-    if spec is None:
-        raise RuntimeError("Failed to load module spec")
-    marimo_app = importlib.util.module_from_spec(spec)
-    if spec.loader is None:
-        raise RuntimeError("Failed to load module spec's loader")
-    try:
-        sys.modules["marimo_app"] = marimo_app
-        spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
-    finally:
-        sys.modules.pop("marimo_app", None)
-    if not hasattr(marimo_app, "app"):
-        raise MarimoFileError(f"{filename} missing attribute `app`.")
-    if not isinstance(marimo_app.app, App):
-        raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
-
-    app = marimo_app.app
-    return app
 
 
 def recover(filename: str) -> str:

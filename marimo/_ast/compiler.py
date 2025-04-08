@@ -10,10 +10,11 @@ import re
 import sys
 import textwrap
 import token as token_types
-from tokenize import TokenInfo, tokenize
+from tokenize import tokenize
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
+from marimo._ast import parse
 from marimo._ast.cell import (
     Cell,
     CellImpl,
@@ -37,7 +38,6 @@ LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
     from types import FrameType
 
 
@@ -445,114 +445,19 @@ def cell_factory(
     code, lnum = inspect.getsourcelines(f)
     function_code = textwrap.dedent("".join(code))
 
-    # tokenize to find the start of the function body, including
-    # comments --- we have to use tokenize because the ast treats the first
-    # line of code as the starting line of the function body, whereas we
-    # want the first indented line after the signature
-    tokens: Iterator[TokenInfo] = tokenize(
-        io.BytesIO(function_code.encode("utf-8")).readline
-    )
-
-    def_node: Optional[TokenInfo] = None
-    for token in tokens:
-        if token.type == token_types.NAME and token.string == "def":
-            def_node = token
-            break
-    assert def_node is not None
-
-    paren_counter: Optional[int] = None
-    for token in tokens:
-        if token.type == token_types.OP and token.string == "(":
-            paren_counter = 1 if paren_counter is None else paren_counter + 1
-        elif token.type == token_types.OP and token.string == ")":
-            assert paren_counter is not None
-            paren_counter -= 1
-
-        if paren_counter == 0:
-            break
-    assert paren_counter == 0
-
-    for token in tokens:
-        if token.type == token_types.OP and token.string == ":":
-            break
-
-    after_colon = next(tokens)
-    start_line: int
-    start_col: int
-    if after_colon.type == token_types.NEWLINE:
-        fn_body_token = next(tokens)
-        start_line = fn_body_token.start[0] - 1
-        start_col = 0
-    elif after_colon.type == token_types.COMMENT:
-        newline_token = next(tokens)
-        assert newline_token.type == token_types.NEWLINE
-        fn_body_token = next(tokens)
-        start_line = fn_body_token.start[0] - 1
-        start_col = 0
-    else:
-        # function body starts on same line as definition, such as in
-        # the following examples:
-        #
-        # def foo(): pass
-        #
-        # def foo(): x = 0; return x
-        #
-        # def foo(): x = """
-        #
-        # """; return x
-        fn_body_token = after_colon
-        start_line = fn_body_token.start[0] - 1
-        start_col = fn_body_token.start[1]
-
-    col_offset = fn_body_token.end[1] - start_col
-
-    # it would be difficult to tell if the last return token were in fact the
-    # last statement of the function body, so we use the ast, which lets us
-    # easily find the last statement of the function body;
-    tree = ast.parse(function_code)
-    return_node: Optional[ast.Return]
-    first_stmt = tree.body[0]
-    # Handle case where first statement does not have a body
-    if not hasattr(first_stmt, "body"):
-        return_node = None
-    else:
-        return_node = (
-            first_stmt.body[-1]  # type: ignore
-            if isinstance(first_stmt.body[-1], ast.Return)  # type: ignore
-            else None
-        )
-
-    end_line, return_offset = (
-        (return_node.lineno - 1, return_node.col_offset)
-        if return_node is not None
-        else (None, None)
-    )
-
-    cell_code: str
-    lines = function_code.split("\n")
-    if start_line == end_line:
-        # remove leading indentation
-        cell_code = textwrap.dedent(lines[start_line][start_col:return_offset])
-    else:
-        first_line = lines[start_line][start_col:]
-        cell_code = textwrap.dedent(
-            "\n".join([first_line] + lines[start_line + 1 : end_line])
-        ).strip()
-        if end_line is not None and not lines[end_line].strip().startswith(
-            "return"
-        ):
-            # handle return written on same line as last statement in cell
-            cell_code += "\n" + lines[end_line][:return_offset]
+    extractor = parse.Extractor(contents=function_code)
+    func_ast = ast.parse(function_code).body[0]
+    cell_def = extractor.to_cell(func_ast, attribute="cell")
 
     # anonymous file is required for deterministic testing.
     source_position = None
     if not anonymous_file:
         source_position = get_source_position(
-            f, lnum + start_line - 1, col_offset
+            f, lnum + cell_def.lineno - 1, cell_def.col_offset
         )
 
     cell = compile_cell(
-        cell_code,
+        cell_def.code,
         cell_id=cell_id,
         source_position=source_position,
         test_rewrite=test_rewrite,

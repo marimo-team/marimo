@@ -49,7 +49,7 @@ def _dynamic_load(filename: str) -> Optional[App]:
     finally:
         sys.modules.pop("marimo_app", None)
     if not hasattr(marimo_app, "app"):
-        raise MarimoFileError(f"{filename} missing attribute `app`.")
+        return None
     if not isinstance(marimo_app.app, App):
         raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
 
@@ -59,17 +59,19 @@ def _dynamic_load(filename: str) -> Optional[App]:
 
 def _static_load(filename: str) -> Optional[App]:
     notebook = parse_notebook(filename)
+    if not notebook.valid:
+        return None
     app = App(**notebook.app.options)
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
-            app._unparseable(cell.code, *cell.options)
+            app._unparsable_cell(cell.code, **cell.options)
             continue
 
         app._cell_manager.register_ir_cell(cell)
     return app
 
 
-def load_app(filename: str) -> App:
+def load_app(filename: Optional[str]) -> Optional[App]:
     """Load and return app from a marimo-generated module.
 
     Args:
@@ -85,6 +87,9 @@ def load_app(filename: str) -> App:
         SyntaxError: If the file contains a syntax error
         FileNotFoundError: If the file doesn't exist
     """
+
+    if filename is None:
+        return None
 
     if filename.endswith(".md"):
         contents = _maybe_contents(filename)

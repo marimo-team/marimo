@@ -13,7 +13,7 @@ import codegen_data.test_main as mod
 import pytest
 
 from marimo import __version__
-from marimo._ast import codegen, compiler
+from marimo._ast import codegen, compiler, load
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
@@ -70,7 +70,7 @@ def get_idempotent_marimo_source(name: str) -> str:
     from marimo._utils.formatter import Formatter
 
     path = get_filepath(name)
-    app = codegen.get_app(path)
+    app = load.load_app(path)
     header_comments = codegen.get_header_comments(path)
     generated_contents = codegen.generate_filecontents(
         list(app._cell_manager.codes()),
