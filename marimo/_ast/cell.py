@@ -603,7 +603,8 @@ class Cell:
         # Inject setup cell definitions so that We do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
         if "PYTEST_CURRENT_TEST" not in os.environ:
-            refs = {**self._app._app._setup._glbls, **refs}
+            if self._app._app._setup is not None:
+                refs = {**self._app._app._setup._glbls, **refs}
 
         try:
             if self._is_coroutine:

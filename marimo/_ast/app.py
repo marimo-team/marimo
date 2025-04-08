@@ -292,6 +292,8 @@ class App:
         self._anonymous_file = False
         # injection hook to rewrite cells for pytest
         self._pytest_rewrite = False
+        # setup context for script mode and module imports
+        self._setup: Optional[_SetupContext] = None
 
         # Filename is derived from the callsite of the app
         self._filename: str | None = None
@@ -618,10 +620,13 @@ class App:
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
+        glbs: dict[str, Any] = {}
+        if self._setup is not None:
+            glbls = self._setup._glbls
         outputs, glbls = AppScriptRunner(
             InternalApp(self),
             filename=self._filename,
-            glbls=self._setup._glbls,
+            glbls=glbs,
         ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 

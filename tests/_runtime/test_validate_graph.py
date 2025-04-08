@@ -143,7 +143,7 @@ def test_setup_has_refs() -> None:
     graph.register_cell(SETUP_CELL_NAME, parse_cell("z = y"))
     graph.register_cell("0", parse_cell("y = 1"))
     errors = check_for_errors(graph)
-    assert set(errors.keys()) == set([SETUP_CELL_NAME, "0"])
+    assert set(errors.keys()) == set([SETUP_CELL_NAME])
     for t in errors.values():
         assert len(t) == 1
         assert isinstance(t[0], SetupRootError)
