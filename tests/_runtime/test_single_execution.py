@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 
+
 from marimo._runtime.capture import capture_stdout
 
 # 4 methods of execution
@@ -25,7 +26,7 @@ def test_acts_like_script() -> None:
     )
     assert p.returncode == 0
     result = p.stdout.decode()
-    assert result == "*\n1\n"
+    assert result.replace("\r", "") == "*\n1\n"
 
 
 def test_acts_like_module() -> None:
@@ -73,6 +74,6 @@ def test_acts_as_test() -> None:
     )
     result = p.stdout.decode()
     assert p.returncode == 0, result
-    assert "-\n*\n1\n" in result
+    assert "-\n*\n1\n" in result.replace("\r", "")
 
     os.environ["PYTEST_CURRENT_TEST"] = previous
