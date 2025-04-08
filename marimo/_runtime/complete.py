@@ -55,6 +55,13 @@ def _should_include_name(name: str, prefix: str) -> bool:
 
 
 DOC_CACHE_SIZE = 200
+# Normally '.' is the trigger character for completions.
+#
+# We also want to trigger completions on '(', ',' because
+# we don't open the signature popup on these characters.
+#
+# We also add '/' for file path completion.
+COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "(", ",", "/"})
 
 
 @lru_cache(maxsize=DOC_CACHE_SIZE)
@@ -328,7 +335,7 @@ def _get_completions_with_interpreter(
     # for the lock to be released.
     script = jedi.Interpreter(document, [glbls])
     locked = False
-    completions = []
+    completions: list[jedi.api.classes.Completion] = []
     locked = glbls_lock.acquire(blocking=False)
     if locked:
         LOGGER.debug("Completion worker acquired globals lock")
@@ -341,22 +348,14 @@ def _get_completions(
     document: str,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
-    prefer_interpreter_completion: bool,
 ) -> tuple[jedi.Script, list[jedi.api.classes.Completion]]:
-    if prefer_interpreter_completion:
+    script, completions = _get_completions_with_script(codes, document)
+    completions = script.complete()
+    if not completions:
         script, completions = _get_completions_with_interpreter(
             document, glbls, glbls_lock
         )
-        if not completions:
-            script, completions = _get_completions_with_script(codes, document)
-        return script, completions
-    else:
-        script, completions = _get_completions_with_script(codes, document)
-        if not completions:
-            script, completions = _get_completions_with_interpreter(
-                document, glbls, glbls_lock
-            )
-        return script, completions
+    return script, completions
 
 
 def complete(
@@ -367,13 +366,8 @@ def complete(
     stream: Stream,
     docstrings_limit: int = 80,
     timeout: float | None = None,
-    prefer_interpreter_completion: bool = False,
 ) -> None:
     """Gets code completions for a request.
-
-    If `prefer_interpreter_completion`, a runtime-based method is used,
-    falling back to a static analysis method. Otherwise the static method
-    is used, with the interpreter method as a fallback.
 
     Static completions are safer since they don't execute code, but they
     are slower and sometimes fail. Interpreter executions are faster
@@ -405,25 +399,22 @@ def complete(
             )
         ]
 
+    completions: list[jedi.api.classes.Completion] = []
     try:
         script, completions = _get_completions(
             codes,
             request.document,
             glbls,
             glbls_lock,
-            prefer_interpreter_completion,
         )
-        prefix_length = (
+        prefix_length: int = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
 
-        # Only complete an empty symbol (prefix length == 0) when we're
-        # using dot notation; this prevents autocomplete from kicking in at
-        # awkward times, such as when parentheses are first opened
         if (
             prefix_length == 0
             and len(request.document) >= 1
-            and request.document[-1] != "."
+            and request.document[-1] not in COMPLETION_TRIGGER_CHARACTERS
         ):
             # Empty prefix, not dot notation; don't complete ...
             completions = []
