@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 from unittest.mock import Mock
 
@@ -962,11 +963,23 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list()[1:] == [
+        assert sorted_manager.data["A"].to_list()[:-1] == [
             3.0,
             2.0,
             1.0,
         ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
+
+        # ascending
+        sorted_manager = manager.sort_values("A", descending=False)
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
 
     def test_dataframe_with_multiindex(self) -> None:
         df = pd.DataFrame(

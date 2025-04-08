@@ -125,6 +125,46 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
 
+    def test_sort_null_values(self) -> None:
+        data_with_nan = self.data.copy()
+        data_with_nan[1]["age"] = None
+        manager_with_nan = DefaultTableManager(data_with_nan)
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=False
+        ).data
+        last_row = sorted_data[-1]
+
+        expected_last_row = {
+            "name": "Bob",
+            "age": None,
+            "birth_year": date(1999, 7, 14),
+        }
+
+        # ascending
+        assert last_row == expected_last_row
+
+        # descending
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=True
+        ).data
+        last_row = sorted_data[-1]
+        assert last_row == expected_last_row
+
+        # strings ascending
+        data_with_strings = self.data.copy()
+        data_with_strings[1]["name"] = None
+        manager_with_strings = DefaultTableManager(data_with_strings)
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=False
+        ).data
+        assert sorted_data[-1]["name"] is None
+
+        # strings descending
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=True
+        ).data
+        assert sorted_data[-1]["name"] is None
+
     def test_sort_single_values(self) -> None:
         manager = DefaultTableManager([1, 3, 2])
         sorted_data = manager.sort_values(by="value", descending=True).data
@@ -419,6 +459,39 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert sorted_data == expected_data
 
+    def test_sort_null_values(self) -> None:
+        data_with_nan = self.data.copy()
+        data_with_nan["age"][1] = None
+        manager_with_nan = DefaultTableManager(data_with_nan)
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=False
+        ).data
+
+        assert sorted_data["age"][-1] is None
+        assert sorted_data["name"][-1] == "Bob"
+
+        # ascending
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=True
+        ).data
+        assert sorted_data["age"][-1] is None
+        assert sorted_data["name"][-1] == "Bob"
+
+        # strings ascending
+        data_with_strings = self.data.copy()
+        data_with_strings["name"][1] = None
+        manager_with_strings = DefaultTableManager(data_with_strings)
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=False
+        ).data
+        assert sorted_data["name"][-1] is None
+
+        # strings descending
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=True
+        ).data
+        assert sorted_data["name"][-1] is None
+
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
@@ -678,6 +751,50 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         sorted_manager = self.manager.sort_values(by="value", descending=True)
         expected_data = [{"key": "b", "value": 2}, {"key": "a", "value": 1}]
         assert sorted_manager.data == expected_data
+
+    def test_sort_null_values(self) -> None:
+        data = self.manager.data.copy()
+        data["b"] = None
+        manager_with_nan = DefaultTableManager(data)
+        sorted_data = manager_with_nan.sort_values(
+            by="value", descending=False
+        ).data
+        assert sorted_data == [
+            {"key": "a", "value": 1},
+            {"key": "b", "value": None},
+        ]
+
+        # descending
+        sorted_data = manager_with_nan.sort_values(
+            by="value", descending=True
+        ).data
+        assert sorted_data == [
+            {"key": "a", "value": 1},
+            {"key": "b", "value": None},
+        ]
+
+        # strings ascending
+        data_with_strings = DefaultTableManager(
+            {"a": "foo", "b": None, "c": "bar"}
+        )
+        sorted_data = data_with_strings.sort_values(
+            by="key", descending=False
+        ).data
+        assert sorted_data == [
+            {"key": "a", "value": "foo"},
+            {"key": "c", "value": "bar"},
+            {"key": "b", "value": None},
+        ]
+
+        # strings descending
+        sorted_data = data_with_strings.sort_values(
+            by="value", descending=True
+        ).data
+        assert sorted_data == [
+            {"key": "c", "value": "bar"},
+            {"key": "a", "value": "foo"},
+            {"key": "b", "value": None},
+        ]
 
     def test_search(self) -> None:
         searched_manager = self.manager.search("a")

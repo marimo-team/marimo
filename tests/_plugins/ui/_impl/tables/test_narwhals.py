@@ -834,9 +834,15 @@ def test_search_with_regex(df: Any) -> None:
 def test_sort_values_with_nulls(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     sorted_manager = manager.sort_values("A", descending=True)
-    first = unwrap_py_scalar(sorted_manager.data["A"][0])
-    assert first is None or isnan(first)
-    assert sorted_manager.data["A"].to_list()[1:] == [3, 2, 1]
+    assert sorted_manager.data["A"].to_list()[:-1] == [3, 2, 1]
+    last = unwrap_py_scalar(sorted_manager.data["A"][-1])
+    assert last is None or isnan(last)
+
+    # ascending
+    sorted_manager = manager.sort_values("A", descending=False)
+    assert sorted_manager.data["A"].to_list()[:-1] == [1, 2, 3]
+    last = unwrap_py_scalar(sorted_manager.data["A"][-1])
+    assert last is None or isnan(last)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
