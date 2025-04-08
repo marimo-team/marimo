@@ -6,7 +6,7 @@ marimo is an AI-native editor, with support for full-cell AI code generation:
 * refactoring existing cells from a prompt
 * generating entire notebooks
 
-as well as inline copilots (like GitHub Copilots).
+as well as inline copilots (like GitHub Copilot).
 
 This guide provides an overview of these features and how to configure them.
 
@@ -279,7 +279,7 @@ marimo using `pip`/`uv` if you need Copilot._
 
 ### Windsurf Copilot
 
-Windsurf (formely codeium) provides a free coding copilot. You can try
+Windsurf (formerly codeium) provides a free coding copilot. You can try
 setting up Windsurf with the following:
 
 1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
