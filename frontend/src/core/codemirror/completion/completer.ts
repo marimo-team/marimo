@@ -14,7 +14,6 @@ export async function completer(
   context: CompletionContext,
 ): Promise<CompletionResult | null> {
   const query = context.state.doc.sliceString(0, context.pos);
-  // todo: use findActiveCellId
   const element = document.activeElement;
   let cellId: CellId | null = null;
   if (element !== null) {
