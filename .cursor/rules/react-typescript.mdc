@@ -43,3 +43,5 @@ Forms
 Testing Requirements
     - Use Vitest for testing
     - Test components for all edge cases. The rule of thumb is: if it can happen, it should be covered
+    - To run a test using pnpm, run the following command:
+        `cd frontend && pnpm test src/path/to/file.test.ts`
