@@ -86,17 +86,29 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     if (!containerRef.current) {
       return;
     }
-    const root = containerRef.current.getRootNode();
-    let element: Element | null = containerRef.current;
-    while (element && element !== root) {
-      if (element.id?.startsWith("cell-")) {
-        setCellId(HTMLCellId.parse(element.id as `cell-${CellId}`));
-        break;
+
+    // If the element is in the light DOM, we can find it directly
+    // Otherwise, we need to traverse up through shadow DOM boundaries
+    let cellElement = HTMLCellId.findElement(containerRef.current);
+
+    if (!cellElement) {
+      const root = containerRef.current.getRootNode();
+      let element: Element | null = containerRef.current;
+
+      while (element && element !== root) {
+        cellElement = HTMLCellId.findElement(element);
+        if (cellElement) {
+          break;
+        }
+        element =
+          element.getRootNode() instanceof ShadowRoot
+            ? (element.getRootNode() as ShadowRoot).host
+            : element.parentElement;
       }
-      element =
-        element.getRootNode() instanceof ShadowRoot
-          ? (element.getRootNode() as ShadowRoot).host
-          : element.parentElement;
+    }
+
+    if (cellElement) {
+      setCellId(HTMLCellId.parse(cellElement.id));
     }
   }, [containerRef]);
 
