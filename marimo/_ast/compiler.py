@@ -336,7 +336,7 @@ def context_cell_factory(
     end_node = with_block.body[-1]
     col_offset = start_node.col_offset
     # A trailing "pass" is added in cases where there are only comments.
-    end_line = end_node.end_lineno + 1
+    end_line = end_node.end_lineno
     if start_node == end_node and lines[end_line - 1].strip() == "pass":
         end_line -= 1
     cell_code = textwrap.dedent("\n".join(lines[entry_line:end_line])).rstrip()

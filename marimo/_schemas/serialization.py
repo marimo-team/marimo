@@ -1,15 +1,16 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo._ast.names import DEFAULT_CELL_NAME
 
 if TYPE_CHECKING:
-    import ast
-
     from typing_extensions import TypeAlias
+
+NodeRef: TypeAlias = Union[ast.stmt, ast.expr]
 
 
 @dataclass
@@ -43,7 +44,7 @@ class CellDef(Node):
     name: str = DEFAULT_CELL_NAME
     options: dict[str, Any] = field(default_factory=dict)
 
-    _ast: Optional[ast.stmt] = None
+    _ast: Optional[NodeRef] = None
 
     def __post_init__(self) -> None:
         if self._ast:

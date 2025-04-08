@@ -1140,8 +1140,6 @@ components:
       properties:
         app_config:
           properties:
-            _toplevel_fn:
-              type: boolean
             app_title:
               nullable: true
               type: string
@@ -1172,7 +1170,6 @@ components:
           required:
           - width
           - auto_download
-          - _toplevel_fn
           type: object
         capabilities:
           properties:
@@ -2528,7 +2525,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.5
+  version: 0.12.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

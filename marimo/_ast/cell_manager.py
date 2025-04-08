@@ -29,8 +29,6 @@ from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.pytest import process_for_pytest
 from marimo._schemas.serialization import (
     CellDef,
-    ClassCell,
-    FunctionCell,
     SetupCell,
 )
 from marimo._types.ids import CellId_t
@@ -170,6 +168,8 @@ class CellManager:
     def _register_cell(
         self, cell: Cell, app: InternalApp | None = None
     ) -> None:
+        if app is None:
+            raise ValueError("app must not be None")
         if app is not None:
             cell._register_app(app)
         cell_impl = cell._cell
@@ -216,17 +216,11 @@ class CellManager:
             cell_id = CellId_t(SETUP_CELL_NAME)
         else:
             cell_id = self.create_cell_id()
-
         cell = ir_cell_factory(cell_def, cell_id=cell_id)
-
-        if isinstance(cell_def, (ClassCell, FunctionCell)):
-            pass
-
         cell_config = CellConfig(
             **cell_def.options,
         )
         cell._cell.configure(cell_config)
-
         self._register_cell(cell, app=app)
 
     def register_unparsable_cell(

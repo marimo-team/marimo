@@ -87,7 +87,7 @@
    },
    "outputs": [],
    "source": [
-    "import marimo as mo"
+    "import marimo as mo\n"
    ]
   },
   {

@@ -150,7 +150,7 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
 
     has_only_comments = all(
         not line.strip() or line.strip().startswith("#")
-        for line in block.splitlines()
+        for line in setup_cell.code.splitlines()
     )
     # Fails otherwise
     if has_only_comments:
@@ -394,10 +394,6 @@ def generate_filecontents(
         ]
     )
     return "\n".join(filecontents)
-
-
-class MarimoFileError(Exception):
-    pass
 
 
 def recover(filename: str) -> str:

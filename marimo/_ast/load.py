@@ -5,9 +5,12 @@ import importlib.util
 import sys
 from typing import Optional
 
-from marimo._ast.app import App
+from marimo import _loggers
+from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import MarimoFileError, parse_notebook
 from marimo._schemas.serialization import UnparsableCell
+
+LOGGER = _loggers.marimo_logger()
 
 # Notebooks have 4 entry points:
 # 1. edit mode
@@ -59,15 +62,14 @@ def _dynamic_load(filename: str) -> Optional[App]:
 
 def _static_load(filename: str) -> Optional[App]:
     notebook = parse_notebook(filename)
-    if not notebook.valid:
+    if notebook is None or not notebook.valid:
         return None
-    app = App(**notebook.app.options)
+    app = App(**notebook.app.options, _filename=filename)
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
             app._unparsable_cell(cell.code, **cell.options)
             continue
-
-        app._cell_manager.register_ir_cell(cell)
+        app._cell_manager.register_ir_cell(cell, InternalApp(app))
     return app
 
 
@@ -102,9 +104,16 @@ def load_app(filename: Optional[str]) -> Optional[App]:
     if not filename.endswith(".py"):
         raise MarimoFileError("File must end with .py or .md")
 
-    return _static_load(filename)
-    # try:
-    # except MarimoFileError:
-    #     # Security advantages of static load are lost here, but reasonable
-    #     # fallback for now.
-    #     return _dynamic_load(filename)
+    try:
+        return _static_load(filename)
+    except MarimoFileError:
+        # Security advantages of static load are lost here, but reasonable
+        # fallback for now.
+        _app = _dynamic_load(filename)
+        LOGGER.warning(
+            "The new notebook loading mechanism failed. "
+            "Falling back to dynamic loading. "
+            "If you can, please report this issue to the marimo team-"
+            " https://github.com/marimo-team/marimo/issues/new/choose"
+        )
+        return _app

@@ -59,7 +59,6 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
-from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -101,16 +100,17 @@ class _AppConfig:
         default_factory=list
     )
 
-    # Experimental top-level cell support
-    _toplevel_fn: bool = False
-
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
+        # Certain flags are useful to pass to App for construction, but
+        # shouldn't make it into the config. (e.g. the _filename flag is
+        # internal)
+        other_allowed = {"_filename"}
         config = _AppConfig()
         for key in updates:
             if hasattr(config, key):
                 config.__setattr__(key, updates[key])
-            else:
+            elif key not in other_allowed:
                 LOGGER.warning(
                     f"Unrecognized key '{key}' in app config. Ignoring."
                 )
@@ -153,7 +153,7 @@ class _Namespace(Mapping[str, object]):
         return tree(self._dict)._mime_()
 
 
-class _SetupContext(SkipContext):
+class _SetupContext:
     """
     A context manager that controls imports from being executed in top level code.
     See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
@@ -163,14 +163,13 @@ class _SetupContext(SkipContext):
         super().__init__()
         self._cell = cell
         self._glbls: dict[str, Any] = {}
-        self._frame = None
+        self._frame: Optional[FrameType] = None
         self._previous: dict[str, Any] = {}
 
-    def trace(self, with_frame: FrameType) -> None:
+    def __enter__(self) -> None:
+        with_frame = sys._getframe(1)
+
         if refs := self._cell.refs - set(builtins.__dict__.keys()):
-            if runtime_context_installed():
-                self.skip()
-                return
             # Otherwise fail in say a script context.
             raise SetupRootError(
                 f"The setup cell cannot reference any additional variables: {refs}"
@@ -187,12 +186,8 @@ class _SetupContext(SkipContext):
         self,
         exception: Optional[type[BaseException]],
         instance: Optional[BaseException],
-        _tracebacktype: Optional[TracebackType],
+        traceback: Optional[TracebackType],
     ) -> Literal[False]:
-        # Must be a Literal[False], for linters.
-        # Whether to suppress a given exception.
-        self.teardown()
-
         # Manually hold on to defs for injection into script mode.
         if self._frame is not None:
             for var in self._cell.defs:
@@ -207,21 +202,15 @@ class _SetupContext(SkipContext):
             if self._cell._app is not None:
                 app = self._cell._app._app
             self._frame.f_locals["app"] = self._previous.get("app", app)
-            # lose ref
             self._previous = {}
 
         if exception is not None:
-            LOGGER.warning(
-                "The setup cell was unable to execute, your notebook may not "
-                "work as expected."
-            )
-            LOGGER.debug("Exception: %s", exception)
-
             # Always should fail, since static loading still allows bad apps to
             # load.
-            # TODO(dmadisetti): Allow error to propagate on static app loads.
-            return False  # type: ignore
-
+            raise RuntimeError(
+                "The setup cell was unable to execute, your notebook may not "
+                "work as expected."
+            ).with_traceback(traceback)
         return False
 
 
@@ -300,11 +289,13 @@ class App:
         self._setup: Optional[_SetupContext] = None
 
         # Filename is derived from the callsite of the app
-        self._filename: str | None = None
-        try:
-            self._filename = inspect.getfile(inspect.stack()[1].frame)
-        except Exception:
-            ...
+        # unless explicitly set (e.g. for static loading case)
+        self._filename: str | None = kwargs.get("_filename", None)
+        if self._filename is None:
+            try:
+                self._filename = inspect.getfile(inspect.stack()[1].frame)
+            except Exception:
+                ...
 
     def __del__(self) -> None:
         try:
