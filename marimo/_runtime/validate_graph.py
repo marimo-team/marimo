@@ -66,12 +66,15 @@ def check_for_invalid_root(
         invalid_refs = tuple(
             (
                 ancestor,
-                sorted(
-                    graph.cells[ancestor].defs & graph.cells[setup_id].refs
-                ),
+                deps,
                 setup_id,
             )
             for ancestor in ancestors
+            if (
+                deps := sorted(
+                    graph.cells[ancestor].defs & graph.cells[setup_id].refs
+                )
+            )
         )
         errors[setup_id].append(
             SetupRootError(

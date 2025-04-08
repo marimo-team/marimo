@@ -37,6 +37,7 @@ from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
+    SetupRootError,
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
@@ -158,13 +159,23 @@ class _SetupContext(SkipContext):
     See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
     """
 
-    def __init__(self, cell: Cell):
+    def __init__(self, app: App, cell: Cell):
         super().__init__()
         self._cell = cell
+        self._glbls = {}
+        self._frame = None
+        self._app = app
 
-    def trace(self, _frame: Any) -> None:
-        if self._cell.refs - set(builtins.__dict__.keys()):
-            self.skip()
+    def trace(self, with_frame: Any) -> None:
+        if refs := self._cell.refs - set(builtins.__dict__.keys()):
+            if runtime_context_installed():
+                self.skip()
+                return
+            # Otherwise fail in say a script context.
+            raise SetupRootError(
+                f"The setup cell cannot reference any additional variables: {refs}"
+            )
+        self._frame = with_frame
 
     def __exit__(
         self,
@@ -182,7 +193,14 @@ class _SetupContext(SkipContext):
                 "work as expected."
             )
             LOGGER.debug("Exception: %s", exception)
-            return True  # type: ignore
+
+            # Always fail, since static loading still allows bad apps to load.
+            return False
+
+        # Manually hold on to defs for injection into script mode.
+        for var in self._cell.defs:
+            self._glbls[var] = self._frame.f_locals.get(var, None)
+        self._frame.f_locals["app"] = self._app
         return False
 
 
@@ -489,7 +507,8 @@ class App:
         cell = self._cell_manager.cell_context(
             app=InternalApp(self), frame=frame
         )
-        return _SetupContext(cell)
+        self._setup = _SetupContext(self, cell)
+        return self._setup
 
     def _unparsable_cell(
         self,
@@ -583,7 +602,9 @@ class App:
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
         outputs, glbls = AppScriptRunner(
-            InternalApp(self), filename=self._filename
+            InternalApp(self),
+            filename=self._filename,
+            glbls=self._setup._glbls,
         ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 
