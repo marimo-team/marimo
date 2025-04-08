@@ -5,6 +5,7 @@ import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 type T = string;
 
@@ -57,19 +58,21 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const maxHeight = props.maxHeight ? `${props.maxHeight}px` : undefined;
 
   return (
-    <Labeled label={props.label} align="top" fullWidth={true}>
-      <LazyAnyLanguageCodeMirror
-        className={`cm [&>*]:outline-none border rounded overflow-hidden ${finalTheme}`}
-        theme={finalTheme === "dark" ? "dark" : "light"}
-        minHeight={minHeight}
-        maxHeight={maxHeight}
-        placeholder={props.placeholder}
-        editable={!props.disabled}
-        value={props.value}
-        language={props.language}
-        onChange={props.setValue}
-        showCopyButton={props.showCopyButton}
-      />
-    </Labeled>
+    <TooltipProvider>
+      <Labeled label={props.label} align="top" fullWidth={true}>
+        <LazyAnyLanguageCodeMirror
+          className={`cm [&>*]:outline-none border rounded overflow-hidden ${finalTheme}`}
+          theme={finalTheme === "dark" ? "dark" : "light"}
+          minHeight={minHeight}
+          maxHeight={maxHeight}
+          placeholder={props.placeholder}
+          editable={!props.disabled}
+          value={props.value}
+          language={props.language}
+          onChange={props.setValue}
+          showCopyButton={props.showCopyButton}
+        />
+      </Labeled>
+    </TooltipProvider>
   );
 };

@@ -343,8 +343,6 @@ def python_print_ibis(
                 f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
             )
         elif operator == "does_not_equal" or operator == "!=":
-            return f"({_as_literal(column_id)}) != {_as_literal(value)}"
-        elif operator == "does_not_equal" or operator == "!=":
             return (
                 f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)})"  # noqa: E501
             )
