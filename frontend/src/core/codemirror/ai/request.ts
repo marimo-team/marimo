@@ -3,6 +3,7 @@
 import { API } from "@/core/network/api";
 import { asURL } from "@/utils/url";
 import type { LanguageAdapterType } from "../language/types";
+import type { AiCompletionRequest } from "@/core/network/types";
 
 /**
  * Request to edit code with AI
@@ -17,36 +18,24 @@ export async function requestEditCompletion(opts: {
   // TODO: maybe include other code
   // const otherCodes = getCodes(currentCode);
 
-  const finalPrompt = `
-Given the following code context, ${opts.prompt}
-
-SELECTED CODE:
-${opts.selection}
-
-CODE BEFORE SELECTION:
+  const codeWithReplacement = `
 ${opts.codeBefore}
-
-CODE AFTER SELECTION:
+<rewrite_this>
+${opts.selection}
+</rewrite_this>
 ${opts.codeAfter}
-
-Instructions:
-1. Modify ONLY the selected code
-2. Keep the same indentation selected code
-3. Maintain consistent style with surrounding code
-4. Ensure the edit is complete and can be inserted directly
-5. Return ONLY the replacement code, no explanations, no code fences.
-
-Your task: ${opts.prompt}`;
+`.trim();
 
   const response = await fetch(asURL("api/ai/completion").toString(), {
     method: "POST",
     headers: API.headers(),
     body: JSON.stringify({
-      prompt: finalPrompt,
-      code: "",
+      prompt: opts.prompt,
+      code: codeWithReplacement,
+      selectedText: opts.selection,
       includeOtherCode: "",
       language: opts.language,
-    }),
+    } satisfies AiCompletionRequest),
   });
 
   const firstLineIndent = opts.selection.match(/^\s*/)?.[0] || "";

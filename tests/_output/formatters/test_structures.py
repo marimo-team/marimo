@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from collections import defaultdict
 from typing import Any, cast
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -228,3 +229,31 @@ def test_format_structure_set() -> None:
 def test_format_structure_tuple() -> None:
     test_tuple = (1, 2, 3)
     assert format_structure(test_tuple) == (1, 2, 3)
+
+
+def test_format_structure_defaultdict() -> None:
+    StructuresFormatter().register()
+
+    # Test with default factory as int
+    d = defaultdict(int)
+    d["a"] = 1
+    d["b"] = 2
+    # Access a key that doesn't exist yet - should use default factory
+    _ = d["c"]
+
+    assert get_and_format(d) == (
+        "application/json",
+        '{"a": 1, "b": 2, "c": 0}',
+    )
+
+    # Test with default factory as list
+    d = defaultdict(list)
+    d["a"].append(1)
+    d["b"].append(2)
+    # Access a key that doesn't exist yet - should use default factory
+    _ = d["c"]
+
+    assert get_and_format(d) == (
+        "application/json",
+        '{"a": [1], "b": [2], "c": []}',
+    )

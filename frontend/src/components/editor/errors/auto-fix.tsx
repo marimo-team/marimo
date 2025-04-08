@@ -6,12 +6,12 @@ import type { CellId } from "@/core/cells/ids";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
-import { LightbulbIcon } from "lucide-react";
+import { WrenchIcon } from "lucide-react";
 
 export const AutoFixButton = ({
   errors,
   cellId,
-}: { errors: MarimoError[]; cellId: CellId }) => {
+}: { errors: MarimoError[]; cellId: CellId; className?: string }) => {
   const { createNewCell } = useCellActions();
   const autoFixes = errors.flatMap((error) => getAutoFixes(error));
 
@@ -27,7 +27,8 @@ export const AutoFixButton = ({
     <Tooltip content={firstFix.description} align="start">
       <Button
         size="xs"
-        variant="secondary"
+        variant="outline"
+        className="my-2 font-normal"
         onClick={() => {
           const editorView =
             store.get(notebookAtom).cellHandles[cellId].current?.editorView;
@@ -47,7 +48,7 @@ export const AutoFixButton = ({
           editorView?.focus();
         }}
       >
-        <LightbulbIcon className="h-3 w-3 mr-2" />
+        <WrenchIcon className="h-3 w-3 mr-2" />
         {firstFix.title}
       </Button>
     </Tooltip>

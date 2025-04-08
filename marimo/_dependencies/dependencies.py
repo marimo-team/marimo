@@ -171,6 +171,7 @@ class DependencyManager:
     duckdb = Dependency("duckdb")
     chdb = Dependency("chdb")
     clickhouse_connect = Dependency("clickhouse_connect")
+    timeplus_connect = Dependency("timeplus_connect")
     sqlglot = Dependency("sqlglot")
     pillow = Dependency("PIL")
     plotly = Dependency("plotly")

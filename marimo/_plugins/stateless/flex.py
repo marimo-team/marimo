@@ -59,10 +59,15 @@ def _flex(
             return ""
         return create_style({"flex": f"{child_flex}"})
 
-    grid_items = [
-        h.div(as_html(item).text, style=create_style_for_item(i))
-        for i, item in enumerate(items)
-    ]
+    # If there are no child flexes, don't wrap them in an additional <div>
+    if child_flexes is None:
+        grid_items = [as_html(item).text for item in items]
+    else:
+        grid_items = [
+            h.div(as_html(item).text, style=create_style_for_item(i))
+            for i, item in enumerate(items)
+        ]
+
     return Html(h.div(grid_items, style=style))
 
 

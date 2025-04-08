@@ -339,13 +339,28 @@ class AppFileManager:
 
 
 def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
-    if not css_file or not filename:
+    """Read the contents of a CSS file.
+
+    Args:
+        css_file: The path to the CSS file.
+        filename: The filename of the notebook.
+
+    Returns:
+        The contents of the CSS file.
+    """
+    if not css_file:
         return None
 
-    app_dir = Path(filename).parent
-    filepath = app_dir / css_file
+    filepath = Path(css_file)
+
+    # If not an absolute path, make it absolute using the filename
+    if not filepath.is_absolute():
+        if not filename:
+            return None
+        filepath = Path(filename).parent / filepath
+
     if not filepath.exists():
-        LOGGER.error("CSS file %s does not exist", css_file)
+        LOGGER.error("CSS file %s does not exist", filepath)
         return None
     try:
         return filepath.read_text(encoding="utf-8")

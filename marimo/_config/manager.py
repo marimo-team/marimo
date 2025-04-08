@@ -184,6 +184,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
                 return {}
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
+            project_config = self._resolve_custom_css(project_config)
         except Exception as e:
             LOGGER.warning("Failed to read project config: %s", e)
             return {}
@@ -238,6 +239,30 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             for path in dotenv
         ]
         return {**config, "runtime": {**runtime, "dotenv": resolved_dotenv}}
+
+    def _resolve_custom_css(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        if self.pyproject_path is None:
+            return config
+
+        if "display" not in config:
+            return config
+
+        display = config["display"]
+        custom_css = display.get("custom_css", [])
+
+        if not isinstance(custom_css, list):
+            return config
+
+        resolved_custom_css = [
+            str((self.pyproject_path.parent / path).absolute())
+            for path in custom_css
+        ]
+        return {
+            **config,
+            "display": {**display, "custom_css": resolved_custom_css},
+        }
 
 
 class ScriptConfigManager(PartialMarimoConfigReader):

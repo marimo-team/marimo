@@ -14,6 +14,7 @@ from marimo._plugins.ui._impl.tables.format import (
     format_value,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
+from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,
@@ -36,17 +37,8 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
-                if isinstance(data.columns, pd.MultiIndex):
-                    LOGGER.debug(
-                        "Multicolumn indexes aren't supported, converting to single index"
-                    )
-                    single_col_names = [
-                        " x ".join(col) for col in data.columns
-                    ]
-                    data.columns = pd.Index(single_col_names)
-
-                self._original_data = data
-                super().__init__(nw.from_native(data))
+                self._original_data = self._handle_multi_col_indexes(data)
+                super().__init__(nw.from_native(self._original_data))
 
             @cached_property
             def schema(self) -> pd.Series[Any]:
@@ -108,7 +100,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     )
                     return result.to_json(orient="records").encode("utf-8")
 
-                # Flatten indexes
+                # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
                     isinstance(result.index, pd.Index)
                     and not isinstance(result.index, pd.RangeIndex)
@@ -153,6 +145,36 @@ class PandasTableManagerFactory(TableManagerFactory):
                             )
                         )
                 return PandasTableManager(_data)
+
+            def _handle_multi_col_indexes(
+                self, data: pd.DataFrame
+            ) -> pd.DataFrame:
+                is_multi_col_index = isinstance(data.columns, pd.MultiIndex)
+                # When in a table with selection, narwhals will convert the columns to a tuple
+                is_multi_col_table = (
+                    INDEX_COLUMN_NAME in data.columns
+                    and len(data.columns) > 1
+                    and any(isinstance(col, tuple) for col in data.columns)
+                )
+
+                # Convert multi-index or tuple columns to comma-separated strings
+                if is_multi_col_index or is_multi_col_table:
+                    data_copy = data.copy()
+                    LOGGER.info(
+                        "Multi-column indexes are not supported, converting to single index"
+                    )
+                    if INDEX_COLUMN_NAME in data_copy.columns:
+                        data_copy.columns = pd.Index(
+                            [INDEX_COLUMN_NAME]
+                            + [",".join(col) for col in data_copy.columns[1:]]
+                        )
+                    else:
+                        data_copy.columns = pd.Index(
+                            [",".join(col) for col in data_copy.columns]
+                        )
+                    return data_copy
+
+                return data
 
             # We override the default implementation to use pandas
             # headers

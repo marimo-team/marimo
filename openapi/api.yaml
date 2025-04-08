@@ -13,8 +13,15 @@ components:
           items:
             $ref: '#/components/schemas/SchemaTable'
           type: array
+        variables:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
+          type: array
       required:
       - schema
+      - variables
       type: object
     AiCompletionRequest:
       properties:
@@ -32,6 +39,9 @@ components:
           - sql
           type: string
         prompt:
+          type: string
+        selectedText:
+          nullable: true
           type: string
       required:
       - prompt
@@ -271,7 +281,9 @@ components:
           type: string
         variables:
           items:
-            type: string
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
           nullable: true
           type: array
       required:
@@ -1430,6 +1442,10 @@ components:
               type: string
             code_editor_font_size:
               type: integer
+            custom_css:
+              items:
+                type: string
+              type: array
             dataframes:
               enum:
               - rich
@@ -2400,6 +2416,18 @@ components:
       - objectIds
       - values
       type: object
+    VariableContext:
+      properties:
+        name:
+          type: string
+        previewValue: {}
+        valueType:
+          type: string
+      required:
+      - name
+      - valueType
+      - previewValue
+      type: object
     VariableDeclaration:
       properties:
         declared_by:
@@ -2479,7 +2507,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.0
+  version: 0.12.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

@@ -24,7 +24,7 @@ export function maybeRegisterVSCodeBindings() {
     return;
   }
 
-  Logger.log("Registering VS Code bindings");
+  Logger.log("[vscode] Registering VS Code bindings");
   registerKeyboard();
   registerCopyPaste();
   registerOpenExternalLink();
@@ -53,14 +53,34 @@ function registerCopyPaste() {
     });
   });
 
-  window.addEventListener("message", (event) => {
-    const message = event.data;
-    switch (message.command) {
-      case "paste":
-        if (isPlatformMac()) {
-          document.execCommand("insertText", false, message.text);
-        }
-        return;
+  window.addEventListener("message", async (event) => {
+    try {
+      const message = event.data;
+      const isMac = isPlatformMac();
+      switch (message.command) {
+        case "paste":
+          Logger.log(`[vscode] Received paste mac=${isMac}`, message);
+          if (isMac) {
+            const el = document.activeElement;
+            if (!el) {
+              Logger.warn("[vscode] No active element to paste into");
+              // execCommand has finally been removed (since being deprecated)
+              // https://github.com/microsoft/vscode/issues/239228
+              document.execCommand("insertText", false, message.text);
+              return;
+            }
+            const dt = new DataTransfer();
+            dt.setData("text/plain", message.text);
+            el.dispatchEvent(
+              new ClipboardEvent("paste", { clipboardData: dt }),
+            );
+          } else {
+            Logger.log("[vscode] Not pasting on mac");
+          }
+          return;
+      }
+    } catch (error) {
+      Logger.error("Error in paste message handler", error);
     }
   });
 }
@@ -70,6 +90,7 @@ function registerKeyboard() {
     // Copy
     if ((event.ctrlKey || event.metaKey) && event.key === "c") {
       const selection = window.getSelection()?.toString() ?? "";
+      Logger.log("[vscode] Sending copy", selection);
       sendToPanelManager({
         command: "copy",
         text: selection,
@@ -83,6 +104,7 @@ function registerKeyboard() {
       if (isPlatformMac()) {
         document.execCommand("insertText", false, "");
       }
+      Logger.log("[vscode] Sending cut", selection);
       sendToPanelManager({
         command: "cut",
         text: selection,
@@ -91,6 +113,7 @@ function registerKeyboard() {
     }
     // Paste
     if ((event.ctrlKey || event.metaKey) && event.key === "v") {
+      Logger.log("[vscode] Sending paste");
       sendToPanelManager({
         command: "paste",
       });

@@ -367,14 +367,19 @@ def test_is_marimo_dependency():
 
 
 def test_construct_uv_cmd_marimo_new() -> None:
-    uv_cmd = construct_uv_command(["new"], None, additional_features=[])
+    uv_cmd = construct_uv_command(
+        ["new"], None, additional_features=[], additional_deps=[]
+    )
     assert "--refresh" in uv_cmd
 
 
 def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
     # a file that doesn't yet exist
     uv_cmd = construct_uv_command(
-        ["edit", "foo_123.py"], "foo_123.py", additional_features=[]
+        ["edit", "foo_123.py"],
+        "foo_123.py",
+        additional_features=[],
+        additional_deps=[],
     )
     assert "--refresh" in uv_cmd
     assert uv_cmd[0] == "uv"
@@ -386,7 +391,10 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
 ) -> None:
     # a file that has no inline metadata yet
     uv_cmd = construct_uv_command(
-        ["edit", temp_marimo_file], temp_marimo_file, additional_features=[]
+        ["edit", temp_marimo_file],
+        temp_marimo_file,
+        additional_features=[],
+        additional_deps=[],
     )
     assert "--refresh" in uv_cmd
     assert uv_cmd[0] == "uv"
@@ -402,6 +410,7 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         ["edit", temp_sandboxed_marimo_file],
         temp_sandboxed_marimo_file,
         additional_features=[],
+        additional_deps=[],
     )
     assert "--refresh" not in uv_cmd
     assert uv_cmd[0] == "uv"
@@ -424,6 +433,7 @@ import marimo
         ["edit", str(script_path), "--sandbox"],
         str(script_path),
         additional_features=[],
+        additional_deps=[],
     )
     assert "--python" in uv_cmd
     assert ">=3.11" in uv_cmd
@@ -447,7 +457,10 @@ def test_construct_uv_cmd_with_index_urls() -> None:
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
         mock.return_value = PyProjectReader(pyproject)
         uv_cmd = construct_uv_command(
-            ["edit", "test.py", "--sandbox"], "test.py", additional_features=[]
+            ["edit", "test.py", "--sandbox"],
+            "test.py",
+            additional_features=[],
+            additional_deps=[],
         )
         assert "--index-url" in uv_cmd
         assert "https://custom.pypi.org/simple" in uv_cmd
@@ -472,7 +485,10 @@ def test_construct_uv_cmd_with_index_configs() -> None:
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
         mock.return_value = PyProjectReader(pyproject)
         uv_cmd = construct_uv_command(
-            ["edit", "test.py", "--sandbox"], "test.py", additional_features=[]
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
         )
         assert "--index" in uv_cmd
         assert "https://download.pytorch.org/whl/cu124" in uv_cmd
@@ -481,7 +497,10 @@ def test_construct_uv_cmd_with_index_configs() -> None:
 def test_construct_uv_cmd_with_sandbox_flag() -> None:
     # Test --sandbox flag is removed
     uv_cmd = construct_uv_command(
-        ["edit", "test.py", "--sandbox"], "test.py", additional_features=[]
+        ["edit", "test.py", "--sandbox"],
+        name="test.py",
+        additional_features=[],
+        additional_deps=[],
     )
     assert "--sandbox" not in uv_cmd
 
@@ -491,7 +510,10 @@ def test_construct_uv_cmd_empty_dependencies() -> None:
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
         mock.return_value = PyProjectReader({})
         uv_cmd = construct_uv_command(
-            ["edit", "test.py"], "test.py", additional_features=[]
+            ["edit", "test.py"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
         )
         assert "--refresh" in uv_cmd
         assert "--isolated" in uv_cmd
@@ -509,7 +531,9 @@ def test_construct_uv_cmd_with_complex_args() -> None:
         "8000",
         "--sandbox",
     ]
-    uv_cmd = construct_uv_command(args, "test.py", additional_features=[])
+    uv_cmd = construct_uv_command(
+        args, name="test.py", additional_features=[], additional_deps=[]
+    )
     assert "edit" in uv_cmd
     assert "test.py" in uv_cmd
     assert "--theme" in uv_cmd
@@ -517,3 +541,24 @@ def test_construct_uv_cmd_with_complex_args() -> None:
     assert "--port" in uv_cmd
     assert "8000" in uv_cmd
     assert "--sandbox" not in uv_cmd
+
+
+def test_construct_uv_cmd_with_additional_deps() -> None:
+    # Test additional dependencies are added
+    additional_deps = ["numpy>=1.20.0", "pandas"]
+    uv_cmd = construct_uv_command(
+        ["edit", "test.py"],
+        "test.py",
+        additional_features=[],
+        additional_deps=additional_deps,
+    )
+
+    # Get the requirements file path from the command
+    req_file_index = uv_cmd.index("--with-requirements") + 1
+    req_file_path = uv_cmd[req_file_index]
+
+    # Read the requirements file to verify additional deps were added
+    with open(req_file_path) as f:
+        requirements = f.read()
+        assert "numpy>=1.20.0" in requirements
+        assert "pandas" in requirements

@@ -270,9 +270,9 @@ const ChatPanelBody = () => {
     experimental_prepareRequestBody: (options) => {
       return {
         ...options,
-        ...getAICompletionBody(
-          options.messages.map((m) => m.content).join("\n"),
-        ),
+        ...getAICompletionBody({
+          input: options.messages.map((m) => m.content).join("\n"),
+        }),
         includeOtherCode: getCodes(""),
       };
     },

@@ -1,13 +1,22 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "matplotlib==3.10.1",
+#     "numpy==2.2.4",
+#     "polars==1.26.0",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.9.30"
+__generated_with = "0.12.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Hello, Markdown!
@@ -34,7 +43,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md(
         """
         **Tip: toggling between the Markdown and Python editor**
@@ -56,7 +65,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## LaTeX
@@ -91,7 +100,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: `r''` strings": mo.md(
@@ -104,7 +113,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Note: KaTeX": mo.md(
@@ -121,7 +130,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Interpolating Python values
@@ -137,20 +146,8 @@ def __(mo):
 
 
 @app.cell
-def __(
-    matplotlib_installed,
-    missing_matplotlib_msg,
-    missing_numpy_msg,
-    mo,
-    np,
-    numpy_installed,
-    plt,
-):
+def _(mo, np, plt):
     def _sine_plot():
-        if not numpy_installed:
-            return missing_numpy_msg
-        if not matplotlib_installed:
-            return missing_matplotlib_msg
         _x = np.linspace(start=0, stop=2 * np.pi)
         plt.plot(_x, np.sin(_x))
         return plt.gca()
@@ -174,7 +171,7 @@ def __(
 
 
 @app.cell
-def __(mo):
+def _(mo):
     leaves = mo.ui.slider(1, 32, label="🍃: ")
 
     mo.md(
@@ -197,13 +194,13 @@ def __(mo):
 
 
 @app.cell
-def __(leaves, mo):
+def _(leaves, mo):
     mo.md(f"Your leaves: {'🍃' * leaves.value}")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: UI elements can format themselves": """
@@ -216,19 +213,13 @@ def __(mo):
 
 
 @app.cell
-def __(missing_numpy_msg, mo, np, numpy_installed):
+def _(mo, np):
+    import polars as pl
+
     def make_dataframe():
-        try:
-            import pandas as pd
-        except ModuleNotFoundError:
-            return mo.md("Oops! Looks like you don't have `pandas` installed.")
-
-        if not numpy_installed:
-            return missing_numpy_msg
-
         x = np.linspace(0, 2 * np.pi, 10)
         y = np.sin(x)
-        return pd.DataFrame({"x": x, "sin(x)": y})
+        return pl.DataFrame({"x": x, "sin(x)": y})
 
     mo.md(
         f"""
@@ -243,16 +234,16 @@ def __(missing_numpy_msg, mo, np, numpy_installed):
         - `plotly` figures, and
         - `altair` figures.
 
-        For example, here's a pandas dataframe:
+        For example, here's a Polars dataframe:
 
         {mo.as_html(make_dataframe())}
         """
     )
-    return (make_dataframe,)
+    return make_dataframe, pl
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: outputs are automatically converted to HTML": """
@@ -266,7 +257,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Putting it all together
@@ -280,7 +271,7 @@ def __(mo):
 
 
 @app.cell
-def __(math, mo):
+def _(math, mo):
     amplitude = mo.ui.slider(1, 2, step=0.1, label="amplitude: ")
     period = mo.ui.slider(
         math.pi / 4,
@@ -293,31 +284,18 @@ def __(math, mo):
 
 
 @app.cell
-def __(
-    matplotlib_installed,
-    missing_matplotlib_msg,
-    missing_numpy_msg,
-    mo,
-    np,
-    numpy_installed,
-    plt,
-):
+def _(mo, np, plt):
     @mo.cache
     def plotsin(amplitude, period):
-        if not numpy_installed:
-            return missing_numpy_msg
-        elif not matplotlib_installed:
-            return missing_matplotlib_msg
         x = np.linspace(0, 2 * np.pi, 256)
         plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
         plt.ylim(-2.2, 2.2)
         return plt.gca()
-
     return (plotsin,)
 
 
 @app.cell
-def __(amplitude, mo, period):
+def _(amplitude, mo, period):
     mo.md(
         f"""
         **A sin curve.**
@@ -330,7 +308,7 @@ def __(amplitude, mo, period):
 
 
 @app.cell
-def __(amplitude, mo, period, plotsin):
+def _(amplitude, mo, period, plotsin):
     mo.md(
         rf"""
         You're viewing the graph of
@@ -347,45 +325,17 @@ def __(amplitude, mo, period, plotsin):
 
 
 @app.cell(hide_code=True)
-def __(mo):
-    matplotlib_installed = False
-    numpy_installed = False
-    missing_numpy_msg = mo.md(
-        "Oops! Looks like you don't have `numpy` installed."
-    )
-    missing_matplotlib_msg = mo.md(
-        "Oops! Looks like you don't have `matplotlib` installed."
-    )
-
-    try:
-        import matplotlib.pyplot as plt
-
-        matplotlib_installed = True
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        import numpy as np
-
-        numpy_installed = True
-    except ModuleNotFoundError:
-        pass
-    return (
-        matplotlib_installed,
-        missing_matplotlib_msg,
-        missing_numpy_msg,
-        np,
-        numpy_installed,
-        plt,
-    )
+def _():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    return np, plt
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import math
 
     import marimo as mo
-
     return math, mo
 
 

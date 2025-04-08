@@ -48,7 +48,7 @@ pip install marimo
 /// tab | install with uv
 
 ```bash
-uv pip install marimo
+uv add marimo
 ```
 
 ///
@@ -87,7 +87,7 @@ suggest installing `marimo[recommended]`:
 /// tab | install with pip
 
 ```bash
-pip install marimo[recommended]
+pip install "marimo[recommended]"
 ```
 
 ///
@@ -95,7 +95,7 @@ pip install marimo[recommended]
 /// tab | install with uv
 
 ```bash
-uv pip install marimo[recommended]
+uv add "marimo[recommended]"
 ```
 
 ///

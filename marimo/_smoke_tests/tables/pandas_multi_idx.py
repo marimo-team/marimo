@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.20"
+__generated_with = "0.12.4"
 app = marimo.App(width="medium")
 
 
@@ -38,15 +38,21 @@ def _(pd):
 
 
 @app.cell
-def _(pd):
+def _(mo, pd):
     cols = pd.MultiIndex.from_arrays(
         [["basic_amt"] * 2, ["NSW", "QLD"]], names=[None, "Faculty"]
     )
     idx = pd.Index(["All", "Full"])
     column_multi_idx = pd.DataFrame([(1, 1), (0, 1)], index=idx, columns=cols)
 
-    column_multi_idx
+    mo.ui.table(column_multi_idx)
     return cols, column_multi_idx, idx
+
+
+@app.cell
+def _(column_multi_idx):
+    print("Raw data:\n", column_multi_idx)
+    return
 
 
 if __name__ == "__main__":

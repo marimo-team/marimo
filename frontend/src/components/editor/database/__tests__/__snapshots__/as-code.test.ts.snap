@@ -97,6 +97,15 @@ DATABASE_URL = "sqlite:////path/to/db.sqlite"
 engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
+exports[`generateDatabaseCode > basic connections > timeplus 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("TIMEPLUS_PASSWORD", "")
+DATABASE_URL = f"timeplus://default:{_password}@localhost:8123"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
 exports[`generateDatabaseCode > basic connections > trino 1`] = `
 "import os
 import sqlmodel
@@ -172,6 +181,17 @@ engine = sqlmodel.create_engine(
     password=_password,
   )
 )"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > timeplus with all connection details as secrets 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("ENV_PASSWORD")
+_username = os.environ.get("ENV_USER")
+_host = os.environ.get("ENV_HOST")
+DATABASE_URL = f"timeplus://{_username}:{_password}@{_host}:8123"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > edge cases > ENV with special chars SQLModel 1`] = `
@@ -353,6 +373,24 @@ exports[`generateDatabaseCode > edge cases > sqlite with empty path 1`] = `
 
 DATABASE_URL = "sqlite:///"
 engine = sqlmodel.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > timeplus connect with minimal config 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("TIMEPLUS_PASSWORD", "")
+DATABASE_URL = f"timeplus://default:{_password}@localhost:"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > timeplus with no port 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("TIMEPLUS_PASSWORD", "")
+DATABASE_URL = f"timeplus://default:{_password}@localhost:"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > edge cases > trino with async support 1`] = `

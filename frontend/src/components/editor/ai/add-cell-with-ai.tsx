@@ -31,7 +31,8 @@ import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { getAICompletionBody, mentions } from "./completion-utils";
 import { allTablesAtom } from "@/core/datasets/data-source-connections";
-import type { DataTable } from "@/core/kernel/messages";
+import { variablesAtom } from "@/core/variables/state";
+import { getTableCompletions, getVariableCompletions } from "./completions";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -81,6 +82,10 @@ export const AddCellWithAI: React.FC<{
         description: prettyError(error),
       });
     },
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
+    },
   });
 
   const inputComponent = (
@@ -116,7 +121,7 @@ export const AddCellWithAI: React.FC<{
         value={input}
         onChange={(newValue) => {
           setInput(newValue);
-          setCompletionBody(getAICompletionBody(newValue));
+          setCompletionBody(getAICompletionBody({ input: newValue }));
         }}
         onSubmit={() => {
           if (!isLoading) {
@@ -231,82 +236,23 @@ export const PromptInput = ({
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
   const tablesMap = useAtomValue(allTablesAtom);
+  const variables = useAtomValue(variablesAtom);
 
   const extensions = useMemo(() => {
-    const completions = [...tablesMap.entries()].map(
-      ([tableName, table]): Completion => ({
-        label: `@${tableName}`,
-        detail: table.source,
-        boost: table.source_type === "local" ? 5 : 0,
-        info: () => {
-          const shape = [
-            table.num_rows == null ? undefined : `${table.num_rows} rows`,
-            table.num_columns == null
-              ? undefined
-              : `${table.num_columns} columns`,
-          ]
-            .filter(Boolean)
-            .join(", ");
-
-          const infoContainer = document.createElement("div");
-          infoContainer.classList.add("prose", "prose-sm", "dark:prose-invert");
-
-          if (shape) {
-            const shapeElement = document.createElement("div");
-            shapeElement.textContent = shape;
-            shapeElement.style.fontWeight = "bold";
-            infoContainer.append(shapeElement);
-          }
-
-          if (table.source) {
-            const sourceElement = document.createElement("figcaption");
-            sourceElement.textContent = `Source: ${table.source}`;
-            infoContainer.append(sourceElement);
-          }
-
-          if (table.columns) {
-            const columnsTable = document.createElement("table");
-            const headerRow = columnsTable.insertRow();
-            const nameHeader = headerRow.insertCell();
-            nameHeader.textContent = "Column";
-            nameHeader.style.fontWeight = "bold";
-            const typeHeader = headerRow.insertCell();
-            typeHeader.textContent = "Type";
-            typeHeader.style.fontWeight = "bold";
-
-            table.columns.forEach((column) => {
-              const row = columnsTable.insertRow();
-              const nameCell = row.insertCell();
-
-              nameCell.textContent = column.name;
-              const itemMetadata = getItemMetadata(table, column);
-              if (itemMetadata) {
-                nameCell.append(itemMetadata);
-              }
-
-              const typeCell = row.insertCell();
-              typeCell.textContent = column.type;
-            });
-
-            infoContainer.append(columnsTable);
-          }
-
-          return infoContainer;
-        },
-      }),
-    );
+    const completions = [
+      ...getTableCompletions(tablesMap),
+      ...getVariableCompletions(variables, new Set(tablesMap.keys())),
+    ];
 
     // Trigger autocompletion for text that begins with @, can contain dots
     const matchBeforeRegexes = [/@([\w.]+)?/];
     if (additionalCompletions) {
       matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
+      completions.push(...additionalCompletions.completions);
     }
-    const allCompletions = additionalCompletions
-      ? [...completions, ...additionalCompletions.completions]
-      : completions;
 
     return [
-      mentions(matchBeforeRegexes, allCompletions),
+      mentions(matchBeforeRegexes, completions),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
@@ -377,7 +323,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tablesMap, additionalCompletions, handleSubmit, handleEscape]);
+  }, [tablesMap, variables, additionalCompletions, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror
@@ -395,25 +341,3 @@ export const PromptInput = ({
     />
   );
 };
-
-function getItemMetadata(
-  table: DataTable,
-  column: DataTable["columns"][0],
-): HTMLSpanElement | undefined {
-  const isPrimaryKey = table.primary_keys?.includes(column.name);
-  const isIndexed = table.indexes?.includes(column.name);
-  if (isPrimaryKey || isIndexed) {
-    const subtext = document.createElement("span");
-    subtext.textContent = isPrimaryKey ? "PK" : "IDX";
-    subtext.classList.add(
-      "text-xs",
-      "text-black",
-      "bg-gray-100",
-      "dark:invert",
-      "rounded",
-      "px-1",
-      "ml-1",
-    );
-    return subtext;
-  }
-}

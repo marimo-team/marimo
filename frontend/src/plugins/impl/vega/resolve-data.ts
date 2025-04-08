@@ -57,6 +57,13 @@ export async function resolveVegaSpecData(
       };
     }
 
+    if ("spec" in spec) {
+      spec = {
+        ...spec,
+        spec: await traverse(spec.spec),
+      };
+    }
+
     if (!spec.data) {
       return spec;
     }

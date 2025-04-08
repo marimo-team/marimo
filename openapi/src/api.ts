@@ -2338,6 +2338,7 @@ export interface components {
     };
     AiCompletionContext: {
       schema: components["schemas"]["SchemaTable"][];
+      variables: (components["schemas"]["VariableContext"] | string)[];
     };
     AiCompletionRequest: {
       code: string;
@@ -2346,6 +2347,7 @@ export interface components {
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
       prompt: string;
+      selectedText?: string | null;
     };
     AiInlineCompletionRequest: {
       /** @enum {string} */
@@ -2448,7 +2450,7 @@ export interface components {
         role: "user" | "assistant" | "system";
       }[];
       model?: string | null;
-      variables?: string[] | null;
+      variables?: (components["schemas"]["VariableContext"] | string)[] | null;
     };
     CodeCompletionRequest: {
       cellId: string;
@@ -2932,6 +2934,7 @@ export interface components {
         /** @enum {string} */
         cell_output: "above" | "below";
         code_editor_font_size: number;
+        custom_css?: string[];
         /** @enum {string} */
         dataframes: "rich" | "plain";
         /** @enum {string} */
@@ -3329,6 +3332,11 @@ export interface components {
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
+    };
+    VariableContext: {
+      name: string;
+      previewValue: unknown;
+      valueType: string;
     };
     VariableDeclaration: {
       declared_by: string[];

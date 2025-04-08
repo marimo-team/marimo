@@ -31,6 +31,7 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.9.0/katex.min.js
   - _static/js/analytics.js
   - _static/js/math.js
+  - _static/js/init_kapa_widget.js
 markdown_extensions:
   - blocks:MarimoBlocksExtension
   - admonition
@@ -86,6 +87,11 @@ nav:
       - Visualize outputs: guides/outputs.md
       - Migrate from Jupyter: guides/coming_from/jupyter.md
       - Expensive notebooks: guides/expensive_notebooks.md
+      - Understanding errors:
+          - Understanding errors: guides/understanding_errors/index.md
+          - Multiple definitions: guides/understanding_errors/multiple_definitions.md
+          - Import star: guides/understanding_errors/import_star.md
+          - Cycles: guides/understanding_errors/cycles.md
       - SQL, dataframes, and plots:
           - SQL, dataframes, and plots: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md

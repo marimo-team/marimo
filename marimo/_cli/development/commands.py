@@ -133,6 +133,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         snippets.Snippets,
         requests.SetUIElementValueRequest,
         # Requests/responses
+        completion.VariableContext,
         completion.SchemaColumn,
         completion.SchemaTable,
         completion.AiCompletionContext,
