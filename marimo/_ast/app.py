@@ -37,10 +37,10 @@ from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
-    SetupRootError,
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
+    SetupRootError,
     UnparsableError,
 )
 from marimo._config.config import WidthType
