@@ -151,7 +151,7 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
 
     has_only_comments = all(
         not line.strip() or line.strip().startswith("#")
-        for line in contents.splitlines()
+        for line in block.splitlines()
     )
     # Fails otherwise
     if has_only_comments:

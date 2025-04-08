@@ -4,11 +4,13 @@ from __future__ import annotations
 import itertools
 from collections import defaultdict
 
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
     Error,
     MultipleDefinitionError,
+    SetupRootError,
 )
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
@@ -54,20 +56,24 @@ def check_for_delete_nonlocal(
 
 def check_for_invalid_root(
     graph: DirectedGraph,
-) -> dict[CellId_t, list[CycleError]]:
+) -> dict[CellId_t, list[SetupRootError]]:
     """Setup cell cannot have parents."""
-    errors = defaultdict(list)
-    if SETUP_CELL_ID not in graph.cells:
+    errors: dict[CellId_t, list[SetupRootError]] = defaultdict(list)
+    setup_id = CellId_t(SETUP_CELL_NAME)
+    if setup_id not in graph.cells:
         return errors
-    if ancestors := graph.ancestors(SETUP_CELL_ID):
+    if ancestors := graph.ancestors(setup_id):
         invalid_refs = tuple(
             (
                 ancestor,
-                graph.cells[ancestor].defs & graph.cells[SETUP_CELL_ID].refs,
+                sorted(
+                    graph.cells[ancestor].defs & graph.cells[setup_id].refs
+                ),
+                setup_id,
             )
             for ancestor in ancestors
         )
-        errors[SETUP_CELL_ID].append(
+        errors[setup_id].append(
             SetupRootError(
                 edges_with_vars=invalid_refs,
             )
@@ -108,6 +114,7 @@ def check_for_errors(
     multiple_definition_errors = check_for_multiple_definitions(graph)
     delete_nonlocal_errors = check_for_delete_nonlocal(graph)
     cycle_errors = check_for_cycles(graph)
+    invalid_root_errors = check_for_invalid_root(graph)
 
     errors: dict[CellId_t, tuple[Error, ...]] = {}
     for cid in set(
@@ -115,7 +122,7 @@ def check_for_errors(
             multiple_definition_errors.keys(),
             delete_nonlocal_errors.keys(),
             cycle_errors.keys(),
-            check_for_invalid_root.keys(),
+            invalid_root_errors.keys(),
         )
     ):
         errors[cid] = tuple(
@@ -123,7 +130,7 @@ def check_for_errors(
                 multiple_definition_errors[cid],
                 cycle_errors[cid],
                 delete_nonlocal_errors[cid],
-                check_for_invalid_root[cid],
+                invalid_root_errors[cid],
             )
         )
     return errors
