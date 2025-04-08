@@ -80,7 +80,8 @@ export const MarimoErrorOutput = ({
 
   // Group errors by type
   const setupErrors = errors.filter(
-    (e): e is Extract<MarimoError, { type: "setup-refs" }> => e.type === "setup-refs",
+    (e): e is Extract<MarimoError, { type: "setup-refs" }> =>
+      e.type === "setup-refs",
   );
   const cycleErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "cycle" }> => e.type === "cycle",
@@ -159,10 +160,14 @@ export const MarimoErrorOutput = ({
           <ul className="list-disc">
             {setupErrors.flatMap((error, errorIdx) =>
               error.edges_with_vars.map((edge, edgeIdx) => (
-                <li className={liStyle} key={`setup-refs-${errorIdx}-${edgeIdx}`}>
+                <li
+                  className={liStyle}
+                  key={`setup-refs-${errorIdx}-${edgeIdx}`}
+                >
                   <CellLinkError cellId={edge[0] as CellId} />
                   <span className="text-muted-foreground">
-                    {": "} {edge[1].length === 1 ? edge[1][0] : edge[1].join(", ")}
+                    {": "}{" "}
+                    {edge[1].length === 1 ? edge[1][0] : edge[1].join(", ")}
                   </span>
                 </li>
               )),
@@ -174,15 +179,17 @@ export const MarimoErrorOutput = ({
             className="mb-2"
           >
             <p className="pb-2">
-                While the most cells can be in any order and contain any
-                references (as long as they run in a DAG), the setup cell must
-                be run first. This is because the setup cell is saved in python
-                in such a way that it is immediately run when the notebook on import.
-                As such, it cannot contain any references to variables defined by other cells.
+              While the most cells can be in any order and contain any
+              references (as long as they run in a DAG), the setup cell must be
+              run first. This is because the setup cell is saved in python in
+              such a way that it is immediately run when the notebook on import.
+              As such, it cannot contain any references to variables defined by
+              other cells.
             </p>
 
             <p className="py-2">
-              Try simplifying the setup cell to only contain only necessary variables.
+              Try simplifying the setup cell to only contain only necessary
+              variables.
             </p>
 
             <p className="py-2">
