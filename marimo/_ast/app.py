@@ -63,7 +63,7 @@ from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from types import TracebackType
+    from types import FrameType, TracebackType
 
     from marimo._messaging.ops import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
@@ -166,7 +166,7 @@ class _SetupContext(SkipContext):
         self._frame = None
         self._previous: dict[str, Any] = {}
 
-    def trace(self, with_frame: Any) -> None:
+    def trace(self, with_frame: FrameType) -> None:
         if refs := self._cell.refs - set(builtins.__dict__.keys()):
             if runtime_context_installed():
                 self.skip()
@@ -203,7 +203,8 @@ class _SetupContext(SkipContext):
             self._frame.f_globals["app"] = self._previous["app"]
             self._frame.f_globals["marimo"] = self._previous["marimo"]
             self._frame.f_globals["__name__"] = self._previous["__name__"]
-            self._previous = None
+            # lose ref
+            self._previous = {}
 
         if exception is not None:
             LOGGER.warning(
