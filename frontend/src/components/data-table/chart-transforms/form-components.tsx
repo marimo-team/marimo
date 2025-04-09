@@ -11,6 +11,7 @@ import type { DataType } from "@/core/kernel/messages";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -90,6 +91,52 @@ export const ColumnSelector = <T extends object>({
                     </SelectItem>
                   );
                 })}
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+export const SelectField = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  options,
+  defaultValue,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  options: Array<{ label: string; value: string }>;
+  defaultValue: string;
+}) => {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormControl>
+            <Select
+              {...field}
+              onValueChange={field.onChange}
+              value={field.value ?? defaultValue}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </FormControl>

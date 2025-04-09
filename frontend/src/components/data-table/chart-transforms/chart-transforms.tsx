@@ -27,7 +27,11 @@ import {
 import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema, DEFAULT_AGGREGATION } from "./chart-schemas";
+import {
+  ChartSchema,
+  DEFAULT_AGGREGATION,
+  DEFAULT_COLOR_SCHEME,
+} from "./chart-schemas";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -53,8 +57,13 @@ import {
   ColumnSelector,
   InputField,
   NumberField,
+  SelectField,
 } from "./form-components";
-import { AGGREGATION_TYPE_ICON, CHART_TYPE_ICON } from "./icons";
+import {
+  AGGREGATION_TYPE_ICON,
+  CHART_TYPE_ICON,
+  COLOR_SCHEMES,
+} from "./constants";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
@@ -407,149 +416,152 @@ const ChartForm = ({
                 <TabsTrigger value="y-axis">Y-Axis</TabsTrigger>
               </>
             )}
+            <TabsTrigger value="color">Color</TabsTrigger>
           </TabsList>
-          <TabsContent value="general" className="flex flex-col gap-3">
-            <BooleanField
-              form={form}
-              name="general.horizontal"
-              formFieldLabel="Horizontal chart"
-            />
-            <ColumnSelector
-              form={form}
-              name="general.xColumn.field"
-              formFieldLabel={
-                chartType === ChartType.PIE ? "Theta" : "X column"
-              }
-              columns={fields || []}
-            />
-            <div className="flex flex-row gap-2">
+          <TabsContent value="general">
+            <TabContainer>
+              <BooleanField
+                form={form}
+                name="general.horizontal"
+                formFieldLabel="Horizontal chart"
+              />
               <ColumnSelector
                 form={form}
-                name="general.yColumn.field"
+                name="general.xColumn.field"
                 formFieldLabel={
-                  chartType === ChartType.PIE ? "Color" : "Y column"
+                  chartType === ChartType.PIE ? "Theta" : "X column"
                 }
                 columns={fields || []}
               />
+              <div className="flex flex-row gap-2">
+                <ColumnSelector
+                  form={form}
+                  name="general.yColumn.field"
+                  formFieldLabel={
+                    chartType === ChartType.PIE ? "Color" : "Y column"
+                  }
+                  columns={fields || []}
+                />
+                <FormField
+                  control={form.control}
+                  name="general.yColumn.agg"
+                  render={({ field }) => (
+                    <FormItem className="self-end w-24">
+                      <FormControl>
+                        <Select
+                          {...field}
+                          value={field.value ?? DEFAULT_AGGREGATION}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>Aggregation</SelectLabel>
+                              <SelectItem value={DEFAULT_AGGREGATION}>
+                                <div className="flex items-center">
+                                  <SquareFunctionIcon className="w-3 h-3 mr-2" />
+                                  {capitalize(DEFAULT_AGGREGATION)}
+                                </div>
+                              </SelectItem>
+                              {AGGREGATION_FNS.map((agg) => {
+                                const Icon = AGGREGATION_TYPE_ICON[agg];
+                                return (
+                                  <SelectItem key={agg} value={agg}>
+                                    <div className="flex items-center">
+                                      <Icon className="w-3 h-3 mr-2" />
+                                      {capitalize(agg)}
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {chartType !== ChartType.PIE && (
+                <div className="flex flex-row gap-2">
+                  <ColumnSelector
+                    form={form}
+                    name="general.groupByColumn.field"
+                    formFieldLabel="Group by (color)"
+                    columns={fields ?? []}
+                    includeNoneOption={true}
+                  />
+                  <div
+                    className={cn(
+                      "flex flex-col self-end gap-1 items-end",
+                      chartType === ChartType.BAR && "mt-1.5",
+                    )}
+                  >
+                    <BooleanField
+                      form={form}
+                      name="general.groupByColumn.binned"
+                      formFieldLabel="Binned"
+                    />
+                    {chartType === ChartType.BAR && (
+                      <BooleanField
+                        form={form}
+                        name="general.stacking"
+                        formFieldLabel="Stacked"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <hr />
+
+              <InputField
+                form={form}
+                formFieldLabel="Plot title"
+                name="general.title"
+              />
               <FormField
                 control={form.control}
-                name="general.yColumn.agg"
+                name="general.tooltips"
                 render={({ field }) => (
-                  <FormItem className="self-end w-24">
+                  <FormItem>
                     <FormControl>
-                      <Select
-                        {...field}
-                        value={field.value ?? DEFAULT_AGGREGATION}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Aggregation</SelectLabel>
-                            <SelectItem value={DEFAULT_AGGREGATION}>
-                              <div className="flex items-center">
-                                <SquareFunctionIcon className="w-3 h-3 mr-2" />
-                                {capitalize(DEFAULT_AGGREGATION)}
-                              </div>
-                            </SelectItem>
-                            {AGGREGATION_FNS.map((agg) => {
-                              const Icon = AGGREGATION_TYPE_ICON[agg];
-                              return (
-                                <SelectItem key={agg} value={agg}>
-                                  <div className="flex items-center">
-                                    <Icon className="w-3 h-3 mr-2" />
-                                    {capitalize(agg)}
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <Multiselect
+                        options={fields?.map((field) => field.name) ?? []}
+                        value={field.value?.map((item) => item.field) ?? []}
+                        setValue={(values) => {
+                          const selectedValues =
+                            typeof values === "function" ? values([]) : values;
+
+                          // find the field types and form objects
+                          const tooltipObjects = selectedValues.map(
+                            (fieldName) => {
+                              const fieldType = fields?.find(
+                                (f) => f.name === fieldName,
+                              )?.type;
+
+                              return {
+                                field: fieldName,
+                                type: fieldType ?? "string",
+                              };
+                            },
+                          );
+
+                          field.onChange(tooltipObjects);
+                          // Multiselect doesn't trigger onChange, so we need to save the form manually
+                          debouncedSave();
+                        }}
+                        label="Tooltips"
+                        fullWidth={false}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
               />
-            </div>
-
-            {chartType !== ChartType.PIE && (
-              <div className="flex flex-row gap-2">
-                <ColumnSelector
-                  form={form}
-                  name="general.groupByColumn.field"
-                  formFieldLabel="Group by"
-                  columns={fields ?? []}
-                  includeNoneOption={true}
-                />
-                <div
-                  className={cn(
-                    "flex flex-col self-end gap-1 items-end",
-                    chartType === ChartType.BAR && "mt-1.5",
-                  )}
-                >
-                  <BooleanField
-                    form={form}
-                    name="general.groupByColumn.binned"
-                    formFieldLabel="Binned"
-                  />
-                  {chartType === ChartType.BAR && (
-                    <BooleanField
-                      form={form}
-                      name="general.stacking"
-                      formFieldLabel="Stacked"
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
-            <hr />
-
-            <InputField
-              form={form}
-              formFieldLabel="Plot title"
-              name="general.title"
-            />
-            <FormField
-              control={form.control}
-              name="general.tooltips"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Multiselect
-                      options={fields?.map((field) => field.name) ?? []}
-                      value={field.value?.map((item) => item.field) ?? []}
-                      setValue={(values) => {
-                        const selectedValues =
-                          typeof values === "function" ? values([]) : values;
-
-                        // find the field types and form objects
-                        const tooltipObjects = selectedValues.map(
-                          (fieldName) => {
-                            const fieldType = fields?.find(
-                              (f) => f.name === fieldName,
-                            )?.type;
-
-                            return {
-                              field: fieldName,
-                              type: fieldType ?? "string",
-                            };
-                          },
-                        );
-
-                        field.onChange(tooltipObjects);
-                        // Multiselect doesn't trigger onChange, so we need to save the form manually
-                        debouncedSave();
-                      }}
-                      label="Tooltips"
-                      fullWidth={false}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            </TabContainer>
           </TabsContent>
           {chartType !== ChartType.PIE && (
             <>
@@ -557,6 +569,25 @@ const ChartForm = ({
               <AxisTabContent axis="y" form={form} />
             </>
           )}
+          <TabsContent value="color">
+            <TabContainer>
+              <SelectField
+                form={form}
+                name="color.scheme"
+                formFieldLabel="Color scheme"
+                defaultValue={DEFAULT_COLOR_SCHEME}
+                options={COLOR_SCHEMES.map((scheme) => ({
+                  label: scheme,
+                  value: scheme,
+                }))}
+              />
+              {/* <ColumnSelector
+                form={form}
+                name="color.domain"
+                formFieldLabel="Color domain"
+              /> */}
+            </TabContainer>
+          </TabsContent>
         </Tabs>
       </form>
     </Form>
@@ -572,26 +603,28 @@ const AxisTabContent: React.FC<AxisTabContentProps> = ({ axis, form }) => {
   const axisName = axis === "x" ? "X" : "Y";
 
   return (
-    <TabsContent value={`${axis}-axis`} className="flex flex-col gap-3">
-      <InputField
-        form={form}
-        name={`${axis}Axis.label`}
-        formFieldLabel={`${axisName}-axis Label`}
-      />
-      <div className="flex flex-row gap-2 w-full">
-        <BooleanField
+    <TabsContent value={`${axis}-axis`}>
+      <TabContainer className="gap-1">
+        <InputField
           form={form}
-          name={`${axis}Axis.bin.binned`}
-          formFieldLabel="Binned"
+          name={`${axis}Axis.label`}
+          formFieldLabel={`${axisName}-axis Label`}
         />
-        <NumberField
-          form={form}
-          name={`${axis}Axis.bin.step`}
-          formFieldLabel="Bin step"
-          step={0.05}
-          className="w-32"
-        />
-      </div>
+        <div className="flex flex-row gap-2 w-full">
+          <BooleanField
+            form={form}
+            name={`${axis}Axis.bin.binned`}
+            formFieldLabel="Binned"
+          />
+          <NumberField
+            form={form}
+            name={`${axis}Axis.bin.step`}
+            formFieldLabel="Bin step"
+            step={0.05}
+            className="w-32"
+          />
+        </div>
+      </TabContainer>
     </TabsContent>
   );
 };
@@ -623,4 +656,11 @@ const Chart: React.FC<{
       />
     </div>
   );
+};
+
+const TabContainer: React.FC<{
+  className?: string;
+  children: React.ReactNode;
+}> = ({ children, className }) => {
+  return <div className={cn("flex flex-col gap-3", className)}>{children}</div>;
 };
