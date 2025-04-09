@@ -913,5 +913,5 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             with pytest.raises(TypeError):
                 manager.take(count=10, offset=10)
 
-        # TODO: Fix this, it should be 0
-        assert len(recorded_warnings) == 2
+        # TODO: Fix this, it should be 1
+        assert len(recorded_warnings) == 1

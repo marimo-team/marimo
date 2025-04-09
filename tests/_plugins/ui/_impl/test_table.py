@@ -1531,8 +1531,6 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["total-columns"] == 0
         assert table._component_args["field-types"] is None
 
-        assert len(recorded_warnings) == 0, recorded_warnings[0].message
-
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
         search_args = SearchTableArgs(page_size=10, page_number=0)
@@ -1545,7 +1543,7 @@ def test_lazy_dataframe() -> None:
         assert len(json_data) == LAZY_PREVIEW_ROWS
 
     # Warning comes from search
-    assert len(recorded_warnings) == 1
+    assert len(recorded_warnings) == 0
 
     # Select rows
     value = table._convert_value([])

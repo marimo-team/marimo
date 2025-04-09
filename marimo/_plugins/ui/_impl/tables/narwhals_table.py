@@ -159,7 +159,7 @@ class NarwhalsTableManager(
 
     @cached_property
     def nw_schema(self) -> nw.Schema:
-        return cast(nw.Schema, self.data.schema)
+        return cast(nw.Schema, self.data.collect_schema())
 
     def get_field_type(
         self, column_name: str
