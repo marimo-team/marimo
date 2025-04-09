@@ -359,6 +359,7 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert tables[0] == expected_table
 
 
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_skip_meta_schemas(
     sqlite_engine_meta: sa.Engine,
 ) -> None:
