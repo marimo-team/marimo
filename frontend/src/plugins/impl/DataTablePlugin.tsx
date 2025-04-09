@@ -612,17 +612,16 @@ const DataTableComponent = ({
     },
   );
 
-  console.log(totalRows);
   return (
     <>
       {/* // HACK: We assume "too_many" is coming from a SQL table */}
       {totalRows === "too_many" && (
-        <Banner className="mb-2 rounded">
+        <Banner className="mb-1 rounded">
           Previewing the first {paginationState.pageSize} rows.
         </Banner>
       )}
       {shownColumns < totalColumns && shownColumns > 0 && (
-        <Banner className="mb-2 rounded">
+        <Banner className="mb-1 rounded">
           Result clipped. Showing {shownColumns} of {totalColumns} columns.
         </Banner>
       )}
@@ -630,7 +629,7 @@ const DataTableComponent = ({
         // Note: Keep the text in sync with the constant defined in table_manager.py
         //       This hard-code can be removed when Functions can pass structural
         //       error information from the backend
-        <Banner className="mb-2 rounded">
+        <Banner className="mb-1 rounded">
           Column summaries are unavailable. Filter your data to fewer than
           1,000,000 rows.
         </Banner>

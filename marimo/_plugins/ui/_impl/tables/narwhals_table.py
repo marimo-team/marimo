@@ -105,6 +105,9 @@ class NarwhalsTableManager(
         return True
 
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
+        if not indices:
+            return self.with_new_data(self.data.head(0))
+
         df = self.as_frame()
         # Prefer the index column for selections
         if INDEX_COLUMN_NAME in df.columns:
@@ -118,6 +121,9 @@ class NarwhalsTableManager(
         return self.with_new_data(self.data.select(columns))
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        if not cells:
+            return []
+
         df = self.as_frame()
         if INDEX_COLUMN_NAME in df.columns:
             selection: list[TableCell] = []

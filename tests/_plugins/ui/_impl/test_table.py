@@ -1546,3 +1546,22 @@ def test_lazy_dataframe() -> None:
 
     # Warning comes from search
     assert len(recorded_warnings) == 1
+
+    # Select rows
+    value = table._convert_value([])
+    assert value is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Polars not installed",
+)
+def test_lazy_dataframe_with_non_lazy_dataframe():
+    import polars as pl
+
+    # Create a Polars LazyFrame
+    df = pl.DataFrame(
+        {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
+    )
+    with pytest.raises(ValueError):
+        table = ui.table.lazy(df)

@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Final,
+    Literal,
     Optional,
     Union,
 )
@@ -46,7 +47,7 @@ from marimo._utils.parse_dataclass import parse_raw
 @dataclass
 class GetDataFrameResponse:
     url: str
-    total_rows: int
+    total_rows: Union[int, Literal["too_many"]]
     # List of column names that are actually row headers
     # This really only applies to Pandas, that has special index columns
     row_headers: list[str]

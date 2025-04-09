@@ -11,8 +11,10 @@ from typing import (
     Literal,
     Optional,
     Union,
+    cast,
 )
 
+import narwhals.stable.v1 as nw
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 import marimo._output.data.data as mo_data
@@ -36,6 +38,7 @@ from marimo._plugins.ui._impl.tables.selection import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    FieldTypes,
     RowId,
     TableCell,
     TableCoordinate,
@@ -268,6 +271,18 @@ class table(
 
     @staticmethod
     def lazy(data: IntoLazyFrame) -> table:
+        """
+        Create a table from a Polars LazyFrame.
+
+        This won't load the data into memory until requested by the user.
+        Once requested, only the first 10 rows will be loaded.
+
+        Pagination and selection are not supported for lazy tables.
+        """
+
+        if not nw.dependencies.is_polars_lazyframe(data):
+            raise ValueError("data must be a Polars LazyFrame")
+
         return table(
             data=data,
             pagination=False,
@@ -418,22 +433,19 @@ class table(
                 )
             try:
                 if selection in ["single-cell", "multi-cell"]:
-                    coordinates = []
+                    coordinates: list[TableCoordinate] = []
                     for v in initial_selection:
                         if not isinstance(v, tuple) or len(v) != 2:
                             raise TypeError(
                                 "initial_selection must be a list of tuples for cell selection"
                             )
-                        else:
-                            coordinates.append(
-                                TableCoordinate(
-                                    row_id=v[0],
-                                    column_name=v[1],
-                                )
-                            )
-                    self._selected_manager = (
-                        self._searched_manager.select_cells(coordinates)
-                    )
+                        coordinates.append(
+                            TableCoordinate(row_id=v[0], column_name=v[1])
+                        )
+                    if coordinates:
+                        self._selected_manager = (
+                            self._searched_manager.select_cells(coordinates)
+                        )
                 else:
                     indexes: list[int] = []
                     for v in initial_selection:
@@ -441,8 +453,7 @@ class table(
                             raise TypeError(
                                 "initial_selection must be a list of integers for row selection"
                             )
-                        else:
-                            indexes.append(v)
+                        indexes.append(v)
                     self._selected_manager = (
                         self._searched_manager.select_rows(indexes)
                     )
@@ -480,7 +491,7 @@ class table(
 
         search_result_styles: Optional[CellStyles] = None
         search_result_data: JSONType = []
-        field_types = {}
+        field_types: Optional[FieldTypes] = None
         num_columns = 0
 
         if not _internal_lazy:
@@ -592,6 +603,9 @@ class table(
     def _convert_value(
         self, value: Union[list[int], list[str], list[dict[str, Any]]]
     ) -> Union[list[JSONType], IntoDataFrame, list[TableCell]]:
+        if self._selection is None:
+            return cast(list[JSONType], None)
+
         if self._selection in ["single-cell", "multi-cell"]:
             coordinates = [
                 TableCoordinate(row_id=v["rowId"], column_name=v["columnName"])
@@ -834,6 +848,7 @@ class table(
 
         # If no query or sort, return nothing
         # The frontend will just show the original data
+        total_rows: Union[int, Literal["too_many"]]
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
             if self._lazy:
