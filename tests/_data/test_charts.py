@@ -157,7 +157,7 @@ def test_charts_altair_json_bad_data():
 def test_date_chart_builder_guess_date_format_with_dataframes(
     data: dict[str, list[Any]], expected_format: str
 ):
-    NON_EAGER_LIBS: list[DFType] = ["ibis", "duckdb"]
+    NON_EAGER_LIBS: list[DFType] = ["ibis", "duckdb", "lazy-polars"]
 
     eager_dfs = create_dataframes(data, exclude=NON_EAGER_LIBS)
     assert len(eager_dfs) > 0

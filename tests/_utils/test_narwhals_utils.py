@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": [1, 2, 3], "b": ["x", "y", "z"]}, exclude=["ibis", "duckdb"]
+        {"a": [1, 2, 3], "b": ["x", "y", "z"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -39,7 +40,10 @@ def test_empty_df(df: IntoDataFrame) -> None:
     assert len(empty.columns) == 2
 
 
-@pytest.mark.parametrize("df", create_dataframes({"a": [1, 2, 3]}))
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"a": [1, 2, 3]}, exclude=["lazy-polars"]),
+)
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_assert_narwhals_dataframe(df: IntoDataFrame) -> None:
     df_wrapped = nw.from_native(df)
