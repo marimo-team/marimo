@@ -573,9 +573,13 @@ def new(
 
         from marimo._ai.text_to_notebook import text_to_notebook
 
-        maybe_path = Path(prompt)
-        if maybe_path.is_file():
-            prompt = maybe_path.read_text()
+        try:
+            _maybe_path = Path(prompt)
+            if _maybe_path.is_file():
+                prompt = _maybe_path.read_text()
+        except OSError:
+            # is_file() fails when, for example, the "filename" (prompt) is too long
+            pass
 
         temp_file = None
         try:
