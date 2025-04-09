@@ -19,6 +19,7 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import NonNestedLiteral
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -127,7 +128,7 @@ class GetRowIdsResponse:
 
 @dataclass
 class GetDataUrlResponse:
-    data_url: str
+    data_url: Union[str, object]
     format: Literal["csv", "json", "arrow"]
 
 
@@ -780,11 +781,16 @@ class table(
     def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
         """Get the data URL for the entire table. Used for charting."""
         del args
-        # TODO: May want to filter data here
-        result = _to_marimo_arrow(self._searched_manager.data)
+
+        if DependencyManager.altair.has():
+            result = _to_marimo_arrow(self._searched_manager.data)
+            return GetDataUrlResponse(
+                data_url=result["url"],
+                format=result["format"]["type"],
+            )
+
         return GetDataUrlResponse(
-            data_url=result["url"],
-            format=result["format"]["type"],
+            data_url=self._searched_manager.to_data({}), format="json"
         )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019

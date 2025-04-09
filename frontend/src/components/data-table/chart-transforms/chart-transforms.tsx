@@ -69,6 +69,7 @@ import {
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
+import { inferFieldTypes } from "../columns";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -262,7 +263,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChart={saveChart}
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
-              fieldTypes={fieldTypes}
+              fieldTypes={fieldTypes ?? inferFieldTypes(dataTable.props.data)}
             />
           </TabsContent>
         );
@@ -296,6 +297,10 @@ export const ChartPanel: React.FC<{
 
   const { data, loading, error } = useAsyncData(async () => {
     const response = await getDataUrl({});
+    if (Array.isArray(response.data_url)) {
+      return response.data_url;
+    }
+
     const chartData = await vegaLoadData(
       response.data_url,
       response.format === "arrow"

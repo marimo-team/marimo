@@ -1565,11 +1565,24 @@ def test_lazy_dataframe_with_non_lazy_dataframe():
         table = ui.table.lazy(df)
 
 
-def test_get_data_url() -> None:
+@pytest.mark.skipif(
+    DependencyManager.altair.has(),
+    reason="If altair is installed, it will trigger to_marimo_arrow()",
+)
+def test_get_data_url_no_deps() -> None:
     table = ui.table([1, 2, 3])
     response = table._get_data_url({})
-    initial_data_url = response.data_url
-    assert initial_data_url.startswith("data:text/csv;base64,")
+    assert response.data_url == [{"value": 1}, {"value": 2}, {"value": 3}]
+    assert response.format == "json"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.altair.has(), reason="Altair not installed"
+)
+def test_get_data_url_with_altair() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    assert response.data_url.startswith("data:text/csv;base64,")
     assert response.format == "csv"
 
 
