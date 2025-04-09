@@ -23,8 +23,8 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
 from tests._data.mocks import (
-    LAZY_DF_TYPES,
-    NON_LAZY_DF_TYPES,
+    EAGER_LIBS,
+    NON_EAGER_LIBS,
     create_dataframes,
 )
 from tests.mocks import snapshotter
@@ -883,7 +883,7 @@ def test_sort_values_with_nulls(df: Any) -> None:
             "J": ["", "  ", "test", "\t\n"],  # Whitespace strings
             "K": [b"bytes1", b"bytes2", b"bytes3", b"bytes4"],  # Bytes
         },
-        exclude=LAZY_DF_TYPES,
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_get_sample_values(df: Any) -> None:
@@ -960,7 +960,7 @@ def test_get_sample_values(df: Any) -> None:
             "A": [1, 2, 3, 4],  # Integer
             "B": ["a", "b", "c", "d"],  # String
         },
-        exclude=NON_LAZY_DF_TYPES,
+        exclude=EAGER_LIBS,
     ),
 )
 def test_get_sample_values_with_non_lazy_df(df: Any) -> None:

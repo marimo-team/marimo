@@ -14,8 +14,8 @@ DFType = Literal[
     "pandas", "polars", "ibis", "pyarrow", "duckdb", "lazy-polars"
 ]
 
-LAZY_DF_TYPES: list[DFType] = ["lazy-polars", "duckdb", "ibis"]
-NON_LAZY_DF_TYPES: list[DFType] = ["pandas", "polars", "pyarrow"]
+NON_EAGER_LIBS: list[DFType] = ["lazy-polars", "duckdb", "ibis"]
+EAGER_LIBS: list[DFType] = ["pandas", "polars", "pyarrow"]
 
 
 def create_dataframes(

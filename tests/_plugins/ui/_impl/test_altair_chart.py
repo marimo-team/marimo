@@ -23,7 +23,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     altair_chart,
 )
 from marimo._runtime.runtime import Kernel
-from tests._data.mocks import LAZY_DF_TYPES, create_dataframes
+from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
 
@@ -64,7 +64,7 @@ class TestAltairChart:
                 "field_2": [1, 2, 3, 4],
                 "field_3": [10, 20, 30, 40],
             },
-            exclude=LAZY_DF_TYPES,
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe(df: ChartDataType) -> None:
@@ -143,7 +143,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 10),
                 ],
             },
-            exclude=LAZY_DF_TYPES,
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_dates(
@@ -241,7 +241,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 1),
                 ],
             },
-            exclude=LAZY_DF_TYPES,
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_strings(
@@ -397,7 +397,7 @@ class TestAltairChart:
                     datetime.datetime.fromtimestamp(20000),
                 ],
             },
-            exclude=LAZY_DF_TYPES,
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_numbers(
