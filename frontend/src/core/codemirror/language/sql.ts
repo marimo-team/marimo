@@ -39,6 +39,7 @@ import {
 import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { isSchemaless } from "@/components/datasources/utils";
+import { datasetTablesAtom } from "@/core/datasets/state";
 
 /**
  * Language adapter for SQL.
@@ -202,6 +203,16 @@ export class SQLCompletionStore {
       return null;
     }
 
+    const localTables = store.get(datasetTablesAtom);
+
+    // If there is a conflict with connection tables,
+    // the engine will prioritize the connection tables without special handling
+    const tablesMap: TableToCols = {};
+    for (const table of localTables) {
+      const tableColumns = table.columns.map((col) => col.name);
+      tablesMap[table.name] = tableColumns;
+    }
+
     let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
     if (!cacheConfig) {
       const schemaMap: Record<string, TableToCols> = {};
@@ -286,7 +297,7 @@ export class SQLCompletionStore {
 
       cacheConfig = {
         ...baseConfig,
-        schema: { ...databaseMap, ...schemaMap },
+        schema: { ...databaseMap, ...schemaMap, ...tablesMap },
         defaultSchema: connection.default_schema ?? undefined,
       };
       this.cache.set(connection, cacheConfig);
