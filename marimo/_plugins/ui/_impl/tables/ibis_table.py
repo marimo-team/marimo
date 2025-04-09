@@ -77,8 +77,9 @@ class IbisTableManagerFactory(TableManagerFactory):
                 return IbisTableManager(self.data.select(columns))
 
             def select_cells(
-                self, _cells: list[TableCoordinate]
+                self, cells: list[TableCoordinate]
             ) -> list[TableCell]:
+                del cells
                 raise NotImplementedError("Cell selection not supported")
 
             def drop_columns(

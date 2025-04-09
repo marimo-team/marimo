@@ -134,6 +134,8 @@ def unwrap_narwhals_dataframe(df: Any) -> Any:
     """
     if isinstance(df, nw.DataFrame):
         return df.to_native()  # type: ignore[return-value]
+    if isinstance(df, nw.LazyFrame):
+        return df.to_native()  # type: ignore[return-value]
     return df
 
 

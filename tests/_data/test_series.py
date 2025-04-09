@@ -12,7 +12,7 @@ from marimo._data.series import (
     get_number_series_info,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from tests._data.mocks import create_dataframes, create_series
+from tests._data.mocks import NON_EAGER_LIBS, create_dataframes, create_series
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -27,7 +27,8 @@ HAS_DEPS = (
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, None, 3], "B": ["a", "a", "a"]}, exclude=["ibis", "duckdb"]
+        {"A": [1, None, 3], "B": ["a", "a", "a"]},
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_number_series(
@@ -57,7 +58,8 @@ def test_get_with_no_name(series: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": ["a", None, "b"]}, exclude=["ibis", "duckdb"]
+        {"A": [1, 2, 3], "B": ["a", None, "b"]},
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_categorical_series(df: Any) -> None:
@@ -85,7 +87,7 @@ def test_categorical_series(df: Any) -> None:
                 datetime(2024, 1, 3),
             ],
         },
-        exclude=["ibis", "duckdb"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_date_series(df: Any) -> None:
@@ -115,7 +117,7 @@ def test_date_series(df: Any) -> None:
                 None,
             ],
         },
-        exclude=["ibis", "duckdb"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_datetime_series(df: Any) -> None:
@@ -145,7 +147,7 @@ def test_datetime_series(df: Any) -> None:
                 datetime(2024, 1, 3, 15, 45),
             ],
         },
-        include=["ibis", "duckdb"],
+        include=NON_EAGER_LIBS,
     ),
 )
 def test_ibis_fails(df: Any) -> None:

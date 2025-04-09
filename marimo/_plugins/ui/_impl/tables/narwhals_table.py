@@ -105,6 +105,9 @@ class NarwhalsTableManager(
         return True
 
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
+        if not indices:
+            return self.with_new_data(self.data.head(0))
+
         df = self.as_frame()
         # Prefer the index column for selections
         if INDEX_COLUMN_NAME in df.columns:
@@ -118,6 +121,9 @@ class NarwhalsTableManager(
         return self.with_new_data(self.data.select(columns))
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        if not cells:
+            return []
+
         df = self.as_frame()
         if INDEX_COLUMN_NAME in df.columns:
             selection: list[TableCell] = []
@@ -153,7 +159,7 @@ class NarwhalsTableManager(
 
     @cached_property
     def nw_schema(self) -> nw.Schema:
-        return cast(nw.Schema, self.data.schema)
+        return cast(nw.Schema, self.data.collect_schema())
 
     def get_field_type(
         self, column_name: str
@@ -186,7 +192,11 @@ class NarwhalsTableManager(
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
-        return self.with_new_data(self.data[offset : offset + count])
+
+        if offset == 0:
+            return self.with_new_data(self.data.head(count))
+        else:
+            return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
@@ -233,7 +243,11 @@ class NarwhalsTableManager(
         # If column is not in the dataframe, return an empty summary
         if column not in self.nw_schema:
             return ColumnSummary()
-        col = self.data[column]
+        data = self.data.select(column)
+        if isinstance(data, nw.LazyFrame):
+            data = data.collect()
+
+        col = data[column]
         total = len(col)
         if is_narwhals_string_type(col.dtype):
             return ColumnSummary(
@@ -354,6 +368,10 @@ class NarwhalsTableManager(
             return self.data[column].cast(nw.String).unique().to_list()
 
     def get_sample_values(self, column: str) -> list[str | int | float]:
+        # Skip lazy frames
+        if isinstance(self.data, nw.LazyFrame):
+            return []
+
         # Sample 3 values from the column
         SAMPLE_SIZE = 3
         try:

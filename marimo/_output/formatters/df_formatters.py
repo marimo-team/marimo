@@ -4,6 +4,8 @@ from __future__ import annotations
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.md import md
+from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import table
 
 LOGGER = _loggers.marimo_logger()
@@ -57,6 +59,17 @@ class PolarsFormatter(FormatterFactory):
                 except Exception as e:
                     LOGGER.warning("Failed to format Series: %s", e)
                     return ("text/html", series._repr_html_())
+
+            @formatting.opinionated_formatter(pl.LazyFrame)
+            def _show_marimo_lazyframe(
+                df: pl.LazyFrame,
+            ) -> tuple[KnownMimeType, str]:
+                return tabs.tabs(
+                    {
+                        "Table": table.lazy(df),
+                        "Query plan": md(df._repr_html_()),
+                    }
+                )._mime_()
 
 
 class PyArrowFormatter(FormatterFactory):

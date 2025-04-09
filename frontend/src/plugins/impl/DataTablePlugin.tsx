@@ -47,6 +47,8 @@ import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
+import { Button } from "@/components/ui/button";
+import { Table2Icon } from "lucide-react";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -86,6 +88,7 @@ interface Data<T> {
   wrappedColumns?: string[];
   totalColumns: number;
   hasStableRowId: boolean;
+  lazy: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -103,7 +106,7 @@ type DataTableFunctions = {
     page_size: number;
   }) => Promise<{
     data: TableData<T>;
-    total_rows: number;
+    total_rows: number | "too_many";
     cell_styles?: CellStyleState | null;
   }>;
   get_row_ids?: GetRowIds;
@@ -150,6 +153,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      lazy: z.boolean(),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -190,7 +194,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .output(
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-          total_rows: z.number(),
+          total_rows: z.union([z.number(), z.literal("too_many")]),
           cell_styles: z
             .record(z.record(z.object({}).passthrough()))
             .nullable(),
@@ -207,17 +211,41 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   .renderer((props) => {
     return (
       <TooltipProvider>
-        <LoadingDataTableComponent
-          {...props.data}
-          {...props.functions}
-          enableSearch={true}
-          data={props.data.data}
-          value={props.value}
-          setValue={props.setValue}
-        />
+        <LazyDataTableComponent isLazy={props.data.lazy}>
+          <LoadingDataTableComponent
+            {...props.data}
+            {...props.functions}
+            enableSearch={true}
+            data={props.data.data}
+            value={props.value}
+            setValue={props.setValue}
+          />
+        </LazyDataTableComponent>
       </TooltipProvider>
     );
   });
+
+const LazyDataTableComponent = ({
+  isLazy: initialIsLazy,
+  children,
+}: {
+  isLazy: boolean;
+  children: React.ReactNode;
+}) => {
+  const [isLazy, setIsLazy] = useState(initialIsLazy);
+
+  if (isLazy) {
+    return (
+      <div className="flex h-20 items-center justify-center">
+        <Button variant="outline" size="xs" onClick={() => setIsLazy(false)}>
+          <Table2Icon className="mr-2 h-4 w-4" />
+          Preview data
+        </Button>
+      </div>
+    );
+  }
+  return children;
+};
 
 interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   className?: string;
@@ -305,7 +333,8 @@ export const LoadingDataTableComponent = memo(
         searchQuery === "" &&
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
-        sorting.length === 0;
+        sorting.length === 0 &&
+        !props.lazy;
 
       if (sorting.length > 1) {
         Logger.warn("Multiple sort columns are not supported");
@@ -371,6 +400,7 @@ export const LoadingDataTableComponent = memo(
       searchQuery,
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
+      props.lazy,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
@@ -586,12 +616,12 @@ const DataTableComponent = ({
     <>
       {/* // HACK: We assume "too_many" is coming from a SQL table */}
       {totalRows === "too_many" && (
-        <Banner className="mb-2 rounded">
-          Result clipped. If no LIMIT is given, we only show the first 300 rows.
+        <Banner className="mb-1 rounded">
+          Previewing the first {paginationState.pageSize} rows.
         </Banner>
       )}
-      {shownColumns < totalColumns && (
-        <Banner className="mb-2 rounded">
+      {shownColumns < totalColumns && shownColumns > 0 && (
+        <Banner className="mb-1 rounded">
           Result clipped. Showing {shownColumns} of {totalColumns} columns.
         </Banner>
       )}
@@ -599,7 +629,7 @@ const DataTableComponent = ({
         // Note: Keep the text in sync with the constant defined in table_manager.py
         //       This hard-code can be removed when Functions can pass structural
         //       error information from the backend
-        <Banner className="mb-2 rounded">
+        <Banner className="mb-1 rounded">
           Column summaries are unavailable. Filter your data to fewer than
           1,000,000 rows.
         </Banner>

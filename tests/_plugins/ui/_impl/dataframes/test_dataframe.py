@@ -51,7 +51,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["a", "a", "a"]},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe(
@@ -126,7 +126,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"1": [1, 2, 3], "2": ["a", "a", "a"]},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_page_size(
@@ -168,17 +168,19 @@ class TestDataframes:
         "df",
         [
             *create_dataframes(
-                {"A": [], "B": []}, exclude=["pyarrow", "duckdb"]
+                {"A": [], "B": []},
+                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Empty DataFrame
             *create_dataframes(
-                {"A": [1], "B": ["a"]}, exclude=["pyarrow", "duckdb"]
+                {"A": [1], "B": ["a"]},
+                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Single row DataFrame
             *create_dataframes(
                 {
                     "A": range(1, 1001),
                     "B": [f"value_{i}" for i in range(1, 1001)],
                 },
-                exclude=["pyarrow", "duckdb"],
+                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Large DataFrame
         ],
     )
@@ -207,7 +209,8 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"A": range(100), "B": ["a"] * 100}, exclude=["pyarrow", "duckdb"]
+            {"A": range(100), "B": ["a"] * 100},
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_with_custom_page_size(df: Any) -> None:
@@ -254,7 +257,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": range(1000), "B": ["a"] * 1000},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_with_limit(df: Any) -> None:
@@ -273,7 +276,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["a", "b", "c"]},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_error_handling(df: Any) -> None:
