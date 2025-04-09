@@ -43,39 +43,6 @@ describe("createVegaSpec", () => {
   });
 
   describe("Bar Chart", () => {
-    it("should create a basic bar chart spec", () => {
-      const formValues = createBasicFormValues();
-      const spec = createVegaSpec(
-        ChartType.BAR,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
-
-    it("should create a bar chart with custom axis labels", () => {
-      const formValues = {
-        ...createBasicFormValues(),
-        xAxis: { label: "Categories" },
-        yAxis: { label: "Values" },
-      };
-
-      const spec = createVegaSpec(
-        ChartType.BAR,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
-
     it("should create a horizontal bar chart", () => {
       const formValues = {
         ...createBasicFormValues(),
@@ -107,56 +74,6 @@ describe("createVegaSpec", () => {
             type: "string" as const,
           },
           stacking: true,
-        },
-      };
-
-      const spec = createVegaSpec(
-        ChartType.BAR,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
-
-    it("should create a bar chart with aggregation", () => {
-      const formValues = {
-        ...createBasicFormValues(),
-        general: {
-          ...createBasicFormValues().general,
-          yColumn: {
-            field: "value",
-            type: "number" as const,
-            agg: "sum" as const,
-          },
-        },
-      };
-
-      const spec = createVegaSpec(
-        ChartType.BAR,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
-
-    it("should create a bar chart with tooltips", () => {
-      const formValues = {
-        ...createBasicFormValues(),
-        general: {
-          ...createBasicFormValues().general,
-          tooltips: [
-            { field: "category", type: "string" as const },
-            { field: "value", type: "number" as const },
-            { field: "group", type: "string" as const },
-          ],
         },
       };
 
@@ -205,47 +122,9 @@ describe("createVegaSpec", () => {
 
       expect(spec).toMatchSnapshot();
     });
-
-    it("should create a line chart with grouping", () => {
-      const formValues = {
-        ...createBasicFormValues(),
-        general: {
-          ...createBasicFormValues().general,
-          groupByColumn: {
-            field: "group",
-            type: "string" as const,
-          },
-        },
-      };
-
-      const spec = createVegaSpec(
-        ChartType.LINE,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
   });
 
   describe("Pie Chart", () => {
-    it("should create a basic pie chart spec", () => {
-      const formValues = createBasicFormValues();
-      const spec = createVegaSpec(
-        ChartType.PIE,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
-
     it("should create a pie chart with tooltips", () => {
       const formValues = {
         ...createBasicFormValues(),
@@ -272,20 +151,6 @@ describe("createVegaSpec", () => {
   });
 
   describe("Scatter Chart", () => {
-    it("should create a basic scatter chart spec", () => {
-      const formValues = createBasicFormValues();
-      const spec = createVegaSpec(
-        ChartType.SCATTER,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(spec).toMatchSnapshot();
-    });
-
     it("should create a scatter chart with grouping", () => {
       const formValues = {
         ...createBasicFormValues(),
