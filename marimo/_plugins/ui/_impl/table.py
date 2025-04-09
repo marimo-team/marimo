@@ -14,7 +14,7 @@ from typing import (
     cast,
 )
 
-from narwhals.typing import IntoDataFrame, IntoLazyFrame
+from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -57,6 +57,8 @@ from marimo._utils.narwhals_utils import (
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from narwhals.typing import IntoLazyFrame
 
 LOGGER = _loggers.marimo_logger()
 
