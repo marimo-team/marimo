@@ -248,20 +248,23 @@ class SQLAlchemyEngine(SQLEngine):
         schemas: list[Schema] = []
 
         for schema in schema_names:
-            schemas.append(
-                Schema(
-                    name=schema,
-                    tables=self.get_tables_in_schema(
-                        schema=schema,
-                        database=database if database is not None else "",
-                        include_table_details=include_table_details,
-                    )
-                    if include_tables
-                    else [],
+            tables: list[DataTable] = []
+            meta_schemas = self._get_meta_schemas()
+            if schema.lower() not in meta_schemas and include_tables:
+                tables = self.get_tables_in_schema(
+                    schema=schema,
+                    database=database if database is not None else "",
+                    include_table_details=include_table_details,
                 )
-            )
+            schemas.append(Schema(name=schema, tables=tables))
 
         return schemas
+
+    def _get_meta_schemas(self) -> list[str]:
+        dialect = self.dialect.lower()
+        if dialect == "postgresql":
+            return ["information_schema", "pg_catalog"]
+        return ["information_schema"]
 
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool

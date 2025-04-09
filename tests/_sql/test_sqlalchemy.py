@@ -84,6 +84,28 @@ def sqlite_engine() -> sa.Engine:
     return engine
 
 
+@pytest.fixture
+def sqlite_engine_meta() -> sa.Engine:
+    """Create a temporary SQLite database with information_schema.
+    Use a mock information_schema"""
+
+    import sqlalchemy as sa
+
+    engine = sa.create_engine("sqlite:///:memory:")
+
+    sql("ATTACH ':memory:' AS information_schema", engine=engine)
+    sql(
+        "CREATE TABLE information_schema.tables (table_name TEXT)",
+        engine=engine,
+    )
+    sql(
+        "INSERT INTO information_schema.tables VALUES ('tables')",
+        engine=engine,
+    )
+
+    return engine
+
+
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine dialect property."""
@@ -335,6 +357,24 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert len(tables) == 1
     expected_table = get_expected_table("test", False)
     assert tables[0] == expected_table
+
+
+def test_sqlalchemy_skip_meta_schemas(
+    sqlite_engine_meta: sa.Engine,
+) -> None:
+    """Test SQLAlchemyEngine get_tables method."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine_meta, engine_name=VariableName("test_sqlite")
+    )
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=True
+    )
+    assert len(databases[0].schemas) == 2
+    assert databases[0].schemas[0].name == "main"
+    assert databases[0].schemas[1].name == "information_schema"
+
+    information_schema = databases[0].schemas[1]
+    assert information_schema.tables == []
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
