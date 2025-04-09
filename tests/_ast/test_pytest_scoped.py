@@ -19,5 +19,20 @@ def _(test_cases):
     return (test_function,)
 
 
+@app.cell
+def _():
+    def inc(x):
+        return x + 1
+
+    return (inc,)
+
+
+@app.cell
+def collection_of_tests(inc, pytest):
+    @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
+    def test_answer(x, y):
+        assert inc(x) == y, "These tests should pass."
+
+
 if __name__ == "__main__":
     app.run()
