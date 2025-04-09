@@ -116,7 +116,7 @@ type DataTableFunctions = {
     total_rows: number | "too_many";
     cell_styles?: CellStyleState | null;
   }>;
-  get_data_url: GetDataUrl;
+  get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
 };
 

@@ -81,7 +81,7 @@ const DEFAULT_TAB_NAME = "table" as TabName;
 
 export interface TablePanelProps {
   dataTable: JSX.Element;
-  getDataUrl: GetDataUrl;
+  getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
 }
 
@@ -277,7 +277,7 @@ export const ChartPanel: React.FC<{
   chartType: ChartType;
   saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
   saveChartType: (chartType: ChartType) => void;
-  getDataUrl: GetDataUrl;
+  getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
 }> = ({
   chartConfig,
@@ -296,6 +296,10 @@ export const ChartPanel: React.FC<{
     useState<ChartType>(chartType);
 
   const { data, loading, error } = useAsyncData(async () => {
+    if (!getDataUrl) {
+      return [];
+    }
+
     const response = await getDataUrl({});
     if (Array.isArray(response.data_url)) {
       return response.data_url;

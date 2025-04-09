@@ -170,6 +170,7 @@ export const InputField = <T extends object>({
               {...field}
               value={field.value ?? ""}
               onValueChange={field.onChange}
+              className="w-48 text-xs"
             />
           </FormControl>
         </FormItem>
