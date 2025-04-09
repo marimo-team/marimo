@@ -261,8 +261,10 @@ export const exportedForTesting = {
   initialState,
 };
 
-// If you need to get table names from all connections & local datasets, use this atom
-// When a table name is used in multiple connections, we need to use a more qualified name
+/**
+ * If you need to get table names from all connections & local datasets, use this atom.
+ * Uses a more qualified name if there are collisions.
+ */
 export const allTablesAtom = atom((get) => {
   const datasets = store.get(datasetTablesAtom);
   const connections = get(dataSourceConnectionsAtom).connectionsMap;
