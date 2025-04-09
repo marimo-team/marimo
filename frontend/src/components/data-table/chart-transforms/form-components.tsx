@@ -23,6 +23,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
 import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "./chart-schemas";
 import type { NumberFieldProps } from "@/components/ui/number-field";
+import { Button } from "@/components/ui/button";
+import { XIcon, PlusIcon } from "lucide-react";
+import React from "react";
 
 export const ColumnSelector = <T extends object>({
   form,
@@ -233,6 +236,84 @@ export const BooleanField = <T extends object>({
               className="w-4 h-4"
             />
           </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+export const ColorArrayField = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  className,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  className?: string;
+}) => {
+  const formValue = form.watch(name);
+  const [colors, setColors] = React.useState<string[]>(formValue ?? []);
+
+  const addColor = () => {
+    const newColors = [...colors, "#000000"];
+    setColors(newColors);
+    form.setValue(name, newColors as PathValue<T, Path<T>>);
+  };
+
+  const removeColor = (index: number) => {
+    const newColors = colors.filter((_, i) => i !== index);
+    setColors(newColors);
+    form.setValue(name, newColors as PathValue<T, Path<T>>);
+  };
+
+  const updateColor = (index: number, value: string) => {
+    const newColors = [...colors];
+    newColors[index] = value;
+    setColors(newColors);
+    form.setValue(name, newColors as PathValue<T, Path<T>>);
+  };
+
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={() => (
+        <FormItem className={cn("flex flex-col gap-2", className)}>
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <div className="flex flex-col gap-2">
+            {colors.map((color, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => updateColor(index, e.target.value)}
+                  className="w-4 h-4 rounded cursor-pointer"
+                />
+                <span className="text-xs text-muted-foreground font-mono">
+                  {color}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeColor(index)}
+                  className="h-4 w-4 p-0"
+                >
+                  <XIcon className="h-2 w-2" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addColor}
+              className="w-fit h-6 text-xs"
+            >
+              <PlusIcon className="h-3 w-3 mr-1" />
+              Add Color
+            </Button>
+          </div>
         </FormItem>
       )}
     />

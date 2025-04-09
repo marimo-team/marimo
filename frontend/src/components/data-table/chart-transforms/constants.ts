@@ -14,6 +14,7 @@ import {
 import type { ChartType } from "./storage";
 import type { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import type { ColorScheme } from "vega";
+import { DEFAULT_COLOR_SCHEME } from "./chart-schemas";
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,
@@ -34,7 +35,8 @@ export const AGGREGATION_TYPE_ICON: Record<
   max: PlusIcon,
 };
 
-export const COLOR_SCHEMES: ColorScheme[] = [
+export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [
+  DEFAULT_COLOR_SCHEME,
   // Categorical schemes
   "accent",
   "category10",

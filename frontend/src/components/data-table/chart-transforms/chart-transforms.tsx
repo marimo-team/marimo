@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ChartBarIcon,
+  InfoIcon,
   SquareFunctionIcon,
   TableIcon,
   XIcon,
@@ -54,6 +55,7 @@ import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import {
   BooleanField,
+  ColorArrayField,
   ColumnSelector,
   InputField,
   NumberField,
@@ -577,15 +579,19 @@ const ChartForm = ({
                 formFieldLabel="Color scheme"
                 defaultValue={DEFAULT_COLOR_SCHEME}
                 options={COLOR_SCHEMES.map((scheme) => ({
-                  label: scheme,
+                  label: capitalize(scheme),
                   value: scheme,
                 }))}
               />
-              {/* <ColumnSelector
+              <ColorArrayField
                 form={form}
-                name="color.domain"
-                formFieldLabel="Color domain"
-              /> */}
+                name="color.range"
+                formFieldLabel="Color range"
+              />
+              <p className="text-xs">
+                <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
+                If you are using color range, color scheme will be ignored.
+              </p>
             </TabContainer>
           </TabsContent>
         </Tabs>
@@ -640,7 +646,7 @@ const Chart: React.FC<{
     return <div>No data</div>;
   }
 
-  const vegaSpec = createVegaSpec(chartType, data, formValues, theme, 400, 300);
+  const vegaSpec = createVegaSpec(chartType, data, formValues, theme, 350, 300);
 
   if (!vegaSpec) {
     return <div>This configuration is not supported</div>;

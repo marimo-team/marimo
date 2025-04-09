@@ -10,6 +10,7 @@ import {
   DEFAULT_BIN_VALUE,
   NONE_GROUP_BY,
   type ChartSchema,
+  DEFAULT_COLOR_SCHEME,
 } from "./chart-schemas";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
@@ -62,7 +63,7 @@ export function createVegaSpec(
     title: xAxisLabel,
   };
 
-  const colorScheme = getColorScheme(formValues);
+  const colorInScale = getColorInScale(formValues);
 
   const yEncoding: PositionDef<string> | PolarDef<string> = {
     field: formValues.general.yColumn?.field,
@@ -73,8 +74,8 @@ export function createVegaSpec(
     title: yAxisLabel,
     // If color encoding is used as y, we can define the scheme here
     scale:
-      colorScheme && yEncodingKey === "color"
-        ? { scheme: colorScheme }
+      colorInScale && yEncodingKey === "color"
+        ? { ...colorInScale }
         : undefined,
   };
 
@@ -102,7 +103,7 @@ export function createVegaSpec(
 }
 
 // color can be used for grouping
-// it can also conflict with the color encoding for pie charts, so we need to check for that
+// it can also conflict with the color (y) encoding for pie charts, so we return undefined
 function getColor(
   chartType: ChartType,
   formValues: z.infer<typeof ChartSchema>,
@@ -114,14 +115,14 @@ function getColor(
     return undefined;
   }
 
-  const colorScheme = getColorScheme(formValues);
-
   const colorDef: ColorDef<string> = {
     field: formValues.general.groupByColumn?.field,
     type: convertDataTypeToVegaType(
       formValues.general.groupByColumn?.type ?? "unknown",
     ),
-    scale: colorScheme ? { scheme: colorScheme } : undefined,
+    scale: {
+      ...getColorInScale(formValues),
+    },
   };
 
   return {
@@ -129,10 +130,21 @@ function getColor(
   };
 }
 
-function getColorScheme(
-  formValues: z.infer<typeof ChartSchema>,
-): ColorScheme | undefined {
-  return formValues.color?.scheme as ColorScheme | undefined;
+function getColorInScale(formValues: z.infer<typeof ChartSchema>) {
+  const colorRange = formValues.color?.range;
+  if (colorRange && colorRange.length > 0) {
+    return {
+      range: colorRange,
+    };
+  }
+
+  const scheme = formValues.color?.scheme;
+  if (scheme === DEFAULT_COLOR_SCHEME) {
+    return undefined;
+  }
+  return {
+    scheme: scheme as ColorScheme,
+  };
 }
 
 function getOffset(
