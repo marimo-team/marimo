@@ -84,7 +84,7 @@ marimo supports different output types for SQL queries, which is particularly us
 The available options are:
 
 - `native`: Uses DuckDB's native lazy relation (recommended for best performance)
-- `lazypolars"`: Returns a lazy Polars DataFrame
+- `lazy-polars`: Returns a lazy Polars DataFrame
 - `pandas`: Returns a Pandas DataFrame
 - `polars`: Returns an eager Polars DataFrame
 - `auto`: Automatically chooses based on installed packages (first tries `polars` then `pandas`)
