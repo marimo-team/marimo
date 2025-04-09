@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from typing import Literal
 
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._config.config import (
     MarimoConfig,

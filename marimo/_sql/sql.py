@@ -10,6 +10,7 @@ from marimo._runtime.output import replace
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.types import ENGINE_REGISTRY
 from marimo._sql.utils import raise_df_import_error
+from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
 def get_default_result_limit() -> Optional[int]:
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
+
+DEFAULT_PAGE_SIZE = 10
 
 
 @mddoc
@@ -108,13 +111,19 @@ def sql(
     if output:
         from marimo._plugins.ui._impl import table
 
-        t = table.table(
-            df,
-            selection=None,
-            page_size=5,
-            pagination=True,
-            _internal_total_rows=custom_total_count,
-        )
+        if can_narwhalify_lazyframe(df):
+            # For pl.LazyFrame and DuckDBRelation, we only show the first few rows
+            # to avoid loading all the data into memory.
+            # Also preload the first page of data without user confirmation.
+            t = table.table.lazy(df, preload=True)
+        else:
+            t = table.table(
+                df,
+                selection=None,
+                page_size=DEFAULT_PAGE_SIZE,
+                pagination=True,
+                _internal_total_rows=custom_total_count,
+            )
         replace(t)
     return df
 

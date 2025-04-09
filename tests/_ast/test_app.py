@@ -8,10 +8,10 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.app import (
     App,
     AppKernelRunnerRegistry,
-    _AppConfig,
     InternalApp,
 )
 from marimo._ast.errors import (

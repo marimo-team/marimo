@@ -12,7 +12,8 @@ import textwrap
 from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app import App
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME

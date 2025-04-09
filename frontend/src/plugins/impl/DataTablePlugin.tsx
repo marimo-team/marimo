@@ -153,7 +153,11 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      // Whether to load the data lazily.
       lazy: z.boolean(),
+      // If lazy, this will preload the first page of data
+      // without user confirmation.
+      preload: z.boolean(),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -211,7 +215,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   .renderer((props) => {
     return (
       <TooltipProvider>
-        <LazyDataTableComponent isLazy={props.data.lazy}>
+        <LazyDataTableComponent
+          isLazy={props.data.lazy}
+          preload={props.data.preload}
+        >
           <LoadingDataTableComponent
             {...props.data}
             {...props.functions}
@@ -228,11 +235,13 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
 const LazyDataTableComponent = ({
   isLazy: initialIsLazy,
   children,
+  preload,
 }: {
   isLazy: boolean;
   children: React.ReactNode;
+  preload: boolean;
 }) => {
-  const [isLazy, setIsLazy] = useState(initialIsLazy);
+  const [isLazy, setIsLazy] = useState(initialIsLazy && !preload);
 
   if (isLazy) {
     return (
@@ -614,8 +623,9 @@ const DataTableComponent = ({
 
   return (
     <>
-      {/* // HACK: We assume "too_many" is coming from a SQL table */}
-      {totalRows === "too_many" && (
+      {/* When the totalRows is "too_many" and the pageSize is the same as the
+       * number of rows, we are likely displaying all the data (could be more, but we don't know the total). */}
+      {totalRows === "too_many" && paginationState.pageSize === data.length && (
         <Banner className="mb-1 rounded">
           Previewing the first {paginationState.pageSize} rows.
         </Banner>

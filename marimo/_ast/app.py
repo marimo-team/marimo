@@ -8,7 +8,7 @@ import inspect
 import sys
 import threading
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
 from typing import (
@@ -24,6 +24,7 @@ from typing import (
 )
 from uuid import uuid4
 
+from marimo._ast.app_config import _AppConfig
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -43,7 +44,6 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
-from marimo._config.config import SqlOutputType, WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -74,65 +74,6 @@ R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
 Cls: TypeAlias = type
 LOGGER = _loggers.marimo_logger()
-
-
-@dataclass
-class _AppConfig:
-    """Program-specific configuration.
-
-    Configuration for frontends or runtimes that is specific to
-    a single marimo program.
-    """
-
-    width: WidthType = "compact"
-
-    app_title: Optional[str] = None
-
-    # The file path of the layout file, relative to the app file.
-    layout_file: Optional[str] = None
-
-    # CSS file, relative to the app file
-    css_file: Optional[str] = None
-
-    # HTML head file, relative to the app file
-    html_head_file: Optional[str] = None
-
-    # Whether to automatically download the app as HTML and Markdown
-    auto_download: list[Literal["html", "markdown"]] = field(
-        default_factory=list
-    )
-
-    # The type of SQL output to display
-    sql_output: SqlOutputType = "auto"
-
-    # Experimental top-level cell support
-    _toplevel_fn: bool = False
-
-    @staticmethod
-    def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
-        config = _AppConfig()
-        for key in updates:
-            if hasattr(config, key):
-                config.__setattr__(key, updates[key])
-            else:
-                LOGGER.warning(
-                    f"Unrecognized key '{key}' in app config. Ignoring."
-                )
-        return config
-
-    def asdict(self) -> dict[str, Any]:
-        # Used for experimental hooks which start with _
-        return {
-            k: v for (k, v) in asdict(self).items() if not k.startswith("_")
-        }
-
-    def update(self, updates: dict[str, Any]) -> _AppConfig:
-        config_dict = asdict(self)
-        for key in updates:
-            if key in config_dict:
-                self.__setattr__(key, updates[key])
-
-        return self
 
 
 class _Namespace(Mapping[str, object]):

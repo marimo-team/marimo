@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 
 
 def test_app_config_default():

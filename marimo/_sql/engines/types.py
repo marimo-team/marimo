@@ -24,9 +24,9 @@ def register_engine(cls: type[SQLEngine]) -> type[SQLEngine]:
 
 @dataclass
 class InferenceConfig(ABC):
-    auto_discover_schemas: Union[bool | Literal["auto"]]
-    auto_discover_tables: Union[bool | Literal["auto"]]
-    auto_discover_columns: Union[bool | Literal["auto"]]
+    auto_discover_schemas: Union[bool, Literal["auto"]]
+    auto_discover_tables: Union[bool, Literal["auto"]]
+    auto_discover_columns: Union[bool, Literal["auto"]]
 
 
 def _validate_sql_output_format(sql_output: SqlOutputType) -> SqlOutputType:
@@ -48,13 +48,15 @@ class SQLEngine(ABC):
         if runtime_context_installed():
             try:
                 ctx = get_context()
-                return _validate_sql_output_format(ctx.app.config.sql_output)
+                return _validate_sql_output_format(ctx.app_config.sql_output)
             except ContextNotInitializedError:
                 return "auto"
         return "auto"
 
     @abstractmethod
-    def __init__(self, connection: Any, engine_name: str) -> None:
+    def __init__(
+        self, connection: Any, engine_name: Optional[str] = None
+    ) -> None:
         pass
 
     @property
