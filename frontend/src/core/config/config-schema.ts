@@ -34,10 +34,11 @@ const VALID_APP_WIDTHS = [
  * SQL output formats
  */
 const VALID_SQL_OUTPUT_FORMATS = [
+  "auto",
+  "native",
   "polars",
   "lazy-polars",
-  "native",
-  "auto",
+  "pandas",
 ] as const;
 
 export const UserConfigSchema = z
