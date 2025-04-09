@@ -57,7 +57,7 @@ def test_sanity(inc):
 
 @app.cell
 def collection_of_tests(inc, pytest):
-    @pytest.mark.parametrize("input, expected", [(3, 4), (4, 5)])
+    @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
     def test_answer(x, y):
         assert inc(x) == y, "These tests should pass."
 
@@ -71,7 +71,7 @@ prints
 
 ```pytest
 ============================= test session starts ==============================
-platform linux -- Python 3.11.10, pytest-8.3.4, pluggy-1.5.0
+platform linux -- Python 3.12.9, pytest-8.3.5, pluggy-1.5.0
 rootdir: /notebooks
 configfile: pyproject.toml
 collected 4 items
@@ -108,7 +108,5 @@ E        +  where 4 = <function inc>(3)
 test_notebook.py:17: AssertionError
 =========================== short test summary info ============================
 FAILED test_notebook.py::test_fails - AssertionError: This test fails
-assert 4 == 5
- +  where 4 = <function inc>(3)
-========================= 1 failed, 3 passed in 0.65s ==========================
+========================= 1 failed, 3 passed in 0.82s ==========================
 ```
