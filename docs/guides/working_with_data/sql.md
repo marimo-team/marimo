@@ -83,17 +83,17 @@ marimo supports different output types for SQL queries, which is particularly us
 
 The available options are:
 
-- `"native"`: Uses DuckDB's native lazy relation (recommended for best performance)
-- `"lazy-polars"`: Returns a lazy Polars DataFrame
-- `"pandas"`: Returns a Pandas DataFrame
-- `"polars"`: Returns an eager Polars DataFrame
-- `"auto"`: Automatically chooses based on installed packages (first tries `polars` then `pandas`)
+- `native`: Uses DuckDB's native lazy relation (recommended for best performance)
+- `lazypolars"`: Returns a lazy Polars DataFrame
+- `pandas`: Returns a Pandas DataFrame
+- `polars`: Returns an eager Polars DataFrame
+- `auto`: Automatically chooses based on installed packages (first tries `polars` then `pandas`)
 
-For best performance with large datasets, we recommend using `"native"` to avoid loading the entire result set into memory and to more easily chain SQL cells together. By default, only the first 10 rows are displayed in the UI to prevent memory issues.
+For best performance with large datasets, we recommend using `native` to avoid loading the entire result set into memory and to more easily chain SQL cells together. By default, only the first 10 rows are displayed in the UI to prevent memory issues.
 
 ??? note "Set a default"
 
-  The default output type is currently `"auto"`, but we recommend explicitly setting the output type to `"native"` for best performance with large datasets or `"polars"` if you need to work with the results in Python code. You can configure this in your application settings.
+  The default output type is currently `auto`, but we recommend explicitly setting the output type to `native` for best performance with large datasets or `polars` if you need to work with the results in Python code. You can configure this in your application settings.
 
 ## Reference a local dataframe
 
