@@ -363,6 +363,7 @@ class TestApp:
             "width": "full",
             "layout_file": None,
             "auto_download": [],
+            "sql_output": "auto",
         }
 
     @staticmethod
@@ -692,6 +693,7 @@ def test_app_config() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 
@@ -708,6 +710,7 @@ def test_app_config_extra_args_ignored() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 
