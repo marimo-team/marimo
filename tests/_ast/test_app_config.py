@@ -77,9 +77,9 @@ def test_app_config_update():
 
     # Test updating a single field
     updated_config = config.update({"app_title": "Updated App"})
-    assert updated_config.width == "compact"
+    assert updated_config.width == "full"
     assert updated_config.app_title == "Updated App"
-    assert updated_config.sql_output == "auto"
+    assert updated_config.sql_output == "lazy-polars"
 
 
 @pytest.mark.parametrize(
