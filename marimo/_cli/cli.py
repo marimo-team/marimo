@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import sys
@@ -576,12 +577,31 @@ def new(
         if maybe_path.is_file():
             prompt = maybe_path.read_text()
 
+        temp_file = None
         try:
             notebook_content = text_to_notebook(prompt)
-            temp_file = tempfile.NamedTemporaryFile(suffix=".py")
-            Path(temp_file.name).write_text(notebook_content, encoding="utf-8")
+            # On Windows, NamedTemporaryFile cannot be reopened unless
+            # delete=False.
+            with tempfile.NamedTemporaryFile(
+                suffix=".py", mode="w", encoding="utf-8", delete=False
+            ) as temp_file:
+                temp_file.write(notebook_content)
             file_router = AppFileRouter.infer(temp_file.name)
+
+            def _cleanup() -> None:
+                try:
+                    os.unlink(temp_file.name)
+                except Exception:
+                    pass
+
+            atexit.register(_cleanup)
         except Exception as e:
+            if temp_file is not None:
+                try:
+                    os.unlink(temp_file.name)
+                except Exception:
+                    pass
+
             raise click.ClickException(
                 f"Failed to generate notebook: {str(e)}"
             ) from e
