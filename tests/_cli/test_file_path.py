@@ -10,11 +10,13 @@ import click
 import pytest
 
 from marimo._cli.file_path import (
+    DataFileReader,
     FileContentReader,
     GenericURLReader,
     GitHubIssueReader,
     GitHubSourceReader,
     LocalFileReader,
+    SQLFileReader,
     StaticNotebookReader,
     is_github_src,
     validate_name,
@@ -197,7 +199,10 @@ def test_file_content_reader() -> None:
             "url.py",
         )
 
-    with pytest.raises((FileNotFoundError, OSError)):
+
+def test_file_content_reader_no_matching_reader():
+    reader = FileContentReader()
+    with pytest.raises(click.ClickException):
         reader.read_file("invalid://example.com")
 
 
@@ -292,6 +297,26 @@ def test_static_notebook_reader_url_formats():
             assert filename == "test.py"
 
 
+def test_static_notebook_reader_edge_cases():
+    reader = StaticNotebookReader()
+
+    # Test with malformed HTML
+    with patch.object(
+        StaticNotebookReader, "_is_static_marimo_notebook_url"
+    ) as mock_is_static:
+        mock_is_static.return_value = (True, "<marimo-code>incomplete")
+        with pytest.raises(IndexError):
+            reader.read("https://static.marimo.app/example")
+
+    # Test with missing filename
+    with patch.object(
+        StaticNotebookReader, "_is_static_marimo_notebook_url"
+    ) as mock_is_static:
+        mock_is_static.return_value = (True, "<marimo-code>code</marimo-code>")
+        with pytest.raises(IndexError):
+            reader.read("https://static.marimo.app/example")
+
+
 def test_github_issue_reader_nonexistent_issue():
     reader = GitHubIssueReader()
     url = "https://github.com/marimo-team/marimo/issues/999999"  # noqa: E501
@@ -364,3 +389,54 @@ def test_validate_name_with_relative_and_absolute_paths():
     finally:
         Path.unlink(rel_file)
         Path.unlink(abs_file)
+
+
+def test_data_file_reader(tmp_path: Path):
+    reader = DataFileReader()
+    extensions = [".csv", ".parquet", ".json", ".jsonl"]
+    for ext in extensions:
+        file_path = tmp_path / f"data{ext}"
+        file_path.touch()
+
+    # Test can_read method
+    for ext in extensions:
+        assert reader.can_read(f"data{ext}") is True
+    assert reader.can_read("data.txt") is False
+    assert reader.can_read("https://example.com/data.csv") is False
+
+    # Test read method with CSV
+    content, filename = reader.read(str(tmp_path / "data.csv"))
+    assert "df = pl.scan_csv" in content
+
+    # Test read method with Parquet
+    content, filename = reader.read(str(tmp_path / "data.parquet"))
+    assert "df = pl.scan_parquet" in content
+
+    for ext in extensions:
+        content, filename = reader.read(str(tmp_path / f"data{ext}"))
+        assert filename == "data_data.py"
+        assert "import polars as pl" in content
+
+
+def test_sql_file_reader(tmp_path: Path):
+    reader = SQLFileReader()
+    db_types = [".sql", ".sqlite", ".db", ".sqlite3"]
+    for ext in db_types:
+        file_path = tmp_path / f"database{ext}"
+        file_path.touch()
+
+    # Test can_read method
+    for ext in db_types:
+        assert reader.can_read(str(tmp_path / f"database{ext}")) is True
+
+    assert reader.can_read("database.txt") is False
+    assert reader.can_read("https://example.com/database.sql") is False
+
+    # Test read method with database types
+    reader = SQLFileReader()
+
+    for db_type in db_types:
+        content, filename = reader.read(str(tmp_path / f"database{db_type}"))
+        assert filename == "sql_database.py"
+        assert "import marimo as mo" in content
+        assert "ATTACH" in content
