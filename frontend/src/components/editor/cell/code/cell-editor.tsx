@@ -37,6 +37,7 @@ import { WebSocketState } from "@/core/websocket/types";
 import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
 import { store } from "@/core/state/jotai";
 import { useDeleteCellCallback } from "../useDeleteCell";
+import { useSaveNotebook } from "@/core/saving/save-component";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -93,6 +94,7 @@ const CellEditorInternal = ({
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const setLastFocusedCellId = useSetLastFocusedCellId();
   const deleteCell = useDeleteCellCallback();
+  const { saveOrNameNotebook } = useSaveNotebook();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -136,6 +138,7 @@ const CellEditorInternal = ({
         afterToggleMarkdown,
         onRun: runCell,
         deleteCell: handleDelete,
+        saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
           for (const code of [...cells].reverse()) {
             cellActions.createNewCell({
@@ -220,6 +223,7 @@ const CellEditorInternal = ({
     afterToggleMarkdown,
     setLanguageAdapter,
     temporarilyShowCode,
+    saveOrNameNotebook,
   ]);
 
   const handleInitializeEditor = useEvent(() => {
