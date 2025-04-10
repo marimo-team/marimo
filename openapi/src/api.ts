@@ -2943,6 +2943,7 @@ export interface components {
         };
         /** @enum {string} */
         preset: "default" | "vim";
+        vimrc?: string | null;
       };
       language_servers?: {
         pylsp?: {

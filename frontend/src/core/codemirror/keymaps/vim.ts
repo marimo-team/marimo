@@ -19,9 +19,13 @@ import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import { once } from "@/utils/once";
 import { onIdle } from "@/utils/idle";
 import { cellActionsState, cellIdState } from "../cells/state";
+import { sendFileDetails } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 
 export function vimKeymapExtension(): Extension[] {
   addCustomVimCommandsOnce();
+  loadVimrcOnce();
 
   return [
     keymap.of([
@@ -108,6 +112,85 @@ const addCustomVimCommandsOnce = once(() => {
       actions.saveNotebook();
     }
   });
+});
+
+interface VimrcMapping {
+  key: string;
+  action: string;
+  context: "normal" | "insert";
+}
+
+/**
+ * Parses a vimrc file into a list of mappings
+ *
+ * @param content - The content of the vimrc file
+ * @returns A list of mappings
+ */
+export function parseVimrc(content: string): VimrcMapping[] {
+  const mappings: VimrcMapping[] = [];
+  const lines = content.split("\n");
+
+  for (const line of lines) {
+    // Skip comments and empty lines
+    if (line.startsWith('"') || line.trim() === "") {
+      continue;
+    }
+
+    // Handle key mappings
+    if (
+      line.startsWith("map") ||
+      line.startsWith("nmap") ||
+      line.startsWith("imap")
+    ) {
+      const [, key, action] = line.split(/\s+/);
+      if (!key || !action) {
+        continue;
+      }
+
+      // Remove quotes if present
+      const cleanKey = key.replaceAll(/["']/g, "");
+      const cleanAction = action.replaceAll(/["']/g, "");
+
+      mappings.push({
+        key: cleanKey,
+        action: cleanAction,
+        context: line.startsWith("imap") ? "insert" : "normal",
+      });
+    }
+  }
+
+  return mappings;
+}
+
+const loadVimrcOnce = once(async () => {
+  const config = store.get(resolvedMarimoConfigAtom);
+  const vimrc = config.keymap?.vimrc;
+  if (!vimrc) {
+    return;
+  }
+
+  try {
+    Logger.log(`Loading vimrc from ${vimrc}`);
+    const response = await sendFileDetails({ path: vimrc });
+    const content = response.contents;
+    if (!content) {
+      Logger.error(`Failed to load vimrc from ${vimrc}`);
+      return;
+    }
+
+    const mappings = parseVimrc(content);
+    for (const mapping of mappings) {
+      Vim.mapCommand(
+        mapping.key,
+        "action",
+        mapping.action,
+        {},
+        { context: mapping.context },
+      );
+    }
+  } catch (error) {
+    Logger.error("Failed to load vimrc:", error);
+  }
 });
 
 class CodeMirrorVimSync {
