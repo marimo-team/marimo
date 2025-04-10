@@ -13,6 +13,7 @@ __all__ = [
     "chat",
     "checkbox",
     "code_editor",
+    "data_editor",
     "data_explorer",
     "dataframe",
     "date_range",
@@ -46,7 +47,8 @@ from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
 from marimo._plugins.ui._impl.chat.chat import chat
 from marimo._plugins.ui._impl.data_editor import (
-    data_editor as experimental_data_editor,
+    data_editor,
+    experimental_data_editor,
 )
 from marimo._plugins.ui._impl.data_explorer import data_explorer
 from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
