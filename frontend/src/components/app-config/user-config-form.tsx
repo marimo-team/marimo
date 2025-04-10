@@ -42,8 +42,8 @@ import {
   BrainIcon,
   FlaskConicalIcon,
   FolderCog2,
-  ExternalLink,
 } from "lucide-react";
+import { ExternalLink } from "../ui/links";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
