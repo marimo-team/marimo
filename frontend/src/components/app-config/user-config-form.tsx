@@ -938,9 +938,9 @@ export const UserConfigForm: React.FC = () => {
                   <FormMessage />
                   <FormDescription>
                     Enable reactive pytest tests in notebook. When a cell
-                    contains only test functions (test_*) and classes (Test_*), marimo will
-                    automatically run them with pytest (requires notebook
-                    restart).
+                    contains only test functions (test_*) and classes (Test_*),
+                    marimo will automatically run them with pytest (requires
+                    notebook restart).
                   </FormDescription>{" "}
                 </div>
               )}
