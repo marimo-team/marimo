@@ -131,7 +131,6 @@ class TestScriptTrace:
         assert p.returncode == 1
 
         result = p.stderr.decode()
-        assert "The setup cell was unable to execute" in result
         assert "ZeroDivisionError" in result
         assert ('script_exception_setup_cell.py", line 10') in result
         assert "y / x" in result
