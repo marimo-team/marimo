@@ -27,8 +27,9 @@ if TYPE_CHECKING:
     from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
 
 
-PANDAS_REQUIRED_MSG = (
-    "Pandas is required to convert Clickhouse results to a DataFrame"
+WHY_PANDAS_REQUIRED = (
+    "required to convert Clickhouse results to a DataFrame. "
+    "You may opt to choose Native output instead."
 )
 
 
@@ -55,7 +56,7 @@ class ClickhouseEmbedded(SQLEngine):
 
     def execute(self, query: str) -> Any:
         # chdb currently only supports pandas
-        DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
+        DependencyManager.pandas.require(WHY_PANDAS_REQUIRED)
 
         import chdb  # type: ignore
         import pandas as pd
@@ -179,7 +180,7 @@ class ClickhouseServer(SQLEngine):
             )
 
         # clickhouse connect supports pandas and arrow format
-        DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
+        DependencyManager.pandas.require(WHY_PANDAS_REQUIRED)
 
         import pandas as pd
 
