@@ -92,27 +92,27 @@ NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
 
 | Command        | Category  | Description                                                    |
 | -------------- | --------- | -------------------------------------------------------------- |
-| `help`         | General   | Show this help                                                 |
-| `py`           | Setup     | Editable python install; only need to run once                 |
-| `install-all`  | Setup     | Install everything; takes a long time due to editable install  |
-| `fe`           | Build     | Package frontend into `marimo/`                                |
-| `fe-codegen`   | Build     | Build [api specification](./development_docs/openapi.md)       |
-| `wheel`        | Build     | Build wheel                                                    |
-| `check`        | Test      | Run all checks                                                 |
-| `check-test`   | Test      | Run all checks and tests                                       |
-| `test`         | Test      | Run all tests                                                  |
-| `fe-check`     | Lint/Test | Check frontend                                                 |
-| `fe-test`      | Test      | Test frontend                                                  |
-| `e2e`          | Test      | Test end-to-end                                                |
-| `fe-lint`      | Lint      | Lint frontend                                                  |
-| `fe-typecheck` | Lint      | Typecheck frontend                                             |
-| `py-check`     | Lint      | Check python                                                   |
-| `py-test`      | Test      | Test python                                                    |
-| `py-snapshots` | Test      | Update HTML snapshots                                          |
-| `storybook`    | Docs      | Run Storybook                                                  |
-| `docs`         | Docs      | Build docs. Use `make ARGS="-a" docs` to force docs to rebuild |
-| `docs-serve`   | Docs      | Serve docs                                                     |
-| `docs-clean`   | Docs      | Remove built docs                                              |
+| `help`         | General   | 📖 Show available commands                                     |
+| `install-all`  | Setup     | 🚀 First-time setup: Install all dependencies (frontend & Python) |
+| `check-prereqs`| Setup     | ✓ Check if all required tools are installed                    |
+| `py`           | Setup     | 🐍 Install Python dependencies in editable mode                |
+| `fe`           | Build     | 🔧 Build frontend assets                                       |
+| `test`         | Test      | 🧪 Run all tests (frontend, Python, end-to-end)                |
+| `check`        | Test      | 🧹 Run all checks                                              |
+| `fe-check`     | Lint/Test | 🧹 Check frontend (lint, typecheck)                            |
+| `fe-test`      | Test      | 🧪 Test frontend                                               |
+| `e2e`          | Test      | 🧪 Test end-to-end                                             |
+| `fe-lint`      | Lint      | 🧹 Lint frontend                                               |
+| `fe-typecheck` | Lint      | 🔍 Typecheck frontend                                          |
+| `fe-codegen`   | Build     | 🔄 Generate frontend API                                       |
+| `py-check`     | Lint      | 🔍 Typecheck, lint, format python                              |
+| `typos`        | Lint      | 🔍 Check for typos                                             |
+| `py-test`      | Test      | 🧪 Test python                                                 |
+| `py-snapshots` | Test      | 📸 Update snapshots                                            |
+| `wheel`        | Build     | 📦 Build wheel                                                 |
+| `docs`         | Docs      | 📚 Build docs                                                  |
+| `docs-serve`   | Docs      | 📚 Serve docs                                                  |
+| `storybook`    | Docs      | 🧩 Start Storybook for UI development                          |
 
 ## Lint, Typecheck, Format
 
