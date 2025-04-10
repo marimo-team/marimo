@@ -1466,6 +1466,9 @@ components:
               - default
               - vim
               type: string
+            vimrc:
+              nullable: true
+              type: string
           required:
           - preset
           type: object
@@ -2503,7 +2506,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.7
+  version: 0.12.8
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
