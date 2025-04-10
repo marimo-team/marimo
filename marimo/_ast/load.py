@@ -111,9 +111,9 @@ def load_app(filename: Optional[str]) -> Optional[App]:
         # fallback for now.
         _app = _dynamic_load(filename)
         LOGGER.warning(
-            "The new notebook loading mechanism failed. "
-            "Falling back to dynamic loading. "
-            "If you can, please report this issue to the marimo team-"
-            " https://github.com/marimo-team/marimo/issues/new/choose"
+            "Static loading of notebook failed; "
+            "falling back to dynamic loading. "
+            "If you can, please report this issue to the marimo team — "
+            "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
         )
         return _app
