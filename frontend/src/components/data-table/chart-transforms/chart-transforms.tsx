@@ -203,10 +203,10 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   };
 
   return (
-    <Tabs value={selectedTab} ref={containerRef}>
+    <Tabs value={selectedTab} ref={containerRef} className="-mt-2">
       <TabsList>
         <TabsTrigger
-          className="text-xs py-1"
+          className="text-xs"
           value={DEFAULT_TAB_NAME}
           onClick={() => setSelectedTab(DEFAULT_TAB_NAME)}
         >
@@ -216,7 +216,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         {tabs.map((tab, idx) => (
           <TabsTrigger
             key={idx}
-            className="text-xs py-1"
+            className="text-xs"
             value={tab.tabName}
             onClick={() => setSelectedTab(tab.tabName)}
           >
