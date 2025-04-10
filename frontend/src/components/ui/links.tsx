@@ -4,6 +4,10 @@ export const ExternalLink = ({
   children,
 }: {
   href:
+    | `https://platform.openai.com/${string}`
+    | `https://console.anthropic.com/${string}`
+    | `https://aistudio.google.com/${string}`
+    | `https://github.com/${string}`
     | `https://docs.marimo.io/${string}`
     | `https://docs.python.org/${string}`
     | `https://marimo.io/${string}`

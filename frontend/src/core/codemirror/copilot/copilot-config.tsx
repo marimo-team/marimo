@@ -262,10 +262,7 @@ export const CopilotConfig = memo(() => {
             </Label>
             <div className="text-sm">
               For troubleshooting, see the{" "}
-              <ExternalLink
-                href="https://docs.marimo.io/getting_started/index.html#github-copilot"
-                target="_blank"
-              >
+              <ExternalLink href="https://docs.marimo.io/getting_started/index.html#github-copilot">
                 docs
               </ExternalLink>
               .
