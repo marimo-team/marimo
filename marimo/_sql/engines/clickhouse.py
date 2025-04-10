@@ -80,6 +80,7 @@ class ClickhouseEmbedded(SQLEngine):
 
         # Handle connectionless execution
         # Although this connection method isn't exposed to the user, it's still good to handle
+        # Maybe we want to move all queries to connectionless execution, but the API is still evolving
         try:
             if sql_output_format == "native":
                 return chdb.query(query, output_format="Native")
