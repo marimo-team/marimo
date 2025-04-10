@@ -120,3 +120,7 @@ marimo/_lsp/
 .mypy_cache/
 __marimo__
 .aider*
+
+# pixi environments
+.pixi
+*.egg-info
