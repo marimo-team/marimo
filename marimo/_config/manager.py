@@ -185,6 +185,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
+            project_config = self._resolve_vimrc(project_config)
         except Exception as e:
             LOGGER.warning("Failed to read project config: %s", e)
             return {}
@@ -262,6 +263,27 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         return {
             **config,
             "display": {**display, "custom_css": resolved_custom_css},
+        }
+
+    def _resolve_vimrc(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        if self.pyproject_path is None:
+            return config
+
+        if "keymap" not in config:
+            return config
+
+        keymap = config["keymap"]
+        vimrc = keymap.get("vimrc")
+
+        if not isinstance(vimrc, str):
+            return config
+
+        resolved_vimrc = str((self.pyproject_path.parent / vimrc).absolute())
+        return {
+            **config,
+            "keymap": {**keymap, "vimrc": resolved_vimrc},
         }
 
 
