@@ -324,17 +324,13 @@ def _broadcast_outputs(
         # don't clear console because this cell was running and
         # its console outputs are not stale
         exception_type = type(run_result.exception).__name__
+        msg = str(run_result.exception)
+        if not msg:
+            msg = f"This cell raised an exception: {exception_type}"
         CellOp.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
-                    msg="This cell raised an exception: {}{}".format(
-                        exception_type,
-                        (
-                            f"('{str(run_result.exception)}')"
-                            if str(run_result.exception)
-                            else ""
-                        ),
-                    ),
+                    msg=msg,
                     exception_type=exception_type,
                     raising_cell=None,
                 )

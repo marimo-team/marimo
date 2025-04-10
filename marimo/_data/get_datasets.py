@@ -233,6 +233,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "time"
     if db_type in [
         "timestamp",
+        "timestamp_ns",
         "timestamp with time zone",
         "timestamptz",
         "datetime",
