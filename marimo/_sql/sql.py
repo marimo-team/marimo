@@ -117,6 +117,8 @@ def sql(
             # Also preload the first page of data without user confirmation.
             t = table.table.lazy(df, preload=True)
         else:
+            # df may be a cursor result from an SQL Engine
+            # In this case, we need to convert it to a DataFrame
             t = table.table(
                 df,
                 selection=None,
