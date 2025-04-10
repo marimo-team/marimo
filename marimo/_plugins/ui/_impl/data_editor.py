@@ -25,6 +25,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.validators import validate_page_size
+from marimo._utils.deprecated import deprecated
 
 LOGGER = _loggers.marimo_logger()
 
@@ -71,6 +72,16 @@ RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 
 
+@deprecated(
+    "mo.ui.experimental_data_editor is deprecated. Use mo.ui.data_editor instead"
+)
+def experimental_data_editor(
+    *args: Any,
+    **kwargs: Any,
+) -> data_editor:
+    return data_editor(*args, **kwargs)
+
+
 @mddoc
 class data_editor(
     UIElement[
@@ -96,21 +107,21 @@ class data_editor(
         import pandas as pd
 
         df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-        editor = mo.ui.experimental_data_editor(data=df, label="Edit Data")
+        editor = mo.ui.data_editor(data=df, label="Edit Data")
         ```
 
         Create a data editor from a list of dicts:
 
         ```python
         data = [{"A": 1, "B": "a"}, {"A": 2, "B": "a"}, {"A": 3, "B": "c"}]
-        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
         Create a data editor from a dict of lists:
 
         ```python
         data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
-        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
     Attributes:

@@ -14,7 +14,7 @@ from marimo._plugins.ui._impl.data_editor import (
     apply_edits,
 )
 
-data_editor = ui.experimental_data_editor
+data_editor = ui.data_editor
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()

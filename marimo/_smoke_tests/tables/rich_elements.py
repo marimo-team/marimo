@@ -208,7 +208,7 @@ def _(mo, pd, pl):
 
 @app.cell
 def _(data, mo):
-    mo.ui.experimental_data_editor(data=data, label="Edit Data")
+    mo.ui.data_editor(data=data, label="Edit Data")
     return
 
 

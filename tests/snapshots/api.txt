@@ -85,6 +85,7 @@ ui
   chat
   checkbox
   code_editor
+  data_editor
   data_explorer
   dataframe
   date
