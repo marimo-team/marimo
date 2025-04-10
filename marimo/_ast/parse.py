@@ -6,7 +6,15 @@ import io
 import token as token_types
 from textwrap import dedent
 from tokenize import TokenInfo, tokenize
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
@@ -22,7 +30,7 @@ from marimo._schemas.serialization import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
+    from collections.abc import Iterator
 
     from typing_extensions import TypeAlias
 
@@ -32,35 +40,17 @@ CellNode: TypeAlias = Union[FnNode, ast.ClassDef]
 Node: TypeAlias = Union[ast.stmt, ast.expr]
 
 
+V = TypeVar("V")
+U = TypeVar("U")
+
+
 class MarimoFileError(Exception):
     pass
 
 
-def get_valid_decorator(
-    node: CellNode,
-) -> Optional[Union[ast.Attribute, ast.Call]]:
-    valid_decorators = (
-        "cell",
-        "function",
-        "class_definition",
-    )
-    for decorator in node.decorator_list:
-        if (
-            isinstance(decorator, ast.Call)
-            and decorator.func.attr in valid_decorators  # type: ignore
-        ) or (
-            isinstance(decorator, ast.Attribute)
-            and decorator.attr in valid_decorators
-        ):
-            return decorator
-    return None
-
-
-def _none_to_0(n: Optional[int]) -> int:
-    return n if n is not None else 0
-
-
 class Extractor:
+    """Helper to extract AST nodes to schema/serialization ir."""
+
     def __init__(
         self, filename: Optional[str] = None, contents: Optional[str] = None
     ):
@@ -137,55 +127,53 @@ class Extractor:
 
         end_lineno = _none_to_0(node.end_lineno)
         end_col_offset = node.end_col_offset
-        if len(node.body) > 0:
-            if node.lineno - node.body[0].lineno == 0:
-                # Quirk where the ellipse token seems to have a line index at
-                # the end of the dots ...<
-                if isinstance(
-                    getattr(node.body[0], "value", None), ast.Ellipsis
-                ):
-                    col_offset += node.body[0].col_offset - 3
-                else:
-                    col_offset += node.body[0].col_offset - 1
+        assert len(node.body) > 0
+        if node.lineno - node.body[0].lineno == 0:
+            # Quirk where the ellipse token seems to have a line index at
+            # the end of the dots ...<
+            if isinstance(getattr(node.body[0], "value", None), ast.Ellipsis):
+                col_offset += node.body[0].col_offset - 3
             else:
-                col_offset = 0
+                col_offset += node.body[0].col_offset - 1
+        else:
+            col_offset = 0
 
-            has_return = isinstance(node.body[-1], ast.Return)
-            single_line = node.lineno - node.body[-1].lineno == 0
-            if has_return:
-                # we need to adjust for the trailing return statement
-                # which is not included in the function body
-                if len(node.body) > 1:
-                    end_lineno = max(
-                        _none_to_0(node.body[-2].end_lineno),
-                        node.body[-1].lineno - 1,
+        has_return = isinstance(node.body[-1], ast.Return)
+        single_line = node.lineno - node.body[-1].lineno == 0
+        if has_return:
+            # we need to adjust for the trailing return statement
+            # which is not included in the function body
+            if len(node.body) > 1:
+                end_lineno = max(
+                    _none_to_0(node.body[-2].end_lineno),
+                    node.body[-1].lineno - 1,
+                )
+                end_col_offset = len(self.lines[end_lineno - 1]) + 1
+                if node.body[-1].end_lineno == end_lineno:
+                    end_lineno = node.body[-1].lineno
+                    end_col_offset = node.body[-1].col_offset
+
+            # We're in the case where we have something like
+            # @app.cell
+            # def foo():
+            #   # Just comments
+            #   return
+            else:
+                # If we are on the same line as the return statement,
+                # just return a blank cell.
+                if node.lineno + lineno - node.body[0].lineno == 0:
+                    return CellDef(
+                        code="",
+                        options=kwargs,
+                        lineno=node.lineno + lineno,
+                        col_offset=node.col_offset + col_offset,
+                        end_lineno=node.lineno + lineno,
+                        end_col_offset=len(self.lines[-1]),
+                        name=getattr(node, "name", DEFAULT_CELL_NAME),
                     )
-                    end_col_offset = len(self.lines[end_lineno - 1]) + 1
-                    if node.body[-1].end_lineno == end_lineno:
-                        end_lineno = node.body[-1].lineno
-                        end_col_offset = node.body[-1].col_offset
-
-                # We're in the case where we have something like
-                # @app.cell
-                # def foo():
-                #   # Just comments
-                #   return
                 else:
-                    # If we are on the same line as the return statement,
-                    # just return a blank cell.
-                    if node.lineno + lineno - node.body[0].lineno == 0:
-                        return CellDef(
-                            code="",
-                            options=kwargs,
-                            lineno=node.lineno + lineno,
-                            col_offset=node.col_offset + col_offset,
-                            end_lineno=node.lineno + lineno,
-                            end_col_offset=len(self.lines[-1]),
-                            name=getattr(node, "name", DEFAULT_CELL_NAME),
-                        )
-                    else:
-                        end_lineno = node.body[-1].lineno - 1
-                        end_col_offset = None
+                    end_lineno = node.body[-1].lineno - 1
+                    end_col_offset = None
         cell_code = self.extract_from_offsets(
             lineno=node.lineno + lineno - 1,
             col_offset=col_offset,
@@ -193,7 +181,7 @@ class Extractor:
             end_col_offset=end_col_offset,
         )
 
-        # TODO: Feels pretty hacky, would love if someone had a suggestion for this
+        # NB: Feels pretty hacky, would love if someone had a suggestion for this
         # But the only other better way (I can see) is to drop down to the
         # toeknizer lever and handle it there + handle particular edge
         # cases.
@@ -232,6 +220,22 @@ class Extractor:
             end_lineno=_none_to_0(node.end_lineno) + end_lineno,
             end_col_offset=_none_to_0(node.end_col_offset) + end_col_offset,
             name=getattr(node, "name", DEFAULT_CELL_NAME),
+        )
+
+    def to_setup_cell(self, node: Node) -> SetupCell:
+        kwargs, _violations = _maybe_kwargs(node.items[0].context_expr)  # type: ignore
+        code = self.extract_from_code(node)
+        code = dedent(code)
+        if code.endswith("\npass"):
+            code = code[: -len("\npass")]
+        return SetupCell(
+            code=code,
+            options=kwargs,
+            lineno=node.lineno,
+            col_offset=node.col_offset,
+            end_lineno=max(node.lineno, _none_to_0(node.end_lineno)),
+            end_col_offset=_none_to_0(node.end_col_offset),
+            name=SETUP_CELL_NAME,
         )
 
     def to_cell(self, node: Node, attribute: Optional[str] = None) -> CellDef:
@@ -279,21 +283,6 @@ class Extractor:
                 options=kwargs,
                 _ast=node,
             )
-        elif is_setup_cell(node):
-            kwargs, _violations = _maybe_kwargs(node.items[0].context_expr)  # type: ignore
-            code = self.extract_from_code(node)
-            code = dedent(code)
-            if code.endswith("\npass"):
-                code = code[: -len("\npass")]
-            return SetupCell(
-                code=code,
-                options=kwargs,
-                lineno=node.lineno,
-                col_offset=node.col_offset,
-                end_lineno=max(node.lineno, _none_to_0(node.end_lineno)),
-                end_col_offset=_none_to_0(node.end_col_offset),
-                name=SETUP_CELL_NAME,
-            )
 
         raise MarimoFileError(
             "Unexpected node type for cell extraction. "
@@ -303,80 +292,216 @@ class Extractor:
         )
 
 
-def extract_offsets_post_colon(
-    function_code: str, block_start: str = "def"
-) -> tuple[int, int]:
-    # tokenize to find the start of the function body, including
-    # comments --- we have to use tokenize because the ast treats the first
-    # line of code as the starting line of the function body, whereas we
-    # want the first indented line after the signature
-    tokens: Generator[TokenInfo, TokenInfo, None] = _peek_stack(
-        tokenize(io.BytesIO(function_code.encode("utf-8")).readline)
-    )
+class ParseResult(Generic[V]):
+    """Helper class to bundle "violations" and results"""
 
-    def_node: Optional[TokenInfo] = None
-    while token := next(tokens):
-        if token.type == token_types.NAME and token.string == block_start:
-            def_node = token
-            break
-    assert def_node is not None
+    __slots__ = ("_value", "_violations")
 
-    paren_counter: Optional[int] = None
-    while token := next(tokens):
-        if token.type == token_types.OP and token.string == "(":
-            paren_counter = 1 if paren_counter is None else paren_counter + 1
-        elif token.type == token_types.OP and token.string == ")":
-            assert paren_counter is not None
-            paren_counter -= 1
+    def __init__(
+        self,
+        value: V | None = None,
+        violations: list[Violation] | None = None,
+    ) -> None:
+        self._value = value
+        self._violations = []
+        if violations is not None:
+            self._violations = violations
 
-        # NB. Paren counter is initially _None_
-        # So this doesn't activate until we see the first paren.
-        if paren_counter == 0:
-            break
-        elif paren_counter is None:
-            # In the setup block case, parens are not bound to be present.
-            if token.type == token_types.OP and token.string == ":":
-                # Put the colon back on the stack
-                tokens.send(token)
-                paren_counter = 0
+    @property
+    def violations(self) -> list[Violation]:
+        return self._violations
+
+    def __bool__(self) -> bool:
+        return self._value is not None
+
+    def unwrap(self) -> V:
+        return cast(V, self._value)
+
+
+class Parser:
+    """
+    Parser scrubs through tokens given a file to extract relevant parts of
+    the notebook.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        self.extractor = Extractor(*args, **kwargs)
+
+    def node_stack(self) -> PeekStack[Node]:
+        return PeekStack(iter(ast.parse(self.extractor.contents or "").body))
+
+    def parse_header(self, body: PeekStack[Node]) -> ParseResult[Header]:
+        # header? = (docstring | comments)*
+        while node := next(body):
+            # Just string, comments are stripped
+            if not is_string(node):
                 break
 
-    assert paren_counter == 0
+        if not node:
+            end_lineno = len(self.extractor.lines) - 1
+            end_col_offset = len(self.extractor.lines[-1])
+            return ParseResult(
+                Header(
+                    lineno=0,
+                    col_offset=0,
+                    end_lineno=end_lineno,
+                    end_col_offset=end_col_offset,
+                    value=self.extractor.extract_from_offsets(
+                        0, 0, end_lineno, end_col_offset
+                    ),
+                )
+            )
 
-    while token := next(tokens):
-        if token.type == token_types.OP and token.string == ":":
-            break
+        return ParseResult(
+            Header(
+                lineno=0,
+                col_offset=0,
+                end_lineno=node.lineno - 1,
+                end_col_offset=node.col_offset,
+                value=self.extractor.extract_from_offsets(
+                    0, 0, node.lineno - 1, node.col_offset
+                ),
+            )
+        )
 
-    after_colon = next(tokens)
-    start_line: int
-    start_col: int
-    if after_colon.type == token_types.NEWLINE:
-        fn_body_token = next(tokens)
-        start_line = fn_body_token.start[0] - 1
-        start_col = 0
-    elif after_colon.type == token_types.COMMENT:
-        newline_token = next(tokens)
-        assert newline_token.type == token_types.NEWLINE
-        fn_body_token = next(tokens)
-        start_line = fn_body_token.start[0] - 1
-        start_col = 0
-    else:
-        # function body starts on same line as definition, such as in
-        # the following examples:
-        #
-        # def foo(): pass
-        #
-        # def foo(): x = 0; return x
-        #
-        # def foo(): x = """
-        #
-        # """; return x
-        fn_body_token = after_colon
-        start_line = fn_body_token.start[0] - 1
-        start_col = fn_body_token.start[1]
+    def parse_import(self, body: PeekStack[Node]) -> ParseResult[Node]:
+        # app = import marimo + __generated_with + App(kwargs*)
+        violations: list[Violation] = []
 
-    col_offset = fn_body_token.end[1] - start_col
-    return start_line, col_offset
+        # Attempt to find import statement
+        node = body.last
+        while node:
+            if is_marimo_import(node):
+                return ParseResult(node, violations=violations)
+            violations.append(
+                Violation(
+                    "Unexpected statement (expected marimo import)",
+                    lineno=node.lineno,
+                )
+            )
+            node = next(body)
+        return ParseResult(violations=violations)
+
+    def parse_version(self, body: PeekStack[Node]) -> ParseResult[str]:
+        # __generated_with not being correctly set should not break marimo.
+        violations: list[Violation] = []
+        node = body.peek()
+        version = _maybe_version(node) if node else None
+        if not version:
+            lineno = node.lineno if node else 0
+            violations.append(
+                Violation(
+                    "Expected `__generated_with` assignment for marimo version number.",
+                    lineno=lineno,
+                )
+            )
+        else:
+            # dequeue since version was consumed
+            next(body)
+        return ParseResult(version, violations=violations)
+
+    def parse_app(
+        self, body: PeekStack[Node]
+    ) -> ParseResult[AppInstantiation]:
+        # app = import marimo + __generated_with + App(kwargs*)
+        violations: list[Violation] = []
+        node = body.last
+        while node:
+            if is_app_def(node):
+                # type caught by is_app_def
+                _kwargs, _violations = _eval_kwargs(node.value.keywords)  # type: ignore
+                violations.extend(_violations)
+                return ParseResult(
+                    AppInstantiation(
+                        options=_kwargs,
+                    )
+                )
+            violations.append(
+                Violation(
+                    "Unexpected statement, expected App initialization.",
+                    node.lineno,
+                )
+            )
+            node = next(body)
+
+        return ParseResult(violations=violations)
+
+    def parse_setup(self, body: PeekStack[Node]) -> ParseResult[SetupCell]:
+        # setup? = Async?With(kwargs*, stmt*)
+        violations: list[Violation] = []
+        node = body.last
+        maybe_setup = node
+        while node:
+            if is_cell(maybe_setup := body.peek()):
+                break
+            node = next(body)
+            if not node:
+                return ParseResult(violations=violations)
+            violations.append(
+                Violation(
+                    "Unexpected statement, expected cell definitions.",
+                    node.lineno,
+                )
+            )
+
+        if maybe_setup and is_setup_cell(maybe_setup):
+            next(body)
+            return ParseResult(
+                self.extractor.to_setup_cell(maybe_setup),
+                violations=violations,
+            )
+        return ParseResult(violations=violations)
+
+    def parse_body(self, body: PeekStack[Node]) -> ParseResult[list[CellDef]]:
+        # Continue with remainder of body
+        cells = []
+        violations: list[Violation] = []
+
+        while node := next(body):
+            if is_body_cell(node):
+                cells.append(self.extractor.to_cell(node))
+            elif is_run_guard(node):
+                break
+            else:
+                violations.append(
+                    Violation(
+                        "Unexpected statement, expected body cell definition.",
+                        node.lineno,
+                    )
+                )
+        return ParseResult(
+            cells,
+            violations=violations,
+        )
+
+
+class PeekStack(Generic[U]):
+    """Builtins don't have a peek, which is useful here."""
+
+    def __init__(self, iterable: Iterator[U]):
+        self._iterable = iterable
+        self._next: Optional[U] = None
+        self.last: Optional[U] = None
+
+    def __next__(self) -> Optional[U]:
+        if self._next:
+            self.last = self._next
+            self._next = None
+        else:
+            try:
+                self.last = next(self._iterable)
+            except StopIteration:
+                self.last = None
+        return self.last
+
+    def peek(self) -> Optional[U]:
+        if self._next:
+            return self._next
+        try:
+            self._next = next(self._iterable)
+        except StopIteration:
+            self._next = None
+        return self._next
 
 
 def _maybe_kwargs(
@@ -390,11 +515,13 @@ def _maybe_kwargs(
 
 
 def _maybe_version(node: Node) -> Optional[str]:
-    # Assign(
-    #   targets=[
-    #     Name(id='__generated_with', ctx=Store())],
-    #   value=Constant(value=...)
-    # )
+    # Expected ast:
+    #
+    #    Assign(
+    #      targets=[
+    #        Name(id='__generated_with', ctx=Store())],
+    #      value=Constant(value=...)
+    #    )
     if (
         isinstance(node, ast.Assign)
         and len(node.targets) == 1
@@ -404,24 +531,6 @@ def _maybe_version(node: Node) -> Optional[str]:
     ):
         return str(node.value.value)
     return None
-
-
-def _peek_stack(iterable: Iterator[Any]) -> Generator[Any, Any, None]:
-    """
-    Wrapper to make a "peekable" generator.
-    To restack a value, use "send" to yield it back to the generator.
-    """
-    for item in iterable:
-        value = yield item
-        if value is not None:
-            for peeked in [value, item]:
-                response = yield peeked
-                if response is not None:
-                    raise ValueError("Cannot restack consecutive items")
-    while True:
-        value = yield None
-        if value is not None:
-            yield value
 
 
 def _eval_kwargs(
@@ -445,11 +554,119 @@ def _eval_kwargs(
     return kwargs, violations
 
 
-def is_marimo_import(node: ast.expr) -> bool:
+def _none_to_0(n: Optional[int]) -> int:
+    return n if n is not None else 0
+
+
+def extract_offsets_post_colon(
+    function_code: str, block_start: str = "def"
+) -> tuple[int, int]:
+    # tokenize to find the start of the function body, including
+    # comments --- we have to use tokenize because the ast treats the first
+    # line of code as the starting line of the function body, whereas we
+    # want the first indented line after the signature
+    tokens = PeekStack(
+        tokenize(io.BytesIO(function_code.encode("utf-8")).readline)
+    )
+
+    def_node: Optional[TokenInfo] = None
+    while token := next(tokens):
+        if token.type == token_types.NAME and token.string == block_start:
+            def_node = token
+            break
+    assert def_node is not None
+
+    paren_counter: Optional[int] = None
+    token = tokens.peek()
+    while token := next(tokens):
+        if token.type == token_types.OP and token.string == "(":
+            paren_counter = 1 if paren_counter is None else paren_counter + 1
+        elif token.type == token_types.OP and token.string == ")":
+            assert paren_counter is not None
+            paren_counter -= 1
+
+        # NB. Paren counter is initially _None_
+        # So this doesn't activate until we see the first paren.
+        if paren_counter == 0:
+            break
+        elif paren_counter is None:
+            # In the setup block case, parens are not bound to be present.
+            next_token = tokens.peek()
+            if (
+                next_token
+                and next_token.type == token_types.OP
+                and next_token.string == ":"
+            ):
+                paren_counter = 0
+                break
+
+    assert paren_counter == 0
+
+    while token := next(tokens):
+        if token.type == token_types.OP and token.string == ":":
+            break
+
+    after_colon = next(tokens)
+    assert after_colon
+    start_line: int
+    start_col: int
+    if after_colon.type == token_types.NEWLINE:
+        fn_body_token = next(tokens)
+        assert fn_body_token
+        start_line = fn_body_token.start[0] - 1
+        start_col = 0
+    elif after_colon.type == token_types.COMMENT:
+        newline_token = next(tokens)
+        assert newline_token
+        assert newline_token.type == token_types.NEWLINE
+        fn_body_token = next(tokens)
+        assert fn_body_token
+        start_line = fn_body_token.start[0] - 1
+        start_col = 0
+    else:
+        # function body starts on same line as definition, such as in
+        # the following examples:
+        #
+        # def foo(): pass
+        #
+        # def foo(): x = 0; return x
+        #
+        # def foo(): x = """
+        #
+        # """; return x
+        fn_body_token = after_colon
+        start_line = fn_body_token.start[0] - 1
+        start_col = fn_body_token.start[1]
+
+    col_offset = fn_body_token.end[1] - start_col
+    return start_line, col_offset
+
+
+def get_valid_decorator(
+    node: CellNode,
+) -> Optional[Union[ast.Attribute, ast.Call]]:
+    valid_decorators = (
+        "cell",
+        "function",
+        "class_definition",
+    )
+    for decorator in node.decorator_list:
+        if (
+            isinstance(decorator, ast.Call)
+            and decorator.func.attr in valid_decorators  # type: ignore
+        ) or (
+            isinstance(decorator, ast.Attribute)
+            and decorator.attr in valid_decorators
+        ):
+            return decorator
+    return None
+
+
+def is_marimo_import(node: Node) -> bool:
     return isinstance(node, ast.Import) and node.names[0].name == "marimo"
 
 
-def is_string(node: ast.expr) -> bool:
+def is_string(node: Node) -> bool:
     return (
         isinstance(node, ast.Expr)
         and isinstance(node.value, ast.Constant)
@@ -457,23 +674,25 @@ def is_string(node: ast.expr) -> bool:
     )
 
 
-def is_app_def(node: ast.expr) -> bool:
-    # Assign(
-    #   targets=[
-    #     Name(id='app', ctx=Store())],
-    #   value=Call(
-    #     func=Attribute(
-    #       value=Name(id='marimo', ctx=Load()),
-    #       attr='App',
-    #       ctx=Load()),
-    #     args=[],
-    #     keywords=[
-    #       keyword(
-    #         arg=...,
-    #         value=Constant(value=...)),
-    #     ]
-    #   )
-    # )
+def is_app_def(node: Node) -> bool:
+    # Expected Ast:
+    #
+    #    Assign(
+    #      targets=[
+    #        Name(id='app', ctx=Store())],
+    #      value=Call(
+    #        func=Attribute(
+    #          value=Name(id='marimo', ctx=Load()),
+    #          attr='App',
+    #          ctx=Load()),
+    #        args=[],
+    #        keywords=[
+    #          keyword(
+    #            arg=...,
+    #            value=Constant(value=...)),
+    #        ]
+    #      )
+    #    )
 
     # A bit obnoxious as a huge conditional, but also better for line coverage.
     return (
@@ -542,42 +761,35 @@ def is_setup_cell(node: Node) -> bool:
     )
 
 
-def is_cell(node: Node) -> bool:
-    return is_setup_cell(node) or is_body_cell(node)
+def is_cell(node: Optional[Node]) -> bool:
+    return bool(node and (is_setup_cell(node) or is_body_cell(node)))
 
 
-def is_run_guard(node: Node) -> bool:
-    return node == ast.parse('if __name__ == "__main__": app.run()').body[0]
+def is_run_guard(node: Optional[Node]) -> bool:
+    return bool(
+        node
+        and (node == ast.parse('if __name__ == "__main__": app.run()').body[0])
+    )
 
 
 def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
-    extractor = Extractor(filename)
-    if not extractor.contents:
+    parser = Parser(filename)
+    if not parser.extractor.contents:
         return None
 
-    body: Generator[ast.expr, ast.expr, None] = _peek_stack(
-        iter(ast.parse(extractor.contents).body)
-    )
-
-    header = None
-    import_node = None
-    version = None
-    app = None
-    cells = []
-
-    # TODO(dmadisetti): Expand lint system github/marimo-team/marimo#1543
     violations: list[Violation] = []
+    cells: list[CellDef] = []
 
-    # header? = (docstring | comments)*
-    while node := next(body):
-        # Just string, comments are stripped
-        if not is_string(node):
-            break
+    body: PeekStack[Node] = parser.node_stack()
 
-    if not node:
+    header_result = parser.parse_header(body)
+    violations.extend(header_result.violations)
+    header = header_result.unwrap()
+
+    if not (import_result := parser.parse_import(body)):
         violations.append(
             Violation(
-                "File only contains a header.",
+                "Only able to extract header.",
                 lineno=1,
             )
         )
@@ -585,9 +797,9 @@ def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
             header=Header(
                 lineno=0,
                 col_offset=0,
-                end_lineno=len(extractor.lines),
-                end_col_offset=len(extractor.lines[-1]),
-                value=extractor.contents,
+                end_lineno=len(parser.extractor.lines),
+                end_col_offset=len(parser.extractor.lines[-1]),
+                value=parser.extractor.contents,
             ),
             version=None,
             app=AppInstantiation(),
@@ -595,105 +807,40 @@ def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
             violations=violations,
             valid=False,
         )
+    violations.extend(import_result.violations)
 
-    header = Header(
-        lineno=0,
-        col_offset=0,
-        end_lineno=node.lineno,
-        end_col_offset=node.col_offset,
-        value=extractor.extract_from_offsets(
-            0, 0, node.lineno, node.col_offset
-        ),
-    )
+    version = None
+    if version_result := parser.parse_version(body):
+        version = version_result.unwrap()
+    violations.extend(version_result.violations)
 
-    # app = import marimo + __generated_with + App(kwargs*)
-    if not is_marimo_import(node):
-        violations.append(
-            Violation(
-                "Unexpected statement (expected marimo import)",
-                lineno=node.lineno,
-            )
-        )
-        # Attempt to find import statement
-        while node := next(body):
-            if is_marimo_import(node):
-                import_node = node
-                break
-    else:
-        import_node = node
-
-    if not import_node:
-        # TODO(dmadisetti): Raise an error or add severity to violations?
-        raise MarimoFileError("`marimo` import expected.")
-
-    # __generated_with not being correctly set should not break marimo.
-    node = next(body)
-    version = _maybe_version(node)
-    if not version:
-        # Put whatever this was, back on the stack
-        body.send(node)
-
-        violations.append(
-            Violation(
-                "Expected `__generated_with` assignment for marimo version number.",
-                lineno=node.lineno,
-            )
-        )
-
-    while node := next(body):
-        if is_app_def(node):
-            # type caught by is_app_def
-            _kwargs, _violations = _eval_kwargs(node.value.keywords)  # type: ignore
-            violations.extend(violations)
-            app = AppInstantiation(
-                options=_kwargs,
-            )
-            break
-        violations.append(
-            Violation(
-                "Unexpected statement, expected App initialization.",
-                node.lineno,
-            )
-        )
-
-    if not app:
+    if not (app_result := parser.parse_app(body)):
         raise MarimoFileError("`marimo.App` definition expected.")
+    app = app_result.unwrap()
+    violations.extend(app_result.violations)
 
-    # setup? = Async?With(kwargs*, stmt*)
-    # Check for cell
-    while node := next(body):
-        if is_cell(node):
-            break
+    setup_result = parser.parse_setup(body)
+    violations.extend(setup_result.violations)
+    if setup_cell := setup_result.unwrap():
+        cells.append(setup_cell)
 
-    if is_cell(node):
-        cells.append(extractor.to_cell(node))
-    elif is_run_guard(node):
+    if is_run_guard(body.last):
         return NotebookSerialization(
-            header=header, version=version, app=app, violations=violations
+            header=header,
+            version=version,
+            app=app,
+            violations=violations,
+            cells=cells,
         )
 
-    # Continue with remainder of body
-    while node := next(body):
-        if is_body_cell(node):
-            cells.append(extractor.to_cell(node))
-        elif is_run_guard(node):
-            return NotebookSerialization(
-                header=header,
-                version=version,
-                app=app,
-                cells=cells,
-                violations=violations,
-            )
-        else:
-            violations.append(
-                Violation(
-                    "Unexpected statement, expected body cell definition.",
-                    node.lineno,
-                )
-            )
+    body_result = parser.parse_body(body)
+    cells.extend(body_result.unwrap())
+    violations.extend(body_result.violations)
 
     # Expected a run guard, but that's OK.
-    violations.append(Violation("Expected run guard statement"))
+    if not is_run_guard(body.last):
+        violations.append(Violation("Expected run guard statement"))
+
     return NotebookSerialization(
         header=header,
         version=version,

@@ -179,12 +179,12 @@ export const MarimoErrorOutput = ({
             className="mb-2"
           >
             <p className="pb-2">
-              While the most cells can be in any order and contain any
-              references (as long as they run in a DAG), the setup cell must be
-              run first. This is because the setup cell is saved in python in
-              such a way that it is immediately run when the notebook on import.
-              As such, it cannot contain any references to variables defined by
-              other cells.
+              While most cells can be in any order and contain any references
+              (as long as they run in a DAG), the setup cell must be run first.
+              This is because the setup cell is saved in python in such a way
+              that it is immediately run when the notebook on import. As such,
+              it cannot contain any references to variables defined by other
+              cells.
             </p>
 
             <p className="py-2">

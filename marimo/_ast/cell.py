@@ -600,7 +600,7 @@ class Cell:
         """
         assert self._app is not None
 
-        # Inject setup cell definitions so that We do not rerun the setup cell.
+        # Inject setup cell definitions so that we do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
         if "PYTEST_CURRENT_TEST" not in os.environ:
             if self._app._app._setup is not None:

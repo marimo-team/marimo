@@ -186,7 +186,7 @@ class _SetupContext:
         self,
         exception: Optional[type[BaseException]],
         instance: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        _traceback: Optional[TracebackType],
     ) -> Literal[False]:
         # Manually hold on to defs for injection into script mode.
         if self._frame is not None:
@@ -207,10 +207,7 @@ class _SetupContext:
         if exception is not None:
             # Always should fail, since static loading still allows bad apps to
             # load.
-            raise RuntimeError(
-                "The setup cell was unable to execute, your notebook may not "
-                "work as expected."
-            ).with_traceback(traceback)
+            raise exception
         return False
 
 
