@@ -49,9 +49,6 @@ import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import { createVegaSpec } from "./chart-spec";
-import { useTheme } from "@/theme/useTheme";
-import { compile } from "vega-lite";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import {
   BooleanField,
@@ -70,10 +67,7 @@ import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
-
-const LazyVega = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.Vega })),
-);
+import { LazyChart } from "./lazy-chart";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -649,27 +643,8 @@ const Chart: React.FC<{
   formValues: z.infer<typeof ChartSchema>;
   data?: object[];
 }> = ({ chartType, formValues, data }) => {
-  const { theme } = useTheme();
-
-  if (!data) {
-    return <div>No data</div>;
-  }
-
-  const vegaSpec = createVegaSpec(chartType, data, formValues, theme, 350, 300);
-
-  if (!vegaSpec) {
-    return <div>This configuration is not supported</div>;
-  }
-
-  const compiledSpec = compile(vegaSpec).spec;
-
   return (
-    <div className="h-full m-auto rounded-md mt-4">
-      <LazyVega
-        spec={compiledSpec}
-        theme={theme === "dark" ? "dark" : undefined}
-      />
-    </div>
+    <LazyChart chartType={chartType} formValues={formValues} data={data} />
   );
 };
 
