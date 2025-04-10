@@ -884,8 +884,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert manager.get_field_type("image_col") == ("unknown", "object")
         assert manager.get_field_type("text_col") == ("string", "str")
 
-        as_json = manager.to_json()
-        assert "data:image/png" in as_json.decode("utf-8")
+        as_json = manager.to_json_str()
+        assert "data:image/png" in as_json
 
     def test_lazy_frame(self):
         import warnings
@@ -915,3 +915,29 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
         # TODO: Fix this, it should be 1
         assert len(recorded_warnings) == 1
+
+    def test_to_json_bigint(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json())
+
+        # Regular integers should remain as numbers
+        assert json_data[0]["A"] == 20
+        assert json_data[0]["B"] == -20
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"

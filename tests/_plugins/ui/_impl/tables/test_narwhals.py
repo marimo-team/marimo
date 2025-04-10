@@ -724,6 +724,32 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         )
         assert_frame_equal(formatted_data, expected_data)
 
+    def test_to_json_bigint(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = NarwhalsTableManager.from_dataframe(data)
+        json_data = json.loads(manager.to_json())
+
+        # These get converted to strings because narwhals uses csv parsing
+        assert json_data[0]["A"] == "20"
+        assert json_data[0]["B"] == "-20"
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
