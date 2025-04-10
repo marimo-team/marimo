@@ -62,6 +62,7 @@ module.exports = {
     "ssr-friendly/no-dom-globals-in-constructor": "off",
     "react/prop-types": "off",
     "react/no-unescaped-entities": "off",
+    "react/jsx-no-target-blank": "off",
     "@typescript-eslint/no-unnecessary-condition": "off",
     "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
     "@typescript-eslint/ban-types": [

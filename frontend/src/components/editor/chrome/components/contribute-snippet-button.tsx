@@ -80,7 +80,6 @@ const ContributeSnippetModal: React.FC<{
             <a
               href={Constants.githubPage}
               target="_blank"
-              rel="noreferrer"
               className="underline"
             >
               on GitHub

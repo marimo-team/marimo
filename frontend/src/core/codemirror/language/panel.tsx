@@ -190,7 +190,6 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
                 className="flex items-center gap-1"
                 href={HELP_URL}
                 target="_blank"
-                rel="noreferrer"
               >
                 <CircleHelpIcon className="h-3 w-3" />
                 <span>How to add a database connection</span>

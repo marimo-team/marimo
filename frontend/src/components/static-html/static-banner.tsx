@@ -36,12 +36,7 @@ export const StaticBanner: React.FC = () => {
     <div className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-md text-[var(--sky-11)] font-semibold flex justify-between items-center gap-4 no-print">
       <span>
         This is a static Python notebook built using{" "}
-        <a
-          href={Constants.githubPage}
-          target="_blank"
-          className="underline"
-          rel="noreferrer"
-        >
+        <a href={Constants.githubPage} target="_blank" className="underline">
           marimo
         </a>
         .
@@ -85,7 +80,6 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
               href={Constants.githubPage}
               target="_blank"
               className="text-link hover:underline"
-              rel="noreferrer"
             >
               marimo
             </a>

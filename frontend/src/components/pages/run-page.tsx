@@ -29,7 +29,6 @@ const Watermark = () => {
         href={Constants.githubPage}
         target="_blank"
         className="text-sm text-[var(--grass-11)] font-bold tracking-wide transition-colors bg-[var(--grass-4)] hover:bg-[var(--grass-5)] border-t border-l border-[var(--grass-8)] px-3 py-1 rounded-tl-md flex items-center gap-2"
-        rel="noreferrer"
       >
         <span className="pb-[2px]">made with marimo</span>
         <img src="./favicon.ico" alt="marimo" className="h-4 w-auto" />

@@ -4,7 +4,13 @@ import { copilotSignedInState, isGitHubCopilotSignedInState } from "./state";
 import { memo, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  ExternalLink,
+  Loader2Icon,
+  XIcon,
+} from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { copyToClipboard } from "@/utils/copy";
@@ -261,14 +267,12 @@ export const CopilotConfig = memo(() => {
             </Label>
             <div className="text-sm">
               For troubleshooting, see the{" "}
-              <a
-                className="hyperlink"
+              <ExternalLink
                 href="https://docs.marimo.io/getting_started/index.html#github-copilot"
                 target="_blank"
-                rel="noreferrer"
               >
                 docs
-              </a>
+              </ExternalLink>
               .
             </div>
           </div>
