@@ -23,8 +23,14 @@ or [on Discord](https://marimo.io/discord?ref=contributing).
 
 To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python (>=3.9), and Hatch installed.
 
-- Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 18
-  - We use Node.js version 20
+You can check for pre-requisites with:
+
+```bash
+make check-prereqs
+```
+
+- Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 20
+  - We use Node.js version 23
 - Install [pnpm](https://github.com/pnpm/pnpm) == 9.x
   - `npm install -g pnpm@9`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
@@ -36,9 +42,7 @@ To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python
 And you'll need [pre-commit](https://pre-commit.com/) to run some validation checks:
 
 ```bash
-pipx install pre-commit
-# or `pip install pre-commit` if you have a virtualenv
-# or `brew install pre-commit`
+uv tool install pre-commit
 ```
 
 You can optionally install pre-commit hooks to automatically run the validation checks
