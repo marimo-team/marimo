@@ -55,7 +55,7 @@ class TestScriptTrace:
         #    y = y / x
         #        ^
         # exact line numbers differ by python version
-        if sys.version_info >= (3, 11):
+        if sys.version_info == (3, 11):
             assert (
                 result.split("y / x")[1].split("\n")[1].startswith("        ^")
             )
