@@ -108,7 +108,6 @@ const addCustomVimCommandsOnce = once(() => {
       actions.saveNotebook();
     }
   });
-  Vim.noremap("S", ":w<CR>", "normal");
 });
 
 class CodeMirrorVimSync {
