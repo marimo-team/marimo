@@ -1,9 +1,9 @@
-# Testing in marimo notebooks
+# Testing with pytest
 
 ## Testing in notebook
 
 Be default, marimo detects and runs tests in your notebooks automatically. If
-the optional `pytest` library is installed, marimo will run any cells that that
+the optional `pytest` library is installed, marimo will run `pytest` on any cells that
 contain test functions (functions that start with `test_`) or test classes
 (classes that start with `Test`) on a per cell basis.
 
@@ -42,7 +42,7 @@ def __(inc, pytest):
     configuration file.
 
 
-## Unit testing with pytest
+## Testing at the command-line
 
 Since marimo notebooks are Python programs, you can test them using
 [`pytest`](https://docs.pytest.org/en/stable/), a popular testing framework
