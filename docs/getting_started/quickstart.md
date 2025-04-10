@@ -33,12 +33,23 @@ named `your_notebook.py`.)
 
 ## Deploy as apps
 
-Use `marimo run` to serve your notebook as an app, with Python code hidden and
-uneditable.
+Use `marimo run` to [serve your notebook as an app](../guides/apps.md), with
+Python code hidden and uneditable.
 
 ```bash
 marimo run your_notebook.py
 ```
+
+## Run as scripts
+
+Run your notebook as a script with
+
+```python
+python your_notebook.py
+```
+
+You can also [pass CLI args](../guides/scripts.md) to your notebook.
+
 
 ## Convert from Jupyter to marimo
 
@@ -72,8 +83,8 @@ Use
 marimo export
 ```
 
-to convert marimo notebooks to other file formats, including HTML, IPYNB,
-and markdown.
+to [export marimo notebooks](../guides/exporting.md) to other file formats,
+including HTML, IPYNB, and markdown.
 
 ## Install optional dependencies for more features
 
@@ -128,7 +139,7 @@ marimo from `PyPI` if you need Copilot.
 marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#custom-copilots),
 and a built-in [AI assistant](../guides/editor_features/ai_completion.md) that helps you write code.
 
-## Try our VS Code extension
+## Coming from VS Code?
 
 The best way to use marimo is through the CLI. However, if you prefer VS Code
 over terminal, try our [VS Code
@@ -139,5 +150,4 @@ all marimo notebooks in your current directory.
 <div align="center">
 <figure>
 <img src="/_static/vscode-marimo.png" alt="VS Code extension for marimo"/>
-</figure>
-</div>
+</figure> </div>
