@@ -2,7 +2,7 @@
 
 ## Testing in notebook
 
-Be default, marimo detects and runs tests in your notebooks automatically. If
+By default, marimo detects and runs tests in your notebooks automatically. If
 the optional `pytest` library is installed, marimo will run `pytest` on any cells that
 contain test functions (functions that start with `test_`) or test classes
 (classes that start with `Test`) on a per cell basis.
@@ -38,17 +38,14 @@ def __(inc, pytest):
 
 !!! note "Reactive tests can be disabled"
 
-    You can disable this behavior with the runtime.reactive_test option in the
+    You can disable this behavior with the `runtime.reactive_test` option in the
     configuration file.
-
 
 ## Testing at the command-line
 
 Since marimo notebooks are Python programs, you can test them using
 [`pytest`](https://docs.pytest.org/en/stable/), a popular testing framework
 for Python.
-
-
 
 For example,
 
