@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -1159,6 +1160,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1223,6 +1225,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1249,6 +1252,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=["foo", "bar"],
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1281,6 +1285,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1317,6 +1322,7 @@ class TestExecution:
                     filename=str(filename),
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),

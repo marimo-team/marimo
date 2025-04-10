@@ -4,7 +4,6 @@ import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
-export type AppMetadata = schemas["AppMetadata"];
 export type BaseResponse = schemas["BaseResponse"];
 export type CellConfig = schemas["CellConfig"];
 /**

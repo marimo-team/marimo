@@ -14,6 +14,7 @@ import pytest
 from _pytest import runner
 
 from marimo._ast.app import App, CellManager
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
@@ -167,6 +168,7 @@ class MockedKernel:
                 filename=None,
                 cli_args={},
                 argv=None,
+                app_config=_AppConfig(),
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,

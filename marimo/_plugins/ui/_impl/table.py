@@ -14,8 +14,7 @@ from typing import (
     cast,
 )
 
-import narwhals.stable.v1 as nw
-from narwhals.typing import IntoDataFrame, IntoLazyFrame
+from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -51,10 +50,15 @@ from marimo._plugins.validators import (
     validate_page_size,
 )
 from marimo._runtime.functions import EmptyArgs, Function
-from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
+from marimo._utils.narwhals_utils import (
+    can_narwhalify_lazyframe,
+    unwrap_narwhals_dataframe,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from narwhals.typing import IntoLazyFrame
 
 LOGGER = _loggers.marimo_logger()
 
@@ -270,7 +274,7 @@ class table(
     _name: Final[str] = "marimo-table"
 
     @staticmethod
-    def lazy(data: IntoLazyFrame) -> table:
+    def lazy(data: IntoLazyFrame, *, preload: bool = False) -> table:
         """
         Create a table from a Polars LazyFrame.
 
@@ -278,10 +282,18 @@ class table(
         Once requested, only the first 10 rows will be loaded.
 
         Pagination and selection are not supported for lazy tables.
+
+        Args:
+            data (IntoLazyFrame): The data to display.
+            preload (bool, optional): Whether to load the first page of data
+                without user confirmation. Defaults to False.
         """
 
-        if not nw.dependencies.is_polars_lazyframe(data):
-            raise ValueError("data must be a Polars LazyFrame")
+        if not can_narwhalify_lazyframe(data):
+            raise ValueError(
+                "data must be a Polars LazyFrame or DuckDBRelation. Got: "
+                + type(data).__name__
+            )
 
         return table(
             data=data,
@@ -304,6 +316,7 @@ class table(
             _internal_summary_row_limit=None,
             _internal_total_rows="too_many",
             _internal_lazy=True,
+            _internal_preload=preload,
         )
 
     def __init__(
@@ -358,6 +371,7 @@ class table(
         _internal_summary_row_limit: Optional[int] = None,
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
         _internal_lazy: bool = False,
+        _internal_preload: bool = False,
     ) -> None:
         validate_no_integer_columns(data)
         validate_page_size(page_size)
@@ -551,6 +565,7 @@ class table(
                 "has-stable-row-id": self._has_stable_row_id,
                 "cell-styles": search_result_styles,
                 "lazy": _internal_lazy,
+                "preload": _internal_preload,
             },
             on_change=on_change,
             functions=(

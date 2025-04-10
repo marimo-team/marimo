@@ -229,7 +229,7 @@ class Exporter:
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
         import yaml
 
-        from marimo._ast.app import _AppConfig
+        from marimo._ast.app_config import _AppConfig
         from marimo._ast.cell import Cell
         from marimo._ast.compiler import compile_cell
         from marimo._cli.convert.markdown import (

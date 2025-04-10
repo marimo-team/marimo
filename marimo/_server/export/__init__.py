@@ -291,6 +291,7 @@ async def run_app_until_completion(
             filename=file_manager.path,
             cli_args=cli_args,
             argv=argv,
+            app_config=file_manager.app.config,
         ),
         app_file_manager=file_manager,
         config_manager=config_manager,

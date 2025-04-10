@@ -28,7 +28,7 @@
     padding-top: 1px;
     padding-bottom: 1px;
     padding-right: 12px;
-    @apply text-xs;
+    @apply text-xs font-mono;
   }
 
   .cm-completionDetail {
@@ -192,7 +192,7 @@
 
   /* Completion matching text highlight */
   .cm-completionMatchedText {
-    @apply font-semibold text-primary underline underline-offset-2;
+    @apply text-accent-foreground font-medium underline underline-offset-2;
   }
 
   /* Scrollbar styling for autocomplete list */

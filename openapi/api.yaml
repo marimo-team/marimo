@@ -86,43 +86,6 @@ components:
       - description
       - name
       type: object
-    AppMetadata:
-      properties:
-        argv:
-          items:
-            type: string
-          nullable: true
-          type: array
-        cliArgs:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
-            - items:
-                oneOf:
-                - type: string
-                - type: boolean
-                - type: integer
-                - type: number
-              type: array
-          type: object
-        filename:
-          nullable: true
-          type: string
-        queryParams:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - items:
-                type: string
-              type: array
-          type: object
-      required:
-      - queryParams
-      - cliArgs
-      type: object
     Banner:
       properties:
         action:
@@ -1161,6 +1124,14 @@ components:
             layout_file:
               nullable: true
               type: string
+            sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
             width:
               enum:
               - normal
@@ -1172,6 +1143,7 @@ components:
           required:
           - width
           - auto_download
+          - sql_output
           - _toplevel_fn
           type: object
         capabilities:
@@ -2528,7 +2500,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.5
+  version: 0.12.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

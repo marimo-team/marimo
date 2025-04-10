@@ -838,6 +838,7 @@ class SessionManager:
                     filename=app_file_manager.path,
                     cli_args=self.cli_args,
                     argv=self.argv,
+                    app_config=app_file_manager.app.config,
                 ),
                 app_file_manager=app_file_manager,
                 config_manager=self._config_manager,

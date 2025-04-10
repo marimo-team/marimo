@@ -2363,20 +2363,6 @@ export interface components {
       /** @enum {string|null} */
       variant?: "danger" | null;
     };
-    AppMetadata: {
-      argv?: string[] | null;
-      cliArgs: {
-        [key: string]:
-          | string
-          | boolean
-          | number
-          | (string | boolean | number)[];
-      };
-      filename?: string | null;
-      queryParams: {
-        [key: string]: string | string[];
-      };
-    };
     Banner: {
       /** @enum {string|null} */
       action?: "restart" | null;
@@ -2800,6 +2786,8 @@ export interface components {
         css_file?: string | null;
         html_head_file?: string | null;
         layout_file?: string | null;
+        /** @enum {string} */
+        sql_output: "polars" | "lazy-polars" | "pandas" | "native" | "auto";
         /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full" | "columns";
       };
