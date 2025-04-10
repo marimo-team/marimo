@@ -107,7 +107,7 @@ class RuntimeConfig(TypedDict):
     - `auto_reload`: if `lazy`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
-    - `reactive_tests`: if `True`, cells containing tests will auto run on
+    - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
       execution.
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
