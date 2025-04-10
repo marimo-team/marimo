@@ -180,8 +180,9 @@ export const MarimoErrorOutput = ({
           >
             <p className="pb-2">
               The setup cell contains logic that must be run before any other
-              cell runs, including top-level imports used by top-level functions.
-              For this reason, it can't refer to other cells' variables. 
+              cell runs, including top-level imports used by top-level
+              functions. For this reason, it can't refer to other cells'
+              variables.
             </p>
 
             <p className="py-2">
