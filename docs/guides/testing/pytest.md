@@ -1,4 +1,48 @@
-# Running unit tests with pytest
+# Testing with pytest
+
+## Testing in notebook
+
+Be default, marimo detects and runs tests in your notebooks automatically. If
+the optional `pytest` library is installed, marimo will run `pytest` on any cells that
+contain test functions (functions that start with `test_`) or test classes
+(classes that start with `Test`) on a per cell basis.
+
+For example,
+
+/// marimo-embed
+
+```python
+@app.cell
+def __():
+    import pytest
+    def inc(x):
+        return x + 1
+    return inc, pytest
+
+@app.cell
+def __(inc, pytest):
+    def test_fails():
+        assert inc(3) == 5, "This test fails"
+
+    def test_sanity():
+        assert inc(3) == 4, "This test passes"
+
+    class TestBlock:
+        @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
+        def test_parameterized(x, y):
+            assert inc(x) == y
+    return
+```
+
+///
+
+!!! note "Reactive tests can be disabled"
+
+    You can disable this behavior with the runtime.reactive_test option in the
+    configuration file.
+
+
+## Testing at the command-line
 
 Since marimo notebooks are Python programs, you can test them using
 [`pytest`](https://docs.pytest.org/en/stable/), a popular testing framework

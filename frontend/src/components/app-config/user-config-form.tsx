@@ -914,6 +914,37 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="runtime.reactive_tests"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Autorun Unit Tests
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="reactive-test-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="runtime.reactive_tests"
+                  />
+                  <FormMessage />
+                  <FormDescription>
+                    Enable reactive pytest tests in notebook. When a cell
+                    contains only test functions (test_*) and classes (Test_*),
+                    marimo will automatically run them with pytest (requires
+                    notebook restart).
+                  </FormDescription>{" "}
+                </div>
+              )}
+            />
 
             <FormDescription>
               Learn more in the{" "}
@@ -1321,31 +1352,6 @@ export const UserConfigForm: React.FC = () => {
                     Enable experimental "Edit with AI" tooltip when selecting
                     code.
                   </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="experimental.reactive_tests"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autorun Unit Tests
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="reactive-test-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental reactive pytest tests in notebook. When
-                    a cell contains only test functions and classes, marimo will
-                    automatically run relevant tests.
-                  </FormDescription>{" "}
                 </div>
               )}
             />

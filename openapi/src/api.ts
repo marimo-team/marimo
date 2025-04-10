@@ -2968,6 +2968,7 @@ export interface components {
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
         pythonpath?: string[];
+        reactive_tests: boolean;
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
