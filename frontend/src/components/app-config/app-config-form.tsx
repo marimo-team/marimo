@@ -26,6 +26,7 @@ import { Checkbox } from "../ui/checkbox";
 import { arrayToggle } from "@/utils/arrays";
 import { Kbd } from "../ui/kbd";
 import { ExternalLink } from "../ui/links";
+import { toast } from "../ui/use-toast";
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
 
@@ -186,7 +187,14 @@ export const AppConfigForm: React.FC = () => {
                 <FormControl>
                   <NativeSelect
                     data-testid="sql-output-select"
-                    onChange={(e) => field.onChange(e.target.value)}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      toast({
+                        title: "Kernel Restart Required",
+                        description:
+                          "This change requires a kernel restart to take effect.",
+                      });
+                    }}
                     value={field.value}
                     disabled={field.disabled}
                     className="inline-flex mr-2"
