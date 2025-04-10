@@ -2957,10 +2957,8 @@ class TestErrorHandling:
 
         assert len(errors) == 1
         assert errors[0].type == "exception"
-        assert (
-            errors[0].msg
-            == "This cell raised an exception: ValueError('some secret error')"
-        )
+        assert errors[0].msg == "some secret error"
+        assert errors[0].exception_type == "ValueError"
 
     async def test_error_handling_in_run_mode(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
