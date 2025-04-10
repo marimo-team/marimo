@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 from functools import cached_property
 from typing import Any, Optional, Union, cast
 
@@ -11,6 +10,7 @@ from narwhals.stable.v1.typing import IntoFrameT
 from marimo import _loggers
 from marimo._data.models import ColumnSummary, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -60,28 +60,28 @@ class NarwhalsTableManager(
         # of the subclass with the native data.
         return self.__class__(data.to_native())
 
-    def to_csv(
+    def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
-    ) -> bytes:
+    ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data).encode("utf-8")
+        return dataframe_to_csv(_data)
 
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
         try:
-            csv_str = self.to_csv(format_mapping=format_mapping).decode(
-                "utf-8"
-            )
+            csv_str = self.to_csv_str(format_mapping=format_mapping)
         except Exception as e:
             LOGGER.debug(
                 f"Failed to use format mapping: {str(e)}, falling back to default"
             )
-            csv_str = self.to_csv().decode("utf-8")
+            csv_str = self.to_csv_str()
 
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
-        return json.dumps([row for row in csv_reader]).encode("utf-8")
+        return sanitize_json_bigint([row for row in csv_reader])
 
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]

@@ -88,20 +88,24 @@ class DefaultTableManager(TableManager[JsonTableData]):
     ) -> JSONType:
         return self._normalize_data(self.apply_formatting(format_mapping).data)
 
-    def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
-        if isinstance(self.data, dict) and not self.is_column_oriented:
-            return DefaultTableManager(self._normalize_data(self.data)).to_csv(
-                format_mapping
-            )
-
-        return self._as_table_manager().to_csv(format_mapping)
-
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+    def to_csv_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
         if isinstance(self.data, dict) and not self.is_column_oriented:
             return DefaultTableManager(
                 self._normalize_data(self.data)
-            ).to_json(format_mapping)
-        return self._as_table_manager().to_json(format_mapping)
+            ).to_csv_str(format_mapping)
+
+        return self._as_table_manager().to_csv_str(format_mapping)
+
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
+        if isinstance(self.data, dict) and not self.is_column_oriented:
+            return DefaultTableManager(
+                self._normalize_data(self.data)
+            ).to_json_str(format_mapping)
+        return self._as_table_manager().to_json_str(format_mapping)
 
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):
