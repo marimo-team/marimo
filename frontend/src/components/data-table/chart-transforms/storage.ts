@@ -6,9 +6,9 @@ import { atomWithStorage } from "jotai/utils";
 import type { z } from "zod";
 import { atom } from "jotai";
 import type { ChartSchema } from "./chart-schemas";
-
+import { Logger } from "@/utils/Logger";
 export type TabName = TypedString<"TabName">;
-export const KEY = "marimo:charts";
+export const KEY = "marimo:charts:v1";
 
 export enum ChartType {
   LINE = "line",
@@ -59,7 +59,8 @@ const mapStorage = {
       }
       const parsed = JSON.parse(value);
       return new Map(parsed as Array<[CellId, TabStorage[]]>);
-    } catch {
+    } catch (error) {
+      Logger.warn("Error getting chart storage", error);
       return new Map();
     }
   },

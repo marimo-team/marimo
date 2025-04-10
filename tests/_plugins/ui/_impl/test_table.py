@@ -22,10 +22,7 @@ from marimo._plugins.ui._impl.tables.table_manager import TableCell
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
-from marimo._utils.data_uri import (
-    convert_data_bytes_to_pandas_df,
-    from_data_uri,
-)
+from marimo._utils.data_uri import from_data_uri
 from tests._data.mocks import create_dataframes
 
 if TYPE_CHECKING:
@@ -1610,3 +1607,28 @@ def test_get_data_url_values() -> None:
     df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
     expected_df = pd.DataFrame({"value": [2]})
     assert_frame_equal(df, expected_df)
+
+
+def convert_data_bytes_to_pandas_df(
+    data: str, data_format: str
+) -> pd.DataFrame:
+    import io
+
+    import pandas as pd
+
+    data_bytes = from_data_uri(data)[1]
+
+    if data_format == "csv":
+        df = pd.read_csv(io.BytesIO(data_bytes))
+        # Convert column names to integers if they represent integers
+        df.columns = pd.Index(
+            [
+                int(col) if isinstance(col, str) and col.isdigit() else col
+                for col in df.columns
+            ]
+        )
+        return df
+    elif data_format == "json":
+        return pd.read_json(io.BytesIO(data_bytes))
+    else:
+        raise ValueError(f"Unsupported data_format: {data_format}")
