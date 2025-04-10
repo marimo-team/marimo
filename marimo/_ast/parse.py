@@ -119,9 +119,9 @@ class Extractor:
         return dedent(code)
 
     def to_cell_def(self, node: FnNode, kwargs: dict[str, Any]) -> CellDef:
-        # A general note on the apparant brittleness of this code:
+        # A general note on the apparent brittleness of this code:
         #    - Ast line reference and col index is on a 1-indexed basis
-        #    - Multiline statments need to be accounted for
+        #    - Multiline statements need to be accounted for
         #    - Painstaking testing can be found in test/_ast/test_{load, parse}
 
         function_code = self.extract_from_code(node)
