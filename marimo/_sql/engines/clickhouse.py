@@ -60,25 +60,37 @@ class ClickhouseEmbedded(SQLEngine):
         import chdb  # type: ignore
         import pandas as pd
 
-        # TODO: this will fail weirdly / silently when there is another connection
+        query = query.strip()
+
+        sql_output_format = self.sql_output_format()
+        chosen_format = "Dataframe"
+        if sql_output_format == "native":
+            chosen_format = "Native"
+        elif sql_output_format not in ["pandas", "auto"]:
+            LOGGER.warning(
+                "ClickHouse only supports pandas or native output. "
+                "Falling back to pandas"
+            )
 
         # Do not catch exceptions here or it may silently fail
         if self._cursor:
             self._cursor.execute(query)
+
+            if chosen_format == "Native":
+                LOGGER.info(
+                    "Native output chosen, query is executed but results are not fetched"
+                )
+                return None
+
             rows = self._cursor.fetchall()
             col_names = self._cursor.column_names()
-            # col_types = self._cursor.column_types()
-
             return pd.DataFrame(rows, columns=col_names)
 
         try:
-            result = chdb.query(query, "Dataframe")
+            return chdb.query(query, output_format=chosen_format)
         except Exception:
             LOGGER.exception("Failed to execute query")
             return None
-        if isinstance(result, pd.DataFrame):
-            return result
-        return None
 
     # TODO: Implement the following functionalities
     def get_databases(
@@ -155,12 +167,21 @@ class ClickhouseServer(SQLEngine):
         if self._connection is None:
             return None
 
+        query = query.strip()
+
+        sql_output_format = self.sql_output_format()
+        if sql_output_format == "native":
+            return self._connection.query(query)
+        elif sql_output_format not in ["pandas", "auto"]:
+            LOGGER.warning(
+                "ClickHouse only supports pandas or native output. "
+                "Falling back to pandas"
+            )
+
         # clickhouse connect supports pandas and arrow format
         DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
 
         import pandas as pd
-
-        query = query.strip()
 
         # If wrapped with try/catch, an error may not be caught
         result = self._connection.query_df(query)

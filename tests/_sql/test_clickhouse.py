@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from marimo._data.models import DataSourceConnection
@@ -58,7 +60,6 @@ def test_clickhouse_embedded_creation() -> None:
 
 
 @pytest.mark.skipif(not HAS_CHDB, reason="chdb and pandas not installed")
-@pytest.mark.xfail(reason="Flaky test")
 def test_clickhouse_execute() -> None:
     import chdb
     import pandas as pd
@@ -80,3 +81,54 @@ def test_clickhouse_execute() -> None:
     assert result.equals(expected)
 
     chdb_conn.close()
+
+
+@pytest.mark.skipif(not HAS_CHDB, reason="chdb and pandas not installed")
+def test_clickhouse_emdbedded_output_formats() -> None:
+    import chdb
+    import pandas as pd
+
+    # Test native output
+    with mock.patch.object(
+        ClickhouseEmbedded, "sql_output_format", return_value="native"
+    ):
+        chdb_conn = chdb.connect(":memory:")
+
+        result = sql("SELECT 1", engine=chdb_conn)
+        assert result is None
+
+        chdb_conn.close()
+
+    # Test pandas output
+    with mock.patch.object(
+        ClickhouseEmbedded, "sql_output_format", return_value="pandas"
+    ):
+        chdb_conn = chdb.connect(":memory:")
+
+        result = sql("SELECT 1", engine=chdb_conn)
+        assert isinstance(result, pd.DataFrame)
+        assert result.equals(pd.DataFrame({"1": [1]}))
+
+        chdb_conn.close()
+
+    # Test auto, uses pandas
+    with mock.patch.object(
+        ClickhouseEmbedded, "sql_output_format", return_value="auto"
+    ):
+        chdb_conn = chdb.connect(":memory:")
+        result = sql("SELECT 1", engine=chdb_conn)
+        assert isinstance(result, pd.DataFrame)
+        assert result.equals(pd.DataFrame({"1": [1]}))
+
+        chdb_conn.close()
+
+    # Test others, fallsback to pandas
+    with mock.patch.object(
+        ClickhouseEmbedded, "sql_output_format", return_value="lazy-polars"
+    ):
+        chdb_conn = chdb.connect(":memory:")
+        result = sql("SELECT 1", engine=chdb_conn)
+        assert isinstance(result, pd.DataFrame)
+        assert result.equals(pd.DataFrame({"1": [1]}))
+
+        chdb_conn.close()
