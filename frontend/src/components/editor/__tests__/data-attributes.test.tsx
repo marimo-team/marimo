@@ -54,6 +54,7 @@ describe("Cell data attributes", () => {
           auto_reload: "off",
           on_cell_change: "lazy",
           watcher_on_save: "lazy",
+          reactive_tests: true,
           output_max_bytes: 1_000_000,
           std_stream_max_bytes: 1_000_000,
           pythonpath: [],
@@ -65,7 +66,7 @@ describe("Cell data attributes", () => {
         },
         save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
         ai: {},
-      };
+      } as UserConfig;
 
       const { container } = render(
         <TooltipProvider>
