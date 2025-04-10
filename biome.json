@@ -22,6 +22,7 @@
       "a11y": {
         "noAutofocus": "off",
         "noSvgWithoutTitle": "info",
+        "noBlankTarget": "off",
         "useButtonType": "info",
         "useIframeTitle": "info",
         "useKeyWithClickEvents": "off",

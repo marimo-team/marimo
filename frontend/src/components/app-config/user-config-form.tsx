@@ -43,6 +43,7 @@ import {
   FlaskConicalIcon,
   FolderCog2,
 } from "lucide-react";
+import { ExternalLink } from "../ui/links";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
@@ -138,14 +139,9 @@ export const UserConfigForm: React.FC = () => {
         <>
           <p className="text-sm text-muted-secondary">
             To get a Codeium API key, follow{" "}
-            <a
-              className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot">
               these instructions
-            </a>
+            </ExternalLink>
             .
           </p>
           <FormField
@@ -439,14 +435,9 @@ export const UserConfigForm: React.FC = () => {
                           Beta
                         </Badge>
                         Python Language Server (
-                        <a
-                          href="https://github.com/python-lsp/python-lsp-server"
-                          target="_blank"
-                          className="text-link hover:underline"
-                          rel="noreferrer"
-                        >
+                        <ExternalLink href="https://github.com/python-lsp/python-lsp-server">
                           pylsp
-                        </a>
+                        </ExternalLink>
                         )
                       </FormLabel>
                       <FormControl>
@@ -469,14 +460,9 @@ export const UserConfigForm: React.FC = () => {
                 />
                 <FormDescription>
                   See the{" "}
-                  <a
-                    className="text-link hover:underline"
-                    href="https://docs.marimo.io/guides/editor_features/language_server/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
                     docs
-                  </a>{" "}
+                  </ExternalLink>{" "}
                   for more information about language server support.
                 </FormDescription>
 
@@ -776,26 +762,16 @@ export const UserConfigForm: React.FC = () => {
                     When marimo comes across a module that is not installed, you
                     will be prompted to install it using your preferred package
                     manager. Learn more in the{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
                       docs
-                    </a>
+                    </ExternalLink>
                     .
                     <br />
                     <br />
                     Running marimo in a{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
                       sandboxed environment
-                    </a>{" "}
+                    </ExternalLink>{" "}
                     is only supported by <Kbd className="inline">uv</Kbd>
                   </FormDescription>
                 </div>
@@ -948,14 +924,9 @@ export const UserConfigForm: React.FC = () => {
 
             <FormDescription>
               Learn more in the{" "}
-              <a
-                className="text-link hover:underline"
-                href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <ExternalLink href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells">
                 docs
-              </a>
+              </ExternalLink>
               .
             </FormDescription>
           </SettingGroup>
@@ -1048,14 +1019,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your OpenAI API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://platform.openai.com/account/api-keys"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://platform.openai.com/account/api-keys">
                         platform.openai.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -1092,14 +1058,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your Anthropic API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://console.anthropic.com/settings/keys"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://console.anthropic.com/settings/keys">
                         console.anthropic.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -1136,14 +1097,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your Google AI API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://aistudio.google.com/app/apikey">
                         aistudio.google.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -1155,14 +1111,9 @@ export const UserConfigForm: React.FC = () => {
               <p className="text-sm text-muted-secondary">
                 Add an API key to <Kbd className="inline">marimo.toml</Kbd> to
                 activate marimo's AI assistant; see{" "}
-                <a
-                  className="text-link hover:underline"
-                  href="https://docs.marimo.io/guides/editor_features/ai_completion.html"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html">
                   docs
-                </a>{" "}
+                </ExternalLink>{" "}
                 for more info.
               </p>
               <FormField
@@ -1318,14 +1269,9 @@ export const UserConfigForm: React.FC = () => {
                     Enable experimental LSP support. You will need to have
                     <Kbd className="inline">marimo[lsp]</Kbd> installed in your
                     environment to use this. See{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/language_server/"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
                       docs
-                    </a>{" "}
+                    </ExternalLink>{" "}
                     for more info.
                   </FormDescription>
                 </div>

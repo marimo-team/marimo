@@ -69,7 +69,6 @@ export const ShareStaticNotebookModal: React.FC<{
                   <a
                     href={Constants.issuesPage}
                     target="_blank"
-                    rel="noreferrer"
                     className="underline"
                   >
                     GitHub
@@ -98,7 +97,7 @@ export const ShareStaticNotebookModal: React.FC<{
           <DialogDescription>
             You can publish a static, non-interactive version of this notebook
             to the public web. We will create a link for you that lives on{" "}
-            <a href={BASE_URL} target="_blank" rel="noreferrer">
+            <a href={BASE_URL} target="_blank">
               {BASE_URL}
             </a>
             .

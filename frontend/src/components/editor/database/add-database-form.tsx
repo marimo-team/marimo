@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ENV_RENDERER, SecretsProvider } from "./form-renderers";
+import { ExternalLink } from "@/components/ui/links";
 
 interface Props {
   onSubmit: () => void;
@@ -310,14 +311,9 @@ export const AddDatabaseDialogContent: React.FC<{
         <DialogDescription>
           Connect to your database to query data directly from your notebook.
           Learn more about how to connect to your database in our{" "}
-          <a
-            href="http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database"
-            target="_blank"
-            rel="noreferrer"
-            className="text-link hover:underline"
-          >
+          <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database">
             docs.
-          </a>
+          </ExternalLink>
         </DialogDescription>
       </DialogHeader>
       <AddDatabaseForm onSubmit={() => onClose()} />

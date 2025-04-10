@@ -212,7 +212,7 @@ export const AppConfigForm: React.FC = () => {
                 The Python type returned by a SQL cell. For best performance
                 with large datasets, we recommend using{" "}
                 <Kbd className="inline">native</Kbd>. See the{" "}
-                <ExternalLink href="http://docs.marimo.io/guides/working_with_data/sql">
+                <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql">
                   SQL guide
                 </ExternalLink>{" "}
                 for more information.
