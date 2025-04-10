@@ -91,21 +91,21 @@ class Extractor:
         )
 
     def extract_from_code(self, node: Node) -> str:
-        if hasattr(node, "decorator_list"):
-            if len(node.decorator_list):
-                assert isinstance(
-                    node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
-                )
-                decorator = get_valid_decorator(node)  # type: ignore
-                if not decorator:
-                    lineno = node.lineno - 1
-                    col_offset = node.col_offset
-                else:
-                    lineno = _none_to_0(decorator.end_lineno)
-                    col_offset = decorator.col_offset - 1
-            else:
-                lineno = node.lineno - 1
-                col_offset = node.col_offset
+        # NB. Ast line reference and col index is on a 1-indexed basis.
+        if (
+            hasattr(node, "decorator_list")
+            and len(node.decorator_list)
+            and (decorator := get_valid_decorator(node))
+        ):  # type: ignore
+            # From the ast, having a decorator list means we are either a
+            # function or a class.
+            assert isinstance(
+                node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
+            )
+
+            # Scrub past the decorator + 1, lineno 1 index -1
+            lineno = _none_to_0(decorator.end_lineno)
+            col_offset = decorator.col_offset - 1
         else:
             lineno = node.lineno
             col_offset = node.col_offset
@@ -119,11 +119,17 @@ class Extractor:
         return dedent(code)
 
     def to_cell_def(self, node: FnNode, kwargs: dict[str, Any]) -> CellDef:
+        # A general note on the apparant brittleness of this code:
+        #    - Ast line reference and col index is on a 1-indexed basis
+        #    - Multiline statments need to be accounted for
+        #    - Painstaking testing can be found in test/_ast/test_{load, parse}
+
         function_code = self.extract_from_code(node)
-        lineno, col_offset = extract_offsets_post_colon(
+        lineno_offset, col_offset = extract_offsets_post_colon(
             function_code,
             block_start="def",
         )
+        start_lineno = node.lineno + lineno_offset
 
         end_lineno = _none_to_0(node.end_lineno)
         end_col_offset = node.end_col_offset
@@ -161,21 +167,26 @@ class Extractor:
             else:
                 # If we are on the same line as the return statement,
                 # just return a blank cell.
-                if node.lineno + lineno - node.body[0].lineno == 0:
+                if start_lineno == node.body[0].lineno:
                     return CellDef(
                         code="",
                         options=kwargs,
-                        lineno=node.lineno + lineno,
+                        lineno=start_lineno,
                         col_offset=node.col_offset + col_offset,
-                        end_lineno=node.lineno + lineno,
+                        end_lineno=start_lineno,
                         end_col_offset=len(self.lines[-1]),
                         name=getattr(node, "name", DEFAULT_CELL_NAME),
                     )
                 else:
                     end_lineno = node.body[-1].lineno - 1
                     end_col_offset = None
+
+        # NB. node.[end_]lineno only captures the starting line of the
+        # captured node, same with col_offset.
+        # If the node spans multiple lines, then we need to adjust these
+        # positions such that _all_ relevant text is captured.
         cell_code = self.extract_from_offsets(
-            lineno=node.lineno + lineno - 1,
+            lineno=start_lineno - 1,
             col_offset=col_offset,
             end_lineno=end_lineno - 1,
             end_col_offset=end_col_offset,
@@ -212,10 +223,13 @@ class Extractor:
 
         if end_col_offset is None:
             end_col_offset = 0
+
+        # Line positioning here is still consequential for correct stack tracing
+        # produced in _ast.compiler.
         return CellDef(
             code=dedent(cell_code),
             options=kwargs,
-            lineno=node.lineno + lineno - 1,
+            lineno=start_lineno - 1,
             col_offset=node.col_offset + col_offset,
             end_lineno=_none_to_0(node.end_lineno) + end_lineno,
             end_col_offset=_none_to_0(node.end_col_offset) + end_col_offset,
