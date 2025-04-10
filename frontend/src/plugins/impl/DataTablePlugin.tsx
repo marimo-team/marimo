@@ -282,6 +282,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
   experimentalChartsEnabled?: boolean;
+  toggleDisplayHeader?: () => void;
 }
 
 interface DataTableSearchProps {
@@ -316,6 +317,7 @@ export const LoadingDataTableComponent = memo(
       });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
+    const [displayHeader, setDisplayHeader] = useState(false);
 
     // We need to clear the selection when sort, query, or filters change
     // if we don't have a stable ID for each row, which is determined by
@@ -487,6 +489,10 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
+    const toggleDisplayHeader = () => {
+      setDisplayHeader(!displayHeader);
+    };
+
     const chartsFeature =
       getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
 
@@ -506,6 +512,7 @@ export const LoadingDataTableComponent = memo(
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
+        toggleDisplayHeader={toggleDisplayHeader}
       />
     );
 
@@ -514,6 +521,7 @@ export const LoadingDataTableComponent = memo(
         {errorComponent}
         {chartsFeature ? (
           <TablePanel
+            displayHeader={displayHeader}
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
@@ -559,6 +567,7 @@ const DataTableComponent = ({
   totalColumns,
   get_row_ids,
   cellStyles,
+  toggleDisplayHeader,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -707,6 +716,7 @@ const DataTableComponent = ({
             freezeColumnsRight={freezeColumnsRight}
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
+            toggleDisplayHeader={toggleDisplayHeader}
           />
         </Labeled>
       </ColumnChartContext.Provider>

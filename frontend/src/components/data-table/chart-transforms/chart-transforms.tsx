@@ -75,6 +75,7 @@ const DEFAULT_TAB_NAME = "table" as TabName;
 
 export interface TablePanelProps {
   dataTable: JSX.Element;
+  displayHeader: boolean;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
 }
@@ -83,6 +84,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   dataTable,
   getDataUrl,
   fieldTypes,
+  displayHeader,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cellId, setCellId] = useState<CellId | null>(null);
@@ -122,7 +124,11 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     if (cellElement) {
       setCellId(HTMLCellId.parse(cellElement.id));
     }
-  }, [containerRef]);
+  }, [containerRef, displayHeader]);
+
+  if (!displayHeader || (tabs.length === 0 && !displayHeader)) {
+    return dataTable;
+  }
 
   const handleAddTab = () => {
     if (!cellId) {

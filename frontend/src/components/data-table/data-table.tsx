@@ -72,6 +72,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  toggleDisplayHeader?: () => void;
 }
 
 const DataTableInternal = <TData,>({
@@ -105,6 +106,7 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  toggleDisplayHeader,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -213,6 +215,7 @@ const DataTableInternal = <TData,>({
         table={table}
         downloadAs={downloadAs}
         getRowIds={getRowIds}
+        toggleDisplayHeader={toggleDisplayHeader}
       />
     </div>
   );
