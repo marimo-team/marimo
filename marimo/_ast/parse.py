@@ -92,11 +92,10 @@ class Extractor:
 
     def extract_from_code(self, node: Node) -> str:
         # NB. Ast line reference and col index is on a 1-indexed basis.
-        if (
-            hasattr(node, "decorator_list")
-            and len(node.decorator_list)
-            and (decorator := get_valid_decorator(node))  # type: ignore
-        ):
+        lineno = node.lineno
+        col_offset = node.col_offset
+
+        if hasattr(node, "decorator_list"):
             # From the ast, having a decorator list means we are either a
             # function or a class.
             assert isinstance(
@@ -104,11 +103,14 @@ class Extractor:
             )
 
             # Scrub past the decorator + 1, lineno 1 index -1
-            lineno = _none_to_0(decorator.end_lineno)
-            col_offset = decorator.col_offset - 1
-        else:
-            lineno = node.lineno
-            col_offset = node.col_offset
+            if (
+                len(node.decorator_list)
+                and (decorator := get_valid_decorator(node))  # type: ignore
+            ):
+                lineno = _none_to_0(decorator.end_lineno)
+                col_offset = decorator.col_offset - 1
+            else:
+                lineno -= 1
 
         code = self.extract_from_offsets(
             lineno,
