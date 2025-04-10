@@ -126,6 +126,7 @@ def create_session(
             filename=filename,
             cli_args={},
             argv=[""],
+            app_config=app.config,
         ),
         user_config,
     )

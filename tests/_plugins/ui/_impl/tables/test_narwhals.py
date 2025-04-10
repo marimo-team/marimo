@@ -22,7 +22,11 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.narwhals_utils import unwrap_py_scalar
-from tests._data.mocks import create_dataframes
+from tests._data.mocks import (
+    EAGER_LIBS,
+    NON_EAGER_LIBS,
+    create_dataframes,
+)
 from tests.mocks import snapshotter
 
 HAS_DEPS = DependencyManager.polars.has()
@@ -833,15 +837,17 @@ def test_search_with_regex(df: Any) -> None:
 )
 def test_sort_values_with_nulls(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    sorted_manager = manager.sort_values("A", descending=True)
-    assert sorted_manager.data["A"].to_list()[:-1] == [3, 2, 1]
-    last = unwrap_py_scalar(sorted_manager.data["A"][-1])
+    sorted_manager: NarwhalsTableManager[Any] = manager.sort_values(
+        "A", descending=True
+    )
+    assert sorted_manager.as_frame()["A"].head(3).to_list() == [3, 2, 1]
+    last = unwrap_py_scalar(sorted_manager.as_frame()["A"].tail(1).item())
     assert last is None or isnan(last)
 
     # ascending
     sorted_manager = manager.sort_values("A", descending=False)
-    assert sorted_manager.data["A"].to_list()[:-1] == [1, 2, 3]
-    last = unwrap_py_scalar(sorted_manager.data["A"][-1])
+    assert sorted_manager.as_frame()["A"].head(3).to_list() == [1, 2, 3]
+    last = unwrap_py_scalar(sorted_manager.as_frame()["A"].tail(1).item())
     assert last is None or isnan(last)
 
 
@@ -877,7 +883,7 @@ def test_sort_values_with_nulls(df: Any) -> None:
             "J": ["", "  ", "test", "\t\n"],  # Whitespace strings
             "K": [b"bytes1", b"bytes2", b"bytes3", b"bytes4"],  # Bytes
         },
-        exclude=["ibis", "duckdb"],
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_get_sample_values(df: Any) -> None:
@@ -944,6 +950,25 @@ def test_get_sample_values(df: Any) -> None:
     # Bytes
     sample_values = manager.get_sample_values("K")
     assert sample_values == ["b'bytes1'", "b'bytes2'", "b'bytes3'"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1, 2, 3, 4],  # Integer
+            "B": ["a", "b", "c", "d"],  # String
+        },
+        exclude=EAGER_LIBS,
+    ),
+)
+def test_get_sample_values_with_non_lazy_df(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    sample_values = manager.get_sample_values("A")
+    assert sample_values == []
+    sample_values = manager.get_sample_values("B")
+    assert sample_values == []
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

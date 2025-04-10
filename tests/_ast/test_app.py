@@ -8,10 +8,10 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.app import (
     App,
     AppKernelRunnerRegistry,
-    _AppConfig,
     InternalApp,
 )
 from marimo._ast.errors import (
@@ -363,6 +363,7 @@ class TestApp:
             "width": "full",
             "layout_file": None,
             "auto_download": [],
+            "sql_output": "auto",
         }
 
     @staticmethod
@@ -692,6 +693,7 @@ def test_app_config() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 
@@ -708,6 +710,7 @@ def test_app_config_extra_args_ignored() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 

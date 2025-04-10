@@ -10,7 +10,12 @@ if TYPE_CHECKING:
 
     from narwhals.typing import IntoDataFrame
 
-DFType = Literal["pandas", "polars", "ibis", "pyarrow", "duckdb"]
+DFType = Literal[
+    "pandas", "polars", "ibis", "pyarrow", "duckdb", "lazy-polars"
+]
+
+NON_EAGER_LIBS: list[DFType] = ["lazy-polars", "duckdb", "ibis"]
+EAGER_LIBS: list[DFType] = ["pandas", "polars", "pyarrow"]
 
 
 def create_dataframes(
@@ -44,6 +49,11 @@ def create_dataframes(
         import polars as pl
 
         dfs.append(pl.DataFrame(data, strict=strict))
+
+    if DependencyManager.polars.has() and should_include("lazy-polars"):
+        import polars as pl
+
+        dfs.append(pl.LazyFrame(data, strict=strict))
 
     if DependencyManager.ibis.has() and should_include("ibis"):
         import ibis  # type: ignore

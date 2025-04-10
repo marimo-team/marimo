@@ -124,7 +124,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     # dataclass components used in requests/responses
     REQUEST_RESPONSES = [
         # Sub components
-        requests.AppMetadata,
         home.MarimoFile,
         files.FileInfo,
         requests.ExecutionRequest,

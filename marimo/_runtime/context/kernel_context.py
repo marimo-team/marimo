@@ -171,6 +171,7 @@ def create_kernel_context(
         children=[],
         parent=parent,
         filename=kernel.app_metadata.filename,
+        app_config=kernel.app_metadata.app_config,
     )
 
 

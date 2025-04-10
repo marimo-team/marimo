@@ -16,7 +16,7 @@
   {
     "output": [
       {
-        "msg": "This cell raised an exception: ValueError('Failed to authenticate. The correct password is 's3cret'.')",
+        "msg": "Failed to authenticate. The correct password is 's3cret'.",
         "exception_type": "ValueError",
         "raising_cell": null,
         "type": "exception"

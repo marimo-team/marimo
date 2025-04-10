@@ -99,6 +99,16 @@ const addCustomVimCommandsOnce = once(() => {
     return goToDefinitionAtCursorPosition(view);
   });
   Vim.mapCommand("gd", "action", "goToDefinition", {}, { context: "normal" });
+
+  // Save command
+  Vim.defineEx("write", "w", (cm: CodeMirror) => {
+    const view = cm.cm6;
+    if (view) {
+      const actions = view.state.facet(cellActionsState);
+      actions.saveNotebook();
+    }
+  });
+  Vim.noremap("S", ":w<CR>", "normal");
 });
 
 class CodeMirrorVimSync {

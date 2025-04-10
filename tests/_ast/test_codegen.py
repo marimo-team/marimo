@@ -14,7 +14,8 @@ import pytest
 
 from marimo import __version__
 from marimo._ast import codegen, compiler, load
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
 

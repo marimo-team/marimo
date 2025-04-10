@@ -59,17 +59,15 @@ class SQLAlchemyEngine(SQLEngine):
         return str(self._engine.dialect.name)
 
     def execute(self, query: str) -> Any:
-        # Can't use polars.imported() because this is the first time we
-        # might come across polars.
-        if not (
-            DependencyManager.polars.has() or DependencyManager.pandas.has()
-        ):
-            raise_df_import_error("polars[pyarrow]")
+        sql_output_format = self.sql_output_format()
 
         from sqlalchemy import text
 
         with self._engine.connect() as connection:
             result = connection.execute(text(query))
+            if sql_output_format == "native":
+                return result
+
             rows = result.fetchall() if result.returns_rows else None
 
             try:
@@ -79,6 +77,21 @@ class SQLAlchemyEngine(SQLEngine):
 
             if rows is None:
                 return None
+
+            if sql_output_format == "polars":
+                import polars as pl
+
+                return pl.DataFrame(rows)  # type: ignore
+            if sql_output_format == "lazy-polars":
+                import polars as pl
+
+                return pl.DataFrame(rows).lazy()  # type: ignore
+            if sql_output_format == "pandas":
+                import pandas as pd
+
+                return pd.DataFrame(rows)
+
+            # Auto
 
             if DependencyManager.polars.has():
                 import polars as pl
@@ -101,6 +114,8 @@ class SQLAlchemyEngine(SQLEngine):
                 except Exception as e:
                     LOGGER.warning("Failed to convert dataframe", exc_info=e)
                     return None
+
+            raise_df_import_error("polars[pyarrow]")
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
@@ -248,20 +263,23 @@ class SQLAlchemyEngine(SQLEngine):
         schemas: list[Schema] = []
 
         for schema in schema_names:
-            schemas.append(
-                Schema(
-                    name=schema,
-                    tables=self.get_tables_in_schema(
-                        schema=schema,
-                        database=database if database is not None else "",
-                        include_table_details=include_table_details,
-                    )
-                    if include_tables
-                    else [],
+            tables: list[DataTable] = []
+            meta_schemas = self._get_meta_schemas()
+            if schema.lower() not in meta_schemas and include_tables:
+                tables = self.get_tables_in_schema(
+                    schema=schema,
+                    database=database if database is not None else "",
+                    include_table_details=include_table_details,
                 )
-            )
+            schemas.append(Schema(name=schema, tables=tables))
 
         return schemas
+
+    def _get_meta_schemas(self) -> list[str]:
+        dialect = self.dialect.lower()
+        if dialect == "postgresql":
+            return ["information_schema", "pg_catalog"]
+        return ["information_schema"]
 
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool

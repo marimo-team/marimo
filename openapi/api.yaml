@@ -86,43 +86,6 @@ components:
       - description
       - name
       type: object
-    AppMetadata:
-      properties:
-        argv:
-          items:
-            type: string
-          nullable: true
-          type: array
-        cliArgs:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
-            - items:
-                oneOf:
-                - type: string
-                - type: boolean
-                - type: integer
-                - type: number
-              type: array
-          type: object
-        filename:
-          nullable: true
-          type: string
-        queryParams:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - items:
-                type: string
-              type: array
-          type: object
-      required:
-      - queryParams
-      - cliArgs
-      type: object
     Banner:
       properties:
         action:
@@ -1159,6 +1122,14 @@ components:
             layout_file:
               nullable: true
               type: string
+            sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
             width:
               enum:
               - normal
@@ -1170,6 +1141,7 @@ components:
           required:
           - width
           - auto_download
+          - sql_output
           type: object
         capabilities:
           properties:

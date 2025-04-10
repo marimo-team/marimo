@@ -25,7 +25,8 @@ import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
 import { arrayToggle } from "@/utils/arrays";
 import { Kbd } from "../ui/kbd";
-
+import { ExternalLink } from "../ui/links";
+import { toast } from "../ui/use-toast";
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
 
@@ -170,6 +171,51 @@ export const AppConfigForm: React.FC = () => {
                 <Kbd className="inline">{"<head/>"}</Kbd> section of the
                 notebook. Use this to add analytics, custom fonts, meta tags, or
                 external scripts.
+              </FormDescription>
+            </div>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="sql_output"
+          render={({ field }) => (
+            <div className="flex flex-col gap-y-1">
+              <FormItem
+                className={"flex flex-row items-center space-x-1 space-y-0"}
+              >
+                <FormLabel>SQL Output Type</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="sql-output-select"
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      toast({
+                        title: "Kernel Restart Required",
+                        description:
+                          "This change requires a kernel restart to take effect.",
+                      });
+                    }}
+                    value={field.value}
+                    disabled={field.disabled}
+                    className="inline-flex mr-2"
+                  >
+                    <option value="auto">Auto (Default)</option>
+                    <option value="native">Native</option>
+                    <option value="polars">Polars</option>
+                    <option value="lazy-polars">Lazy Polars</option>
+                    <option value="pandas">Pandas</option>
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              <FormDescription>
+                The Python type returned by a SQL cell. For best performance
+                with large datasets, we recommend using{" "}
+                <Kbd className="inline">native</Kbd>. See the{" "}
+                <ExternalLink href="http://docs.marimo.io/guides/working_with_data/sql">
+                  SQL guide
+                </ExternalLink>{" "}
+                for more information.
               </FormDescription>
             </div>
           )}

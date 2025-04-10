@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -1159,6 +1160,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1223,6 +1225,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1249,6 +1252,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=["foo", "bar"],
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1281,6 +1285,7 @@ class TestExecution:
                     filename=filename,
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1317,6 +1322,7 @@ class TestExecution:
                     filename=str(filename),
                     cli_args={},
                     argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -2957,10 +2963,8 @@ class TestErrorHandling:
 
         assert len(errors) == 1
         assert errors[0].type == "exception"
-        assert (
-            errors[0].msg
-            == "This cell raised an exception: ValueError('some secret error')"
-        )
+        assert errors[0].msg == "some secret error"
+        assert errors[0].exception_type == "ValueError"
 
     async def test_error_handling_in_run_mode(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider

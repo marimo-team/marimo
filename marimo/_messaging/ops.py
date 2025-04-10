@@ -23,7 +23,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers as loggers
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (

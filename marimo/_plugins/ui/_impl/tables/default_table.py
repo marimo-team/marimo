@@ -138,6 +138,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        if not cells:
+            return []
+
         selected_cells: list[TableCell] = []
         if (
             self.is_column_oriented

@@ -620,10 +620,13 @@ class Cell:
         assert self._app is not None
         # Definitions on a module level are not part of the signature, and as
         # such, should not be provided with the call.
-        extraction = TopLevelExtraction.from_app(self._app)
-        arg_names = sorted(
-            (self._cell.refs - extraction.allowed_refs) - self._cell.defs
-        )
+
+        # NB. TopLevelExtraction assumes that all cells that can be exposed will
+        # be, but signature provides context for what is actually scoped.
+        allowed_refs = TopLevelExtraction.from_app(self._app).allowed_refs
+        allowed_refs -= set(self._expected_signature or ())
+
+        arg_names = sorted((self._cell.refs - allowed_refs) - self._cell.defs)
         argc = len(arg_names)
 
         call_args = {name: arg for name, arg in zip(arg_names, args)}

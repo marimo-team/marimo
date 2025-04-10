@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
@@ -52,6 +53,7 @@ app_metadata = AppMetadata(
     filename="test.py",
     cli_args={},
     argv=None,
+    app_config=_AppConfig(),
 )
 
 
@@ -320,7 +322,9 @@ def test_session_disconnect_reconnect() -> None:
         queue_manager,
         SessionMode.RUN,
         {},
-        AppMetadata(query_params={}, cli_args={}, argv=None),
+        AppMetadata(
+            query_params={}, cli_args={}, argv=None, app_config=_AppConfig()
+        ),
         get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,

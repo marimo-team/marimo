@@ -248,7 +248,7 @@ class TestExportHTML:
         assert p.returncode != 0, p.stderr.decode()
         html = normalize_index_html(p.stdout.decode())
         # Errors but still produces HTML
-        assert "ZeroDivisionError" in p.stderr.decode()
+        assert " division by zero" in p.stderr.decode()
         assert "<marimo-code" in html
 
     @staticmethod
@@ -866,7 +866,7 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode != 0, p.stderr.decode()
-        assert "ZeroDivisionError" in p.stderr.decode()
+        assert " division by zero" in p.stderr.decode()
         output = p.stdout.decode()
         output = _delete_lines_with_files(output)
         snapshot("ipynb_with_errors.txt", output)

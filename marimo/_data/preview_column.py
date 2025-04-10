@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import narwhals.stable.v1 as nw
+
 from marimo import _loggers
 from marimo._data.charts import get_chart_builder
 from marimo._data.models import ColumnSummary
@@ -219,6 +221,9 @@ def _get_altair_chart(
     try:
         # Filter the data to the column we want
         column_data = table.select_columns([request.column_name]).data
+        if isinstance(column_data, nw.LazyFrame):
+            column_data = column_data.collect()
+
         chart_spec = _get_chart_spec(
             column_data=column_data,
             column_type=column_type,

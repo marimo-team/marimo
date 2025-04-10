@@ -23,7 +23,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     altair_chart,
 )
 from marimo._runtime.runtime import Kernel
-from tests._data.mocks import create_dataframes
+from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
 
@@ -64,7 +64,7 @@ class TestAltairChart:
                 "field_2": [1, 2, 3, 4],
                 "field_3": [10, 20, 30, 40],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe(df: ChartDataType) -> None:
@@ -143,7 +143,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 10),
                 ],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_dates(
@@ -241,7 +241,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 1),
                 ],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_strings(
@@ -397,7 +397,7 @@ class TestAltairChart:
                     datetime.datetime.fromtimestamp(20000),
                 ],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_numbers(
@@ -802,7 +802,8 @@ def test_no_selection_polars() -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"x": [1, 2, 3], "y1": [4, 5, 6], "y2": [7, 8, 9]}, exclude=["ibis"]
+        {"x": [1, 2, 3], "y1": [4, 5, 6], "y2": [7, 8, 9]},
+        exclude=["ibis", "lazy-polars"],
     ),
 )
 def test_layered_chart(df: IntoDataFrame):
@@ -821,7 +822,7 @@ def test_layered_chart(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"values": range(100)}),
+    create_dataframes({"values": range(100)}, exclude=["lazy-polars"]),
 )
 def test_chart_with_binning(df: IntoDataFrame):
     import altair as alt
@@ -847,7 +848,7 @@ def test_chart_with_binning(df: IntoDataFrame):
             "y": [1, 2, 3, 4],
             "category": ["A", "A", "B", "B"],
         },
-        exclude=["ibis", "pyarrow", "duckdb"],
+        exclude=["ibis", "pyarrow", "duckdb", "lazy-polars"],
     ),
 )
 def test_apply_selection(df: IntoDataFrame):
@@ -883,7 +884,9 @@ def test_chart_with_url_data():
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"x": [1, 2, 3], "y": [4, 5, 6]}),
+    create_dataframes(
+        {"x": [1, 2, 3], "y": [4, 5, 6]}, exclude=["lazy-polars"]
+    ),
 )
 def test_chart_operations(df: IntoDataFrame):
     import altair as alt

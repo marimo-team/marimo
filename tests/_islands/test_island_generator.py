@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo import __version__
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._islands._island_generator import (
     MarimoIslandGenerator,
 )

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any
 import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw
 
+from marimo._dependencies.dependencies import DependencyManager
+
 if sys.version_info < (3, 11):
     from typing_extensions import TypeGuard
 else:
@@ -134,6 +136,8 @@ def unwrap_narwhals_dataframe(df: Any) -> Any:
     """
     if isinstance(df, nw.DataFrame):
         return df.to_native()  # type: ignore[return-value]
+    if isinstance(df, nw.LazyFrame):
+        return df.to_native()  # type: ignore[return-value]
     return df
 
 
@@ -146,3 +150,20 @@ def unwrap_py_scalar(value: Any) -> Any:
         return nw.to_py_scalar(value)
     except ValueError:
         return value
+
+
+def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
+    """
+    Check if the given object is a narwhals lazyframe.
+    """
+    if nw.dependencies.is_polars_lazyframe(df):
+        return True
+    if hasattr(nw.dependencies, "is_duckdb_relation"):
+        if nw.dependencies.is_duckdb_relation(df):
+            return True
+    elif DependencyManager.duckdb.has():
+        # Fallback if is_duckdb_relation is not available
+        import duckdb
+
+        return isinstance(df, duckdb.DuckDBPyRelation)
+    return False

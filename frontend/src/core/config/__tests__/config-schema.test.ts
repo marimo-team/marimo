@@ -15,6 +15,7 @@ test("default AppConfig", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "auto_download": [],
+      "sql_output": "auto",
       "width": "medium",
     }
   `);
@@ -29,6 +30,7 @@ test("another AppConfig", () => {
     {
       "app_title": null,
       "auto_download": [],
+      "sql_output": "auto",
       "width": "medium",
     }
   `);

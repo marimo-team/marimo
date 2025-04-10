@@ -141,6 +141,7 @@ class ClickhouseServer(SQLEngine):
     ) -> None:
         self._connection = connection
         self._engine_name = engine_name
+        self._meta_dbs = ["system", "information_schema"]
 
     @property
     def source(self) -> str:
@@ -238,11 +239,8 @@ class ClickhouseServer(SQLEngine):
         db_names = db_df[db_df.columns[0]].tolist()
         for db in db_names:
             db_name = cast(str, db)
-            if (
-                # Skip meta db's, TODO: do this for other engines too.
-                db_name.lower() in ["system", "information_schema"]
-                or not include_tables
-            ):
+            # Skip introspection for meta tables for performance
+            if db_name.lower() in self._meta_dbs or not include_tables:
                 tables = []
             else:
                 tables = self.get_tables_in_schema(

@@ -30,4 +30,4 @@ marimo edit --profile-dir profiles/ notebook.py
 If the notebook exits gracefully (i.e., is shut down manually), profiling
 statistics will be written to the profiles/ directory. You can then use
 standard tools to analyze the dumped statistics. To view flamegraphs,
-we recommend snakeviz or tuna (`pip install snakeviz; snakeviz path_to_profile`)
+we recommend snakeviz or tuna (`uvx snakeviz path_to_profile`)
