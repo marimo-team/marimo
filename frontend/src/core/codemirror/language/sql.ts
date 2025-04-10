@@ -35,6 +35,7 @@ import {
   MySQL,
   SQLite,
   MSSQL,
+  keywordCompletionSource,
 } from "@codemirror/lang-sql";
 import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
@@ -173,6 +174,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
   ): Extension[] {
+    const keywordCompletion = keywordCompletionSource(StandardSQL);
     return [
       sql({
         dialect: StandardSQL,
@@ -182,9 +184,23 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         // handles the Escape key correctly in Vim
         defaultKeymap: false,
         activateOnTyping: true,
-      }),
-      StandardSQL.language.data.of({
-        autocomplete: tablesCompletionSource(this),
+        override: [
+          tablesCompletionSource(this),
+          (ctx) => {
+            // We want to ignore keyword completions on something like
+            // `WHERE my_table.col`
+            //                    ^cursor
+            const textBefore = ctx.matchBefore(/\.\w*/);
+            if (textBefore) {
+              // If there is a match, we are typing after a dot,
+              // so we don't want to trigger SQL keyword completion
+              return null;
+            }
+
+            const result = keywordCompletion(ctx);
+            return result;
+          },
+        ],
       }),
     ];
   }
