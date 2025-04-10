@@ -63,22 +63,23 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const maxHeight = props.maxHeight ? `${props.maxHeight}px` : undefined;
 
   const [localValue, setLocalValue] = useState(props.value);
-  const { onChange: onChangeDebounce } = useDebounceControlledState<string>({
+  const { onChange: setValueDebounced } = useDebounceControlledState<string>({
     initialValue: props.value,
     delay: Number.isFinite(props.debounce) ? (props.debounce as number) : 0,
     onChange: props.setValue,
+    disabled: !Number.isFinite(props.debounce),
   });
 
   const handleChange = useCallback(
     (newValue: string) => {
       setLocalValue((_) => newValue);
       if (typeof props.debounce === "number") {
-        onChangeDebounce(newValue);
+        setValueDebounced(newValue);
       } else if (props.debounce !== true) {
         props.setValue(newValue);
       }
     },
-    [onChangeDebounce, props.setValue],
+    [setValueDebounced, props.debounce, props.setValue],
   );
 
   const extensions =
