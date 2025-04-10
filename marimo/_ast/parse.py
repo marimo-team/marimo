@@ -95,8 +95,8 @@ class Extractor:
         if (
             hasattr(node, "decorator_list")
             and len(node.decorator_list)
-            and (decorator := get_valid_decorator(node))
-        ):  # type: ignore
+            and (decorator := get_valid_decorator(node))  # type: ignore
+        ):
             # From the ast, having a decorator list means we are either a
             # function or a class.
             assert isinstance(
