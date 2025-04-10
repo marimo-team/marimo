@@ -81,6 +81,12 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
     additionalPackageInstalls: [],
     description: "Export as IPYNB",
   },
+  {
+    id: "testing",
+    packagesRequired: [{ name: "pytest" }],
+    additionalPackageInstalls: [],
+    description: "Autorun unit tests",
+  },
 ];
 
 if (getFeatureFlag("lsp")) {

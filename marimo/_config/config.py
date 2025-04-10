@@ -107,6 +107,8 @@ class RuntimeConfig(TypedDict):
     - `auto_reload`: if `lazy`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
+    - `reactive_tests`: if `True`, cells containing tests will auto run on
+      execution.
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
@@ -130,6 +132,7 @@ class RuntimeConfig(TypedDict):
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
+    reactive_tests: bool
     on_cell_change: OnCellChangeType
     watcher_on_save: Literal["lazy", "autorun"]
     output_max_bytes: int
@@ -401,6 +404,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "runtime": {
         "auto_instantiate": True,
         "auto_reload": "off",
+        "reactive_tests": True,
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(

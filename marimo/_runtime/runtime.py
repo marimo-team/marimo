@@ -515,7 +515,7 @@ class Kernel:
         self._original_environ = os.environ.copy()
 
         # Adds in a post_execution hook to run pytest immediately
-        if user_config.get("experimental", {}).get("reactive_tests", False):
+        if user_config["runtime"].get("reactive_tests", False):
             from marimo._runtime.runner.hooks_post_execution import (
                 _attempt_pytest,
             )
