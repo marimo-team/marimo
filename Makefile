@@ -1,8 +1,9 @@
 # Makefile for marimo - Development and build tasks
 # Prerequisites:
-#   - pnpm (for frontend): npm install -g pnpm
-#   - Python 3.12+
-#   - hatch: pip install hatch
+#   - hatch: for environment permutations management and testing
+#   - uv: for Python dependency management
+#   - pnpm: for frontend development
+#   - Node.js: for frontend development
 
 .PHONY: help
 # 📖 Show available commands
