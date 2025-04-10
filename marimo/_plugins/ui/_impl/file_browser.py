@@ -64,10 +64,10 @@ class file_browser(
         )
 
         # Access the selected file path(s):
-        file_browser.path(index)  # returns a Path object
+        file_browser.path(index=0)  # returns a Path object
 
         # Get name of selected file(s)
-        file_browser.name(index)
+        file_browser.name(index=0)
         ```
 
         Connecting to an S3 (or GCS, Azure) bucket:
@@ -79,10 +79,10 @@ class file_browser(
         )
 
         # Access the selected file path(s):
-        file_browser.path(index)  # returns a S3Path object
+        file_browser.path(index=0)  # returns a S3Path object
 
         # Read the contents of the selected file(s):
-        file_browser.path(index).read_text()
+        file_browser.path(index=0).read_text()
         ```
 
         Using with client credentials:
