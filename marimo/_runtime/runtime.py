@@ -25,6 +25,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.errors import ImportStarError
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
@@ -1272,6 +1273,12 @@ class Kernel:
             - cells_registered_without_error
         ) & cells_in_graph
 
+        # If there is a setup cell and it is currently stale
+        if setup_cell := self.graph.cells.get(CellId_t(SETUP_CELL_NAME)):
+            # - then add it to the set of cells to run.
+            # This makes the setup cell like a "root" cell to everything.
+            if setup_cell.stale:
+                cells_registered_without_error.add(setup_cell.cell_id)
         if self.reactive_execution_mode == "lazy":
             self.graph.set_stale(stale_cells, prune_imports=True)
             return cells_registered_without_error
