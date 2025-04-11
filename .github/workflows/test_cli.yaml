@@ -59,6 +59,7 @@ jobs:
       - name: 📦 Build frontend
         run: make fe
         env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           NODE_OPTIONS: '--max_old_space_size=8192'
 
       - name: 🥚 Install Hatch

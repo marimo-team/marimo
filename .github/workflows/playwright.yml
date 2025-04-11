@@ -64,6 +64,8 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@v5
