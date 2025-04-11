@@ -2033,16 +2033,6 @@ components:
       - cellIds
       - codes
       type: object
-    RunScratchpadRequest:
-      properties:
-        code:
-          type: string
-        request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
-      required:
-      - code
-      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -3079,7 +3069,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunScratchpadRequest'
+              $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
         200:
           content:

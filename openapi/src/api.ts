@@ -1647,7 +1647,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["RunScratchpadRequest"];
+          "application/json": components["schemas"]["ExecuteScratchpadRequest"];
         };
       };
       responses: {
@@ -3187,10 +3187,6 @@ export interface components {
     RunRequest: {
       cellIds: string[];
       codes: string[];
-      request?: components["schemas"]["HTTPRequest"];
-    };
-    RunScratchpadRequest: {
-      code: string;
       request?: components["schemas"]["HTTPRequest"];
     };
     RunningNotebooksResponse: {

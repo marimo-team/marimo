@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse
 from marimo import _loggers
 from marimo._messaging.ops import Alert
 from marimo._runtime.requests import (
+    ExecuteScratchpadRequest,
     FunctionCallRequest,
     HTTPRequest,
     SetUIElementValueRequest,
@@ -23,7 +24,6 @@ from marimo._server.models.models import (
     BaseResponse,
     InstantiateRequest,
     RunRequest,
-    RunScratchpadRequest,
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
@@ -195,7 +195,7 @@ async def run_scratchpad(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/RunScratchpadRequest"
+                    $ref: "#/components/schemas/ExecuteScratchpadRequest"
     responses:
         200:
             description: Run the scratchpad
@@ -205,9 +205,9 @@ async def run_scratchpad(
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
     app_state = AppState(request)
-    body = await parse_request(request, cls=RunScratchpadRequest)
+    body = await parse_request(request, cls=ExecuteScratchpadRequest)
     app_state.require_current_session().put_control_request(
-        body.as_execution_request(),
+        body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
