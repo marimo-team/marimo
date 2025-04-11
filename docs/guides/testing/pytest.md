@@ -5,7 +5,8 @@
 By default, marimo detects and runs tests in your notebooks automatically. If
 the optional `pytest` library is installed, marimo will run `pytest` on any cells that
 contain test functions (functions that start with `test_`) or test classes
-(classes that start with `Test`) on a per cell basis.
+(classes that start with `Test`) on a per cell basis. **Note**, these cells
+should _only_ contain test functions and/or test classes.
 
 For example,
 
@@ -54,7 +55,7 @@ pytest test_notebook.py
 ```
 
 runs and tests all notebook cells whose names start with `test_`, or cells that
-contain only `test_` functions and `Test` classes.
+contain only `test_` functions and `Test` classes (just like in notebook tests).
 
 !!! tip "Naming cells"
 
