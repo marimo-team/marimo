@@ -295,7 +295,7 @@ def _():
 
         ```
 
-        The default name of a cell is `_`, but you can explicilty give cells a
+        The default name of a cell is `_`, but you can explicitly give cells a
         name, as seen in the following cell example below:
         """
     )
@@ -319,7 +319,7 @@ def _():
         ### Functions / Class cells
 
         marimo directly exposes functions and classes that can be directly
-        serialized, opposed to wrapping definitions in a superflous `@app.cell`.
+        serialized, opposed to wrapping definitions in a superfluous `@app.cell`.
 
         In marimo versions older than `0.13.0`, cells with only a function definition looked like: 
 
@@ -458,7 +458,7 @@ def _():
 def wrapped_function_example(runtime_definition):
     def wrapped_function_example():
         """
-        This function has depdencies declared in the runtime
+        This function has dependencies declared in the runtime
         Notice that this function isn't exposed - and the bottom right
         corner indicates this.
         """

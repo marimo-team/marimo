@@ -21,7 +21,7 @@ in an `@app.cell` decorator:
 @app.cell
 def memorable_cell_name(auto, determined, references):  # signature denotes cell inputs
     computed_value = auto + determined + references
-    "hello!"                                            # final statement are outputed
+    "hello!"                                            # final statement are outputted
     return computed_value                               # return denotes cell outputs
 ```
 
