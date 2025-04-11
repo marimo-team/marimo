@@ -11,6 +11,7 @@ from marimo._messaging.ops import CellOp
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._runtime.context.utils import running_in_notebook
 
 
 class PlotlyFormatter(FormatterFactory):
@@ -24,35 +25,39 @@ class PlotlyFormatter(FormatterFactory):
 
         from marimo._output import formatting
 
-        @formatting.formatter(plotly.graph_objects.Figure)
-        @formatting.formatter(plotly.graph_objects.FigureWidget)
-        def _show_plotly_figure(
-            fig: plotly.graph_objects.Figure,
-        ) -> tuple[KnownMimeType, str]:
-            dragmode = getattr(fig.layout, "dragmode", None)
-            if dragmode is None:
-                # Users are accustomed to default zoom.
-                fig.update_layout(dragmode="zoom")
-            json_str: str = pio.to_json(fig)
-            plugin = PlotlyFormatter.render_plotly_dict(json.loads(json_str))
-            return ("text/html", plugin.text)
+        if running_in_notebook():
 
-        # Patch Figure.show to add to console output instead of opening a
-        # browser.
-        def patched_show(
-            self: plotly.graph_objects.Figure, *args: Any, **kwargs: Any
-        ) -> None:
-            del args, kwargs
-            mimetype, data = _show_plotly_figure(self)
-            CellOp.broadcast_console_output(
-                channel=CellChannel.MEDIA,
-                mimetype=mimetype,
-                data=data,
-                cell_id=None,
-                status=None,
-            )
+            @formatting.formatter(plotly.graph_objects.Figure)
+            @formatting.formatter(plotly.graph_objects.FigureWidget)
+            def _show_plotly_figure(
+                fig: plotly.graph_objects.Figure,
+            ) -> tuple[KnownMimeType, str]:
+                dragmode = getattr(fig.layout, "dragmode", None)
+                if dragmode is None:
+                    # Users are accustomed to default zoom.
+                    fig.update_layout(dragmode="zoom")
+                json_str: str = pio.to_json(fig)
+                plugin = PlotlyFormatter.render_plotly_dict(
+                    json.loads(json_str)
+                )
+                return ("text/html", plugin.text)
 
-        plotly.graph_objects.Figure.show = patched_show
+            # Patch Figure.show to add to console output instead of opening a
+            # browser.
+            def patched_show(
+                self: plotly.graph_objects.Figure, *args: Any, **kwargs: Any
+            ) -> None:
+                del args, kwargs
+                mimetype, data = _show_plotly_figure(self)
+                CellOp.broadcast_console_output(
+                    channel=CellChannel.MEDIA,
+                    mimetype=mimetype,
+                    data=data,
+                    cell_id=None,
+                    status=None,
+                )
+
+            plotly.graph_objects.Figure.show = patched_show
 
     @staticmethod
     def render_plotly_dict(json: dict[Any, Any]) -> Html:
