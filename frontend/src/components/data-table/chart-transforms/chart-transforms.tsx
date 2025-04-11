@@ -203,7 +203,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   };
 
   return (
-    <Tabs value={selectedTab} ref={containerRef} className="-mt-2">
+    <Tabs value={selectedTab} ref={containerRef} className="-mt-1">
       <TabsList>
         <TabsTrigger
           className="text-xs"
