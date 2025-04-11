@@ -45,12 +45,6 @@ def patch_sys_module(module: types.ModuleType) -> None:
     sys.modules[module.__name__] = module
 
 
-def patch_pyodide_networking() -> None:
-    import pyodide_http  # type: ignore
-
-    pyodide_http.patch_urllib()
-
-
 def patch_recursion_limit(limit: int) -> None:
     """Set the recursion limit."""
 

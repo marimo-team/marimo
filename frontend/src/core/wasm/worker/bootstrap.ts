@@ -175,9 +175,7 @@ export class DefaultWasmController implements WasmController {
       }
     }
 
-    // Add:
-    // 1. additional dependencies of marimo that are lazily loaded.
-    // 2. pyodide-http, a patch to make basic http requests work in pyodide
+    // Add additional dependencies of marimo that are lazily loaded.
     //
     // These packages are included with Pyodide, which is why we don't add them
     // to `foundPackages`:
@@ -185,7 +183,6 @@ export class DefaultWasmController implements WasmController {
     code = `import docutils\n${code}`;
     code = `import pygments\n${code}`;
     code = `import jedi\n${code}`;
-    code = `import pyodide_http\n${code}`;
 
     const imports = [...foundPackages];
 
