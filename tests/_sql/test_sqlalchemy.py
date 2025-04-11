@@ -674,3 +674,25 @@ def test_sqlalchemy_engine_sql_output_formats(
         result = engine.execute("SELECT * FROM test ORDER BY id")
         assert isinstance(result, (pd.DataFrame, pl.DataFrame))
         assert len(result) == 4
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_get_cursor_metadata(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """Test SQLAlchemyEngine get_cursor_metadata."""
+    from sqlalchemy.engine import CursorResult
+
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="native"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert isinstance(result, CursorResult)
+
+        assert SQLAlchemyEngine.is_cursor_result(result)
+        metadata = SQLAlchemyEngine.get_cursor_metadata(result)
+        assert metadata is not None
+        assert metadata["sql_statement_type"] == "Query"

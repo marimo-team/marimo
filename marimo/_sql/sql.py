@@ -8,6 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import ENGINE_REGISTRY
 from marimo._sql.utils import raise_df_import_error
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
@@ -117,10 +118,14 @@ def sql(
             # Also preload the first page of data without user confirmation.
             t = table.table.lazy(df, preload=True)
         else:
-            # df may be a cursor result from an SQL Engine
-            # In this case, we need to convert it to a DataFrame
+            display_df = df
+            if SQLAlchemyEngine.is_cursor_result(df):
+                result = SQLAlchemyEngine.get_cursor_metadata(df)
+                if result is not None:
+                    display_df = result
+
             t = table.table(
-                df,
+                display_df,
                 selection=None,
                 page_size=DEFAULT_PAGE_SIZE,
                 pagination=True,
