@@ -836,6 +836,9 @@ class code_editor(UIElement[str, str]):
             this element's value changes. Defaults to None.
         show_copy_button (bool): Whether to show a button to copy the code
             to the clipboard. Defaults to True.
+        debounce (bool | int, optional): Whether the input is debounced. If number,
+            debounce by that many milliseconds. If True, then value is only emitted
+            when the input loses focus. Defaults to False.
     """
 
     _name: Final[str] = "marimo-code-editor"
@@ -850,6 +853,7 @@ class code_editor(UIElement[str, str]):
         min_height: Optional[int] = None,
         max_height: Optional[int] = None,
         show_copy_button: bool = True,
+        debounce: bool | int = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -875,6 +879,7 @@ class code_editor(UIElement[str, str]):
                 "min-height": min_height,
                 "max-height": max_height,
                 "show-copy-button": show_copy_button,
+                "debounce": debounce,
             },
             on_change=on_change,
         )
