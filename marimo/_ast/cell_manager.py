@@ -108,7 +108,7 @@ class CellManager:
             is_top_level_pytest = (
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
-            )
+            ) or "MARIMO_PYTEST_WASM" in os.environ
             factory: Callable[..., Cell] = (
                 toplevel_cell_factory if top_level else cell_factory
             )

@@ -638,7 +638,10 @@ class Cell:
                 f"{self.name}() got an unexpected argument(s) '{unexpected}'"
             )
 
-        is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+        is_pytest = (
+            "PYTEST_CURRENT_TEST" in os.environ
+            or "MARIMO_PYTEST_WASM" in os.environ
+        )
         # Capture pytest case, where arguments don't match the references.
         if self._pytest_reserved - set(arg_names):
             raise TypeError(
