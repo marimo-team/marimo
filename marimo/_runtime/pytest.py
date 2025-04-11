@@ -268,6 +268,9 @@ def run_pytest(
     # the normal behavior (in which pytest alters the system path).
     plugin = ReplaceStubPlugin(defs, lcls)
     try:
+        # pytest in wasm doesn't seem to set environment variables correctly.
+        # This work around is to prevent collision with non-wasm testing.
+        os.environ["MARIMO_PYTEST_WASM"] = "1"
         with capture_stdout() as stdout:
             pytest.main(
                 [
@@ -280,6 +283,7 @@ def run_pytest(
                 plugins=[plugin],
             )
     finally:
+        del os.environ["MARIMO_PYTEST_WASM"]
         # Note, in pytester, there are also exceptions for zope and readline.
         # However, those deps should already be in module_snapshot, since
         # dependencies are required before the given cell runs.
