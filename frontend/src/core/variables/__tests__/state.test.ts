@@ -56,7 +56,6 @@ describe("cell reducer", () => {
     expect(state).toEqual({});
   });
 
-
   it("should add variables", () => {
     const x = {
       name: Names.x,
