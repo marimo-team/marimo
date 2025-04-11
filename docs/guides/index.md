@@ -22,6 +22,7 @@ These guides cover marimo's core concepts.
 | [Using your own editor](editor_features/watching.md)  | Edit notebooks in your own editor and stream changes back to the browser |
 | [Apps](apps.md)                                       | Running notebooks as apps                                  |
 | [Scripts](scripts.md)                                 | Running notebooks as scripts                               |
+| [Libraries](library.md)                               | Reusing notebook definitions                               |
 | [Tests](testing/index.md)                             | Running unit tests in notebooks                            |
 | [Export notebooks](exporting.md)                      | Exporting notebooks to HTML, ipynb, flat scripts, and more |
 | [Publish to the web](publishing/index.md)             | Edit and publish notebooks on the web                      |
