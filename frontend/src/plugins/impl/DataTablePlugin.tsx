@@ -241,7 +241,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             value={props.value}
             setValue={props.setValue}
             experimentalChartsEnabled={true}
-        />
+          />
         </LazyDataTableComponent>
       </TooltipProvider>
     );
@@ -283,6 +283,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   cellStyles?: CellStyleState | null;
   experimentalChartsEnabled?: boolean;
   toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
 
 interface DataTableSearchProps {
@@ -493,7 +494,7 @@ export const LoadingDataTableComponent = memo(
       setDisplayHeader(!displayHeader);
     };
 
-    const chartsFeature =
+    const chartsFeatureEnabled =
       getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
 
     const dataTable = (
@@ -513,13 +514,14 @@ export const LoadingDataTableComponent = memo(
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
         toggleDisplayHeader={toggleDisplayHeader}
+        chartsFeatureEnabled={chartsFeatureEnabled}
       />
     );
 
     return (
       <>
         {errorComponent}
-        {chartsFeature ? (
+        {chartsFeatureEnabled ? (
           <TablePanel
             displayHeader={displayHeader}
             dataTable={dataTable}
@@ -568,6 +570,7 @@ const DataTableComponent = ({
   get_row_ids,
   cellStyles,
   toggleDisplayHeader,
+  chartsFeatureEnabled,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -717,6 +720,7 @@ const DataTableComponent = ({
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
+            chartsFeatureEnabled={chartsFeatureEnabled}
           />
         </Labeled>
       </ColumnChartContext.Provider>

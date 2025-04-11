@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   ChartBarIcon,
   InfoIcon,
+  Loader2,
   SquareFunctionIcon,
   TableIcon,
   XIcon,
@@ -329,10 +330,18 @@ export const ChartPanel: React.FC<{
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {
     if (loading) {
-      return <div>Loading...</div>;
+      return (
+        <div className="flex items-center justify-center h-full w-full">
+          <Loader2 className="w-10 h-10 animate-spin" strokeWidth={1} />
+        </div>
+      );
     }
     if (error) {
-      return <div>Error: {error.message}</div>;
+      return (
+        <div className="flex items-center justify-center h-full w-full">
+          Error: ""
+        </div>
+      );
     }
     return (
       <Chart

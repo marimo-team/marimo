@@ -25,6 +25,7 @@ interface TableActionsProps<TData> {
   downloadAs?: DownloadActionProps["downloadAs"];
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
 
 export const TableActions = <TData,>({
@@ -40,6 +41,7 @@ export const TableActions = <TData,>({
   downloadAs,
   getRowIds,
   toggleDisplayHeader,
+  chartsFeatureEnabled,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -99,16 +101,18 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      <Tooltip content="Show charts">
-        <Button
-          variant="text"
-          size="xs"
-          className="mb-0 mr-auto"
-          onClick={toggleDisplayHeader}
-        >
-          <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
-        </Button>
-      </Tooltip>
+      {chartsFeatureEnabled && (
+        <Tooltip content="Show charts">
+          <Button
+            variant="text"
+            size="xs"
+            className="mb-0 mr-auto"
+            onClick={toggleDisplayHeader}
+          >
+            <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </Tooltip>
+      )}
       {pagination ? (
         <DataTablePagination
           totalColumns={totalColumns}
