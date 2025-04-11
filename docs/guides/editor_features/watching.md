@@ -11,6 +11,39 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
+## Recap of file format
+
+We recommend walking through the [file-format tutorial]() to best understand
+how marimo notebooks are written. Notably, most marimo cells are wrapped
+in an `@app.cell` decorator:
+
+```python
+@app.cell
+def memorable_cell_name(auto, determined, references):  # signature denotes cell inputs
+    computed_value = auto + determined + references
+    "hello!"                                            # final statement are outputed
+    return computed_value                               # return denotes cell outputs
+```
+
+You may also expose imports, functions and classes in your notebook, for more
+details see the [library guide](../library.md).
+
+```python
+with app.setup:
+    CONSTANT: int = 1
+    import marimo as mo
+
+@app.function
+def my_function(x): ...
+
+@app.class
+class MyClass: ...
+```
+
+!!! note "Cell signature and returns"
+    Don't worry about maintaining the signatures of cells and their return
+    values; marimo will handle this for you.
+
 ## `marimo edit --watch`
 
 When you run `marimo edit` with the `--watch` flag, the marimo server
@@ -28,10 +61,6 @@ If you want to run all affected cells automatically when you save, change the `r
 [tool.marimo.runtime]
 watcher_on_save = "autorun"
 ```
-
-!!! note "Cell signature and returns"
-    Don't worry about maintaining the signatures of cells and their return
-    values; marimo will handle this for you.
 
 ## `marimo run --watch`
 
