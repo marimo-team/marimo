@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "../types";
-import * as events from "@uiw/codemirror-extensions-events";
 
 import { Labeled } from "./common/labeled";
 import { type Theme, useTheme } from "@/theme/useTheme";
@@ -9,6 +8,7 @@ import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useCallback, useState } from "react";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { EditorView } from "@codemirror/view";
 
 type T = string;
 
@@ -21,7 +21,7 @@ interface Data {
   minHeight?: number;
   maxHeight?: number;
   showCopyButton?: boolean;
-  debounce?: boolean | number;
+  debounce: boolean | number;
 }
 
 export class CodeEditorPlugin implements IPlugin<T, Data> {
@@ -37,7 +37,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
     minHeight: z.number().optional(),
     maxHeight: z.number().optional(),
     showCopyButton: z.boolean().optional(),
-    debounce: z.optional(z.union([z.boolean(), z.number()])),
+    debounce: z.union([z.boolean(), z.number()]).default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -85,7 +85,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const extensions =
     props.debounce === true
       ? [
-          events.content({
+          EditorView.domEventHandlers({
             blur: () => {
               props.setValue(localValue);
             },

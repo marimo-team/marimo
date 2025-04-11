@@ -228,9 +228,6 @@ importers:
       '@uidotdev/usehooks':
         specifier: ^2.4.1
         version: 2.4.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@uiw/codemirror-extensions-events':
-        specifier: ^4.23.10
-        version: 4.23.10(@codemirror/view@6.36.5)
       '@uiw/codemirror-extensions-langs':
         specifier: ^4.23.10
         version: 4.23.10(@codemirror/autocomplete@6.18.6)(@codemirror/language-data@6.5.1)(@codemirror/language@6.11.0)(@codemirror/legacy-modes@6.5.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/javascript@1.4.18)(@lezer/lr@1.4.2)
@@ -3825,11 +3822,6 @@ packages:
       '@codemirror/lint': '>=6.0.0'
       '@codemirror/search': '>=6.0.0'
       '@codemirror/state': '>=6.0.0'
-      '@codemirror/view': '>=6.0.0'
-
-  '@uiw/codemirror-extensions-events@4.23.10':
-    resolution: {integrity: sha512-WvVdpTl6gZdt8u8oLtKON9kmw6yoRE3qy3t85vK4NXMibyjrGt26zvFyBjjmfO6dkfTy78X0oHrwub7TY5RIHg==}
-    peerDependencies:
       '@codemirror/view': '>=6.0.0'
 
   '@uiw/codemirror-extensions-langs@4.23.10':
@@ -13273,10 +13265,6 @@ snapshots:
       '@codemirror/lint': 6.8.5
       '@codemirror/search': 6.5.10
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
-
-  '@uiw/codemirror-extensions-events@4.23.10(@codemirror/view@6.36.5)':
-    dependencies:
       '@codemirror/view': 6.36.5
 
   '@uiw/codemirror-extensions-langs@4.23.10(@codemirror/autocomplete@6.18.6)(@codemirror/language-data@6.5.1)(@codemirror/language@6.11.0)(@codemirror/legacy-modes@6.5.0)(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)(@lezer/common@1.2.3)(@lezer/highlight@1.2.1)(@lezer/javascript@1.4.18)(@lezer/lr@1.4.2)':
