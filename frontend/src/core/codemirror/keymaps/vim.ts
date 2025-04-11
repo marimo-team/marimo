@@ -144,13 +144,13 @@ function applyVimCommands(vimCommands: VimCommand[]) {
   function map(command: VimCommand) {
     if (!command.args) {
       Logger.warn(
-        `Could not execute vimrc command "${command.name}: expected aruments"`,
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
       );
       return;
     }
     if (!command.args.lhs || !command.args.rhs) {
       Logger.warn(
-        `Could not execute vimrc command "${command.name}: expected aruments"`,
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
       );
       return;
     }
@@ -165,13 +165,13 @@ function applyVimCommands(vimCommands: VimCommand[]) {
   function noremap(command: VimCommand) {
     if (!command.args) {
       Logger.warn(
-        `Could not execute vimrc command "${command.name}: expected aruments"`,
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
       );
       return;
     }
     if (!command.args.lhs || !command.args.rhs) {
       Logger.warn(
-        `Could not execute vimrc command "${command.name}: expected aruments"`,
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
       );
       return;
     }
@@ -186,13 +186,13 @@ function applyVimCommands(vimCommands: VimCommand[]) {
   function unmap(command: VimCommand) {
     if (!command.args) {
       Logger.warn(
-        `Could not execute vimrc command "${command.name}: expected aruments"`,
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
       );
       return;
     }
     if (!command.args.lhs) {
       Logger.warn(
-        `Could not execute vimrc command "${command.name}: expected aruments"`,
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
       );
       return;
     }

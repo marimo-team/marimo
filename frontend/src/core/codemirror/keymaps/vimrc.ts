@@ -126,7 +126,7 @@ function parseCommand(
       } else {
         if (parseError) {
           parseError(
-            `Not enough aruments for "${commandName}" command: "${line}"`,
+            `Not enough arguments for "${commandName}" command: "${line}"`,
           );
         }
         return;
