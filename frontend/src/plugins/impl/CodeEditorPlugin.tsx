@@ -6,9 +6,10 @@ import { Labeled } from "./common/labeled";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { EditorView } from "@codemirror/view";
+import useEvent from "react-use-event-hook";
 
 type T = string;
 
@@ -82,16 +83,17 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
     [setValueDebounced, props.debounce, props.setValue],
   );
 
-  const extensions =
-    props.debounce === true
-      ? [
-          EditorView.domEventHandlers({
-            blur: () => {
-              props.setValue(localValue);
-            },
-          }),
-        ]
-      : [];
+  const onBlur = useEvent(() => {
+    props.setValue(localValue);
+  });
+
+  const extensions = useMemo(() => {
+    if (props.debounce === true) {
+      return [EditorView.domEventHandlers({ blur: onBlur })];
+    }
+
+    return [];
+  }, [props.debounce, onBlur]);
 
   return (
     <TooltipProvider>
