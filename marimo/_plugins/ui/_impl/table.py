@@ -19,10 +19,12 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import NonNestedLiteral
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.charts.altair_transformer import _to_marimo_arrow
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     get_handler_for_dataframe,
 )
@@ -122,6 +124,12 @@ class GetRowIdsResponse:
     row_ids: list[int]
     all_rows: bool
     error: Optional[str] = None
+
+
+@dataclass
+class GetDataUrlResponse:
+    data_url: Union[str, object]
+    format: Literal["csv", "json", "arrow"]
 
 
 LAZY_PREVIEW_ROWS = 10
@@ -589,6 +597,11 @@ class table(
                     arg_cls=EmptyArgs,
                     function=self._get_row_ids,
                 ),
+                Function(
+                    name="get_data_url",
+                    arg_cls=EmptyArgs,
+                    function=self._get_data_url,
+                ),
             ),
         )
 
@@ -763,6 +776,21 @@ class table(
             data=chart_data,
             summaries=summaries,
             is_disabled=False,
+        )
+
+    def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
+        """Get the data URL for the entire table. Used for charting."""
+        del args
+
+        if DependencyManager.altair.has():
+            result = _to_marimo_arrow(self._searched_manager.data)
+            return GetDataUrlResponse(
+                data_url=result["url"],
+                format=result["format"]["type"],
+            )
+
+        return GetDataUrlResponse(
+            data_url=self._searched_manager.to_data({}), format="json"
         )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019

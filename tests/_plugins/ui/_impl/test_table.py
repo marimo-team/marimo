@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -24,6 +24,9 @@ from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
 from marimo._utils.data_uri import from_data_uri
 from tests._data.mocks import create_dataframes
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @pytest.fixture
@@ -1051,8 +1054,6 @@ def test_show_download():
 )
 def test_download_as_pandas() -> None:
     """Test downloading table data as different formats with pandas DataFrame."""
-    import io
-
     import pandas as pd
     from pandas.testing import assert_frame_equal
 
@@ -1066,11 +1067,7 @@ def test_download_as_pandas() -> None:
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
         )
-        data_bytes = from_data_uri(download_str)[1]
-
-        if format_type == "json":
-            return pd.read_json(io.BytesIO(data_bytes))
-        return pd.read_csv(io.BytesIO(data_bytes))
+        return convert_data_bytes_to_pandas_df(download_str, format_type)
 
     # Test base downloads (full data)
     for format_type in ["csv", "json"]:
@@ -1563,3 +1560,75 @@ def test_lazy_dataframe_with_non_lazy_dataframe():
     )
     with pytest.raises(ValueError):
         table = ui.table.lazy(df)
+
+
+@pytest.mark.skipif(
+    DependencyManager.altair.has(),
+    reason="If altair is installed, it will trigger to_marimo_arrow()",
+)
+def test_get_data_url_no_deps() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    assert response.data_url == [{"value": 1}, {"value": 2}, {"value": 3}]
+    assert response.format == "json"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.altair.has(), reason="Altair not installed"
+)
+def test_get_data_url_with_altair() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    assert response.data_url.startswith("data:text/csv;base64,")
+    assert response.format == "csv"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_get_data_url_values() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    initial_data_url = response.data_url
+    assert initial_data_url.startswith("data:text/csv;base64,")
+    assert response.format == "csv"
+
+    import pandas as pd
+    from pandas.testing import assert_frame_equal
+
+    df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    expected_df = pd.DataFrame({0: [1, 2, 3]})
+    assert_frame_equal(df, expected_df)
+
+    # Test search
+    table._search(SearchTableArgs(query="2", page_size=3, page_number=0))
+    response = table._get_data_url({})
+
+    df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    expected_df = pd.DataFrame({"value": [2]})
+    assert_frame_equal(df, expected_df)
+
+
+def convert_data_bytes_to_pandas_df(
+    data: str, data_format: str
+) -> pd.DataFrame:
+    import io
+
+    import pandas as pd
+
+    data_bytes = from_data_uri(data)[1]
+
+    if data_format == "csv":
+        df = pd.read_csv(io.BytesIO(data_bytes))
+        # Convert column names to integers if they represent integers
+        df.columns = pd.Index(
+            [
+                int(col) if isinstance(col, str) and col.isdigit() else col
+                for col in df.columns
+            ]
+        )
+        return df
+    elif data_format == "json":
+        return pd.read_json(io.BytesIO(data_bytes))
+    else:
+        raise ValueError(f"Unsupported data_format: {data_format}")

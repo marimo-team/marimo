@@ -1326,6 +1326,28 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.table_charts"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Table Charts</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="data-table-plugin-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental charting feature on tables. Data is
+                    saved in local storage. May not be performant.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

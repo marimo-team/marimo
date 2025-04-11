@@ -49,6 +49,8 @@ import type { CellSelectionState } from "@/components/data-table/cell-selection/
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
 import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
+import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -62,6 +64,11 @@ export type GetRowIds = (opts: {}) => Promise<{
   row_ids: number[];
   all_rows: boolean;
   error: string | null;
+}>;
+
+export type GetDataUrl = (opts: {}) => Promise<{
+  data_url: string | object[];
+  format: "csv" | "json" | "arrow";
 }>;
 
 /**
@@ -109,6 +116,7 @@ type DataTableFunctions = {
     total_rows: number | "too_many";
     cell_styles?: CellStyleState | null;
   }>;
+  get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
 };
 
@@ -211,6 +219,12 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         error: z.string().nullable(),
       }),
     ),
+    get_data_url: rpc.input(z.object({}).passthrough()).output(
+      z.object({
+        data_url: z.union([z.string(), z.array(z.object({}).passthrough())]),
+        format: z.enum(["csv", "json", "arrow"]),
+      }),
+    ),
   })
   .renderer((props) => {
     return (
@@ -226,6 +240,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
+            experimentalChartsEnabled={true}
           />
         </LazyDataTableComponent>
       </TooltipProvider>
@@ -266,6 +281,9 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
+  experimentalChartsEnabled?: boolean;
+  toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
 
 interface DataTableSearchProps {
@@ -300,6 +318,7 @@ export const LoadingDataTableComponent = memo(
       });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
+    const [displayHeader, setDisplayHeader] = useState(false);
 
     // We need to clear the selection when sort, query, or filters change
     // if we don't have a stable ID for each row, which is determined by
@@ -471,25 +490,47 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
+    const toggleDisplayHeader = () => {
+      setDisplayHeader(!displayHeader);
+    };
+
+    const chartsFeatureEnabled =
+      getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
+
+    const dataTable = (
+      <DataTableComponent
+        {...props}
+        data={data?.rows ?? Arrays.EMPTY}
+        columnSummaries={columnSummaries}
+        sorting={sorting}
+        setSorting={setSorting}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        filters={filters}
+        setFilters={setFilters}
+        reloading={loading}
+        totalRows={data?.totalRows ?? props.totalRows}
+        paginationState={paginationState}
+        setPaginationState={setPaginationState}
+        cellStyles={data?.cellStyles ?? props.cellStyles}
+        toggleDisplayHeader={toggleDisplayHeader}
+        chartsFeatureEnabled={chartsFeatureEnabled}
+      />
+    );
+
     return (
       <>
         {errorComponent}
-        <DataTableComponent
-          {...props}
-          data={data?.rows ?? Arrays.EMPTY}
-          columnSummaries={columnSummaries}
-          sorting={sorting}
-          setSorting={setSorting}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filters={filters}
-          setFilters={setFilters}
-          reloading={loading}
-          totalRows={data?.totalRows ?? props.totalRows}
-          paginationState={paginationState}
-          setPaginationState={setPaginationState}
-          cellStyles={data?.cellStyles ?? props.cellStyles}
-        />
+        {chartsFeatureEnabled ? (
+          <TablePanel
+            displayHeader={displayHeader}
+            dataTable={dataTable}
+            getDataUrl={props.get_data_url}
+            fieldTypes={props.fieldTypes}
+          />
+        ) : (
+          dataTable
+        )}
       </>
     );
   },
@@ -528,6 +569,8 @@ const DataTableComponent = ({
   totalColumns,
   get_row_ids,
   cellStyles,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -676,6 +719,8 @@ const DataTableComponent = ({
             freezeColumnsRight={freezeColumnsRight}
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
+            toggleDisplayHeader={toggleDisplayHeader}
+            chartsFeatureEnabled={chartsFeatureEnabled}
           />
         </Labeled>
       </ColumnChartContext.Provider>
