@@ -187,6 +187,9 @@ const DataTableInternal = <TData,>({
     onColumnPinningChange: setColumnPinning,
   });
 
+  const tableState = table.getState();
+  const columnSizingInfo = tableState.columnSizingInfo;
+
   const columnSizeVars = useMemo(() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
@@ -196,9 +199,9 @@ const DataTableInternal = <TData,>({
     }
     return colSizes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [columnSizingInfo, tableState.columnSizing]);
 
-  const tableBody = table.getState().columnSizingInfo.isResizingColumn ? (
+  const tableBody = columnSizingInfo.isResizingColumn ? (
     <MemoizedTableBody
       table={table}
       columns={columns}
