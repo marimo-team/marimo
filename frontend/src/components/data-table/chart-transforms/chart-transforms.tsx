@@ -516,13 +516,11 @@ const ChartForm = ({
                       name="general.groupByColumn.binned"
                       formFieldLabel="Binned"
                     />
-                    {chartType === ChartType.BAR && (
-                      <BooleanField
-                        form={form}
-                        name="general.stacking"
-                        formFieldLabel="Stacked"
-                      />
-                    )}
+                    <BooleanField
+                      form={form}
+                      name="general.stacking"
+                      formFieldLabel="Stacked"
+                    />
                   </div>
                 </div>
               )}
@@ -650,7 +648,13 @@ const Chart: React.FC<{
   data?: object[];
 }> = ({ chartType, formValues, data }) => {
   return (
-    <LazyChart chartType={chartType} formValues={formValues} data={data} />
+    <LazyChart
+      chartType={chartType}
+      formValues={formValues}
+      data={data}
+      width="container"
+      height={300}
+    />
   );
 };
 

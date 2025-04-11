@@ -87,7 +87,7 @@ export const ColumnSelector = <T extends object>({
                   const DataTypeIcon = DATA_TYPE_ICON[column.type];
                   return (
                     <SelectItem key={column.name} value={column.name}>
-                      <div className="flex items-center">
+                      <div className="flex items-center truncate">
                         <DataTypeIcon className="w-3 h-3 mr-2" />
                         {column.name}
                       </div>
@@ -203,6 +203,7 @@ export const NumberField = <T extends object>({
               {...field}
               value={field.value ?? DEFAULT_BIN_VALUE}
               onValueChange={field.onChange}
+              aria-label={formFieldLabel}
               {...props}
             />
           </FormControl>

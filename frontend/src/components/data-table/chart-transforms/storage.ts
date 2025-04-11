@@ -25,30 +25,6 @@ interface TabStorage {
 }
 type TabStorageMap = Map<CellId, TabStorage[]>;
 
-// const tabStorageSchema = z.map(
-//   z.string().transform((val) => val as CellId),
-//   z.array(
-//     z.object({
-//       tabName: z.string().transform((val) => val as TabName),
-//       chartType: z
-//         .enum(CHART_TYPES as [string, ...string[]])
-//         .transform((val) => val as ChartType),
-//       config: ChartSchema,
-//     }),
-//   ),
-// );
-
-// const storage = new ZodLocalStorage<TabStorageMap>(
-//   KEY,
-//   tabStorageSchema,
-//   () => new Map(),
-// );
-// const storageMechanism = {
-//   getItem: (): TabStorageMap => storage.get(),
-//   setItem: (_key: string, value: TabStorageMap): void => storage.set(value),
-//   removeItem: (): void => storage.remove(),
-// };
-
 // Custom storage adapter to ensure objects are serialized as maps
 const mapStorage = {
   getItem: (key: string): TabStorageMap => {

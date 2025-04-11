@@ -99,16 +99,16 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      <Button
-        variant="text"
-        size="xs"
-        className="mb-0"
-        onClick={toggleDisplayHeader}
-      >
-        <Tooltip content="Show charts">
+      <Tooltip content="Show charts">
+        <Button
+          variant="text"
+          size="xs"
+          className="mb-0 mr-auto"
+          onClick={toggleDisplayHeader}
+        >
           <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
-        </Tooltip>
-      </Button>
+        </Button>
+      </Tooltip>
       {pagination ? (
         <DataTablePagination
           totalColumns={totalColumns}

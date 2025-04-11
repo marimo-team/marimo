@@ -30,7 +30,7 @@ export function createVegaSpec(
   data: object[],
   formValues: z.infer<typeof ChartSchema>,
   theme: ResolvedTheme,
-  width: number,
+  width: number | "container",
   height: number,
 ): TopLevelSpec | null {
   let xAxisLabel = formValues.general.xColumn?.field;
@@ -54,13 +54,22 @@ export function createVegaSpec(
   const xEncodingKey = chartType === ChartType.PIE ? "theta" : "x";
   const yEncodingKey = chartType === ChartType.PIE ? "color" : "y";
 
+  const groupByFieldExists =
+    formValues.general.groupByColumn?.field !== NONE_GROUP_BY;
+
+  const shouldApplyStackingToX =
+    groupByFieldExists && formValues.general.horizontal;
+  const shouldApplyStackingToY =
+    groupByFieldExists && !formValues.general.horizontal;
+
   const xEncoding: PositionDef<string> | PolarDef<string> = {
     field: formValues.general.xColumn?.field,
     type: convertDataTypeToVegaType(
       formValues.general.xColumn?.type ?? "unknown",
     ),
-    bin: formValues.xAxis?.bin ? getBin(formValues.xAxis.bin) : undefined,
+    bin: getBin(formValues.xAxis?.bin),
     title: xAxisLabel,
+    stack: shouldApplyStackingToX ? formValues.general.stacking : undefined,
   };
 
   const colorInScale = getColorInScale(formValues);
@@ -70,17 +79,18 @@ export function createVegaSpec(
     type: convertDataTypeToVegaType(
       formValues.general.yColumn?.type ?? "unknown",
     ),
-    bin: formValues.yAxis?.bin ? getBin(formValues.yAxis.bin) : undefined,
+    bin: getBin(formValues.yAxis?.bin),
     title: yAxisLabel,
     // If color encoding is used as y, we can define the scheme here
     scale:
       colorInScale && yEncodingKey === "color"
         ? { ...colorInScale }
         : undefined,
+    stack: shouldApplyStackingToY ? formValues.general.stacking : undefined,
   };
 
   const schema: TopLevelSpec = {
-    $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     background: theme === "dark" ? "dark" : "white",
     title: formValues.general.title,
     data: {
@@ -166,8 +176,8 @@ function getOffset(
   };
 }
 
-function getBin(binValues: z.infer<typeof BinSchema>) {
-  if (binValues.binned) {
+function getBin(binValues?: z.infer<typeof BinSchema>) {
+  if (binValues?.binned) {
     if (binValues.step === DEFAULT_BIN_VALUE) {
       return true;
     }
