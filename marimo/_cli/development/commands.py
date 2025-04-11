@@ -176,7 +176,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ReadCodeResponse,
         models.RenameFileRequest,
         models.RunRequest,
-        models.RunScratchpadRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
         models.CopyNotebookRequest,

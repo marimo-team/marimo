@@ -9,7 +9,6 @@ from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._runtime.requests import (
     ExecuteMultipleRequest,
-    ExecuteScratchpadRequest,
     HTTPRequest,
     RenameRequest,
 )
@@ -98,19 +97,6 @@ class RunRequest:
     def __post_init__(self) -> None:
         assert len(self.cell_ids) == len(self.codes), (
             "Mismatched cell_ids and codes"
-        )
-
-
-@dataclass
-class RunScratchpadRequest:
-    code: str
-    # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest] = None
-
-    def as_execution_request(self) -> ExecuteScratchpadRequest:
-        return ExecuteScratchpadRequest(
-            code=self.code,
-            request=self.request,
         )
 
 

@@ -173,7 +173,7 @@ class ExecuteMultipleRequest:
 class ExecuteScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
