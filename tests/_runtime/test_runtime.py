@@ -923,7 +923,6 @@ class TestExecution:
 
         # set setup to stale
         k.graph.cells[SETUP_CELL_NAME].set_stale(True)
-        print(k.graph.cells[SETUP_CELL_NAME].stale)
         await k.run([er])
         # Should have run!
         assert not k.graph.get_stale()
