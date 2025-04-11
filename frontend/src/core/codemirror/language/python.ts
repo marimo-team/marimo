@@ -80,6 +80,12 @@ const lspClient = once((lspConfig: LSPConfig) => {
         jedi: {
           auto_import_modules: ["marimo", "numpy"],
         },
+        jedi_completion: {
+          // Ensure that parameters are included for completion snippets.
+          include_params: true,
+          // Include snippets and signatures it at most 50 suggestions.
+          resolve_at_most: 50,
+        },
         flake8: {
           enabled: config?.enable_flake8,
           extendIgnore: ignoredFlakeRules,
