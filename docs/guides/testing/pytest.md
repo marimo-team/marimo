@@ -2,11 +2,12 @@
 
 ## Testing in notebook
 
-By default, marimo detects and runs tests in your notebooks automatically. If
-the optional `pytest` library is installed, marimo will run `pytest` on any cells that
-contain test functions (functions that start with `test_`) or test classes
-(classes that start with `Test`) on a per cell basis. **Note**, these cells
-should _only_ contain test functions and/or test classes.
+By default, marimo discovers and executes tests inside your notebook.
+When the optional `pytest` dependency is present, marimo runs `pytest` on cells that
+consist exclusively of test code - i.e. functions whose names start with `test_` or
+classes whose names start with `Test`. If a cell mixes in anything else (helper
+functions, constants, variables, imports, etc.), that cell is skipped by the test
+runner (we recommend you move helpers to another cell).
 
 For example,
 
