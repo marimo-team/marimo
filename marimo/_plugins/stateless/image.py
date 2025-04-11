@@ -74,6 +74,17 @@ def _normalize_image(src: ImageLike) -> Image:
         normalized_src: Image = io.BytesIO()
         img.save(normalized_src, format="PNG")
         return normalized_src
+
+    # Handle PIL Image objects
+    if DependencyManager.pillow.imported():
+        from PIL import Image as _Image
+
+        if isinstance(src, _Image.Image):
+            img_byte_arr = io.BytesIO()
+            src.save(img_byte_arr, format=src.format or "PNG")
+            img_byte_arr.seek(0)
+            return img_byte_arr
+
     # Verify that this is a image object
     if not isinstance(src, (str, bytes, io.BytesIO, io.BufferedReader, Path)):
         raise ValueError(
