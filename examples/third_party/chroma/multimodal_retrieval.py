@@ -20,7 +20,6 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -58,7 +57,6 @@ def _():
 
     from datasets import load_dataset
     from matplotlib import pyplot as plt
-
     return load_dataset, os
 
 
@@ -103,8 +101,18 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(all_images, img_width, mo):
+    import io
+
+
+    def as_image(src):
+        img_byte_arr = io.BytesIO()
+        src.save(img_byte_arr, format=src.format or "PNG")
+        img_byte_arr.seek(0)
+        return mo.image(img_byte_arr, width=img_width.value)
+
+
     mo.hstack(
-        [mo.image(_img, width=img_width.value) for _img in all_images[10:]],
+        [as_image(_img) for _img in all_images[10:]],
         wrap=True,
     )
     return
@@ -169,9 +177,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""We create a collection with the embedding function and data loader."""
-    )
+    mo.md(r"""We create a collection with the embedding function and data loader.""")
     return
 
 
@@ -291,9 +297,7 @@ def _(mo, results, selected):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`."""
-    )
+    mo.md(r"""This example was adapted from [multimodal_retrieval.ipynb](https://github.com/chroma-core/chroma/blob/main/examples/multimodal/multimodal_retrieval.ipynb), using `marimo convert`.""")
     return
 
 
