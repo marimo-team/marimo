@@ -43,8 +43,8 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
   const filename = useFilename();
   const needsSave = useAtomValue(needsSaveAtom);
   const closed = useAtomValue(connectionAtom).state === WebSocketState.CLOSED;
-  const { saveOrNameNotebook, saveIfNotebookIsNamed } = useSaveNotebook();
-  useAutoSaveNotebook({ onSave: saveIfNotebookIsNamed, kioskMode });
+  const { saveOrNameNotebook, saveIfNotebookIsPersistent } = useSaveNotebook();
+  useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent, kioskMode });
 
   useAutoExport();
 
@@ -145,10 +145,13 @@ export function useSaveNotebook() {
   });
 
   // Save the notebook with the current filename, only if the filename exists
-  const saveIfNotebookIsNamed = useEvent((userInitiated = false) => {
+  const saveIfNotebookIsPersistent = useEvent((userInitiated = false) => {
     const filename = store.get(filenameAtom);
     const connection = store.get(connectionAtom);
-    if (filename !== null && connection.state === WebSocketState.OPEN) {
+    if (
+      isNamedPersistentFile(filename) &&
+      connection.state === WebSocketState.OPEN
+    ) {
       saveNotebook(filename, userInitiated);
     }
   });
@@ -165,18 +168,33 @@ export function useSaveNotebook() {
   const saveOrNameNotebook = useEvent(() => {
     const filename = store.get(filenameAtom);
     const connection = store.get(connectionAtom);
-    saveIfNotebookIsNamed(true);
+    saveIfNotebookIsPersistent(true);
 
     // Filename does not exist and we are connected to a kernel
-    if (filename === null && connection.state !== WebSocketState.CLOSED) {
+    if (
+      !isNamedPersistentFile(filename) &&
+      connection.state !== WebSocketState.CLOSED
+    ) {
       openModal(<SaveDialog onClose={closeModal} onSave={handleSaveDialog} />);
     }
   });
 
   return {
     saveOrNameNotebook,
-    saveIfNotebookIsNamed,
+    saveIfNotebookIsPersistent,
   };
+}
+
+function isNamedPersistentFile(filename: string | null): filename is string {
+  return (
+    filename !== null &&
+    // Linux
+    !filename.startsWith("/tmp") &&
+    // macOS
+    !filename.startsWith("/var/folders") &&
+    // Windows
+    !filename.includes("AppData\\Local\\Temp")
+  );
 }
 
 export function useAutoSaveNotebook(opts: {
