@@ -37,16 +37,17 @@ class _AppConfig:
     # The type of SQL output to display
     sql_output: SqlOutputType = "auto"
 
-    # Experimental top-level cell support
-    _toplevel_fn: bool = False
-
     @staticmethod
     def from_untrusted_dict(updates: dict[str, Any]) -> "_AppConfig":
+        # Certain flags are useful to pass to App for construction, but
+        # shouldn't make it into the config. (e.g. the _filename flag is
+        # internal)
+        other_allowed = {"_filename"}
         config = _AppConfig()
         for key in updates:
             if hasattr(config, key):
                 config.__setattr__(key, updates[key])
-            else:
+            elif key not in other_allowed:
                 LOGGER.warning(
                     f"Unrecognized key '{key}' in app config. Ignoring."
                 )

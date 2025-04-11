@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from marimo import _loggers
-from marimo._ast.codegen import get_app
+from marimo._ast.load import load_app
 from marimo._config.manager import get_default_config_manager
 from marimo._utils.paths import marimo_package_path
 
@@ -36,7 +36,7 @@ async def read_snippets() -> Snippets:
     snippets: list[Snippet] = []
 
     for file in read_snippet_filenames_from_config():
-        app = get_app(file)
+        app = load_app(file)
         assert app is not None
         sections: list[SnippetSection] = []
         title = ""

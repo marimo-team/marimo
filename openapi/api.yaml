@@ -1103,8 +1103,6 @@ components:
       properties:
         app_config:
           properties:
-            _toplevel_fn:
-              type: boolean
             app_title:
               nullable: true
               type: string
@@ -1144,7 +1142,6 @@ components:
           - width
           - auto_download
           - sql_output
-          - _toplevel_fn
           type: object
         capabilities:
           properties:

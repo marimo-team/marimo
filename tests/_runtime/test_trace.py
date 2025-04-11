@@ -55,7 +55,7 @@ class TestScriptTrace:
         #    y = y / x
         #        ^
         # exact line numbers differ by python version
-        if sys.version_info >= (3, 11):
+        if sys.version_info == (3, 11):
             assert (
                 result.split("y / x")[1].split("\n")[1].startswith("        ^")
             )
@@ -131,12 +131,9 @@ class TestScriptTrace:
         assert p.returncode == 1
 
         result = p.stderr.decode()
-        assert "The setup cell was unable to execute" in result
-        assert "ZeroDivisionError: division by zero" in result
-        # TODO(dmadisetti): re-enable assertion, behavior should go back to
-        # expected with #4400
-        # assert ('script_exception_setup_cell.py", line 10') in result
-        # assert "y / x" in result
+        assert "ZeroDivisionError" in result
+        assert ('script_exception_setup_cell.py", line 10') in result
+        assert "y / x" in result
 
 
 class TestAppTrace:

@@ -2780,7 +2780,6 @@ export interface components {
       | null;
     KernelReady: {
       app_config: {
-        _toplevel_fn: boolean;
         app_title?: string | null;
         auto_download: ("html" | "markdown")[];
         css_file?: string | null;

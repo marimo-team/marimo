@@ -21,11 +21,16 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import (
     cell_factory,
     context_cell_factory,
+    ir_cell_factory,
     toplevel_cell_factory,
 )
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.pytest import process_for_pytest
+from marimo._schemas.serialization import (
+    CellDef,
+    SetupCell,
+)
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -86,7 +91,6 @@ class CellManager:
         self.seen_ids.add(CellId_t(_id))
         return CellId_t(_id)
 
-    # TODO: maybe remove this, it is leaky
     def cell_decorator(
         self,
         obj: Obj[P, R] | None,
@@ -98,6 +102,9 @@ class CellManager:
         top_level: bool = False,
     ) -> Cell | Obj[P, R] | Callable[[Obj[P, R]], Cell | Obj[P, R]]:
         """Create a cell decorator for marimo notebook cells."""
+        # NB. marimo also statically loads notebooks via the marimo/_ast/load
+        # path. This code is only called when run as a script or imported as a
+        # module.
         cell_config = CellConfig(
             column=column, disabled=disabled, hide_code=hide_code
         )
@@ -161,6 +168,8 @@ class CellManager:
     def _register_cell(
         self, cell: Cell, app: InternalApp | None = None
     ) -> None:
+        if app is None:
+            raise ValueError("app must not be None")
         if app is not None:
             cell._register_app(app)
         cell_impl = cell._cell
@@ -199,6 +208,20 @@ class CellManager:
             config=config or CellConfig(),
             cell=cell,
         )
+
+    def register_ir_cell(
+        self, cell_def: CellDef, app: InternalApp | None = None
+    ) -> None:
+        if isinstance(cell_def, SetupCell):
+            cell_id = CellId_t(SETUP_CELL_NAME)
+        else:
+            cell_id = self.create_cell_id()
+        cell = ir_cell_factory(cell_def, cell_id=cell_id)
+        cell_config = CellConfig(
+            **cell_def.options,
+        )
+        cell._cell.configure(cell_config)
+        self._register_cell(cell, app=app)
 
     def register_unparsable_cell(
         self,
