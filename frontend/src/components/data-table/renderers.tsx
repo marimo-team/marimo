@@ -35,7 +35,7 @@ export function renderTableHeader<TData>(
           <TableHead
             key={header.id}
             className={cn(
-              "h-auto min-h-10 whitespace-pre align-top",
+              "h-auto min-h-10 whitespace-pre align-top group",
               className,
             )}
             style={style}
@@ -44,6 +44,16 @@ export function renderTableHeader<TData>(
             {header.isPlaceholder
               ? null
               : flexRender(header.column.columnDef.header, header.getContext())}
+            <div
+              onDoubleClick={() => header.column.resetSize()}
+              onMouseDown={header.getResizeHandler()}
+              onTouchStart={header.getResizeHandler()}
+              className={`absolute top-0 right-0 h-full w-1 cursor-col-resize opacity-0 
+                group-hover:bg-[var(--blue-5)] group-hover:opacity-50 select-none touch-none ${
+                  header.column.getIsResizing() &&
+                  "bg-[var(--blue-5)] opacity-80"
+                }`}
+            />
           </TableHead>
         );
       }),
@@ -141,6 +151,7 @@ function getPinningStyles<TData>(
       position: isPinned ? "sticky" : "relative",
       zIndex: isPinned ? 1 : 0,
       width: column.getSize(),
+      // width: `calc(var(--col-${column.id}-size) * 1px)`,
     },
   };
 }

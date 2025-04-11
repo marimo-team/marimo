@@ -3,7 +3,7 @@
 // tanstack/table is not compatible with React compiler
 // https://github.com/TanStack/table/issues/5567
 
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -36,7 +36,6 @@ import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
-
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
   className?: string;
@@ -128,6 +127,7 @@ const DataTableInternal = <TData,>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: "onChange",
     // pagination
     rowCount: totalRows === "too_many" ? undefined : totalRows,
     ...(setPaginationState
@@ -187,6 +187,31 @@ const DataTableInternal = <TData,>({
     onColumnPinningChange: setColumnPinning,
   });
 
+  const columnSizeVars = useMemo(() => {
+    const headers = table.getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (const header of headers) {
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+
+  const tableBody = table.getState().columnSizingInfo.isResizingColumn ? (
+    <MemoizedTableBody
+      table={table}
+      columns={columns}
+      columnSizeVars={columnSizeVars}
+    />
+  ) : (
+    <TableBody
+      table={table}
+      columns={columns}
+      columnSizeVars={columnSizeVars}
+    />
+  );
+
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
@@ -200,9 +225,9 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table>
+        <Table style={{ ...columnSizeVars }}>
           {renderTableHeader(table)}
-          {renderTableBody(table, columns)}
+          {tableBody}
         </Table>
       </div>
       <TableActions
@@ -223,5 +248,19 @@ const DataTableInternal = <TData,>({
     </div>
   );
 };
+
+const TableBody = <TData,>({
+  table,
+  columns,
+  columnSizeVars,
+}: {
+  table: ReturnType<typeof useReactTable<TData>>;
+  columns: Array<ColumnDef<TData>>;
+  columnSizeVars: Record<string, number>;
+}) => {
+  return renderTableBody(table, columns);
+};
+
+const MemoizedTableBody = memo(TableBody) as typeof TableBody;
 
 export const DataTable = memo(DataTableInternal) as typeof DataTableInternal;
