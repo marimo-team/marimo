@@ -40,6 +40,7 @@ export function renderTableHeader<TData>(
             )}
             style={{
               ...style,
+              // use css calculation instead of table state to improve performance
               width: `calc(var(--header-${header?.id}-size) * 1px)`,
             }}
             // ref={(thead) => columnSizingHandler(thead, table, header.column)}
@@ -100,6 +101,7 @@ export function renderTableBody<TData>(
           )}
           style={{
             ...style,
+            // use css calculation instead of table state to improve performance
             width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
           }}
           title={String(cell.getValue())}
