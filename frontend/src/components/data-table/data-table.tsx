@@ -200,7 +200,7 @@ const DataTableInternal = <TData,>({
     }
     return colSizes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [columnSizingInfo, tableState.columnSizing]);
 
   // Use memoization only during resizing so that other updates will happen immediately
   const tableBody = columnSizingInfo.isResizingColumn ? (
