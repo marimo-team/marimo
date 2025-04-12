@@ -12,46 +12,79 @@ We spotlight projects from the community each week on [our Twitter](https://x.co
 archive, with links to notebooks.
 
 
-## Reactive execution
+## Running cells
 
 <div class="grid cards" markdown>
 
--   :fontawesome-brands-markdown: **Basic execution**
+-  ⚡️ [**Basic execution**](https://google.com)
 
-    ---
+-  🛑 **Stop cells from running**
 
-    <img src="/_static/docs-sql-df.png"/>
+-  🖱️ **Run cells on button click**
 
-    
--   :fontawesome-brands-markdown:{ .lg .middle } **Stop cells from running**
+-  🕓 **Refresh on a timer**
 
-    ---
+-  💾 **Caching computations in memory**
 
-    <img src="/_static/docs-sql-df.png"/>
+-  💾 **Cache computations on disk**
 
-
--   :fontawesome-brands-markdown:{ .lg .middle } **Run cells on button click**
-
-    ---
-
-    <img src="/_static/docs-sql-df.png"/>
-    
-
--   :material-scale-balance:{ .lg .middle } **Caching computations**
-
-    ---
-
-    <img src="/_static/docs-sql-df.png"/>
-
-    [:octicons-arrow-right-24: License](#)
+-  ⏳ **Run async functions**
 
 </div>
 
-## Outputs
+## Visual Outputs
+
+<div class="grid cards" markdown>
+
+-   📝 [**Showing outputs**](https://google.com)
+
+-   📝 [**Basic markdown**](https://google.com)
+
+-   📝 [**Showing plots**](https://google.com)
+
+-   📝 [**Conditionally showing outputs**](https://google.com)
+
+-   📝 [**Showing multiple outputs in one cell**](https://google.com)
+
+</div class="grid cards" markdown>
+
+
 
 ### Writing markdown
 
+<div class="grid cards" markdown>
+
+-   ⚡️ [**Python values in markdown**](https://google.com)
+
+-   ⚡️ [**Mermaid diagrams**](https://google.com)
+
+-   ⚡️ [**Admonitions**](https://google.com)
+
+-   ⚡️ [**Images**](https://google.com)
+
+-   ⚡️ [**Icons**](https://google.com)
+
+-   ⚡️ [**Tooltips**](https://google.com)
+
+</div>
+
 ### Progress bars and status elements
+
+<div class="grid cards" markdown>
+
+-   ⚡️ [**Python values in markdown**](https://google.com)
+
+-   ⚡️ [**Mermaid diagrams**](https://google.com)
+
+-   ⚡️ [**Admonitions**](https://google.com)
+
+-   ⚡️ [**Images**](https://google.com)
+
+-   ⚡️ [**Icons**](https://google.com)
+
+-   ⚡️ [**Tooltips**](https://google.com)
+
+</div>
 
 ### Layouts
 
