@@ -44,7 +44,7 @@ class TestClassWorks:
 
     @staticmethod
     @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 2), (1, 2, 3)])
-    def test_decorated_static(a, b, c):
+    def test_decorated_static(a, b, c) -> None:
         assert add(a, b) == c
 
 
