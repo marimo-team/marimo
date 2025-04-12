@@ -19,6 +19,7 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
+import { useMemo } from "react";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -30,6 +31,10 @@ export function renderTableHeader<TData>(
   const renderHeaderGroup = (headerGroups: Array<HeaderGroup<TData>>) => {
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
+        const resizeHandler = useMemo(
+          () => header.getResizeHandler(),
+          [header],
+        );
         const { className, style } = getPinningStyles(header.column);
         return (
           <TableHead
@@ -49,8 +54,8 @@ export function renderTableHeader<TData>(
               : flexRender(header.column.columnDef.header, header.getContext())}
             <div
               onDoubleClick={() => header.column.resetSize()}
-              onMouseDown={header.getResizeHandler()}
-              onTouchStart={header.getResizeHandler()}
+              onMouseDown={resizeHandler}
+              onTouchStart={resizeHandler}
               className={`absolute top-0 right-0 h-full w-1 cursor-col-resize opacity-0 
                 group-hover:bg-[var(--blue-5)] group-hover:opacity-50 select-none touch-none ${
                   header.column.getIsResizing() &&
