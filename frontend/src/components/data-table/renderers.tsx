@@ -19,7 +19,6 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import { useMemo } from "react";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -31,10 +30,6 @@ export function renderTableHeader<TData>(
   const renderHeaderGroup = (headerGroups: Array<HeaderGroup<TData>>) => {
     return headerGroups.map((headerGroup) =>
       headerGroup.headers.map((header) => {
-        const resizeHandler = useMemo(
-          () => header.getResizeHandler(),
-          [header],
-        );
         const { className, style } = getPinningStyles(header.column);
         return (
           <TableHead
@@ -54,14 +49,17 @@ export function renderTableHeader<TData>(
               : flexRender(header.column.columnDef.header, header.getContext())}
             <div
               onDoubleClick={() => header.column.resetSize()}
-              onMouseDown={resizeHandler}
-              onTouchStart={resizeHandler}
-              className={`absolute top-0 right-0 h-full w-1 cursor-col-resize opacity-0 
-                group-hover:bg-[var(--blue-5)] group-hover:opacity-50 select-none touch-none ${
-                  header.column.getIsResizing() &&
-                  "bg-[var(--blue-5)] opacity-80"
+              onMouseDown={header.getResizeHandler()}
+              onTouchStart={header.getResizeHandler()}
+              className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none touch-none"
+            >
+              {/* Create a blue line that is thinner than the parent div */}
+              <div
+                className={`absolute h-full w-0.5 left-1/2 -translate-x-1/2 bg-[var(--blue-5)] opacity-0 group-hover:opacity-60 ${
+                  header.column.getIsResizing() && "opacity-90"
                 }`}
-            />
+              />
+            </div>
           </TableHead>
         );
       }),
