@@ -23,16 +23,18 @@ def __():
 
 @app.cell
 def __(inc, pytest):
-    def test_fails():
-        assert inc(3) == 5, "This test fails"
-
-    def test_sanity():
-        assert inc(3) == 4, "This test passes"
-
     class TestBlock:
-        @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
-        def test_parameterized(x, y):
-            assert inc(x) == y
+        @staticmethod
+        def test_fails():
+            assert inc(3) == 5, "This test fails"
+
+        @staticmethod
+        def test_sanity():
+            assert inc(3) == 4, "This test passes"
+
+    @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
+    def test_parameterized(x, y):
+        assert inc(x) == y
     return
 ```
 
