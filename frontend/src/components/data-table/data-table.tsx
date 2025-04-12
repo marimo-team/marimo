@@ -127,6 +127,7 @@ const DataTableInternal = <TData,>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    columnResizeDirection: "ltr",
     columnResizeMode: "onChange",
     // pagination
     rowCount: totalRows === "too_many" ? undefined : totalRows,
@@ -199,7 +200,7 @@ const DataTableInternal = <TData,>({
     }
     return colSizes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnSizingInfo, tableState.columnSizing]);
+  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
   // Use memoization only during resizing so that other updates will happen immediately
   const tableBody = columnSizingInfo.isResizingColumn ? (
@@ -273,6 +274,8 @@ const TableBody = <TData,>({
   return renderTableBody(table, columns);
 };
 
-const MemoizedTableBody = memo(TableBody) as typeof TableBody;
+const MemoizedTableBody = memo(TableBody, (prev, next) => {
+  return prev.table.options.data === next.table.options.data;
+}) as typeof TableBody;
 
 export const DataTable = memo(DataTableInternal) as typeof DataTableInternal;
