@@ -38,6 +38,15 @@ class TestClassWorks:
     def test_sanity(self):
         assert True
 
+    @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 2), (1, 2, 3)])
+    def test_decorated(self, a, b, c):
+        assert add(a, b) == c
+
+    @staticmethod
+    @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 2), (1, 2, 3)])
+    def test_decorated_static(a, b, c):
+        assert add(a, b) == c
+
 
 if __name__ == "__main__":
     app.run()

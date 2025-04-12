@@ -49,7 +49,7 @@ def build_stub_fn(
 
     args = {arg.arg: arg for arg in func_body.args.args}
     if allowed is None:
-        allowed = [arg for arg in args.keys() if arg != "self"]
+        allowed = [arg for arg in args.keys()]
     name = func_body.name
 
     # Typing checks for mypy
