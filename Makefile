@@ -83,7 +83,7 @@ e2e:
 .PHONY: fe-lint
 # 🧹 Lint frontend
 fe-lint:
-	cd frontend/src && typos && cd - && cd frontend && pnpm lint
+	cd frontend/src && hatch run typos && cd - && cd frontend && pnpm lint
 
 .PHONY: fe-typecheck
 # 🔍 Typecheck frontend
