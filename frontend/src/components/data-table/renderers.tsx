@@ -56,9 +56,10 @@ export function renderTableHeader<TData>(
             >
               {/* Create a blue line that is thinner than the parent div */}
               <div
-                className={`absolute h-full w-0.5 left-1/2 -translate-x-1/2 bg-[var(--blue-5)] opacity-0 group-hover:opacity-60 ${
-                  header.column.getIsResizing() && "opacity-90"
-                }`}
+                className={`absolute h-full w-0.5 left-1/2 -translate-x-1/2 bg-[var(--slate-3)] 
+                  dark:bg-slate-600/40 opacity-0 group-hover:opacity-70 rounded ${
+                    header.column.getIsResizing() && "opacity-90"
+                  }`}
               />
             </div>
           </TableHead>
