@@ -201,17 +201,18 @@ const DataTableInternal = <TData,>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnSizingInfo, tableState.columnSizing]);
 
+  // Use memoization only during resizing so that other updates will happen immediately
   const tableBody = columnSizingInfo.isResizingColumn ? (
     <MemoizedTableBody
       table={table}
       columns={columns}
-      columnSizeVars={columnSizeVars}
+      columnSizingDependency={columnSizeVars}
     />
   ) : (
     <TableBody
       table={table}
       columns={columns}
-      columnSizeVars={columnSizeVars}
+      columnSizingDependency={columnSizeVars}
     />
   );
 
@@ -228,7 +229,13 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table style={{ ...columnSizeVars }}>
+        <Table
+          style={{
+            ...columnSizeVars,
+            width: "100%",
+            minWidth: table.getTotalSize(),
+          }}
+        >
           {renderTableHeader(table)}
           {tableBody}
         </Table>
@@ -255,11 +262,13 @@ const DataTableInternal = <TData,>({
 const TableBody = <TData,>({
   table,
   columns,
-  columnSizeVars,
+  // The unused prop is needed to trigger re-render when column sizes change
+  // Else causing a maximum call stack error
+  columnSizingDependency,
 }: {
   table: ReturnType<typeof useReactTable<TData>>;
   columns: Array<ColumnDef<TData>>;
-  columnSizeVars: Record<string, number>;
+  columnSizingDependency: Record<string, number>;
 }) => {
   return renderTableBody(table, columns);
 };

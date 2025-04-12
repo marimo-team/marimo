@@ -38,8 +38,11 @@ export function renderTableHeader<TData>(
               "h-auto min-h-10 whitespace-pre align-top group",
               className,
             )}
-            style={style}
-            ref={(thead) => columnSizingHandler(thead, table, header.column)}
+            style={{
+              ...style,
+              width: `calc(var(--header-${header?.id}-size) * 1px)`,
+            }}
+            // ref={(thead) => columnSizingHandler(thead, table, header.column)}
           >
             {header.isPlaceholder
               ? null
@@ -92,7 +95,10 @@ export function renderTableBody<TData>(
             "px-1.5 py-[0.18rem]",
             className,
           )}
-          style={style}
+          style={{
+            ...style,
+            width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+          }}
           title={String(cell.getValue())}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -150,8 +156,6 @@ function getPinningStyles<TData>(
       opacity: 1,
       position: isPinned ? "sticky" : "relative",
       zIndex: isPinned ? 1 : 0,
-      width: column.getSize(),
-      // width: `calc(var(--col-${column.id}-size) * 1px)`,
     },
   };
 }
