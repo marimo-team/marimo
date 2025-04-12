@@ -1,13 +1,23 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "duckdb==1.2.2",
+#     "marimo",
+#     "pandas==2.2.3",
+#     "polars==1.27.1",
+#     "pyarrow==19.0.1",
+#     "sqlglot==26.13.0",
+# ]
+# ///
 
 import marimo
 
-__generated_with = "0.9.2"
-app = marimo.App()
+__generated_with = "0.12.8"
+app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # Hello, SQL!
@@ -19,7 +29,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         With marimo, you can mix-and-match both **Python and SQL**. To create a
@@ -35,7 +45,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     has_duckdb_installed = False
     try:
         import duckdb
@@ -70,36 +80,46 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(has_duckdb_installed, mo):
+def _(has_duckdb_installed, mo):
     if has_duckdb_installed:
         mo.output.replace(
             mo.md(
                 """
-        !!! Tip "Installed"
-            If you see this, DuckDB is already installed.
-        """
+                /// Tip | "Installed"
+
+                    If you see this, DuckDB is already installed.
+                ///
+                """
             )
         )
     else:
         mo.output.replace(
             mo.md(
                 """
-        !!! Warning "Not Installed"
-            If you see this, DuckDB is not installed.
-        """
+                /// Warning | "Not Installed"
+                    If you see this, DuckDB is not installed.
+                ///
+                """
             )
         )
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
-        Once the required dependencies are installed, you can create SQL cells
-        by either right clicking the **Add Cell** buttons on the left of a
-        cell, or click the **Add SQL Cell** at the bottom of the page.
+        ## Creating SQL cells
 
+        Once the required dependencies are installed, you can create SQL cells
+        in one of the following ways:
+
+        - right click the **Add Cell** ::lucide:circle-plus:: buttons on the left of
+        a cell;
+        -  click the **Convert to SQL** ::lucide:database:: button in the cell menu ::lucide:ellipsis::
+        -  click the **Add SQL Cell** at the bottom of the page;
+
+        ## Python representation
         marimo is still just Python, even when using SQL. Here is an example of
         how marimo embeds SQL in Python in its file format:
 
@@ -121,19 +141,33 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Querying dataframes with SQL""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
+    mo.md(
+        r"""
+        /// Tip | "Data sources panel"
+
+            Click the database "barrel" icon in the left toolbar to see all dataframes and in-
+            memory tables that your notebook has access to.
+        ///
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.""")
     return
 
 
 @app.cell(hide_code=True)
-def __(has_polars_installed):
+def _(has_polars_installed):
     _SIZE = 1000
 
 
@@ -176,13 +210,13 @@ def __(has_polars_installed):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""Next, we create a SQL query, refercing the Python dataframe `df` directly.""")
     return
 
 
 @app.cell
-def __(df, mo):
+def _(df, mo):
     _df = mo.sql(
         f"""
         -- This SQL cell is special since we can reference existing dataframes in the global scope as a table in the SQL query. For example, we can reference the `df` dataframe in the global scope, which was defined in another cell using Python.
@@ -196,19 +230,19 @@ def __(df, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## From Python to SQL and back""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""You can create SQL statements that depend on Python values, such as UI elements:""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo, string):
+def _(mo, string):
     token_prefix = mo.ui.dropdown(
         list(string.ascii_lowercase), label="token prefix", value="a"
     )
@@ -217,7 +251,7 @@ def __(mo, string):
 
 
 @app.cell
-def __(df, mo, token_prefix):
+def _(df, mo, token_prefix):
     result = mo.sql(
         f"""
         -- Change the dropdown to see the SQL query filter itself!
@@ -232,7 +266,7 @@ def __(df, mo, token_prefix):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         Since we named the output variable above **`result`**,
@@ -243,7 +277,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     charting_library = mo.ui.radio(["matplotlib", "altair", "plotly"])
 
     mo.md(
@@ -257,7 +291,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(charting_library, mo, render_chart, token_prefix):
+def _(charting_library, mo, render_chart, token_prefix):
     _header = mo.md(
         f"""
         We can re-use the dropdown from above: {token_prefix}
@@ -274,7 +308,7 @@ def __(charting_library, mo, render_chart, token_prefix):
 
 
 @app.cell(hide_code=True)
-def __(mo, result, token_prefix):
+def _(mo, result, token_prefix):
     def render_chart(charting_library, header):
         return mo.vstack(
             [header, render_charting_library(charting_library)]
@@ -325,13 +359,13 @@ def __(mo, result, token_prefix):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(r"""## CSVs, Parquet, Postgres, and more ...""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         We're not limited to querying dataframes. We can also query an **HTTP URL, S3 path, or a file path to a local csv or parquet file**.
@@ -354,7 +388,7 @@ def __(mo):
 
 
 @app.cell
-def __(cars, mo):
+def _(cars, mo):
     cars = mo.sql(
         f"""
         -- Download a CSV and create an in-memory table; this is optional.
@@ -369,19 +403,7 @@ def __(cars, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        r"""
-        !!! Tip "Data sources panel"
-            Click the database "barrel" icon in the left toolbar to see all dataframes and in-
-            memory tables that you're notebook has access to.
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __(cars, mo):
+def _(cars, mo):
     cylinders_dropdown = mo.ui.range_slider.from_series(
         cars["Cylinders"], debounce=True, show_value=True
     )
@@ -391,7 +413,7 @@ def __(cars, mo):
 
 
 @app.cell
-def __(cars, cylinders_dropdown, mo, origin_dropdown):
+def _(cars, cylinders_dropdown, mo, origin_dropdown):
     filtered_cars = mo.sql(
         f"""
         SELECT * FROM cars
@@ -407,7 +429,7 @@ def __(cars, cylinders_dropdown, mo, origin_dropdown):
 
 
 @app.cell(hide_code=True)
-def __(filtered_cars, mo):
+def _(filtered_cars, mo):
     mo.hstack(
         [
             mo.stat(label="Total cars", value=str(len(filtered_cars))),
@@ -425,14 +447,14 @@ def __(filtered_cars, mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import marimo as mo
     import random
     return mo, random
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     import string
     return (string,)
 
