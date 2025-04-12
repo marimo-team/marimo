@@ -11,17 +11,14 @@ app = modal.App()
 
 
 @app.function(
-    image=modal.Image.debian_slim().pip_install("marimo>=0.8.3", "fastapi"),
-    gpu=False,
-    concurrency_limit=1,
-    allow_concurrent_inputs=2,
+    image=modal.Image.debian_slim()
+    .pip_install("marimo>=0.12.8", "fastapi")
+    .add_local_dir("./nbs", remote_path="/marimo"),
+    gpu=None,
+    max_containers=1,
     memory=256,
-    mounts=[modal.Mount.from_local_dir("./nbs", remote_path="/marimo")],
 )
+@modal.concurrent(max_inputs=2)
 @asgi_app()
 def marimo_asgi():
     return server.build()
-
-
-if __name__ == "__main__":
-    modal.serve(app)
