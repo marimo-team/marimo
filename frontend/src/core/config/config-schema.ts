@@ -104,6 +104,7 @@ export const UserConfigSchema = z
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
         dataframes: z.enum(["rich", "plain"]).default("rich"),
+        default_table_page_size: z.number().default(10),
         default_width: z
           .enum(VALID_APP_WIDTHS)
           .default("medium")

@@ -1424,6 +1424,8 @@ components:
               - rich
               - plain
               type: string
+            default_table_page_size:
+              type: integer
             default_width:
               enum:
               - normal
@@ -1444,6 +1446,7 @@ components:
           - cell_output
           - default_width
           - dataframes
+          - default_table_page_size
           type: object
         experimental:
           additionalProperties: {}

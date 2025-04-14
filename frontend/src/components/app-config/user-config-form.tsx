@@ -732,6 +732,42 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="display.default_table_page_size"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Default table page size</FormLabel>
+                      <FormControl>
+                        <NumberField
+                          data-testid="default-table-page-size-input"
+                          className="m-0 w-24"
+                          {...field}
+                          value={field.value}
+                          minValue={1}
+                          step={1}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            if (!Number.isNaN(value)) {
+                              onSubmit(form.getValues());
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.default_table_page_size"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      The default number of rows displayed in dataframes and SQL
+                      results.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
           </>
         );

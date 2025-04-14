@@ -51,6 +51,10 @@ from marimo._plugins.validators import (
     validate_no_integer_columns,
     validate_page_size,
 )
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
@@ -132,7 +136,14 @@ class GetDataUrlResponse:
     format: Literal["csv", "json", "arrow"]
 
 
-LAZY_PREVIEW_ROWS = 10
+def get_default_table_page_size() -> int:
+    """Get the default number of rows to display in a table."""
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return 10
+    else:
+        return ctx.marimo_config["display"]["default_table_page_size"]
 
 
 @mddoc
@@ -282,7 +293,12 @@ class table(
     _name: Final[str] = "marimo-table"
 
     @staticmethod
-    def lazy(data: IntoLazyFrame, *, preload: bool = False) -> table:
+    def lazy(
+        data: IntoLazyFrame,
+        *,
+        page_size: Optional[int] = None,
+        preload: bool = False,
+    ) -> table:
         """
         Create a table from a Polars LazyFrame.
 
@@ -293,6 +309,7 @@ class table(
 
         Args:
             data (IntoLazyFrame): The data to display.
+            page_size (int, optional): The number of rows to show per page.
             preload (bool, optional): Whether to load the first page of data
                 without user confirmation. Defaults to False.
         """
@@ -303,12 +320,15 @@ class table(
                 + type(data).__name__
             )
 
+        if page_size is None:
+            page_size = get_default_table_page_size()
+
         return table(
             data=data,
             pagination=False,
             selection=None,
             initial_selection=None,
-            page_size=LAZY_PREVIEW_ROWS,
+            page_size=page_size,
             show_column_summaries=False,
             show_download=False,
             format_mapping=None,
@@ -342,7 +362,7 @@ class table(
         initial_selection: Optional[
             Union[list[int], list[tuple[str, str]]]
         ] = None,
-        page_size: int = 10,
+        page_size: Optional[int] = None,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
         ] = None,
@@ -381,9 +401,13 @@ class table(
         _internal_lazy: bool = False,
         _internal_preload: bool = False,
     ) -> None:
+        if page_size is None:
+            page_size = self.default_page_size
+
         validate_no_integer_columns(data)
         validate_page_size(page_size)
         self._lazy = _internal_lazy
+        self._page_size = page_size
 
         has_stable_row_id = False
         if selection is not None:
@@ -619,7 +643,7 @@ class table(
 
     def _get_banner_text(self) -> str:
         if self._lazy:
-            return f"Previewing only the first {LAZY_PREVIEW_ROWS} rows."
+            return f"Previewing only the first {self._page_size} rows."
 
         total_columns = self._manager.get_num_columns()
         if self._max_columns is not None and total_columns > self._max_columns:
@@ -999,6 +1023,10 @@ class table(
         if hasattr(df, "_repr_html_"):
             return df._repr_html_()  # type: ignore[attr-defined,no-any-return]
         return str(df)
+
+    @functools.cached_property
+    def default_page_size(self) -> int:
+        return get_default_table_page_size()
 
     def __hash__(self) -> int:
         return id(self)

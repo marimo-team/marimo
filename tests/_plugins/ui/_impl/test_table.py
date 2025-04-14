@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
+    get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
@@ -1067,7 +1068,7 @@ def test_download_as_pandas() -> None:
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
         )
-        return convert_data_bytes_to_pandas_df(download_str, format_type)
+        return _convert_data_bytes_to_pandas_df(download_str, format_type)
 
     # Test base downloads (full data)
     for format_type in ["csv", "json"]:
@@ -1596,7 +1597,7 @@ def test_get_data_url_values() -> None:
     import pandas as pd
     from pandas.testing import assert_frame_equal
 
-    df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
     expected_df = pd.DataFrame({0: [1, 2, 3]})
     assert_frame_equal(df, expected_df)
 
@@ -1604,12 +1605,16 @@ def test_get_data_url_values() -> None:
     table._search(SearchTableArgs(query="2", page_size=3, page_number=0))
     response = table._get_data_url({})
 
-    df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
     expected_df = pd.DataFrame({"value": [2]})
     assert_frame_equal(df, expected_df)
 
 
-def convert_data_bytes_to_pandas_df(
+def test_default_table_page_size():
+    assert get_default_table_page_size() == 10
+
+
+def _convert_data_bytes_to_pandas_df(
     data: str, data_format: str
 ) -> pd.DataFrame:
     import io

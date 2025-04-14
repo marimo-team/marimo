@@ -39,6 +39,7 @@ describe("Cell data attributes", () => {
           cell_output: "below",
           code_editor_font_size: 14,
           dataframes: "rich",
+          default_table_page_size: 10,
           default_width: "normal",
           theme: "light",
         },
