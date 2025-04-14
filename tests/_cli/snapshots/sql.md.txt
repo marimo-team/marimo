@@ -1,6 +1,7 @@
 ---
 title: Sql
 marimo-version: 0.0.0
+width: medium
 ---
 
 # Hello, SQL!
@@ -46,26 +47,36 @@ if has_duckdb_installed:
     mo.output.replace(
         mo.md(
             """
-    !!! Tip "Installed"
-        If you see this, DuckDB is already installed.
-    """
+            /// Tip | "Installed"
+
+                If you see this, DuckDB is already installed.
+            ///
+            """
         )
     )
 else:
     mo.output.replace(
         mo.md(
             """
-    !!! Warning "Not Installed"
-        If you see this, DuckDB is not installed.
-    """
+            /// Warning | "Not Installed"
+                If you see this, DuckDB is not installed.
+            ///
+            """
         )
     )
 ```
 
-Once the required dependencies are installed, you can create SQL cells
-by either right clicking the **Add Cell** buttons on the left of a
-cell, or click the **Add SQL Cell** at the bottom of the page.
+## Creating SQL cells
 
+Once the required dependencies are installed, you can create SQL cells
+in one of the following ways:
+
+- right click the **Add Cell** ::lucide:circle-plus:: buttons on the left of
+a cell;
+-  click the **Convert to SQL** ::lucide:database:: button in the cell menu ::lucide:ellipsis::
+-  click the **Add SQL Cell** at the bottom of the page;
+
+## Python representation
 marimo is still just Python, even when using SQL. Here is an example of
 how marimo embeds SQL in Python in its file format:
 
@@ -83,6 +94,12 @@ means they can contain any valid Python code, such as the values of UI
 elements. This means your SQL statement and results can be reactive! 🚀
 <!---->
 ## Querying dataframes with SQL
+<!---->
+/// Tip | "Data sources panel"
+
+    Click the database "barrel" icon in the left toolbar to see all dataframes and in-
+    memory tables that your notebook has access to.
+///
 <!---->
 Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.
 
@@ -255,10 +272,6 @@ FROM 'https://datasets.marimo.app/cars.csv';
 -- Query the table
 SELECT * from cars;
 ```
-
-!!! Tip "Data sources panel"
-    Click the database "barrel" icon in the left toolbar to see all dataframes and in-
-    memory tables that you're notebook has access to.
 
 ```python {.marimo hide_code="true"}
 cylinders_dropdown = mo.ui.range_slider.from_series(
