@@ -35,7 +35,7 @@ from marimo._tutorials import (
     Tutorial,
     create_temp_tutorial_file,
     tutorial_order,
-)
+)  # type: ignore
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
 

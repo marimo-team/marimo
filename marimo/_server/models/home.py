@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from marimo._server.models.files import FileInfo
-from marimo._tutorials import Tutorial
+from marimo._tutorials import Tutorial  # type: ignore
 from marimo._types.ids import SessionId
 
 
