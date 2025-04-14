@@ -38,8 +38,15 @@ class CellConfig:
     hide_code: bool = False
 
     @classmethod
-    def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
-        return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
+    def from_dict(
+        cls, kwargs: dict[str, Any], warn: bool = True
+    ) -> CellConfig:
+        config = cls(
+            **{k: v for k, v in kwargs.items() if k in CellConfigKeys}
+        )
+        if warn and (invalid := set(kwargs.keys()) - CellConfigKeys):
+            LOGGER.warning(f"Invalid config keys: {invalid}")
+        return config
 
     def asdict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
