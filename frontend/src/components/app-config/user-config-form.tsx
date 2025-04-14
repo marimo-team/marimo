@@ -52,7 +52,7 @@ import { Tooltip } from "../ui/tooltip";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
 import { OptionalFeatures } from "./optional-features";
 import { Badge } from "../ui/badge";
-import { capabilitiesAtom, hasCapability } from "@/core/config/capabilities";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
@@ -458,7 +458,7 @@ export const UserConfigForm: React.FC = () => {
                         name="language_servers.pylsp.enabled"
                       />
                     </FormItem>
-                    {field.value && !hasCapability("pylsp") && (
+                    {field.value && !capabilities.pylsp && (
                       <Banner kind="danger">
                         The Python Language Server is not available in your
                         current environment. Please install{" "}
