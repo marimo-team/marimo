@@ -24,7 +24,7 @@ install-all: fe py
 # ✓ Check if all required tools are installed
 check-prereqs:
 	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
-	@pnpm -v | grep -q "9." || { echo "pnpm v9+ is required. Current version: $(shell pnpm -v)"; exit 1; }
+	@pnpm -v | grep -vq "^[0-8]\." || { echo "pnpm v9+ is required. Current version: $(shell pnpm -v)"; exit 1; }
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required. See https://docs.astral.sh/uv/getting-started/installation/"; exit 1; }
 	@command -v hatch >/dev/null 2>&1 || { echo "hatch is required. See https://hatch.pypa.io/dev/install/"; exit 1; }
 	@command -v node >/dev/null 2>&1 || { echo "Node.js is required. See https://nodejs.org/en/download/"; exit 1; }
