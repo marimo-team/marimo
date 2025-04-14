@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -134,16 +134,19 @@ def _create_lsps_proxy_middleware(
 ) -> list[Middleware]:
     middlewares: list[Middleware] = []
     for server in servers:
-        to_replace = "/lsp" if server.id == "copilot" else f"/lsp/{server.id}"
+
+        def path_rewrite(server_id: str) -> Callable[[str], str]:
+            to_replace = (
+                "/copilot" if server_id == "copilot" else f"/lsp/{server_id}"
+            )
+            return lambda _: to_replace
+
         middlewares.append(
             Middleware(
                 ProxyMiddleware,
                 proxy_path=f"/lsp/{server.id}",
                 target_url=f"http://localhost:{server.port}",
-                path_rewrite=lambda path: path.replace(
-                    to_replace,  # noqa: B023
-                    "",
-                ),
+                path_rewrite=path_rewrite(server.id),
             )
         )
     return middlewares
