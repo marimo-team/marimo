@@ -1,11 +1,13 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import logging
 import os
 import textwrap
 
 import pytest
 
+from marimo import _loggers
 from marimo._ast import load
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -251,3 +253,20 @@ class TestGetCodes:
         assert app._config.layout_file == "layouts/layout.json"
         assert app._config.app_title == "title"
         assert app._config.auto_download == "html"
+
+    @staticmethod
+    def test_get_bad_kwargs(load_app, caplog) -> None:
+        # Should be stderr since warn level
+        with caplog.at_level(logging.WARNING):
+            _loggers.marimo_logger().propagate = True
+            app = load_app(get_filepath("test_get_bad_kwargs"))
+            assert app is not None
+
+        # Don't worry about the discrepancy since dynamic_load should not be in
+        # prod.
+        if load_app == load._static_load:
+            assert len(caplog.records) == 2
+            assert "fake_kwarg" in caplog.text
+        else:
+            assert len(caplog.records) == 1
+        assert "kwarg_that_doesnt_exist" in caplog.text

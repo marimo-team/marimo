@@ -217,8 +217,8 @@ class CellManager:
         else:
             cell_id = self.create_cell_id()
         cell = ir_cell_factory(cell_def, cell_id=cell_id)
-        cell_config = CellConfig(
-            **cell_def.options,
+        cell_config = CellConfig.from_dict(
+            cell_def.options,
         )
         cell._cell.configure(cell_config)
         self._register_cell(cell, app=app)
