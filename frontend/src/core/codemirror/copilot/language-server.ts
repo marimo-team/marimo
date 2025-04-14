@@ -112,9 +112,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
     const change = changes[0];
     if ("range" in change) {
-      // Copilot doesn't support rangeLength
       Logger.warn(
-        "CopilotLanguageServerClient#textDocumentDidChange: Copilot doesn't support rangeLength",
+        "CopilotLanguageServerClient#textDocumentDidChange: Copilot doesn't support range changes.",
         change,
       );
     }
