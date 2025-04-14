@@ -185,6 +185,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             completionConfig: autocompleteOptions,
             // Default to false
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
+            sendIncrementalChanges: false,
             signatureHelpEnabled: true,
             signatureActivateOnTyping: false,
             keyboardShortcuts: {
