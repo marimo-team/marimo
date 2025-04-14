@@ -284,6 +284,14 @@ class App:
                     )
         return app
 
+    # Overloads are required to preserve the wrapped function's signature.
+    # mypy is not smart enough to carry transitive typing in this case.
+    @overload
+    def cell(self, func: Fn[P, R]) -> Cell: ...
+
+    @overload
+    def cell(self, **kwargs: Any) -> Callable[[Fn[P, R]], Cell]: ...
+
     def cell(
         self,
         func: Fn[P, R] | None = None,
@@ -328,8 +336,6 @@ class App:
             ),
         )
 
-    # Overloads are required to preserve the wrapped function's signature.
-    # mypy is not smart enough to carry transitive typing in this case.
     @overload
     def function(self, func: Fn[P, R]) -> Fn[P, R]: ...
 
