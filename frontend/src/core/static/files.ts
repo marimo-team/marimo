@@ -118,7 +118,7 @@ export function patchVegaLoader(
     try {
       return await originalLoad(url);
     } catch (error) {
-      // If its a data URL, just return the data
+      // If it's a data URL, just return the data
       if (url.startsWith("data:")) {
         return await window.fetch(url).then((r) => r.text());
       }
