@@ -204,7 +204,11 @@ dependencies = [
 ]
 
 [tool.hatch.envs.typecheck.scripts]
-check = "mypy marimo/"
+# tutorials shouldn't be type-checked (should be excluded), but they get
+# included due to import following; so ensure tutorial imports are type
+# ignored.
+check = "mypy marimo --exclude=marimo/_tutorials/"
+tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
@@ -460,17 +464,10 @@ exclude = [
     'tests/_cli/cli_data',
     'tests/_cli/ipynb_data',
     'tests/_runtime/runtime_data',
-    'marimo/_tutorials/',
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
 ]
 warn_unused_ignores = false
-
-# tutorials shouldn't be type-checked (should be excluded), but they
-# get included anyway, maybe due to import following; this is coarse but works
-[[tool.mypy.overrides]]
-module = "marimo._tutorials.*"
-ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
