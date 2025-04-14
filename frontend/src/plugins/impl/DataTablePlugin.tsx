@@ -10,7 +10,6 @@ import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
-import { vegaLoadData } from "./vega/loader";
 import { Banner } from "./common/error-banner";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
@@ -32,10 +31,6 @@ import type {
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
 import { ConditionSchema, type ConditionType } from "./data-frames/schema";
-import {
-  type ColumnFilterValue,
-  filterToFilterCondition,
-} from "@/components/data-table/filters";
 import React from "react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { Arrays } from "@/utils/arrays";
@@ -51,6 +46,12 @@ import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
 import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import {
+  filterToFilterCondition,
+  type ColumnFilterValue,
+} from "@/components/data-table/filters";
+import { vegaLoadData } from "./vega/loader";
+import { isStaticNotebook } from "@/core/static/static-state";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -392,7 +393,10 @@ export const LoadingDataTableComponent = memo(
         // We still want to run the search,
         // so the backend knows the current state for selection
         // see https://github.com/marimo-team/marimo/issues/2756
-        void searchResultsPromise;
+        // But we should catch errors; this may happen for static exports.
+        void searchResultsPromise.catch((error) => {
+          Logger.error(error);
+        });
       } else {
         const searchResults = await searchResultsPromise;
         tableData = searchResults.data;
@@ -443,9 +447,9 @@ export const LoadingDataTableComponent = memo(
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
-    >(() => {
+    >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return Promise.resolve({ data: null, summaries: [] });
+        return { data: null, summaries: [] };
       }
       return props.get_column_summaries({});
     }, [
@@ -480,7 +484,7 @@ export const LoadingDataTableComponent = memo(
     let errorComponent: React.ReactNode = null;
     if (error) {
       Logger.error(error);
-      errorComponent = (
+      errorComponent = !isStaticNotebook() && (
         <Alert variant="destructive" className="mb-2">
           <AlertTitle>Error</AlertTitle>
           <div className="text-md">
