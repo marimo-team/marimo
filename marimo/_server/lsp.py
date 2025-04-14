@@ -229,21 +229,18 @@ class CompositeLspServer(LspServer):
         self.config_reader = config_reader
         self.min_port = min_port
 
+        last_free_port = find_free_port(min_port)
+
         # NOTE: we construct all servers up front regardless of whether they are enabled
         # in order to properly mount them as Starlette routes with their own ports
         # With 2 servers, this is OK, but if we want to support more, we should
         # lazily construct servers, routes, and ports.
         # We still lazily start servers as they are enabled.
         # We also need to ensure that the ports are unique
-        self.servers: dict[str, LspServer] = {
-            # We offset the ports by 2 to ensure they are unique
-            server_name: server_constructor(
-                find_free_port(self.min_port + i * 5)
-            )
-            for i, (server_name, server_constructor) in enumerate(
-                self.LANGUAGE_SERVERS.items()
-            )
-        }
+        self.servers: dict[str, LspServer] = {}
+        for server_name, server_constructor in self.LANGUAGE_SERVERS.items():
+            last_free_port = find_free_port(last_free_port + 1)
+            self.servers[server_name] = server_constructor(last_free_port)
 
     def _is_enabled(self, server_name: str) -> bool:
         # .get_config() is not cached
