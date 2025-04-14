@@ -7,8 +7,8 @@ import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import type { CellId } from "@/core/cells/ids";
-import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import type { EditorView } from "@codemirror/view";
+import { getLSPDocument } from "./utils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
   public readonly documentUri: LSP.DocumentUri;
@@ -33,7 +33,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     client: ILanguageServerClient,
     initialSettings: Record<string, unknown>,
   ) {
-    this.documentUri = `file://${getFilenameFromDOM() ?? "/__marimo_notebook__.py"}`;
+    this.documentUri = getLSPDocument();
 
     this.client = client;
     this.patchProcessNotification();

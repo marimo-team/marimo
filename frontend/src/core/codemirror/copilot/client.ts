@@ -113,5 +113,6 @@ export function copilotServer() {
     codeActionsEnabled: false,
     signatureHelpEnabled: false,
     diagnosticsEnabled: false,
+    sendIncrementalChanges: false,
   });
 }
