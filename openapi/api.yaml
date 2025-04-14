@@ -1145,10 +1145,13 @@ components:
           type: object
         capabilities:
           properties:
+            pylsp:
+              type: boolean
             terminal:
               type: boolean
           required:
           - terminal
+          - pylsp
           type: object
         cell_ids:
           items:
@@ -2493,7 +2496,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.8
+  version: 0.12.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

@@ -177,6 +177,13 @@ class CopilotLspServer(BaseLspServer):
 class PyLspServer(BaseLspServer):
     id = "pylsp"
 
+    def start(self) -> Optional[Alert]:
+        # pylsp is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.pylsp.has():
+            return None
+
+        return super().start()
+
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if DependencyManager.pylsp.has():
             return True

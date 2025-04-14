@@ -7,7 +7,6 @@ import { getResolvedMarimoConfig } from "./config";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
-  lsp: boolean;
   markdown: boolean;
   inline_ai_tooltip: boolean;
   wasm_layouts: boolean;
@@ -21,7 +20,6 @@ export interface ExperimentalFeatures {
 }
 
 const defaultValues: ExperimentalFeatures = {
-  lsp: import.meta.env.DEV,
   markdown: true,
   inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,

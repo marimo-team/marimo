@@ -51,8 +51,9 @@ import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
 import { OptionalFeatures } from "./optional-features";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { Badge } from "../ui/badge";
+import { capabilitiesAtom, hasCapability } from "@/core/config/capabilities";
+import { Banner } from "@/plugins/impl/common/error-banner";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -113,6 +114,7 @@ export const UserConfigForm: React.FC = () => {
   const [activeCategory, setActiveCategory] = useAtom(
     activeUserConfigCategoryAtom,
   );
+  const capabilities = useAtomValue(capabilitiesAtom);
 
   // Create form
   const form = useForm<UserConfig>({
@@ -423,12 +425,12 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
-            {getFeatureFlag("lsp") && (
-              <SettingGroup title="Language Servers">
-                <FormField
-                  control={form.control}
-                  name="language_servers.pylsp.enabled"
-                  render={({ field }) => (
+            <SettingGroup title="Language Servers">
+              <FormField
+                control={form.control}
+                name="language_servers.pylsp.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>
                         <Badge variant="defaultOutline" className="mr-2">
@@ -456,47 +458,55 @@ export const UserConfigForm: React.FC = () => {
                         name="language_servers.pylsp.enabled"
                       />
                     </FormItem>
-                  )}
-                />
-                <FormDescription>
-                  See the{" "}
-                  <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
-                    docs
-                  </ExternalLink>{" "}
-                  for more information about language server support.
-                </FormDescription>
+                    {field.value && !hasCapability("pylsp") && (
+                      <Banner kind="danger">
+                        The Python Language Server is not available in your
+                        current environment. Please install{" "}
+                        <Kbd className="inline">python-lsp-server</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormDescription>
+                See the{" "}
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                  docs
+                </ExternalLink>{" "}
+                for more information about language server support.
+              </FormDescription>
 
-                <FormField
-                  control={form.control}
-                  name="diagnostics.enabled"
-                  render={({ field }) => (
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>
-                        <Badge variant="defaultOutline" className="mr-2">
-                          Beta
-                        </Badge>
-                        Diagnostics
-                      </FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          data-testid="diagnostics-checkbox"
-                          checked={field.value}
-                          disabled={field.disabled}
-                          onCheckedChange={(checked) => {
-                            field.onChange(Boolean(checked));
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="diagnostics.enabled"
+              <FormField
+                control={form.control}
+                name="diagnostics.enabled"
+                render={({ field }) => (
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>
+                      <Badge variant="defaultOutline" className="mr-2">
+                        Beta
+                      </Badge>
+                      Diagnostics
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="diagnostics-checkbox"
+                        checked={field.value}
+                        disabled={field.disabled}
+                        onCheckedChange={(checked) => {
+                          field.onChange(Boolean(checked));
+                        }}
                       />
-                    </FormItem>
-                  )}
-                />
-              </SettingGroup>
-            )}
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="diagnostics.enabled"
+                    />
+                  </FormItem>
+                )}
+              />
+            </SettingGroup>
 
             <SettingGroup title="Keymap">
               <FormField
@@ -902,7 +912,7 @@ export const UserConfigForm: React.FC = () => {
                     <FormControl>
                       <Checkbox
                         data-testid="reactive-test-checkbox"
-                        checked={field.value === true}
+                        checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>

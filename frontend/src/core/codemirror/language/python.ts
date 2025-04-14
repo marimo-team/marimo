@@ -31,7 +31,6 @@ import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
@@ -41,6 +40,7 @@ import { cellActionsState } from "../cells/state";
 import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { CellDocumentUri } from "../lsp/types";
+import { hasCapability } from "@/core/config/capabilities";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -174,7 +174,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
         hideOnChange: true,
       };
 
-      if (getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled) {
+      if (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) {
         const client = lspClient(lspConfig);
         return [
           languageServerWithClient({

@@ -32,6 +32,7 @@ from marimo._data.models import (
     DataTable,
     DataTableSource,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
@@ -415,10 +416,12 @@ class CompletedRun(Op):
 @dataclass
 class KernelCapabilities:
     terminal: bool = False
+    pylsp: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
+        self.pylsp = DependencyManager.pylsp.has()
 
 
 @dataclass

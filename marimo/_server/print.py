@@ -111,6 +111,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
     # These experiments have been released
     finished_experiments = {
         "rtc",
+        "lsp",
         "chat_sidebar",
         "multi_column",
         "scratchpad",
