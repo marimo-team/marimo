@@ -1532,7 +1532,7 @@ def test_lazy_dataframe() -> None:
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
-        search_args = SearchTableArgs(page_size=10, page_number=0)
+        search_args = SearchTableArgs(page_size=num_rows, page_number=0)
         search_response = table._search(search_args)
         assert search_response.total_rows == "too_many"
 
