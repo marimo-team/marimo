@@ -231,13 +231,21 @@ export function parseLatex(latexParser: Parser): MarkdownConfig {
       // Test if the node type is one of the math expression
       const delimiterLength = DELIMITER_LENGTH[node.type.name];
       if (delimiterLength) {
+        const from = node.from + delimiterLength;
+        const to = node.to - delimiterLength;
+
+        // Ensure valid ranges
+        if (from >= to || from < 0 || to < 0) {
+          return null;
+        }
+
         return {
           parser: latexParser,
           // Remove delimiter from LaTeX parser otherwise it won't be highlighted
           overlay: [
             {
-              from: node.from + delimiterLength,
-              to: node.to - delimiterLength,
+              from,
+              to,
             },
           ],
         };
