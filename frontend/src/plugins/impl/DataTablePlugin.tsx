@@ -54,7 +54,7 @@ import { vegaLoadData } from "./vega/loader";
 import { isStaticNotebook } from "@/core/static/static-state";
 
 type CsvURL = string;
-type TableData<T> = T[] | CsvURL;
+export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   summaries: ColumnHeaderSummary[];
@@ -70,6 +70,13 @@ export type GetRowIds = (opts: {}) => Promise<{
 export type GetDataUrl = (opts: {}) => Promise<{
   data_url: string | object[];
   format: "csv" | "json" | "arrow";
+}>;
+
+export type CalculateTopKRows = <T>(req: {
+  column: string;
+  k: number;
+}) => Promise<{
+  data: TableData<T>;
 }>;
 
 /**
@@ -119,6 +126,7 @@ type DataTableFunctions = {
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
+  calculate_top_k_rows?: CalculateTopKRows;
 };
 
 type S = Array<number | string | { rowId: string; columnName?: string }>;
@@ -226,6 +234,13 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         format: z.enum(["csv", "json", "arrow"]),
       }),
     ),
+    calculate_top_k_rows: rpc
+      .input(z.object({ column: z.string(), k: z.number() }))
+      .output(
+        z.object({
+          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+        }),
+      ),
   })
   .renderer((props) => {
     return (
@@ -287,6 +302,8 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   chartsFeatureEnabled?: boolean;
 }
 
+export type SetFilters = OnChangeFn<ColumnFiltersState>;
+
 interface DataTableSearchProps {
   // Pagination
   paginationState: PaginationState;
@@ -300,7 +317,7 @@ interface DataTableSearchProps {
   reloading: boolean;
   // Filters
   filters?: ColumnFiltersState;
-  setFilters?: OnChangeFn<ColumnFiltersState>;
+  setFilters?: SetFilters;
   hasStableRowId: boolean;
 }
 
@@ -575,6 +592,7 @@ const DataTableComponent = ({
   cellStyles,
   toggleDisplayHeader,
   chartsFeatureEnabled,
+  calculate_top_k_rows,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -618,6 +636,9 @@ const DataTableComponent = ({
         wrappedColumns: memoizedWrappedColumns,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
+        calculateTopKRows: calculate_top_k_rows,
+        setFilters: setFilters,
+        filters: filters,
       }),
     [
       selection,
@@ -627,6 +648,9 @@ const DataTableComponent = ({
       memoizedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
+      calculate_top_k_rows,
+      setFilters,
+      filters,
     ],
   );
 

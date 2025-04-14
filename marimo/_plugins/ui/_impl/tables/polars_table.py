@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import io
 from functools import cached_property
 from typing import Any, Optional, Union
@@ -221,6 +222,18 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
                 filtered = self._original_data.filter(or_expr)
                 return PolarsTableManager(filtered)
+
+            def calculate_top_k_rows(
+                self, column: str, k: int
+            ) -> PolarsTableManager:
+                # TODO: If the column is empty / null, how do we want to order it? At the end / top
+                data = self.collect()
+                return PolarsTableManager(
+                    data.group_by(column)
+                    .agg(pl.len().alias("count"))
+                    .sort("count", descending=True)
+                    .head(k)
+                )
 
             # We override the default implementation to use polars's
             # internal fields since they get displayed in the UI.

@@ -136,6 +136,17 @@ class GetDataUrlResponse:
     format: Literal["csv", "json", "arrow"]
 
 
+@dataclass
+class CalculateTopKRowsArgs:
+    column: ColumnName
+    k: int
+
+
+@dataclass
+class CalculateTopKRowsResponse:
+    data: Union[JSONType, str]
+
+
 def get_default_table_page_size() -> int:
     """Get the default number of rows to display in a table."""
     try:
@@ -626,6 +637,11 @@ class table(
                     arg_cls=EmptyArgs,
                     function=self._get_data_url,
                 ),
+                Function(
+                    name="calculate_top_k_rows",
+                    arg_cls=CalculateTopKRowsArgs,
+                    function=self._calculate_top_k_rows,
+                ),
             ),
         )
 
@@ -848,6 +864,18 @@ class table(
             result = result.sort_values(sort.by, sort.descending)
 
         return result
+
+    # TODO: Maybe functools cache this
+    def _calculate_top_k_rows(
+        self, args: CalculateTopKRowsArgs
+    ) -> CalculateTopKRowsResponse:
+        """Calculate the top k rows in the table, grouped by column.
+        Returns a table of the top k rows, grouped by column with the count.
+        """
+        column, k = args.column, args.k
+        data = self._searched_manager.calculate_top_k_rows(column, k)
+        # Do not need to return url, as the table is small
+        return CalculateTopKRowsResponse(data=data.to_data({}))
 
     def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""

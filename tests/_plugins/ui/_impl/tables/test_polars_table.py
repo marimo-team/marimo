@@ -836,6 +836,21 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         last = sorted_manager.data["A"][-1]
         assert last is None or isnan(last)
 
+    def test_get_top_k_rows(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame(
+            {"A": [1, 2, 3, 3, None], "B": ["a", "b", "c", "c", "d"]}
+        )
+        manager = self.factory.create()(df)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert result == [
+            ("3", 2),
+            ("1", 1),
+            ("2", 1),
+            (None, 1),
+        ]
+
     def test_get_field_types_with_datetime(self):
         import polars as pl
 
