@@ -522,7 +522,7 @@ dataframes = "rich"
 watcher_on_save = "autorun"
 output_max_bytes = 10_000_000
 std_stream_max_bytes = 2_000_000
-dotenv = [".env.testing"]
+dotenv = [".env"]
 
 [tool.marimo.keymap]
 vimrc = "configs/.vimrc"

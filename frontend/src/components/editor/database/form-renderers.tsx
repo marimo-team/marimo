@@ -12,11 +12,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
-import { KeyIcon } from "lucide-react";
+import { KeyIcon, PlusCircleIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -28,8 +30,15 @@ import { createContext, useContext, type ReactNode } from "react";
 import { Functions } from "@/utils/functions";
 import { NumberField } from "@/components/ui/number-field";
 import { displaySecret, isSecret, prefixSecret } from "./secrets";
+import { partition } from "lodash-es";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import {
+  sortProviders,
+  WriteSecretModal,
+} from "../chrome/panels/write-secret-modal";
 
 interface SecretsContextType {
+  providerNames: string[];
   secretKeys: string[];
   loading: boolean;
   error: Error | undefined;
@@ -37,6 +46,7 @@ interface SecretsContextType {
 }
 
 const SecretsContext = createContext<SecretsContextType>({
+  providerNames: [],
   secretKeys: [],
   loading: false,
   error: undefined,
@@ -50,19 +60,28 @@ interface SecretsProviderProps {
 }
 
 export const SecretsProvider = ({ children }: SecretsProviderProps) => {
-  const {
-    data: secretKeys = [],
-    loading,
-    error,
-    reload,
-  } = useAsyncData(async () => {
+  const { data, loading, error, reload } = useAsyncData(async () => {
     const result = await SECRETS_REGISTRY.request({});
-    return result.secrets.flatMap((secret) => secret.keys).sort();
+    // Provider names without 'env' provider
+    const providerNames = sortProviders(result.secrets)
+      .filter((provider) => provider.provider !== "env")
+      .map((provider) => provider.name);
+
+    return {
+      secretKeys: result.secrets.flatMap((secret) => secret.keys).sort(),
+      providerNames: providerNames,
+    };
   }, []);
 
   return (
     <SecretsContext.Provider
-      value={{ secretKeys, loading, error, refreshSecrets: reload }}
+      value={{
+        secretKeys: data?.secretKeys || [],
+        providerNames: data?.providerNames || [],
+        loading,
+        error,
+        refreshSecrets: reload,
+      }}
     >
       {children}
     </SecretsContext.Provider>
@@ -80,7 +99,8 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
     return false;
   },
   Component: ({ schema, form, path }) => {
-    const { secretKeys } = useSecrets();
+    const { secretKeys, providerNames, refreshSecrets } = useSecrets();
+    const { openModal, closeModal } = useImperativeModal();
 
     const {
       label,
@@ -88,7 +108,7 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
       optionRegex = "",
     } = FieldOptions.parse(schema._def.description || "");
 
-    const filteredSecretKeys = secretKeys.filter((key) =>
+    const [recommendedKeys, otherKeys] = partition(secretKeys, (key) =>
       new RegExp(optionRegex, "i").test(key),
     );
 
@@ -117,34 +137,65 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
                     className="flex-1"
                   />
                 )}
-                {filteredSecretKeys.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild={true}>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className={cn(
-                          isSecret(field.value as string) && "bg-accent",
-                        )}
-                      >
-                        <KeyIcon className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="max-h-60 overflow-y-auto"
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild={true}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className={cn(
+                        isSecret(field.value as string) && "bg-accent",
+                      )}
                     >
-                      {filteredSecretKeys.map((key) => (
-                        <DropdownMenuItem
-                          key={key}
-                          onSelect={() => field.onChange(prefixSecret(key))}
-                        >
-                          {displaySecret(key)}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                      <KeyIcon className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="max-h-60 overflow-y-auto"
+                  >
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        openModal(
+                          <WriteSecretModal
+                            providerNames={providerNames}
+                            onSuccess={(secretKey) => {
+                              refreshSecrets();
+                              field.onChange(prefixSecret(secretKey));
+                              closeModal();
+                            }}
+                            onClose={closeModal}
+                          />,
+                        );
+                      }}
+                    >
+                      <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
+                      Create a new secret
+                    </DropdownMenuItem>
+                    {recommendedKeys.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Recommended</DropdownMenuLabel>
+                      </>
+                    )}
+                    {recommendedKeys.map((key) => (
+                      <DropdownMenuItem
+                        key={key}
+                        onSelect={() => field.onChange(prefixSecret(key))}
+                      >
+                        {displaySecret(key)}
+                      </DropdownMenuItem>
+                    ))}
+                    {otherKeys.length > 0 && <DropdownMenuSeparator />}
+                    {otherKeys.map((key) => (
+                      <DropdownMenuItem
+                        key={key}
+                        onSelect={() => field.onChange(prefixSecret(key))}
+                      >
+                        {displaySecret(key)}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </FormControl>
             <FormMessage />
