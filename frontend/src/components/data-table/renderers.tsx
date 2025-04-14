@@ -54,7 +54,7 @@ export function renderTableHeader<TData>(
               onTouchStart={header.getResizeHandler()}
               className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none touch-none"
             >
-              {/* Create a blue line that is thinner than the parent div */}
+              {/* Create a line that is thinner than the parent div */}
               <div
                 className={`absolute h-full w-0.5 left-1/2 -translate-x-1/2 bg-[var(--slate-3)] 
                   dark:bg-slate-600/40 opacity-0 group-hover:opacity-70 rounded ${
