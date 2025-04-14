@@ -85,7 +85,7 @@ class MarimoConvertValueException(Exception):
 
 
 @mddoc
-class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
+class UIElement(Html, Generic[S, T]):
     """An HTML element with a value
 
     A `UIElement` is an HTML element with a value; when the value of the

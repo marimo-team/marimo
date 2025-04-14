@@ -2791,6 +2791,7 @@ export interface components {
         width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
+        pylsp: boolean;
         terminal: boolean;
       };
       cell_ids: string[];
