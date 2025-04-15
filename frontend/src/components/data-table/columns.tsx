@@ -2,7 +2,7 @@
 "use no memo";
 
 import type { ColumnDef, ColumnFiltersState } from "@tanstack/react-table";
-import { MemoizedDataTableColumnHeader } from "./column-header";
+import { DataTableColumnHeader } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
@@ -189,7 +189,7 @@ export function generateColumns<T>({
         // Row headers have no summaries
         if (rowHeadersSet.has(key)) {
           return (
-            <MemoizedDataTableColumnHeader
+            <DataTableColumnHeader
               header={headerWithType}
               column={column}
               calculateTopKRows={calculateTopKRows}
@@ -201,7 +201,7 @@ export function generateColumns<T>({
 
         return (
           <div className="flex flex-col h-full pt-0.5 pb-3 justify-between items-start">
-            <MemoizedDataTableColumnHeader
+            <DataTableColumnHeader
               key={key}
               column={column}
               header={headerWithType}

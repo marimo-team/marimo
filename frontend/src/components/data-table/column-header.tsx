@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { memo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { type ColumnFilterForType, Filter } from "./filters";
@@ -64,7 +64,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   filters,
   setFilters,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
-  const [localFilterOpen, setLocalFilterOpen] = useState(false);
+  const [setFilterOpen, setSetFilterOpen] = useState(false);
 
   // No header
   if (!header) {
@@ -312,24 +312,15 @@ const NumberRangeFilter = <TData, TValue>({
           className="shadow-none! border-border hover:shadow-none!"
         />
       </div>
-      <div className="flex gap-2 px-2 justify-between">
-        <Button variant="link" size="sm" onClick={() => handleApply()}>
-          Apply
-        </Button>
-        <Button
-          variant="linkDestructive"
-          size="sm"
-          disabled={!hasFilter}
-          className=""
-          onClick={() => {
-            setMin(undefined);
-            setMax(undefined);
-            column.setFilterValue(undefined);
-          }}
-        >
-          Clear
-        </Button>
-      </div>
+      <FilterButtons
+        onApply={handleApply}
+        onClear={() => {
+          setMin(undefined);
+          setMax(undefined);
+          column.setFilterValue(undefined);
+        }}
+        clearButtonDisabled={!hasFilter}
+      />
     </div>
   );
 };
@@ -368,44 +359,34 @@ const TextFilter = <TData, TValue>({
         }}
         className="shadow-none! border-border hover:shadow-none!"
       />
-      <div className="flex gap-2 px-2 justify-between">
-        <Button variant="link" size="sm" onClick={() => handleApply()}>
-          Apply
-        </Button>
-        <Button
-          variant="linkDestructive"
-          size="sm"
-          disabled={!hasFilter}
-          className=""
-          onClick={() => {
-            setValue("");
-            column.setFilterValue(undefined);
-          }}
-        >
-          Clear
-        </Button>
-      </div>
+      <FilterButtons
+        onApply={handleApply}
+        onClear={() => {
+          setValue("");
+          column.setFilterValue(undefined);
+        }}
+        clearButtonDisabled={!hasFilter}
+      />
     </div>
   );
 };
 
 // TODO: This is triggering immediately, which is not what we want
-const PopoverLocalFilter = <TData, TValue>({
-  setLocalFilterOpen,
+const PopoverSetFilter = <TData, TValue>({
+  setSetFilterOpen,
   calculateTopKRows,
   filters,
   setFilters,
   column,
 }: {
-  setLocalFilterOpen: (open: boolean) => void;
+  setSetFilterOpen: (open: boolean) => void;
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
   filters?: ColumnFiltersState;
   setFilters?: SetFilters;
 }) => {
-  // const [filterValues, setFilterValues] = useState<
-  //   ColumnFiltersState | undefined
-  // >(filters);
+  const [chosenValues, setChosenValues] = useState<unknown[]>([]);
+
   const { data, loading, error } = useAsyncData(async () => {
     if (!calculateTopKRows) {
       return null;
@@ -428,49 +409,52 @@ const PopoverLocalFilter = <TData, TValue>({
     return null;
   }
 
+  if (!setFilters) {
+    Logger.error("No setFilters function provided");
+    return null;
+  }
+
   // Type assertion to handle the data array
   const typedData = data as Array<Record<string, unknown>>;
 
   // Get all possible keys from the data objects
-  const keys = [...new Set(typedData.flatMap((item) => Object.keys(item)))];
+  // Empty strings may be index
+  const keys = [
+    ...new Set(
+      typedData
+        .flatMap((item) => Object.keys(item))
+        .filter((key) => key !== ""),
+    ),
+  ];
 
-  const handleCheckboxClick = (value: unknown) => {
+  const handleCheckboxClick = (checked: boolean, value: unknown) => {
     if (!setFilters) {
       Logger.error("No setFilters function provided");
       return;
     }
 
-    // Get the filter type from the column definition
+    if (!checked) {
+      setChosenValues(chosenValues.filter((v) => v !== value));
+      return;
+    }
+
+    setChosenValues([...chosenValues, value]);
+  };
+
+  const handleApply = () => {
     const filterType = column.columnDef.meta?.filterType;
     if (!filterType) {
       Logger.error("No filter type defined for column");
       return;
     }
 
-    // Create the appropriate filter based on the filter type
-    let filterValue: any;
-    switch (filterType) {
-      case "boolean":
-        filterValue = Filter.boolean(value as boolean);
-        break;
-      case "number":
-        filterValue = Filter.number({ min: value as number });
-        break;
-      case "text":
-        filterValue = Filter.text(String(value));
-        break;
-      default:
-        Logger.error("Unsupported filter type:", filterType);
-        return;
-    }
-
-    setFilters([
-      ...(filters ?? []),
-      {
-        id: column.id,
-        value: filterValue,
-      },
-    ]);
+    // TODO: We need to create an in filter
+    const filterValue = Filter.text(String(chosenValues[0]));
+    const filter = {
+      id: column.id,
+      value: filterValue,
+    };
+    setFilters([...(filters ?? []), filter]);
   };
 
   return (
@@ -481,52 +465,81 @@ const PopoverLocalFilter = <TData, TValue>({
           <Button
             variant="link"
             size="sm"
-            onClick={() => setLocalFilterOpen(false)}
+            onClick={() => setSetFilterOpen(false)}
           >
-            Close
+            X
           </Button>
         </PopoverClose>
         <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-sm font-semibold mx-auto">Local Filter</span>
-          <div className="overflow-auto max-h-60">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="px-2 py-1 text-left font-medium">{}</th>
-                  {keys.map((key) => (
-                    <th key={key} className="px-2 py-1 text-left font-medium">
-                      {key}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {typedData.map((row, rowIndex) => {
-                  const value = row[column.id];
-                  return (
-                    <tr
-                      key={rowIndex}
-                      className="border-b border-gray-100 hover:bg-gray-50"
-                    >
-                      <td key={rowIndex} className="px-2 py-1">
-                        <input
-                          type="checkbox"
-                          onClick={() => handleCheckboxClick(value)}
-                        />
+          <span className="text-sm font-semibold mx-auto">Set Filter</span>
+          <table className="w-full border-collapse text-sm overflow-auto max-h-60">
+            <thead>
+              <tr className="border-b">
+                <th className="px-2 py-1 text-left font-medium">{}</th>
+                {keys.map((key) => (
+                  <th key={key} className="px-2 py-1 text-left font-medium">
+                    {key}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {typedData.map((row, rowIndex) => {
+                const value = row[column.id];
+                return (
+                  <tr
+                    key={rowIndex}
+                    className="border-b border-gray-100 hover:bg-gray-50"
+                  >
+                    <td key={rowIndex} className="px-2 py-1">
+                      <input
+                        type="checkbox"
+                        onClick={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          handleCheckboxClick(target.checked, value);
+                        }}
+                      />
+                    </td>
+                    {keys.map((key) => (
+                      <td key={`${rowIndex}-${key}`} className="px-2 py-1">
+                        {row[key] === null ? "null" : String(row[key])}
                       </td>
-                      {keys.map((key) => (
-                        <td key={`${rowIndex}-${key}`} className="px-2 py-1">
-                          {row[key] === null ? "null" : String(row[key])}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <FilterButtons onApply={handleApply} onClear={() => {}} />
         </div>
       </PopoverContent>
     </Popover>
+  );
+};
+
+const FilterButtons = ({
+  onApply,
+  onClear,
+  clearButtonDisabled,
+}: {
+  onApply: () => void;
+  onClear: () => void;
+  clearButtonDisabled?: boolean;
+}) => {
+  return (
+    <div className="flex gap-2 px-2 justify-between">
+      <Button variant="link" size="sm" onClick={onApply}>
+        Apply
+      </Button>
+      <Button
+        variant="linkDestructive"
+        size="sm"
+        className=""
+        onClick={onClear}
+        disabled={clearButtonDisabled}
+      >
+        Clear
+      </Button>
+    </div>
   );
 };
