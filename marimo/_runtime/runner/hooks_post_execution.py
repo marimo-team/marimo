@@ -246,7 +246,7 @@ def _store_state_reference(
 @kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    _runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
     # TODO: clean this logic up ...
@@ -265,25 +265,14 @@ def _broadcast_outputs(
         run_result.success()
         or isinstance(run_result.exception, MarimoStopError)
     ) and should_send_output:
-
-        def format_output() -> formatting.FormattedOutput:
-            formatted_output = formatting.try_format(run_result.output)
-
-            if formatted_output.exception is not None:
-                # Try a plain formatter; maybe an opinionated one failed.
-                formatted_output = formatting.try_format(
-                    run_result.output, include_opinionated=False
-                )
-
-            if formatted_output.traceback is not None:
-                write_traceback(formatted_output.traceback)
-            return formatted_output
-
-        if runner.execution_context is not None:
-            with runner.execution_context(cell.cell_id):
-                formatted_output = format_output()
-        else:
-            formatted_output = format_output()
+        formatted_output = formatting.try_format(run_result.output)
+        if formatted_output.exception is not None:
+            # Try a plain formatter; maybe an opinionated one failed.
+            formatted_output = formatting.try_format(
+                run_result.output, include_opinionated=False
+            )
+        if formatted_output.traceback is not None:
+            write_traceback(formatted_output.traceback)
 
         CellOp.broadcast_output(
             channel=CellChannel.OUTPUT,
