@@ -64,6 +64,7 @@ def get_optional_modules_list() -> dict[str, str]:
         "pyarrow",
         "pycrdt",
         "pylsp-mypy",
+        "pytest",
         "python-lsp-ruff",
         "python-lsp-server",
         "ruff",
