@@ -133,9 +133,11 @@ export function renderColumnPinning<TData, TValue>(
   );
 }
 
-export function renderCopyColumnId<TData, TValue>(
-  column: Column<TData, TValue>,
-) {
+export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
+  if (!column.getCanCopy?.()) {
+    return null;
+  }
+
   if (column.id.startsWith(NAMELESS_COLUMN_PREFIX)) {
     return null;
   }
