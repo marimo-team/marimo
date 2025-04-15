@@ -83,7 +83,10 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
-import { useCollapseAllColumns, useExpandAllColumns } from "./useColumnExpansion";
+import {
+  useCollapseAllColumns,
+  useExpandAllColumns,
+} from "./useColumnExpansion";
 import { Constants } from "@/core/constants";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 

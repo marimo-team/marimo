@@ -17,17 +17,17 @@ export const useCollapseAllColumns = () => {
 
     // Find all markdown cells that aren't already hidden
     for (const cellId of cellIds) {
-        const outline = notebook.cellRuntime[cellId].outline
-        // Check if the cell is a markdown cell with a TOC outline
-        if (!outline) {
-          continue;
-        }
-        // Check if the cell is a collapsible header
-        if (!canCollapseOutline(outline)) {
-          continue;
-        }
-        // Collapse the cell
-        collapseCell({cellId});
+      const outline = notebook.cellRuntime[cellId].outline;
+      // Check if the cell is a markdown cell with a TOC outline
+      if (!outline) {
+        continue;
+      }
+      // Check if the cell is a collapsible header
+      if (!canCollapseOutline(outline)) {
+        continue;
+      }
+      // Collapse the cell
+      collapseCell({ cellId });
     }
   }, []);
 };
@@ -41,18 +41,17 @@ export const useExpandAllColumns = () => {
 
     // Find all markdown cells that aren't already hidden
     for (const cellId of cellIds) {
-        const outline = notebook.cellRuntime[cellId].outline
-        // Check if the cell is a markdown cell with a TOC outline
-        if (!outline) {
-          continue;
-        }
-        // Check if the cell is a collapsible header
-        if (!canCollapseOutline(outline)) {
-          continue;
-        }
-        // Collapse the cell
-        expandCell({cellId});
-
+      const outline = notebook.cellRuntime[cellId].outline;
+      // Check if the cell is a markdown cell with a TOC outline
+      if (!outline) {
+        continue;
+      }
+      // Check if the cell is a collapsible header
+      if (!canCollapseOutline(outline)) {
+        continue;
+      }
+      // Collapse the cell
+      expandCell({ cellId });
     }
   }, []);
-}
+};
