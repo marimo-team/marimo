@@ -41,7 +41,8 @@ TopLevelInvalidHints = Literal[
 ) = get_args(TopLevelInvalidHints)
 
 TopLevelHints = Union[Literal["Valid"], TopLevelInvalidHints]
-HINT_VALID, *_ = get_args(TopLevelHints)
+# Fancy typing caused an issue, so just set the value explicitly.
+HINT_VALID: Literal["Valid"] = "Valid"
 
 
 def has_trailing_comment(code: str) -> bool:
@@ -154,6 +155,7 @@ class TopLevelStatus:
         dependent_refs = self._cell.refs - (allowed_refs | toplevel)
         if not dependent_refs:
             self.type = TopLevelType.TOPLEVEL
+            self.hint = HINT_VALID
             return
 
         defined_refs = dependent_refs - potential_refs
@@ -337,14 +339,13 @@ class TopLevelExtraction:
         assert not self.unresolved
 
     @classmethod
-    def from_cells(cls, cells: list[CellImpl]) -> TopLevelExtraction:
+    def from_cells(
+        cls, cells: list[CellImpl], setup: Optional[CellImpl] = None
+    ) -> TopLevelExtraction:
         codes = [cell.code for cell in cells]
-        names = ["_" for cell in cells]
+        names = ["_" for _ in cells]
         cell_configs = [cell.config for cell in cells]
 
-        from marimo._ast.codegen import pop_setup_cell
-
-        setup = pop_setup_cell(codes, names, cell_configs, True)
         if setup:
             return cls(codes, names, cell_configs, setup.defs)
         return cls(codes, names, cell_configs, set())
