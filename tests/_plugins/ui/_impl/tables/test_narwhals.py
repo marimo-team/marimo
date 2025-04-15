@@ -776,6 +776,23 @@ def test_to_csv(df: Any) -> None:
             "B": ["a", "b", "c"],
             "C": [1.0, 2.0, 3.0],
         },
+        exclude=["ibis", "duckdb"],
+    ),
+)
+def test_to_parquet(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    assert isinstance(manager.to_parquet(), bytes)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"],
+            "C": [1.0, 2.0, 3.0],
+        },
     ),
 )
 def test_to_json(df: Any) -> None:

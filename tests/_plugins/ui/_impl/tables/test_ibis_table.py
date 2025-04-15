@@ -175,6 +175,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             == b'[{"A":3}]'
         )
 
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
         assert limited_manager.data.count().execute() == 0

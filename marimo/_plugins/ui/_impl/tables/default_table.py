@@ -107,6 +107,13 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ).to_json_str(format_mapping)
         return self._as_table_manager().to_json_str(format_mapping)
 
+    def to_parquet(self) -> bytes:
+        if isinstance(self.data, dict) and not self.is_column_oriented:
+            return DefaultTableManager(
+                self._normalize_data(self.data)
+            ).to_parquet()
+        return self._as_table_manager().to_parquet()
+
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):
             # Column major data

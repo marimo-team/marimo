@@ -101,7 +101,7 @@ interface Data<T> {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
-  download_as: (req: { format: "csv" | "json" }) => Promise<string>;
+  download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
@@ -171,7 +171,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   )
   .withFunctions<DataTableFunctions>({
     download_as: rpc
-      .input(z.object({ format: z.enum(["csv", "json"]) }))
+      .input(z.object({ format: z.enum(["csv", "json", "parquet"]) }))
       .output(z.string()),
     get_column_summaries: rpc.input(z.object({}).passthrough()).output(
       z.object({

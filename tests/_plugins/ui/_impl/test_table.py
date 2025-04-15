@@ -1151,6 +1151,22 @@ def test_download_as_for_supported_cell_selection() -> None:
         table._download_as(DownloadAsArgs(format="csv"))
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Polars not installed",
+)
+@pytest.mark.parametrize(
+    "fmt",
+    ["csv", "json", "parquet"],
+)
+def test_download_as_for_dataframes(fmt: str) -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    table = ui.table(df)
+    table._download_as(DownloadAsArgs(format=fmt))
+
+
 def test_pagination_behavior() -> None:
     # Test with default page_size=10
     data = {"a": list(range(8))}

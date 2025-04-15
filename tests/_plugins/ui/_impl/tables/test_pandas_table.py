@@ -157,6 +157,9 @@ class TestPandasTableManager(unittest.TestCase):
             manager = self.factory.create()(df)
             return json.loads(manager.to_json().decode("utf-8"))
 
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
     def test_to_json(self) -> None:
         expected_json = self.data.to_json(
             orient="records", date_format="iso"

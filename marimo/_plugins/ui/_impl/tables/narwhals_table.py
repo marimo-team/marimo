@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from functools import cached_property
 from typing import Any, Optional, Union, cast
 
@@ -82,6 +83,11 @@ class NarwhalsTableManager(
 
         csv_reader = csv.DictReader(csv_str.splitlines())
         return sanitize_json_bigint([row for row in csv_reader])
+
+    def to_parquet(self) -> bytes:
+        stream = io.BytesIO()
+        self.as_frame().write_parquet(stream)
+        return stream.getvalue()
 
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
