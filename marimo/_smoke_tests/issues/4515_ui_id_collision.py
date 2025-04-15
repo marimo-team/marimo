@@ -15,7 +15,7 @@ def _():
       def _mime_():
           # post_execution_hook reuses the name cell index space
           # as the general cell
-          # The temp value overwrites the one on the generaly cell
+          # The temp value overwrites the one on the generally cell
           # And because the temp value is "finalized"
           # The cell reference is deleted
           return slider._clone()._mime_()
