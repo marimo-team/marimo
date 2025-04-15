@@ -2,19 +2,7 @@
 "use no memo";
 
 import type { Column } from "@tanstack/react-table";
-import {
-  ChevronsUpDown,
-  ArrowDownNarrowWideIcon,
-  ArrowDownWideNarrowIcon,
-  CopyIcon,
-  FilterIcon,
-  FilterX,
-  MinusIcon,
-  SearchIcon,
-  WrapTextIcon,
-  AlignJustifyIcon,
-  PinOffIcon,
-} from "lucide-react";
+import { FilterIcon, FilterX, MinusIcon, SearchIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import {
@@ -34,13 +22,15 @@ import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { type ColumnFilterForType, Filter } from "./filters";
 import { logNever } from "@/utils/assertNever";
-import type { DataType } from "@/core/kernel/messages";
-import { formatOptions } from "./column-formatting/types";
-import { DATA_TYPE_ICON } from "../datasets/icons";
-import { formattingExample } from "./column-formatting/feature";
-import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import { NAMELESS_COLUMN_PREFIX } from "./columns";
-import { copyToClipboard } from "@/utils/copy";
+import {
+  renderColumnPinning,
+  renderColumnWrapping,
+  renderCopyColumnId,
+  renderDataType,
+  renderFormatOptions,
+  renderSortIcon,
+  renderSorts,
+} from "./header-items";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -53,160 +43,15 @@ export const DataTableColumnHeader = <TData, TValue>({
   header,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
+  // No header
   if (!header) {
     return null;
   }
 
+  // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
     return <div className={cn(className)}>{header}</div>;
   }
-
-  const AscIcon = ArrowDownNarrowWideIcon;
-  const DescIcon = ArrowDownWideNarrowIcon;
-
-  const renderSorts = () => {
-    if (!column.getCanSort()) {
-      return null;
-    }
-    return (
-      <>
-        <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-          <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Asc
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-          <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Desc
-        </DropdownMenuItem>
-        {column.getIsSorted() && (
-          <DropdownMenuItem onClick={() => column.clearSorting()}>
-            <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Clear sort
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-      </>
-    );
-  };
-
-  const renderColumnWrapping = () => {
-    if (!column.getCanWrap?.() || !column.getColumnWrapping) {
-      return null;
-    }
-
-    const wrap = column.getColumnWrapping();
-    if (wrap === "wrap") {
-      return (
-        <DropdownMenuItem
-          onClick={() => column.toggleColumnWrapping("nowrap")}
-          className="flex items-center"
-        >
-          <AlignJustifyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          No wrap text
-        </DropdownMenuItem>
-      );
-    }
-
-    return (
-      <DropdownMenuItem
-        onClick={() => column.toggleColumnWrapping("wrap")}
-        className="flex items-center"
-      >
-        <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-        Wrap text
-      </DropdownMenuItem>
-    );
-  };
-
-  const renderColumnPinning = () => {
-    if (!column.getCanPin?.() || !column.getIsPinned) {
-      return null;
-    }
-
-    const pinnedPosition = column.getIsPinned();
-
-    if (pinnedPosition !== false) {
-      return (
-        <DropdownMenuItem
-          onClick={() => column.pin(false)}
-          className="flex items-center"
-        >
-          <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Unfreeze
-        </DropdownMenuItem>
-      );
-    }
-
-    return (
-      <>
-        <DropdownMenuItem
-          onClick={() => column.pin("left")}
-          className="flex items-center"
-        >
-          <PinLeftIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Freeze left
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => column.pin("right")}
-          className="flex items-center"
-        >
-          <PinRightIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Freeze right
-        </DropdownMenuItem>
-      </>
-    );
-  };
-
-  const dtype: string | undefined = column.columnDef.meta?.dtype;
-  const dataType: DataType | undefined = column.columnDef.meta?.dataType;
-  const columnFormatOptions = dataType ? formatOptions[dataType] : [];
-
-  const renderFormatOptions = () => {
-    if (columnFormatOptions.length === 0 || !column.getCanFormat?.()) {
-      return null;
-    }
-    const FormatIcon = DATA_TYPE_ICON[dataType || "unknown"];
-    const currentFormat = column.getColumnFormatting?.();
-    return (
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <FormatIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Format
-        </DropdownMenuSubTrigger>
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            {Boolean(currentFormat) && (
-              <>
-                <DropdownMenuItem
-                  key={"clear"}
-                  variant={"danger"}
-                  onClick={() => column.setColumnFormatting(undefined)}
-                >
-                  Clear
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            {columnFormatOptions.map((option) => (
-              <DropdownMenuItem
-                key={option}
-                onClick={() => column.setColumnFormatting(option)}
-              >
-                <span
-                  className={cn(currentFormat === option && "font-semibold")}
-                >
-                  {option}
-                </span>
-                <span className="ml-auto pl-5 text-xs text-muted-foreground">
-                  {formattingExample(option)}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    );
-  };
 
   return (
     <DropdownMenu modal={false}>
@@ -226,41 +71,17 @@ export const DataTableColumnHeader = <TData, TValue>({
                 "invisible group-hover:visible data-[state=open]:visible",
             )}
           >
-            {column.getIsSorted() === "desc" ? (
-              <DescIcon className="h-3 w-3" />
-            ) : column.getIsSorted() === "asc" ? (
-              <AscIcon className="h-3 w-3" />
-            ) : (
-              <ChevronsUpDown className="h-3 w-3" />
-            )}
+            {renderSortIcon(column)}
           </span>
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {dtype && (
-          <>
-            <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
-              {dtype}
-            </div>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        {renderSorts()}
-        {!column.id.startsWith(NAMELESS_COLUMN_PREFIX) && (
-          <DropdownMenuItem
-            onClick={async () =>
-              await copyToClipboard(
-                typeof header === "string" ? header : column.id,
-              )
-            }
-          >
-            <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Copy column name
-          </DropdownMenuItem>
-        )}
-        {renderColumnPinning()}
-        {renderColumnWrapping()}
-        {renderFormatOptions()}
+        {renderDataType(column)}
+        {renderSorts(column)}
+        {renderCopyColumnId(column)}
+        {renderColumnPinning(column)}
+        {renderColumnWrapping(column)}
+        {renderFormatOptions(column)}
         <DropdownMenuItemFilter column={column} />
       </DropdownMenuContent>
     </DropdownMenu>
@@ -311,14 +132,14 @@ export const DropdownMenuItemFilter = <TData, TValue>({
 
   const filterMenuItem = (
     <DropdownMenuSubTrigger>
-      <FilterIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+      <FilterIcon className="mo-dropdown-icon" />
       Filter
     </DropdownMenuSubTrigger>
   );
 
   const clearFilterMenuItem = (
     <DropdownMenuItem onClick={() => column.setFilterValue(undefined)}>
-      <FilterX className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+      <FilterX className="mo-dropdown-icon" />
       Clear filter
     </DropdownMenuItem>
   );
