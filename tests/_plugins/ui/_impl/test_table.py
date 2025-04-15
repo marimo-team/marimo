@@ -11,10 +11,10 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
-    LAZY_PREVIEW_ROWS,
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
+    get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
@@ -1067,7 +1067,7 @@ def test_download_as_pandas() -> None:
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
         )
-        return convert_data_bytes_to_pandas_df(download_str, format_type)
+        return _convert_data_bytes_to_pandas_df(download_str, format_type)
 
     # Test base downloads (full data)
     for format_type in ["csv", "json"]:
@@ -1502,13 +1502,15 @@ def test_lazy_dataframe() -> None:
     with warnings.catch_warnings(record=True) as recorded_warnings:
         import polars as pl
 
+        num_rows = 21
+
         # Create a large dataframe that would trigger lazy loading
         large_df = pl.LazyFrame(
             {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
         )
 
         # Create table with _internal_lazy=True to simulate lazy loading
-        table = ui.table.lazy(large_df)
+        table = ui.table.lazy(large_df, page_size=num_rows)
 
         # Verify the lazy flag is set
         assert table._lazy is True
@@ -1516,13 +1518,13 @@ def test_lazy_dataframe() -> None:
         # Check that the banner text indicates lazy loading
         assert (
             table._get_banner_text()
-            == f"Previewing only the first {LAZY_PREVIEW_ROWS} rows."
+            == f"Previewing only the first {num_rows} rows."
         )
 
         # Verify the component args are set
         assert table._component_args["lazy"] is True
         assert table._component_args["total-rows"] == "too_many"
-        assert table._component_args["page-size"] == LAZY_PREVIEW_ROWS
+        assert table._component_args["page-size"] == num_rows
         assert table._component_args["pagination"] is False
         assert table._component_args["data"] == []
         assert table._component_args["total-columns"] == 0
@@ -1530,14 +1532,14 @@ def test_lazy_dataframe() -> None:
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
-        search_args = SearchTableArgs(page_size=10, page_number=0)
+        search_args = SearchTableArgs(page_size=num_rows, page_number=0)
         search_response = table._search(search_args)
         assert search_response.total_rows == "too_many"
 
         # Check that only the preview rows are returned
         json_data = from_data_uri(search_response.data)[1].decode("utf-8")
         json_data = json.loads(json_data)
-        assert len(json_data) == LAZY_PREVIEW_ROWS
+        assert len(json_data) == num_rows
 
     # Warning comes from search
     assert len(recorded_warnings) == 0
@@ -1596,7 +1598,7 @@ def test_get_data_url_values() -> None:
     import pandas as pd
     from pandas.testing import assert_frame_equal
 
-    df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
     expected_df = pd.DataFrame({0: [1, 2, 3]})
     assert_frame_equal(df, expected_df)
 
@@ -1604,12 +1606,16 @@ def test_get_data_url_values() -> None:
     table._search(SearchTableArgs(query="2", page_size=3, page_number=0))
     response = table._get_data_url({})
 
-    df = convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
     expected_df = pd.DataFrame({"value": [2]})
     assert_frame_equal(df, expected_df)
 
 
-def convert_data_bytes_to_pandas_df(
+def test_default_table_page_size():
+    assert get_default_table_page_size() == 10
+
+
+def _convert_data_bytes_to_pandas_df(
     data: str, data_format: str
 ) -> pd.DataFrame:
     import io

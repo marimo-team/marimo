@@ -25,8 +25,6 @@ if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
 
-DEFAULT_PAGE_SIZE = 10
-
 
 @mddoc
 def sql(
@@ -129,7 +127,6 @@ def sql(
             t = table.table(
                 display_df,
                 selection=None,
-                page_size=DEFAULT_PAGE_SIZE,
                 pagination=True,
                 _internal_total_rows=custom_total_count,
             )

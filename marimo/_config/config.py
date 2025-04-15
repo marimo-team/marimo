@@ -162,6 +162,7 @@ class DisplayConfig(TypedDict):
     - `cell_output`: `"above"` or `"below"`
     - `dataframes`: `"rich"` or `"plain"`
     - `custom_css`: list of paths to custom CSS files
+    - `default_table_page_size`: default number of rows to display in tables
     """
 
     theme: Theme
@@ -170,6 +171,7 @@ class DisplayConfig(TypedDict):
     default_width: WidthType
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]
+    default_table_page_size: int
 
 
 @mddoc
@@ -400,6 +402,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "cell_output": "above",
         "default_width": "medium",
         "dataframes": "rich",
+        "default_table_page_size": 10,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
