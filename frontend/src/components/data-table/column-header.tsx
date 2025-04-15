@@ -25,7 +25,7 @@ import { logNever } from "@/utils/assertNever";
 import {
   renderColumnPinning,
   renderColumnWrapping,
-  renderCopyColumnId,
+  renderCopyColumn,
   renderDataType,
   renderFormatOptions,
   renderSortIcon,
@@ -78,7 +78,7 @@ export const DataTableColumnHeader = <TData, TValue>({
       <DropdownMenuContent align="start">
         {renderDataType(column)}
         {renderSorts(column)}
-        {renderCopyColumnId(column)}
+        {renderCopyColumn(column)}
         {renderColumnPinning(column)}
         {renderColumnWrapping(column)}
         {renderFormatOptions(column)}
