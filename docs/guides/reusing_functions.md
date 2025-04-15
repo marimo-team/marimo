@@ -1,10 +1,22 @@
-# Importing Functions and Classes Defined in Marimo Notebooks
+# Importing Functions and Classes Defined in Marimo Notebooks
 
-marimo's clean, intuitive Python file format allows you to define reusable functions and classes that can be imported directly into other Python scripts or notebooks, making your code more modular and reusable.
+You can import top-level functions and classes defined in a marimo notebook
+into other Python scripts or notebooks using normal Python syntax, as long as
+your definitions satisfy the simple criteria described on this page. This makes
+your notebook code modular and reusable, testable, and easier to edit in text editors
+of your choice.
 
-## Define Reusable Functions & Classes
+## Overview
 
-You can define functions and classes that are directly accessible when importing your notebook as a Python module:
+For a function or class to be saved at the top level of the notebook file, it must 
+meet the following **criteria**:
+
+1. The cell must define just a single function or class.
+2. The defined function or class can only refer to symbols defined in the
+   [setup cell](#create-a-setup-cell), or to other top-level symbols.
+
+
+### Example
 
 /// marimo-embed
 ```python
@@ -22,51 +34,44 @@ class DataProcessor:
 ```
 ///
 
-then in another script/notebook
+In another script or notebook
 
 ```python
 from my_notebook import my_utility_function, DataProcessor
 ```
 
-## Benefits of Reusable Functions
+## Creating a top-level function
 
-- **Import Directly**: Use functions from notebooks in other Python files
-- **Clean Organization**: Keep your code modular and well-structured
-- **Testing Support**: Easily test your notebook functions with [pytest](testing/pytest.md)
-- **IDE Support**: Full linting and type checking support in your favorite editor
+### 1. Create a setup cell
 
-## How to Create Reusable Functions
-
-### 1. Set up a Setup Cell
-
-First, add a setup cell to your notebook for imports and constants that your functions will need:
+First, add a **setup cell** to your notebook for imports that your functions or
+classes will need:
 
 ```python
-import pandas as pd
 import numpy as np
-
-DEFAULT_VALUE = 100
 ```
 
 To add a setup cell in the editor, use the General menu and select "Add setup cell" (💠).
 
-### 2. Define Your Function
+Setup cells are guaranteed to run before all other cells.
 
-Write a normal function/ class in a cell. A marker in the bottom right will
-indicate that it is a reusable function.
+### 2. Define your function
 
-!!! attention
-    Functions can only reference imports and constants defined in the setup
-    cell. If a function cannot be made reusable, the marker in the bottom right
-    will provide a description why.
+Define a single function in a cell. If the
+[criteria](overview) for top-level
+functions are met, a marker in the bottom right will indicate that it is a
+reusable function.
+
+!!! note
+
+    Functions can only reference symbols defined in the setup cell. If a
+    function cannot be serialized top-level, the marker in the
+    bottom right will provide a description why.
 
 /// marimo-embed
 ```python
 with app.setup:
-    import pandas as pd
     import numpy as np
-
-    DEFAULT_VALUE = 100
 
 @app.function
 def calculate_statistics(data):
@@ -78,6 +83,10 @@ def calculate_statistics(data):
     }
 ```
 ///
+
+Under the hood, marimo decorates top-level functions with `@app.function`,
+which you can use to define your own top-level functions if you are editing a
+notebook file directly.
 
 ### 3. Reuse your definitions
 
@@ -92,9 +101,12 @@ stats = calculate_statistics(data)
 print(stats)
 ```
 
-## Class Definitions
+## Class definitions
 
-You can also define reusable classes with the `@app.class_definition` decorator:
+Classes are also serialized top-level if they meet the [criteria](overview).
+Under the hood, marimo decorates top-level classes with
+`@app.class_definition`, which you can use if you are editing your notebook
+file directly:
 
 ```python
 @app.class_definition
@@ -106,14 +118,16 @@ class DataProcessor:
         return (self.data - np.mean(self.data)) / np.std(self.data)
 ```
 
-## Best Practices
+## Best practices
 
-- Use setup cells for immediate, widely used imports (refrain from declaring constants, as import only blocks get an internal speedup)
-- Keep function dependencies limited to setup cell references, or other top level declarations.
+- Use setup cells for immediate, widely used imports
+- Keep function dependencies limited to setup-cell references, or other top-level declarations.
 - Use descriptive names for your functions
 - Add docstrings to document your functions' behavior
 
-!!! tip | Functions can reference other functions defined with `@app.function`
+!!! tip 
+
+    Top-level symbols can reference other top-level symbols.
 
 
 ## Limitations
@@ -121,9 +135,9 @@ class DataProcessor:
 - Functions cannot depend on variables defined in regular cells
 - Like other cells, cyclic dependencies between functions are not allowed
 
-## Looking for More?
+## Learn more
 
 For more detailed information about marimo's file format and features, check
 out our [documentation on using your own
 editor](https://docs.marimo.io/guides/editor_features/watching/) or view our
-[File Format Tutorial](https://marimo.app/?slug=8n55fd).
+[file format tutorial](https://marimo.app/?slug=8n55fd).

@@ -11,11 +11,15 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
-## Recap of file format
+## marimo's file format
 
-We recommend walking through the [file-format tutorial]() to best understand
-how marimo notebooks are written. Notably, most marimo cells are wrapped
-in an `@app.cell` decorator:
+!!! tip "File format tutorial"
+
+    Run `marimo tutorial fileformat` at the command line for a full guide.
+
+marimo stores notebooks as Python cells. Cells are stored as functions,
+decorated with`@app.cell`; you can optionally give cells names in the editor
+UI or by editing the notebook file.
 
 ```python
 @app.cell
@@ -25,8 +29,18 @@ def memorable_cell_name(auto, determined, references):  # signature denotes cell
     return computed_value                               # return denotes cell outputs
 ```
 
-You may also expose imports, functions and classes in your notebook, for more
-details see the [library guide](../reusing_functions.md).
+!!! note "Cell signature and returns"
+
+    Don't worry about maintaining the signatures of cells and their return
+    values; marimo will handle this for you.
+
+You may also expose imports, and top-level functions and classes in your
+notebook. Functions must be decorated with `@app.function`, and classes with
+`app.class_definition`. These functions and classes must be pure, closing over
+only other pure functions and classes or imports and constants defined in
+an `app.setup` with block:
+
+For more details see the [library guide](../reusing_functions.md).
 
 ```python
 with app.setup:
@@ -39,10 +53,6 @@ def my_function(x): ...
 @app.class_definition
 class MyClass: ...
 ```
-
-!!! note "Cell signature and returns"
-    Don't worry about maintaining the signatures of cells and their return
-    values; marimo will handle this for you.
 
 ## `marimo edit --watch`
 
