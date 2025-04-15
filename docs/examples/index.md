@@ -34,31 +34,29 @@ cells](../guides/reactivity/).
 
 -  🐞 [**Using the debugger**](running_cells/debugging.md)
 
-
 </div>
 
 ## Visual Outputs
 
 <div class="grid cards" markdown>
 
--   📝 [**Cell outputs**](outputs/basic_output.md)
+-   📤 [**Cell outputs**](outputs/basic_output.md)
 
--   📝 [**Basic markdown**](outputs/basic_markdown.md)
+-   ✍️  [**Basic markdown**](outputs/basic_markdown.md)
 
--   📝 [**Console outputs**](outputs/console_outputs.md)
+-   💬 [**Console outputs**](outputs/console_outputs.md)
 
--   📝 [**Capturing console output**](outputs/capture_console_outputs.md)
+-   📋 [**Capturing console output**](outputs/capture_console_outputs.md)
 
--   📝 [**Showing plots**](outputs/plots.md)
+-   📈 [**Showing plots**](outputs/plots.md)
 
--   📝 [**Showing videos and other media**](../api/media/index.md)
+-   🎥 [**Showing videos and other media**](../api/media/index.md)
 
--   📝 [**Conditionally showing outputs**](outputs/conditional_output.md)
+-   🎛️ [**Conditionally showing outputs**](outputs/conditional_output.md)
 
--   📝 [**Showing multiple outputs in one cell**](outputs/multiple_outputs.md)
+-   🧩 [**Showing multiple outputs in one cell**](outputs/multiple_outputs.md)
 
-</div class="grid cards" markdown>
-
+</div>
 
 ### Writing markdown
 
@@ -66,16 +64,15 @@ cells](../guides/reactivity/).
 
 -   ⚡️ [**Python values in markdown**](markdown/dynamic_markdown.md)
 
--   ⚡️ [**Mermaid diagrams**](markdown/mermaid.md)
+-   🪄 [**Mermaid diagrams**](markdown/mermaid.md)
 
--   ⚡️ [**Admonitions**](markdown/admonitions.md)
+-   🚨 [**Admonitions**](markdown/admonitions.md)
 
--   ⚡️ [**Collapsible details**](markdown/details.md)
+-   📂 [**Collapsible details**](markdown/details.md)
 
--   ⚡️ [**Emoji**](markdown/emoji.md)
+-   😀 [**Emoji**](markdown/emoji.md)
 
 </div>
-
 
 ## Working with data
 
@@ -86,16 +83,15 @@ the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Interactive dataframe viewer**](outputs/dataframes.md)
+-   🧮 [**Interactive dataframe viewer**](outputs/dataframes.md)
 
--   ⚡️ [**Select dataframe rows**](../api/inputs/table.md)
+-   🔍 [**Select dataframe rows**](../api/inputs/table.md)
 
--   ⚡️ [**Editable dataframe**](../api/inputs/data_editor.md)
+-   ✏️  [**Editable dataframe**](../api/inputs/data_editor.md)
 
--   ⚡️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
+-   🛠️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
 
 </div>
-
 
 ### SQL
 
@@ -104,12 +100,11 @@ guide](../guides/working_with_data/sql.md) for more details.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Query dataframes with DuckDB SQL**](../guides/working_with_data/sql/#example)
+-   🦆 [**Query dataframes with DuckDB SQL**](../guides/working_with_data/sql/#example)
 
--   ⚡️ [**SQLite, Postgres, and other engines**](../guides/working_with_data/sql/#connecting-to-a-custom-database)
+-   🛢️ [**SQLite, Postgres, and other engines**](../guides/working_with_data/sql/#connecting-to-a-custom-database)
 
 </div>
-
 
 ### Plots
 
@@ -118,23 +113,21 @@ overview.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Selecting data with Altair**](../api/plotting/#reactive-charts-with-altair)
+-   📊 [**Selecting data with Altair**](../api/plotting/#reactive-charts-with-altair)
 
--   ⚡️ [**Selecting data with Plotly**](../api/plotting/#reactive-charts-with-plotly)
+-   📉 [**Selecting data with Plotly**](../api/plotting/#reactive-charts-with-plotly)
 
--   ⚡️ [**Showing matplotlib plots**](outputs/plots.md)
+-   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
 </div>
-
 
 ### Progress bars and status elements
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Progress bar**](outputs/progress_bar.md)
+-   📶 [**Progress bar**](outputs/progress_bar.md)
 
--   ⚡️ [**Loading spinner**](outputs/spinner.md)
-
+-   🌀 [**Loading spinner**](outputs/spinner.md)
 
 </div>
 
@@ -142,11 +135,11 @@ overview.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Horizontal and vertical stacking**](outputs/stacks.md)
+-   📐 [**Horizontal and vertical stacking**](outputs/stacks.md)
 
--   ⚡️ [**Accordion toggle**](../api/layouts/accordion.md)
+-   📁 [**Accordion toggle**](../api/layouts/accordion.md)
 
--   ⚡️ [**Tabs**](../api/inputs/tabs.md)
+-   🗂️ [**Tabs**](../api/inputs/tabs.md)
 
 </div>
 
@@ -161,32 +154,31 @@ guide](../guides/interactivity.md) for rules governing how UI elements work.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Slider**](../api/inputs/slider.md)
+-   🎚️ [**Slider**](../api/inputs/slider.md)
 
--   ⚡️ [**Dropdown**](../api/inputs/dropdown.md)
+-   🧾 [**Dropdown**](../api/inputs/dropdown.md)
 
--   ⚡️ [**Multi-select**](../api/inputs/multiselect.md)
+-   👆 [**Multi-select**](../api/inputs/multiselect.md)
 
--   ⚡️ [**Radio buttons**](../api/inputs/radio.md)
+-   🔘 [**Radio buttons**](../api/inputs/radio.md)
 
--   ⚡️ [**Checkbox**](../api/inputs/checkbox.md)
+-   ☑️ [**Checkbox**](../api/inputs/checkbox.md)
 
--   ⚡️ [**Date**](../api/inputs/dates.md)
+-   📅 [**Date**](../api/inputs/dates.md)
 
--   ⚡️ [**File**](../api/inputs/file.md)
+-   📁 [**File**](../api/inputs/file.md)
 
--   ⚡️ [**Text input**](../api/inputs/text.md)
+-   🔤 [**Text input**](../api/inputs/text.md)
 
--   ⚡️ [**Text area**](../api/inputs/text_area.md)
+-   📝 [**Text area**](../api/inputs/text_area.md)
 
--   ⚡️ [**Code editor**](../api/inputs/code_editor.md)
+-   🧑‍💻 [**Code editor**](../api/inputs/code_editor.md)
 
--   ⚡️ [**Microphone**](../api/inputs/microphone.md)
+-   🎙️ [**Microphone**](../api/inputs/microphone.md)
 
--   ⚡️ [**Chat**](../api/inputs/chat.md)
+-   💬 [**Chat**](../api/inputs/chat.md)
 
 </div>
-
 
 ### Composite input elements
 
@@ -195,10 +187,10 @@ other UI elements.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Form**](../api/inputs/form.md)
+-   🧾 [**Form**](../api/inputs/form.md)
 
--   ⚡️ [**Array**](../api/inputs/array.md)
+-   🎒 [**Array**](../api/inputs/array.md)
 
--   ⚡️ [**Dictionary**](../api/inputs/dictionary.md)
+-   📖 [**Dictionary**](../api/inputs/dictionary.md)
 
 </div>
