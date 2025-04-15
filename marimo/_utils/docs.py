@@ -201,7 +201,7 @@ def google_docstring_to_markdown(docstring: str) -> str:
 class MarimoConverter:
     priority = 100
 
-    SECTION_HEADERS = ["Args", "Returns", "Raises"]
+    SECTION_HEADERS = ["Args", "Returns", "Raises", "Examples"]
 
     def convert(self, docstring: str) -> str:
         return google_docstring_to_markdown(docstring)

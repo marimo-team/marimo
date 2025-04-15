@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import Optional
 
 from marimo._output.rich_help import mddoc
@@ -30,15 +32,13 @@ def stop(predicate: bool, output: Optional[object] = None) -> None:
     scheduled to run will not be run, and their defs will be removed from
     program memory.
 
-    **Example:**
+    Examples:
+        ```python
+        mo.stop(form.value is None, mo.md("**Submit the form to continue.**"))
+        ```
 
-    ```python
-    mo.stop(form.value is None, mo.md("**Submit the form to continue.**"))
-    ```
-
-    **Raises:**
-
-    When `predicate` is `True`, raises a `MarimoStopError`.
+    Raises:
+        When `predicate` is `True`, raises a `MarimoStopError`.
     """
     if predicate:
         raise MarimoStopError(output)

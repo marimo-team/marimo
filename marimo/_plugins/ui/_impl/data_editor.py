@@ -89,7 +89,7 @@ class data_editor(
         Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
     ]
 ):
-    """[EXPERIMENTAL] A data editor component for editing tabular data.
+    """A data editor component for editing tabular data.
 
     This component is experimental and intentionally limited in features,
     if you have any feature requests, please file an issue at
