@@ -1,9 +1,9 @@
 # Examples
 
 This page includes dozens of bite-sized how-to examples to help you get started
-with marimo. Be sure to also read the [quickstart](../getting_started) and
-the [user guide](../guides/), especially the guide on [how marimo runs
-cells](../guides/reactivity/).
+with marimo. Be sure to also read the [quickstart](../getting_started/index.md) and
+the [user guide](../guides/index.md), especially the guide on [how marimo runs
+cells](../guides/reactivity.md).
 
 !!! Tip "Get inspired at our gallery!"
 
@@ -100,9 +100,9 @@ guide](../guides/working_with_data/sql.md) for more details.
 
 <div class="grid cards" markdown>
 
--   🦆 [**Query dataframes with DuckDB SQL**](../guides/working_with_data/sql/#example)
+-   🦆 [**Query dataframes with DuckDB SQL**](../guides/working_with_data/sql.md#example)
 
--   🛢️ [**SQLite, Postgres, and other engines**](../guides/working_with_data/sql/#connecting-to-a-custom-database)
+-   🛢️ [**SQLite, Postgres, and other engines**](../guides/working_with_data/sql.md#connecting-to-a-custom-database)
 
 </div>
 
@@ -113,9 +113,9 @@ overview.
 
 <div class="grid cards" markdown>
 
--   📊 [**Selecting data with Altair**](../api/plotting/#reactive-charts-with-altair)
+-   📊 [**Selecting data with Altair**](../api/plotting.md#reactive-charts-with-altair)
 
--   📉 [**Selecting data with Plotly**](../api/plotting/#reactive-charts-with-plotly)
+-   📉 [**Selecting data with Plotly**](../api/plotting.md#reactive-charts-with-plotly)
 
 -   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
@@ -149,7 +149,7 @@ overview.
 
 marimo has a large library of interactive UI elements, which you can use
 without callbacks — just make sure to assign elements to global variables. See
-the [API reference](../api/inputs.md) for a full list, and the [interactivity
+the [API reference](../api/inputs/index.md) for a full list, and the [interactivity
 guide](../guides/interactivity.md) for rules governing how UI elements work.
 
 <div class="grid cards" markdown>
