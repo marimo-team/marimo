@@ -3,6 +3,7 @@
 import type { StaticVirtualFiles } from "./types";
 import { getStaticVirtualFiles } from "./static-state";
 import { Logger } from "@/utils/Logger";
+import type { Loader } from "@/plugins/impl/vega/vega-loader";
 
 /**
  * Patch fetch to resolve virtual files
@@ -70,18 +71,29 @@ function getContentType(fileName: string): string {
 }
 
 export function patchVegaLoader(
-  loader: {
-    http: (url: string) => Promise<string>;
-  },
+  loader: Loader,
   files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
   const originalHttp = loader.http.bind(loader);
+  const originalLoad = loader.load.bind(loader);
+
+  function maybeGetVirtualFile(url: string): string | undefined {
+    const pathname = new URL(url, document.baseURI).pathname;
+    // Few variations to grab the URL.
+    // This can happen if a static file was open at file:// or https://
+    return (
+      files[url] ||
+      files[withoutLeadingDot(url)] ||
+      files[pathname] ||
+      files[withoutLeadingDot(pathname)]
+    );
+  }
 
   loader.http = async (url: string) => {
-    const pathname = new URL(url, document.baseURI).pathname;
-    if (files[url] || files[pathname]) {
-      const base64 = files[url] || files[pathname];
-      return await window.fetch(base64).then((r) => r.text());
+    const vfile = maybeGetVirtualFile(url);
+    if (vfile) {
+      // If the file is a virtual file, fetch it
+      return await window.fetch(vfile).then((r) => r.text());
     }
 
     try {
@@ -96,7 +108,31 @@ export function patchVegaLoader(
     }
   };
 
+  loader.load = async (url: string) => {
+    const vfile = maybeGetVirtualFile(url);
+    if (vfile) {
+      // If the file is a virtual file, fetch it
+      return await window.fetch(vfile).then((r) => r.text());
+    }
+
+    try {
+      return await originalLoad(url);
+    } catch (error) {
+      // If it's a data URL, just return the data
+      if (url.startsWith("data:")) {
+        return await window.fetch(url).then((r) => r.text());
+      }
+      // Re-throw the error
+      throw error;
+    }
+  };
+
   return () => {
     loader.http = originalHttp;
+    loader.load = originalLoad;
   };
+}
+
+function withoutLeadingDot(path: string): string {
+  return path.startsWith(".") ? path.slice(1) : path;
 }

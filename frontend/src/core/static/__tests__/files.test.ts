@@ -84,7 +84,7 @@ describe("patchFetch", () => {
   });
 });
 
-describe("patchVegaLoader", () => {
+describe("patchVegaLoader - loader.http", () => {
   const pathsToTest = [
     "virtual-file.json",
     "/virtual-file.json",
@@ -126,5 +126,57 @@ describe("patchVegaLoader", () => {
     );
     unpatch();
     expect(content).toBe('{"key": "value"}');
+  });
+});
+
+describe("patchVegaLoader - loader.load", () => {
+  const pathsToTest = [
+    "virtual-file.json",
+    "/virtual-file.json",
+    "./virtual-file.json",
+    "http://foo.com/virtual-file.json",
+  ];
+
+  it.each(pathsToTest)(
+    "should return file content for virtual files for %s",
+    async (s) => {
+      const virtualFiles = {
+        "/virtual-file.json":
+          "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
+      };
+
+      const loader = createLoader();
+      const unpatch = patchVegaLoader(loader, virtualFiles);
+      const content = await loader.load(s);
+      unpatch();
+      expect(content).toBe('{"key": "value"}');
+    },
+  );
+
+  it("should fallback to original load method for non-virtual  files", async () => {
+    const loader = createLoader();
+
+    const unpatch = patchVegaLoader(loader, {});
+    const content = await loader.load(remoteURL);
+    unpatch(); // Restore the original load function
+
+    expect(content).toBe("Remote content");
+  });
+
+  it("should work with data URIs", async () => {
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, {});
+    const content = await loader.load(
+      "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==",
+    );
+    unpatch();
+    expect(content).toBe('{"key": "value"}');
+  });
+
+  it("should handle missing virtual files gracefully in loader.load", async () => {
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, {});
+    await expect(loader.load("/non-existent-file.json")).rejects.toThrow();
+    unpatch();
   });
 });
