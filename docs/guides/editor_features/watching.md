@@ -26,7 +26,7 @@ def memorable_cell_name(auto, determined, references):  # signature denotes cell
 ```
 
 You may also expose imports, functions and classes in your notebook, for more
-details see the [library guide](../library.md).
+details see the [library guide](../reusing_functions.md).
 
 ```python
 with app.setup:
