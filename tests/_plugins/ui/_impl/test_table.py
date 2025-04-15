@@ -1049,6 +1049,9 @@ def test_show_download():
     assert table_false._component_args["show-download"] is False
 
 
+DOWNLOAD_FORMATS = ["csv", "json", "parquet"]
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
@@ -1070,20 +1073,20 @@ def test_download_as_pandas() -> None:
         return _convert_data_bytes_to_pandas_df(download_str, format_type)
 
     # Test base downloads (full data)
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
         assert_frame_equal(data, downloaded_df)
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].isin(["Newark", "New York"]))
 
     # Test downloads with selection (includes search from before)
     table._convert_value(["1"])
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
         assert len(selected_df) == 1
         assert selected_df["cities"].iloc[0] == "New York"
@@ -1111,23 +1114,27 @@ def test_download_as_polars() -> None:
 
         if format_type == "json":
             return pl.read_json(data_bytes)
-        return pl.read_csv(data_bytes)
+        if format_type == "parquet":
+            return pl.read_parquet(data_bytes)
+        if format_type == "csv":
+            return pl.read_csv(data_bytes)
+        raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
         assert_frame_equal(data, downloaded_df)
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
 
     # Test downloads with selection (includes search from before)
     table._convert_value(["1"])
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
         assert len(selected_df) == 1
         assert selected_df["cities"][0] == "New York"
@@ -1652,5 +1659,7 @@ def _convert_data_bytes_to_pandas_df(
         return df
     elif data_format == "json":
         return pd.read_json(io.BytesIO(data_bytes))
+    elif data_format == "parquet":
+        return pd.read_parquet(io.BytesIO(data_bytes))
     else:
         raise ValueError(f"Unsupported data_format: {data_format}")
