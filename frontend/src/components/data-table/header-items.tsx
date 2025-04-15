@@ -22,9 +22,11 @@ import {
   ChevronsUpDown,
   ArrowDownNarrowWideIcon,
   ArrowDownWideNarrowIcon,
+  BlendIcon,
 } from "lucide-react";
 import { copyToClipboard } from "@/utils/copy";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
+import { Button } from "../ui/button";
 
 export function renderFormatOptions<TData, TValue>(
   column: Column<TData, TValue>,
@@ -210,3 +212,43 @@ export function renderDataType<TData, TValue>(column: Column<TData, TValue>) {
     </>
   );
 }
+
+export const RenderSetFilter: React.FC<{ onClick: () => void }> = ({
+  onClick,
+}) => {
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuItem onClick={onClick}>
+        <BlendIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+        Set filter
+      </DropdownMenuItem>
+    </DropdownMenuSub>
+  );
+};
+
+export const FilterButtons = ({
+  onApply,
+  onClear,
+  clearButtonDisabled,
+}: {
+  onApply: () => void;
+  onClear: () => void;
+  clearButtonDisabled?: boolean;
+}) => {
+  return (
+    <div className="flex gap-2 px-2 justify-between">
+      <Button variant="link" size="sm" onClick={onApply}>
+        Apply
+      </Button>
+      <Button
+        variant="linkDestructive"
+        size="sm"
+        className=""
+        onClick={onClear}
+        disabled={clearButtonDisabled}
+      >
+        Clear
+      </Button>
+    </div>
+  );
+};

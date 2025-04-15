@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import type { Column, ColumnFiltersState } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
 import { FilterIcon, FilterX, MinusIcon, SearchIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -30,6 +30,8 @@ import {
   renderFormatOptions,
   renderSortIcon,
   renderSorts,
+  FilterButtons,
+  RenderSetFilter,
 } from "./header-items";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -52,7 +54,6 @@ import {
   TableRow,
 } from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
-import { FilterButtons } from "./column-components";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -67,7 +68,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   className,
   calculateTopKRows,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
-  const [setFilterOpen, setSetFilterOpen] = useState(false);
+  const [isSetFilterOpen, setIsSetFilterOpen] = useState(false);
 
   // No header
   if (!header) {
@@ -80,37 +81,47 @@ export const DataTableColumnHeader = <TData, TValue>({
   }
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>
-        <div
-          className={cn(
-            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-1 -mx-1",
-            className,
-          )}
-          data-testid="data-table-sort-button"
-        >
-          <span className="flex-1">{header}</span>
-          <span
+    <>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild={true}>
+          <div
             className={cn(
-              "h-5 py-1 px-1",
-              !column.getIsSorted() &&
-                "invisible group-hover:visible data-[state=open]:visible",
+              "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-1 -mx-1",
+              className,
             )}
+            data-testid="data-table-sort-button"
           >
-            {renderSortIcon(column)}
-          </span>
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {renderDataType(column)}
-        {renderSorts(column)}
-        {renderCopyColumn(column)}
-        {renderColumnPinning(column)}
-        {renderColumnWrapping(column)}
-        {renderFormatOptions(column)}
-        <DropdownMenuItemFilter column={column} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <span className="flex-1">{header}</span>
+            <span
+              className={cn(
+                "h-5 py-1 px-1",
+                !column.getIsSorted() &&
+                  "invisible group-hover:visible data-[state=open]:visible",
+              )}
+            >
+              {renderSortIcon(column)}
+            </span>
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {renderDataType(column)}
+          {renderSorts(column)}
+          {renderCopyColumn(column)}
+          {renderColumnPinning(column)}
+          {renderColumnWrapping(column)}
+          {renderFormatOptions(column)}
+          <DropdownMenuItemFilter column={column} />
+          <RenderSetFilter onClick={() => setIsSetFilterOpen(true)} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {isSetFilterOpen && (
+        <PopoverSetFilter
+          setIsSetFilterOpen={setIsSetFilterOpen}
+          calculateTopKRows={calculateTopKRows}
+          column={column}
+        />
+      )}
+    </>
   );
 };
 
@@ -375,11 +386,11 @@ const TextFilter = <TData, TValue>({
 };
 
 const PopoverSetFilter = <TData, TValue>({
-  setSetFilterOpen,
+  setIsSetFilterOpen,
   calculateTopKRows,
   column,
 }: {
-  setSetFilterOpen: (open: boolean) => void;
+  setIsSetFilterOpen: (open: boolean) => void;
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
 }) => {
@@ -462,7 +473,7 @@ const PopoverSetFilter = <TData, TValue>({
         <Table className="w-full border-collapse text-sm overflow-auto block max-h-64">
           <TableHeader>
             <TableRow className="hover:bg-transparent py-0">
-              <TableHead className="w-10 py-0 px-2">
+              <TableHead className="w-7 py-0 px-2">
                 <Checkbox
                   checked={chosenValues.length === filteredData.length}
                   onCheckedChange={(checked) => {
@@ -527,7 +538,7 @@ const PopoverSetFilter = <TData, TValue>({
           <Button
             variant="link"
             size="sm"
-            onClick={() => setSetFilterOpen(false)}
+            onClick={() => setIsSetFilterOpen(false)}
           >
             X
           </Button>
