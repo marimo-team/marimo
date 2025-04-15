@@ -115,7 +115,7 @@ overview.
 
 -   📊 [**Selecting data with Altair**](../api/plotting.md#reactive-charts-with-altair)
 
--   📉 [**Selecting data with Plotly**](../api/plotting.md#reactive-charts-with-plotly)
+-   📉 [**Selecting data with Plotly**](../api/plotting.md#reactive-plots-with-plotly)
 
 -   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
