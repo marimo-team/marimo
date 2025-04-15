@@ -11,6 +11,7 @@ import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
 
 from marimo import _loggers as loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.ops import CompletionResult
 from marimo._messaging.types import Stream
@@ -18,7 +19,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.requests import CodeCompletionRequest
 from marimo._server.types import QueueType
-from marimo._utils.docs import google_docstring_to_markdown
+from marimo._utils.docs import MarimoConverter
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
@@ -68,7 +69,6 @@ COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "(", ",", "/"})
 def _build_docstring_cached(
     completion_type: str,
     completion_name: str,
-    module_name: str,
     signature_strings: tuple[str, ...],
     raw_body: str | None,
     init_docstring: str | None,
@@ -104,9 +104,7 @@ def _build_docstring_cached(
         ).text
 
     body_converted = (
-        _convert_docstring_to_markdown(module_name, raw_body)
-        if raw_body
-        else ""
+        _convert_docstring_to_markdown(raw_body) if raw_body else ""
     )
 
     if signature_text and body_converted:
@@ -120,40 +118,44 @@ def _build_docstring_cached(
     return docstring
 
 
-def _convert_docstring_to_markdown(
-    module_name: str,
-    raw_docstring: str,
-) -> str:
+doc_convert = MarimoConverter()
+
+
+def _convert_docstring_to_markdown(raw_docstring: str) -> str:
     """
-    Convert raw docstring to markdown or HTML, depending on module origin.
+    Convert raw docstring to markdown then to HTML.
     """
-    # for marimo docstrings, treat them as markdown
-    # for other modules, treat them as plain text
-    if module_name.startswith("marimo"):
-        # Convert Google-style docstrings to markdown, if applicable
-        if "Returns:" in raw_docstring or "Args:" in raw_docstring:
-            return _md(
-                google_docstring_to_markdown(raw_docstring),
-                apply_markdown_class=False,
-            ).text
-        else:
-            return _md(raw_docstring, apply_markdown_class=False).text
-    else:
-        # Possibly RST -> HTML
-        try:
-            return (
-                "<div class='external-docs'>"
-                + convert_rst_to_html(raw_docstring)
-                + "</div>"
-            )
-        except Exception:
-            # if docutils chokes, we don't want to crash the completion
-            # worker
-            return (
-                "<pre class='external-docs'>"
-                + html.escape(raw_docstring)
-                + "</pre>"
-            )
+
+    def as_md_html(raw: str) -> str:
+        return _md(raw, apply_markdown_class=False).text
+
+    # Prefer using docstring_to_markdown if available
+    # which uses our custom MarimoConverter
+    if DependencyManager.docstring_to_markdown.has():
+        import docstring_to_markdown  # type: ignore
+
+        return as_md_html(docstring_to_markdown.convert(raw_docstring))
+
+    # Then try our custom MarimoConverter
+    if doc_convert.can_convert(raw_docstring):
+        return as_md_html(doc_convert.convert(raw_docstring))
+
+    # Then try RST
+    try:
+        return (
+            "<div class='external-docs'>"
+            + convert_rst_to_html(raw_docstring)
+            + "</div>"
+        )
+    except Exception:
+        # Then return plain text
+        # if docutils chokes, we don't want to crash the completion
+        # worker
+        return (
+            "<pre class='external-docs'>"
+            + html.escape(raw_docstring)
+            + "</pre>"
+        )
 
 
 def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
@@ -194,7 +196,6 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
     return _build_docstring_cached(
         completion.type,
         completion.name,
-        str(completion.module_name),
         signature_strings,
         raw_body,
         init_docstring or None,

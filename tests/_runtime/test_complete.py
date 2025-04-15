@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from marimo._runtime.complete import _build_docstring_cached
 from tests.mocks import snapshotter
 
@@ -8,7 +10,6 @@ def test_build_docstring_function_no_init():
     result = _build_docstring_cached(
         completion_type="function",
         completion_name="my_func",
-        module_name="marimo.my_module",
         signature_strings=("my_func(arg1, arg2)",),
         raw_body="This is a simple docstring for a function.",
         init_docstring=None,
@@ -23,7 +24,6 @@ def test_docstring_function_with_google_style():
     result = _build_docstring_cached(
         completion_type="function",
         completion_name="my_func",
-        module_name="marimo.my_module",
         signature_strings=("my_func(arg1, arg2)",),
         raw_body="""
         Args:
@@ -46,7 +46,6 @@ def test_docstring_function_from_external_module():
     result = _build_docstring_cached(
         completion_type="function",
         completion_name="my_func",
-        module_name="os",
         signature_strings=("my_func(arg1, arg2)",),
         raw_body="This is a simple docstring for a function.",
         init_docstring=None,
@@ -60,7 +59,6 @@ def test_build_docstring_class_with_init():
     result = _build_docstring_cached(
         completion_type="class",
         completion_name="MyClass",
-        module_name="marimo.some_class",
         signature_strings=("MyClass()",),
         raw_body="Some docstring for the class.",
         init_docstring="__init__ docstring:\n\nClass init details.",
@@ -75,7 +73,6 @@ def test_build_docstring_module():
     result = _build_docstring_cached(
         completion_type="module",
         completion_name="os",
-        module_name="os",
         signature_strings=(),
         raw_body=None,
         init_docstring=None,
@@ -89,7 +86,6 @@ def test_build_docstring_keyword():
     result = _build_docstring_cached(
         completion_type="keyword",
         completion_name="yield",
-        module_name="",
         signature_strings=(),
         raw_body=None,
         init_docstring=None,
@@ -103,7 +99,6 @@ def test_build_docstring_no_signature_no_body():
     result = _build_docstring_cached(
         completion_type="statement",
         completion_name="random_statement",
-        module_name="random.module",
         signature_strings=(),
         raw_body=None,
         init_docstring=None,
