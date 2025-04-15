@@ -989,18 +989,6 @@ def test_table_with_filtered_columns_polars() -> None:
 
     assert result.total_rows == 1
 
-    # Test in operator
-    result = table._search(
-        SearchTableArgs(
-            filters=[
-                Condition(column_id="b", operator="in", value=["abc", "def"])
-            ],
-            page_size=10,
-            page_number=0,
-        )
-    )
-    assert result.total_rows == 2
-
 
 def test_show_column_summaries_default():
     # Test default behavior (True for < 40 columns, False otherwise)

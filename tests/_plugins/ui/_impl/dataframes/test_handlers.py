@@ -451,15 +451,60 @@ class TestTransformHandler:
                 pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pd.DataFrame({"A": [1, 2], "B": [4, 5]}),
             ),
+            (
+                pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                pl.DataFrame({"A": [1, 2], "B": [4, 5]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [1, 2], "B": [4, 5]}),
+            ),
         ],
     )
-    def test_filter_rows_in(
+    def test_filter_rows_in_operator(
         df: DataFrameType, expected: DataFrameType
     ) -> None:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
             where=[Condition(column_id="A", operator="in", value=[1, 2])],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pd.DataFrame({"A": [1, 2, None], "B": [4, 5, 6]}),
+                pd.DataFrame({"A": [np.nan], "B": [6]}),
+            ),
+            (
+                pl.DataFrame({"A": [1, 2, None], "B": [4, 5, 6]}),
+                pl.DataFrame({"A": [None], "B": [6]}).with_columns(
+                    pl.col("A").cast(pl.Int64)
+                ),
+            ),
+            (
+                ibis.memtable(
+                    {"A": [1, 2, None], "B": [4, 5, 6]},
+                    schema={"A": "int64", "B": "int64"},
+                ),
+                ibis.memtable(
+                    {"A": [None], "B": [6]},
+                    schema={"A": "int64", "B": "int64"},
+                ),
+            ),
+        ],
+    )
+    def test_filter_rows_in_operator_null_rows(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="in", value=[None])],
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)

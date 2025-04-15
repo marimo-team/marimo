@@ -321,7 +321,11 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             elif condition.operator == "ends_with":
                 condition_expr = column.str.ends_with(value_str)
             elif condition.operator == "in":
-                condition_expr = column.is_in(value or [])
+                # is_in doesn't support None values, so we need to handle them separately
+                if value is not None and None in value:
+                    condition_expr = column.is_in(value) | column.is_null()
+                else:
+                    condition_expr = column.is_in(value or [])
             else:
                 assert_never(condition.operator)
 
@@ -551,7 +555,13 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             elif condition.operator == "ends_with":
                 filter_conditions.append(column.endswith(value))
             elif condition.operator == "in":
-                filter_conditions.append(column.isin(value))
+                # is_in doesn't support None values, so we need to handle them separately
+                if value is not None and None in value:
+                    filter_conditions.append(
+                        column.isnull() | column.isin(value)
+                    )
+                else:
+                    filter_conditions.append(column.isin(value))
             else:
                 assert_never(condition.operator)
 
