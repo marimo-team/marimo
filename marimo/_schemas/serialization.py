@@ -64,7 +64,8 @@ class CellDef(Node):
                 if self.end_col_offset == 0 and self._ast.end_col_offset
                 else self.end_col_offset
             )
-            self.name = getattr(self._ast, "name", DEFAULT_CELL_NAME)
+            if self.name == DEFAULT_CELL_NAME:
+                self.name = getattr(self._ast, "name", DEFAULT_CELL_NAME)
 
 
 class SetupCell(CellDef): ...
