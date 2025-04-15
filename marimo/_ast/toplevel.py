@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.visitor import Name
+from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -337,6 +339,24 @@ class TopLevelExtraction:
             if name in self.unresolved:
                 _ = resolve(name)
         assert not self.unresolved
+
+    @classmethod
+    def from_graph(
+        cls,
+        cell: CellImpl,
+        graph: DirectedGraph,
+    ) -> TopLevelExtraction:
+        ancestors = graph.ancestors(cell.cell_id)
+        deps = {cid: graph.cells[cid] for cid in ancestors}
+        setup_id = CellId_t(SETUP_CELL_NAME)
+        setup = graph.cells.get(setup_id)
+        setup = graph.cells.get(setup_id)
+        deps.pop(setup_id, None)
+
+        # TODO: Technically, order does matter incase there is a type definition
+        # or decorator.
+        path = list(deps.values()) + [cell]
+        return cls.from_cells(path, setup=setup)
 
     @classmethod
     def from_cells(
