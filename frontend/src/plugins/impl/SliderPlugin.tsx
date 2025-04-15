@@ -93,6 +93,7 @@ const SliderComponent = ({
       id={id}
       align={orientation === "horizontal" ? "left" : "top"}
       fullWidth={fullWidth}
+      className={cn(fullWidth && "my-1 w-full")}
     >
       <div
         className={cn(
@@ -137,9 +138,5 @@ const SliderComponent = ({
     </Labeled>
   );
 
-  return fullWidth ? (
-    <div className="my-3">{sliderElement}</div>
-  ) : (
-    sliderElement
-  );
+  return sliderElement;
 };

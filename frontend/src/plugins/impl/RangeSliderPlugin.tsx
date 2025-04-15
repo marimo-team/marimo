@@ -93,6 +93,7 @@ const RangeSliderComponent = ({
       label={label}
       id={id}
       align={orientation === "horizontal" ? "left" : "top"}
+      className={cn(fullWidth && "my-1 w-full")}
       fullWidth={fullWidth}
     >
       <div
@@ -100,6 +101,7 @@ const RangeSliderComponent = ({
           "flex items-center gap-2",
           orientation === "vertical" &&
             "items-end inline-flex justify-center self-center mx-2",
+          fullWidth && "w-full",
         )}
       >
         <RangeSlider
@@ -153,9 +155,5 @@ const RangeSliderComponent = ({
     </Labeled>
   );
 
-  return fullWidth ? (
-    <div className="my-3">{sliderElement}</div>
-  ) : (
-    sliderElement
-  );
+  return sliderElement;
 };
