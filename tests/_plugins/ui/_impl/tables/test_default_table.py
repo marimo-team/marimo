@@ -729,6 +729,9 @@ class TestColumnarDefaultTable(unittest.TestCase):
         ]
         assert result.data == expected_data
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_to_csv(self) -> None:
         manager = DefaultTableManager(
             {

@@ -874,7 +874,6 @@ class table(
         """
         column, k = args.column, args.k
         data = self._searched_manager.calculate_top_k_rows(column, k)
-        # Do not need to return url, as the table is small
         return CalculateTopKRowsResponse(data=data.to_data({}))
 
     def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
