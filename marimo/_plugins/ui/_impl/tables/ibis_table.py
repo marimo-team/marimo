@@ -50,6 +50,9 @@ class IbisTableManagerFactory(TableManagerFactory):
             ) -> str:
                 return self._as_table_manager().to_json_str(format_mapping)
 
+            def to_parquet(self) -> bytes:
+                return self._as_table_manager().to_parquet()
+
             def supports_download(self) -> bool:
                 return False
 

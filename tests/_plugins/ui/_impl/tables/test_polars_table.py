@@ -179,6 +179,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(df)
         assert isinstance(manager.to_csv(), bytes)
 
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 

@@ -82,6 +82,20 @@ def arrow(data: bytes) -> VirtualFile:
     return any_data(data, ext="arrow")  # type: ignore
 
 
+def parquet(data: bytes) -> VirtualFile:
+    """Create a virtual file for Parquet data.
+
+    **Args.**
+
+    - data: Parquet data in bytes
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    return any_data(data, ext="parquet")  # type: ignore
+
+
 def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     """Create a virtual file for JSON data.
 

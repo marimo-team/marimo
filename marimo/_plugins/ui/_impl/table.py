@@ -71,7 +71,7 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class DownloadAsArgs:
-    format: Literal["csv", "json"]
+    format: Literal["csv", "json", "parquet"]
 
 
 @dataclass
@@ -719,6 +719,8 @@ class table(
                 return mo_data.csv(manager.to_csv()).url
             elif ext == "json":
                 return mo_data.json(manager.to_json()).url
+            elif ext == "parquet":
+                return mo_data.parquet(manager.to_parquet()).url
             else:
                 raise ValueError("format must be one of 'csv' or 'json'.")
         else:

@@ -689,6 +689,12 @@ class TestColumnarDefaultTable(unittest.TestCase):
         )
         assert manager.to_json() == b'[{"a":1,"b":3},{"a":2,"b":4}]'
 
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
 
 class TestDictionaryDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -895,3 +901,9 @@ class TestListDefaultTable(unittest.TestCase):
         assert selected_cells == [
             TableCell(row=2, column="value", value=6),
         ]
+
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)

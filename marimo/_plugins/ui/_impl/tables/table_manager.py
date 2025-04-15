@@ -119,6 +119,10 @@ class TableManager(abc.ABC, Generic[T]):
         return self.to_json_str(format_mapping).encode("utf-8")
 
     @abc.abstractmethod
+    def to_parquet(self) -> bytes:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
         pass
 
