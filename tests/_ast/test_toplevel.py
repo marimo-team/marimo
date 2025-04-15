@@ -1,4 +1,4 @@
-# kernel Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 
 from __future__ import annotations
 
