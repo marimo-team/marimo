@@ -2,10 +2,12 @@
 
 ## Testing in notebook
 
-By default, marimo detects and runs tests in your notebooks automatically. If
-the optional `pytest` library is installed, marimo will run `pytest` on any cells that
-contain test functions (functions that start with `test_`) or test classes
-(classes that start with `Test`) on a per cell basis.
+By default, marimo discovers and executes tests inside your notebook.
+When the optional `pytest` dependency is present, marimo runs `pytest` on cells that
+consist exclusively of test code - i.e. functions whose names start with `test_` or
+classes whose names start with `Test`. If a cell mixes in anything else (helper
+functions, constants, variables, imports, etc.), that cell is skipped by the test
+runner (we recommend you move helpers to another cell).
 
 For example,
 
@@ -21,16 +23,18 @@ def __():
 
 @app.cell
 def __(inc, pytest):
-    def test_fails():
-        assert inc(3) == 5, "This test fails"
-
-    def test_sanity():
-        assert inc(3) == 4, "This test passes"
-
     class TestBlock:
-        @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
-        def test_parameterized(x, y):
-            assert inc(x) == y
+        @staticmethod
+        def test_fails():
+            assert inc(3) == 5, "This test fails"
+
+        @staticmethod
+        def test_sanity():
+            assert inc(3) == 4, "This test passes"
+
+    @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
+    def test_parameterized(x, y):
+        assert inc(x) == y
     return
 ```
 
@@ -54,7 +58,7 @@ pytest test_notebook.py
 ```
 
 runs and tests all notebook cells whose names start with `test_`, or cells that
-contain only `test_` functions and `Test` classes.
+contain only `test_` functions and `Test` classes (just like in notebook tests).
 
 !!! tip "Naming cells"
 
