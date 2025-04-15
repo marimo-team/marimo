@@ -123,23 +123,44 @@ overview.
 
 ### Progress bars and status elements
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   📶 [**Progress bar**](outputs/progress_bar.md)
 
+    ---
+
+    <a href=outputs/progress_bar.md"><img src="/_static/example-thumbs/progress_bar.png" /></a>
+
 -   🌀 [**Loading spinner**](outputs/spinner.md)
+
+    ---
+
+    <a href=outputs/spinner.md"><img src="/_static/example-thumbs/spinner.png" /></a>
 
 </div>
 
+
 ### Layouts
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   📐 [**Horizontal and vertical stacking**](outputs/stacks.md)
 
+    ---
+
+    <a href=outputs/stacks.md"><img src="/_static/example-thumbs/stacks.png" /></a>
+
 -   📁 [**Accordion toggle**](../api/layouts/accordion.md)
 
+    ---
+
+    <a href="../api/layouts/accordion.md"><img src="/_static/example-thumbs/accordion.png" /></a>
+
 -   🗂️ [**Tabs**](../api/inputs/tabs.md)
+
+    ---
+
+    <a href="../api/inputs/tabs.md"><img src="/_static/example-thumbs/tabs.png" /></a>
 
 </div>
 
@@ -152,31 +173,79 @@ without callbacks — just make sure to assign elements to global variables. See
 the [API reference](../api/inputs/index.md) for a full list, and the [interactivity
 guide](../guides/interactivity.md) for rules governing how UI elements work.
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   🎚️ [**Slider**](../api/inputs/slider.md)
 
+    ---
+
+    <a href="../api/inputs/slider.md"><img src="/_static/example-thumbs/slider.png" /></a>
+
 -   🧾 [**Dropdown**](../api/inputs/dropdown.md)
+
+    ---
+
+    <a href="../api/inputs/dropdown.md"><img src="/_static/example-thumbs/dropdown.png" /></a>
 
 -   👆 [**Multi-select**](../api/inputs/multiselect.md)
 
+    ---
+
+    <a href="../api/inputs/multiselect.md"><img src="/_static/example-thumbs/multiselect.png" /></a>
+
 -   🔘 [**Radio buttons**](../api/inputs/radio.md)
+
+    ---
+
+    <a href="../api/inputs/radio.md"><img src="/_static/example-thumbs/radio.png" /></a>
 
 -   ☑️ [**Checkbox**](../api/inputs/checkbox.md)
 
+    ---
+
+    <a href="../api/inputs/checkbox.md"><img src="/_static/example-thumbs/checkbox.png" /></a>
+
 -   📅 [**Date**](../api/inputs/dates.md)
+
+    ---
+
+    <a href="../api/inputs/date.md"><img src="/_static/example-thumbs/date.png" /></a>
 
 -   📁 [**File**](../api/inputs/file.md)
 
+    ---
+
+    <a href="../api/inputs/file.md"><img src="/_static/example-thumbs/file_upload.png" /></a>
+
 -   🔤 [**Text input**](../api/inputs/text.md)
+
+    ---
+
+    <a href="../api/inputs/text.md"><img src="/_static/example-thumbs/text.png" /></a>
 
 -   📝 [**Text area**](../api/inputs/text_area.md)
 
+    ---
+
+    <a href="../api/inputs/text_area.md"><img src="/_static/example-thumbs/text_area.png" /></a>
+
 -   🧑‍💻 [**Code editor**](../api/inputs/code_editor.md)
+
+    ---
+
+    <a href="../api/inputs/code_editor.md"><img src="/_static/example-thumbs/code_editor.png" /></a>
 
 -   🎙️ [**Microphone**](../api/inputs/microphone.md)
 
+    ---
+
+    <a href="../api/inputs/microphone.md"><img src="/_static/example-thumbs/microphone.png" /></a>
+
 -   💬 [**Chat**](../api/inputs/chat.md)
+
+    ---
+
+    <a href="../api/inputs/chat.md"><img src="/_static/example-thumbs/chat.png" /></a>
 
 </div>
 
@@ -185,12 +254,24 @@ guide](../guides/interactivity.md) for rules governing how UI elements work.
 Composite input elements let you create a single UI element from multiple
 other UI elements.
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   🧾 [**Form**](../api/inputs/form.md)
 
+    ---
+
+    <a href="../api/inputs/form.md"><img src="/_static/example-thumbs/form.png" /></a>
+
 -   🎒 [**Array**](../api/inputs/array.md)
 
+    ---
+
+    <a href="../api/inputs/array.md"><img src="/_static/example-thumbs/array.png" /></a>
+
 -   📖 [**Dictionary**](../api/inputs/dictionary.md)
+
+    ---
+
+    <a href="../api/inputs/dictionary.md"><img src="/_static/example-thumbs/dictionary.png" /></a>
 
 </div>
