@@ -586,11 +586,14 @@ class Runner:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
+                    LOGGER.debug("Running post_execution hooks in context")
+                    for post_hook in self.post_execution_hooks:
+                        post_hook(cell, self, run_result)
             else:
                 run_result = await self.run(cell_id)
-            LOGGER.debug("Running post_execution hooks")
-            for post_hook in self.post_execution_hooks:
-                post_hook(cell, self, run_result)
+                LOGGER.debug("Running post_execution hooks out of context")
+                for post_hook in self.post_execution_hooks:
+                    post_hook(cell, self, run_result)
 
         LOGGER.debug("Running on_finish hooks")
         for finish_hook in self.on_finish_hooks:
