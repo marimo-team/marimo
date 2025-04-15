@@ -6,7 +6,6 @@ from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
-from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
@@ -43,7 +42,7 @@ from marimo._sql.get_engines import (
     get_engines_from_variables,
 )
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t, VariableName
+from marimo._types.ids import VariableName
 from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
