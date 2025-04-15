@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
 import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import { loadTableData } from "@/components/data-table/utils";
 import {
   filterToFilterCondition,
   type ColumnFilterValue,
@@ -421,22 +422,7 @@ export const LoadingDataTableComponent = memo(
         cellStyles = searchResults.cell_styles || {};
       }
 
-      // If we already have the data, return it
-      if (Array.isArray(tableData)) {
-        return {
-          rows: tableData,
-          totalRows: totalRows,
-          cellStyles,
-        };
-      }
-
-      // Otherwise, load the data from the URL
-      tableData = await vegaLoadData(
-        tableData,
-        { type: "json" },
-        { handleBigIntAndNumberLike: true },
-      );
-
+      tableData = await loadTableData(tableData);
       return {
         rows: tableData,
         totalRows: totalRows,

@@ -3,7 +3,7 @@
 import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 
-export async function loadData<T>(data: TableData<T>): Promise<TableData<T>> {
+export async function loadTableData<T>(data: TableData<T>): Promise<T[]> {
   // If we already have the data, return it
   if (Array.isArray(data)) {
     return data;

@@ -44,7 +44,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../ui/popover";
-import { loadData } from "./utils";
+import { loadTableData } from "./utils";
 import { Logger } from "@/utils/Logger";
 
 interface DataTableColumnHeaderProps<TData, TValue>
@@ -392,7 +392,7 @@ const PopoverSetFilter = <TData, TValue>({
       return null;
     }
     const res = await calculateTopKRows({ column: column.id, k: 10 });
-    return await loadData(res.data);
+    return await loadTableData(res.data);
   }, []);
 
   let dataTable: React.ReactNode;
@@ -448,11 +448,9 @@ const PopoverSetFilter = <TData, TValue>({
       return;
     }
 
-    // TODO: We need to create an in filter
-    const filterValue = Filter.text(String(chosenValues[0]));
     const filter = {
       id: column.id,
-      value: filterValue,
+      value: Filter.select(chosenValues),
     };
     setFilters([...(filters ?? []), filter]);
   };
