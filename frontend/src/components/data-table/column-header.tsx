@@ -31,10 +31,7 @@ import {
   renderSortIcon,
   renderSorts,
 } from "./header-items";
-import type {
-  SetFilters,
-  CalculateTopKRows,
-} from "@/plugins/impl/DataTablePlugin";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Spinner } from "../icons/spinner";
@@ -55,14 +52,13 @@ import {
   TableRow,
 } from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
+import { FilterButtons } from "./column-components";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
   calculateTopKRows?: CalculateTopKRows;
-  filters?: ColumnFiltersState;
-  setFilters?: SetFilters;
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
@@ -70,8 +66,6 @@ export const DataTableColumnHeader = <TData, TValue>({
   header,
   className,
   calculateTopKRows,
-  filters,
-  setFilters,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
   const [setFilterOpen, setSetFilterOpen] = useState(false);
 
@@ -383,15 +377,11 @@ const TextFilter = <TData, TValue>({
 const PopoverSetFilter = <TData, TValue>({
   setSetFilterOpen,
   calculateTopKRows,
-  filters,
-  setFilters,
   column,
 }: {
   setSetFilterOpen: (open: boolean) => void;
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
-  filters?: ColumnFiltersState;
-  setFilters?: SetFilters;
 }) => {
   const [chosenValues, setChosenValues] = useState<unknown[]>([]);
   const [query, setQuery] = useState<string>("");
@@ -400,7 +390,7 @@ const PopoverSetFilter = <TData, TValue>({
     if (!calculateTopKRows) {
       return null;
     }
-    const res = await calculateTopKRows({ column: column.id, k: 10 });
+    const res = await calculateTopKRows({ column: column.id, k: 30 });
     return await loadTableData(res.data);
   }, []);
 
@@ -414,9 +404,10 @@ const PopoverSetFilter = <TData, TValue>({
       return typedData.filter((row) => {
         const value = row[column.id];
         // Check if value exists and can be converted to string
-        return value !== undefined && value !== null
-          ? String(value).toLowerCase().includes(query.toLowerCase())
-          : false;
+        // Keep null values for filtering
+        return value === undefined
+          ? false
+          : String(value).toLowerCase().includes(query.toLowerCase());
       });
     } catch (error_) {
       Logger.error("Error filtering data", error_);
@@ -434,15 +425,6 @@ const PopoverSetFilter = <TData, TValue>({
     dataTable = <ErrorBanner error={error} />;
   }
 
-  if (!data) {
-    return null;
-  }
-
-  if (!setFilters) {
-    Logger.error("No setFilters function provided");
-    return null;
-  }
-
   // Get all possible keys from the data objects
   // Empty strings may be index
   const keys = [
@@ -454,11 +436,6 @@ const PopoverSetFilter = <TData, TValue>({
   ];
 
   const handleCheckboxClick = (checked: boolean, value: unknown) => {
-    if (!setFilters) {
-      Logger.error("No setFilters function provided");
-      return;
-    }
-
     if (!checked) {
       setChosenValues(chosenValues.filter((v) => v !== value));
       return;
@@ -468,18 +445,59 @@ const PopoverSetFilter = <TData, TValue>({
   };
 
   const handleApply = () => {
-    const filterType = column.columnDef.meta?.filterType;
-    if (!filterType) {
-      Logger.error("No filter type defined for column");
-      return;
-    }
-
-    const filter = {
-      id: column.id,
-      value: Filter.select(chosenValues),
-    };
-    setFilters([...(filters ?? []), filter]);
+    column.setFilterValue(Filter.select(chosenValues));
   };
+
+  if (data) {
+    dataTable = (
+      <>
+        <Table className="w-full border-collapse text-sm overflow-auto block max-h-64">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>{}</TableHead>
+              {keys.map((key) => (
+                <TableHead key={key} className="text-foreground">
+                  {key}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredData.map((row, rowIndex) => {
+              const value = row[column.id];
+              return (
+                <TableRow key={rowIndex}>
+                  <TableCell>
+                    <Checkbox
+                      onCheckedChange={(checked) => {
+                        if (typeof checked === "string") {
+                          return;
+                        }
+                        handleCheckboxClick(checked, value);
+                      }}
+                      aria-label="Select row"
+                    />
+                  </TableCell>
+                  {keys.map((key) => (
+                    <TableCell key={`${rowIndex}-${key}`}>
+                      {row[key] === null ? "null" : String(row[key])}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <FilterButtons
+          onApply={handleApply}
+          onClear={() => {
+            setChosenValues([]);
+          }}
+          clearButtonDisabled={chosenValues.length === 0}
+        />
+      </>
+    );
+  }
 
   return (
     <Popover open={true}>
@@ -503,79 +521,9 @@ const PopoverSetFilter = <TData, TValue>({
             className="my-0 py-1"
             autoFocus={true}
           />
-          <Table className="w-full border-collapse text-sm overflow-auto max-h-60 ">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{}</TableHead>
-                {keys.map((key) => (
-                  <TableHead key={key} className="text-foreground">
-                    {key}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredData.map((row, rowIndex) => {
-                const value = row[column.id];
-                return (
-                  <TableRow key={rowIndex}>
-                    <TableCell>
-                      <Checkbox
-                        onCheckedChange={(checked) => {
-                          if (typeof checked === "string") {
-                            return;
-                          }
-                          handleCheckboxClick(checked, value);
-                        }}
-                        aria-label="Select row"
-                      />
-                    </TableCell>
-                    {keys.map((key) => (
-                      <TableCell key={`${rowIndex}-${key}`}>
-                        {row[key] === null ? "null" : String(row[key])}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <FilterButtons
-            onApply={handleApply}
-            onClear={() => {
-              setChosenValues([]);
-            }}
-            clearButtonDisabled={chosenValues.length === 0}
-          />
+          {dataTable}
         </div>
       </PopoverContent>
     </Popover>
-  );
-};
-
-const FilterButtons = ({
-  onApply,
-  onClear,
-  clearButtonDisabled,
-}: {
-  onApply: () => void;
-  onClear: () => void;
-  clearButtonDisabled?: boolean;
-}) => {
-  return (
-    <div className="flex gap-2 px-2 justify-between">
-      <Button variant="link" size="sm" onClick={onApply}>
-        Apply
-      </Button>
-      <Button
-        variant="linkDestructive"
-        size="sm"
-        className=""
-        onClick={onClear}
-        disabled={clearButtonDisabled}
-      >
-        Clear
-      </Button>
-    </div>
   );
 };

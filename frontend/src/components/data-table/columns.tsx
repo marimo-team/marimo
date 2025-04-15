@@ -193,8 +193,6 @@ export function generateColumns<T>({
               header={headerWithType}
               column={column}
               calculateTopKRows={calculateTopKRows}
-              setFilters={setFilters}
-              filters={filters}
             />
           );
         }
@@ -206,8 +204,6 @@ export function generateColumns<T>({
               column={column}
               header={headerWithType}
               calculateTopKRows={calculateTopKRows}
-              setFilters={setFilters}
-              filters={filters}
             />
             <TableColumnSummary columnId={key} />
           </div>
