@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.complete import _build_docstring_cached
 from tests.mocks import snapshotter
 
@@ -17,7 +18,8 @@ def test_build_docstring_function_no_init():
     assert "my_func" in result
     assert "This is a simple docstring for a function." in result
     assert '<div class="codehilite">' in result
-    snapshot("docstrings_function.txt", result)
+    if DependencyManager.docstring_to_markdown.has():
+        snapshot("docstrings_function.txt", result)
 
 
 def test_docstring_function_with_google_style():
@@ -53,7 +55,8 @@ def test_build_docstring_class_with_init():
     assert "MyClass" in result
     assert "Some docstring for the class." in result
     assert "Class init details." in result
-    snapshot("docstrings_class.txt", result)
+    if DependencyManager.docstring_to_markdown.has():
+        snapshot("docstrings_class.txt", result)
 
 
 def test_build_docstring_module():
