@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.12.8"
+__generated_with = "0.12.9"
 app = marimo.App()
 
 with app.setup:
@@ -374,6 +374,16 @@ def _():
 @app.class_definition
 @dataclasses.dataclass
 class SettingExample:
+    """
+    TODO: I realized this is probably a poor example because
+    the class is not reactive.
+    Come up with a better example that is:
+    - simple
+    - topical
+    - useful
+    or fix name bindings in ui registry for reactive namespaces.
+    """
+
     temperature: UIElement = dataclasses.field(
         default_factory=function_example
     )
@@ -381,24 +391,30 @@ class SettingExample:
         default_factory=function_example
     )
 
-    def _mime_(self):
-        return (
+    def __post_init__(self):
+        self._form = (
             mo.md(
                 """
-    **Reusable component for something like LLM settings**
+                **Reusable component for something like LLM settings**
 
-    temp: {temperature}
+                temp: {temperature}
 
-    length: {response_length}
-    """
+                length: {response_length}
+                """
             )
             .batch(
                 temperature=self.temperature,
                 response_length=self.response_length,
             )
             .form()
-            ._mime_()
         )
+
+    @property
+    def value(self):
+        return self.form.value
+
+    def _mime_(self):
+        return self._form._mime_()
 
 
 @app.cell(hide_code=True)
@@ -422,18 +438,6 @@ def _():
 def _():
     form = SettingExample()
     form
-    return (form,)
-
-
-@app.cell
-def _(form):
-    form.temperature
-    return
-
-
-@app.cell
-def _(form):
-    form.temperature.value
     return
 
 
@@ -463,7 +467,6 @@ def wrapped_function_example(runtime_definition):
         corner indicates this.
         """
         return runtime_definition
-
     return
 
 
