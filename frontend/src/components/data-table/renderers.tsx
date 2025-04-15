@@ -35,15 +35,33 @@ export function renderTableHeader<TData>(
           <TableHead
             key={header.id}
             className={cn(
-              "h-auto min-h-10 whitespace-pre align-top",
+              "h-auto min-h-10 whitespace-pre align-top group",
               className,
             )}
-            style={style}
-            ref={(thead) => columnSizingHandler(thead, table, header.column)}
+            style={{
+              ...style,
+              // use css calculation instead of table state to improve performance
+              width: `calc(var(--header-${header?.id}-size) * 1px)`,
+            }}
+            // ref={(thead) => columnSizingHandler(thead, table, header.column)}
           >
             {header.isPlaceholder
               ? null
               : flexRender(header.column.columnDef.header, header.getContext())}
+            <div
+              onDoubleClick={() => header.column.resetSize()}
+              onMouseDown={header.getResizeHandler()}
+              onTouchStart={header.getResizeHandler()}
+              className="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none touch-none"
+            >
+              {/* Create a line that is thinner than the parent div */}
+              <div
+                className={`absolute h-full w-0.5 left-1/2 -translate-x-1/2 bg-[var(--slate-3)] 
+                  dark:bg-slate-600/40 opacity-0 group-hover:opacity-70 rounded ${
+                    header.column.getIsResizing() && "opacity-90"
+                  }`}
+              />
+            </div>
           </TableHead>
         );
       }),
@@ -82,7 +100,11 @@ export function renderTableBody<TData>(
             "px-1.5 py-[0.18rem]",
             className,
           )}
-          style={style}
+          style={{
+            ...style,
+            // use css calculation instead of table state to improve performance
+            width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+          }}
           title={String(cell.getValue())}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -140,7 +162,6 @@ function getPinningStyles<TData>(
       opacity: 1,
       position: isPinned ? "sticky" : "relative",
       zIndex: isPinned ? 1 : 0,
-      width: column.getSize(),
     },
   };
 }
