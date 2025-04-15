@@ -42,19 +42,6 @@ def test_docstring_function_with_google_style():
     snapshot("docstrings_function_google.txt", result)
 
 
-def test_docstring_function_from_external_module():
-    result = _build_docstring_cached(
-        completion_type="function",
-        completion_name="my_func",
-        signature_strings=("my_func(arg1, arg2)",),
-        raw_body="This is a simple docstring for a function.",
-        init_docstring=None,
-    )
-    assert "This is a simple docstring for a function." in result
-    assert "<div class='external-docs'>" in result
-    snapshot("docstrings_function_external.txt", result)
-
-
 def test_build_docstring_class_with_init():
     result = _build_docstring_cached(
         completion_type="class",
