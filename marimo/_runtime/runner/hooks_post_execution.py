@@ -246,7 +246,7 @@ def _store_state_reference(
 @kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    _runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
     # TODO: clean this logic up ...
