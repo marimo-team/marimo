@@ -1,4 +1,4 @@
-# Progress bar
+# Spinner
 
 /// marimo-embed-file
     size: xlarge
