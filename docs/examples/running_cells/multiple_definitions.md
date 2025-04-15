@@ -2,7 +2,7 @@
 
 marimo does not allow the same variable to be defined in multiple cells. This
 restriction guarantees that the code on the page matches the outputs you see,
-elimimates hidden state and hidden bugs, and lets marimo run your notebooks as
+eliminates hidden state and hidden bugs, and lets marimo run your notebooks as
 web apps and scripts, but it also has a learning curve. Here are some tips to
 help you adapt.
 
