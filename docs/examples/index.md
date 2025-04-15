@@ -1,15 +1,15 @@
 # Examples
 
-We have a large [library of
-examples](https://github.com/marimo-team/marimo/tree/main/examples) in our
-repo. Each example [encapsulates its own Python dependencies in a package
-sandbox](guides/editor_features/package_management.md), making it easy to run.
-We've deployed some of these examples at our [public
-gallery](https://marimo.io/@public).
+This page includes dozens of bite-sized how-to examples to help you get started
+with marimo. Be sure to also read the [quickstart](../getting_started) and
+the [user guide](../guides/), especially the guide on [how marimo runs
+cells](../guides/reactivity/).
 
-We spotlight projects from the community each week on [our Twitter](https://x.com/marimo_io); check out our
-[spotlights repo](https://github.com/marimo-team/spotlights) for a running
-archive, with links to notebooks.
+!!! Tip "Get inspired at our gallery!"
+
+    For inspirational examples, including embedding-driven
+    data labelers, Stanford-scientist authored tutorials, and more,
+    check out our [public gallery](https://marimo.io/gallery).
 
 
 ## Running cells
@@ -41,7 +41,7 @@ archive, with links to notebooks.
 
 <div class="grid cards" markdown>
 
--   📝 [**Cell outputs**](outputs/basic_outputs.md)
+-   📝 [**Cell outputs**](outputs/basic_output.md)
 
 -   📝 [**Basic markdown**](outputs/basic_markdown.md)
 
@@ -49,57 +49,30 @@ archive, with links to notebooks.
 
 -   📝 [**Capturing console output**](outputs/capture_console_outputs.md)
 
--   📝 [**Showing plots**](https://google.com)
+-   📝 [**Showing plots**](outputs/plots.md)
 
--   📝 [**Showing audio**](https://google.com)
+-   📝 [**Showing videos and other media**](../api/media/index.md)
 
--   📝 [**Conditionally showing outputs**](https://google.com)
+-   📝 [**Conditionally showing outputs**](outputs/conditional_output.md)
 
--   📝 [**Showing multiple outputs in one cell**](https://google.com)
+-   📝 [**Showing multiple outputs in one cell**](outputs/multiple_outputs.md)
 
 </div class="grid cards" markdown>
-
 
 
 ### Writing markdown
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Python values in markdown**](https://google.com)
+-   ⚡️ [**Python values in markdown**](markdown/dynamic_markdown.md)
 
--   ⚡️ [**Mermaid diagrams**](https://google.com)
+-   ⚡️ [**Mermaid diagrams**](markdown/mermaid.md)
 
--   ⚡️ [**Admonitions**](https://google.com)
+-   ⚡️ [**Admonitions**](markdown/admonitions.md)
 
--   ⚡️ [**Images**](https://google.com)
+-   ⚡️ [**Collapsible details**](markdown/details.md)
 
--   ⚡️ [**Icons**](https://google.com)
-
--   ⚡️ [**Tooltips**](https://google.com)
-
-</div>
-
-### Progress bars and status elements
-
-<div class="grid cards" markdown>
-
--   ⚡️ [**Progress bar**](https://google.com)
-
--   ⚡️ [**Loading spinner**](https://google.com)
-
-
-</div>
-
-### Layouts
-
-<div class="grid cards" markdown>
-
--   ⚡️ [**Horizontal and vertical stacking**](https://google.com)
-
--   ⚡️ [**Accordion toggle**](https://google.com)
-
--   ⚡️ [**Tabs**](https://google.com)
-
+-   ⚡️ [**Emoji**](markdown/emoji.md)
 
 </div>
 
@@ -108,88 +81,124 @@ archive, with links to notebooks.
 
 ### Dataframes
 
+marimo is designed for working with dataframes. Here are a few examples; see
+the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
+
 <div class="grid cards" markdown>
 
--   ⚡️ [**Interactive dataframe viewer**](https://google.com)
+-   ⚡️ [**Interactive dataframe viewer**](outputs/dataframes.md)
 
--   ⚡️ [**Select dataframe rows**](https://google.com)
+-   ⚡️ [**Select dataframe rows**](../api/inputs/table.md)
 
--   ⚡️ [**Editable dataframe**](https://google.com)
+-   ⚡️ [**Editable dataframe**](../api/inputs/data_editor.md)
 
--   ⚡️ [**Interactive dataframe transformer**](https://google.com)
+-   ⚡️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
 
 </div>
 
 
 ### SQL
 
+Here are some basic examples, see the [SQL
+guide](../guides/working_with_data/sql.md) for more details.
+
 <div class="grid cards" markdown>
 
--   ⚡️ [**Query dataframes with DuckDB SQL**](https://google.com)
+-   ⚡️ [**Query dataframes with DuckDB SQL**](../guides/working_with_data/sql/#example)
 
--   ⚡️ [**SQLite**](https://google.com)
-
--   ⚡️ [**Postgres**](https://google.com)
+-   ⚡️ [**SQLite, Postgres, and other engines**](../guides/working_with_data/sql/#connecting-to-a-custom-database)
 
 </div>
 
 
-### Plots and Charts
+### Plots
+
+See the [plotting guide](../guides/working_with_data/plotting.md) for a full
+overview.
 
 <div class="grid cards" markdown>
 
--   ⚡️ [**Selecting data**](https://google.com)
+-   ⚡️ [**Selecting data with Altair**](../api/plotting/#reactive-charts-with-altair)
 
--   ⚡️ [**Showing matplotlib plots**](https://google.com)
+-   ⚡️ [**Selecting data with Plotly**](../api/plotting/#reactive-charts-with-plotly)
+
+-   ⚡️ [**Showing matplotlib plots**](outputs/plots.md)
 
 </div>
 
+
+### Progress bars and status elements
+
+<div class="grid cards" markdown>
+
+-   ⚡️ [**Progress bar**](outputs/progress_bar.md)
+
+-   ⚡️ [**Loading spinner**](outputs/spinner.md)
+
+
+</div>
+
+### Layouts
+
+<div class="grid cards" markdown>
+
+-   ⚡️ [**Horizontal and vertical stacking**](outputs/stacks.md)
+
+-   ⚡️ [**Accordion toggle**](../api/layouts/accordion.md)
+
+-   ⚡️ [**Tabs**](../api/inputs/tabs.md)
+
+</div>
 
 ## Input elements
 
 ### Basic input elements
 
+marimo has a large library of interactive UI elements, which you can use
+without callbacks — just make sure to assign elements to global variables. See
+the [API reference](../api/inputs.md) for a full list, and the [interactivity
+guide](../guides/interactivity.md) for rules governing how UI elements work.
+
 <div class="grid cards" markdown>
 
--   ⚡️ [**Slider**](https://google.com)
+-   ⚡️ [**Slider**](../api/inputs/slider.md)
 
--   ⚡️ [**Dropdown**](https://google.com)
+-   ⚡️ [**Dropdown**](../api/inputs/dropdown.md)
 
--   ⚡️ [**Multi-select**](https://google.com)
+-   ⚡️ [**Multi-select**](../api/inputs/multiselect.md)
 
--   ⚡️ [**Radio buttons**](https://google.com)
+-   ⚡️ [**Radio buttons**](../api/inputs/radio.md)
 
--   ⚡️ [**Checkbox**](https://google.com)
+-   ⚡️ [**Checkbox**](../api/inputs/checkbox.md)
 
--   ⚡️ [**Date**](https://google.com)
+-   ⚡️ [**Date**](../api/inputs/dates.md)
 
--   ⚡️ [**File**](https://google.com)
+-   ⚡️ [**File**](../api/inputs/file.md)
 
--   ⚡️ [**Text input**](https://google.com)
+-   ⚡️ [**Text input**](../api/inputs/text.md)
 
--   ⚡️ [**Text area**](https://google.com)
+-   ⚡️ [**Text area**](../api/inputs/text_area.md)
 
--   ⚡️ [**Code editor**](https://google.com)
+-   ⚡️ [**Code editor**](../api/inputs/code_editor.md)
 
--   ⚡️ [**Microphone**](https://google.com)
+-   ⚡️ [**Microphone**](../api/inputs/microphone.md)
 
--   ⚡️ [**Chat**](https://google.com)
+-   ⚡️ [**Chat**](../api/inputs/chat.md)
 
 </div>
 
 
 ### Composite input elements
 
+Composite input elements let you create a single UI element from multiple
+other UI elements.
+
 <div class="grid cards" markdown>
 
--   ⚡️ [**Form**](https://google.com)
+-   ⚡️ [**Form**](../api/inputs/form.md)
 
--   ⚡️ [**Array**](https://google.com)
+-   ⚡️ [**Array**](../api/inputs/array.md)
 
--   ⚡️ [**Dictionary**](https://google.com)
+-   ⚡️ [**Dictionary**](../api/inputs/dictionary.md)
 
 </div>
-
-
-
-
