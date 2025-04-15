@@ -750,6 +750,38 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert json_data[1]["A"] == "9007199254740992"
         assert json_data[1]["B"] == "-9007199254740992"
 
+    # def test_calculate_top_k_rows(self) -> None:
+    #     import polars as pl
+
+    #     df = pl.DataFrame({"A": [1, 2, 3, 3], "B": ["a", "b", "c", "c"]})
+    #     manager = NarwhalsTableManager.from_dataframe(df)
+    #     result = manager.calculate_top_k_rows("A", 10).data
+    #     expected_data = pl.DataFrame(
+    #         {"A": [3, 2, 1], "count": [2, 1, 1]},
+    #         schema_overrides={"count": pl.UInt32},
+    #     )
+    #     assert_frame_equal(result, expected_data)
+
+    #     # Limit k
+    #     result = manager.calculate_top_k_rows("A", 2).data
+    #     expected_data = pl.DataFrame(
+    #         {"A": [3, 2], "count": [2, 1]},
+    #         schema_overrides={"count": pl.UInt32},
+    #     )
+    #     assert_frame_equal(result, expected_data)
+
+    # def test_calculate_top_k_rows_null(self) -> None:
+    #     import polars as pl
+
+    #     df = pl.DataFrame({"A": [1, 2, 3, 3, None, None]})
+    #     manager = NarwhalsTableManager.from_dataframe(df)
+    #     result = manager.calculate_top_k_rows("A", 10).data
+    #     expected_data = pl.DataFrame(
+    #         {"A": [3, None, 2, 1], "count": [2, 2, 1, 1]},
+    #         schema_overrides={"count": pl.UInt32},
+    #     )
+    #     assert_frame_equal(result, expected_data)
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(

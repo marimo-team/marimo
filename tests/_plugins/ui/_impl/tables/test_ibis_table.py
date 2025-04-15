@@ -336,3 +336,38 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             3.0,
         ]
         assert np.isnan(sorted_data[3])
+
+    def test_calculate_top_k_rows(self) -> None:
+        import ibis
+        import pandas as pd
+
+        table = ibis.memtable({"A": [2, 3, 3], "B": ["a", "b", "c"]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+
+        calculated_df = result.data.execute()
+        expected_df = pd.DataFrame({"A": [3, 2], "count": [2, 1]})
+        assert calculated_df.equals(expected_df)
+
+        # test with null
+        table = ibis.memtable({"A": [3, None, None]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        calculated_df = result.data.execute()
+        expected_df = pd.DataFrame({"A": [None, 3], "count": [2, 1]})
+        assert calculated_df.equals(expected_df)
+
+    @pytest.mark.xfail(
+        reason="ibis doesn't support nulls last in top k rows, so this test is flakey",
+    )
+    def test_calculate_top_k_rows_null_last(self) -> None:
+        import ibis
+        import pandas as pd
+        from pandas.testing import assert_frame_equal
+
+        table = ibis.memtable({"A": [2, 3, 3, None, None]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        calculated_df = result.data.execute()
+        expected_df = pd.DataFrame({"A": [3, None, 2], "count": [2, 2, 1]})
+        assert_frame_equal(calculated_df, expected_df)

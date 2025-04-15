@@ -159,6 +159,35 @@ class NarwhalsTableManager(
     ) -> list[str]:
         return []
 
+    # TODO: Maybe cache this
+    def calculate_top_k_rows(
+        self, column: ExternalDataType, k: int
+    ) -> TableManager[Any]:
+        # Find a column name for the count that doesn't conflict with existing columns
+        chosen_column_name: str | None = None
+        columns = self.get_column_names()
+        for col in ["count", "number of rows", "count of rows"]:
+            if col not in columns:
+                chosen_column_name = col
+                break
+        if chosen_column_name is None:
+            raise ValueError(
+                "Cannot specify a count column name, please rename your column"
+            )
+
+        if column not in columns:
+            raise ValueError(f"Column {column} not found in table.")
+
+        result = (
+            self.data.group_by(column)
+            .agg(nw.len().alias(chosen_column_name))
+            .sort(
+                [chosen_column_name, column], descending=True, nulls_last=True
+            )
+            .head(k)
+        )
+        return self.with_new_data(result)
+
     @staticmethod
     def is_type(value: Any) -> bool:
         return can_narwhalify(value)

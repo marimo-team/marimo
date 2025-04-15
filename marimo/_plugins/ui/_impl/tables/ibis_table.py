@@ -194,6 +194,16 @@ class IbisTableManagerFactory(TableManagerFactory):
                 )
                 return IbisTableManager(sorted_data)
 
+            def calculate_top_k_rows(
+                self, column: ColumnName, k: int
+            ) -> IbisTableManager:
+                return IbisTableManager(
+                    self.data[[column]]
+                    .value_counts(name="count")
+                    .order_by(ibis.desc("count"))
+                    .limit(k)
+                )
+
             def get_field_type(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
