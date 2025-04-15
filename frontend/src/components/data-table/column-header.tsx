@@ -418,11 +418,11 @@ const PopoverSetFilter = <TData, TValue>({
   let dataTable: React.ReactNode;
 
   if (loading) {
-    dataTable = <Spinner size="small" />;
+    dataTable = <Spinner size="medium" className="mx-auto mt-4" />;
   }
 
   if (error) {
-    dataTable = <ErrorBanner error={error} />;
+    dataTable = <ErrorBanner error={error} className="mt-4" />;
   }
 
   // Get all possible keys from the data objects
@@ -444,6 +444,14 @@ const PopoverSetFilter = <TData, TValue>({
     setChosenValues([...chosenValues, value]);
   };
 
+  const toggleAllCheckbox = (checked: boolean) => {
+    if (checked) {
+      setChosenValues(filteredData.map((row) => row[column.id]));
+    } else {
+      setChosenValues([]);
+    }
+  };
+
   const handleApply = () => {
     column.setFilterValue(Filter.select(chosenValues));
   };
@@ -453,10 +461,21 @@ const PopoverSetFilter = <TData, TValue>({
       <>
         <Table className="w-full border-collapse text-sm overflow-auto block max-h-64">
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>{}</TableHead>
+            <TableRow className="hover:bg-transparent py-0">
+              <TableHead className="w-10 py-0 px-2">
+                <Checkbox
+                  checked={chosenValues.length === filteredData.length}
+                  onCheckedChange={(checked) => {
+                    if (typeof checked === "string") {
+                      return;
+                    }
+                    toggleAllCheckbox(checked);
+                  }}
+                  aria-label="Select all"
+                />
+              </TableHead>
               {keys.map((key) => (
-                <TableHead key={key} className="text-foreground">
+                <TableHead key={key} className="text-foreground py-0">
                   {key}
                 </TableHead>
               ))}
@@ -469,6 +488,7 @@ const PopoverSetFilter = <TData, TValue>({
                 <TableRow key={rowIndex}>
                   <TableCell>
                     <Checkbox
+                      checked={chosenValues.includes(value)}
                       onCheckedChange={(checked) => {
                         if (typeof checked === "string") {
                           return;
