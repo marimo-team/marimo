@@ -118,6 +118,7 @@ nav:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md
           - doctest: guides/testing/doctest.md
+      - Reusing functions and classes: guides/reusing_functions.md
       - Export to other formats: guides/exporting.md
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
