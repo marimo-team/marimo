@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { type ColumnFilterForType, Filter } from "./filters";
@@ -46,6 +46,15 @@ import {
 } from "../ui/popover";
 import { loadTableData } from "./utils";
 import { Logger } from "@/utils/Logger";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
+import { Checkbox } from "../ui/checkbox";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -371,7 +380,6 @@ const TextFilter = <TData, TValue>({
   );
 };
 
-// TODO: This is triggering immediately, which is not what we want
 const PopoverSetFilter = <TData, TValue>({
   setSetFilterOpen,
   calculateTopKRows,
@@ -386,6 +394,7 @@ const PopoverSetFilter = <TData, TValue>({
   setFilters?: SetFilters;
 }) => {
   const [chosenValues, setChosenValues] = useState<unknown[]>([]);
+  const [query, setQuery] = useState<string>("");
 
   const { data, loading, error } = useAsyncData(async () => {
     if (!calculateTopKRows) {
@@ -394,6 +403,26 @@ const PopoverSetFilter = <TData, TValue>({
     const res = await calculateTopKRows({ column: column.id, k: 10 });
     return await loadTableData(res.data);
   }, []);
+
+  const filteredData = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    try {
+      const typedData = data as Array<Record<string, unknown>>;
+      return typedData.filter((row) => {
+        const value = row[column.id];
+        // Check if value exists and can be converted to string
+        return value !== undefined && value !== null
+          ? String(value).toLowerCase().includes(query.toLowerCase())
+          : false;
+      });
+    } catch (error_) {
+      Logger.error("Error filtering data", error_);
+      return [];
+    }
+  }, [data, query, column.id]);
 
   let dataTable: React.ReactNode;
 
@@ -414,14 +443,11 @@ const PopoverSetFilter = <TData, TValue>({
     return null;
   }
 
-  // Type assertion to handle the data array
-  const typedData = data as Array<Record<string, unknown>>;
-
   // Get all possible keys from the data objects
   // Empty strings may be index
   const keys = [
     ...new Set(
-      typedData
+      filteredData
         .flatMap((item) => Object.keys(item))
         .filter((key) => key !== ""),
     ),
@@ -469,46 +495,58 @@ const PopoverSetFilter = <TData, TValue>({
           </Button>
         </PopoverClose>
         <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-sm font-semibold mx-auto">Set Filter</span>
-          <table className="w-full border-collapse text-sm overflow-auto max-h-60">
-            <thead>
-              <tr className="border-b">
-                <th className="px-2 py-1 text-left font-medium">{}</th>
+          <span className="text-sm font-semibold mx-auto mb-2">Set Filter</span>
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="my-0 py-1"
+            autoFocus={true}
+          />
+          <Table className="w-full border-collapse text-sm overflow-auto max-h-60 ">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>{}</TableHead>
                 {keys.map((key) => (
-                  <th key={key} className="px-2 py-1 text-left font-medium">
+                  <TableHead key={key} className="text-foreground">
                     {key}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {typedData.map((row, rowIndex) => {
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((row, rowIndex) => {
                 const value = row[column.id];
                 return (
-                  <tr
-                    key={rowIndex}
-                    className="border-b border-gray-100 hover:bg-gray-50"
-                  >
-                    <td key={rowIndex} className="px-2 py-1">
-                      <input
-                        type="checkbox"
-                        onClick={(e) => {
-                          const target = e.target as HTMLInputElement;
-                          handleCheckboxClick(target.checked, value);
+                  <TableRow key={rowIndex}>
+                    <TableCell>
+                      <Checkbox
+                        onCheckedChange={(checked) => {
+                          if (typeof checked === "string") {
+                            return;
+                          }
+                          handleCheckboxClick(checked, value);
                         }}
+                        aria-label="Select row"
                       />
-                    </td>
+                    </TableCell>
                     {keys.map((key) => (
-                      <td key={`${rowIndex}-${key}`} className="px-2 py-1">
+                      <TableCell key={`${rowIndex}-${key}`}>
                         {row[key] === null ? "null" : String(row[key])}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-          <FilterButtons onApply={handleApply} onClear={() => {}} />
+            </TableBody>
+          </Table>
+          <FilterButtons
+            onApply={handleApply}
+            onClear={() => {
+              setChosenValues([]);
+            }}
+            clearButtonDisabled={chosenValues.length === 0}
+          />
         </div>
       </PopoverContent>
     </Popover>
