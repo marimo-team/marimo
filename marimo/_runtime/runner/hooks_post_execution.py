@@ -330,7 +330,7 @@ def _broadcast_outputs(
 
 
 @kernel_tracer.start_as_current_span("render_toplevel_defs")
-def _render_toplevel_defs(
+def render_toplevel_defs(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -347,7 +347,7 @@ def _render_toplevel_defs(
 
 
 @kernel_tracer.start_as_current_span("run_pytest")
-def _attempt_pytest(
+def attempt_pytest(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -398,9 +398,10 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
-    _render_toplevel_defs,
     # set status to idle after all post-processing is done, in case the
     # other hooks take a long time (broadcast outputs can take a long time
     # if a formatter is slow).
     _set_status_idle,
+    # NB. Other hooks are added ad-hoc or manually due to priority.
+    # Consider implementing priority sort to keep everything more centralized.
 ]
