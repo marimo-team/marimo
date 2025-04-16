@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useCellActions } from "@/core/cells/cells";
 import { getNotebook } from "@/core/cells/cells";
-import { useCallback } from "react";
 import { canCollapseOutline } from "@/core/dom/outline";
+import useEvent from "react-use-event-hook";
 
 /**
  * Hooks to collapse and expand all sections in the notebook.
@@ -11,7 +11,7 @@ import { canCollapseOutline } from "@/core/dom/outline";
 export const useCollapseAllSections = () => {
   const { collapseCell } = useCellActions();
 
-  return useCallback(async () => {
+  return useEvent(async () => {
     const notebook = getNotebook();
     const cellIds = notebook.cellIds.inOrderIds;
 
@@ -29,13 +29,13 @@ export const useCollapseAllSections = () => {
       // Collapse the cell
       collapseCell({ cellId });
     }
-  }, []);
+  });
 };
 
 export const useExpandAllSections = () => {
   const { expandCell } = useCellActions();
-
-  return useCallback(async () => {
+  
+  return useEvent(async () => {
     const notebook = getNotebook();
     const cellIds = notebook.cellIds.inOrderIds;
 
@@ -53,5 +53,5 @@ export const useExpandAllSections = () => {
       // Collapse the cell
       expandCell({ cellId });
     }
-  }, []);
+  });
 };
