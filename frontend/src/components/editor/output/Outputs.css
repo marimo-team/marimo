@@ -35,7 +35,10 @@
     > pre,
     > ul,
     div.codehilite,
-    > span.paragraph:not(:has(> :is(marimo-ui-element, img, video, audio))) {
+    /* Target <span> that is not empty and does not consist entirely of child elements;
+     * this makes sure text with embedded HTML (such as a slider) has a max width,
+     * but standalone elements (like tables, plots) don't get a max width. */
+    > span.paragraph:not(:has(> :only-child)):not(:empty) {
       max-width: var(--markdown-max-width);
     }
   }
