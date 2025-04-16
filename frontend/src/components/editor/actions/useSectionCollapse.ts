@@ -34,7 +34,7 @@ export const useCollapseAllSections = () => {
 
 export const useExpandAllSections = () => {
   const { expandCell } = useCellActions();
-  
+
   return useEvent(async () => {
     const notebook = getNotebook();
     const cellIds = notebook.cellIds.inOrderIds;
