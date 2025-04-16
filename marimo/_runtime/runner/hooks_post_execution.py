@@ -6,7 +6,6 @@ from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
-from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
@@ -43,7 +42,7 @@ from marimo._sql.get_engines import (
     get_engines_from_variables,
 )
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t, VariableName
+from marimo._types.ids import VariableName
 from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
@@ -339,20 +338,8 @@ def _render_toplevel_defs(
     del run_result
     variable = cell.toplevel_variable
     if variable is not None:
-        ancestors = runner.graph.ancestors(cell.cell_id)
-        deps = {cell.cell_id: cell} | {
-            cid: runner.graph.cells[cid] for cid in ancestors
-        }
-        setup_id = CellId_t(SETUP_CELL_NAME)
-        setup = runner.graph.cells.get(setup_id)
-        deps.pop(setup_id, None)
-
-        # TODO: Technically, order does matter incase there is a type definition
-        # or decorator.
-        path = list(deps.values()) + [cell]
-        extractor = TopLevelExtraction.from_cells(path, setup=setup)
+        extractor = TopLevelExtraction.from_graph(cell, runner.graph)
         serialization = list(iter(extractor))[-1]
-
         CellOp.broadcast_serialization(
             serialization=serialization,
             cell_id=cell.cell_id,
