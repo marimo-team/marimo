@@ -475,10 +475,12 @@ export const PopoverSetFilter = <TData, TValue>({
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="text-foreground py-0">
+              <TableHead className="text-foreground font-bold py-0">
                 {column.id}
               </TableHead>
-              <TableHead className="text-foreground py-0">count</TableHead>
+              <TableHead className="text-foreground font-bold py-0">
+                count
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
