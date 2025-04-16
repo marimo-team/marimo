@@ -636,8 +636,6 @@ const DataTableComponent = ({
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
-        setFilters: setFilters,
-        filters: filters,
       }),
     [
       selection,
@@ -648,8 +646,6 @@ const DataTableComponent = ({
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
       calculate_top_k_rows,
-      setFilters,
-      filters,
     ],
   );
 

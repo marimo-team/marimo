@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import type { ColumnDef, ColumnFiltersState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { getMimeValues, MimeCell } from "./mime-cell";
@@ -27,10 +27,7 @@ import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
 import type { ColumnChartSpecModel } from "./chart-spec-model";
-import type {
-  CalculateTopKRows,
-  SetFilters,
-} from "@/plugins/impl/DataTablePlugin";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
@@ -104,8 +101,6 @@ export function generateColumns<T>({
   wrappedColumns,
   showDataTypes,
   calculateTopKRows,
-  setFilters,
-  filters,
 }: {
   rowHeaders: string[];
   selection: DataTableSelection;
@@ -115,8 +110,6 @@ export function generateColumns<T>({
   wrappedColumns?: string[];
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
-  setFilters?: SetFilters;
-  filters?: ColumnFiltersState;
 }): Array<ColumnDef<T>> {
   const rowHeadersSet = new Set(rowHeaders);
 
@@ -186,25 +179,22 @@ export function generateColumns<T>({
           </div>
         );
 
+        const dataTableColumnHeader = (
+          <DataTableColumnHeader
+            header={headerWithType}
+            column={column}
+            calculateTopKRows={calculateTopKRows}
+          />
+        );
+
         // Row headers have no summaries
         if (rowHeadersSet.has(key)) {
-          return (
-            <DataTableColumnHeader
-              header={headerWithType}
-              column={column}
-              calculateTopKRows={calculateTopKRows}
-            />
-          );
+          return dataTableColumnHeader;
         }
 
         return (
           <div className="flex flex-col h-full pt-0.5 pb-3 justify-between items-start">
-            <DataTableColumnHeader
-              key={key}
-              column={column}
-              header={headerWithType}
-              calculateTopKRows={calculateTopKRows}
-            />
+            {dataTableColumnHeader}
             <TableColumnSummary columnId={key} />
           </div>
         );
