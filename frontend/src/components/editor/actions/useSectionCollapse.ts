@@ -11,7 +11,7 @@ import useEvent from "react-use-event-hook";
 export const useSectionCollapse = () => {
   const { collapseCell, expandCell } = useCellActions();
 
-  const processAllSections = async (action: 'collapse' | 'expand') => {
+  const processAllSections = async (action: "collapse" | "expand") => {
     const notebook = getNotebook();
     const cellIds = notebook.cellIds.inOrderIds;
 
@@ -27,12 +27,12 @@ export const useSectionCollapse = () => {
         continue;
       }
       // Collapse or expand the cell based on the action
-      action === 'collapse' ? collapseCell({ cellId }) : expandCell({ cellId });
-    };
-  }
+      action === "collapse" ? collapseCell({ cellId }) : expandCell({ cellId });
+    }
+  };
 
   return {
-    collapseAllSections: useEvent(() => processAllSections('collapse')),
-    expandAllSections: useEvent(() => processAllSections('expand')),
-  }
-}
+    collapseAllSections: useEvent(() => processAllSections("collapse")),
+    expandAllSections: useEvent(() => processAllSections("expand")),
+  };
+};
