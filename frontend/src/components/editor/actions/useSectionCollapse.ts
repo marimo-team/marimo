@@ -8,7 +8,7 @@ import useEvent from "react-use-event-hook";
  * Hooks to collapse and expand all sections in the notebook.
  */
 
-export const useCollapseAllSections = () => {
+const useCollapseAllSections = () => {
   const { collapseCell } = useCellActions();
 
   return useEvent(async () => {
@@ -32,7 +32,7 @@ export const useCollapseAllSections = () => {
   });
 };
 
-export const useExpandAllSections = () => {
+const useExpandAllSections = () => {
   const { expandCell } = useCellActions();
   
   return useEvent(async () => {
@@ -55,3 +55,12 @@ export const useExpandAllSections = () => {
     }
   });
 };
+
+// Consolidate the two hooks into one object
+export const useSectionCollapse = () => {
+
+  return {
+    collapseAllSections: useCollapseAllSections(),
+    expandAllSections: useExpandAllSections(),
+  };
+}

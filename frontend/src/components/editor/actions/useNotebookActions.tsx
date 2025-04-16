@@ -83,10 +83,7 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
-import {
-  useCollapseAllSections,
-  useExpandAllSections,
-} from "./useSectionCollapse";
+import { useSectionCollapse } from "./useSectionCollapse";
 import { Constants } from "@/core/constants";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 
@@ -103,8 +100,7 @@ export function useNotebookActions() {
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
-  const collapseAllSections = useCollapseAllSections();
-  const expandAllSections = useExpandAllSections();
+  const { collapseAllSections, expandAllSections} = useSectionCollapse();
 
   const {
     updateCellConfig,
