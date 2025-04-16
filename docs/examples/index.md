@@ -60,15 +60,31 @@ cells](../guides/reactivity.md).
 
 ### Writing markdown
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   ⚡️ [**Python values in markdown**](markdown/dynamic_markdown.md)
 
+    ---
+
+    <a href="markdown/dynamic_markdown.md"><img src="/_static/example-thumbs/dynamic_markdown.png" /></a>
+
 -   🪄 [**Mermaid diagrams**](markdown/mermaid.md)
+
+    ---
+
+    <a href="markdown/mermaid.md"><img src="/_static/example-thumbs/mermaid.png" /></a>
 
 -   🚨 [**Admonitions**](markdown/admonitions.md)
 
+    ---
+
+    <a href="markdown/admonitions.md"><img src="/_static/example-thumbs/admonitions.png" /></a>
+
 -   📂 [**Collapsible details**](markdown/details.md)
+
+    ---
+
+    <a href="markdown/details.md"><img src="/_static/example-thumbs/details.png" /></a>
 
 -   😀 [**Emoji**](markdown/emoji.md)
 
@@ -85,11 +101,27 @@ the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
 
 -   🧮 [**Interactive dataframe viewer**](outputs/dataframes.md)
 
+    ---
+
+    <a href="outputs/dataframes.md"><img src="/_static/example-thumbs/dataframes.png" /></a>
+
 -   🔍 [**Select dataframe rows**](../api/inputs/table.md)
+
+    ---
+
+    <a href="../api/inputs/table.md"><img src="/_static/example-thumbs/tables.png" /></a>
 
 -   ✏️  [**Editable dataframe**](../api/inputs/data_editor.md)
 
+    ---
+
+    <a href="api/inputs/data_editor.md"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
+
 -   🛠️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
+
+    ---
+
+    <a href="api/inputs/dataframe.md"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
 
 </div>
 
@@ -98,7 +130,7 @@ the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
 Here are some basic examples, see the [SQL
 guide](../guides/working_with_data/sql.md) for more details.
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   🦆 [**Query dataframes with DuckDB SQL**](../guides/working_with_data/sql.md#example)
 
@@ -111,11 +143,19 @@ guide](../guides/working_with_data/sql.md) for more details.
 See the [plotting guide](../guides/working_with_data/plotting.md) for a full
 overview.
 
-<div class="grid cards" markdown>
+<div class="grid cards examples-grid" markdown>
 
 -   📊 [**Selecting data with Altair**](../api/plotting.md#reactive-charts-with-altair)
 
--   📉 [**Selecting data with Plotly**](../api/plotting.md#reactive-plots-with-plotly)
+    ---
+
+    <a href="../api/plotting.md#reactive-charts-with-altair"><img src="/_static/example-thumbs/altair.png" /></a>
+
+-   📉 [**Selecting data with Plotly**](../guides/working_with_data/plotting.md#Plotly)
+
+    ---
+
+    <a href="../guides/working_with_data/plotting.md#Plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
 
 -   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
@@ -234,6 +274,12 @@ guide](../guides/interactivity.md) for rules governing how UI elements work.
     ---
 
     <a href="../api/inputs/code_editor.md"><img src="/_static/example-thumbs/code_editor.png" /></a>
+
+-   🔍 [**Table**](../api/inputs/table.md)
+
+    ---
+
+    <a href="../api/inputs/table.md"><img src="/_static/example-thumbs/tables.png" /></a>
 
 -   🎙️ [**Microphone**](../api/inputs/microphone.md)
 

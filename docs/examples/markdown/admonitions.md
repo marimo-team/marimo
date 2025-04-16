@@ -1,4 +1,4 @@
-# Mermaid
+# Admonitions
 
 
 /// marimo-embed-file

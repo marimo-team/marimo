@@ -1,4 +1,4 @@
-# Mermaid
+# Emoji
 
 
 /// marimo-embed-file

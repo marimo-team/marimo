@@ -166,7 +166,6 @@ nav:
   - Examples:
       - Examples: examples/index.md
       - Recipes: recipes.md
-      - Islands: guides/island_example.md
   - API Reference:
       - API Reference: api/index.md
       - Markdown: api/markdown.md

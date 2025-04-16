@@ -1,4 +1,4 @@
-# Mermaid
+# Details
 
 
 /// marimo-embed-file
