@@ -34,6 +34,8 @@ cells](../guides/reactivity.md).
 
 -  🐞 [**Using the debugger**](running_cells/debugging.md)
 
+-  🐍 [**Run notebooks as scripts**](../guides/scripts.md)
+
 </div>
 
 ## Visual Outputs

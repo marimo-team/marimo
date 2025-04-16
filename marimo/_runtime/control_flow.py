@@ -38,7 +38,7 @@ def stop(predicate: bool, output: Optional[object] = None) -> None:
         ```
 
     Raises:
-        When `predicate` is `True`, raises a `MarimoStopError`.
+        MarimoStopError: When `predicate` is `True`, raises a `MarimoStopError`.
     """
     if predicate:
         raise MarimoStopError(output)
