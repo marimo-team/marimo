@@ -27,13 +27,13 @@ if TYPE_CHECKING:
 TopLevelInvalidHints = Literal[
     "Cannot parse cell.",
     (
-        "Top level definitions cannot be named 'app', '__name__' or "
+        "Reusable definitions cannot be named 'app', '__name__' or "
         "'__generated_with'"
     ),
     "Cell must contain exactly one function definition",
     "Signature and decorators depend on {} defined out of correct cell order",
     "Function contains references to variables {} which are not top level.",
-    "Function contains references to variables {} which failed to be toplevel.",
+    "Function contains references to variables {} which were unable to become reusable.",
     "Cell cannot contain non-indented trailing comments.",
 ]
 (

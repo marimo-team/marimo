@@ -477,7 +477,7 @@ class TestTopLevelClasses:
 
         @app.function
         def to_be_demoted():
-            return value + 1  # type: ignore
+            return value + 1  # type: ignore # noqa: F821
 
         extraction = TopLevelExtraction.from_app(InternalApp(app))
         assert [

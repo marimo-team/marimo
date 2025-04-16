@@ -738,7 +738,8 @@ const EditableCellComponent = ({
     return undefined;
   };
 
-  is_toplevel: bool = serialization.toLowerCase() === "valid";
+  const is_toplevel: boolean =
+    serialization && serialization.toLowerCase() === "valid";
 
   return (
     <TooltipProvider>
@@ -849,42 +850,45 @@ const EditableCellComponent = ({
             </div>
             {cellOutput === "below" && outputArea}
             {serialization && (
-              <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
+              <a
+                href="https://docs.marimo.io/guides/editor_features/reusing_functions"
+                target="_blank"
+                className="hover:underline py-1 px-2 flex justify-end gap-2 last:rounded-b"
+              >
+                {is_toplevel && (
+                  <span className="text-muted-foreground text-xs font-bold">
+                    reusable
+                  </span>
+                )}
                 <Tooltip
                   content={
-                    <span className="max-w-16">
+                    <span className="max-w-16 text-xs">
                       {(is_toplevel &&
-                        "This definition can be directly imported from the notebook") ||
-                        serialization}
+                        "This definition can be directly imported from the notebook") || (
+                        <>
+                          This definition cannot be reused in other Python
+                          modules, because:
+                          <br /> - <strong>{serialization}</strong>{" "}
+                        </>
+                      )}
                     </span>
                   }
                 >
-                  <a
-                    href="https://docs.marimo.io/guides/editor_features/reusing_functions"
-                    target="_blank"
-                    className="hover:underline"
-                  >
-                    {is_toplevel && (
-                      <span className="text-muted-foreground text-xs font-bold">
-                        reusable definition
-                      </span>
-                    )}
-                    {(is_toplevel && (
-                      <SquareFunctionIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        className="rounded-lg text-muted-foreground"
-                      />
-                    )) || (
-                      <HelpCircleIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        className="rounded-lg text-muted-foreground"
-                      />
-                    )}
-                  </a>
+                  {(is_toplevel && (
+                    <SquareFunctionIcon
+                      size={16}
+                      strokeWidth={1.5}
+                      className="rounded-lg text-muted-foreground"
+                    />
+                  )) || (
+                    <HelpCircleIcon
+                      size={16}
+                      strokeWidth={1.5}
+                      className="rounded-lg text-muted-foreground"
+                    />
+                  )}
                 </Tooltip>
-              </div>
+              </a>
             )}
             <ConsoleOutput
               consoleOutputs={consoleOutputs}
