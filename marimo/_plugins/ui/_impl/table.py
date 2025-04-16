@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from narwhals.typing import IntoLazyFrame
 
 LOGGER = _loggers.marimo_logger()
+TOP_K_ROWS_CACHE_SIZE = 3
 
 
 @dataclass
@@ -865,15 +866,22 @@ class table(
 
         return result
 
-    # TODO: Maybe functools cache this
     def _calculate_top_k_rows(
         self, args: CalculateTopKRowsArgs
     ) -> CalculateTopKRowsResponse:
         """Calculate the top k rows in the table, grouped by column.
         Returns a table of the top k rows, grouped by column with the count.
         """
-        column, k = args.column, args.k
-        data = self._searched_manager.calculate_top_k_rows(column, k)
+        return self._calculate_top_k_rows_cached(
+            self._searched_manager, args.column, args.k
+        )
+
+    @functools.lru_cache(maxsize=TOP_K_ROWS_CACHE_SIZE)  # noqa: B019
+    def _calculate_top_k_rows_cached(
+        self, manager: TableManager[Any], column: ColumnName, k: int
+    ) -> CalculateTopKRowsResponse:
+        """Cached version of calculate_top_k_rows that takes the manager as an argument."""
+        data = manager.calculate_top_k_rows(column, k)
         return CalculateTopKRowsResponse(data=data)
 
     def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
