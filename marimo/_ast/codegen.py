@@ -326,10 +326,7 @@ def generate_filecontents(
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
-    cell_blocks = [
-        serialize_cell(extraction, status)
-        for status in extraction
-    ]
+    cell_blocks = [serialize_cell(extraction, status) for status in extraction]
 
     filecontents = []
     if header_comments is not None:

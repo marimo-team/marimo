@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.12.8"
+__generated_with = "0.12.10"
 app = marimo.App(width="medium")
 
 
@@ -69,14 +69,7 @@ def _():
         has_pandas_installed = True
     except ImportError:
         pass
-    return (
-        duckdb,
-        has_duckdb_installed,
-        has_pandas_installed,
-        has_polars_installed,
-        pandas,
-        polars,
-    )
+    return has_duckdb_installed, has_polars_installed
 
 
 @app.cell(hide_code=True)
@@ -206,7 +199,7 @@ def _(has_polars_installed):
         import pandas as pd
 
         df = pd.DataFrame(_data)
-    return df, pd, pl
+    return (df,)
 
 
 @app.cell(hide_code=True)
@@ -349,13 +342,7 @@ def _(mo, result, token_prefix):
         import plotly.graph_objects as go
 
         return go.Figure(data=[go.Histogram(x=result["count"])])
-    return (
-        render_altair,
-        render_chart,
-        render_charting_library,
-        render_matplotlib,
-        render_plotly,
-    )
+    return (render_chart,)
 
 
 @app.cell(hide_code=True)
@@ -388,7 +375,7 @@ def _(mo):
 
 
 @app.cell
-def _(cars, mo):
+def _(mo):
     cars = mo.sql(
         f"""
         -- Download a CSV and create an in-memory table; this is optional.
@@ -450,7 +437,7 @@ def _(filtered_cars, mo):
 def _():
     import marimo as mo
     import random
-    return mo, random
+    return (mo,)
 
 
 @app.cell(hide_code=True)
