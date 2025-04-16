@@ -12,7 +12,7 @@ app = marimo.App(css_file="custom.css")
 
 You may also set the `custom_css` field in your project configuration to apply a custom CSS file. This theme won't be applied if the notebook is shared with someone else, but it will be applied to all notebooks open inside the project.
 
-```toml
+```toml title="pyproject.toml"
 [tool.marimo.display]
 custom_css = ["additional.css"]
 ```
