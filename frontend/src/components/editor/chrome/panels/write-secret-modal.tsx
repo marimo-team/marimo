@@ -109,8 +109,8 @@ export const WriteSecretModal: React.FC<{
               id="key"
               value={key}
               onChange={(e) => {
-                // Remove any whitespace from the input
-                setKey(e.target.value.replaceAll(/\s+/g, "_"));
+                // Remove any non-word characters from the input
+                setKey(replaceInvalid(e.target.value));
               }}
               placeholder="MY_SECRET_KEY"
               required={true}
@@ -126,6 +126,12 @@ export const WriteSecretModal: React.FC<{
               required={true}
               autoComplete="off"
             />
+            {/* http is prone to man-in-the-middle */}
+            {isHttpUrl() && (
+              <FormDescription>
+                Note: You are sending this key over http.
+              </FormDescription>
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="location">Location</Label>
@@ -172,3 +178,12 @@ export const WriteSecretModal: React.FC<{
     </DialogContent>
   );
 };
+
+export function replaceInvalid(input: string): string {
+  return input.replaceAll(/\W/g, "_");
+}
+
+function isHttpUrl(): boolean {
+  const url = window.location.href;
+  return url.startsWith("http://");
+}

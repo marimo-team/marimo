@@ -15,7 +15,7 @@ import {
   BoxIcon,
   BotMessageSquareIcon,
   ActivityIcon,
-  KeyIcon,
+  KeyRoundIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -112,7 +112,7 @@ export const PANELS: PanelDescriptor[] = [
   {
     // Not supported in WebAssembly yet
     type: "secrets",
-    Icon: KeyIcon,
+    Icon: KeyRoundIcon,
     tooltip: "Secrets",
     hidden: isWasm(),
     position: "sidebar",
