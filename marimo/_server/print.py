@@ -118,6 +118,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "tracing",
         "markdown",
         "sql_engines",
+        "secrets",
         "reactive_tests",
     }
     keys = keys - finished_experiments
