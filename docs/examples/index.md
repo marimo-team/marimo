@@ -147,7 +147,7 @@ overview.
 
 <div class="grid cards examples-grid" markdown>
 
--   📊 [**Selecting data with Altair**](../api/plotting.md#reactive-charts-with-altair)
+-   📊 [**Selecting data with Altair**](../api/plotting#reactive-charts-with-altair)
 
     ---
 
@@ -171,13 +171,13 @@ overview.
 
     ---
 
-    <a href=outputs/progress_bar.md"><img src="/_static/example-thumbs/progress_bar.png" /></a>
+    <a href=outputs/progress_bar"><img src="/_static/example-thumbs/progress_bar.png" /></a>
 
 -   🌀 [**Loading spinner**](outputs/spinner.md)
 
     ---
 
-    <a href=outputs/spinner.md"><img src="/_static/example-thumbs/spinner.png" /></a>
+    <a href=outputs/spinner"><img src="/_static/example-thumbs/spinner.png" /></a>
 
 </div>
 
@@ -196,13 +196,13 @@ overview.
 
     ---
 
-    <a href="../api/layouts/accordion.md"><img src="/_static/example-thumbs/accordion.png" /></a>
+    <a href="../api/layouts/accordion"><img src="/_static/example-thumbs/accordion.png" /></a>
 
 -   🗂️ [**Tabs**](../api/inputs/tabs.md)
 
     ---
 
-    <a href="../api/inputs/tabs.md"><img src="/_static/example-thumbs/tabs.png" /></a>
+    <a href="../api/inputs/tabs"><img src="/_static/example-thumbs/tabs.png" /></a>
 
 </div>
 
