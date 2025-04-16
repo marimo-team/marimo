@@ -470,7 +470,7 @@ const PopoverSetFilter = <TData, TValue>({
   if (data) {
     dataTable = (
       <>
-        <Table className="w-full border-collapse text-sm overflow-auto block max-h-64">
+        <Table className="border-collapse text-sm overflow-auto block max-h-64">
           <TableHeader>
             <TableRow className="hover:bg-transparent py-0">
               <TableHead className="w-7 py-0 px-2">
@@ -509,11 +509,20 @@ const PopoverSetFilter = <TData, TValue>({
                       aria-label="Select row"
                     />
                   </TableCell>
-                  {keys.map((key) => (
-                    <TableCell key={`${rowIndex}-${key}`}>
-                      {row[key] === null ? "null" : String(row[key])}
-                    </TableCell>
-                  ))}
+                  {keys.map((key) => {
+                    const lastKey = key === keys[keys.length - 1];
+                    return (
+                      <TableCell
+                        key={`${rowIndex}-${key}`}
+                        className={cn(
+                          "overflow-hidden",
+                          !lastKey && "w-48 max-w-48 max-h-20 line-clamp-3",
+                        )}
+                      >
+                        {row[key] === null ? "null" : String(row[key])}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               );
             })}
@@ -533,7 +542,7 @@ const PopoverSetFilter = <TData, TValue>({
   return (
     <Popover open={true}>
       <PopoverTrigger />
-      <PopoverContent>
+      <PopoverContent className="w-80">
         <PopoverClose className="absolute top-2 right-2">
           <Button
             variant="link"
