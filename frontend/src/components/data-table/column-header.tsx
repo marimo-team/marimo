@@ -44,15 +44,14 @@ import {
   PopoverTrigger,
 } from "../ui/popover";
 import { Logger } from "@/utils/Logger";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../ui/command";
 
 const TOP_K_ROWS = 30;
 
@@ -444,8 +443,11 @@ export const PopoverSetFilter = <TData, TValue>({
   };
 
   const toggleAllCheckbox = (checked: boolean) => {
+    if (!data) {
+      return;
+    }
     if (checked) {
-      setChosenValues(filteredData.map(([value]) => value));
+      setChosenValues(data.map(([value]) => value));
     } else {
       setChosenValues([]);
     }
@@ -462,10 +464,16 @@ export const PopoverSetFilter = <TData, TValue>({
   if (data) {
     dataTable = (
       <>
-        <Table className="border-collapse text-sm overflow-auto block max-h-64">
-          <TableHeader>
-            <TableRow className="hover:bg-transparent py-0">
-              <TableHead className="w-7 py-0 px-2">
+        <Command className="text-sm" shouldFilter={false}>
+          <CommandInput
+            placeholder="Search"
+            autoFocus={true}
+            onValueChange={(value) => setQuery(value.trim())}
+          />
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandList>
+            {filteredData.length > 0 && (
+              <div className="border-b hover:bg-transparent flex items-center py-1.5 px-2">
                 <Checkbox
                   checked={chosenValues.length === filteredData.length}
                   onCheckedChange={(checked) => {
@@ -475,43 +483,42 @@ export const PopoverSetFilter = <TData, TValue>({
                     toggleAllCheckbox(checked);
                   }}
                   aria-label="Select all"
+                  className="mr-3 h-3.5 w-3.5"
                 />
-              </TableHead>
-              <TableHead className="text-foreground font-bold py-0">
-                {column.id}
-              </TableHead>
-              <TableHead className="text-foreground font-bold py-0">
-                count
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+                <span className="font-bold flex-1">{column.id}</span>
+                <span className="font-bold">count</span>
+              </div>
+            )}
             {filteredData.map((row, rowIndex) => {
               const value = row[0];
               const count = row[1];
               return (
-                <TableRow key={rowIndex}>
-                  <TableCell>
-                    <Checkbox
-                      checked={chosenValues.includes(value)}
-                      onCheckedChange={(checked) => {
-                        if (typeof checked === "string") {
-                          return;
-                        }
-                        handleCheckboxClick(checked, value);
-                      }}
-                      aria-label="Select row"
-                    />
-                  </TableCell>
-                  <TableCell className="overflow-hidden w-48 max-w-48 max-h-20 line-clamp-3">
+                <CommandItem key={rowIndex} className="border-b">
+                  <Checkbox
+                    checked={chosenValues.includes(value)}
+                    onCheckedChange={(checked) => {
+                      if (typeof checked === "string") {
+                        return;
+                      }
+                      handleCheckboxClick(checked, value);
+                    }}
+                    aria-label="Select row"
+                    className="mr-3 h-3.5 w-3.5"
+                  />
+                  <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
                     {String(value)}
-                  </TableCell>
-                  <TableCell>{count}</TableCell>
-                </TableRow>
+                  </span>
+                  <span className="ml-3">{count}</span>
+                </CommandItem>
               );
             })}
-          </TableBody>
-        </Table>
+          </CommandList>
+          {filteredData.length === TOP_K_ROWS && (
+            <span className="text-xs text-muted-foreground mt-1.5 text-center">
+              Only showing top {TOP_K_ROWS} rows
+            </span>
+          )}
+        </Command>
         <FilterButtons
           onApply={handleApply}
           onClear={() => {
@@ -526,7 +533,7 @@ export const PopoverSetFilter = <TData, TValue>({
   return (
     <Popover open={true}>
       <PopoverTrigger />
-      <PopoverContent className="w-80">
+      <PopoverContent className="w-80 py-1.5">
         <PopoverClose className="absolute top-2 right-2">
           <Button
             variant="link"
@@ -536,23 +543,7 @@ export const PopoverSetFilter = <TData, TValue>({
             X
           </Button>
         </PopoverClose>
-        <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-sm font-semibold mx-auto mb-2">Set Filter</span>
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter"
-            className="my-0 py-1"
-            autoFocus={true}
-            icon={<FilterIcon className="h-3.5 w-3.5 text-muted-foreground" />}
-          />
-          {filteredData.length === TOP_K_ROWS && (
-            <span className="text-xs text-muted-foreground mx-auto">
-              Only showing top {TOP_K_ROWS} rows
-            </span>
-          )}
-          {dataTable}
-        </div>
+        <div className="flex flex-col gap-1.5">{dataTable}</div>
       </PopoverContent>
     </Popover>
   );
