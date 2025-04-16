@@ -738,8 +738,9 @@ const EditableCellComponent = ({
     return undefined;
   };
 
-  const is_toplevel: boolean =
-    serialization && serialization.toLowerCase() === "valid";
+  const isToplevel = !!(
+    serialization && serialization.toLowerCase() === "valid"
+  );
 
   return (
     <TooltipProvider>
@@ -855,7 +856,7 @@ const EditableCellComponent = ({
                 target="_blank"
                 className="hover:underline py-1 px-2 flex justify-end gap-2 last:rounded-b"
               >
-                {is_toplevel && (
+                {isToplevel && (
                   <span className="text-muted-foreground text-xs font-bold">
                     reusable
                   </span>
@@ -863,7 +864,7 @@ const EditableCellComponent = ({
                 <Tooltip
                   content={
                     <span className="max-w-16 text-xs">
-                      {(is_toplevel &&
+                      {(isToplevel &&
                         "This definition can be directly imported from the notebook") || (
                         <>
                           This definition cannot be reused in other Python
@@ -874,7 +875,7 @@ const EditableCellComponent = ({
                     </span>
                   }
                 >
-                  {(is_toplevel && (
+                  {(isToplevel && (
                     <SquareFunctionIcon
                       size={16}
                       strokeWidth={1.5}
