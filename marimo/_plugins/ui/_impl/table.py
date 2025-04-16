@@ -875,7 +875,7 @@ class table(
             self._searched_manager, args.column, args.k
         )
 
-    @functools.lru_cache(maxsize=3)  # noqa: B019
+    @functools.lru_cache(maxsize=1)  # noqa: B019
     def _calculate_top_k_rows_cached(
         self, manager: TableManager[Any], column: ColumnName, k: int
     ) -> CalculateTopKRowsResponse:
