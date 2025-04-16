@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { getFeatureFlag } from "@/core/config/feature-flag";
+import { isWasm } from "@/core/wasm/utils";
 import {
   XCircleIcon,
   FolderTreeIcon,
@@ -110,10 +110,11 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
+    // Not supported in WebAssembly yet
     type: "secrets",
     Icon: KeyIcon,
     tooltip: "Secrets",
-    hidden: !getFeatureFlag("secrets"),
+    hidden: isWasm(),
     position: "sidebar",
   },
   {
