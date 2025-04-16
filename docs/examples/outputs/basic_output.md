@@ -1,7 +1,7 @@
 # Cell output
 
 /// marimo-embed-file
-    size: xlarge
+    size: xxlarge
     mode: edit
     filepath: examples/outputs/cell_output.py
 ///
