@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [

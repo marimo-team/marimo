@@ -17,7 +17,6 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.visitor import Name
-from marimo._config.manager import get_default_config_manager
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):

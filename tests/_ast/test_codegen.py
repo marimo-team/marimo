@@ -79,7 +79,6 @@ def get_idempotent_marimo_source(name: str) -> str:
         list(app._cell_manager.configs()),
         app._config,
         header_comments,
-        _toplevel_fn=True,
     )
     generated_contents = sanitized_version(generated_contents)
 
