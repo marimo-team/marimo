@@ -398,6 +398,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
+    _render_toplevel_defs,
     # set status to idle after all post-processing is done, in case the
     # other hooks take a long time (broadcast outputs can take a long time
     # if a formatter is slow).

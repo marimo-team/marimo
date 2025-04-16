@@ -392,7 +392,6 @@ export function useNotebookActions() {
     {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
-      hidden: !getFeatureFlag("toplevel_defs"),
       handle: () => {
         upsertSetupCell({
           code: "# Initialization code that runs before all other cells",
