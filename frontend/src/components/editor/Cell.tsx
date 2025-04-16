@@ -738,6 +738,8 @@ const EditableCellComponent = ({
     return undefined;
   };
 
+  is_toplevel: bool = serialization.toLowerCase() === "valid";
+
   return (
     <TooltipProvider>
       <CellActionsContextMenu
@@ -849,21 +851,38 @@ const EditableCellComponent = ({
             {serialization && (
               <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
                 <Tooltip
-                  content={<span className="max-w-16">{serialization}</span>}
+                  content={
+                    <span className="max-w-16">
+                      {(is_toplevel &&
+                        "This definition can be directly imported from the notebook") ||
+                        serialization}
+                    </span>
+                  }
                 >
-                  {(serialization.toLowerCase() === "valid" && (
-                    <SquareFunctionIcon
-                      size={16}
-                      strokeWidth={1.5}
-                      className="rounded-lg text-muted-foreground"
-                    />
-                  )) || (
-                    <HelpCircleIcon
-                      size={16}
-                      strokeWidth={1.5}
-                      className="rounded-lg text-muted-foreground"
-                    />
-                  )}
+                  <a
+                    href="https://docs.marimo.io/guides/editor_features/reusing_functions"
+                    target="_blank"
+                    className="hover:underline"
+                  >
+                    {is_toplevel && (
+                      <span className="text-muted-foreground text-xs font-bold">
+                        reusable definition
+                      </span>
+                    )}
+                    {(is_toplevel && (
+                      <SquareFunctionIcon
+                        size={16}
+                        strokeWidth={1.5}
+                        className="rounded-lg text-muted-foreground"
+                      />
+                    )) || (
+                      <HelpCircleIcon
+                        size={16}
+                        strokeWidth={1.5}
+                        className="rounded-lg text-muted-foreground"
+                      />
+                    )}
+                  </a>
                 </Tooltip>
               </div>
             )}
