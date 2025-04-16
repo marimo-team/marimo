@@ -1000,6 +1000,79 @@ def test_get_sample_values(df: Any) -> None:
     "df",
     create_dataframes(
         {
+            "A": [1, 2, 3, 3, None, None],
+            "B": [4, 5, 6, 6, None, None],
+        },
+        include=["pandas", "polars"],
+    ),
+)
+def test_calculate_top_k_rows(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+    normalized_result = _normalize_result(result)
+    assert normalized_result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+
+    # Test with limit
+    result = manager.calculate_top_k_rows("A", 2)
+    normalized_result = _normalize_result(result)
+    assert normalized_result == [(3, 2), (None, 2)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"count": [1, 2, 3, 3, None, None]},
+        include=["pandas", "polars"],
+    ),
+)
+def test_calculate_top_k_rows_conflicting_colname(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # Test original column A
+    result_a = manager.calculate_top_k_rows("count", 10)
+    normalized_result_a = _normalize_result(result_a)
+    assert normalized_result_a == [(3, 2), (None, 2), (2, 1), (1, 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_calculate_top_k_rows_lazy_frame() -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"A": [1, 2, 3, 3, None, None]}).lazy()
+    manager = NarwhalsTableManager.from_dataframe(df)
+    with pytest.raises(
+        ValueError, match="Cannot calculate top k rows for lazy frames"
+    ):
+        manager.calculate_top_k_rows("A", 10)
+
+
+@pytest.mark.xfail(
+    reason="Narwhals doesn't support group_by for metadata-only frames"
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_calculate_top_k_rows_metadata_only_frame() -> None:
+    import ibis
+
+    df = ibis.memtable({"A": [1, 2, 3, 3, None, None]})
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+    assert result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+
+
+def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
+    """Normalize None and NaN values for comparison."""
+    return [
+        (None if val is None or isnan(val) else val, count)
+        for val, count in result
+    ]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
             "A": [1, 2, 3, 4],  # Integer
             "B": ["a", "b", "c", "d"],  # String
         },

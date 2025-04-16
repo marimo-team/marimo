@@ -11,6 +11,8 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
+    CalculateTopKRowsArgs,
+    CalculateTopKRowsResponse,
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
@@ -1636,6 +1638,16 @@ def test_get_data_url_values() -> None:
 
 def test_default_table_page_size():
     assert get_default_table_page_size() == 10
+
+
+def test_calculate_top_k_rows():
+    table = ui.table({"A": [1, 3, 3, None, None]})
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="A", k=10)
+    )
+    assert result == CalculateTopKRowsResponse(
+        data=[(3, 2), (None, 2), (1, 1)],
+    )
 
 
 def _convert_data_bytes_to_pandas_df(

@@ -1083,14 +1083,3 @@ class TestPandasTableManager(unittest.TestCase):
         # Large integers should be converted to strings
         assert json_data[1]["A"] == "9007199254740992"
         assert json_data[1]["B"] == "-9007199254740992"
-
-    def test_calculate_top_k_rows(self) -> None:
-        import pandas as pd
-
-        df = pd.DataFrame({"A": [1, 2, 3, 3], "B": ["a", "b", "c", "c"]})
-        manager = self.factory.create()(df)
-        result = manager.calculate_top_k_rows("A", 10).data
-        expected_data = pd.DataFrame(
-            {"A": [3, 2, 1], "count": [2, 1, 1]}, index=[2, 1, 0]
-        )
-        assert_frame_equal(result, expected_data)
