@@ -85,7 +85,6 @@ import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { useSectionCollapse } from "./useSectionCollapse";
 import { Constants } from "@/core/constants";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
