@@ -3,19 +3,12 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  ChartBarIcon,
   InfoIcon,
   Loader2,
   SquareFunctionIcon,
   TableIcon,
   XIcon,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
@@ -231,19 +224,14 @@ export const TablePanel: React.FC<TablePanelProps> = ({
             />
           </TabsTrigger>
         ))}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild={true}>
-            <Button variant="text" size="icon">
-              +
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={handleAddTab}>
-              <ChartBarIcon className="w-3 h-3 mr-2" />
-              Add chart
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="text"
+          size="icon"
+          onClick={handleAddTab}
+          title="Add chart"
+        >
+          +
+        </Button>
       </TabsList>
 
       <TabsContent className="mt-1 overflow-hidden" value={DEFAULT_TAB_NAME}>

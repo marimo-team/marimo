@@ -71,6 +71,12 @@ export const LazyChart: React.FC<{
                 <LazyVega
                   spec={vegaSpec}
                   theme={theme === "dark" ? "dark" : undefined}
+                  actions={{
+                    export: true,
+                    source: false,
+                    compiled: false,
+                    editor: true,
+                  }}
                 />
               </React.Suspense>
             );

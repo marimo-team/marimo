@@ -85,6 +85,9 @@ export const ColumnSelector = <T extends object>({
                 )}
                 {columns.map((column) => {
                   const DataTypeIcon = DATA_TYPE_ICON[column.type];
+                  if (column.name.trim() === "") {
+                    return null;
+                  }
                   return (
                     <SelectItem key={column.name} value={column.name}>
                       <div className="flex items-center truncate">
@@ -134,11 +137,13 @@ export const SelectField = <T extends object>({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
+                  {options.map((option) => {
+                    return option.value.trim() === "" ? null : (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectGroup>
               </SelectContent>
             </Select>
