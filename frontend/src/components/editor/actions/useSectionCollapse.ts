@@ -5,10 +5,10 @@ import { useCallback } from "react";
 import { canCollapseOutline } from "@/core/dom/outline";
 
 /**
- * Hooks to collapse and expand all columns in the notebook.
+ * Hooks to collapse and expand all sections in the notebook.
  */
 
-export const useCollapseAllColumns = () => {
+export const useCollapseAllSections = () => {
   const { collapseCell } = useCellActions();
 
   return useCallback(async () => {
@@ -32,7 +32,7 @@ export const useCollapseAllColumns = () => {
   }, []);
 };
 
-export const useExpandAllColumns = () => {
+export const useExpandAllSections = () => {
   const { expandCell } = useCellActions();
 
   return useCallback(async () => {
