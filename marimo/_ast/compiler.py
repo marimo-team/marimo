@@ -21,11 +21,11 @@ from marimo._ast.cell import (
     ImportWorkspace,
     SourcePosition,
 )
-from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
 from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
-from marimo._schemas.serialization import CellDef, ClassCell
+from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
 
@@ -200,7 +200,7 @@ def compile_cell(
         expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
     else:
         const = ast.Constant(value=None)
-        const.col_offset = final_expr.end_col_offset
+        const.col_offset = final_expr.end_col_offset or 0
         const.end_col_offset = final_expr.end_col_offset
         expr = ast.Expression(const)
         # use code over body since lineno corresponds to source
@@ -407,22 +407,23 @@ def toplevel_cell_factory(
         is_test = obj.__name__.startswith("Test")
     else:
         is_test = obj.__name__.startswith("test_")
+    # NB. Give top level function an invalid name- such that if they thrash the
+    # result of the resultant cells can be pushed to default.
     return Cell(
-        _name=obj.__name__,
+        _name=f"{TOPLEVEL_CELL_PREFIX}{obj.__name__}",
         _cell=cell,
         _test_allowed=cell._test or is_test,
     )
 
 
 def ir_cell_factory(cell_def: CellDef, cell_id: CellId_t) -> Cell:
-    test_name = isinstance(cell_def, ClassCell) and cell_def.name.startswith(
-        "Test"
-    )
-    test_name |= not isinstance(
-        cell_def, ClassCell
-    ) and cell_def.name.startswith("test_")
+    # NB. no need for test rewrite, anonymous file, etc.
+    # Because this is never invoked in script mode.
+    prefix = ""
+    if isinstance(cell_def, (FunctionCell, ClassCell)):
+        prefix = TOPLEVEL_CELL_PREFIX
     return Cell(
-        _name=cell_def.name,
+        _name=f"{prefix}{cell_def.name}",
         _cell=compile_cell(
             cell_def.code,
             cell_id=cell_id,

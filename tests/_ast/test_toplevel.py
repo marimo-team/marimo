@@ -469,6 +469,25 @@ class TestTopLevelClasses:
             TopLevelType.TOPLEVEL,
         ] == [s.type for s in extraction], [s.hint for s in extraction]
 
+    @staticmethod
+    def test_name_is_not_propagated(app) -> None:
+        @app.cell
+        def cell():
+            value = 1
+
+        @app.function
+        def to_be_demoted():
+            return value + 1  # type: ignore
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.CELL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+        assert ["cell", "_"] == [s.name for s in extraction], [
+            s.hint for s in extraction
+        ]
+
 
 class TestTopLevelHook:
     @staticmethod

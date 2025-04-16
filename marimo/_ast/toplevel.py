@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.names import (
+    DEFAULT_CELL_NAME,
+    SETUP_CELL_NAME,
+    TOPLEVEL_CELL_PREFIX,
+)
 from marimo._ast.visitor import Name
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
@@ -84,7 +88,7 @@ class TopLevelStatus:
     ):
         self.cell_id = cell_id
         self.name = name
-        self._name = name
+        self.previous_name = name
         self._type: TopLevelType = TopLevelType.UNPARSABLE
         self.dependencies: set[Name] = set()
         self._cell: Optional[CellImpl] = None
@@ -285,7 +289,10 @@ class TopLevelExtraction:
         self._resolve_dependencies()
         # Don't change names of objects that are not toplevel.
         for status in self.cells.values():
-            status.name = status._name
+            status.name = status.previous_name
+            # For something that used to be top level, revert to default name.
+            if status.name.startswith(TOPLEVEL_CELL_PREFIX):
+                status.name = DEFAULT_CELL_NAME
         # Set the hint of all valid cells to HINT_VALID
         for status in self.toplevel.values():
             status.hint = HINT_VALID
