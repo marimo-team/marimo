@@ -26,6 +26,14 @@
   max-width: 100%;
 }
 
+/* For markdown as the first child of the output, we want to make sure it
+is display as a block element. This is so it's configured `max-width`
+is applied correctly. */
+.output > .markdown {
+  display: block;
+  max-width: 65ch;
+}
+
 .stdout,
 .stderr,
 .marimo-error {
