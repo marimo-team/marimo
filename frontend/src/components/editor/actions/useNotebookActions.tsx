@@ -38,6 +38,8 @@ import {
   MessagesSquareIcon,
   YoutubeIcon,
   DiamondPlusIcon,
+  ChevronDownCircleIcon,
+  ChevronRightCircleIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -81,6 +83,7 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
+import { useSectionCollapse } from "./useSectionCollapse";
 import { Constants } from "@/core/constants";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 
@@ -97,6 +100,7 @@ export function useNotebookActions() {
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
+  const { collapseAllSections, expandAllSections } = useSectionCollapse();
 
   const {
     updateCellConfig,
@@ -374,6 +378,16 @@ export function useNotebookActions() {
       icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
       label: "Hide all markdown code",
       handle: hideAllMarkdownCode,
+    },
+    {
+      icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Collapse all sections",
+      handle: collapseAllSections,
+    },
+    {
+      icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Expand all sections",
+      handle: expandAllSections,
     },
     {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
