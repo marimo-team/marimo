@@ -8,6 +8,15 @@ To include a custom CSS file, in the configuration dropdown, add the relative fi
 app = marimo.App(css_file="custom.css")
 ```
 
+## Theming at the project level
+
+You may also set the `custom_css` field in your project configuration to apply a custom CSS file. This theme won't be applied if the notebook is shared with someone else, but it will be applied to all notebooks open inside the project.
+
+```toml
+[tool.marimo.display]
+custom_css = ["additional.css"]
+```
+
 ## CSS Variables
 
 We support only a few CSS variables as part of the "public API" for theming. These are:
@@ -64,12 +73,12 @@ You can target a cell's styles from the `data-cell-name` attribute. You can also
 
 ```css
 /* Target the cell named "My Cell" */
-[data-cell-name="my_cell"] {
+[data-cell-name='my_cell'] {
   background-color: light-dark(navy, pink);
 }
 
 /* Target the output of the cell named "My Cell" */
-[data-cell-name="my_cell"] [data-cell-role="output"] {
+[data-cell-name='my_cell'] [data-cell-role='output'] {
   background-color: light-dark(navy, pink);
 }
 ```

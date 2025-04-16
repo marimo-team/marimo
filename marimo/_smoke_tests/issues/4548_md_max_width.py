@@ -18,6 +18,14 @@ def _():
 
 
 @app.cell
+def _():
+    import polars as pl
+
+    pl.DataFrame({"A": [1, 2, 3]})
+    return
+
+
+@app.cell
 def _(md, mo):
     mo.vstack([md])
     return
