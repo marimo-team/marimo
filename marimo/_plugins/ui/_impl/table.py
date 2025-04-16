@@ -67,7 +67,6 @@ if TYPE_CHECKING:
     from narwhals.typing import IntoLazyFrame
 
 LOGGER = _loggers.marimo_logger()
-TOP_K_ROWS_CACHE_SIZE = 3
 
 
 @dataclass
@@ -876,7 +875,7 @@ class table(
             self._searched_manager, args.column, args.k
         )
 
-    @functools.lru_cache(maxsize=TOP_K_ROWS_CACHE_SIZE)  # noqa: B019
+    @functools.lru_cache(maxsize=3)  # noqa: B019
     def _calculate_top_k_rows_cached(
         self, manager: TableManager[Any], column: ColumnName, k: int
     ) -> CalculateTopKRowsResponse:
