@@ -58,9 +58,8 @@ const useExpandAllSections = () => {
 
 // Consolidate the two hooks into one object
 export const useSectionCollapse = () => {
-
   return {
     collapseAllSections: useCollapseAllSections(),
     expandAllSections: useExpandAllSections(),
   };
-}
+};

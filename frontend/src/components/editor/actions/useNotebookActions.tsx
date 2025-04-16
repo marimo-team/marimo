@@ -100,7 +100,7 @@ export function useNotebookActions() {
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
-  const { collapseAllSections, expandAllSections} = useSectionCollapse();
+  const { collapseAllSections, expandAllSections } = useSectionCollapse();
 
   const {
     updateCellConfig,
