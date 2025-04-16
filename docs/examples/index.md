@@ -151,13 +151,13 @@ overview.
 
     ---
 
-    <a href="../api/plotting.md#reactive-charts-with-altair"><img src="/_static/example-thumbs/altair.png" /></a>
+    <a href="../api/plotting#reactive-charts-with-altair"><img src="/_static/example-thumbs/altair.png" /></a>
 
 -   📉 [**Selecting data with Plotly**](../guides/working_with_data/plotting.md#plotly)
 
     ---
 
-    <a href="../guides/working_with_data/plotting.md#Plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
+    <a href="../guides/working_with_data/plotting#Plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
 
 -   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
