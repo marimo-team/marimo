@@ -54,6 +54,8 @@ import {
 } from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
 
+const TOP_K_ROWS = 30;
+
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
@@ -400,7 +402,7 @@ export const PopoverSetFilter = <TData, TValue>({
     if (!calculateTopKRows) {
       return null;
     }
-    const res = await calculateTopKRows({ column: column.id, k: 30 });
+    const res = await calculateTopKRows({ column: column.id, k: TOP_K_ROWS });
     return res.data;
   }, []);
 
@@ -539,10 +541,16 @@ export const PopoverSetFilter = <TData, TValue>({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search"
+            placeholder="Filter"
             className="my-0 py-1"
             autoFocus={true}
+            icon={<FilterIcon className="h-3.5 w-3.5 text-muted-foreground" />}
           />
+          {filteredData.length === TOP_K_ROWS && (
+            <span className="text-xs text-muted-foreground mx-auto">
+              Only showing top {TOP_K_ROWS} rows
+            </span>
+          )}
           {dataTable}
         </div>
       </PopoverContent>
