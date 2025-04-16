@@ -44,6 +44,7 @@
     --text-font: var(--marimo-text-font, "PT Sans", sans-serif);
     --heading-font: var(--marimo-heading-font, "Lora", serif);
     --radius: 8px;
+    --markdown-max-width: 80ch;
 
     /* Radix light colors: https://github.com/radix-ui/colors/blob/main/src/light.ts */
 
