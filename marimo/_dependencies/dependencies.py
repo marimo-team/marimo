@@ -198,6 +198,9 @@ class DependencyManager:
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
     dotenv = Dependency("dotenv")
+    docstring_to_markdown = Dependency(
+        "docstring_to_markdown", min_version="0.16.0"
+    )
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
