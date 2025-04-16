@@ -162,6 +162,11 @@ class NarwhalsTableManager(
     def calculate_top_k_rows(
         self, column: ExternalDataType, k: int
     ) -> list[tuple[Any, int]]:
+        if isinstance(self.data, nw.LazyFrame):
+            raise ValueError(
+                "Cannot calculate top k rows for lazy frames, please collect the data first"
+            )
+
         # Find a column name for the count that doesn't conflict with existing columns
         chosen_column_name: str | None = None
         columns = self.get_column_names()
@@ -177,6 +182,7 @@ class NarwhalsTableManager(
         if column not in columns:
             raise ValueError(f"Column {column} not found in table.")
 
+        # column is also sorted to ensure nulls are last
         result = (
             self.data.group_by(column)
             .agg(nw.len().alias(chosen_column_name))

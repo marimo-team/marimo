@@ -355,18 +355,15 @@ class TestDefaultTable(unittest.TestCase):
         ]
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("grade", 10)
-        expected_data = [
-            {"grade": "A", "count": 2},
-            {"grade": None, "count": 1},
-        ]
-        assert result.data == expected_data
+        expected_data = [("A", 2), (None, 1)]
+        assert result == expected_data
 
         # test with single value and conflicting column name
         data = [{"name": "Alice", "age": 31, "count": date(1994, 5, 24)}]
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("count", 10)
-        expected_data = [{"count": date(1994, 5, 24), "number of rows": 1}]
-        assert result.data == expected_data
+        expected_data = [(date(1994, 5, 24), 1)]
+        assert result == expected_data
 
     def test_calculate_top_k_rows_nulls(self) -> None:
         data = [
@@ -378,11 +375,8 @@ class TestDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("birth_year", 10)
         # Nulls should be sorted to the end
-        expected_data = [
-            {"birth_year": date(1994, 5, 24), "count": 2},
-            {"birth_year": None, "count": 2},
-        ]
-        assert result.data == expected_data
+        expected_data = [(date(1994, 5, 24), 2), (None, 2)]
+        assert result == expected_data
 
 
 class TestColumnarDefaultTable(unittest.TestCase):
@@ -707,27 +701,27 @@ class TestColumnarDefaultTable(unittest.TestCase):
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("grade", 10)
         expected_data = [
-            {"grade": "A", "count": 2},
-            {"grade": None, "count": 1},
+            ("A", 2),
+            (None, 1),
         ]
-        assert result.data == expected_data
+        assert result == expected_data
 
         # Single value
         data = {"grade": ["A", "A", "A"]}
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("grade", 10)
-        expected_data = [{"grade": "A", "count": 3}]
-        assert result.data == expected_data
+        expected_data = [("A", 3)]
+        assert result == expected_data
 
     def test_calculate_top_k_rows_nulls(self) -> None:
         data = {"grade": ["A", "A", None, None]}
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("grade", 10)
         expected_data = [
-            {"grade": "A", "count": 2},
-            {"grade": None, "count": 2},
+            ("A", 2),
+            (None, 2),
         ]
-        assert result.data == expected_data
+        assert result == expected_data
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -940,29 +934,19 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         data = {"grade": "A", "name": "Alice", "another_grade": "A"}
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("value", 10)
-        expected_data = [
-            {"value": "A", "count": 2},
-            {"value": "Alice", "count": 1},
-        ]
-        assert result.data == expected_data
+        expected_data = [("A", 2), ("Alice", 1)]
+        assert result == expected_data
 
         result = manager.calculate_top_k_rows("key", 10)
-        expected_data = [
-            {"key": "grade", "count": 1},
-            {"key": "name", "count": 1},
-            {"key": "another_grade", "count": 1},
-        ]
-        assert result.data == expected_data
+        expected_data = [("grade", 1), ("name", 1), ("another_grade", 1)]
+        assert result == expected_data
 
     def test_calculate_top_k_rows_nulls(self) -> None:
         data = {"grade": "A", "name": None, "another_grade": None}
         manager = DefaultTableManager(data)
         result = manager.calculate_top_k_rows("value", 10)
-        expected_data = [
-            {"value": None, "count": 2},
-            {"value": "A", "count": 1},
-        ]
-        assert result.data == expected_data
+        expected_data = [(None, 2), ("A", 1)]
+        assert result == expected_data
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"

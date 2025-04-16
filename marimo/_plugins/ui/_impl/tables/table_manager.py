@@ -196,7 +196,7 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def calculate_top_k_rows(
         self, column: ColumnName, k: int
-    ) -> TableManager[Any]:
+    ) -> list[tuple[Any, int]]:
         pass
 
     def __repr__(self) -> str:

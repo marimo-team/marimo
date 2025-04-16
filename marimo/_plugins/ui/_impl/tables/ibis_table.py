@@ -196,13 +196,20 @@ class IbisTableManagerFactory(TableManagerFactory):
 
             def calculate_top_k_rows(
                 self, column: ColumnName, k: int
-            ) -> IbisTableManager:
-                return IbisTableManager(
+            ) -> list[tuple[Any, int]]:
+                count_col_name = f"{column}_count"
+                result = (
                     self.data[[column]]
-                    .value_counts(name="count")
-                    .order_by(ibis.desc("count"))
+                    .value_counts(name=count_col_name)
+                    .order_by(ibis.desc(count_col_name))
                     .limit(k)
+                    .execute()
                 )
+
+                return [
+                    (row[0], int(row[1]))
+                    for row in result.itertuples(index=False)
+                ]
 
             def get_field_type(
                 self, column_name: str

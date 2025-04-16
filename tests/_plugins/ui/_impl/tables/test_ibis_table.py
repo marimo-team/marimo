@@ -339,35 +339,46 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
     def test_calculate_top_k_rows(self) -> None:
         import ibis
-        import pandas as pd
 
         table = ibis.memtable({"A": [2, 3, 3], "B": ["a", "b", "c"]})
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 10)
+        assert result == [(3, 2), (2, 1)]
 
-        calculated_df = result.data.execute()
-        expected_df = pd.DataFrame({"A": [3, 2], "count": [2, 1]})
-        assert calculated_df.equals(expected_df)
+        # Test equal counts with k limit
+        table = ibis.memtable({"A": [1, 1, 2, 2, 3]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 2)
+        assert len(result) == 2
+        assert {(1, 2), (2, 2)} == set(result)
+        assert all(count == 2 for _, count in result)
 
-        # test with null
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        import ibis
+        import pandas as pd
+
+        # Test single null value
         table = ibis.memtable({"A": [3, None, None]})
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 10)
-        calculated_df = result.data.execute()
-        expected_df = pd.DataFrame({"A": [None, 3], "count": [2, 1]})
-        assert calculated_df.equals(expected_df)
+        assert len(result) == 2
+        assert result[1] == (3, 1)
+        assert pd.isna(result[0][0])
+        assert result[0][1] == 2
 
-    @pytest.mark.xfail(
-        reason="ibis doesn't support nulls last in top k rows, so this test is flakey",
-    )
-    def test_calculate_top_k_rows_null_last(self) -> None:
-        import ibis
-        import pandas as pd
-        from pandas.testing import assert_frame_equal
-
-        table = ibis.memtable({"A": [2, 3, 3, None, None]})
+        # Test all null values
+        table = ibis.memtable({"A": [None, None, None]})
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 10)
-        calculated_df = result.data.execute()
-        expected_df = pd.DataFrame({"A": [3, None, 2], "count": [2, 2, 1]})
-        assert_frame_equal(calculated_df, expected_df)
+        assert len(result) == 1
+        assert pd.isna(result[0][0])
+        assert result[0][1] == 3
+
+        # Test mixed values with nulls
+        table = ibis.memtable({"A": [1, None, 2, None, 3, None]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert len(result) == 4
+        assert pd.isna(result[0][0])
+        assert result[0][1] == 3
+        assert set(result[1:]) == {(1, 1), (2, 1), (3, 1)}

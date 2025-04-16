@@ -264,7 +264,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def calculate_top_k_rows(
         self, column: ExternalDataType, k: int
-    ) -> DefaultTableManager:
+    ) -> list[tuple[Any, int]]:
         column_names = self.get_column_names()
         if column not in column_names:
             raise ValueError(f"Column {column} not found in table.")
@@ -304,12 +304,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 "Cannot specify a count column name, please rename your column"
             )
 
-        return DefaultTableManager(
-            [
-                {column: value, chosen_column_name: count}
-                for value, count in top_k
-            ]
-        )
+        return [(value, count) for value, count in top_k]
 
     def get_field_type(
         self, column_name: str
