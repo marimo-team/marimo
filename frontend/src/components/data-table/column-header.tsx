@@ -384,7 +384,7 @@ const TextFilter = <TData, TValue>({
   );
 };
 
-const PopoverSetFilter = <TData, TValue>({
+export const PopoverSetFilter = <TData, TValue>({
   setIsSetFilterOpen,
   calculateTopKRows,
   column,
@@ -438,7 +438,6 @@ const PopoverSetFilter = <TData, TValue>({
       setChosenValues(chosenValues.filter((v) => v !== value));
       return;
     }
-
     setChosenValues([...chosenValues, value]);
   };
 
@@ -451,6 +450,10 @@ const PopoverSetFilter = <TData, TValue>({
   };
 
   const handleApply = () => {
+    if (chosenValues.length === 0) {
+      column.setFilterValue(undefined);
+      return;
+    }
     column.setFilterValue(Filter.select(chosenValues));
   };
 
