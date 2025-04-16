@@ -151,7 +151,7 @@ overview.
 
     <a href="../api/plotting.md#reactive-charts-with-altair"><img src="/_static/example-thumbs/altair.png" /></a>
 
--   📉 [**Selecting data with Plotly**](../guides/working_with_data/plotting.md#Plotly)
+-   📉 [**Selecting data with Plotly**](../guides/working_with_data/plotting.md#plotly)
 
     ---
 
