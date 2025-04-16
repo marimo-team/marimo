@@ -34,6 +34,7 @@
 
     > pre,
     > ul,
+    div.codehilite,
     > span.paragraph:not(:has(> :is(marimo-ui-element, img, video, audio))) {
       max-width: var(--markdown-max-width);
     }
