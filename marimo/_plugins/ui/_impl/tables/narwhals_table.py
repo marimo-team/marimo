@@ -167,10 +167,14 @@ class NarwhalsTableManager(
                 "Cannot calculate top k rows for lazy frames, please collect the data first"
             )
 
+        columns = self.get_column_names()
+
+        if column not in columns:
+            raise ValueError(f"Column {column} not found in table.")
+
         # Find a column name for the count that doesn't conflict with existing columns
         chosen_column_name: str | None = None
-        columns = self.get_column_names()
-        for col in ["count", "number of rows", "count of rows"]:
+        for col in ["count", f"count of {column}", "num_rows"]:
             if col not in columns:
                 chosen_column_name = col
                 break
@@ -178,9 +182,6 @@ class NarwhalsTableManager(
             raise ValueError(
                 "Cannot specify a count column name, please rename your column"
             )
-
-        if column not in columns:
-            raise ValueError(f"Column {column} not found in table.")
 
         # column is also sorted to ensure nulls are last
         result = (
