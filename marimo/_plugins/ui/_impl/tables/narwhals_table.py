@@ -159,10 +159,9 @@ class NarwhalsTableManager(
     ) -> list[str]:
         return []
 
-    # TODO: Maybe cache this
     def calculate_top_k_rows(
         self, column: ExternalDataType, k: int
-    ) -> TableManager[Any]:
+    ) -> list[tuple[Any, int]]:
         # Find a column name for the count that doesn't conflict with existing columns
         chosen_column_name: str | None = None
         columns = self.get_column_names()
@@ -186,7 +185,14 @@ class NarwhalsTableManager(
             )
             .head(k)
         )
-        return self.with_new_data(result)
+
+        return [
+            (
+                unwrap_py_scalar(row[column]),
+                int(unwrap_py_scalar(row[chosen_column_name])),
+            )
+            for row in result.iter_rows(named=True)
+        ]
 
     @staticmethod
     def is_type(value: Any) -> bool:

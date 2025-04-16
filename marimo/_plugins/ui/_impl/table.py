@@ -144,7 +144,7 @@ class CalculateTopKRowsArgs:
 
 @dataclass
 class CalculateTopKRowsResponse:
-    data: Union[JSONType, str]
+    data: list[tuple[str, int]]
 
 
 def get_default_table_page_size() -> int:
@@ -874,7 +874,7 @@ class table(
         """
         column, k = args.column, args.k
         data = self._searched_manager.calculate_top_k_rows(column, k)
-        return CalculateTopKRowsResponse(data=data.to_data({}))
+        return CalculateTopKRowsResponse(data=data)
 
     def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""

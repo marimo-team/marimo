@@ -43,7 +43,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../ui/popover";
-import { loadTableData } from "./utils";
 import { Logger } from "@/utils/Logger";
 import {
   Table,
@@ -402,7 +401,7 @@ const PopoverSetFilter = <TData, TValue>({
       return null;
     }
     const res = await calculateTopKRows({ column: column.id, k: 30 });
-    return await loadTableData(res.data);
+    return res.data;
   }, []);
 
   const filteredData = useMemo(() => {
@@ -411,9 +410,7 @@ const PopoverSetFilter = <TData, TValue>({
     }
 
     try {
-      const typedData = data as Array<Record<string, unknown>>;
-      return typedData.filter((row) => {
-        const value = row[column.id];
+      return data.filter(([value, count]) => {
         // Check if value exists and can be converted to string
         // Keep null values for filtering
         return value === undefined
@@ -424,7 +421,7 @@ const PopoverSetFilter = <TData, TValue>({
       Logger.error("Error filtering data", error_);
       return [];
     }
-  }, [data, query, column.id]);
+  }, [data, query]);
 
   let dataTable: React.ReactNode;
 
@@ -435,16 +432,6 @@ const PopoverSetFilter = <TData, TValue>({
   if (error) {
     dataTable = <ErrorBanner error={error} className="mt-4" />;
   }
-
-  // Get all possible keys from the data objects
-  // Empty strings may be index
-  const keys = [
-    ...new Set(
-      filteredData
-        .flatMap((item) => Object.keys(item))
-        .filter((key) => key !== ""),
-    ),
-  ];
 
   const handleCheckboxClick = (checked: boolean, value: unknown) => {
     if (!checked) {
@@ -457,7 +444,7 @@ const PopoverSetFilter = <TData, TValue>({
 
   const toggleAllCheckbox = (checked: boolean) => {
     if (checked) {
-      setChosenValues(filteredData.map((row) => row[column.id]));
+      setChosenValues(filteredData.map(([value]) => value));
     } else {
       setChosenValues([]);
     }
@@ -485,16 +472,16 @@ const PopoverSetFilter = <TData, TValue>({
                   aria-label="Select all"
                 />
               </TableHead>
-              {keys.map((key) => (
-                <TableHead key={key} className="text-foreground py-0">
-                  {key}
-                </TableHead>
-              ))}
+              <TableHead className="text-foreground py-0">
+                {column.id}
+              </TableHead>
+              <TableHead className="text-foreground py-0">count</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.map((row, rowIndex) => {
-              const value = row[column.id];
+              const value = row[0];
+              const count = row[1];
               return (
                 <TableRow key={rowIndex}>
                   <TableCell>
@@ -509,20 +496,10 @@ const PopoverSetFilter = <TData, TValue>({
                       aria-label="Select row"
                     />
                   </TableCell>
-                  {keys.map((key) => {
-                    const lastKey = key === keys[keys.length - 1];
-                    return (
-                      <TableCell
-                        key={`${rowIndex}-${key}`}
-                        className={cn(
-                          "overflow-hidden",
-                          !lastKey && "w-48 max-w-48 max-h-20 line-clamp-3",
-                        )}
-                      >
-                        {row[key] === null ? "null" : String(row[key])}
-                      </TableCell>
-                    );
-                  })}
+                  <TableCell className="overflow-hidden w-48 max-w-48 max-h-20 line-clamp-3">
+                    {String(value)}
+                  </TableCell>
+                  <TableCell>{count}</TableCell>
                 </TableRow>
               );
             })}

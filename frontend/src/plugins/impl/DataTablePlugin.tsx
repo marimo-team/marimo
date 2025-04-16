@@ -46,16 +46,15 @@ import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
 import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { loadTableData } from "@/components/data-table/utils";
 import {
   filterToFilterCondition,
   type ColumnFilterValue,
 } from "@/components/data-table/filters";
-import { vegaLoadData } from "./vega/loader";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { vegaLoadData } from "./vega/loader";
 
 type CsvURL = string;
-export type TableData<T> = T[] | CsvURL;
+type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   summaries: ColumnHeaderSummary[];
@@ -77,7 +76,7 @@ export type CalculateTopKRows = <T>(req: {
   column: string;
   k: number;
 }) => Promise<{
-  data: TableData<T>;
+  data: Array<[unknown, number]>;
 }>;
 
 /**
@@ -239,7 +238,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .input(z.object({ column: z.string(), k: z.number() }))
       .output(
         z.object({
-          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+          data: z.array(z.tuple([z.any(), z.number()])),
         }),
       ),
   })
@@ -421,8 +420,22 @@ export const LoadingDataTableComponent = memo(
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
       }
+      // If we already have the data, return it
+      if (Array.isArray(tableData)) {
+        return {
+          rows: tableData,
+          totalRows: totalRows,
+          cellStyles,
+        };
+      }
 
-      tableData = await loadTableData(tableData);
+      // Otherwise, load the data from the URL
+      tableData = await vegaLoadData(
+        tableData,
+        { type: "json" },
+        { handleBigIntAndNumberLike: true },
+      );
+
       return {
         rows: tableData,
         totalRows: totalRows,
