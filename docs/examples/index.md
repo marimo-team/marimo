@@ -68,25 +68,25 @@ cells](../guides/reactivity.md).
 
     ---
 
-    <a href="markdown/dynamic_markdown.md"><img src="/_static/example-thumbs/dynamic_markdown.png" /></a>
+    <a href="markdown/dynamic_markdown"><img src="/_static/example-thumbs/dynamic_markdown.png" /></a>
 
 -   🪄 [**Mermaid diagrams**](markdown/mermaid.md)
 
     ---
 
-    <a href="markdown/mermaid.md"><img src="/_static/example-thumbs/mermaid.png" /></a>
+    <a href="markdown/mermaid"><img src="/_static/example-thumbs/mermaid.png" /></a>
 
 -   🚨 [**Admonitions**](markdown/admonitions.md)
 
     ---
 
-    <a href="markdown/admonitions.md"><img src="/_static/example-thumbs/admonitions.png" /></a>
+    <a href="markdown/admonitions"><img src="/_static/example-thumbs/admonitions.png" /></a>
 
 -   📂 [**Collapsible details**](markdown/details.md)
 
     ---
 
-    <a href="markdown/details.md"><img src="/_static/example-thumbs/details.png" /></a>
+    <a href="markdown/details"><img src="/_static/example-thumbs/details.png" /></a>
 
 -   😀 [**Emoji**](markdown/emoji.md)
 
@@ -105,25 +105,25 @@ the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
 
     ---
 
-    <a href="outputs/dataframes.md"><img src="/_static/example-thumbs/dataframes.png" /></a>
+    <a href="outputs/dataframes"><img src="/_static/example-thumbs/dataframes.png" /></a>
 
 -   🔍 [**Select dataframe rows**](../api/inputs/table.md)
 
     ---
 
-    <a href="../api/inputs/table.md"><img src="/_static/example-thumbs/tables.png" /></a>
+    <a href="../api/inputs/table"><img src="/_static/example-thumbs/tables.png" /></a>
 
 -   ✏️  [**Editable dataframe**](../api/inputs/data_editor.md)
 
     ---
 
-    <a href="api/inputs/data_editor.md"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
+    <a href="api/inputs/data_editor"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
 
 -   🛠️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
 
     ---
 
-    <a href="api/inputs/dataframe.md"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
+    <a href="api/inputs/dataframe"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
 
 </div>
 
