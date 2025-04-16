@@ -161,6 +161,9 @@ nav:
       - Best practices: guides/best_practices.md
       - Troubleshooting: guides/troubleshooting.md
       - Dangerously set state: guides/state.md
+  - Examples:
+      - Examples: examples/index.md
+      - Recipes: recipes.md
   - API Reference:
       - API Reference: api/index.md
       - Markdown: api/markdown.md
@@ -231,10 +234,6 @@ nav:
       - Cell: api/cell.md
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
-  - Examples:
-      - Notebooks: examples.md
-      - Recipes: recipes.md
-      - Islands: guides/island_example.md
   - FAQ: faq.md
   - Community:
       - Community: community.md

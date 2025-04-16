@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Union, cast
 import urllib.parse
 
 from pymdownx.blocks import BlocksExtension  # type: ignore
-from pymdownx.blocks.block import Block, type_string, type_string_in  # type: ignore
+from pymdownx.blocks.block import Block, type_boolean, type_string, type_string_in  # type: ignore
 
 
 class BaseMarimoBlock(Block):
@@ -15,7 +15,8 @@ class BaseMarimoBlock(Block):
             "medium",
             type_string_in(["small", "medium", "large", "xlarge", "xxlarge"]),
         ],
-        "mode": ["read", type_string_in(["read", "edit"])],
+        "mode": ["edit", type_string_in(["read", "edit"])],
+        "show-chrome": [False, type_boolean],
     }
 
     def on_create(self, parent: etree.Element) -> etree.Element:
@@ -66,9 +67,12 @@ class MarimoEmbedBlock(BaseMarimoBlock):
 
         app_width: str = cast(str, self.options["app_width"])
         mode: str = cast(str, self.options["mode"])
+        show_chrome: bool = cast(bool, self.options["show-chrome"])
         url = create_marimo_app_url(
             code=create_marimo_app_code(code=code, app_width=app_width),
             mode=mode,
+            show_chrome=show_chrome,
+
         )
         self._create_iframe(block, url)
 
@@ -94,7 +98,8 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             raise ValueError(f"File not found: {filepath}")
 
         mode: str = cast(str, self.options["mode"])
-        url = create_marimo_app_url(code=code, mode=mode)
+        show_chrome: bool = cast(bool, self.options["show-chrome"])
+        url = create_marimo_app_url(code=code, mode=mode, show_chrome=show_chrome)
         self._create_iframe(block, url)
 
         # Add source code section if enabled
@@ -146,9 +151,9 @@ def create_marimo_app_code(
     return header + code
 
 
-def create_marimo_app_url(code: str, mode: str = "read") -> str:
+def create_marimo_app_url(code: str, mode: str = "edit", show_chrome: bool = False) -> str:
     encoded_code = uri_encode_component(code)
-    return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}"
+    return f'https://marimo.app/?code={encoded_code}&embed=true&mode={mode}&show-chrome={"true" if show_chrome else "false"}'
 
 
 class MarimoBlocksExtension(BlocksExtension):

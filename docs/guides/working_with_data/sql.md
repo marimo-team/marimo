@@ -185,6 +185,8 @@ postgres_engine = sqlmodel.create_engine("postgresql://username:password@server:
 duckdb_conn = duckdb.connect("file.db")
 ```
 
+### Querying a custom database
+
 marimo will auto-discover the engine and let you select it in the SQL cell's connection dropdown.
 
 <div align="center">
