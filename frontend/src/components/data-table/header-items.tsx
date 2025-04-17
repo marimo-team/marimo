@@ -235,13 +235,10 @@ export const ClearFilterMenuItem = <TData, TValue>({
   </DropdownMenuItem>
 );
 
-export const RenderSetFilter = <TData, TValue>({
-  column,
-  onClick,
-}: {
-  column: Column<TData, TValue>;
-  onClick: () => void;
-}) => {
+export function renderSetFilter<TData, TValue>(
+  column: Column<TData, TValue>,
+  onClick: () => void,
+) {
   const canFilter = column.getCanFilter();
   if (!canFilter) {
     return null;
@@ -253,6 +250,12 @@ export const RenderSetFilter = <TData, TValue>({
     return null;
   }
 
+  // there is not yet good support for filtering on lists, dicts, etc.
+  const filterType = column.columnDef.meta?.filterType;
+  if (!filterType) {
+    return null;
+  }
+
   return (
     <DropdownMenuSub>
       <DropdownMenuItem onClick={onClick}>
@@ -261,7 +264,7 @@ export const RenderSetFilter = <TData, TValue>({
       </DropdownMenuItem>
     </DropdownMenuSub>
   );
-};
+}
 
 export const FilterButtons = ({
   onApply,

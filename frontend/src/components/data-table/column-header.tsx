@@ -31,8 +31,8 @@ import {
   renderSortFilterIcon,
   renderSorts,
   FilterButtons,
-  RenderSetFilter,
   ClearFilterMenuItem,
+  renderSetFilter,
 } from "./header-items";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -114,11 +114,9 @@ export const DataTableColumnHeader = <TData, TValue>({
           {renderColumnPinning(column)}
           {renderColumnWrapping(column)}
           {renderFormatOptions(column)}
-          <DropdownMenuItemFilter column={column} />
-          <RenderSetFilter
-            column={column}
-            onClick={() => setIsSetFilterOpen(true)}
-          />
+          <DropdownMenuSeparator />
+          {renderMenuItemFilter(column)}
+          {renderSetFilter(column, () => setIsSetFilterOpen(true))}
           {hasFilter && <ClearFilterMenuItem column={column} />}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -158,11 +156,9 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
   );
 };
 
-export const DropdownMenuItemFilter = <TData, TValue>({
-  column,
-}: React.PropsWithChildren<{
-  column: Column<TData, TValue>;
-}>) => {
+export function renderMenuItemFilter<TData, TValue>(
+  column: Column<TData, TValue>,
+) {
   const canFilter = column.getCanFilter();
   if (!canFilter) {
     return null;
@@ -182,58 +178,49 @@ export const DropdownMenuItemFilter = <TData, TValue>({
 
   if (filterType === "boolean") {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          {filterMenuItem}
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem
-                onClick={() => column.setFilterValue(Filter.boolean(true))}
-              >
-                True
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => column.setFilterValue(Filter.boolean(false))}
-              >
-                False
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-      </>
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem
+              onClick={() => column.setFilterValue(Filter.boolean(true))}
+            >
+              True
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => column.setFilterValue(Filter.boolean(false))}
+            >
+              False
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   }
 
   if (filterType === "text") {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          {filterMenuItem}
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <TextFilter column={column} />
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-      </>
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <TextFilter column={column} />
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   }
 
   if (filterType === "number") {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          {filterMenuItem}
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <NumberRangeFilter column={column} />
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-      </>
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <NumberRangeFilter column={column} />
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   }
 
@@ -259,7 +246,7 @@ export const DropdownMenuItemFilter = <TData, TValue>({
 
   logNever(filterType);
   return null;
-};
+}
 
 const NumberRangeFilter = <TData, TValue>({
   column,
