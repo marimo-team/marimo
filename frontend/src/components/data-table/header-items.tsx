@@ -235,9 +235,9 @@ export const ClearFilterMenuItem = <TData, TValue>({
   </DropdownMenuItem>
 );
 
-export function renderSetFilter<TData, TValue>(
+export function renderFilterByValues<TData, TValue>(
   column: Column<TData, TValue>,
-  onClick: () => void,
+  setIsFilterValueOpen: (open: boolean) => void,
 ) {
   const canFilter = column.getCanFilter();
   if (!canFilter) {
@@ -258,7 +258,7 @@ export function renderSetFilter<TData, TValue>(
 
   return (
     <DropdownMenuSub>
-      <DropdownMenuItem onClick={onClick}>
+      <DropdownMenuItem onClick={() => setIsFilterValueOpen(true)}>
         <BlendIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
         Filter by values
       </DropdownMenuItem>

@@ -32,7 +32,7 @@ import {
   renderSorts,
   FilterButtons,
   ClearFilterMenuItem,
-  renderSetFilter,
+  renderFilterByValues,
 } from "./header-items";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -69,7 +69,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   className,
   calculateTopKRows,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
-  const [isSetFilterOpen, setIsSetFilterOpen] = useState(false);
+  const [isFilterValueOpen, setIsFilterValueOpen] = useState(false);
 
   // No header
   if (!header) {
@@ -116,13 +116,13 @@ export const DataTableColumnHeader = <TData, TValue>({
           {renderFormatOptions(column)}
           <DropdownMenuSeparator />
           {renderMenuItemFilter(column)}
-          {renderSetFilter(column, () => setIsSetFilterOpen(true))}
+          {renderFilterByValues(column, setIsFilterValueOpen)}
           {hasFilter && <ClearFilterMenuItem column={column} />}
         </DropdownMenuContent>
       </DropdownMenu>
-      {isSetFilterOpen && (
-        <PopoverSetFilter
-          setIsSetFilterOpen={setIsSetFilterOpen}
+      {isFilterValueOpen && (
+        <PopoverFilterByValues
+          setIsFilterValueOpen={setIsFilterValueOpen}
           calculateTopKRows={calculateTopKRows}
           column={column}
         />
@@ -368,12 +368,12 @@ const TextFilter = <TData, TValue>({
   );
 };
 
-export const PopoverSetFilter = <TData, TValue>({
-  setIsSetFilterOpen,
+export const PopoverFilterByValues = <TData, TValue>({
+  setIsFilterValueOpen,
   calculateTopKRows,
   column,
 }: {
-  setIsSetFilterOpen: (open: boolean) => void;
+  setIsFilterValueOpen: (open: boolean) => void;
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
 }) => {
@@ -519,7 +519,7 @@ export const PopoverSetFilter = <TData, TValue>({
           <Button
             variant="link"
             size="sm"
-            onClick={() => setIsSetFilterOpen(false)}
+            onClick={() => setIsFilterValueOpen(false)}
           >
             X
           </Button>
