@@ -2,7 +2,12 @@
 "use no memo";
 
 import type { Column } from "@tanstack/react-table";
-import { FilterIcon, MinusIcon, SearchIcon } from "lucide-react";
+import {
+  FilterIcon,
+  GripHorizontalIcon,
+  MinusIcon,
+  SearchIcon,
+} from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import {
@@ -368,7 +373,7 @@ const TextFilter = <TData, TValue>({
   );
 };
 
-export const PopoverFilterByValues = <TData, TValue>({
+const PopoverFilterByValues = <TData, TValue>({
   setIsFilterValueOpen,
   calculateTopKRows,
   column,
@@ -379,6 +384,32 @@ export const PopoverFilterByValues = <TData, TValue>({
 }) => {
   const [chosenValues, setChosenValues] = useState<unknown[]>([]);
   const [query, setQuery] = useState<string>("");
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    dragStartPos.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+    setIsDragging(true);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    setPosition({
+      x: e.clientX - dragStartPos.current.x,
+      y: e.clientY - dragStartPos.current.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  };
 
   const { data, loading, error } = useAsyncData(async () => {
     if (!calculateTopKRows) {
@@ -514,7 +545,22 @@ export const PopoverFilterByValues = <TData, TValue>({
   return (
     <Popover open={true}>
       <PopoverTrigger />
-      <PopoverContent className="w-80 py-1.5">
+      <PopoverContent
+        className="w-80 p-0"
+        style={{
+          position: "fixed",
+          left: position.x,
+          top: position.y,
+        }}
+      >
+        <div
+          onMouseDown={handleMouseDown}
+          className={`flex items-center justify-center absolute top-0 left-1/2 -translate-x-1/2 ${
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          }`}
+        >
+          <GripHorizontalIcon className="h-5 w-5 mt-1 text-muted-foreground/40" />
+        </div>
         <PopoverClose className="absolute top-2 right-2">
           <Button
             variant="link"
@@ -524,7 +570,7 @@ export const PopoverFilterByValues = <TData, TValue>({
             X
           </Button>
         </PopoverClose>
-        <div className="flex flex-col gap-1.5">{dataTable}</div>
+        <div className="flex flex-col gap-1.5 p-4">{dataTable}</div>
       </PopoverContent>
     </Popover>
   );
