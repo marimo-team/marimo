@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.12.9"
+__generated_with = "0.12.8"
 app = marimo.App()
 
 with app.setup:
@@ -243,10 +243,11 @@ def _():
 def _():
     mo.md(
         r"""
-        ## Cell Types
+        ## Anatomy of a notebook file
 
-        The details of marimo's file format are important if.
-        Consider skipping this section if you are only planning to use the marimo editor and not import notebooks.
+        The details of marimo's file format are important if you want to import
+        functions and classes defined in your notebook into other Python modules. If you
+        don't intend to do so, you can skip this section.
         """
     )
     return
@@ -258,8 +259,17 @@ def _():
         r"""
         ### Setup Cell
 
-        Sometimes, imports are nice to place at the top of a file such that all
-        cells can easily use them; which is why the setup cell exists.
+        marimo can serialize functions and classes into the top-level of a file, so you can import them with regular Python syntax:
+
+        ```python
+        from my_notebook import my_function
+        ```
+
+        In particular, if a cell defines just a single function or class, and if that function or class is pure
+        save for references to variables defined in a special **setup cell**, it will be serialized top-level.
+
+        **Setup cell.** Notebooks can optionally include a setup cell with imported
+        modules, which are written in the file as:
 
         <!-- note this setup cell is hardcoded in the playground example -->
         ```python
@@ -268,9 +278,10 @@ def _():
             import dataclasses
         ```
 
-        With this, all cells that reference `mo` or `dataclasses` don't have to
-        carry this information in their signature. You can add the setup cell
-        from the general menu of the editor under: 💠 Add setup cell
+        Modules imported in a setup cell can be used in "top-level" functions or
+        classes. You can add the setup cell from the general menu of the editor under:
+
+        ::lucide:diamond-plus:: Add setup cell
         """
     )
     return
@@ -280,10 +291,9 @@ def _():
 def _():
     mo.md(
         r"""
-        ### Body Cell
+        ### Body cells
 
-        This is the general, and most common type of cell type. A regular body
-        cell (like this one), is saved as follows:
+        Cells that are not saved as functions or classes are serialized as follows:
 
         ```python
         @app.cell(hide_code=True) # <- Cell options are also saved to file
@@ -296,7 +306,7 @@ def _():
         ```
 
         The default name of a cell is `_`, but you can explicitly give cells a
-        name, as seen in the following cell example below:
+        name, as seen below:
         """
     )
     return
@@ -316,21 +326,9 @@ def cell_example():
 def _():
     mo.md(
         r"""
-        ### Functions / Class cells
+        ### Functions and classes
 
-        marimo directly exposes functions and classes that can be directly
-        serialized, opposed to wrapping definitions in a superfluous `@app.cell`.
-
-        In marimo versions older than `0.13.0`, cells with only a function definition looked like: 
-
-        ```python
-        @app.cell
-        def _():
-            def say_hello(name="World"):
-                return f"Hello, {name}"
-            return say_hello
-        ```
-        this is now rendered as:
+        marimo directly exposes functions and classes that depend only on variables defined in the setup cell (or on other such functions or classes). For example:
 
         ```python
         @app.function
@@ -354,8 +352,7 @@ def function_example():
 def _():
     mo.md(
         r"""
-        likewise, standalone classes are also exposed with the
-        `@app.cell_definition` decorator:
+        Standalone classes are exposed with the `@app.cell_definition` decorator:
 
         ```python
         @app.class_definition
@@ -363,9 +360,7 @@ def _():
         ```
 
         Moreover, classes and functions can refer to each other like any other
-        python module. As a restriction of marimo, we don't allow cycles between
-        definitions- but recursion and directed references are fine. Consider
-        the following:
+        Python module. Recursion and directed references are also allowed:
         """
     )
     return
@@ -445,12 +440,13 @@ def _():
 def _():
     mo.md(
         r"""
-        /// attention | a word of caution
+        /// attention | Heads up
         ///
 
         Not all stand alone functions will be exposed in the module. If your
-        function depends on values defined in the runtime and not in the setup
-        cell, then marimo may have to wrap your function for scope reasons.
+        function depends on variables that are defined in other cells, then it won't
+        be exposed top-level.
+
 
         For example, this function will not be exposed:
         """
@@ -462,9 +458,9 @@ def _():
 def wrapped_function_example(runtime_definition):
     def wrapped_function_example():
         """
-        This function has dependencies declared in the runtime
-        Notice that this function isn't exposed - and the bottom right
-        corner indicates this.
+        This function depends on a variable declared in another cell.
+        As a result this function isn't exposed in the file — and the tooltip in the
+        bottom-right corner indicates this.
         """
         return runtime_definition
     return
@@ -500,22 +496,19 @@ def _():
         r"""
         ## FAQ
 
-        ### I want to write or edit marimo notebooks in a different
-        editor, what do I need to know?
+        ### I want to write or edit marimo notebooks in a different editor, what do I need to know?
 
-        Refer to our guide on bringing your own editor.
 
-        ### I want to import functions from a marimo notebook, what do I need to
-        know?
+        Refer to our guide on [using your own editor](https://docs.marimo.io/guides/editor_features/watching/)
 
-        marimo directly exposes the defined functions when imported as a module.
-        The overhead to importing a function from a marimo notebook versus a
-        normal script should be minimal.
+        ### I want to import functions from a marimo notebook, what do I need to know?
+
+        See the docs [guide on reusable functions](https://links.marimo.app/reusable-functions) and classes for more details.
 
         ### I want to run tests on marimo notebooks, what do I need to know?
 
-        marimo notebooks are compatible with pytest. See the documentation on
-        testing for more information.
+        marimo notebooks are compatible with pytest. See the documentation [on
+        testing](https://docs.marimo.io/guides/testing/) for more information.
         """
     )
     return
