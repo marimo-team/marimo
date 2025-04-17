@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.12.2"
+__generated_with = "0.12.10"
 app = marimo.App()
 
 
@@ -259,14 +259,14 @@ def _(mo):
 def _():
     planet = "Mars"
     planet
-    return (planet,)
+    return
 
 
 @app.cell
 def _():
     planet = "Earth"
     planet
-    return (planet,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -298,13 +298,13 @@ def _(mo):
 @app.cell
 def _():
     count = 0
-    return (count,)
+    return
 
 
 @app.cell
 def _():
     count += 1
-    return (count,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -439,7 +439,7 @@ def _():
 
     state = namespace()
     state.number = 0
-    return namespace, state
+    return (state,)
 
 
 @app.cell(hide_code=True)

@@ -17,7 +17,6 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.visitor import Name
-from marimo._config.manager import get_default_config_manager
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -44,10 +43,9 @@ def pop_setup_cell(
     code: list[str],
     names: list[str],
     configs: list[CellConfig],
-    toplevel_fn: bool,
 ) -> Optional[CellImpl]:
     # Find the cell named setup, compile, and remove the index from all lists.
-    if SETUP_CELL_NAME not in names or not toplevel_fn:
+    if SETUP_CELL_NAME not in names:
         return None
     setup_index = names.index(SETUP_CELL_NAME)
     try:
@@ -267,7 +265,7 @@ def generate_unparsable_cell(
 
 
 def serialize_cell(
-    extraction: TopLevelExtraction, status: TopLevelStatus, toplevel_fn: bool
+    extraction: TopLevelExtraction, status: TopLevelStatus
 ) -> str:
     if status.is_unparsable:
         return generate_unparsable_cell(
@@ -275,11 +273,7 @@ def serialize_cell(
         )
     cell = status._cell
     assert cell is not None
-    if not toplevel_fn:
-        return to_functiondef(
-            cell, status.name, extraction.unshadowed, None, fn="cell"
-        )
-    elif status.is_cell:
+    if status.is_cell:
         return to_functiondef(
             cell,
             status.name,
@@ -313,66 +307,25 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def _classic_export(
-    fndefs: list[str],
-    header_comments: Optional[str],
-    config: Optional[_AppConfig],
-) -> str:
-    filecontents = "".join(
-        "import marimo"
-        + "\n\n"
-        + f'__generated_with = "{__version__}"'
-        + "\n"
-        + generate_app_constructor(config)
-        + "\n\n\n"
-        + "\n\n\n".join(fndefs)
-        + "\n\n\n"
-        + 'if __name__ == "__main__":'
-        + "\n"
-        + indent_text("app.run()")
-    )
-
-    if header_comments:
-        filecontents = header_comments.rstrip() + "\n\n" + filecontents
-    return filecontents + "\n"
-
-
 def generate_filecontents(
     codes: list[str],
     names: list[str],
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
     header_comments: Optional[str] = None,
-    _toplevel_fn: bool = False,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
-    # Until an appropriate means of controlling top-level functions exists,
-    # Let's keep it disabled by default.
-    toplevel_fn = (
-        get_default_config_manager(current_path=None)
-        .get_config()
-        .get("experimental", {})
-        .get("toplevel_defs", False)
-    ) or _toplevel_fn
-
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):
         if name == "__":
             names[idx] = DEFAULT_CELL_NAME
 
-    # TODO: replace with dedicated cell
-    setup_cell = pop_setup_cell(codes, names, cell_configs, toplevel_fn)
+    setup_cell = pop_setup_cell(codes, names, cell_configs)
     toplevel_defs: set[Name] = set()
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
-    cell_blocks = [
-        serialize_cell(extraction, status, toplevel_fn)
-        for status in extraction
-    ]
-
-    if not toplevel_fn:
-        return _classic_export(cell_blocks, header_comments, config)
+    cell_blocks = [serialize_cell(extraction, status) for status in extraction]
 
     filecontents = []
     if header_comments is not None:

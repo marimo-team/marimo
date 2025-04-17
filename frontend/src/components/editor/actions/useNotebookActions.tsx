@@ -85,7 +85,6 @@ import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { useSectionCollapse } from "./useSectionCollapse";
 import { Constants } from "@/core/constants";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -392,7 +391,6 @@ export function useNotebookActions() {
     {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
-      hidden: !getFeatureFlag("toplevel_defs"),
       handle: () => {
         upsertSetupCell({
           code: "# Initialization code that runs before all other cells",

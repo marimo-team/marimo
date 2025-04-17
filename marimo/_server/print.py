@@ -120,6 +120,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "sql_engines",
         "secrets",
         "reactive_tests",
+        "toplevel_defs",
     }
     keys = keys - finished_experiments
 

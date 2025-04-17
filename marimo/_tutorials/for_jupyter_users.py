@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.9.30"
+__generated_with = "0.12.10"
 app = marimo.App(app_title="marimo for Jupyter users")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         # marimo for Jupyter users
@@ -20,7 +20,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Reactive execution
@@ -34,19 +34,19 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     x = 0; x
     return (x,)
 
 
 @app.cell
-def __(x):
+def _(x):
     y = x + 1; y
-    return (y,)
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         marimo 'reacts' to the change in `x` and automatically recalculates `y`!
@@ -63,7 +63,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ### Why?
@@ -83,7 +83,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Interactive elements built-in
@@ -96,26 +96,26 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(start=1, stop=10, label="$x$")
     slider
     return (slider,)
 
 
 @app.cell
-def __(slider):
+def _(slider):
     slider.value
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         rf"""
         **Explanation.** marimo is both a notebook and a library. Import `marimo as
@@ -132,7 +132,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Shareable as apps
@@ -152,7 +152,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Cell order
@@ -164,19 +164,19 @@ def __(mo):
 
 
 @app.cell
-def __(z):
+def _(z):
     z.value
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     z = mo.ui.slider(1, 10, label="$z$"); z
     return (z,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         This lets you arrange your cells in the way that makes the most sense to you. For example, put helper functions and imports at the bottom of a notebook, like an appendix.
@@ -188,7 +188,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Re-assigning variables
@@ -200,25 +200,25 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     df = 0
     return (df,)
 
 
 @app.cell
-def __():
+def _():
     df = 1
     return (df,)
 
 
 @app.cell
-def __(df):
+def _(df):
     results = df.groupby(["my_column"]).sum()
-    return (results,)
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         **Explanation.** `results` depends on `df`, but which value of `df` should it use? Reactivity makes it impossible to answer this question in a sensible way, so marimo disallows variable reassignment.
@@ -234,7 +234,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         rf"""
         ## Markdown
@@ -246,7 +246,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo, slider):
+def _(mo, slider):
     mo.md(
         f"""
         The value of {slider} is {slider.value}.
@@ -256,7 +256,7 @@ def __(mo, slider):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         **Explanation.** By lifting Markdown into Python, marimo lets you construct
@@ -271,7 +271,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Notebook files
@@ -293,7 +293,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
         ## Parting thoughts

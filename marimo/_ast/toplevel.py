@@ -387,7 +387,7 @@ class TopLevelExtraction:
 
         from marimo._ast.codegen import pop_setup_cell
 
-        setup = pop_setup_cell(codes, names, cell_configs, True)
+        setup = pop_setup_cell(codes, names, cell_configs)
         if setup:
             return cls(codes, names, cell_configs, setup.defs)
         return cls(codes, names, cell_configs, set())
