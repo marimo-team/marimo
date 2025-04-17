@@ -543,7 +543,10 @@ const PopoverFilterByValues = <TData, TValue>({
   }
 
   return (
-    <Popover open={true}>
+    <Popover
+      open={true}
+      // onOpenChange={(open) => !open && setIsFilterValueOpen(false)}
+    >
       <PopoverTrigger />
       <PopoverContent
         className="w-80 p-0"
