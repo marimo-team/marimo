@@ -852,7 +852,7 @@ const EditableCellComponent = ({
             {cellOutput === "below" && outputArea}
             {serialization && (
               <a
-                href="https://docs.marimo.io/guides/editor_features/reusing_functions/"
+                href="https://links.marimo.app/reusable-definitions"
                 target="_blank"
                 className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
               >
