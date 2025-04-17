@@ -218,7 +218,7 @@ class ExtractWithBlock(ast.NodeTransformer):
     ) -> None:
         super().__init__(*arg, **kwargs)
         self.target_line = line
-        if allowed_types is None:
+        if not allowed_types:
             allowed_types = (ast.With,)
         self.allowed_types = allowed_types
         self.name = name
@@ -235,6 +235,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         previous = None
 
         assert isinstance(node, list), "Unexpected block structure."
+        parent = None
         for n in node:
             # There's a chance that the block is first evaluated somewhere in a
             # multiline line expression, for instance:
@@ -244,7 +245,6 @@ class ExtractWithBlock(ast.NodeTransformer):
             # 4 >>>    ]
             # so check that the "target" line is in the interval
             # (i.e. 1 <= 3 <= 4)
-            parent = None
             if n.lineno < self.target_line:
                 pre_block.append(n)
                 previous = n
