@@ -11,6 +11,49 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
+## marimo's file format
+
+!!! tip "File format tutorial"
+
+    Run `marimo tutorial fileformat` at the command line for a full guide.
+
+marimo stores notebooks as Python cells. Cells are stored as functions,
+decorated with`@app.cell`; you can optionally give cells names in the editor
+UI or by editing the notebook file.
+
+```python
+@app.cell
+def memorable_cell_name(auto, determined, references):  # signature denotes cell inputs
+    computed_value = auto + determined + references
+    "hello!"                                            # final statement are outputted
+    return computed_value                               # return denotes cell outputs
+```
+
+!!! note "Cell signature and returns"
+
+    Don't worry about maintaining the signatures of cells and their return
+    values; marimo will handle this for you.
+
+You may also expose imports, and top-level functions and classes in your
+notebook. Functions must be decorated with `@app.function`, and classes with
+`app.class_definition`. These functions and classes must be pure, closing over
+only other pure functions and classes or imports and constants defined in
+an `app.setup` with block:
+
+For more details see the [library guide](../reusing_functions.md).
+
+```python
+with app.setup:
+    CONSTANT: int = 1
+    import marimo as mo
+
+@app.function
+def my_function(x): ...
+
+@app.class_definition
+class MyClass: ...
+```
+
 ## `marimo edit --watch`
 
 When you run `marimo edit` with the `--watch` flag, the marimo server
@@ -18,20 +61,17 @@ will open your notebook in the browser and watch the underlying notebook
 file for changes. When you make changes to the notebook file, they will be
 streamed to the marimo editor in the browser.
 
-By default, synced code will not be executed automatically, with cells marked as stale instead.
-Run all stale cells with the marimo editor's "Run" button, or the [`runStale`
-hotkey](hotkeys.md), to see the new outputs.
+By default, synced code will not be executed automatically, with cells marked
+as stale instead. Run all stale cells with the marimo editor's "Run" button, or
+the [`runStale` hotkey](hotkeys.md), to see the new outputs.
 
-If you want to run all affected cells automatically when you save, change the `runtime` config in your `pyproject.toml` file.
+If you want to run all affected cells automatically when you save, change the
+`runtime` config in your `pyproject.toml` file.
 
 ```toml
 [tool.marimo.runtime]
 watcher_on_save = "autorun"
 ```
-
-!!! note "Cell signature and returns"
-    Don't worry about maintaining the signatures of cells and their return
-    values; marimo will handle this for you.
 
 ## `marimo run --watch`
 
@@ -50,14 +90,16 @@ Guide](module_autoreloading.md)
 ## Watching for data changes
 
 !!! note
-    Support for watching data files and automatically refreshing cells that depend on them is coming soon. Follow along at <https://github.com/marimo-team/marimo/issues/3258>
+    Support for watching data files and automatically refreshing cells that
+    depend on them is coming soon. Follow along at
+    <https://github.com/marimo-team/marimo/issues/3258>
 
 ## Hot-reloading WebAssembly notebooks
 
-Follow these steps to develop a notebook using your own editor while
-previewing it as a [WebAssembly notebook](../wasm.md) in the browser. This lets
-you take advantage of local development tools while seeing the notebook as it
-appears when deployed as a WebAssembly notebook.
+Follow these steps to develop a notebook using your own editor while previewing
+it as a [WebAssembly notebook](../wasm.md) in the browser. This lets you take
+advantage of local development tools while seeing the notebook as it appears
+when deployed as a WebAssembly notebook.
 
 ```bash
 # in one terminal, start a watched edit (or run) session

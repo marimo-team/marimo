@@ -114,6 +114,7 @@ nav:
       - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
+      - Reuse functions and classes: guides/reusing_functions.md
       - Test notebooks:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md
