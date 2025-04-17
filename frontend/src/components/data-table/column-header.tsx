@@ -2,7 +2,7 @@
 "use no memo";
 
 import type { Column } from "@tanstack/react-table";
-import { FilterIcon, FilterX, MinusIcon, SearchIcon } from "lucide-react";
+import { FilterIcon, MinusIcon, SearchIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import {
@@ -28,10 +28,11 @@ import {
   renderCopyColumn,
   renderDataType,
   renderFormatOptions,
-  renderSortIcon,
+  renderSortFilterIcon,
   renderSorts,
   FilterButtons,
   RenderSetFilter,
+  ClearFilterMenuItem,
 } from "./header-items";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -80,6 +81,9 @@ export const DataTableColumnHeader = <TData, TValue>({
     return <div className={cn(className)}>{header}</div>;
   }
 
+  const hasFilter = column.getFilterValue() !== undefined;
+  const hideIcon = !column.getIsSorted() && !hasFilter;
+
   return (
     <>
       <DropdownMenu modal={false}>
@@ -95,11 +99,11 @@ export const DataTableColumnHeader = <TData, TValue>({
             <span
               className={cn(
                 "h-5 py-1 px-1",
-                !column.getIsSorted() &&
+                hideIcon &&
                   "invisible group-hover:visible data-[state=open]:visible",
               )}
             >
-              {renderSortIcon(column)}
+              {renderSortFilterIcon(column)}
             </span>
           </div>
         </DropdownMenuTrigger>
@@ -111,7 +115,11 @@ export const DataTableColumnHeader = <TData, TValue>({
           {renderColumnWrapping(column)}
           {renderFormatOptions(column)}
           <DropdownMenuItemFilter column={column} />
-          <RenderSetFilter onClick={() => setIsSetFilterOpen(true)} />
+          <RenderSetFilter
+            column={column}
+            onClick={() => setIsSetFilterOpen(true)}
+          />
+          {hasFilter && <ClearFilterMenuItem column={column} />}
         </DropdownMenuContent>
       </DropdownMenu>
       {isSetFilterOpen && (
@@ -165,20 +173,11 @@ export const DropdownMenuItemFilter = <TData, TValue>({
     return null;
   }
 
-  const hasFilter = column.getFilterValue() !== undefined;
-
   const filterMenuItem = (
     <DropdownMenuSubTrigger>
       <FilterIcon className="mo-dropdown-icon" />
       Filter
     </DropdownMenuSubTrigger>
-  );
-
-  const clearFilterMenuItem = (
-    <DropdownMenuItem onClick={() => column.setFilterValue(undefined)}>
-      <FilterX className="mo-dropdown-icon" />
-      Clear filter
-    </DropdownMenuItem>
   );
 
   if (filterType === "boolean") {
@@ -202,7 +201,6 @@ export const DropdownMenuItemFilter = <TData, TValue>({
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
-        {hasFilter && clearFilterMenuItem}
       </>
     );
   }
@@ -219,7 +217,6 @@ export const DropdownMenuItemFilter = <TData, TValue>({
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
-        {hasFilter && clearFilterMenuItem}
       </>
     );
   }
@@ -236,7 +233,6 @@ export const DropdownMenuItemFilter = <TData, TValue>({
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
-        {hasFilter && clearFilterMenuItem}
       </>
     );
   }
@@ -447,7 +443,7 @@ export const PopoverSetFilter = <TData, TValue>({
       return;
     }
     if (checked) {
-      setChosenValues(data.map(([value]) => value));
+      setChosenValues(filteredData.map(([value]) => value));
     } else {
       setChosenValues([]);
     }
@@ -472,23 +468,21 @@ export const PopoverSetFilter = <TData, TValue>({
           />
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandList>
-            {filteredData.length > 0 && (
-              <div className="border-b hover:bg-transparent flex items-center py-1.5 px-2">
-                <Checkbox
-                  checked={chosenValues.length === filteredData.length}
-                  onCheckedChange={(checked) => {
-                    if (typeof checked === "string") {
-                      return;
-                    }
-                    toggleAllCheckbox(checked);
-                  }}
-                  aria-label="Select all"
-                  className="mr-3 h-3.5 w-3.5"
-                />
-                <span className="font-bold flex-1">{column.id}</span>
-                <span className="font-bold">count</span>
-              </div>
-            )}
+            <CommandItem className="border-b">
+              <Checkbox
+                checked={chosenValues.length === filteredData.length}
+                onCheckedChange={(checked) => {
+                  if (typeof checked === "string") {
+                    return;
+                  }
+                  toggleAllCheckbox(checked);
+                }}
+                aria-label="Select all"
+                className="mr-3 h-3.5 w-3.5"
+              />
+              <span className="font-bold flex-1">{column.id}</span>
+              <span className="font-bold">count</span>
+            </CommandItem>
             {filteredData.map((row, rowIndex) => {
               const value = row[0];
               const count = row[1];

@@ -20,9 +20,12 @@ import {
   PinOffIcon,
   CopyIcon,
   ChevronsUpDown,
-  ArrowDownNarrowWideIcon,
   ArrowDownWideNarrowIcon,
   BlendIcon,
+  FilterX,
+  ArrowUpNarrowWideIcon,
+  ListFilterPlusIcon,
+  FunnelPlusIcon,
 } from "lucide-react";
 import { copyToClipboard } from "@/utils/copy";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
@@ -152,7 +155,7 @@ export function renderCopyColumn<TData, TValue>(column: Column<TData, TValue>) {
   );
 }
 
-const AscIcon = ArrowDownNarrowWideIcon;
+const AscIcon = ArrowUpNarrowWideIcon;
 const DescIcon = ArrowDownWideNarrowIcon;
 
 export function renderSorts<TData, TValue>(column: Column<TData, TValue>) {
@@ -181,20 +184,28 @@ export function renderSorts<TData, TValue>(column: Column<TData, TValue>) {
   );
 }
 
-export function renderSortIcon<TData, TValue>(column: Column<TData, TValue>) {
+export function renderSortFilterIcon<TData, TValue>(
+  column: Column<TData, TValue>,
+) {
   if (!column.getCanSort()) {
     return null;
   }
 
   const isSorted = column.getIsSorted();
+  const isFiltered = column.getFilterValue() !== undefined;
 
-  return isSorted === "desc" ? (
-    <DescIcon className="h-3 w-3" />
-  ) : isSorted === "asc" ? (
-    <AscIcon className="h-3 w-3" />
-  ) : (
-    <ChevronsUpDown className="h-3 w-3" />
-  );
+  let Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  if (isFiltered && isSorted) {
+    Icon = ListFilterPlusIcon;
+  } else if (isFiltered) {
+    Icon = FunnelPlusIcon;
+  } else if (isSorted) {
+    Icon = isSorted === "desc" ? DescIcon : AscIcon;
+  } else {
+    Icon = ChevronsUpDown;
+  }
+
+  return <Icon className="h-3 w-3" />;
 }
 
 export function renderDataType<TData, TValue>(column: Column<TData, TValue>) {
@@ -213,14 +224,40 @@ export function renderDataType<TData, TValue>(column: Column<TData, TValue>) {
   );
 }
 
-export const RenderSetFilter: React.FC<{ onClick: () => void }> = ({
+export const ClearFilterMenuItem = <TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) => (
+  <DropdownMenuItem onClick={() => column.setFilterValue(undefined)}>
+    <FilterX className="mo-dropdown-icon" />
+    Clear filter
+  </DropdownMenuItem>
+);
+
+export const RenderSetFilter = <TData, TValue>({
+  column,
   onClick,
+}: {
+  column: Column<TData, TValue>;
+  onClick: () => void;
 }) => {
+  const canFilter = column.getCanFilter();
+  if (!canFilter) {
+    return null;
+  }
+
+  const columnType = column.columnDef.meta?.dataType;
+  // skip boolean as this can be easily filtered through normal filters
+  if (columnType === "boolean") {
+    return null;
+  }
+
   return (
     <DropdownMenuSub>
       <DropdownMenuItem onClick={onClick}>
         <BlendIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-        Set filter
+        Filter by values
       </DropdownMenuItem>
     </DropdownMenuSub>
   );
