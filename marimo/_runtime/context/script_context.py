@@ -108,6 +108,7 @@ class ScriptRuntimeContext(RuntimeContext):
         raise NoIDProviderException
 
     def register_state_update(self, state: State[Any]) -> None:
+        # TODO: This does not seem right, or documented.
         del state
         return
 
