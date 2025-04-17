@@ -234,6 +234,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
   const label =
     props.label ??
     `Drag and drop ${multiple ? "files" : "a file"} here, or click to open file browser`;
+
   return (
     <section>
       <div className="flex flex-col items-start justify-start flex-grow gap-3">
