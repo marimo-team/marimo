@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import io
 import functools
+import io
 from functools import cached_property
 from typing import Any, Optional, Union, cast
 
