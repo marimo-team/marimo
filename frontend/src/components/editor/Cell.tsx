@@ -854,7 +854,7 @@ const EditableCellComponent = ({
               <a
                 href="https://docs.marimo.io/guides/editor_features/reusing_functions/"
                 target="_blank"
-                className="hover:underline py-1 px-2 flex justify-end gap-2 last:rounded-b"
+                className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
               >
                 {isToplevel && (
                   <span className="text-muted-foreground text-xs font-bold">
@@ -865,11 +865,12 @@ const EditableCellComponent = ({
                   content={
                     <span className="max-w-16 text-xs">
                       {(isToplevel &&
-                        "This definition can be directly imported from the notebook") || (
+                        "This function or class can be imported into other Python notebooks or modules.") || (
                         <>
-                          This definition cannot be reused in other Python
-                          modules, because:
-                          <br /> - <strong>{serialization}</strong>{" "}
+                          This definition can't be reused in other Python
+                          modules:
+                          <br /><br /><pre>{serialization}</pre><br />
+                          Click this icon to learn more.
                         </>
                       )}
                     </span>

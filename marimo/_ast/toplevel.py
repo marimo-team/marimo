@@ -23,7 +23,9 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# Constant for easy reuse in tests
+# Constant for easy reuse in tests.
+# The formatting here affects how the error is rendered in the frontend.
+# This is a hack but fine for now ...
 TopLevelInvalidHints = Literal[
     "Cannot parse cell.",
     (
@@ -32,7 +34,7 @@ TopLevelInvalidHints = Literal[
     ),
     "Cell must contain exactly one function definition",
     "Signature and decorators depend on {} defined out of correct cell order",
-    "Function contains references to variables {} which are not top level.",
+    "This function depends on variables defined by other cells:\n\n{}\n\nTo make this function importable from other Python modules,\nmove these variables to the setup cell.",
     "Function contains references to variables {} which were unable to become reusable.",
     "Cell cannot contain non-indented trailing comments.",
 ]
