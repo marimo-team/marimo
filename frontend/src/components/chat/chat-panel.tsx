@@ -22,7 +22,6 @@ import {
 import {
   useState,
   useRef,
-  useEffect,
   type SetStateAction,
   type Dispatch,
   memo,
@@ -293,24 +292,6 @@ const ChatPanelBody = () => {
       Logger.debug("Received HTTP response from server:", response);
     },
   });
-  const lastMessageText = messages.at(-1)?.content;
-  useEffect(() => {
-    if (isLoading) {
-      const BUFFER = 150;
-      const container = messagesEndRef.current?.parentElement;
-      if (!container) {
-        return;
-      }
-
-      const isNearBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        BUFFER;
-
-      if (isNearBottom) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [messages, isLoading, lastMessageText]);
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
