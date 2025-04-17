@@ -52,6 +52,7 @@ import numpy as np
 ```
 
 To add a setup cell in the editor, open the notebook menu and select "Add setup cell".
+(The setup cell is guaranteed to run before other cells.)
 
 ### 2. Define your function
 
@@ -119,5 +120,5 @@ print(stats)
 ## Learn more
 
 For more on marimo's file format, check out our [documentation on using your
-own editor](https://docs.marimo.io/guides/editor_features/watching/) or view
-our [file format tutorial](https://marimo.app/?slug=8n55fd).
+own editor](../guides/editor_features/watching.md) or view
+our [file format tutorial](https://links.marimo.app/tutorial-fileformat).
