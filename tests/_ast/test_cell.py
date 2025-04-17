@@ -282,6 +282,102 @@ class TestCellRun:
         assert cyclic() == 1
 
 
+class TestReusableCell:
+    @staticmethod
+    def test_run_ok_with_setup_dep(app) -> None:
+        with app.setup:
+            z = 1
+
+        @app.cell
+        def _():
+            y = 1
+            return (y,)
+
+        @app.cell
+        def uses_setup(y):
+            # non transitive
+            x = y - z
+            x  # noqa: B018
+            return
+
+        output, defs = uses_setup.run()
+        assert output == 0
+        assert defs == {"x": 0}
+
+        output, defs = uses_setup.run(y=2)
+        assert output == 1
+        assert defs == {"x": 1}
+
+        output, defs = uses_setup.run(z=2)
+        assert output == -1
+        assert defs == {"x": -1}
+
+    @staticmethod
+    def test_run_ok_with_setup_dep_rev_abc(app) -> None:
+        # Arguments are alphabetized
+        with app.setup:
+            x = 1
+
+        @app.cell
+        def _():
+            y = 1
+            return (y,)
+
+        @app.cell
+        def uses_setup(y):
+            z = y - x
+            z  # noqa: B018
+            return
+
+        output, defs = uses_setup.run()
+        assert output == 0
+        assert defs == {"z": 0}, dict(defs)
+
+        output, defs = uses_setup.run(y=2)
+        assert output == 1
+        assert defs == {"z": 1}
+
+        output, defs = uses_setup.run(x=2)
+        assert output == -1
+        assert defs == {"z": -1}
+
+    @staticmethod
+    def test_run_setup_declares_more(app) -> None:
+        # Arguments are alphabetized
+        with app.setup:
+            x = 1
+            # a is important because it's an additional def that gets
+            # inserted into the runtime
+            a = 1
+
+        @app.function
+        def something_normally_scoped_for_a():
+            return 1 + a
+
+        @app.cell
+        def _():
+            y = 1
+            return (y,)
+
+        @app.cell
+        def uses_setup(y):
+            z = 0 * something_normally_scoped_for_a() + y - x
+            z  # noqa: B018
+            return
+
+        output, defs = uses_setup.run()
+        assert output == 0
+        assert defs == {"z": 0}, dict(defs)
+
+        output, defs = uses_setup.run(y=2)
+        assert output == 1
+        assert defs == {"z": 1}
+
+        output, defs = uses_setup.run(x=2)
+        assert output == -1
+        assert defs == {"z": -1}
+
+
 def help_smoke() -> None:
     app = App()
 
