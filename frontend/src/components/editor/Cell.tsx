@@ -869,7 +869,10 @@ const EditableCellComponent = ({
                         <>
                           This definition can't be reused in other Python
                           modules:
-                          <br /><br /><pre>{serialization}</pre><br />
+                          <br />
+                          <br />
+                          <pre>{serialization}</pre>
+                          <br />
                           Click this icon to learn more.
                         </>
                       )}
