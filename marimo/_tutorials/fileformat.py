@@ -6,14 +6,18 @@ __generated_with = "0.12.8"
 app = marimo.App()
 
 with app.setup:
-    import marimo as mo
     import dataclasses
+    import random
 
-    UIElement = mo.ui._core.ui_element.UIElement
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
         # File Format
@@ -26,13 +30,14 @@ def _():
         - ✏️ formattable using your tool of choice
         - ➕ easily versioned with git, producing small diffs
         - 🐍 usable as Python  scripts, with UI  elements taking their default values
+        - 🧩 modular, exposing functions and classes that can be imported from the notebook
         """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         """
         ## Example
@@ -66,7 +71,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         """
         For the above example, marimo would generate the following file
@@ -106,13 +111,15 @@ def _():
         marimo's generated files are **git-friendly**: small changes made using
         the marimo editor result in small changes to the file that marimo
         generates.
+
+        Moreover, the cell defining a single pure function `say_hello` was saved "top-level" in the notebook file, making it possible for you to import it into other Python files or notebooks.
         """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         """
         ## Properties
@@ -129,7 +136,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.accordion(
         {
             "Cells are functions": """
@@ -146,7 +153,7 @@ def _():
 
         ```python3
         @app.cell
-        def __(mo):
+        def _(mo):
             text = mo.ui.text(value="Hello, World!")
             text
             return text,
@@ -159,7 +166,7 @@ def _():
 
         ```python3
         @app.cell
-        def __():
+        def _():
             import marimo as mo
             return mo,
         ```
@@ -190,7 +197,7 @@ def _():
 
         ```python3
         @app.cell
-        def __(text):
+        def _(text):
             print(text.value)
             return
         ```
@@ -209,12 +216,11 @@ def _():
             "No magical tokens": """
         marimo's generated code is pure Python; no magical syntax.
         """,
-            "Helpful error messages": """
+            "Cell signatures automatically maintained": """
         If when editing a cell, you forget to include all a cell's refs in its
-        argument list, or all its defs in its returns, marimo will raise a
-        helpful error message the next time you try to open it in the marimo
-        editor. So don't worry that you'll botch a cell's signature when editing
-        it.
+        argument list, or all its defs in its returns, marimo will fix them he next
+        time you try to open it in the marimo editor. So don't worry that you'll
+        botch a cell's signature when editing it.
         """,
             "The `app` object": """
         At the top of the generated code, a variable named `app` is created.
@@ -231,8 +237,8 @@ def _():
         World!` to the console.
         """,
             """Usable as a module""": """
-        Notebooks, being Python files, can be imported and the cells can
-        be used. Read on to see how this can be most effectively utilized.
+        Import top-level functions and classes from the notebook into other
+        Python files.
         """,
         }
     )
@@ -240,10 +246,10 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
-        ## Anatomy of a notebook file
+        ## Importing functions and classes from notebooks
 
         The details of marimo's file format are important if you want to import
         functions and classes defined in your notebook into other Python modules. If you
@@ -254,10 +260,10 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
-        ### Setup Cell
+        ### Declaring imports used by functions and classes
 
         marimo can serialize functions and classes into the top-level of a file, so you can import them with regular Python syntax:
 
@@ -268,8 +274,8 @@ def _():
         In particular, if a cell defines just a single function or class, and if that function or class is pure
         save for references to variables defined in a special **setup cell**, it will be serialized top-level.
 
-        **Setup cell.** Notebooks can optionally include a setup cell with imported
-        modules, which are written in the file as:
+        **Setup cell.** Notebooks can optionally include a setup cell that imports modules,
+        written in the file as:
 
         <!-- note this setup cell is hardcoded in the playground example -->
         ```python
@@ -280,170 +286,107 @@ def _():
 
         Modules imported in a setup cell can be used in "top-level" functions or
         classes. You can add the setup cell from the general menu of the editor under:
-
-        ::lucide:diamond-plus:: Add setup cell
+        ::lucide:diamond-plus:: Add setup cell.
         """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _():
-    mo.md(
-        r"""
-        ### Body cells
-
-        Cells that are not saved as functions or classes are serialized as follows:
-
-        ```python
-        @app.cell(hide_code=True) # <- Cell options are also saved to file
-        def _(increment, a): # <- Signatures are automatically generated and consist of used references
-            message = mo.md(f'''
-                `a` incremented is {increment(a)}
-            ''')
-            return (message,) # <- All used cell definitions are returned
-
-        ```
-
-        The default name of a cell is `_`, but you can explicitly give cells a
-        name, as seen below:
-        """
-    )
-    return
-
-
-@app.cell
-def cell_example():
-    runtime_definition = "Defined in a normal cell, executed in runtime."
-
-    print("This cell is a normal body cell!")
-
-    "Notice how the last line is output"
-    return (runtime_definition,)
-
-
-@app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
         ### Functions and classes
 
-        marimo directly exposes functions and classes that depend only on variables defined in the setup cell (or on other such functions or classes). For example:
-
-        ```python
-        @app.function
-        def say_hello(name="World"):
-            return f"Hello, {name}"
-        ```
-
-        See the following example in the playground below:
+        Notebook files expose functions and classes that depend only on variables defined in the setup cell (or on other such functions or classes). For example, the following cell:
         """
     )
     return
 
 
 @app.function
-def function_example():
-    """Notice how an indicator in the lower right corner shows this cell is serialized differently"""
-    return mo.ui.slider(1, 100)
+def roll_die():
+    """
+    A reusable function.
+
+    Notice the indicator in the bottom right of the cell.
+    """
+    return random.randint(1, 7)
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
-        Standalone classes are exposed with the `@app.cell_definition` decorator:
+        ... is saved in the notebook file as
 
         ```python
-        @app.class_definition
-        class MyClass: ...
+        @app.function
+        def roll_die():
+            \"""
+            A reusable function.
+
+            Notice the indicator in the bottom right of the cell.
+            \"""
+            return random.randint(1, 7)
         ```
 
-        Moreover, classes and functions can refer to each other like any other
-        Python module. Recursion and directed references are also allowed:
+
+        Making it importable as
+
+        ```python
+        from fileformat import roll_die
+        ```
         """
     )
     return
 
 
-@app.class_definition
-@dataclasses.dataclass
-class SettingExample:
-    """
-    TODO: I realized this is probably a poor example because
-    the class is not reactive.
-    Come up with a better example that is:
-    - simple
-    - topical
-    - useful
-    or fix name bindings in ui registry for reactive namespaces.
-    """
-
-    temperature: UIElement = dataclasses.field(
-        default_factory=function_example
-    )
-    response_length: UIElement = dataclasses.field(
-        default_factory=function_example
-    )
-
-    def __post_init__(self):
-        self._form = (
-            mo.md(
-                """
-                **Reusable component for something like LLM settings**
-
-                temp: {temperature}
-
-                length: {response_length}
-                """
-            )
-            .batch(
-                temperature=self.temperature,
-                response_length=self.response_length,
-            )
-            .form()
-        )
-
-    @property
-    def value(self):
-        return self.form.value
-
-    def _mime_(self):
-        return self._form._mime_()
-
-
 @app.cell(hide_code=True)
-def _():
-    mo.md(
-        r"""
-        /// tip | but why?
-        ///
-        Given the class we have defined so far, we can now import the component
-        into other notebooks.
-
-        ```python
-        from mynotebook import SettingExample
-        ```
-        """
-    )
+def _(mo):
+    mo.md(r"""Standalone classes are also exposed:""")
     return
 
 
 @app.cell
-def _():
-    form = SettingExample()
-    form
+def SimulationExample(function_example):
+    @dataclasses.dataclass
+    class SimulationExample:
+        n_rolls: int
+
+        def simulate(self) -> list[int]:
+            return [function_example() for _ in range(self.n_rolls)]
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
+    mo.md(
+        r"""
+        This class is saved in the file as
+
+        ```python
+        @app.class_definition
+        @dataclasses.dataclass
+        class SimulationExample:
+            n_rolls: int
+
+            def simulate(self) -> list[int]:
+                return [function_example() for _ in range(self.n_rolls)]
+        ```
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(
         r"""
         /// attention | Heads up
         ///
 
-        Not all stand alone functions will be exposed in the module. If your
+        Not all standalone functions will be exposed in the module. If your
         function depends on variables that are defined in other cells, then it won't
         be exposed top-level.
 
@@ -455,96 +398,70 @@ def _():
 
 
 @app.cell
-def wrapped_function_example(runtime_definition):
-    def wrapped_function_example():
+def _():
+    variable = 123
+    return (variable,)
+
+
+@app.cell
+def wrapped_function_example(variable):
+    def not_a_top_level_function():
         """
         This function depends on a variable declared in another cell.
+
         As a result this function isn't exposed in the file — and the tooltip in the
         bottom-right corner indicates this.
         """
-        return runtime_definition
+        return variable
     return
 
 
 @app.cell(hide_code=True)
-def _():
-    mo.md(
-        r"""
-        ## Playground
-
-        Feel free to check out the source of this notebook, or any notebook to
-        get a deeper understand of the file format.
-
-        /// tip | Let's use the magic of marimo :sparkles:
-
-        Any cell in this notebook ending in the name `example` will be rendered
-        below as expected. Go back to the examples to play around.
-        """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(response):
-    response
-    return
-
-
-@app.cell(hide_code=True)
-def _():
+def _(mo):
     mo.md(
         r"""
         ## FAQ
 
-        ### I want to write or edit marimo notebooks in a different editor, what do I need to know?
+        ### I want to edit notebooks in a different editor, what do I need to know?
 
-
-        Refer to our guide on [using your own editor](https://docs.marimo.io/guides/editor_features/watching/)
+        See the docs on [using your own editor](https://docs.marimo.io/guides/editor_features/watching/).
 
         ### I want to import functions from a marimo notebook, what do I need to know?
 
-        See the docs [guide on reusable functions](https://links.marimo.app/reusable-functions) and classes for more details.
+        See the docs on [reusable functions and
+        classes](https://links.marimo.app/reusable-functions).
 
-        ### I want to run tests on marimo notebooks, what do I need to know?
+        ### I want to run pytest on marimo notebooks, what do I need to know?
 
-        marimo notebooks are compatible with pytest. See the documentation [on
-        testing](https://docs.marimo.io/guides/testing/) for more information.
+        See the docs on [testing](https://docs.marimo.io/guides/testing/).
         """
     )
     return
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ## This notebook's source code
+
+        The source code of this notebook is shown below:
+        """
+    )
+    return
+
+
+@app.cell
 def _(__file__):
-    from textwrap import dedent
-    from marimo._ast.app import InternalApp
-    from marimo._ast.parse import parse_notebook
-    from marimo._ast.codegen import generate_filecontents
-    from marimo._ast.cell import CellConfig
-    from marimo._ast.app import _AppConfig
+    with open(__file__, "r", encoding="utf-8") as f:
+        contents = f.read()
+    return (contents,)
 
-    notebook = parse_notebook(__file__)
 
-    _names, _codes, _configs = zip(
-        *[
-            (cell_def.name, cell_def.code, CellConfig(**cell_def.options))
-            for cell_def in notebook.cells
-            if cell_def.name.lower().endswith("example")
-            or cell_def.name == "setup"
-        ]
-    )
-
-    response = mo.ui.code_editor(
-        generate_filecontents(
-            list(_codes),
-            list(_names),
-            list(_configs),
-            config=_AppConfig(),
-            _toplevel_fn=True,
-        ),
-        disabled=True,
-    )
-    return (response,)
+@app.cell
+def _(contents, mo):
+    mo.ui.code_editor(contents)
+    return
 
 
 if __name__ == "__main__":
