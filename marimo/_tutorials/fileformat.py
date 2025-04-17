@@ -323,11 +323,11 @@ def _(mo):
         ```python
         @app.function
         def roll_die():
-            \"""
+            '''
             A reusable function.
 
             Notice the indicator in the bottom right of the cell.
-            \"""
+            '''
             return random.randint(1, 7)
         ```
 
@@ -335,7 +335,7 @@ def _(mo):
         Making it importable as
 
         ```python
-        from fileformat import roll_die
+        from my_notebook import roll_die
         ```
         """
     )
@@ -348,15 +348,13 @@ def _(mo):
     return
 
 
-@app.cell
-def SimulationExample(function_example):
-    @dataclasses.dataclass
-    class SimulationExample:
-        n_rolls: int
+@app.class_definition
+@dataclasses.dataclass
+class SimulationExample:
+    n_rolls: int
 
-        def simulate(self) -> list[int]:
-            return [function_example() for _ in range(self.n_rolls)]
-    return
+    def simulate(self) -> list[int]:
+        return [roll_die() for _ in range(self.n_rolls)]
 
 
 @app.cell(hide_code=True)
@@ -372,7 +370,7 @@ def _(mo):
             n_rolls: int
 
             def simulate(self) -> list[int]:
-                return [function_example() for _ in range(self.n_rolls)]
+                return [roll_die() for _ in range(self.n_rolls)]
         ```
         """
     )
