@@ -871,17 +871,14 @@ class table(
         """Calculate the top k rows in the table, grouped by column.
         Returns a table of the top k rows, grouped by column with the count.
         """
-        return self._calculate_top_k_rows_cached(
-            self._searched_manager, args.column, args.k
-        )
-
-    @functools.lru_cache(maxsize=1)  # noqa: B019
-    def _calculate_top_k_rows_cached(
-        self, manager: TableManager[Any], column: ColumnName, k: int
-    ) -> CalculateTopKRowsResponse:
-        """Cached version of calculate_top_k_rows that takes the manager as an argument."""
-        data = manager.calculate_top_k_rows(column, k)
-        return CalculateTopKRowsResponse(data=data)
+        column, k = args.column, args.k
+        try:
+            data = self._searched_manager.calculate_top_k_rows(column, k)
+            return CalculateTopKRowsResponse(data=data)
+        # Some libs will panic like Polars, which are only caught with BaseException
+        except BaseException as e:
+            LOGGER.error("Failed to calculate top k rows: %s", e)
+            return CalculateTopKRowsResponse(data=[])
 
     def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""

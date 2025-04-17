@@ -1182,3 +1182,55 @@ def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
     assert total_ms < 500, (
         f"Total time: {total_ms}ms for {df.shape[1]} columns with {type(df)}"
     )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+class TestCalculateTopKRowsCaching(unittest.TestCase):
+    def setUp(self) -> None:
+        import polars as pl
+
+        self.data = pl.DataFrame(
+            {"name": ["Alice", "Eve", None], "age": [25, 35, None]}
+        )
+        self.manager = NarwhalsTableManager.from_dataframe(self.data)
+
+    def test_calculate_top_k_rows_caching(self) -> None:
+        """Test that calculate_top_k_rows caching works correctly."""
+        # First call should compute the result
+        result1 = self.manager.calculate_top_k_rows("name", 10)
+
+        # Second call with same args should use cache and return same object
+        result2 = self.manager.calculate_top_k_rows("name", 10)
+        assert result1 is result2
+
+        # Different k value should compute new result
+        result3 = self.manager.calculate_top_k_rows("name", 5)
+        assert result3 is not result1
+
+        # Different column name should compute new result
+        result4 = self.manager.calculate_top_k_rows("age", 10)
+        assert result4 is not result1
+
+    def test_calculate_top_k_rows_cache_invalidation(self) -> None:
+        """Test that cache is properly invalidated when data changes."""
+        # Initial calculation
+        result1 = self.manager.calculate_top_k_rows("name", 2)
+
+        # Modify the data
+        import polars as pl
+
+        new_data = pl.DataFrame(
+            {
+                "name": ["Alice", "Eve", "Bob", None],
+            }
+        )
+
+        # Create a new manager with the new data
+        self.manager = NarwhalsTableManager.from_dataframe(new_data)
+
+        # New calculation should be performed and return different result
+        result2 = self.manager.calculate_top_k_rows("name", 2)
+        assert result2 is not result1  # Different result due to data change
+
+        # Verify the actual results are different
+        assert result1 != result2

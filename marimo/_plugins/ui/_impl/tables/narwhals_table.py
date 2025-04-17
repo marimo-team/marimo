@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import functools
 from functools import cached_property
 from typing import Any, Optional, Union, cast
 
@@ -159,8 +160,9 @@ class NarwhalsTableManager(
     ) -> list[str]:
         return []
 
+    @functools.lru_cache(maxsize=5)  # noqa: B019
     def calculate_top_k_rows(
-        self, column: ExternalDataType, k: int
+        self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
         if isinstance(self.data, nw.LazyFrame):
             raise ValueError(

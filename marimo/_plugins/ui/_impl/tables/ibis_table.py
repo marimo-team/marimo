@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from typing import Any, Optional
 
 from marimo._data.models import (
@@ -194,6 +195,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                 )
                 return IbisTableManager(sorted_data)
 
+            @functools.lru_cache(maxsize=5)  # noqa: B019
             def calculate_top_k_rows(
                 self, column: ColumnName, k: int
             ) -> list[tuple[Any, int]]:

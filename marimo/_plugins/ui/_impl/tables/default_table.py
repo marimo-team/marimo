@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
@@ -262,14 +263,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_row_headers(self) -> list[str]:
         return []
 
+    @functools.lru_cache(maxsize=5)  # noqa: B019
     def calculate_top_k_rows(
-        self, column: ExternalDataType, k: int
+        self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
         column_names = self.get_column_names()
         if column not in column_names:
             raise ValueError(f"Column {column} not found in table.")
 
-        grouped: dict[ExternalDataType, int] = defaultdict(int)
+        grouped: dict[str, int] = defaultdict(int)
         if isinstance(self.data, dict):
             if self.is_column_oriented:
                 # Handle column-oriented data
