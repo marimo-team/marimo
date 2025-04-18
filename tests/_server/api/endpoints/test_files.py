@@ -140,7 +140,12 @@ def test_save_with_header(client: TestClient) -> None:
     assert "import marimo" in response.text
     file_contents = open(filename).read()
     assert "import marimo as mo" in file_contents
-    assert file_contents.startswith(header.rstrip()), "Header was removed"
+    # Race condition with uv (seen in python 3.10)
+    if file_contents.startswith("# ///"):
+        file_contents = file_contents.split("# ///")[2].lstrip()
+        assert file_contents.startswith(header.rstrip()), "Header was removed"
+    else:
+        assert file_contents.startswith(header.rstrip()), "Header was removed"
     assert "@app.cell(hide_code=True)" in file_contents
     assert "my_cell" in file_contents
 
@@ -182,9 +187,19 @@ def test_save_with_invalid_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
     file_contents = open(filename).read()
-    assert file_contents.startswith("import marimo"), "Header was not removed"
     assert "@app.cell(hide_code=True)" in file_contents
     assert "my_cell" in file_contents
+
+    # Race condition with uv (seen in python 3.10)
+    if file_contents.startswith("# ///"):
+        file_contents = file_contents.split("# ///")[2].lstrip()
+        assert file_contents.startswith("import marimo"), (
+            "Header was not removed"
+        )
+    else:
+        assert file_contents.startswith("import marimo"), (
+            "Header was not removed"
+        )
 
 
 @with_session(SESSION_ID)
