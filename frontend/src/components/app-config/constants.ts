@@ -52,3 +52,13 @@ export const AWS_REGIONS = [
   "ap-northeast-1",
   "ap-southeast-1",
 ] as const;
+
+export const KNOWN_AI_PROVIDERS = [
+  "open_ai",
+  "anthropic",
+  "google",
+  "groq",
+  "bedrock",
+  "deepseek",
+  "azure",
+] as const;

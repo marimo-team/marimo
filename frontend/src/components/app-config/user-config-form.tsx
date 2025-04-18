@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import { ExternalLink } from "../ui/links";
 import { cn } from "@/utils/cn";
-import { KNOWN_AI_MODELS, AWS_REGIONS } from "./constants";
+import { KNOWN_AI_MODELS, AWS_REGIONS, KNOWN_AI_PROVIDERS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
@@ -1269,6 +1269,41 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="ai.azure.api_key"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Azure OpenAI API Key</FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid="ai-azure-api-key-input"
+                          className="m-0 inline-flex"
+                          placeholder="sk-proj..."
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Don't allow *
+                            if (!value.includes("*")) {
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.azure.api_key"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      Your Azure OpenAI API key.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
 
             <SettingGroup title="AI Assist">
@@ -1280,6 +1315,41 @@ export const UserConfigForm: React.FC = () => {
                 </ExternalLink>{" "}
                 for more info.
               </p>
+
+              <FormField
+                control={form.control}
+                disabled={isWasmRuntime}
+                name="ai.provider_type"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>AI Provider</FormLabel>
+                      <FormControl>
+                        <Input
+                          list="ai-provider-type-datalist"
+                          data-testid="ai-provider-type-input"
+                          className="m-0 inline-flex"
+                          placeholder="gpt-4-turbo"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="ai.provider_type"
+                      />
+                    </FormItem>
+                    <datalist id="ai-provider-type-datalist">
+                      {KNOWN_AI_PROVIDERS.map((provider) => (
+                        <option value={provider} key={provider}>
+                          {provider}
+                        </option>
+                      ))}
+                    </datalist>
+                    <FormDescription>AI provider to use.</FormDescription>
+                  </div>
+                )}
+              />
               <FormField
                 control={form.control}
                 disabled={isWasmRuntime}

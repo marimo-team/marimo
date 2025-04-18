@@ -75,79 +75,101 @@ class AnyProviderConfig:
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
 
-    @staticmethod
-    def for_openai(config: AiConfig) -> AnyProviderConfig:
-        if "open_ai" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="OpenAI config not found",
-            )
-        key = _get_key(config["open_ai"], "OpenAI")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["open_ai"]),
+    @classmethod
+    def for_openai(cls, config: AiConfig) -> AnyProviderConfig:
+        return cls._for_openai_like(config, "open_ai", "OpenAI")
+
+    @classmethod
+    def for_azure(cls, config: AiConfig) -> AnyProviderConfig:
+        return cls._for_openai_like(config, "azure", "Azure OpenAI")
+
+    @classmethod
+    def _for_openai_like(
+        cls, config: AiConfig, key: str, name: str
+    ) -> AnyProviderConfig:
+        ai_config = _get_ai_config(config, key, name)
+        key = _get_key(ai_config, name)
+        return cls(
+            base_url=_get_base_url(ai_config),
             api_key=key,
-            ssl_verify=config["open_ai"].get("ssl_verify", True),
-            ca_bundle_path=config["open_ai"].get("ca_bundle_path", None),
-            client_pem=config["open_ai"].get("client_pem", None),
+            ssl_verify=ai_config.get("ssl_verify", True),
+            ca_bundle_path=ai_config.get("ca_bundle_path", None),
+            client_pem=ai_config.get("client_pem", None),
         )
 
-    @staticmethod
-    def for_anthropic(config: AiConfig) -> AnyProviderConfig:
-        if "anthropic" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Anthropic config not found",
-            )
-        key = _get_key(config["anthropic"], "Anthropic")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["anthropic"]),
-            api_key=key,
-        )
-
-    @staticmethod
-    def for_google(config: AiConfig) -> AnyProviderConfig:
-        if "google" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Google config not found",
-            )
-        key = _get_key(config["google"], "Google AI")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["google"]),
+    @classmethod
+    def for_anthropic(cls, config: AiConfig) -> AnyProviderConfig:
+        ai_config = _get_ai_config(config, "anthropic", "Anthropic")
+        key = _get_key(ai_config, "Anthropic")
+        return cls(
+            base_url=_get_base_url(ai_config),
             api_key=key,
         )
 
-    @staticmethod
-    def for_bedrock(config: AiConfig) -> AnyProviderConfig:
-        if "bedrock" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Bedrock config not found",
-            )
-        key = _get_key(config["bedrock"], "Bedrock")
-        return AnyProviderConfig(
+    @classmethod
+    def for_google(cls, config: AiConfig) -> AnyProviderConfig:
+        ai_config = _get_ai_config(config, "google", "Google AI")
+        key = _get_key(ai_config, "Google AI")
+        return cls(
+            base_url=_get_base_url(ai_config),
+            api_key=key,
+        )
+
+    @classmethod
+    def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
+        ai_config = _get_ai_config(config, "bedrock", "Bedrock")
+        key = _get_key(ai_config, "Bedrock")
+        return cls(
             base_url=_get_base_url(config["bedrock"], "Bedrock"),
             api_key=key,
         )
 
-    @staticmethod
-    def for_completion(config: CompletionConfig) -> AnyProviderConfig:
+    @classmethod
+    def for_completion(cls, config: CompletionConfig) -> AnyProviderConfig:
         key = _get_key(config, "AI completion")
-        return AnyProviderConfig(
+        return cls(
             base_url=_get_base_url(config),
             api_key=key,
         )
 
-    @staticmethod
-    def for_model(model: str, config: AiConfig) -> AnyProviderConfig:
+    @classmethod
+    def for_model(cls, model: str, config: AiConfig) -> AnyProviderConfig:
         if _model_is_anthropic(model):
-            return AnyProviderConfig.for_anthropic(config)
+            return cls.for_anthropic(config)
         elif _model_is_google(model):
-            return AnyProviderConfig.for_google(config)
+            return cls.for_google(config)
         elif _model_is_bedrock(model):
-            return AnyProviderConfig.for_bedrock(config)
+            return cls.for_bedrock(config)
         else:
-            return AnyProviderConfig.for_openai(config)
+            return cls.for_openai(config)
+
+    @classmethod
+    def from_provider_type(cls, config: AiConfig) -> AnyProviderConfig | None:
+        provider_type = config.get("provider_type")
+        if not provider_type:
+            return None
+        provider_mapping = {
+            "open_ai": cls.for_openai,
+            "azure": cls.for_azure,
+            "anthropic": cls.for_anthropic,
+            "google": cls.for_google,
+            "groq": cls.for_groq,
+            "bedrock": cls.for_bedrock,
+        }
+        if provider_type not in provider_mapping:
+            raise ValueError(
+                f"provider_type must be one of {provider_mapping.keys()}"
+            )
+        return provider_mapping[provider_type](config)
+
+
+def _get_ai_config(config: Any, key: str, name: str) -> Any:
+    if key not in config:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"{name} config not found",
+        )
+    return config[key]
 
 
 def _get_key(config: Any, name: str) -> str:
@@ -550,10 +572,7 @@ def get_completion_provider(
 
 
 def get_model(config: AiConfig) -> str:
-    model: str = config.get("open_ai", {}).get("model", DEFAULT_MODEL)
-    if not model:
-        model = DEFAULT_MODEL
-    return model
+    return config.get("open_ai", {}).get("model") or DEFAULT_MODEL
 
 
 def get_max_tokens(config: MarimoConfig) -> int:

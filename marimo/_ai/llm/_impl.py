@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextlib
 import os
 from typing import Callable, Optional, cast
 
@@ -70,31 +71,70 @@ class openai(ChatModel):
         self.api_key = api_key
         self.base_url = base_url
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the environment variable
-        env_key = os.environ.get("OPENAI_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
-
-            api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
-
-        raise ValueError(
-            "openai api key not provided. Pass it as an argument or "
-            "set OPENAI_API_KEY as an environment variable"
+    def __call__(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> object:
+        DependencyManager.openai.require(
+            "chat model requires openai. `pip install openai`"
         )
+        from openai import OpenAI  # type: ignore[import-not-found]
+        from openai.types.chat import (  # type: ignore[import-not-found]
+            ChatCompletionMessageParam,
+        )
+
+        client = OpenAI(
+            api_key=self.api_key
+            or _require_api_key("OPENAI_API_KEY", "open_ai", "OpenAI"),
+            base_url=self.base_url or None,
+        )
+
+        openai_messages = convert_to_openai_messages(
+            [ChatMessage(role="system", content=self.system_message)]
+            + messages
+        )
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=cast(list[ChatCompletionMessageParam], openai_messages),
+            max_completion_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            frequency_penalty=config.frequency_penalty,
+            presence_penalty=config.presence_penalty,
+            stream=False,
+        )
+
+        choice = response.choices[0]
+        content = choice.message.content
+        return content or ""
+
+
+class azure(ChatModel):
+    """
+    AzureOpenAI ChatModel
+
+    **Args:**
+
+    - model: The model to use.
+        Can be found on the [Azure OpenAI Service models page](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models?tabs=global-standard%2Cstandard-chat-completions)
+    - system_message: The system message to use
+    - api_key: The API key to use.
+        If not provided, the API key will be retrieved
+        from the OPENAI_API_KEY environment variable or the user's config.
+    - base_url: The base URL to use
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ):
+        self.model = model
+        self.system_message = system_message
+        self.api_key = api_key
+        self.base_url = base_url
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -104,35 +144,22 @@ class openai(ChatModel):
         )
         from urllib.parse import parse_qs, urlparse
 
-        from openai import (  # type: ignore[import-not-found]
-            AzureOpenAI,
-            OpenAI,
-        )
+        from openai import AzureOpenAI  # type: ignore[import-not-found]
         from openai.types.chat import (  # type: ignore[import-not-found]
             ChatCompletionMessageParam,
         )
 
-        # Azure OpenAI clients are instantiated slightly differently
-        # To check if we're using Azure, we check the base_url for the format
-        # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
+        # Extract the model and api version from the url
+        # https://[domain]/openai/deployments/[model]/chat/completions?api-version=[api_version]
         parsed_url = urlparse(self.base_url)
-        if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
-            ".openai.azure.com"
-        ):
-            self.model = cast(str, parsed_url.path).split("/")[3]
-            api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
-                0
-            ]
-            client: AzureOpenAI | OpenAI = AzureOpenAI(
-                api_key=self._require_api_key,
-                api_version=api_version,
-                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
-            )
-        else:
-            client = OpenAI(
-                api_key=self._require_api_key,
-                base_url=self.base_url or None,
-            )
+        self.model = cast(str, parsed_url.path).split("/")[3]
+        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
+        client = AzureOpenAI(
+            api_key=self.api_key
+            or _require_api_key("AZURE_API_KEY", "azure", "Azure OpenAI"),
+            api_version=api_version,
+            azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+        )
 
         openai_messages = convert_to_openai_messages(
             [ChatMessage(role="system", content=self.system_message)]
@@ -182,32 +209,6 @@ class anthropic(ChatModel):
         self.api_key = api_key
         self.base_url = base_url
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
-
-            api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
-
-        # Then check the environment variable
-        env_key = os.environ.get("ANTHROPIC_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        raise ValueError(
-            "anthropic api key not provided. Pass it as an argument or "
-            "set ANTHROPIC_API_KEY as an environment variable"
-        )
-
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -223,7 +224,8 @@ class anthropic(ChatModel):
         )
 
         client = Anthropic(
-            api_key=self._require_api_key,
+            api_key=self.api_key
+            or _require_api_key("ANTHROPIC_API_KEY", "anthropic", "Antropic"),
             base_url=self.base_url,
         )
 
@@ -275,32 +277,6 @@ class google(ChatModel):
         self.system_message = system_message
         self.api_key = api_key
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
-
-            api_key = get_context().marimo_config["ai"]["google"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
-
-        # Then check the environment variable
-        env_key = os.environ.get("GOOGLE_AI_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        raise ValueError(
-            "Google AI api key not provided. Pass it as an argument or "
-            "set GOOGLE_AI_API_KEY as an environment variable"
-        )
-
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -309,7 +285,10 @@ class google(ChatModel):
         )
         import google.generativeai as genai  # type: ignore[import-not-found]
 
-        genai.configure(api_key=self._require_api_key)
+        genai.configure(
+            api_key=self.api_key
+            or _require_api_key("GOOGLE_AI_API_KEY", "google", "Google AI")
+        )
         client = genai.GenerativeModel(
             model_name=self.model,
             system_instruction=self.system_message,
@@ -357,33 +336,6 @@ class groq(ChatModel):
         self.api_key = api_key
         self.base_url = base_url
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the environment variable
-        env_key = os.environ.get("GROQ_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        # TODO(haleshot): Add config support later
-        # # Then check the user's config
-        # try:
-        #     from marimo._runtime.context.types import get_context
-        #
-        #     api_key = get_context().user_config["ai"]["groq"]["api_key"]
-        #     if api_key:
-        #         return api_key
-        # except Exception:
-        #     pass
-
-        raise ValueError(
-            "groq api key not provided. Pass it as an argument or "
-            "set GROQ_API_KEY as an environment variable"
-        )
-
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -392,7 +344,11 @@ class groq(ChatModel):
         )
         from groq import Groq  # type: ignore[import-not-found]
 
-        client = Groq(api_key=self._require_api_key, base_url=self.base_url)
+        client = Groq(
+            api_key=self.api_key
+            or _require_api_key("GROQ_API_KEY", "groq", "Groq"),
+            base_url=self.base_url,
+        )
 
         groq_messages = convert_to_groq_messages(
             [ChatMessage(role="system", content=self.system_message)]
@@ -514,3 +470,23 @@ class bedrock(ChatModel):
             else:
                 # Re-raise original exception if not handled
                 raise
+
+
+def _require_api_key(env_var: str, config_key: str, name: str) -> str:
+    # Then check the environment variable
+    env_key = os.environ.get(env_var)
+    if env_key is not None:
+        return env_key
+
+    # Then check the user's config
+    with contextlib.suppress(Exception):
+        from marimo._runtime.context.types import get_context
+
+        api_key = get_context().marimo_config["ai"][config_key]["api_key"]
+        if api_key:
+            return api_key
+
+    raise ValueError(
+        f"{name} api key not provided. Pass it as an argument or "
+        f"set {env_var} as an environment variable"
+    )
