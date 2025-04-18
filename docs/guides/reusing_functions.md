@@ -1,9 +1,9 @@
-# Importing Functions and Classes Defined in Marimo Notebooks
+# Importing functions and classes defined in notebooks
 
 You can import top-level functions and classes defined in a marimo notebook
 into other Python scripts or notebooks using normal Python syntax, as long as
 your definitions satisfy the simple criteria described on this page. This makes
-your notebook code modular and reusable, testable, and easier to edit in text editors
+your notebook code reusable, testable, and easier to edit in text editors
 of your choice.
 
 ## Overview
@@ -40,7 +40,7 @@ In another script or notebook
 from my_notebook import my_utility_function, DataProcessor
 ```
 
-## Creating a top-level function
+## Creating a top-level function or class
 
 ### 1. Create a setup cell
 
@@ -51,9 +51,8 @@ classes will need:
 import numpy as np
 ```
 
-To add a setup cell in the editor, use the General menu and select "Add setup cell" (💠).
-
-Setup cells are guaranteed to run before all other cells.
+To add a setup cell in the editor, open the notebook menu and select "Add setup cell".
+(The setup cell is guaranteed to run before other cells.)
 
 ### 2. Define your function
 
@@ -86,9 +85,9 @@ def calculate_statistics(data):
 
 Under the hood, marimo decorates top-level functions with `@app.function`,
 which you can use to define your own top-level functions if you are editing a
-notebook file directly.
+notebook file directly. Top-level classes are decorated with `@app.class_definition`.
 
-### 3. Reuse your definitions
+### 3. Import into other Python files
 
 Now you can import your function in other notebooks or Python scripts:
 
@@ -99,23 +98,6 @@ from my_notebook import calculate_statistics
 data = [1, 2, 3, 4, 5]
 stats = calculate_statistics(data)
 print(stats)
-```
-
-## Class definitions
-
-Classes are also serialized top-level if they meet the [criteria](overview).
-Under the hood, marimo decorates top-level classes with
-`@app.class_definition`, which you can use if you are editing your notebook
-file directly:
-
-```python
-@app.class_definition
-class DataProcessor:
-    def __init__(self, data):
-        self.data = data
-
-    def normalize(self):
-        return (self.data - np.mean(self.data)) / np.std(self.data)
 ```
 
 ## Best practices
@@ -137,7 +119,6 @@ class DataProcessor:
 
 ## Learn more
 
-For more detailed information about marimo's file format and features, check
-out our [documentation on using your own
-editor](https://docs.marimo.io/guides/editor_features/watching/) or view our
-[file format tutorial](https://marimo.app/?slug=8n55fd).
+For more on marimo's file format, check out our [documentation on using your
+own editor](../guides/editor_features/watching.md) or view
+our [file format tutorial](https://links.marimo.app/tutorial-fileformat).

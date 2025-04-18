@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.12.8"
+__generated_with = "0.12.10"
 app = marimo.App()
 
 with app.setup:
@@ -147,7 +147,7 @@ def _(mo):
 
         In the generated code, there is a function for each cell. The arguments
         of  the function are the cell's refs , and its returned variables are
-        its defs.
+        its defs that are referenced by other cells.
 
         For example, the code
 
@@ -160,7 +160,7 @@ def _(mo):
         ```
 
         says that the cell takes as input a variable called `mo`, and it creates
-        a global variable called `text`.
+        a global variable called `text` (that is read by another cell).
 
         In contrast, the code
 
