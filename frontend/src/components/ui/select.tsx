@@ -114,8 +114,10 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & {
+    subtitle?: React.ReactNode; // Subtitle is not displayed in input field
+  }
+>(({ className, children, subtitle, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
@@ -136,6 +138,7 @@ const SelectItem = React.forwardRef<
     >
       {children}
     </SelectPrimitive.ItemText>
+    {subtitle}
   </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
