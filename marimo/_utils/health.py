@@ -22,7 +22,8 @@ def get_node_version() -> Optional[str]:
         stdout, stderr = process.communicate()
         if stderr:
             return None
-        return stdout.strip().split()[-1]
+        if stdout and (stripped := stdout.strip()):
+            return stripped.split()[-1]
     except FileNotFoundError:
         return None
 
