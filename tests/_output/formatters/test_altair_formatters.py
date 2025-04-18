@@ -158,8 +158,6 @@ def test_altair_formatter_sanitize_nan_infs(df: IntoDataFrame):
     assert mime == "application/vnd.vegalite.v5+json"
     assert isinstance(content, str)
 
-    print("content\n", content)
-
     for non_valid_value in ["NaN", "Infinity", "-Infinity"]:
         assert non_valid_value not in content
     assert content.count('"B": null') == 3

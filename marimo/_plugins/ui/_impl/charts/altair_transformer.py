@@ -9,7 +9,6 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
     get_table_manager_or_none,
@@ -139,20 +138,16 @@ def _maybe_sanitize_dataframe(data: Any) -> Any:
 
 def sanitize_nan_infs(data: Any) -> Any:
     """Sanitize NaN and Inf values in Dataframes for JSON serialization."""
-    # Pandas already handles NaN and Inf values for JSON serialization.
-    if not DependencyManager.polars.has():
-        return data
-
-    import polars as pl
-
-    if isinstance(data, pl.DataFrame):
-        LOGGER.info("Sanitizing NaN and Inf values in Polars DataFrame")
-        data = data.with_columns(
-            pl.when(pl.col("*").is_nan() | pl.col("*").is_infinite())
+    if can_narwhalify(data):
+        narwhals_data = nw.from_native(data)
+        res = narwhals_data.with_columns(
+            nw.when(nw.col(col).is_nan() | ~nw.col(col).is_finite())
             .then(None)
-            .otherwise(pl.col("*"))
+            .otherwise(nw.col(col))
             .name.keep()
+            for col in narwhals_data.columns
         )
+        return res.to_native()
     return data
 
 
