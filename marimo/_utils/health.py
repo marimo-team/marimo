@@ -24,6 +24,8 @@ def get_node_version() -> Optional[str]:
             return None
         if stdout and (stripped := stdout.strip()):
             return stripped.split()[-1]
+        else:
+            return None
     except FileNotFoundError:
         return None
 
