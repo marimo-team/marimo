@@ -35,7 +35,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Objects } from "@/utils/objects";
 import { renderMimeIcon } from "./renderMimeIcon";
 import { Events } from "@/utils/events";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
@@ -63,7 +62,7 @@ export const OutputRenderer: React.FC<{
       case "application/vnd.marimo+mimebundle":
       case "application/vnd.vegalite.v5+json":
       case "application/vnd.vega.v5+json":
-        return typeof data === "string" ? jsonParseWithSpecialChar(data) : data;
+        return typeof data === "string" ? JSON.parse(data) : data;
       default:
         return;
     }
