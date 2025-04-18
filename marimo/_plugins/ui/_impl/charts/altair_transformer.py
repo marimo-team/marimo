@@ -148,11 +148,7 @@ def sanitize_nan_infs(data: Any) -> Any:
     if isinstance(data, pl.DataFrame):
         LOGGER.info("Sanitizing NaN and Inf values in Polars DataFrame")
         data = data.with_columns(
-            pl.when(
-                (pl.col("*") == float("nan"))
-                | (pl.col("*") == float("inf"))
-                | (pl.col("*") == -float("inf"))
-            )
+            pl.when(pl.col("*").is_nan() | pl.col("*").is_infinite())
             .then(None)
             .otherwise(pl.col("*"))
             .name.keep()
