@@ -50,12 +50,14 @@ export const ChartSchema = z.object({
   xAxis: z
     .object({
       label: z.string().optional(),
+      width: z.number().optional(),
       bin: BinSchema.optional(),
     })
     .optional(),
   yAxis: z
     .object({
       label: z.string().optional(),
+      width: z.number().optional(),
       bin: BinSchema.optional(),
     })
     .optional(),
@@ -67,8 +69,3 @@ export const ChartSchema = z.object({
     })
     .optional(),
 });
-
-// if groupBy col is nominal,
-// color can be a domain with range
-
-// else probably should be a scale

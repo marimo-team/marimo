@@ -51,6 +51,7 @@ import {
   InputField,
   NumberField,
   SelectField,
+  SliderField,
 } from "./form-components";
 import {
   AGGREGATION_TYPE_ICON,
@@ -619,6 +620,14 @@ const AxisTabContent: React.FC<AxisTabContentProps> = ({ axis, form }) => {
           form={form}
           name={`${axis}Axis.label`}
           formFieldLabel={`${axisName}-axis Label`}
+        />
+        <SliderField
+          form={form}
+          name={`${axis}Axis.width`}
+          formFieldLabel={axis === "x" ? "Width" : "Height"}
+          value={axis === "x" ? 400 : 300}
+          start={axis === "x" ? 200 : 150}
+          stop={axis === "x" ? 800 : 600}
         />
         <div className="flex flex-row gap-2 w-full">
           <BooleanField

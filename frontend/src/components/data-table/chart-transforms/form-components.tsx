@@ -26,6 +26,9 @@ import type { NumberFieldProps } from "@/components/ui/number-field";
 import { Button } from "@/components/ui/button";
 import { XIcon, PlusIcon } from "lucide-react";
 import React from "react";
+import type { z } from "zod";
+import type { ChartSchema } from "./chart-schemas";
+import { SliderComponent } from "@/plugins/impl/SliderPlugin";
 
 export const ColumnSelector = <T extends object>({
   form,
@@ -241,6 +244,58 @@ export const BooleanField = <T extends object>({
               checked={field.value}
               onCheckedChange={field.onChange}
               className="w-4 h-4"
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+interface SliderFieldProps {
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  name: Path<z.infer<typeof ChartSchema>>;
+  formFieldLabel: string;
+  value: number;
+  start: number;
+  stop: number;
+  step?: number;
+  className?: string;
+}
+
+export const SliderField = ({
+  form,
+  name,
+  formFieldLabel,
+  value,
+  start,
+  stop,
+  step,
+  className,
+  ...props
+}: SliderFieldProps) => {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={cn("flex flex-row items-center gap-2", className)}>
+          <FormControl>
+            <SliderComponent
+              {...field}
+              {...props}
+              value={value}
+              setValue={field.onChange}
+              start={start}
+              stop={stop}
+              step={step}
+              label={formFieldLabel}
+              debounce={false}
+              orientation="horizontal"
+              showValue={false}
+              fullWidth={false}
+              steps={null}
+              valueMap={(value) => value}
             />
           </FormControl>
         </FormItem>

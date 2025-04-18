@@ -96,8 +96,8 @@ export function createVegaSpec(
     data: {
       values: data,
     },
-    height: height,
-    width: width,
+    height: formValues.yAxis?.width ?? height,
+    width: formValues.xAxis?.width ?? width,
     mark: {
       type: convertChartTypeToMark(chartType),
     },
