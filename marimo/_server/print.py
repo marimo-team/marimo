@@ -121,6 +121,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "secrets",
         "reactive_tests",
         "toplevel_defs",
+        "setup_cell",
     }
     keys = keys - finished_experiments
 
