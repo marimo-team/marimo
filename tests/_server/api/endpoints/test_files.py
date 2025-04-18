@@ -157,8 +157,9 @@ def test_save_with_invalid_file(client: TestClient) -> None:
         + "# Linter ignore\n"
     )
 
-    # Prepend a header to the file
     contents = open(filename).read()
+    start = contents.splitlines()[0]
+    # Prepend a header to the file
     contents = header + contents
     open(filename, "w", encoding="UTF-8").write(contents)
 
@@ -182,7 +183,7 @@ def test_save_with_invalid_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
     file_contents = open(filename).read()
-    assert file_contents.startswith("import marimo"), "Header was not removed"
+    assert file_contents.startswith(start), "Header was not removed"
     assert "@app.cell(hide_code=True)" in file_contents
     assert "my_cell" in file_contents
 
