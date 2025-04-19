@@ -387,7 +387,7 @@ def run_in_sandbox(
                 os.kill(process.pid, signal.CTRL_C_EVENT)
             else:
                 os.kill(process.pid, signal.SIGINT)
-        except Exception:
+        except ProcessLookupError:
             # Process may have already been terminated.
             pass
 
