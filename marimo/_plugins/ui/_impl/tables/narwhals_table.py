@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import io
 from functools import cached_property
 from typing import Any, Optional, Union, cast
@@ -158,6 +159,49 @@ class NarwhalsTableManager(
         self,
     ) -> list[str]:
         return []
+
+    @functools.lru_cache(maxsize=5)  # noqa: B019
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
+        if isinstance(self.data, nw.LazyFrame):
+            raise ValueError(
+                "Cannot calculate top k rows for lazy frames, please collect the data first"
+            )
+
+        columns = self.get_column_names()
+
+        if column not in columns:
+            raise ValueError(f"Column {column} not found in table.")
+
+        # Find a column name for the count that doesn't conflict with existing columns
+        chosen_column_name: str | None = None
+        for col in ["count", f"count of {column}", "num_rows"]:
+            if col not in columns:
+                chosen_column_name = col
+                break
+        if chosen_column_name is None:
+            raise ValueError(
+                "Cannot specify a count column name, please rename your column"
+            )
+
+        # column is also sorted to ensure nulls are last
+        result = (
+            self.data.group_by(column)
+            .agg(nw.len().alias(chosen_column_name))
+            .sort(
+                [chosen_column_name, column], descending=True, nulls_last=True
+            )
+            .head(k)
+        )
+
+        return [
+            (
+                unwrap_py_scalar(row[column]),
+                int(unwrap_py_scalar(row[chosen_column_name])),
+            )
+            for row in result.iter_rows(named=True)
+        ]
 
     @staticmethod
     def is_type(value: Any) -> bool:

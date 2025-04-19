@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
 
@@ -260,6 +262,51 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def get_row_headers(self) -> list[str]:
         return []
+
+    @functools.lru_cache(maxsize=5)  # noqa: B019
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
+        column_names = self.get_column_names()
+        if column not in column_names:
+            raise ValueError(f"Column {column} not found in table.")
+
+        grouped: dict[str, int] = defaultdict(int)
+        if isinstance(self.data, dict):
+            if self.is_column_oriented:
+                # Handle column-oriented data
+                for value in cast(list[Any], self.data[column]):
+                    grouped[value] += 1
+            else:
+                # In this case, the data is a dict of key-value pairs
+                # where the key is the row identifier and the value is the data
+                for key, value in self.data.items():
+                    if column == KEY:
+                        grouped[key] += 1
+                    elif column == VALUE:
+                        grouped[value] += 1
+        else:
+            # Handle row-oriented data
+            for row in self.data:
+                if isinstance(row, dict) and column in row:
+                    grouped[row[column]] += 1
+
+        sorted_grouped = sorted(
+            grouped.items(), key=lambda x: x[1], reverse=True
+        )
+        top_k = sorted_grouped[:k]
+
+        chosen_column_name = None
+        for column_name in ["count", "number of rows", "count of rows"]:
+            if column_name not in column_names:
+                chosen_column_name = column_name
+                break
+        if chosen_column_name is None:
+            raise ValueError(
+                "Cannot specify a count column name, please rename your column"
+            )
+
+        return [(value, count) for value, count in top_k]
 
     def get_field_type(
         self, column_name: str

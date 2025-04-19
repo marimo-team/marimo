@@ -193,6 +193,12 @@ class TableManager(abc.ABC, Generic[T]):
     def get_sample_values(self, column: str) -> list[Any]:
         pass
 
+    @abc.abstractmethod
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
+        pass
+
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
         columns = self.get_num_columns()
