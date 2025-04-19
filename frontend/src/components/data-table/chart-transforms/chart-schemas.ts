@@ -45,7 +45,12 @@ export const ChartSchema = z.object({
       .object({
         field: z.string().default(NONE_GROUP_BY).optional(),
         type: z.enum(DATA_TYPES).optional(),
+        scaleType: z.enum(SCALE_TYPES).optional(),
         binned: z.boolean().optional(),
+        agg: z
+          .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
+          .default(DEFAULT_AGGREGATION)
+          .optional(),
       })
       .optional(),
     stacking: z.boolean().optional(),

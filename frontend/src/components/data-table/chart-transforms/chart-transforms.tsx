@@ -14,27 +14,15 @@ import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
 import type { z } from "zod";
-import { type Path, useForm, type UseFormReturn } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ChartSchema,
-  SCALE_TYPES,
-  type ScaleType,
-  SORT_TYPES,
-} from "./chart-schemas";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
+import { ChartSchema, SORT_TYPES } from "./chart-schemas";
+import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
@@ -51,24 +39,24 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import {
+  AggregationSelect,
   BooleanField,
   ColumnSelector,
+  type Field,
+  IconWithText,
   InputField,
   NumberField,
+  ScaleTypeSelect,
   SelectField,
   SliderField,
+  Title,
+  TooltipSelect,
 } from "./form-components";
-import {
-  CHART_TYPE_ICON,
-  inferScaleType,
-  SCALE_TYPE_DESCRIPTIONS,
-} from "./constants";
+import { CHART_TYPE_ICON, inferScaleType } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
-import type { DataType } from "@/core/kernel/messages";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -401,11 +389,6 @@ interface ChartFormProps {
   fieldTypes?: FieldTypesWithExternalType | null;
 }
 
-interface Field {
-  name: string;
-  type: DataType;
-}
-
 const ChartForm = ({
   form,
   saveChart,
@@ -448,7 +431,11 @@ const ChartForm = ({
             <HorizontalRule />
             <TabContainer>
               {chartType === ChartType.LINE && (
-                <LineChartForm form={form} fields={fields ?? []} />
+                <LineChartForm
+                  form={form}
+                  fields={fields ?? []}
+                  saveForm={debouncedSave}
+                />
               )}
               {/* <BooleanField
                 form={form}
@@ -706,19 +693,29 @@ const TabContainer: React.FC<{
 const LineChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
-}> = ({ form, fields }) => {
+  saveForm: () => void;
+}> = ({ form, fields, saveForm }) => {
   const formValues = form.getValues();
 
   const [xColumn, setXColumn] = useState(formValues.general?.xColumn);
+  const [yColumn, setYColumn] = useState(formValues.general?.yColumn);
+  const [groupByColumn, setGroupByColumn] = useState(
+    formValues.general?.groupByColumn,
+  );
+
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
   // For now, we'll use the inferred scale type
   const inferredScaleType = xColumn?.type
     ? inferScaleType(xColumn.type)
     : "string";
 
+  const inferredGroupByScaleType = groupByColumn?.type
+    ? inferScaleType(groupByColumn.type)
+    : "string";
+
   return (
     <>
-      <span className="font-semibold my-0">X-Axis</span>
+      <Title text="X-Axis" />
       <ColumnSelector
         form={form}
         name="general.xColumn.field"
@@ -732,18 +729,6 @@ const LineChartForm: React.FC<{
           form={form}
           formFieldLabel="Scale Type"
           name="general.xColumn.scaleType"
-          options={SCALE_TYPES.map((type) => {
-            const Icon = DATA_TYPE_ICON[type];
-            return {
-              display: (
-                <div className="flex items-center">
-                  <Icon className="w-3 h-3 mr-2" />
-                  {capitalize(type)}
-                </div>
-              ),
-              value: type,
-            };
-          })}
           defaultValue={inferredScaleType}
         />
       )}
@@ -754,92 +739,79 @@ const LineChartForm: React.FC<{
           formFieldLabel="Sort"
           options={SORT_TYPES.map((type) => ({
             display: (
-              <div className="flex items-center">
-                {type === "ascending" ? (
-                  <ArrowUpWideNarrowIcon className="w-3 h-3 mr-2" />
-                ) : type === "descending" ? (
-                  <ArrowDownWideNarrowIcon className="w-3 h-3 mr-2" />
-                ) : (
-                  <ChevronsUpDown className="w-3 h-3 mr-2" />
-                )}
-                {capitalize(type)}
-              </div>
+              <IconWithText
+                Icon={
+                  type === "ascending"
+                    ? ArrowUpWideNarrowIcon
+                    : type === "descending"
+                      ? ArrowDownWideNarrowIcon
+                      : ChevronsUpDown
+                }
+                text={capitalize(type)}
+              />
             ),
             value: type,
           }))}
           defaultValue={formValues.general?.xColumn?.sort ?? "none"}
         />
       )}
-      <span className="font-semibold my-0">Y-Axis</span>
-      <ColumnSelector
-        form={form}
-        name="general.yColumn.field"
-        columns={fields}
-      />
+      <Title text="Y-Axis" />
+      <div className="flex flex-row gap-2">
+        <ColumnSelector
+          form={form}
+          name="general.yColumn.field"
+          columns={fields}
+          onValueChange={(fieldName, type) => {
+            setYColumn({ field: fieldName, type });
+          }}
+        />
+        <AggregationSelect form={form} name="general.yColumn.agg" />
+      </div>
+      {yColumn && (
+        <>
+          <Title text="Color by" />
+          <div className="flex flex-row gap-2">
+            <ColumnSelector
+              form={form}
+              name="general.groupByColumn.field"
+              columns={fields}
+              onValueChange={(fieldName, type) => {
+                setGroupByColumn({ field: fieldName, type });
+              }}
+            />
+            <AggregationSelect form={form} name="general.groupByColumn.agg" />
+          </div>
+          {groupByColumn && (
+            <ScaleTypeSelect
+              form={form}
+              name="general.groupByColumn.scaleType"
+              formFieldLabel="Scale Type"
+              defaultValue={inferredGroupByScaleType}
+            />
+          )}
+        </>
+      )}
+      <hr />
+      <TooltipForm form={form} fields={fields} saveForm={saveForm} />
     </>
   );
 };
 
-const ScaleTypeSelect = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
-  options,
-  defaultValue,
-}: {
-  form: UseFormReturn<T>;
-  name: Path<T>;
-  formFieldLabel: string;
-  options: Array<{ display: React.ReactNode; value: string }>;
-  defaultValue: string;
-}) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-
+const TooltipForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+}> = ({ form, fields, saveForm }) => {
   return (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem className="flex flex-row items-center gap-2 w-full">
-          <FormLabel>{formFieldLabel}</FormLabel>
-          <FormControl>
-            <Select
-              {...field}
-              onValueChange={field.onChange}
-              value={field.value ?? defaultValue}
-              open={isOpen}
-              onOpenChange={setIsOpen}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select an option" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {options.map((option) => {
-                    const scaleType = option.value;
-                    return scaleType === "" ? null : (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="flex flex-col items-start justify-center"
-                        subtitle={
-                          isOpen && (
-                            <span className="text-xs text-muted-foreground">
-                              {SCALE_TYPE_DESCRIPTIONS[scaleType as ScaleType]}
-                            </span>
-                          )
-                        }
-                      >
-                        {option.display}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FormControl>
-        </FormItem>
-      )}
-    />
+    <div className="flex flex-row gap-2 items-center">
+      <Title text="Tooltips" />
+      <TooltipSelect
+        form={form}
+        name="general.tooltips"
+        formFieldLabel="Tooltips"
+        fields={fields}
+        saveFunction={saveForm}
+      />
+    </div>
   );
 };

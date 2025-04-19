@@ -13,34 +13,52 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
-import { SquareFunctionIcon } from "lucide-react";
+import { type LucideProps, SquareFunctionIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
-import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "./chart-schemas";
+import {
+  DEFAULT_AGGREGATION,
+  DEFAULT_BIN_VALUE,
+  NONE_GROUP_BY,
+  SCALE_TYPES,
+} from "./chart-schemas";
 import type { NumberFieldProps } from "@/components/ui/number-field";
 import { Button } from "@/components/ui/button";
+import { AGGREGATION_TYPE_ICON } from "./constants";
 import { XIcon, PlusIcon } from "lucide-react";
 import React from "react";
 import type { z } from "zod";
-import type { ChartSchema } from "./chart-schemas";
+import type { ChartSchema, ScaleType } from "./chart-schemas";
 import { SliderComponent } from "@/plugins/impl/SliderPlugin";
+import { SCALE_TYPE_DESCRIPTIONS } from "./constants";
+import { capitalize } from "lodash-es";
+import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
+import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
+
+export interface Field {
+  name: string;
+  type: DataType;
+}
 
 export const ColumnSelector = <T extends object>({
   form,
   name,
   columns,
   includeNoneOption = false,
+  clearable = true,
   onValueChange,
 }: {
   form: UseFormReturn<T>;
   name: Path<T>;
   columns: Array<{ name: string; type: DataType }>;
   includeNoneOption?: boolean;
+  clearable?: boolean;
   onValueChange?: (fieldName: string, type: DataType) => void;
 }) => {
   return (
@@ -77,18 +95,18 @@ export const ColumnSelector = <T extends object>({
                 }}
                 value={field.value ?? ""}
               >
-                <SelectTrigger className="w-2/3">
+                <SelectTrigger>
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
                 <SelectContent>
-                  {includeNoneOption && (
+                  {/* {includeNoneOption && (
                     <SelectItem value={NONE_GROUP_BY}>
                       <div className="flex items-center">
                         <SquareFunctionIcon className="w-3 h-3 mr-2" />
                         None
                       </div>
                     </SelectItem>
-                  )}
+                  )} */}
                   {columns.map((column) => {
                     const DataTypeIcon = DATA_TYPE_ICON[column.type];
                     if (column.name.trim() === "") {
@@ -384,4 +402,194 @@ export const ColorArrayField = <T extends object>({
       )}
     />
   );
+};
+
+export const ScaleTypeSelect = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  defaultValue,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  defaultValue: string;
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-2 w-full">
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormControl>
+            <Select
+              {...field}
+              onValueChange={field.onChange}
+              value={field.value ?? defaultValue}
+              open={isOpen}
+              onOpenChange={setIsOpen}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {SCALE_TYPES.map((type) => {
+                    const Icon = DATA_TYPE_ICON[type];
+                    return (
+                      <SelectItem
+                        key={type}
+                        value={type}
+                        className="flex flex-col items-start justify-center"
+                        subtitle={
+                          isOpen && (
+                            <span className="text-xs text-muted-foreground">
+                              {SCALE_TYPE_DESCRIPTIONS[type as ScaleType]}
+                            </span>
+                          )
+                        }
+                      >
+                        <IconWithText Icon={Icon} text={capitalize(type)} />
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+export const AggregationSelect = <T extends object>({
+  form,
+  name,
+}: { form: UseFormReturn<T>; name: Path<T> }) => {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormControl>
+            <Select
+              {...field}
+              value={field.value ?? DEFAULT_AGGREGATION}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Aggregation</SelectLabel>
+                  <SelectItem value={DEFAULT_AGGREGATION}>
+                    <div className="flex items-center">
+                      <SquareFunctionIcon className="w-3 h-3 mr-2" />
+                      {capitalize(DEFAULT_AGGREGATION)}
+                    </div>
+                  </SelectItem>
+                  {AGGREGATION_FNS.map((agg) => {
+                    const Icon = AGGREGATION_TYPE_ICON[agg];
+                    return (
+                      <SelectItem key={agg} value={agg}>
+                        <div className="flex items-center">
+                          <Icon className="w-3 h-3 mr-2" />
+                          {capitalize(agg)}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+interface Tooltip {
+  field: string;
+  type: string;
+}
+
+export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
+  form,
+  name,
+  formFieldLabel,
+  fields,
+  saveFunction,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  fields: Field[];
+  saveFunction: () => void;
+}) => {
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => {
+        const tooltips = field.value as Tooltip[] | undefined;
+        return (
+          <FormItem>
+            <FormControl>
+              <Multiselect
+                options={fields?.map((field) => field.name) ?? []}
+                value={tooltips?.map((t) => t.field) ?? []}
+                setValue={(values) => {
+                  const selectedValues =
+                    typeof values === "function" ? values([]) : values;
+
+                  // find the field types and form objects
+                  const tooltipObjects = selectedValues.map((fieldName) => {
+                    const fieldType = fields?.find(
+                      (f) => f.name === fieldName,
+                    )?.type;
+
+                    return {
+                      field: fieldName,
+                      type: fieldType ?? "string",
+                    };
+                  });
+
+                  field.onChange(tooltipObjects);
+                  // Multiselect doesn't trigger onChange, so we need to save the form manually
+                  saveFunction();
+                }}
+                label={null}
+                fullWidth={false}
+              />
+            </FormControl>
+          </FormItem>
+        );
+      }}
+    />
+  );
+};
+
+export const IconWithText: React.FC<{
+  Icon: React.ForwardRefExoticComponent<
+    Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>
+  >;
+  text: string;
+}> = ({ Icon, text }) => {
+  return (
+    <div className="flex items-center">
+      <Icon className="w-3 h-3 mr-2" />
+      <span>{text}</span>
+    </div>
+  );
+};
+
+export const Title: React.FC<{ text: string }> = ({ text }) => {
+  return <span className="font-semibold my-0">{text}</span>;
 };
