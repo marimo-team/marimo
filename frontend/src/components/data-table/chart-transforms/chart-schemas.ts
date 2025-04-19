@@ -9,6 +9,12 @@ export const DEFAULT_BIN_VALUE = 0;
 export const NONE_GROUP_BY = "None";
 export const DEFAULT_COLOR_SCHEME = "default";
 
+// These scale types can be selected to override the default scale type
+export type ScaleType = "number" | "string" | "temporal";
+export const SCALE_TYPES = ["number", "string", "temporal"] as const;
+
+export const SORT_TYPES = ["none", "ascending", "descending"] as const;
+
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
   step: z.number().optional(),
@@ -17,13 +23,18 @@ export const BinSchema = z.object({
 export const ChartSchema = z.object({
   general: z.object({
     title: z.string().optional(),
-    xColumn: z.object({
-      field: z.string().optional(),
-      type: z.enum(DATA_TYPES).optional(),
-    }),
+    xColumn: z
+      .object({
+        field: z.string().optional(),
+        type: z.enum(DATA_TYPES).optional(),
+        scaleType: z.enum(SCALE_TYPES).optional(),
+        sort: z.enum(SORT_TYPES).optional(),
+      })
+      .optional(),
     yColumn: z.object({
       field: z.string().optional(),
       type: z.enum(DATA_TYPES).optional(),
+      scaleType: z.enum(SCALE_TYPES).optional(),
       agg: z
         .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
         .default(DEFAULT_AGGREGATION)

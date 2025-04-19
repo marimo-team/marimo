@@ -3,9 +3,10 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  InfoIcon,
+  ArrowDownWideNarrowIcon,
+  ArrowUpWideNarrowIcon,
+  ChevronsUpDown,
   Loader2,
-  SquareFunctionIcon,
   TableIcon,
   XIcon,
 } from "lucide-react";
@@ -15,19 +16,25 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
 import type { z } from "zod";
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { type Path, useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ChartSchema,
-  DEFAULT_AGGREGATION,
-  DEFAULT_COLOR_SCHEME,
+  SCALE_TYPES,
+  type ScaleType,
+  SORT_TYPES,
 } from "./chart-schemas";
-import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
@@ -43,10 +50,8 @@ import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import {
   BooleanField,
-  ColorArrayField,
   ColumnSelector,
   InputField,
   NumberField,
@@ -54,15 +59,16 @@ import {
   SliderField,
 } from "./form-components";
 import {
-  AGGREGATION_TYPE_ICON,
   CHART_TYPE_ICON,
-  COLOR_SCHEMES,
+  inferScaleType,
+  SCALE_TYPE_DESCRIPTIONS,
 } from "./constants";
-import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
+import type { DataType } from "@/core/kernel/messages";
+import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -342,8 +348,8 @@ export const ChartPanel: React.FC<{
   }, [loading, error, memoizedFormValues, data, chartTypeSelected]);
 
   return (
-    <div className="flex flex-row gap-6 p-3 h-full rounded-md border overflow-auto">
-      <div className="flex flex-col gap-3">
+    <div className="flex flex-row gap-6 p-3 pt-4 h-full rounded-md border overflow-auto">
+      <div className="flex flex-col gap-3 w-1/3">
         <Select
           value={chartTypeSelected}
           onValueChange={(value) => {
@@ -351,9 +357,9 @@ export const ChartPanel: React.FC<{
             saveChartType(value as ChartType);
           }}
         >
-          <div className="flex flex-col gap-1">
-            <span className="text-sm">Visualization Type</span>
-            <SelectTrigger>
+          <div className="flex flex-row gap-2 items-center">
+            <span className="text-sm font-semibold">Type</span>
+            <SelectTrigger className="flex-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -371,7 +377,7 @@ export const ChartPanel: React.FC<{
           chartType={chartTypeSelected}
         />
       </div>
-      {memoizedChart}
+      <div className="w-2/3">{memoizedChart}</div>
     </div>
   );
 };
@@ -395,13 +401,18 @@ interface ChartFormProps {
   fieldTypes?: FieldTypesWithExternalType | null;
 }
 
+interface Field {
+  name: string;
+  type: DataType;
+}
+
 const ChartForm = ({
   form,
   saveChart,
   fieldTypes,
   chartType,
 }: ChartFormProps) => {
-  const fields = fieldTypes?.map((field) => {
+  const fields: Field[] | undefined = fieldTypes?.map((field) => {
     return {
       name: field[0],
       type: field[1][0],
@@ -416,25 +427,35 @@ const ChartForm = ({
   return (
     <Form {...form}>
       <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
-        <Tabs defaultValue="general">
-          <TabsList>
-            <TabsTrigger value="general">General</TabsTrigger>
-            {chartType !== ChartType.PIE && (
+        <Tabs defaultValue="data">
+          <TabsList className="w-full">
+            <TabsTrigger value="data" className="w-1/2">
+              Data
+            </TabsTrigger>
+            <TabsTrigger value="style" className="w-1/2">
+              Style
+            </TabsTrigger>
+            {/* {chartType !== ChartType.PIE && (
               <>
                 <TabsTrigger value="x-axis">X-Axis</TabsTrigger>
                 <TabsTrigger value="y-axis">Y-Axis</TabsTrigger>
               </>
-            )}
-            <TabsTrigger value="color">Color</TabsTrigger>
+            )} */}
+            {/* <TabsTrigger value="color">Color</TabsTrigger> */}
           </TabsList>
-          <TabsContent value="general">
+
+          <TabsContent value="data">
+            <HorizontalRule />
             <TabContainer>
-              <BooleanField
+              {chartType === ChartType.LINE && (
+                <LineChartForm form={form} fields={fields ?? []} />
+              )}
+              {/* <BooleanField
                 form={form}
                 name="general.horizontal"
                 formFieldLabel="Horizontal chart"
-              />
-              <ColumnSelector
+              /> */}
+              {/* <ColumnSelector
                 form={form}
                 name="general.xColumn.field"
                 formFieldLabel={
@@ -567,16 +588,23 @@ const ChartForm = ({
                     </FormControl>
                   </FormItem>
                 )}
-              />
+              /> */}
             </TabContainer>
           </TabsContent>
-          {chartType !== ChartType.PIE && (
+
+          <TabsContent value="style">
+            <HorizontalRule />
+            <TabContainer>
+              <span>hi</span>
+            </TabContainer>
+          </TabsContent>
+          {/* {chartType !== ChartType.PIE && (
             <>
               <AxisTabContent axis="x" form={form} />
               <AxisTabContent axis="y" form={form} />
             </>
-          )}
-          <TabsContent value="color">
+          )} */}
+          {/* <TabsContent value="color">
             <TabContainer>
               <SelectField
                 form={form}
@@ -598,11 +626,15 @@ const ChartForm = ({
                 If you are using color range, color scheme will be ignored.
               </p>
             </TabContainer>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </form>
     </Form>
   );
+};
+
+const HorizontalRule: React.FC = () => {
+  return <hr className="my-3" />;
 };
 
 interface AxisTabContentProps {
@@ -668,5 +700,146 @@ const TabContainer: React.FC<{
   className?: string;
   children: React.ReactNode;
 }> = ({ children, className }) => {
-  return <div className={cn("flex flex-col gap-3", className)}>{children}</div>;
+  return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
+};
+
+const LineChartForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+}> = ({ form, fields }) => {
+  const formValues = form.getValues();
+
+  const [xColumn, setXColumn] = useState(formValues.general?.xColumn);
+  // TODO: How/when do we choose between a saved scale type and an inferred scale type?
+  // For now, we'll use the inferred scale type
+  const inferredScaleType = xColumn?.type
+    ? inferScaleType(xColumn.type)
+    : "string";
+
+  return (
+    <>
+      <span className="font-semibold my-0">X-Axis</span>
+      <ColumnSelector
+        form={form}
+        name="general.xColumn.field"
+        columns={fields}
+        onValueChange={(fieldName, type) => {
+          setXColumn({ field: fieldName, type });
+        }}
+      />
+      {xColumn && (
+        <ScaleTypeSelect
+          form={form}
+          formFieldLabel="Scale Type"
+          name="general.xColumn.scaleType"
+          options={SCALE_TYPES.map((type) => {
+            const Icon = DATA_TYPE_ICON[type];
+            return {
+              display: (
+                <div className="flex items-center">
+                  <Icon className="w-3 h-3 mr-2" />
+                  {capitalize(type)}
+                </div>
+              ),
+              value: type,
+            };
+          })}
+          defaultValue={inferredScaleType}
+        />
+      )}
+      {xColumn && (
+        <SelectField
+          form={form}
+          name="general.xColumn.sort"
+          formFieldLabel="Sort"
+          options={SORT_TYPES.map((type) => ({
+            display: (
+              <div className="flex items-center">
+                {type === "ascending" ? (
+                  <ArrowUpWideNarrowIcon className="w-3 h-3 mr-2" />
+                ) : type === "descending" ? (
+                  <ArrowDownWideNarrowIcon className="w-3 h-3 mr-2" />
+                ) : (
+                  <ChevronsUpDown className="w-3 h-3 mr-2" />
+                )}
+                {capitalize(type)}
+              </div>
+            ),
+            value: type,
+          }))}
+          defaultValue={formValues.general?.xColumn?.sort ?? "none"}
+        />
+      )}
+      <span className="font-semibold my-0">Y-Axis</span>
+      <ColumnSelector
+        form={form}
+        name="general.yColumn.field"
+        columns={fields}
+      />
+    </>
+  );
+};
+
+const ScaleTypeSelect = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  options,
+  defaultValue,
+}: {
+  form: UseFormReturn<T>;
+  name: Path<T>;
+  formFieldLabel: string;
+  options: Array<{ display: React.ReactNode; value: string }>;
+  defaultValue: string;
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-2 w-full">
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormControl>
+            <Select
+              {...field}
+              onValueChange={field.onChange}
+              value={field.value ?? defaultValue}
+              open={isOpen}
+              onOpenChange={setIsOpen}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {options.map((option) => {
+                    const scaleType = option.value;
+                    return scaleType === "" ? null : (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="flex flex-col items-start justify-center"
+                        subtitle={
+                          isOpen && (
+                            <span className="text-xs text-muted-foreground">
+                              {SCALE_TYPE_DESCRIPTIONS[scaleType as ScaleType]}
+                            </span>
+                          )
+                        }
+                      >
+                        {option.display}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
 };

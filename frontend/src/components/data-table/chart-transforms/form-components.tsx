@@ -33,78 +33,82 @@ import { SliderComponent } from "@/plugins/impl/SliderPlugin";
 export const ColumnSelector = <T extends object>({
   form,
   name,
-  formFieldLabel,
   columns,
   includeNoneOption = false,
+  onValueChange,
 }: {
   form: UseFormReturn<T>;
   name: Path<T>;
-  formFieldLabel: string;
   columns: Array<{ name: string; type: DataType }>;
   includeNoneOption?: boolean;
+  onValueChange?: (fieldName: string, type: DataType) => void;
 }) => {
   return (
     <FormField
       control={form.control}
       name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{formFieldLabel}</FormLabel>
-          <FormControl>
-            <Select
-              {...field}
-              onValueChange={(value) => {
-                if (value === NONE_GROUP_BY) {
-                  form.setValue(name, value as PathValue<T, Path<T>>);
-                  return;
-                }
-
-                const column = columns.find((column) => column.name === value);
-                if (column) {
-                  form.setValue(name, value as PathValue<T, Path<T>>);
-                  const typeFieldName = name.replace(
-                    ".field",
-                    ".type",
-                  ) as Path<T>;
-                  form.setValue(
-                    typeFieldName,
-                    column.type as PathValue<T, Path<T>>,
-                  );
-                }
-              }}
-              value={field.value ?? ""}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {includeNoneOption && (
-                  <SelectItem value={NONE_GROUP_BY}>
-                    <div className="flex items-center">
-                      <SquareFunctionIcon className="w-3 h-3 mr-2" />
-                      None
-                    </div>
-                  </SelectItem>
-                )}
-                {columns.map((column) => {
-                  const DataTypeIcon = DATA_TYPE_ICON[column.type];
-                  if (column.name.trim() === "") {
-                    return null;
+      render={({ field }) => {
+        return (
+          <FormItem>
+            <FormControl>
+              <Select
+                {...field}
+                onValueChange={(value) => {
+                  if (value === NONE_GROUP_BY) {
+                    form.setValue(name, value as PathValue<T, Path<T>>);
+                    return;
                   }
-                  return (
-                    <SelectItem key={column.name} value={column.name}>
-                      <div className="flex items-center truncate">
-                        <DataTypeIcon className="w-3 h-3 mr-2" />
-                        {column.name}
+
+                  const column = columns.find(
+                    (column) => column.name === value,
+                  );
+                  if (column) {
+                    form.setValue(name, value as PathValue<T, Path<T>>);
+                    const typeFieldName = name.replace(
+                      ".field",
+                      ".type",
+                    ) as Path<T>;
+                    form.setValue(
+                      typeFieldName,
+                      column.type as PathValue<T, Path<T>>,
+                    );
+                    onValueChange?.(name, column.type);
+                  }
+                }}
+                value={field.value ?? ""}
+              >
+                <SelectTrigger className="w-2/3">
+                  <SelectValue placeholder="Select column" />
+                </SelectTrigger>
+                <SelectContent>
+                  {includeNoneOption && (
+                    <SelectItem value={NONE_GROUP_BY}>
+                      <div className="flex items-center">
+                        <SquareFunctionIcon className="w-3 h-3 mr-2" />
+                        None
                       </div>
                     </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </FormControl>
-        </FormItem>
-      )}
+                  )}
+                  {columns.map((column) => {
+                    const DataTypeIcon = DATA_TYPE_ICON[column.type];
+                    if (column.name.trim() === "") {
+                      return null;
+                    }
+                    return (
+                      <SelectItem key={column.name} value={column.name}>
+                        <div className="flex items-center truncate">
+                          <DataTypeIcon className="w-3 h-3 mr-2" />
+                          {column.name}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </FormControl>
+          </FormItem>
+        );
+      }}
     />
   );
 };
@@ -119,7 +123,7 @@ export const SelectField = <T extends object>({
   form: UseFormReturn<T>;
   name: Path<T>;
   formFieldLabel: string;
-  options: Array<{ label: string; value: string }>;
+  options: Array<{ display: React.ReactNode; value: string }>;
   defaultValue: string;
 }) => {
   return (
@@ -127,7 +131,7 @@ export const SelectField = <T extends object>({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormItem>
+        <FormItem className="flex flex-row items-center gap-2">
           <FormLabel>{formFieldLabel}</FormLabel>
           <FormControl>
             <Select
@@ -136,14 +140,14 @@ export const SelectField = <T extends object>({
               value={field.value ?? defaultValue}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {options.map((option) => {
                     return option.value.trim() === "" ? null : (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        {option.display}
                       </SelectItem>
                     );
                   })}
