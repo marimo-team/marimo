@@ -12,8 +12,6 @@ from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
-_shutting_down = False
-
 
 def initialize_signals() -> None:
     from packaging import version
@@ -40,12 +38,6 @@ def initialize_signals() -> None:
 def close_uvicorn(server: uvicorn.Server) -> None:
     from packaging import version
 
-    global _shutting_down
-    if _shutting_down:
-        print("returning early")
-        return
-
-    _shutting_down = True
     LOGGER.debug("Shutting down uvicorn")
 
     # Tried using sys.exit(0) to quit instead, but that ends up not being

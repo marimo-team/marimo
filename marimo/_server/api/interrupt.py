@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import signal
-import sys
 from typing import Callable
 
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._server.print import print_shutdown
 from marimo._server.utils import (
     TAB,
     print_,
@@ -39,13 +37,10 @@ class InterruptHandler:
         self._shutdown()
         self._has_shutdown = True
 
-    async def _confirm_exit(self) -> None:
+    def _confirm_exit(self) -> None:
         try:
-            self._confirming_exit = True
             print_()
-            response = await asyncio.to_thread(
-                input, f"\r{TAB}Are you sure you want to quit? (y/n): "
-            )
+            response = input(f"\r{TAB}Are you sure you want to quit? (y/n): ")
             if response.lower().strip() == "y":
                 print_()
                 self.shutdown()
@@ -57,13 +52,10 @@ class InterruptHandler:
 
     def _interrupt_handler(self) -> None:
         if self._confirming_exit:
-            print_()
             self.shutdown()
-            print_shutdown()
-            import os
+            return
 
-            os._exit(0)
-
+        self._confirming_exit = True
         if self.quiet:
             self.shutdown()
             return
@@ -72,8 +64,7 @@ class InterruptHandler:
             self.shutdown()
             return
 
-        # self.loop.call_soon(self._confirm_exit)
-        asyncio.create_task(self._confirm_exit())
+        self.loop.call_soon(self._confirm_exit)
 
     def register(self) -> None:
         self._add_interrupt_handler()
