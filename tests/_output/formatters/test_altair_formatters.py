@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,8 +11,12 @@ from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.formatters import register_formatters
 from marimo._output.formatting import get_formatter
 from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
+from tests._data.mocks import create_dataframes
 
 HAS_DEPS = DependencyManager.altair.has() and DependencyManager.polars.has()
+
+if TYPE_CHECKING:
+    from narwhals.typing import IntoDataFrame
 
 
 def get_data():
@@ -131,3 +136,28 @@ def test_altair_formatter_svg():
 
     assert mime == "image/svg+xml"
     assert content == "<svg></svg>"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": [-float("inf"), float("nan"), float("inf")]},
+        include=["polars", "pandas"],
+    ),
+)
+def test_altair_formatter_sanitize_nan_infs(df: IntoDataFrame):
+    AltairFormatter().register()
+
+    import altair as alt
+
+    chart = alt.Chart(df).mark_point().encode(x="A", y="B")
+    formatter = get_formatter(chart)
+    assert formatter is not None
+    mime, content = formatter(chart)
+    assert mime == "application/vnd.vegalite.v5+json"
+    assert isinstance(content, str)
+
+    for non_valid_value in ["NaN", "Infinity", "-Infinity"]:
+        assert non_valid_value not in content
+    assert content.count('"B": null') == 3
