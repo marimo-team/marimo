@@ -108,6 +108,7 @@ class ScriptRuntimeContext(RuntimeContext):
         raise NoIDProviderException
 
     def register_state_update(self, state: State[Any]) -> None:
+        # TODO: mo.state() is not supported when running as a script.
         del state
         return
 

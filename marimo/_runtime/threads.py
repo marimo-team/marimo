@@ -39,6 +39,7 @@ class Thread(threading.Thread):
         super().__init__(*args, **kwargs)
 
         self._marimo_ctx: RuntimeContext | None = None
+        self._stopped = False
 
         if not runtime_context_installed():
             return
@@ -79,7 +80,10 @@ class Thread(threading.Thread):
 
     def run(self) -> None:
         if self._marimo_ctx is not None:
-            initialize_context(self._marimo_ctx)
+            try:
+                initialize_context(self._marimo_ctx)
+            except RuntimeError:
+                pass
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
             self._marimo_ctx.execution_context = ExecutionContext(
                 cell_id=self._marimo_ctx.stream.cell_id,  # type: ignore
@@ -87,6 +91,26 @@ class Thread(threading.Thread):
             )
         thread_id = threading.get_ident()
         THREADS.add(thread_id)
-        super().run()
-        THREADS.remove(thread_id)
-        teardown_context()
+        try:
+            super().run()
+        except Exception as e:
+            if not self._stopped:
+                raise e
+        finally:
+            THREADS.remove(thread_id)
+            teardown_context()
+
+    def join(self, timeout: float | None = None) -> None:
+        self._stopped = True
+        super().join(timeout)
+
+    def __del__(self) -> None:
+        # If the thread is still alive, we need to remove it from the set of
+        # threads
+        if threading.get_ident() in THREADS:
+            THREADS.remove(threading.get_ident())
+
+        try:
+            self._terminate()  # type: ignore
+        except Exception:
+            pass
