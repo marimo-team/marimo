@@ -15,9 +15,11 @@ from marimo._server.utils import (
 class InterruptHandler:
     def __init__(self, quiet: bool, shutdown: Callable[[], None]) -> None:
         self.quiet = quiet
-        self.shutdown = shutdown
+        self._shutdown = shutdown
         self.loop = asyncio.get_event_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
+        self._confirming_exit = False
+        self._has_shutdown = False
 
     def _add_interrupt_handler(self) -> None:
         try:
@@ -31,48 +33,38 @@ class InterruptHandler:
                 lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005,E501
             )
 
-    def restore_interrupt_handler(self) -> None:
-        # Restore the original signal handler so re-entering Ctrl+C raises a
-        # keyboard interrupt instead of calling this function again (input is
-        # not re-entrant, so it's not safe to call this function again)
-        try:
-            self.loop.remove_signal_handler(signal.SIGINT)
-        except NotImplementedError:
-            # Windows
-            signal.signal(signal.SIGINT, self.original_handler)
+    def shutdown(self) -> None:
+        self._shutdown()
+        self._has_shutdown = True
 
-    def _interrupt_handler(self) -> None:
-        # Restore the original signal handler so re-entering Ctrl+C raises a
-        # keyboard interrupt instead of calling this function again (input is
-        # not re-entrant, so it's not safe to call this function again)
+    def _confirm_exit(self) -> None:
         try:
-            self.loop.remove_signal_handler(signal.SIGINT)
-        except NotImplementedError:
-            # Windows
-            signal.signal(signal.SIGINT, self.original_handler)
-
-        if self.quiet:
+            print_()
+            response = input(f"\r{TAB}Are you sure you want to quit? (y/n): ")
+            if response.lower().strip() == "y":
+                print_()
+                self.shutdown()
+            else:
+                self._confirming_exit = False
+        except (EOFError, asyncio.CancelledError):
+            print_()
             self.shutdown()
 
-        try:
-            if GLOBAL_SETTINGS.YES:
-                self.shutdown()
-                return
-
-            response = input(
-                f"\r{TAB}\033[1;32mAre you sure you want to quit?\033[0m "
-                "\033[1m(y/n)\033[0m: "
-            )
-            if response.lower().strip() == "y":
-                self.shutdown()
-                return
-        except (KeyboardInterrupt, EOFError, asyncio.CancelledError):
-            print_()
+    def _interrupt_handler(self) -> None:
+        if self._confirming_exit:
             self.shutdown()
             return
 
-        # Program is still alive: restore the interrupt handler
-        self._add_interrupt_handler()
+        self._confirming_exit = True
+        if self.quiet:
+            self.shutdown()
+            return
+
+        if GLOBAL_SETTINGS.YES:
+            self.shutdown()
+            return
+
+        self.loop.call_soon(self._confirm_exit)
 
     def register(self) -> None:
         self._add_interrupt_handler()
