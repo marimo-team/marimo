@@ -382,10 +382,14 @@ def run_in_sandbox(
     def handler(sig: int, frame: Any) -> None:
         del sig
         del frame
-        if sys.platform == "win32":
-            os.kill(process.pid, signal.CTRL_C_EVENT)
-        else:
-            os.kill(process.pid, signal.SIGINT)
+        try:
+            if sys.platform == "win32":
+                os.kill(process.pid, signal.CTRL_C_EVENT)
+            else:
+                os.kill(process.pid, signal.SIGINT)
+        except Exception:
+            # Process may have already been terminated.
+            pass
 
     signal.signal(signal.SIGINT, handler)
 
