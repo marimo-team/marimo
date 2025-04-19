@@ -322,6 +322,8 @@ def construct_uv_command(
         # sandboxed notebook shouldn't pick up existing pyproject.toml,
         # which may conflict with the sandbox requirements
         "--no-project",
+        # trade installation time for faster start time
+        "--compile-bytecode",
         "--with-requirements",
         temp_file_path,
     ]
