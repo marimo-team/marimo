@@ -21,11 +21,11 @@ import {
   CopyIcon,
   ChevronsUpDown,
   ArrowDownWideNarrowIcon,
-  BlendIcon,
   FilterX,
   ArrowUpNarrowWideIcon,
   ListFilterPlusIcon,
   FunnelPlusIcon,
+  ListFilterIcon,
 } from "lucide-react";
 import { copyToClipboard } from "@/utils/copy";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
@@ -259,7 +259,7 @@ export function renderFilterByValues<TData, TValue>(
   return (
     <DropdownMenuSub>
       <DropdownMenuItem onClick={() => setIsFilterValueOpen(true)}>
-        <BlendIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+        <ListFilterIcon className="mo-dropdown-icon" />
         Filter by values
       </DropdownMenuItem>
     </DropdownMenuSub>
