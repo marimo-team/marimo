@@ -511,7 +511,7 @@ const PopoverFilterByValues = <TData, TValue>({
     <DraggablePopover
       open={true}
       onOpenChange={(open) => !open && setIsFilterValueOpen(false)}
-      popoverContentClassName="w-80 p-0"
+      className="w-80 p-0"
     >
       <PopoverClose className="absolute top-2 right-2">
         <Button

@@ -7,12 +7,12 @@ import type * as PopoverPrimitive from "@radix-ui/react-popover";
 
 interface DraggablePopoverProps extends PopoverPrimitive.PopoverProps {
   children: React.ReactNode;
-  popoverContentClassName?: string;
+  className?: string;
 }
 
 export const DraggablePopover = ({
   children,
-  popoverContentClassName,
+  className,
   ...props
 }: DraggablePopoverProps) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -46,7 +46,7 @@ export const DraggablePopover = ({
     <Popover {...props}>
       <PopoverTrigger />
       <PopoverContent
-        className={popoverContentClassName}
+        className={className}
         style={{
           position: "fixed",
           left: position.x,
