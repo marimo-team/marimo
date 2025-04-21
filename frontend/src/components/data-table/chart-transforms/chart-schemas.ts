@@ -13,7 +13,7 @@ export const DEFAULT_COLOR_SCHEME = "default";
 export type ScaleType = "number" | "string" | "temporal";
 export const SCALE_TYPES = ["number", "string", "temporal"] as const;
 
-export const SORT_TYPES = ["none", "ascending", "descending"] as const;
+export const SORT_TYPES = ["ascending", "descending"] as const;
 
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
@@ -28,7 +28,7 @@ export const ChartSchema = z.object({
         field: z.string().optional(),
         type: z.enum(DATA_TYPES).optional(),
         scaleType: z.enum(SCALE_TYPES).optional(),
-        sort: z.enum(SORT_TYPES).optional(),
+        sort: z.enum(SORT_TYPES).default("ascending").optional(),
       })
       .optional(),
     yColumn: z.object({
@@ -73,7 +73,7 @@ export const ChartSchema = z.object({
   yAxis: z
     .object({
       label: z.string().optional(),
-      width: z.number().optional(),
+      height: z.number().optional(),
       bin: BinSchema.optional(),
     })
     .optional(),

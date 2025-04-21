@@ -8,6 +8,8 @@ import type { z } from "zod";
 import type { ChartSchema } from "./chart-schemas";
 import type { TopLevelSpec } from "vega-lite";
 import type { ResolvedTheme } from "@/theme/useTheme";
+import type { ErrorMessage } from "./chart-spec";
+import { ChartPieIcon } from "lucide-react";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -22,7 +24,7 @@ const LazyChartSpec = React.lazy(() =>
       theme: ResolvedTheme;
       width: number | "container";
       height: number;
-      children: (spec: TopLevelSpec | null) => React.ReactNode;
+      children: (spec: TopLevelSpec | ErrorMessage) => React.ReactNode;
     }) => {
       const spec = m.createVegaSpec(
         props.chartType,
@@ -61,15 +63,20 @@ export const LazyChart: React.FC<{
           width={width}
           height={height}
         >
-          {(vegaSpec) => {
-            if (!vegaSpec) {
-              return <div>This configuration is not supported</div>;
+          {(specOrMessage) => {
+            if (typeof specOrMessage === "string") {
+              return (
+                <div className="h-full flex items-center justify-center gap-2">
+                  <ChartPieIcon className="w-6 h-6" />
+                  <span className="text-md">{specOrMessage}</span>
+                </div>
+              );
             }
 
             return (
               <React.Suspense fallback={<div>Loading Vega...</div>}>
                 <LazyVega
-                  spec={vegaSpec}
+                  spec={specOrMessage}
                   theme={theme === "dark" ? "dark" : undefined}
                   actions={{
                     export: true,

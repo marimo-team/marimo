@@ -40,6 +40,7 @@ import { SCALE_TYPE_DESCRIPTIONS } from "./constants";
 import { capitalize } from "lodash-es";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
+import { inferScaleType } from "./chart-spec";
 
 export interface Field {
   name: string;
@@ -50,17 +51,26 @@ export const ColumnSelector = <T extends object>({
   form,
   name,
   columns,
-  includeNoneOption = false,
-  clearable = true,
   onValueChange,
 }: {
   form: UseFormReturn<T>;
   name: Path<T>;
   columns: Array<{ name: string; type: DataType }>;
-  includeNoneOption?: boolean;
-  clearable?: boolean;
-  onValueChange?: (fieldName: string, type: DataType) => void;
+  onValueChange?: (fieldName: string, type: DataType | undefined) => void;
 }) => {
+  const clear = () => {
+    form.setValue(name, "" as PathValue<T, Path<T>>);
+    form.setValue(
+      name.replace(".field", ".type") as Path<T>,
+      "" as PathValue<T, Path<T>>,
+    );
+    form.setValue(
+      name.replace(".field", ".scaleType") as Path<T>,
+      "" as PathValue<T, Path<T>>,
+    );
+    onValueChange?.("", undefined);
+  };
+
   return (
     <FormField
       control={form.control}
@@ -82,31 +92,32 @@ export const ColumnSelector = <T extends object>({
                   );
                   if (column) {
                     form.setValue(name, value as PathValue<T, Path<T>>);
-                    const typeFieldName = name.replace(
-                      ".field",
-                      ".type",
-                    ) as Path<T>;
+
+                    // Update the type field
                     form.setValue(
-                      typeFieldName,
+                      name.replace(".field", ".type") as Path<T>,
                       column.type as PathValue<T, Path<T>>,
                     );
+
+                    // Update the scale type field
+                    // Whenever user changes the column, we infer the scale type
+                    form.setValue(
+                      name.replace(".field", ".scaleType") as Path<T>,
+                      inferScaleType(column.type) as PathValue<T, Path<T>>,
+                    );
+
                     onValueChange?.(name, column.type);
                   }
                 }}
                 value={field.value ?? ""}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  className="w-40"
+                  onClear={field.value ? clear : undefined}
+                >
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* {includeNoneOption && (
-                    <SelectItem value={NONE_GROUP_BY}>
-                      <div className="flex items-center">
-                        <SquareFunctionIcon className="w-3 h-3 mr-2" />
-                        None
-                      </div>
-                    </SelectItem>
-                  )} */}
                   {columns.map((column) => {
                     const DataTypeIcon = DATA_TYPE_ICON[column.type];
                     if (column.name.trim() === "") {
@@ -193,14 +204,14 @@ export const InputField = <T extends object>({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormItem>
+        <FormItem className="flex flex-row gap-2 items-center">
           <FormLabel>{formFieldLabel}</FormLabel>
           <FormControl>
             <DebouncedInput
               {...field}
               value={field.value ?? ""}
               onValueChange={field.onChange}
-              className="w-48 text-xs"
+              className="text-xs h-5"
             />
           </FormControl>
         </FormItem>
@@ -285,7 +296,7 @@ interface SliderFieldProps {
   className?: string;
 }
 
-export const SliderField = ({
+export const SliderField = <T extends object>({
   form,
   name,
   formFieldLabel,
@@ -307,7 +318,10 @@ export const SliderField = ({
               {...field}
               {...props}
               value={value}
-              setValue={field.onChange}
+              setValue={(value) => {
+                field.onChange(value);
+                form.setValue(name, value as PathValue<T, Path<T>>);
+              }}
               start={start}
               stop={stop}
               step={step}

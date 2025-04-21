@@ -11,6 +11,7 @@ import {
   NONE_GROUP_BY,
   type ChartSchema,
   DEFAULT_COLOR_SCHEME,
+  type ScaleType,
 } from "./chart-schemas";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
@@ -24,6 +25,9 @@ import type {
   StringFieldDef,
 } from "vega-lite/build/src/channeldef";
 import type { ColorScheme } from "vega";
+import type { TypedString } from "@/utils/typed";
+
+export type ErrorMessage = TypedString<"ErrorMessage">;
 
 export function createVegaSpec(
   chartType: ChartType,
@@ -32,9 +36,17 @@ export function createVegaSpec(
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
-): TopLevelSpec | null {
+): TopLevelSpec | ErrorMessage {
   let xAxisLabel = formValues.general.xColumn?.field;
   let yAxisLabel = formValues.general.yColumn?.field;
+
+  if (xAxisLabel === undefined || xAxisLabel === "") {
+    return "X-axis column is required" as ErrorMessage;
+  }
+
+  if (yAxisLabel === undefined || yAxisLabel === "") {
+    return "Y-axis column is required" as ErrorMessage;
+  }
 
   if (
     formValues.general.yColumn?.agg &&
@@ -64,21 +76,20 @@ export function createVegaSpec(
 
   const xEncoding: PositionDef<string> | PolarDef<string> = {
     field: formValues.general.xColumn?.field,
-    type: convertDataTypeToVegaType(
-      formValues.general.xColumn?.type ?? "unknown",
+    type: convertTypeToVegaType(
+      formValues.general.xColumn?.scaleType ?? "unknown",
     ),
     bin: getBin(formValues.xAxis?.bin),
     title: xAxisLabel,
     stack: shouldApplyStackingToX ? formValues.general.stacking : undefined,
+    sort: formValues.general.xColumn?.sort,
   };
 
   const colorInScale = getColorInScale(formValues);
 
   const yEncoding: PositionDef<string> | PolarDef<string> = {
     field: formValues.general.yColumn?.field,
-    type: convertDataTypeToVegaType(
-      formValues.general.yColumn?.type ?? "unknown",
-    ),
+    type: convertTypeToVegaType(formValues.general.yColumn?.type ?? "unknown"),
     bin: getBin(formValues.yAxis?.bin),
     title: yAxisLabel,
     // If color encoding is used as y, we can define the scheme here
@@ -96,7 +107,7 @@ export function createVegaSpec(
     data: {
       values: data,
     },
-    height: formValues.yAxis?.width ?? height,
+    height: formValues.yAxis?.height ?? height,
     width: formValues.xAxis?.width ?? width,
     mark: {
       type: convertChartTypeToMark(chartType),
@@ -127,7 +138,7 @@ function getColor(
 
   const colorDef: ColorDef<string> = {
     field: formValues.general.groupByColumn?.field,
-    type: convertDataTypeToVegaType(
+    type: convertTypeToVegaType(
       formValues.general.groupByColumn?.type ?? "unknown",
     ),
     scale: {
@@ -217,7 +228,26 @@ function getTooltipFormat(dataType: DataType): string | undefined {
   }
 }
 
-function convertDataTypeToVegaType(dataType: DataType): Type {
+export function inferScaleType(type: DataType): ScaleType {
+  switch (type) {
+    case "number":
+    case "integer":
+      return "number";
+    case "string":
+    case "boolean":
+    case "unknown":
+      return "string";
+    case "date":
+    case "datetime":
+    case "time":
+      return "temporal";
+    default:
+      logNever(type);
+      return "string";
+  }
+}
+
+function convertTypeToVegaType(dataType: DataType | ScaleType): Type {
   switch (dataType) {
     case "number":
     case "integer":
@@ -229,6 +259,7 @@ function convertDataTypeToVegaType(dataType: DataType): Type {
     case "date":
     case "datetime":
     case "time":
+    case "temporal":
       return "temporal";
     case "unknown":
       return "nominal";

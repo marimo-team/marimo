@@ -15,8 +15,6 @@ import type { ChartType } from "./storage";
 import type { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import type { ColorScheme } from "vega";
 import { DEFAULT_COLOR_SCHEME, type ScaleType } from "./chart-schemas";
-import type { DataType } from "@/core/kernel/messages";
-import { logNever } from "@/utils/assertNever";
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,
@@ -90,28 +88,8 @@ export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [
   "sinebow",
 ] as const;
 
-export function inferScaleType(type: DataType): ScaleType {
-  switch (type) {
-    case "number":
-    case "integer":
-      return "number";
-    case "string":
-    case "boolean":
-    case "unknown":
-      return "string";
-    case "date":
-    case "datetime":
-    case "time":
-      return "temporal";
-    default:
-      logNever(type);
-      return "string";
-  }
-}
-
 export const SCALE_TYPE_DESCRIPTIONS: Record<ScaleType, string> = {
   number: "Continuous numerical scale",
   string: "Discrete categorical scale (inputs treated as strings)",
-  temporal:
-    "Continuous temporal scale (inputs treated as milliseconds or null)",
+  temporal: "Continuous temporal scale",
 };

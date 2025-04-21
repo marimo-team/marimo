@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowDownWideNarrowIcon,
   ArrowUpWideNarrowIcon,
-  ChevronsUpDown,
+  InfoIcon,
   Loader2,
   TableIcon,
   XIcon,
@@ -21,7 +21,7 @@ import {
 import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema, SORT_TYPES } from "./chart-schemas";
+import { ChartSchema, DEFAULT_COLOR_SCHEME, SORT_TYPES } from "./chart-schemas";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -41,6 +41,7 @@ import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import {
   AggregationSelect,
   BooleanField,
+  ColorArrayField,
   ColumnSelector,
   type Field,
   IconWithText,
@@ -52,11 +53,18 @@ import {
   Title,
   TooltipSelect,
 } from "./form-components";
-import { CHART_TYPE_ICON, inferScaleType } from "./constants";
+import { CHART_TYPE_ICON, COLOR_SCHEMES } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
+import { inferScaleType } from "./chart-spec";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -418,13 +426,6 @@ const ChartForm = ({
             <TabsTrigger value="style" className="w-1/2">
               Style
             </TabsTrigger>
-            {/* {chartType !== ChartType.PIE && (
-              <>
-                <TabsTrigger value="x-axis">X-Axis</TabsTrigger>
-                <TabsTrigger value="y-axis">Y-Axis</TabsTrigger>
-              </>
-            )} */}
-            {/* <TabsTrigger value="color">Color</TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="data">
@@ -582,7 +583,11 @@ const ChartForm = ({
           <TabsContent value="style">
             <HorizontalRule />
             <TabContainer>
-              <span>hi</span>
+              <StyleForm
+                form={form}
+                fields={fields ?? []}
+                saveForm={debouncedSave}
+              />
             </TabContainer>
           </TabsContent>
           {/* {chartType !== ChartType.PIE && (
@@ -622,49 +627,6 @@ const ChartForm = ({
 
 const HorizontalRule: React.FC = () => {
   return <hr className="my-3" />;
-};
-
-interface AxisTabContentProps {
-  axis: "x" | "y";
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-}
-
-const AxisTabContent: React.FC<AxisTabContentProps> = ({ axis, form }) => {
-  const axisName = axis === "x" ? "X" : "Y";
-
-  return (
-    <TabsContent value={`${axis}-axis`}>
-      <TabContainer className="gap-1">
-        <InputField
-          form={form}
-          name={`${axis}Axis.label`}
-          formFieldLabel={`${axisName}-axis Label`}
-        />
-        <SliderField
-          form={form}
-          name={`${axis}Axis.width`}
-          formFieldLabel={axis === "x" ? "Width" : "Height"}
-          value={axis === "x" ? 400 : 300}
-          start={axis === "x" ? 200 : 150}
-          stop={axis === "x" ? 800 : 600}
-        />
-        <div className="flex flex-row gap-2 w-full">
-          <BooleanField
-            form={form}
-            name={`${axis}Axis.bin.binned`}
-            formFieldLabel="Binned"
-          />
-          <NumberField
-            form={form}
-            name={`${axis}Axis.bin.step`}
-            formFieldLabel="Bin step"
-            step={0.05}
-            className="w-32"
-          />
-        </div>
-      </TabContainer>
-    </TabsContent>
-  );
 };
 
 const Chart: React.FC<{
@@ -724,7 +686,7 @@ const LineChartForm: React.FC<{
           setXColumn({ field: fieldName, type });
         }}
       />
-      {xColumn && (
+      {xColumn?.field !== "" && (
         <ScaleTypeSelect
           form={form}
           formFieldLabel="Scale Type"
@@ -732,7 +694,7 @@ const LineChartForm: React.FC<{
           defaultValue={inferredScaleType}
         />
       )}
-      {xColumn && (
+      {xColumn?.field !== "" && (
         <SelectField
           form={form}
           name="general.xColumn.sort"
@@ -743,16 +705,14 @@ const LineChartForm: React.FC<{
                 Icon={
                   type === "ascending"
                     ? ArrowUpWideNarrowIcon
-                    : type === "descending"
-                      ? ArrowDownWideNarrowIcon
-                      : ChevronsUpDown
+                    : ArrowDownWideNarrowIcon
                 }
                 text={capitalize(type)}
               />
             ),
             value: type,
           }))}
-          defaultValue={formValues.general?.xColumn?.sort ?? "none"}
+          defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
         />
       )}
       <Title text="Y-Axis" />
@@ -781,7 +741,7 @@ const LineChartForm: React.FC<{
             />
             <AggregationSelect form={form} name="general.groupByColumn.agg" />
           </div>
-          {groupByColumn && (
+          {groupByColumn?.field !== "" && (
             <ScaleTypeSelect
               form={form}
               name="general.groupByColumn.scaleType"
@@ -794,6 +754,111 @@ const LineChartForm: React.FC<{
       <hr />
       <TooltipForm form={form} fields={fields} saveForm={saveForm} />
     </>
+  );
+};
+
+const StyleForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+}> = ({ form, fields, saveForm }) => {
+  const renderBinFields = (axis: "x" | "y") => {
+    return (
+      <div className="flex flex-row gap-2 w-full">
+        <BooleanField
+          form={form}
+          name={`${axis}Axis.bin.binned`}
+          formFieldLabel="Binned"
+        />
+        <NumberField
+          form={form}
+          name={`${axis}Axis.bin.step`}
+          formFieldLabel="Bin step"
+          step={0.05}
+          className="w-32"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <Accordion type="multiple">
+      <AccordionItem value="general" className="border-none">
+        <AccordionTrigger className="pt-0 pb-2">
+          <Title text="General" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2">
+          <InputField
+            form={form}
+            formFieldLabel="Plot title"
+            name="general.title"
+          />
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="xAxis" className="border-none">
+        <AccordionTrigger className="py-2">
+          <Title text="X-Axis" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
+          <InputField form={form} formFieldLabel="Label" name="xAxis.label" />
+          <SliderField
+            form={form}
+            name="xAxis.width"
+            formFieldLabel="Width"
+            value={400}
+            start={200}
+            stop={800}
+          />
+          {renderBinFields("x")}
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="yAxis" className="border-none">
+        <AccordionTrigger className="py-2">
+          <Title text="Y-Axis" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
+          <InputField form={form} formFieldLabel="Label" name="yAxis.label" />
+          <SliderField
+            form={form}
+            name="yAxis.height"
+            formFieldLabel="Height"
+            value={300}
+            start={150}
+            stop={600}
+          />
+          {renderBinFields("y")}
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="color" className="border-none">
+        <AccordionTrigger className="py-2">
+          <Title text="Color" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
+          <SelectField
+            form={form}
+            name="color.scheme"
+            formFieldLabel="Color scheme"
+            defaultValue={DEFAULT_COLOR_SCHEME}
+            options={COLOR_SCHEMES.map((scheme) => ({
+              display: capitalize(scheme),
+              value: scheme,
+            }))}
+          />
+          <ColorArrayField
+            form={form}
+            name="color.range"
+            formFieldLabel="Color range"
+          />
+          <p className="text-xs">
+            <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
+            If you are using color range, color scheme will be ignored.
+          </p>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 };
 
