@@ -34,7 +34,7 @@
 
 **marimo**はリアクティブなPythonノートブックです：セルを実行したりUI要素を操作すると、marimoは自動的に依存するセルを実行（または<a href="#expensive-notebooks">それらを古いものとしてマーク</a>）し、コードと出力の一貫性を保ちます。marimoノートブックは純粋なPythonとして保存され、スクリプトとして実行でき、アプリとして展開できます。
 
-**ハイライト**
+**主な特徴**
 
 - 🚀 **すぐに使える充実機能**: `jupyter`、`streamlit`、`jupytext`、`ipywidgets`、`papermill`などの代替
 - ⚡️ **リアクティブ**: セルを実行すると、marimoはリアクティブに[すべての依存セルを実行](https://docs.marimo.io/guides/reactivity.html)するか、<a href="#expensive-notebooks">それらを古いものとしてマーク</a>
