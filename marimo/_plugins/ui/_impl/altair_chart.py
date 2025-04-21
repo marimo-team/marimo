@@ -391,7 +391,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             chart_selection = False
             legend_selection = False
             sys.stderr.write(
-                "Selection is not yet supported in vegafusion.\n"
+                "Selection is not yet supported while using vegafusion with mo.ui.altair_chart.\n"
                 "You can follow the progress here: "
                 "https://github.com/marimo-team/marimo/issues/4601"
             )

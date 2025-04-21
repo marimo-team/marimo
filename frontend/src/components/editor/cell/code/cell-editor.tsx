@@ -476,7 +476,7 @@ const CellCodeMirrorEditor = React.forwardRef(
 
     return (
       <div
-        className={cn("cm", className)}
+        className={cn("cm mathjax_ignore", className)}
         ref={(r) => {
           if (ref) {
             mergeRefs(ref, internalRef)(r);
