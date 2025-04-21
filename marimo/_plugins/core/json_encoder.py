@@ -146,7 +146,12 @@ class WebComponentEncoder(JSONEncoder):
             }
 
         # Handle objects with __slots__
-        if hasattr(o, "__slots__"):
+        if getattr(o, "__slots__", None):
+            # Reported error that sometimes poorly formed objects do get passed
+            # in.
+            assert isinstance(o.__slots__, (tuple, list)), (
+                f"Unexpected __slots__ type for {o.__class__.__name__}",
+            )
             return {
                 slot: self._convert_to_json(getattr(o, slot))
                 for slot in o.__slots__  # type: ignore

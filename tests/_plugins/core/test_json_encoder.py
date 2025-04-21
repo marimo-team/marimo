@@ -428,3 +428,13 @@ def test_error_encoding() -> None:
         encoded
         == '{"name": "This is a custom error", "cells": ["test", "test2"], "type": "multiple-defs"}'
     )
+
+
+def test_invalid_class() -> None:
+    class InvalidClass: ...
+
+    invalid_obj = InvalidClass()
+    invalid_obj.__slots__ = None
+
+    encoded = json.dumps(invalid_obj, cls=WebComponentEncoder)
+    assert encoded == '{"__slots__": null}'
