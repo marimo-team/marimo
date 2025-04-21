@@ -25,7 +25,6 @@ import { cn } from "@/utils/cn";
 import {
   DEFAULT_AGGREGATION,
   DEFAULT_BIN_VALUE,
-  NONE_GROUP_BY,
   SCALE_TYPES,
 } from "./chart-schemas";
 import type { NumberFieldProps } from "@/components/ui/number-field";
@@ -40,7 +39,7 @@ import { SCALE_TYPE_DESCRIPTIONS } from "./constants";
 import { capitalize } from "lodash-es";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
-import { inferScaleType } from "./chart-spec";
+import { TypeConverters } from "./chart-spec";
 
 export interface Field {
   name: string;
@@ -82,11 +81,6 @@ export const ColumnSelector = <T extends object>({
               <Select
                 {...field}
                 onValueChange={(value) => {
-                  if (value === NONE_GROUP_BY) {
-                    form.setValue(name, value as PathValue<T, Path<T>>);
-                    return;
-                  }
-
                   const column = columns.find(
                     (column) => column.name === value,
                   );
@@ -103,7 +97,10 @@ export const ColumnSelector = <T extends object>({
                     // Whenever user changes the column, we infer the scale type
                     form.setValue(
                       name.replace(".field", ".scaleType") as Path<T>,
-                      inferScaleType(column.type) as PathValue<T, Path<T>>,
+                      TypeConverters.toScaleType(column.type) as PathValue<
+                        T,
+                        Path<T>
+                      >,
                     );
 
                     onValueChange?.(name, column.type);

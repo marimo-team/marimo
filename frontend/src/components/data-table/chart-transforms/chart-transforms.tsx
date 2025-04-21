@@ -58,7 +58,7 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
-import { inferScaleType } from "./chart-spec";
+import { TypeConverters } from "./chart-spec";
 import {
   Accordion,
   AccordionContent,
@@ -675,11 +675,11 @@ const LineChartForm: React.FC<{
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
   // For now, we'll use the inferred scale type
   const inferredScaleType = xColumn?.type
-    ? inferScaleType(xColumn.type)
+    ? TypeConverters.toScaleType(xColumn.type)
     : "string";
 
   const inferredGroupByScaleType = groupByColumn?.type
-    ? inferScaleType(groupByColumn.type)
+    ? TypeConverters.toScaleType(groupByColumn.type)
     : "string";
 
   return (

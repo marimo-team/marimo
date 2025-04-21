@@ -8,7 +8,6 @@ import {
   type BinSchema,
   DEFAULT_AGGREGATION,
   DEFAULT_BIN_VALUE,
-  NONE_GROUP_BY,
   type ChartSchema,
   DEFAULT_COLOR_SCHEME,
   type ScaleType,
@@ -37,250 +36,248 @@ export function createVegaSpec(
   width: number | "container",
   height: number,
 ): TopLevelSpec | ErrorMessage {
-  let xAxisLabel = formValues.general.xColumn?.field;
-  let yAxisLabel = formValues.general.yColumn?.field;
+  const { xColumn, yColumn, groupByColumn, horizontal, stacking, title } =
+    formValues.general;
 
-  if (xAxisLabel === undefined || xAxisLabel === "") {
+  // Validate required fields
+  if (!FieldValidators.isRequired(xColumn?.field)) {
     return "X-axis column is required" as ErrorMessage;
   }
-
-  if (yAxisLabel === undefined || yAxisLabel === "") {
+  if (!FieldValidators.isRequired(yColumn?.field)) {
     return "Y-axis column is required" as ErrorMessage;
   }
 
-  if (
-    formValues.general.yColumn?.agg &&
-    formValues.general.yColumn.agg !== DEFAULT_AGGREGATION
-  ) {
-    yAxisLabel = `${formValues.general.yColumn.agg.toUpperCase()}(${yAxisLabel})`;
-  }
+  // Get axis labels
+  const xAxisLabel = FieldValidators.getLabel(
+    xColumn.field,
+    formValues.xAxis?.label,
+  );
+  const yAxisLabel = FieldValidators.getLabel(
+    FieldValidators.getAggregatedLabel(yColumn.field, yColumn.agg),
+    formValues.yAxis?.label,
+  );
 
-  if (formValues.xAxis?.label && formValues.xAxis.label.trim() !== "") {
-    xAxisLabel = formValues.xAxis.label;
-  }
-
-  if (formValues.yAxis?.label && formValues.yAxis.label.trim() !== "") {
-    yAxisLabel = formValues.yAxis.label;
-  }
-
+  // Determine encoding keys based on chart type
   const xEncodingKey = chartType === ChartType.PIE ? "theta" : "x";
   const yEncodingKey = chartType === ChartType.PIE ? "color" : "y";
 
-  const groupByFieldExists =
-    formValues.general.groupByColumn?.field !== NONE_GROUP_BY;
-
-  const shouldApplyStackingToX =
-    groupByFieldExists && formValues.general.horizontal;
-  const shouldApplyStackingToY =
-    groupByFieldExists && !formValues.general.horizontal;
-
+  // Create encodings
   const xEncoding: PositionDef<string> | PolarDef<string> = {
-    field: formValues.general.xColumn?.field,
-    type: convertTypeToVegaType(
-      formValues.general.xColumn?.scaleType ?? "unknown",
-    ),
-    bin: getBin(formValues.xAxis?.bin),
+    field: xColumn.field,
+    type: TypeConverters.toVegaType(xColumn.scaleType ?? "unknown"),
+    bin: EncodingUtils.getBin(formValues.xAxis?.bin),
     title: xAxisLabel,
-    stack: shouldApplyStackingToX ? formValues.general.stacking : undefined,
-    sort: formValues.general.xColumn?.sort,
+    stack: groupByColumn?.field && horizontal ? stacking : undefined,
+    sort: xColumn.sort,
   };
-
-  const colorInScale = getColorInScale(formValues);
 
   const yEncoding: PositionDef<string> | PolarDef<string> = {
-    field: formValues.general.yColumn?.field,
-    type: convertTypeToVegaType(formValues.general.yColumn?.type ?? "unknown"),
-    bin: getBin(formValues.yAxis?.bin),
+    field: yColumn.field,
+    type: TypeConverters.toVegaType(yColumn.type ?? "unknown"),
+    bin: EncodingUtils.getBin(formValues.yAxis?.bin),
     title: yAxisLabel,
-    // If color encoding is used as y, we can define the scheme here
     scale:
-      colorInScale && yEncodingKey === "color"
-        ? { ...colorInScale }
+      yEncodingKey === "color"
+        ? EncodingUtils.getColorInScale(formValues)
         : undefined,
-    stack: shouldApplyStackingToY ? formValues.general.stacking : undefined,
-    aggregate:
-      formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
-        ? undefined
-        : formValues.general.yColumn?.agg,
+    stack: groupByColumn?.field && !horizontal ? stacking : undefined,
+    aggregate: yColumn.agg === DEFAULT_AGGREGATION ? undefined : yColumn.agg,
   };
 
-  const schema: TopLevelSpec = {
+  // Create the final spec
+  return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     background: theme === "dark" ? "dark" : "white",
-    title: formValues.general.title,
-    data: {
-      values: data,
-    },
+    title,
+    data: { values: data },
     height: formValues.yAxis?.height ?? height,
     width: formValues.xAxis?.width ?? width,
-    mark: {
-      type: convertChartTypeToMark(chartType),
-    },
+    mark: { type: TypeConverters.toMark(chartType) },
     encoding: {
-      [xEncodingKey]: formValues.general.horizontal ? yEncoding : xEncoding,
-      [yEncodingKey]: formValues.general.horizontal ? xEncoding : yEncoding,
-      xOffset: getOffset(chartType, formValues),
-      ...getColor(chartType, formValues),
-      tooltip: getTooltips(formValues),
+      [xEncodingKey]: horizontal ? yEncoding : xEncoding,
+      [yEncodingKey]: horizontal ? xEncoding : yEncoding,
+      xOffset: EncodingUtils.getOffset(chartType, formValues),
+      ...ColorUtils.getColor(chartType, formValues),
+      tooltip: EncodingUtils.getTooltips(formValues),
     },
   };
-  return schema;
 }
 
-// color can be used for grouping
-// it can also conflict with the color (y) encoding for pie charts, so we return undefined
-function getColor(
-  chartType: ChartType,
-  formValues: z.infer<typeof ChartSchema>,
-) {
-  if (
-    chartType === ChartType.PIE ||
-    formValues.general.groupByColumn?.field === NONE_GROUP_BY ||
-    formValues.general.groupByColumn?.field === ""
-  ) {
-    return undefined;
-  }
+// Type conversion utilities
+export const TypeConverters = {
+  toVegaType(dataType: DataType | ScaleType): Type {
+    switch (dataType) {
+      case "number":
+      case "integer":
+        return "quantitative";
+      case "string":
+      case "boolean":
+      case "unknown":
+        return "nominal";
+      case "date":
+      case "datetime":
+      case "time":
+      case "temporal":
+        return "temporal";
+      default:
+        logNever(dataType);
+        return "nominal";
+    }
+  },
 
-  const colorDef: ColorDef<string> = {
-    field: formValues.general.groupByColumn?.field,
-    type: convertTypeToVegaType(
-      formValues.general.groupByColumn?.type ?? "unknown",
-    ),
-    scale: {
-      ...getColorInScale(formValues),
-    },
-  };
+  toScaleType(type: DataType): ScaleType {
+    switch (type) {
+      case "number":
+      case "integer":
+        return "number";
+      case "string":
+      case "boolean":
+      case "unknown":
+        return "string";
+      case "date":
+      case "datetime":
+      case "time":
+        return "temporal";
+      default:
+        logNever(type);
+        return "string";
+    }
+  },
 
-  return {
-    color: colorDef,
-  };
-}
+  toMark(chartType: ChartType): Mark {
+    switch (chartType) {
+      case ChartType.PIE:
+        return "arc";
+      case ChartType.SCATTER:
+        return "point";
+      default:
+        return chartType;
+    }
+  },
+};
 
-function getColorInScale(formValues: z.infer<typeof ChartSchema>) {
-  const colorRange = formValues.color?.range;
-  if (colorRange && colorRange.length > 0) {
-    return {
-      range: colorRange,
-    };
-  }
+// Field validation utilities
+const FieldValidators = {
+  isRequired(field: string | undefined): field is string {
+    return field !== undefined && field.trim() !== "";
+  },
 
-  const scheme = formValues.color?.scheme;
-  if (scheme === DEFAULT_COLOR_SCHEME) {
-    return undefined;
-  }
-  return {
-    scheme: scheme as ColorScheme,
-  };
-}
+  getLabel(field: string, label?: string): string {
+    return label?.trim() || field;
+  },
 
-function getOffset(
-  chartType: ChartType,
-  formValues: z.infer<typeof ChartSchema>,
-): OffsetDef<string> | undefined {
-  if (
-    formValues.general.stacking ||
-    formValues.general.groupByColumn?.field === "" ||
-    chartType === ChartType.PIE
-  ) {
-    return undefined;
-  }
-  return {
-    field:
-      formValues.general.groupByColumn?.field === NONE_GROUP_BY
-        ? undefined
-        : formValues.general.groupByColumn?.field,
-  };
-}
+  getAggregatedLabel(field: string, agg?: string): string {
+    if (!agg || agg === DEFAULT_AGGREGATION) {
+      return field;
+    }
+    return `${agg.toUpperCase()}(${field})`;
+  },
+};
 
-function getBin(binValues?: z.infer<typeof BinSchema>) {
-  if (binValues?.binned) {
-    if (binValues.step === DEFAULT_BIN_VALUE) {
-      return true;
+// Encoding utilities
+const EncodingUtils = {
+  getBin(binValues?: z.infer<typeof BinSchema>) {
+    if (!binValues?.binned) {
+      return undefined;
+    }
+    return binValues.step === DEFAULT_BIN_VALUE
+      ? true
+      : { binned: true, step: binValues.step };
+  },
+
+  getColorInScale(formValues: z.infer<typeof ChartSchema>) {
+    const colorRange = formValues.color?.range;
+    if (colorRange?.length) {
+      return { range: colorRange };
+    }
+
+    const scheme = formValues.color?.scheme;
+    return scheme === DEFAULT_COLOR_SCHEME
+      ? undefined
+      : { scheme: scheme as ColorScheme };
+  },
+
+  getOffset(
+    chartType: ChartType,
+    formValues: z.infer<typeof ChartSchema>,
+  ): OffsetDef<string> | undefined {
+    if (
+      formValues.general.stacking ||
+      !FieldValidators.isRequired(formValues.general.groupByColumn?.field) ||
+      chartType === ChartType.PIE
+    ) {
+      return undefined;
+    }
+    return { field: formValues.general.groupByColumn?.field };
+  },
+
+  getTooltipAggregate(
+    field: string,
+    yColumn?: { field: string; agg: string },
+  ): "count" | "sum" | "mean" | "median" | "min" | "max" | undefined {
+    if (field !== yColumn?.field) {
+      return undefined;
+    }
+    return yColumn.agg === DEFAULT_AGGREGATION
+      ? undefined
+      : (yColumn.agg as "count" | "sum" | "mean" | "median" | "min" | "max");
+  },
+
+  getTooltipFormat(dataType: DataType): string | undefined {
+    switch (dataType) {
+      case "integer":
+        return ",.0f"; // Use comma grouping and no decimals
+      case "number":
+        return ",.2f"; // Use comma grouping and 2 decimal places
+      default:
+        return undefined;
+    }
+  },
+
+  getTooltips(formValues: z.infer<typeof ChartSchema>) {
+    if (!formValues.general.tooltips) {
+      return undefined;
+    }
+
+    return formValues.general.tooltips.map(
+      (tooltip): StringFieldDef<string> => ({
+        field: tooltip.field,
+        aggregate: this.getTooltipAggregate(
+          tooltip.field,
+          formValues.general.yColumn?.field && formValues.general.yColumn?.agg
+            ? {
+                field: formValues.general.yColumn.field,
+                agg: formValues.general.yColumn.agg,
+              }
+            : undefined,
+        ),
+        format: this.getTooltipFormat(tooltip.type),
+      }),
+    );
+  },
+};
+
+// Color encoding utilities
+const ColorUtils = {
+  getColor(
+    chartType: ChartType,
+    formValues: z.infer<typeof ChartSchema>,
+  ): { color?: ColorDef<string> } | undefined {
+    if (
+      chartType === ChartType.PIE ||
+      !FieldValidators.isRequired(formValues.general.groupByColumn?.field)
+    ) {
+      return undefined;
     }
 
     return {
-      binned: true,
-      step: binValues.step,
+      color: {
+        field: formValues.general.groupByColumn.field,
+        type: TypeConverters.toVegaType(
+          formValues.general.groupByColumn.type ?? "unknown",
+        ),
+        scale: EncodingUtils.getColorInScale(formValues),
+      },
     };
-  }
-}
-
-function getTooltips(formValues: z.infer<typeof ChartSchema>) {
-  return formValues.general.tooltips?.map(
-    (tooltip): StringFieldDef<string> => ({
-      field: tooltip.field,
-      aggregate: (() => {
-        if (tooltip.field !== formValues.general.yColumn?.field) {
-          return undefined;
-        }
-        return formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
-          ? undefined
-          : formValues.general.yColumn?.agg;
-      })(),
-      format: getTooltipFormat(tooltip.type),
-    }),
-  );
-}
-
-function getTooltipFormat(dataType: DataType): string | undefined {
-  switch (dataType) {
-    case "integer":
-      return ",d";
-    case "number":
-      return ".2f";
-    default:
-      return undefined;
-  }
-}
-
-export function inferScaleType(type: DataType): ScaleType {
-  switch (type) {
-    case "number":
-    case "integer":
-      return "number";
-    case "string":
-    case "boolean":
-    case "unknown":
-      return "string";
-    case "date":
-    case "datetime":
-    case "time":
-      return "temporal";
-    default:
-      logNever(type);
-      return "string";
-  }
-}
-
-function convertTypeToVegaType(dataType: DataType | ScaleType): Type {
-  switch (dataType) {
-    case "number":
-    case "integer":
-      return "quantitative";
-    case "string":
-      return "nominal";
-    case "boolean":
-      return "nominal";
-    case "date":
-    case "datetime":
-    case "time":
-    case "temporal":
-      return "temporal";
-    case "unknown":
-      return "nominal";
-    default:
-      logNever(dataType);
-      return "nominal";
-  }
-}
-
-function convertChartTypeToMark(chartType: ChartType): Mark {
-  switch (chartType) {
-    case ChartType.PIE:
-      return "arc";
-    case ChartType.SCATTER:
-      return "point";
-    default:
-      return chartType;
-  }
-}
+  },
+};
