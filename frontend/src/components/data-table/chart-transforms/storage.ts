@@ -7,16 +7,9 @@ import type { z } from "zod";
 import { atom } from "jotai";
 import type { ChartSchema } from "./chart-schemas";
 import { Logger } from "@/utils/Logger";
+import type { ChartType } from "./constants";
 export type TabName = TypedString<"TabName">;
 export const KEY = "marimo:charts:v1";
-
-export enum ChartType {
-  LINE = "line",
-  BAR = "bar",
-  PIE = "pie",
-  SCATTER = "scatter",
-}
-export const CHART_TYPES = Object.values(ChartType);
 
 interface TabStorage {
   tabName: TabName; // unique within cell

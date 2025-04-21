@@ -2,10 +2,11 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { getDefaultStore } from "jotai";
-import { tabsStorageAtom, ChartType, KEY } from "../storage";
+import { tabsStorageAtom, KEY } from "../storage";
 import { ChartSchema } from "../chart-schemas";
 import type { CellId } from "@/core/cells/ids";
 import type { TabName } from "../storage";
+import { ChartType } from "../constants";
 
 // Mock localStorage
 const mockLocalStorage = {

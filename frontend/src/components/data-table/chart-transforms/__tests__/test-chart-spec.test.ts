@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec";
-import { ChartType } from "../storage";
+import { ChartType } from "../constants";
 import {
   DEFAULT_AGGREGATION,
   DEFAULT_BIN_VALUE,

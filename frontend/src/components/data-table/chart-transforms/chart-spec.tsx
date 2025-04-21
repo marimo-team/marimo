@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
-import { ChartType } from "./storage";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { DataType } from "@/core/kernel/messages";
 import {
@@ -25,7 +24,7 @@ import type {
 } from "vega-lite/build/src/channeldef";
 import type { ColorScheme } from "vega";
 import type { TypedString } from "@/utils/typed";
-import { EMPTY_VALUE } from "./constants";
+import { ChartType, EMPTY_VALUE } from "./constants";
 
 export type ErrorMessage = TypedString<"ErrorMessage">;
 

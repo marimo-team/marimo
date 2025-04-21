@@ -27,13 +27,7 @@ import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { capitalize } from "lodash-es";
-import {
-  type TabName,
-  tabsStorageAtom,
-  ChartType,
-  tabNumberAtom,
-  CHART_TYPES,
-} from "./storage";
+import { type TabName, tabsStorageAtom, tabNumberAtom } from "./storage";
 import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
@@ -50,7 +44,12 @@ import {
   SelectField,
   SliderField,
 } from "./form-components";
-import { CHART_TYPE_ICON, COLOR_SCHEMES } from "./constants";
+import {
+  CHART_TYPE_ICON,
+  CHART_TYPES,
+  ChartType,
+  COLOR_SCHEMES,
+} from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";

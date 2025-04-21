@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import React from "react";
-import type { ChartType } from "./storage";
+import type { ChartType } from "./constants";
 import { useTheme } from "@/theme/useTheme";
 
 import type { z } from "zod";

@@ -11,10 +11,17 @@ import {
   BinaryIcon,
   ChartScatterIcon,
 } from "lucide-react";
-import type { ChartType } from "./storage";
 import type { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import type { ColorScheme } from "vega";
 import { DEFAULT_COLOR_SCHEME, type ScaleType } from "./chart-schemas";
+
+export enum ChartType {
+  LINE = "line",
+  BAR = "bar",
+  PIE = "pie",
+  SCATTER = "scatter",
+}
+export const CHART_TYPES = Object.values(ChartType);
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,
