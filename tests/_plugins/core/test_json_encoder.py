@@ -438,3 +438,18 @@ def test_invalid_class() -> None:
 
     encoded = json.dumps(invalid_obj, cls=WebComponentEncoder)
     assert encoded == '{"__slots__": null}'
+
+
+def test_empty_slots() -> None:
+    class ExClass:
+        __slots__ = []
+
+        # With a property (as sanity check)
+        @property
+        def one(self):
+            return 1
+
+    obj = ExClass()
+
+    encoded = json.dumps(obj, cls=WebComponentEncoder)
+    assert encoded == "{}"
