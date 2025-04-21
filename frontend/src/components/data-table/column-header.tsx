@@ -373,7 +373,7 @@ const PopoverFilterByValues = <TData, TValue>({
   calculateTopKRows?: CalculateTopKRows;
   column: Column<TData, TValue>;
 }) => {
-  const [chosenValues, setChosenValues] = useState<unknown[]>([]);
+  const [chosenValues, setChosenValues] = useState<Set<unknown>>(new Set());
   const [query, setQuery] = useState<string>("");
 
   const { data, loading, error } = useAsyncData(async () => {
@@ -406,78 +406,92 @@ const PopoverFilterByValues = <TData, TValue>({
   let dataTable: React.ReactNode;
 
   if (loading) {
-    dataTable = <Spinner size="medium" className="mx-auto mt-4" />;
+    dataTable = <Spinner size="medium" className="mx-auto mt-12 mb-10" />;
   }
 
   if (error) {
-    dataTable = <ErrorBanner error={error} className="mt-4" />;
+    dataTable = <ErrorBanner error={error} className="my-10 mx-4" />;
   }
 
-  const handleCheckboxClick = (checked: boolean, value: unknown) => {
-    if (!checked) {
-      setChosenValues(chosenValues.filter((v) => v !== value));
-      return;
-    }
-    setChosenValues([...chosenValues, value]);
+  const handleToggle = (value: unknown) => {
+    setChosenValues((prev) => {
+      const checked = prev.has(value);
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.delete(value);
+      } else {
+        newSet.add(value);
+      }
+      return newSet;
+    });
   };
 
-  const toggleAllCheckbox = (checked: boolean) => {
+  const handleToggleAll = (checked: boolean) => {
     if (!data) {
       return;
     }
     if (checked) {
-      setChosenValues(filteredData.map(([value]) => value));
+      setChosenValues(new Set(filteredData.map(([value]) => value)));
     } else {
-      setChosenValues([]);
+      setChosenValues(new Set());
     }
   };
 
   const handleApply = () => {
-    if (chosenValues.length === 0) {
+    if (chosenValues.size === 0) {
       column.setFilterValue(undefined);
       return;
     }
-    column.setFilterValue(Filter.select(chosenValues));
+    column.setFilterValue(Filter.select([...chosenValues]));
   };
 
   if (data) {
+    const allChecked = chosenValues.size === filteredData.length;
+
     dataTable = (
       <>
-        <Command className="text-sm" shouldFilter={false}>
+        <Command className="text-sm outline-none" shouldFilter={false}>
           <CommandInput
             placeholder="Search"
             autoFocus={true}
             onValueChange={(value) => setQuery(value.trim())}
           />
           <CommandEmpty>No results found.</CommandEmpty>
-          <CommandList>
-            <CommandItem className="border-b">
-              <Checkbox
-                checked={chosenValues.length === filteredData.length}
-                onCheckedChange={(checked) => {
-                  if (typeof checked === "string") {
-                    return;
-                  }
-                  toggleAllCheckbox(checked);
-                }}
-                aria-label="Select all"
-                className="mr-3 h-3.5 w-3.5"
-              />
-              <span className="font-bold flex-1">{column.id}</span>
-              <span className="font-bold">count</span>
-            </CommandItem>
-            {filteredData.map((row, rowIndex) => {
-              const value = row[0];
-              const count = row[1];
+          <CommandList className="border-b">
+            {filteredData.length > 0 && (
+              <CommandItem
+                value="__select-all__"
+                className="border-b rounded-none px-3"
+                onSelect={() => handleToggleAll(!allChecked)}
+              >
+                <Checkbox
+                  checked={chosenValues.size === filteredData.length}
+                  onCheckedChange={(checked) => {
+                    if (typeof checked === "string") {
+                      return;
+                    }
+                    handleToggleAll(checked);
+                  }}
+                  aria-label="Select all"
+                  className="mr-3 h-3.5 w-3.5"
+                />
+                <span className="font-bold flex-1">{column.id}</span>
+                <span className="font-bold">Count</span>
+              </CommandItem>
+            )}
+            {filteredData.map(([value, count], rowIndex) => {
+              const isSelected = chosenValues.has(value);
               return (
-                <CommandItem key={rowIndex} className="border-b">
+                <CommandItem
+                  key={rowIndex}
+                  value={String(value)}
+                  className="[&:not(:last-child)]:border-b rounded-none px-3"
+                  onSelect={() => handleToggle(value)}
+                >
                   <Checkbox
-                    checked={chosenValues.includes(value)}
-                    onCheckedChange={(checked) => {
-                      if (typeof checked === "string") {
-                        return;
-                      }
-                      handleCheckboxClick(checked, value);
+                    checked={isSelected}
+                    onCheckedChange={() => {
+                      handleToggle(value);
                     }}
                     aria-label="Select row"
                     className="mr-3 h-3.5 w-3.5"
@@ -492,16 +506,16 @@ const PopoverFilterByValues = <TData, TValue>({
           </CommandList>
           {filteredData.length === TOP_K_ROWS && (
             <span className="text-xs text-muted-foreground mt-1.5 text-center">
-              Only showing top {TOP_K_ROWS} rows
+              Only showing the top {TOP_K_ROWS} values
             </span>
           )}
         </Command>
         <FilterButtons
           onApply={handleApply}
           onClear={() => {
-            setChosenValues([]);
+            setChosenValues(new Set());
           }}
-          clearButtonDisabled={chosenValues.length === 0}
+          clearButtonDisabled={chosenValues.size === 0}
         />
       </>
     );
@@ -522,7 +536,7 @@ const PopoverFilterByValues = <TData, TValue>({
           <XIcon className="h-4 w-4" />
         </Button>
       </PopoverClose>
-      <div className="flex flex-col gap-1.5 p-4">{dataTable}</div>
+      <div className="flex flex-col gap-1.5 py-2">{dataTable}</div>
     </DraggablePopover>
   );
 };
