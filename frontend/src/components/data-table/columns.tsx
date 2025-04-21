@@ -2,10 +2,7 @@
 "use no memo";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  DataTableColumnHeader,
-  DataTableColumnHeaderWithSummary,
-} from "./column-header";
+import { DataTableColumnHeader } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
@@ -30,6 +27,7 @@ import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
 import type { ColumnChartSpecModel } from "./chart-spec-model";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
@@ -102,6 +100,7 @@ export function generateColumns<T>({
   textJustifyColumns,
   wrappedColumns,
   showDataTypes,
+  calculateTopKRows,
 }: {
   rowHeaders: string[];
   selection: DataTableSelection;
@@ -110,6 +109,7 @@ export function generateColumns<T>({
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   showDataTypes?: boolean;
+  calculateTopKRows?: CalculateTopKRows;
 }): Array<ColumnDef<T>> {
   const rowHeadersSet = new Set(rowHeaders);
 
@@ -179,20 +179,24 @@ export function generateColumns<T>({
           </div>
         );
 
+        const dataTableColumnHeader = (
+          <DataTableColumnHeader
+            header={headerWithType}
+            column={column}
+            calculateTopKRows={calculateTopKRows}
+          />
+        );
+
         // Row headers have no summaries
         if (rowHeadersSet.has(key)) {
-          return (
-            <DataTableColumnHeader header={headerWithType} column={column} />
-          );
+          return dataTableColumnHeader;
         }
 
         return (
-          <DataTableColumnHeaderWithSummary
-            key={key}
-            header={headerWithType}
-            column={column}
-            summary={<TableColumnSummary columnId={key} />}
-          />
+          <div className="flex flex-col h-full pt-0.5 pb-3 justify-between items-start">
+            {dataTableColumnHeader}
+            <TableColumnSummary columnId={key} />
+          </div>
         );
       },
 
