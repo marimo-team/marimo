@@ -438,6 +438,13 @@ const ChartForm = ({
                   saveForm={debouncedSave}
                 />
               )}
+              {chartType === ChartType.BAR && (
+                <LineChartForm
+                  form={form}
+                  fields={fields ?? []}
+                  saveForm={debouncedSave}
+                />
+              )}
               {/* <BooleanField
                 form={form}
                 name="general.horizontal"
@@ -686,7 +693,7 @@ const LineChartForm: React.FC<{
           setXColumn({ field: fieldName, type });
         }}
       />
-      {xColumn?.field !== "" && (
+      {xColumn?.field && xColumn?.field !== "" && (
         <ScaleTypeSelect
           form={form}
           formFieldLabel="Scale Type"
@@ -694,7 +701,7 @@ const LineChartForm: React.FC<{
           defaultValue={inferredScaleType}
         />
       )}
-      {xColumn?.field !== "" && (
+      {xColumn?.field && xColumn?.field !== "" && (
         <SelectField
           form={form}
           name="general.xColumn.sort"
@@ -741,7 +748,7 @@ const LineChartForm: React.FC<{
             />
             <AggregationSelect form={form} name="general.groupByColumn.agg" />
           </div>
-          {groupByColumn?.field !== "" && (
+          {groupByColumn?.field && groupByColumn?.field !== "" && (
             <ScaleTypeSelect
               form={form}
               name="general.groupByColumn.scaleType"

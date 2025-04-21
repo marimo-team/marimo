@@ -98,6 +98,10 @@ export function createVegaSpec(
         ? { ...colorInScale }
         : undefined,
     stack: shouldApplyStackingToY ? formValues.general.stacking : undefined,
+    aggregate:
+      formValues.general.yColumn?.agg === DEFAULT_AGGREGATION
+        ? undefined
+        : formValues.general.yColumn?.agg,
   };
 
   const schema: TopLevelSpec = {
@@ -131,7 +135,8 @@ function getColor(
 ) {
   if (
     chartType === ChartType.PIE ||
-    formValues.general.groupByColumn?.field === NONE_GROUP_BY
+    formValues.general.groupByColumn?.field === NONE_GROUP_BY ||
+    formValues.general.groupByColumn?.field === ""
   ) {
     return undefined;
   }
@@ -174,7 +179,7 @@ function getOffset(
 ): OffsetDef<string> | undefined {
   if (
     formValues.general.stacking ||
-    formValues.general.groupByColumn?.field === NONE_GROUP_BY ||
+    formValues.general.groupByColumn?.field === "" ||
     chartType === ChartType.PIE
   ) {
     return undefined;
