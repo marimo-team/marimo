@@ -44,18 +44,14 @@ import {
   ColorArrayField,
   ColumnSelector,
   type Field,
-  IconWithText,
   InputField,
   NumberField,
   ScaleTypeSelect,
   SelectField,
   SliderField,
-  Title,
-  TooltipSelect,
 } from "./form-components";
 import { CHART_TYPE_ICON, COLOR_SCHEMES } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
-import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
 import { FieldValidators, TypeConverters } from "./chart-spec";
@@ -65,6 +61,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  IconWithText,
+  TabContainer,
+  Title,
+  TooltipForm,
+} from "./chart-components";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -330,7 +332,7 @@ export const ChartPanel: React.FC<{
     if (error) {
       return (
         <div className="flex items-center justify-center h-full w-full">
-          Error: ""
+          Error: {error.message}
         </div>
       );
     }
@@ -417,7 +419,8 @@ const ChartForm = ({
     saveChart(values);
   }, 300);
 
-  const ChartForm = chartType === ChartType.PIE ? PieChartForm : BaseChartForm;
+  const ChartForm =
+    chartType === ChartType.PIE ? PieChartForm : CommonChartForm;
 
   return (
     <Form {...form}>
@@ -459,14 +462,7 @@ const ChartForm = ({
   );
 };
 
-const TabContainer: React.FC<{
-  className?: string;
-  children: React.ReactNode;
-}> = ({ children, className }) => {
-  return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
-};
-
-const BaseChartForm: React.FC<{
+const CommonChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
   saveForm: () => void;
@@ -617,24 +613,6 @@ const PieChartForm: React.FC<{
 
       <hr />
       <TooltipForm form={form} fields={fields} saveForm={saveForm} />
-    </>
-  );
-};
-
-const TooltipForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-}> = ({ form, fields, saveForm }) => {
-  return (
-    <>
-      <Title text="Tooltips" />
-      <TooltipSelect
-        form={form}
-        name="general.tooltips"
-        fields={fields}
-        saveFunction={saveForm}
-      />
     </>
   );
 };

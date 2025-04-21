@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
-import { type LucideProps, SquareFunctionIcon } from "lucide-react";
+import { SquareFunctionIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/utils/cn";
 import {
@@ -29,7 +29,7 @@ import {
 } from "./chart-schemas";
 import type { NumberFieldProps } from "@/components/ui/number-field";
 import { Button } from "@/components/ui/button";
-import { AGGREGATION_TYPE_ICON } from "./constants";
+import { AGGREGATION_TYPE_ICON, EMPTY_VALUE } from "./constants";
 import { XIcon, PlusIcon } from "lucide-react";
 import React from "react";
 import type { z } from "zod";
@@ -40,6 +40,7 @@ import { capitalize } from "lodash-es";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { TypeConverters } from "./chart-spec";
+import { IconWithText } from "./chart-components";
 
 export interface Field {
   name: string;
@@ -58,14 +59,14 @@ export const ColumnSelector = <T extends object>({
   onValueChange?: (fieldName: string, type: DataType | undefined) => void;
 }) => {
   const clear = () => {
-    form.setValue(name, "" as PathValue<T, Path<T>>);
+    form.setValue(name, EMPTY_VALUE as PathValue<T, Path<T>>);
     form.setValue(
       name.replace(".field", ".type") as Path<T>,
-      "" as PathValue<T, Path<T>>,
+      EMPTY_VALUE as PathValue<T, Path<T>>,
     );
     form.setValue(
       name.replace(".field", ".scaleType") as Path<T>,
-      "" as PathValue<T, Path<T>>,
+      EMPTY_VALUE as PathValue<T, Path<T>>,
     );
     onValueChange?.("", undefined);
   };
@@ -583,22 +584,4 @@ export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
       }}
     />
   );
-};
-
-export const IconWithText: React.FC<{
-  Icon: React.ForwardRefExoticComponent<
-    Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>
-  >;
-  text: string;
-}> = ({ Icon, text }) => {
-  return (
-    <div className="flex items-center">
-      <Icon className="w-3 h-3 mr-2" />
-      <span>{text}</span>
-    </div>
-  );
-};
-
-export const Title: React.FC<{ text: string }> = ({ text }) => {
-  return <span className="font-semibold my-0">{text}</span>;
 };

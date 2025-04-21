@@ -93,3 +93,6 @@ export const SCALE_TYPE_DESCRIPTIONS: Record<ScaleType, string> = {
   string: "Discrete categorical scale (inputs treated as strings)",
   temporal: "Continuous temporal scale",
 };
+
+// Set a field to this to reflect that it is not set
+export const EMPTY_VALUE = "";

@@ -25,6 +25,7 @@ import type {
 } from "vega-lite/build/src/channeldef";
 import type { ColorScheme } from "vega";
 import type { TypedString } from "@/utils/typed";
+import { EMPTY_VALUE } from "./constants";
 
 export type ErrorMessage = TypedString<"ErrorMessage">;
 
@@ -215,7 +216,7 @@ export const TypeConverters = {
 // Field validation utilities
 export const FieldValidators = {
   exists(field: string | undefined): field is string {
-    return field !== undefined && field.trim() !== "";
+    return field !== undefined && field.trim() !== EMPTY_VALUE;
   },
 
   getLabel(field: string, label?: string): string {
