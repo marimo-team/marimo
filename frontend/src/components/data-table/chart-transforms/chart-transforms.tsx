@@ -474,6 +474,8 @@ const CommonChartForm: React.FC<{
     formValues.general?.colorByColumn,
   );
 
+  const xColumnChosen = FieldValidators.exists(xColumn?.field);
+
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
   // For now, we'll use the inferred scale type
   const inferredScaleType = xColumn?.type
@@ -495,7 +497,7 @@ const CommonChartForm: React.FC<{
           setXColumn({ field: fieldName, type });
         }}
       />
-      {FieldValidators.exists(xColumn?.field) && (
+      {xColumnChosen && (
         <ScaleTypeSelect
           form={form}
           formFieldLabel="Scale Type"
@@ -503,7 +505,7 @@ const CommonChartForm: React.FC<{
           defaultValue={inferredScaleType}
         />
       )}
-      {FieldValidators.exists(xColumn?.field) && (
+      {xColumnChosen && (
         <SelectField
           form={form}
           name="general.xColumn.sort"
