@@ -414,3 +414,17 @@ def test_range_encoding() -> None:
     r = range(10)
     encoded = json.dumps(r, cls=WebComponentEncoder)
     assert encoded == "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"
+
+
+def test_error_encoding() -> None:
+    from marimo._messaging.errors import MultipleDefinitionError
+    from marimo._types.ids import CellId_t
+
+    error_obj = MultipleDefinitionError(
+        "This is a custom error", (CellId_t("test"), CellId_t("test2"))
+    )
+    encoded = json.dumps(error_obj, cls=WebComponentEncoder)
+    assert (
+        encoded
+        == '{"name": "This is a custom error", "cells": ["test", "test2"], "type": "multiple-defs"}'
+    )

@@ -64,8 +64,8 @@ class WebComponentEncoder(JSONEncoder):
         if isinstance(o, (dict, list)):
             return o
 
-        # Handle range
-        if isinstance(o, range):
+        # Handle range and tuple
+        if isinstance(o, range) or isinstance(o, tuple):
             return list(o)
 
         # Handle MIME objects
