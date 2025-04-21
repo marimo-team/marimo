@@ -2,12 +2,7 @@
 "use no memo";
 
 import type { Column } from "@tanstack/react-table";
-import {
-  FilterIcon,
-  GripHorizontalIcon,
-  MinusIcon,
-  SearchIcon,
-} from "lucide-react";
+import { FilterIcon, MinusIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import {
@@ -43,12 +38,7 @@ import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Spinner } from "../icons/spinner";
-import {
-  Popover,
-  PopoverClose,
-  PopoverContent,
-  PopoverTrigger,
-} from "../ui/popover";
+import { PopoverClose } from "../ui/popover";
 import { Logger } from "@/utils/Logger";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -58,6 +48,7 @@ import {
   CommandItem,
   CommandList,
 } from "../ui/command";
+import { DraggablePopover } from "../ui/draggable-popover";
 
 const TOP_K_ROWS = 30;
 
@@ -384,32 +375,6 @@ const PopoverFilterByValues = <TData, TValue>({
 }) => {
   const [chosenValues, setChosenValues] = useState<unknown[]>([]);
   const [query, setQuery] = useState<string>("");
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    dragStartPos.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-    setIsDragging(true);
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    setPosition({
-      x: e.clientX - dragStartPos.current.x,
-      y: e.clientY - dragStartPos.current.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-  };
 
   const { data, loading, error } = useAsyncData(async () => {
     if (!calculateTopKRows) {
@@ -543,38 +508,21 @@ const PopoverFilterByValues = <TData, TValue>({
   }
 
   return (
-    <Popover
+    <DraggablePopover
       open={true}
-      // onOpenChange={(open) => !open && setIsFilterValueOpen(false)}
+      onOpenChange={(open) => !open && setIsFilterValueOpen(false)}
+      popoverContentClassName="w-80 p-0"
     >
-      <PopoverTrigger />
-      <PopoverContent
-        className="w-80 p-0"
-        style={{
-          position: "fixed",
-          left: position.x,
-          top: position.y,
-        }}
-      >
-        <div
-          onMouseDown={handleMouseDown}
-          className={`flex items-center justify-center absolute top-0 left-1/2 -translate-x-1/2 ${
-            isDragging ? "cursor-grabbing" : "cursor-grab"
-          }`}
+      <PopoverClose className="absolute top-2 right-2">
+        <Button
+          variant="link"
+          size="sm"
+          onClick={() => setIsFilterValueOpen(false)}
         >
-          <GripHorizontalIcon className="h-5 w-5 mt-1 text-muted-foreground/40" />
-        </div>
-        <PopoverClose className="absolute top-2 right-2">
-          <Button
-            variant="link"
-            size="sm"
-            onClick={() => setIsFilterValueOpen(false)}
-          >
-            X
-          </Button>
-        </PopoverClose>
-        <div className="flex flex-col gap-1.5 p-4">{dataTable}</div>
-      </PopoverContent>
-    </Popover>
+          <XIcon className="h-4 w-4" />
+        </Button>
+      </PopoverClose>
+      <div className="flex flex-col gap-1.5 p-4">{dataTable}</div>
+    </DraggablePopover>
   );
 };
