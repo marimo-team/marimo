@@ -36,14 +36,18 @@ export function createVegaSpec(
   width: number | "container",
   height: number,
 ): TopLevelSpec | ErrorMessage {
-  const { xColumn, yColumn, groupByColumn, horizontal, stacking, title } =
+  const { xColumn, yColumn, colorByColumn, horizontal, stacking, title } =
     formValues.general;
 
+  if (chartType === ChartType.PIE) {
+    return getPieChartSpec(data, formValues, theme, width, height);
+  }
+
   // Validate required fields
-  if (!FieldValidators.isRequired(xColumn?.field)) {
+  if (!FieldValidators.exists(xColumn?.field)) {
     return "X-axis column is required" as ErrorMessage;
   }
-  if (!FieldValidators.isRequired(yColumn?.field)) {
+  if (!FieldValidators.exists(yColumn?.field)) {
     return "Y-axis column is required" as ErrorMessage;
   }
 
@@ -58,8 +62,8 @@ export function createVegaSpec(
   );
 
   // Determine encoding keys based on chart type
-  const xEncodingKey = chartType === ChartType.PIE ? "theta" : "x";
-  const yEncodingKey = chartType === ChartType.PIE ? "color" : "y";
+  const xEncodingKey = "x";
+  const yEncodingKey = "y";
 
   // Create encodings
   const xEncoding: PositionDef<string> | PolarDef<string> = {
@@ -67,7 +71,7 @@ export function createVegaSpec(
     type: TypeConverters.toVegaType(xColumn.scaleType ?? "unknown"),
     bin: EncodingUtils.getBin(formValues.xAxis?.bin),
     title: xAxisLabel,
-    stack: groupByColumn?.field && horizontal ? stacking : undefined,
+    stack: colorByColumn?.field && horizontal ? stacking : undefined,
     sort: xColumn.sort,
   };
 
@@ -76,11 +80,7 @@ export function createVegaSpec(
     type: TypeConverters.toVegaType(yColumn.type ?? "unknown"),
     bin: EncodingUtils.getBin(formValues.yAxis?.bin),
     title: yAxisLabel,
-    scale:
-      yEncodingKey === "color"
-        ? EncodingUtils.getColorInScale(formValues)
-        : undefined,
-    stack: groupByColumn?.field && !horizontal ? stacking : undefined,
+    stack: colorByColumn?.field && !horizontal ? stacking : undefined,
     aggregate: yColumn.agg === DEFAULT_AGGREGATION ? undefined : yColumn.agg,
   };
 
@@ -103,6 +103,62 @@ export function createVegaSpec(
   };
 }
 
+function getPieChartSpec(
+  data: object[],
+  formValues: z.infer<typeof ChartSchema>,
+  theme: ResolvedTheme,
+  width: number | "container",
+  height: number,
+) {
+  const { yColumn, colorByColumn, title } = formValues.general;
+
+  if (!FieldValidators.exists(colorByColumn?.field)) {
+    return "Color by column is required" as ErrorMessage;
+  }
+
+  if (!FieldValidators.exists(yColumn?.field)) {
+    return "Size by column is required" as ErrorMessage;
+  }
+
+  const colorFieldLabel = FieldValidators.getLabel(
+    colorByColumn.field,
+    formValues.xAxis?.label,
+  );
+
+  const thetaFieldLabel = FieldValidators.getLabel(
+    yColumn.field,
+    formValues.xAxis?.label,
+  );
+
+  const thetaEncoding: PositionDef<string> | PolarDef<string> = {
+    field: yColumn.field,
+    type: TypeConverters.toVegaType(yColumn.type ?? "unknown"),
+    bin: EncodingUtils.getBin(formValues.xAxis?.bin),
+    title: thetaFieldLabel,
+  };
+
+  const colorEncoding: ColorDef<string> = {
+    field: colorByColumn.field,
+    type: TypeConverters.toVegaType(colorByColumn.type ?? "unknown"),
+    scale: EncodingUtils.getColorInScale(formValues),
+    title: colorFieldLabel,
+  };
+
+  return {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    background: theme === "dark" ? "dark" : "white",
+    title,
+    data: { values: data },
+    height: formValues.yAxis?.height ?? height,
+    width: formValues.xAxis?.width ?? width,
+    mark: { type: TypeConverters.toMark(ChartType.PIE) },
+    encoding: {
+      theta: thetaEncoding,
+      color: colorEncoding,
+      tooltip: EncodingUtils.getTooltips(formValues),
+    },
+  };
+}
 // Type conversion utilities
 export const TypeConverters = {
   toVegaType(dataType: DataType | ScaleType): Type {
@@ -157,8 +213,8 @@ export const TypeConverters = {
 };
 
 // Field validation utilities
-const FieldValidators = {
-  isRequired(field: string | undefined): field is string {
+export const FieldValidators = {
+  exists(field: string | undefined): field is string {
     return field !== undefined && field.trim() !== "";
   },
 
@@ -203,12 +259,12 @@ const EncodingUtils = {
   ): OffsetDef<string> | undefined {
     if (
       formValues.general.stacking ||
-      !FieldValidators.isRequired(formValues.general.groupByColumn?.field) ||
+      !FieldValidators.exists(formValues.general.colorByColumn?.field) ||
       chartType === ChartType.PIE
     ) {
       return undefined;
     }
-    return { field: formValues.general.groupByColumn?.field };
+    return { field: formValues.general.colorByColumn?.field };
   },
 
   getTooltipAggregate(
@@ -265,16 +321,16 @@ const ColorUtils = {
   ): { color?: ColorDef<string> } | undefined {
     if (
       chartType === ChartType.PIE ||
-      !FieldValidators.isRequired(formValues.general.groupByColumn?.field)
+      !FieldValidators.exists(formValues.general.colorByColumn?.field)
     ) {
       return undefined;
     }
 
     return {
       color: {
-        field: formValues.general.groupByColumn.field,
+        field: formValues.general.colorByColumn.field,
         type: TypeConverters.toVegaType(
-          formValues.general.groupByColumn.type ?? "unknown",
+          formValues.general.colorByColumn.type ?? "unknown",
         ),
         scale: EncodingUtils.getColorInScale(formValues),
       },

@@ -31,19 +31,21 @@ export const ChartSchema = z.object({
         sort: z.enum(SORT_TYPES).default("ascending").optional(),
       })
       .optional(),
-    yColumn: z.object({
-      field: z.string().optional(),
-      type: z.enum(DATA_TYPES).optional(),
-      scaleType: z.enum(SCALE_TYPES).optional(),
-      agg: z
-        .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
-        .default(DEFAULT_AGGREGATION)
-        .optional(),
-    }),
-    horizontal: z.boolean().optional(),
-    groupByColumn: z
+    yColumn: z
       .object({
-        field: z.string().default(NONE_GROUP_BY).optional(),
+        field: z.string().optional(),
+        type: z.enum(DATA_TYPES).optional(),
+        scaleType: z.enum(SCALE_TYPES).optional(),
+        agg: z
+          .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
+          .default(DEFAULT_AGGREGATION)
+          .optional(),
+      })
+      .optional(),
+    horizontal: z.boolean().optional(),
+    colorByColumn: z
+      .object({
+        field: z.string().optional(),
         type: z.enum(DATA_TYPES).optional(),
         scaleType: z.enum(SCALE_TYPES).optional(),
         binned: z.boolean().optional(),

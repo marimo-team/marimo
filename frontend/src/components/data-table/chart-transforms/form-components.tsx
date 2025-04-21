@@ -526,7 +526,7 @@ export const AggregationSelect = <T extends object>({
   );
 };
 
-interface Tooltip {
+export interface Tooltip {
   field: string;
   type: string;
 }
@@ -534,13 +534,11 @@ interface Tooltip {
 export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
   form,
   name,
-  formFieldLabel,
   fields,
   saveFunction,
 }: {
   form: UseFormReturn<T>;
   name: Path<T>;
-  formFieldLabel: string;
   fields: Field[];
   saveFunction: () => void;
 }) => {

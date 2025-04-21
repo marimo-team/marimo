@@ -58,7 +58,7 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
-import { TypeConverters } from "./chart-spec";
+import { FieldValidators, TypeConverters } from "./chart-spec";
 import {
   Accordion,
   AccordionContent,
@@ -335,10 +335,12 @@ export const ChartPanel: React.FC<{
       );
     }
     return (
-      <Chart
+      <LazyChart
         chartType={chartTypeSelected}
         formValues={memoizedFormValues}
         data={data}
+        width="container"
+        height={300}
       />
     );
   }, [loading, error, memoizedFormValues, data, chartTypeSelected]);
@@ -415,6 +417,8 @@ const ChartForm = ({
     saveChart(values);
   }, 300);
 
+  const ChartForm = chartType === ChartType.PIE ? PieChartForm : BaseChartForm;
+
   return (
     <Form {...form}>
       <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
@@ -429,166 +433,18 @@ const ChartForm = ({
           </TabsList>
 
           <TabsContent value="data">
-            <HorizontalRule />
+            <hr className="my-3" />
             <TabContainer>
-              {chartType === ChartType.LINE && (
-                <LineChartForm
-                  form={form}
-                  fields={fields ?? []}
-                  saveForm={debouncedSave}
-                />
-              )}
-              {chartType === ChartType.BAR && (
-                <LineChartForm
-                  form={form}
-                  fields={fields ?? []}
-                  saveForm={debouncedSave}
-                />
-              )}
-              {/* <BooleanField
+              <ChartForm
                 form={form}
-                name="general.horizontal"
-                formFieldLabel="Horizontal chart"
-              /> */}
-              {/* <ColumnSelector
-                form={form}
-                name="general.xColumn.field"
-                formFieldLabel={
-                  chartType === ChartType.PIE ? "Theta" : "X column"
-                }
-                columns={fields || []}
+                fields={fields ?? []}
+                saveForm={debouncedSave}
               />
-              <div className="flex flex-row gap-2">
-                <ColumnSelector
-                  form={form}
-                  name="general.yColumn.field"
-                  formFieldLabel={
-                    chartType === ChartType.PIE ? "Color" : "Y column"
-                  }
-                  columns={fields || []}
-                />
-                <FormField
-                  control={form.control}
-                  name="general.yColumn.agg"
-                  render={({ field }) => (
-                    <FormItem className="self-end w-24">
-                      <FormControl>
-                        <Select
-                          {...field}
-                          value={field.value ?? DEFAULT_AGGREGATION}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>Aggregation</SelectLabel>
-                              <SelectItem value={DEFAULT_AGGREGATION}>
-                                <div className="flex items-center">
-                                  <SquareFunctionIcon className="w-3 h-3 mr-2" />
-                                  {capitalize(DEFAULT_AGGREGATION)}
-                                </div>
-                              </SelectItem>
-                              {AGGREGATION_FNS.map((agg) => {
-                                const Icon = AGGREGATION_TYPE_ICON[agg];
-                                return (
-                                  <SelectItem key={agg} value={agg}>
-                                    <div className="flex items-center">
-                                      <Icon className="w-3 h-3 mr-2" />
-                                      {capitalize(agg)}
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {chartType !== ChartType.PIE && (
-                <div className="flex flex-row gap-2">
-                  <ColumnSelector
-                    form={form}
-                    name="general.groupByColumn.field"
-                    formFieldLabel="Group by (color)"
-                    columns={fields ?? []}
-                    includeNoneOption={true}
-                  />
-                  <div
-                    className={cn(
-                      "flex flex-col self-end gap-1 items-end",
-                      chartType === ChartType.BAR && "mt-1.5",
-                    )}
-                  >
-                    <BooleanField
-                      form={form}
-                      name="general.groupByColumn.binned"
-                      formFieldLabel="Binned"
-                    />
-                    <BooleanField
-                      form={form}
-                      name="general.stacking"
-                      formFieldLabel="Stacked"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <hr />
-
-              <InputField
-                form={form}
-                formFieldLabel="Plot title"
-                name="general.title"
-              />
-              <FormField
-                control={form.control}
-                name="general.tooltips"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Multiselect
-                        options={fields?.map((field) => field.name) ?? []}
-                        value={field.value?.map((item) => item.field) ?? []}
-                        setValue={(values) => {
-                          const selectedValues =
-                            typeof values === "function" ? values([]) : values;
-
-                          // find the field types and form objects
-                          const tooltipObjects = selectedValues.map(
-                            (fieldName) => {
-                              const fieldType = fields?.find(
-                                (f) => f.name === fieldName,
-                              )?.type;
-
-                              return {
-                                field: fieldName,
-                                type: fieldType ?? "string",
-                              };
-                            },
-                          );
-
-                          field.onChange(tooltipObjects);
-                          // Multiselect doesn't trigger onChange, so we need to save the form manually
-                          debouncedSave();
-                        }}
-                        label="Tooltips"
-                        fullWidth={false}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              /> */}
             </TabContainer>
           </TabsContent>
 
           <TabsContent value="style">
-            <HorizontalRule />
+            <hr className="my-3" />
             <TabContainer>
               <StyleForm
                 form={form}
@@ -597,58 +453,9 @@ const ChartForm = ({
               />
             </TabContainer>
           </TabsContent>
-          {/* {chartType !== ChartType.PIE && (
-            <>
-              <AxisTabContent axis="x" form={form} />
-              <AxisTabContent axis="y" form={form} />
-            </>
-          )} */}
-          {/* <TabsContent value="color">
-            <TabContainer>
-              <SelectField
-                form={form}
-                name="color.scheme"
-                formFieldLabel="Color scheme"
-                defaultValue={DEFAULT_COLOR_SCHEME}
-                options={COLOR_SCHEMES.map((scheme) => ({
-                  label: capitalize(scheme),
-                  value: scheme,
-                }))}
-              />
-              <ColorArrayField
-                form={form}
-                name="color.range"
-                formFieldLabel="Color range"
-              />
-              <p className="text-xs">
-                <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
-                If you are using color range, color scheme will be ignored.
-              </p>
-            </TabContainer>
-          </TabsContent> */}
         </Tabs>
       </form>
     </Form>
-  );
-};
-
-const HorizontalRule: React.FC = () => {
-  return <hr className="my-3" />;
-};
-
-const Chart: React.FC<{
-  chartType: ChartType;
-  formValues: z.infer<typeof ChartSchema>;
-  data?: object[];
-}> = ({ chartType, formValues, data }) => {
-  return (
-    <LazyChart
-      chartType={chartType}
-      formValues={formValues}
-      data={data}
-      width="container"
-      height={300}
-    />
   );
 };
 
@@ -659,7 +466,7 @@ const TabContainer: React.FC<{
   return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
 };
 
-const LineChartForm: React.FC<{
+const BaseChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
   saveForm: () => void;
@@ -669,7 +476,7 @@ const LineChartForm: React.FC<{
   const [xColumn, setXColumn] = useState(formValues.general?.xColumn);
   const [yColumn, setYColumn] = useState(formValues.general?.yColumn);
   const [groupByColumn, setGroupByColumn] = useState(
-    formValues.general?.groupByColumn,
+    formValues.general?.colorByColumn,
   );
 
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
@@ -693,7 +500,7 @@ const LineChartForm: React.FC<{
           setXColumn({ field: fieldName, type });
         }}
       />
-      {xColumn?.field && xColumn?.field !== "" && (
+      {FieldValidators.exists(xColumn?.field) && (
         <ScaleTypeSelect
           form={form}
           formFieldLabel="Scale Type"
@@ -701,7 +508,7 @@ const LineChartForm: React.FC<{
           defaultValue={inferredScaleType}
         />
       )}
-      {xColumn?.field && xColumn?.field !== "" && (
+      {FieldValidators.exists(xColumn?.field) && (
         <SelectField
           form={form}
           name="general.xColumn.sort"
@@ -734,32 +541,100 @@ const LineChartForm: React.FC<{
         />
         <AggregationSelect form={form} name="general.yColumn.agg" />
       </div>
+      {FieldValidators.exists(yColumn?.field) && (
+        <BooleanField
+          form={form}
+          name="general.horizontal"
+          formFieldLabel="Horizontal chart"
+        />
+      )}
       {yColumn && (
         <>
           <Title text="Color by" />
           <div className="flex flex-row gap-2">
             <ColumnSelector
               form={form}
-              name="general.groupByColumn.field"
+              name="general.colorByColumn.field"
               columns={fields}
               onValueChange={(fieldName, type) => {
                 setGroupByColumn({ field: fieldName, type });
               }}
             />
-            <AggregationSelect form={form} name="general.groupByColumn.agg" />
+            <AggregationSelect form={form} name="general.colorByColumn.agg" />
           </div>
-          {groupByColumn?.field && groupByColumn?.field !== "" && (
-            <ScaleTypeSelect
-              form={form}
-              name="general.groupByColumn.scaleType"
-              formFieldLabel="Scale Type"
-              defaultValue={inferredGroupByScaleType}
-            />
+          {FieldValidators.exists(groupByColumn?.field) && (
+            <>
+              <ScaleTypeSelect
+                form={form}
+                name="general.colorByColumn.scaleType"
+                formFieldLabel="Scale Type"
+                defaultValue={inferredGroupByScaleType}
+              />
+              <div className="flex flex-row gap-2">
+                <BooleanField
+                  form={form}
+                  name="general.colorByColumn.binned"
+                  formFieldLabel="Binned"
+                />
+                <BooleanField
+                  form={form}
+                  name="general.stacking"
+                  formFieldLabel="Stacked"
+                />
+              </div>
+            </>
           )}
         </>
       )}
       <hr />
       <TooltipForm form={form} fields={fields} saveForm={saveForm} />
+    </>
+  );
+};
+
+const PieChartForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+}> = ({ form, fields, saveForm }) => {
+  return (
+    <>
+      <Title text="Color by" />
+      <ColumnSelector
+        form={form}
+        name="general.colorByColumn.field"
+        columns={fields}
+      />
+      <Title text="Size by" />
+      <div className="flex flex-row gap-2">
+        <ColumnSelector
+          form={form}
+          name="general.yColumn.field"
+          columns={fields}
+        />
+        <AggregationSelect form={form} name="general.yColumn.agg" />
+      </div>
+
+      <hr />
+      <TooltipForm form={form} fields={fields} saveForm={saveForm} />
+    </>
+  );
+};
+
+const TooltipForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+}> = ({ form, fields, saveForm }) => {
+  return (
+    <>
+      <Title text="Tooltips" />
+      <TooltipSelect
+        form={form}
+        name="general.tooltips"
+        fields={fields}
+        saveFunction={saveForm}
+      />
     </>
   );
 };
@@ -866,24 +741,5 @@ const StyleForm: React.FC<{
         </AccordionContent>
       </AccordionItem>
     </Accordion>
-  );
-};
-
-const TooltipForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-}> = ({ form, fields, saveForm }) => {
-  return (
-    <div className="flex flex-row gap-2 items-center">
-      <Title text="Tooltips" />
-      <TooltipSelect
-        form={form}
-        name="general.tooltips"
-        formFieldLabel="Tooltips"
-        fields={fields}
-        saveFunction={saveForm}
-      />
-    </div>
   );
 };
