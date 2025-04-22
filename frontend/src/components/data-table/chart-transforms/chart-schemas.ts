@@ -10,8 +10,8 @@ export const NONE_GROUP_BY = "None";
 export const DEFAULT_COLOR_SCHEME = "default";
 
 // These scale types can be selected to override the default scale type
-export type ScaleType = "number" | "string" | "temporal";
 export const SCALE_TYPES = ["number", "string", "temporal"] as const;
+export type ScaleType = (typeof SCALE_TYPES)[number];
 
 export const SORT_TYPES = ["ascending", "descending"] as const;
 

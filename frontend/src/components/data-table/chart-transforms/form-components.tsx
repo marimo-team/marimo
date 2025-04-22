@@ -8,7 +8,7 @@ import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
 import type { NumberFieldProps } from "@/components/ui/number-field";
-import type { ChartSchema, ScaleType } from "./chart-schemas";
+import type { ChartSchema } from "./chart-schemas";
 
 import {
   FormField,
@@ -30,7 +30,6 @@ import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
-import { SliderComponent } from "@/plugins/impl/SliderPlugin";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
 import {
@@ -46,6 +45,7 @@ import {
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { TypeConverters } from "./chart-spec";
 import { IconWithText } from "./chart-components";
+import { Slider } from "@/components/ui/slider";
 
 export interface Field {
   name: string;
@@ -283,37 +283,51 @@ export const SliderField = <T extends object>({
   step,
   className,
   ...props
-}: SliderFieldProps<T>) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => (
-      <FormItem className={cn("flex flex-row items-center gap-2", className)}>
-        <FormControl>
-          <SliderComponent
-            {...field}
-            {...props}
-            value={value}
-            setValue={(value) => {
-              field.onChange(value);
-              form.setValue(name, value as PathValue<T, Path<T>>);
-            }}
-            start={start}
-            stop={stop}
-            step={step}
-            label={formFieldLabel}
-            debounce={false}
-            orientation="horizontal"
-            showValue={false}
-            fullWidth={false}
-            steps={null}
-            valueMap={(value) => value}
-          />
-        </FormControl>
-      </FormItem>
-    )}
-  />
-);
+}: SliderFieldProps<T>) => {
+  const [internalValue, setInternalValue] = React.useState(value);
+
+  // Update internal value on prop change
+  React.useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
+
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem
+          className={cn("flex flex-row items-center gap-2 w-1/2", className)}
+        >
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormControl>
+            <Slider
+              {...field}
+              {...props}
+              id={name}
+              className="relative flex items-center select-none"
+              value={[internalValue]}
+              min={start}
+              max={stop}
+              step={step}
+              // Triggered on slider drag
+              onValueChange={([nextValue]) => {
+                setInternalValue(nextValue);
+                field.onChange(nextValue);
+              }}
+              // Triggered on mouse up
+              onValueCommit={([nextValue]) => {
+                field.onChange(nextValue);
+                form.setValue(name, nextValue as PathValue<T, Path<T>>);
+              }}
+              valueMap={(value) => value}
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
 
 export const ColorArrayField = <T extends object>({
   form,
@@ -426,7 +440,7 @@ export const ScaleTypeSelect = <T extends object>({
                         subtitle={
                           isOpen && (
                             <span className="text-xs text-muted-foreground">
-                              {SCALE_TYPE_DESCRIPTIONS[type as ScaleType]}
+                              {SCALE_TYPE_DESCRIPTIONS[type]}
                             </span>
                           )
                         }
