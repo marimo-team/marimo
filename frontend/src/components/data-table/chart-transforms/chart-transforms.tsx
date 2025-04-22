@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import type { z } from "zod";
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema, DEFAULT_COLOR_SCHEME } from "./chart-schemas";
-import { SORT_TYPES, type SelectableDataType } from "./types";
+import { ChartSchema } from "./chart-schemas";
+import { SORT_TYPES } from "./types";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -41,7 +41,12 @@ import {
   TimeUnitSelect,
   TooltipSelect,
 } from "./form-components";
-import { ChartType, COLOR_SCHEMES } from "./constants";
+import {
+  ChartType,
+  COLOR_SCHEMES,
+  COUNT_FIELD,
+  DEFAULT_COLOR_SCHEME,
+} from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
@@ -64,6 +69,7 @@ import {
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
+const CHART_HEIGHT = 300;
 
 export interface TablePanelProps {
   dataTable: JSX.Element;
@@ -95,24 +101,9 @@ export const TablePanel: React.FC<TablePanelProps> = ({
 
     // If the element is in the light DOM, we can find it directly
     // Otherwise, we need to traverse up through shadow DOM boundaries
-    let cellElement = HTMLCellId.findElement(containerRef.current);
-
-    if (!cellElement) {
-      const root = containerRef.current.getRootNode();
-      let element: Element | null = containerRef.current;
-
-      while (element && element !== root) {
-        cellElement = HTMLCellId.findElement(element);
-        if (cellElement) {
-          break;
-        }
-        element =
-          element.getRootNode() instanceof ShadowRoot
-            ? (element.getRootNode() as ShadowRoot).host
-            : element.parentElement;
-      }
-    }
-
+    const cellElement = HTMLCellId.findElementThroughShadowDOMs(
+      containerRef.current,
+    );
     if (cellElement) {
       setCellId(HTMLCellId.parse(cellElement.id));
     }
@@ -327,14 +318,14 @@ export const ChartPanel: React.FC<{
         formValues={memoizedFormValues}
         data={data}
         width="container"
-        height={300}
+        height={CHART_HEIGHT}
       />
     );
   }, [loading, error, memoizedFormValues, data, selectedChartType]);
 
   return (
-    <div className="flex flex-row gap-6 h-full rounded-md border">
-      <div className="flex flex-col gap-2 w-1/3 max-w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
+    <div className="flex flex-row gap-2 h-full rounded-md border pr-2">
+      <div className="flex flex-col gap-2 w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
         <ChartTypeSelect
           value={selectedChartType}
           onValueChange={(value) => {
@@ -350,7 +341,7 @@ export const ChartPanel: React.FC<{
           chartType={selectedChartType}
         />
       </div>
-      <div className="w-2/3">{memoizedChart}</div>
+      <div className="flex-1">{memoizedChart}</div>
     </div>
   );
 };
@@ -430,15 +421,13 @@ const CommonChartForm: React.FC<{
   fields: Field[];
   saveForm: () => void;
 }> = ({ form, fields, saveForm }) => {
-  const formValues = form.getValues();
-
-  const [xColumn, setXColumn] = useState(formValues.general?.xColumn);
-  const [yColumn, setYColumn] = useState(formValues.general?.yColumn);
-  const [groupByColumn, setGroupByColumn] = useState(
-    formValues.general?.colorByColumn,
-  );
+  const formValues = useWatch({ control: form.control });
+  const xColumn = formValues.general?.xColumn;
+  const yColumn = formValues.general?.yColumn;
+  const groupByColumn = formValues.general?.colorByColumn;
 
   const xColumnExists = FieldValidators.exists(xColumn?.field);
+  const yColumnExists = FieldValidators.exists(yColumn?.field);
 
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
   // For now, we'll use the inferred scale type
@@ -450,43 +439,56 @@ const CommonChartForm: React.FC<{
     ? TypeConverters.toSelectableDataType(yColumn.type)
     : "string";
 
-  const inferredGroupByDataType = groupByColumn?.type
-    ? TypeConverters.toSelectableDataType(groupByColumn.type)
-    : "string";
+  // const inferredGroupByDataType = groupByColumn?.type
+  //   ? TypeConverters.toSelectableDataType(groupByColumn.type)
+  //   : "string";
+
+  const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
+  const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
+  const isXCountField = xColumn?.field === COUNT_FIELD;
+  const isYCountField = yColumn?.field === COUNT_FIELD;
+
+  const shouldShowXAggregation =
+    xColumnExists && selectedXDataType !== "temporal" && !isXCountField;
+  const shouldShowYAggregation =
+    FieldValidators.exists(yColumn?.field) &&
+    selectedYDataType === "temporal" &&
+    !isYCountField;
+
+  const shouldShowXTimeUnit =
+    xColumnExists && selectedXDataType === "temporal" && !isXCountField;
+  const shouldShowYTimeUnit =
+    yColumnExists && selectedYDataType === "temporal" && !isYCountField;
 
   return (
     <>
       <Title text="X-Axis" />
-      <ColumnSelector
-        form={form}
-        name="general.xColumn.field"
-        columns={fields}
-        onValueChange={(fieldName, type) => {
-          setXColumn({ field: fieldName, type });
-        }}
-      />
-      {xColumnExists && (
+      <div className="flex flex-row gap-2 justify-between">
+        <ColumnSelector
+          form={form}
+          name="general.xColumn.field"
+          columns={fields}
+        />
+        {shouldShowXAggregation && (
+          <AggregationSelect form={form} name="general.xColumn.aggregate" />
+        )}
+      </div>
+      {xColumnExists && !isXCountField && (
         <DataTypeSelect
           form={form}
           formFieldLabel="Data Type"
           name="general.xColumn.selectedDataType"
           defaultValue={inferredXDataType}
-          onValueChange={(value) => {
-            setXColumn({
-              ...xColumn,
-              selectedDataType: value as SelectableDataType,
-            });
-          }}
         />
       )}
-      {xColumn?.selectedDataType === "temporal" && (
+      {shouldShowXTimeUnit && (
         <TimeUnitSelect
           form={form}
           name="general.xColumn.timeUnit"
           formFieldLabel="Time Resolution"
         />
       )}
-      {xColumnExists && (
+      {xColumnExists && !isXCountField && (
         <SelectField
           form={form}
           name="general.xColumn.sort"
@@ -514,42 +516,37 @@ const CommonChartForm: React.FC<{
           form={form}
           name="general.yColumn.field"
           columns={fields}
-          onValueChange={(fieldName, type) => {
-            setYColumn({ field: fieldName, type });
-          }}
         />
-        <AggregationSelect form={form} name="general.yColumn.agg" />
+        {shouldShowYAggregation && (
+          <AggregationSelect form={form} name="general.yColumn.aggregate" />
+        )}
       </div>
-      {FieldValidators.exists(yColumn?.field) && (
-        <>
-          <DataTypeSelect
-            form={form}
-            formFieldLabel="Data Type"
-            name="general.yColumn.selectedDataType"
-            defaultValue={inferredYDataType}
-            onValueChange={(value) => {
-              setYColumn({
-                ...yColumn,
-                selectedDataType: value as SelectableDataType,
-              });
-            }}
-          />
-          {yColumn?.selectedDataType === "temporal" && (
-            <TimeUnitSelect
-              form={form}
-              name="general.yColumn.timeUnit"
-              formFieldLabel="Time Resolution"
-            />
-          )}
-          <BooleanField
-            form={form}
-            name="general.horizontal"
-            formFieldLabel="Horizontal chart"
-          />
-        </>
+
+      {yColumnExists && !isYCountField && (
+        <DataTypeSelect
+          form={form}
+          formFieldLabel="Data Type"
+          name="general.yColumn.selectedDataType"
+          defaultValue={inferredYDataType}
+        />
+      )}
+      {shouldShowYTimeUnit && (
+        <TimeUnitSelect
+          form={form}
+          name="general.yColumn.timeUnit"
+          formFieldLabel="Time Resolution"
+        />
       )}
 
-      {yColumn && (
+      {yColumnExists && (
+        <BooleanField
+          form={form}
+          name="general.horizontal"
+          formFieldLabel="Horizontal chart"
+        />
+      )}
+
+      {yColumnExists && (
         <>
           <Title text="Color by" />
           <div className="flex flex-row gap-2 justify-between">
@@ -557,20 +554,20 @@ const CommonChartForm: React.FC<{
               form={form}
               name="general.colorByColumn.field"
               columns={fields}
-              onValueChange={(fieldName, type) => {
-                setGroupByColumn({ field: fieldName, type });
-              }}
             />
-            <AggregationSelect form={form} name="general.colorByColumn.agg" />
+            <AggregationSelect
+              form={form}
+              name="general.colorByColumn.aggregate"
+            />
           </div>
           {FieldValidators.exists(groupByColumn?.field) && (
             <>
-              <DataTypeSelect
+              {/* <DataTypeSelect
                 form={form}
                 name="general.colorByColumn.selectedDataType"
                 formFieldLabel="Data Type"
                 defaultValue={inferredGroupByDataType}
-              />
+              /> */}
               <div className="flex flex-row gap-2">
                 <BooleanField
                   form={form}
@@ -583,8 +580,7 @@ const CommonChartForm: React.FC<{
         </>
       )}
 
-      <hr />
-      <Title text="General" />
+      <hr className="my-2" />
       <TooltipSelect
         form={form}
         name="general.tooltips"
@@ -601,9 +597,8 @@ const PieChartForm: React.FC<{
   fields: Field[];
   saveForm: () => void;
 }> = ({ form, fields, saveForm }) => {
-  const [colorByColumn, setColorByColumn] = useState(
-    form.getValues().general.colorByColumn,
-  );
+  const formValues = useWatch({ control: form.control });
+  const colorByColumn = formValues.general?.colorByColumn;
 
   const inferredColorByDataType = colorByColumn?.type
     ? TypeConverters.toSelectableDataType(colorByColumn.type)
@@ -616,9 +611,7 @@ const PieChartForm: React.FC<{
         form={form}
         name="general.colorByColumn.field"
         columns={fields}
-        onValueChange={(fieldName, type) => {
-          setColorByColumn({ field: fieldName, type });
-        }}
+        includeCountField={false}
       />
       {FieldValidators.exists(colorByColumn?.field) && (
         <DataTypeSelect
@@ -626,12 +619,6 @@ const PieChartForm: React.FC<{
           name="general.colorByColumn.selectedDataType"
           formFieldLabel="Data Type"
           defaultValue={inferredColorByDataType}
-          onValueChange={(value) => {
-            setColorByColumn({
-              ...colorByColumn,
-              selectedDataType: value as SelectableDataType,
-            });
-          }}
         />
       )}
 
@@ -642,7 +629,7 @@ const PieChartForm: React.FC<{
           name="general.yColumn.field"
           columns={fields}
         />
-        <AggregationSelect form={form} name="general.yColumn.agg" />
+        <AggregationSelect form={form} name="general.yColumn.aggregate" />
       </div>
 
       <hr />
@@ -668,7 +655,7 @@ const StyleForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
   saveForm: () => void;
-}> = ({ form, fields, saveForm }) => {
+}> = ({ form }) => {
   const renderBinFields = (axis: "x" | "y") => {
     return (
       <div className="flex flex-row gap-2 w-full">

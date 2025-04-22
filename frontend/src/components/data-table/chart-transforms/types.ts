@@ -9,7 +9,8 @@ export type SelectableDataType = (typeof SELECTABLE_DATA_TYPES)[number];
 /**
  * Similar to VegaLite's TimeUnit, https://vega.github.io/vega-lite/docs/timeunit.html
  */
-export const TIME_UNITS = [
+export const SINGLE_TIME_UNITS = [
+  // Individual units
   "year", // Gregorian calendar years.
   "quarter", // Three-month intervals, starting in one of January, April, July, and October.
   "month", // Calendar months (January, February, etc.).
@@ -21,10 +22,16 @@ export const TIME_UNITS = [
   "minutes", // Minutes in an hour (12:00, 12:01, etc.).
   "seconds", // Seconds in a minute (12:00:00, 12:00:01, etc.).
   "milliseconds", // Milliseconds in a second.
-  // Common combinations of the above
+] as const;
+// Common combinations of the above
+export const COMBINED_TIME_UNITS = [
   "yearmonth",
   "yearmonthdate",
   "monthdate",
+] as const;
+export const TIME_UNITS = [
+  ...SINGLE_TIME_UNITS,
+  ...COMBINED_TIME_UNITS,
 ] as const;
 export type TimeUnit = (typeof TIME_UNITS)[number];
 
@@ -34,15 +41,19 @@ export type TimeUnit = (typeof TIME_UNITS)[number];
 export const SORT_TYPES = ["ascending", "descending"] as const;
 export type SortType = (typeof SORT_TYPES)[number];
 
+export const NONE_AGGREGATION = "none";
+
 /**
  * Subset of VegaLite's AggregateOp, https://vega.github.io/vega-lite/docs/aggregate.html#op
  */
 export const AGGREGATION_FNS = [
+  NONE_AGGREGATION,
   "count",
   "sum",
   "mean",
   "median",
   "min",
   "max",
+  "distinct",
 ] as const;
 export type AggregationFn = (typeof AGGREGATION_FNS)[number];

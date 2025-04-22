@@ -22,6 +22,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -32,18 +33,28 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
-import { DEFAULT_AGGREGATION, DEFAULT_BIN_VALUE } from "./chart-schemas";
-import { SELECTABLE_DATA_TYPES, TIME_UNITS } from "./types";
+import { DEFAULT_BIN_VALUE } from "./chart-schemas";
 import {
+  AGGREGATION_FNS,
+  COMBINED_TIME_UNITS,
+  NONE_AGGREGATION,
+  SELECTABLE_DATA_TYPES,
+  SINGLE_TIME_UNITS,
+  type TimeUnit,
+} from "./types";
+import {
+  AGGREGATION_TYPE_DESCRIPTIONS,
   AGGREGATION_TYPE_ICON,
+  COUNT_FIELD,
   EMPTY_VALUE,
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
 } from "./constants";
-import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { TypeConverters } from "./chart-spec";
 import { IconWithText } from "./chart-components";
 import { Slider } from "@/components/ui/slider";
+
+const CLEAR_VALUE = "__clear__";
 
 export interface Field {
   name: string;
@@ -67,22 +78,27 @@ export const ColumnSelector = <T extends object>({
   name,
   columns,
   onValueChange,
+  includeCountField = true,
 }: {
   form: UseFormReturn<T>;
   name: Path<T>;
   columns: Array<{ name: string; type: DataType }>;
   onValueChange?: (fieldName: string, type: DataType | undefined) => void;
+  includeCountField?: boolean;
 }) => {
+  type AnyPath = Path<T>;
+  type AnyPathValue = PathValue<T, Path<T>>;
+  const ANY_VALUE = EMPTY_VALUE as AnyPathValue;
+  const pathType = name.replace(".field", ".type") as AnyPath;
+  const pathSelectedDataType = name.replace(
+    ".field",
+    ".selectedDataType",
+  ) as AnyPath;
+
   const clear = () => {
-    form.setValue(name, EMPTY_VALUE as PathValue<T, Path<T>>);
-    form.setValue(
-      name.replace(".field", ".type") as Path<T>,
-      EMPTY_VALUE as PathValue<T, Path<T>>,
-    );
-    form.setValue(
-      name.replace(".field", ".scaleType") as Path<T>,
-      EMPTY_VALUE as PathValue<T, Path<T>>,
-    );
+    form.setValue(name, ANY_VALUE);
+    form.setValue(pathType, ANY_VALUE);
+    form.setValue(pathSelectedDataType, ANY_VALUE);
     onValueChange?.(EMPTY_VALUE, undefined);
   };
 
@@ -96,18 +112,31 @@ export const ColumnSelector = <T extends object>({
             <Select
               {...field}
               onValueChange={(value) => {
+                // Handle clear
+                if (value === CLEAR_VALUE) {
+                  clear();
+                  return;
+                }
+
+                // Handle count
+                if (value === COUNT_FIELD) {
+                  form.setValue(name, value as AnyPathValue);
+                  form.setValue(pathType, ANY_VALUE);
+                  form.setValue(pathSelectedDataType, ANY_VALUE);
+                  onValueChange?.(name, "number");
+                  return;
+                }
+
+                // Handle column selection
                 const column = columns.find((column) => column.name === value);
                 if (column) {
-                  form.setValue(name, value as PathValue<T, Path<T>>);
+                  form.setValue(name, value as AnyPathValue);
+                  form.setValue(pathType, column.type as AnyPathValue);
                   form.setValue(
-                    name.replace(".field", ".type") as Path<T>,
-                    column.type as PathValue<T, Path<T>>,
-                  );
-                  form.setValue(
-                    name.replace(".field", ".scaleType") as Path<T>,
+                    pathSelectedDataType,
                     TypeConverters.toSelectableDataType(
                       column.type,
-                    ) as PathValue<T, Path<T>>,
+                    ) as AnyPathValue,
                   );
                   onValueChange?.(name, column.type);
                 }
@@ -121,6 +150,25 @@ export const ColumnSelector = <T extends object>({
                 <SelectValue placeholder="Select column" />
               </SelectTrigger>
               <SelectContent>
+                {field.value && (
+                  <SelectItem value={CLEAR_VALUE}>
+                    <div className="flex items-center truncate">
+                      <XIcon className="w-3 h-3 mr-2" />
+                      Clear
+                    </div>
+                  </SelectItem>
+                )}
+                {includeCountField && (
+                  <>
+                    <SelectItem key={COUNT_FIELD} value={COUNT_FIELD}>
+                      <div className="flex items-center truncate">
+                        <SquareFunctionIcon className="w-3 h-3 mr-2" />
+                        Count of records
+                      </div>
+                    </SelectItem>
+                    <SelectSeparator />
+                  </>
+                )}
                 {columns.map((column) => {
                   if (column.name.trim() === EMPTY_VALUE) {
                     return null;
@@ -171,13 +219,13 @@ export const SelectField = <T extends object>({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {options.map((option) =>
-                  option.value.trim() === EMPTY_VALUE ? null : (
+                {options
+                  .filter((option) => option.value !== EMPTY_VALUE)
+                  .map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.display}
                     </SelectItem>
-                  ),
-                )}
+                  ))}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -249,7 +297,7 @@ export const BooleanField = <T extends object>({
     control={form.control}
     name={name}
     render={({ field }) => (
-      <FormItem className={cn("flex flex-row items-center gap-1", className)}>
+      <FormItem className={cn("flex flex-row items-center gap-2", className)}>
         <FormLabel>{formFieldLabel}</FormLabel>
         <FormControl>
           <Checkbox
@@ -408,6 +456,23 @@ export const TimeUnitSelect = <T extends object>({
     form.setValue(name, EMPTY_VALUE as PathValue<T, Path<T>>);
   };
 
+  const renderTimeUnit = (unit: TimeUnit) => {
+    const [label, description] = TIME_UNIT_DESCRIPTIONS[unit];
+    return (
+      <SelectItem
+        key={unit}
+        value={unit}
+        className="flex flex-row"
+        subtitle={
+          <span className="text-xs text-muted-foreground ml-auto">
+            {description}
+          </span>
+        }
+      >
+        {label}
+      </SelectItem>
+    );
+  };
   return (
     <FormField
       control={form.control}
@@ -418,7 +483,13 @@ export const TimeUnitSelect = <T extends object>({
           <FormControl>
             <Select
               {...field}
-              onValueChange={field.onChange}
+              onValueChange={(value) => {
+                if (value === CLEAR_VALUE) {
+                  clear();
+                } else {
+                  field.onChange(value);
+                }
+              }}
               value={field.value}
             >
               <SelectTrigger
@@ -427,22 +498,22 @@ export const TimeUnitSelect = <T extends object>({
               >
                 <SelectValue placeholder="Select unit" />
               </SelectTrigger>
-              <SelectContent className="w-60">
-                <SelectGroup>
-                  {TIME_UNITS.map((unit) => (
-                    <SelectItem
-                      key={unit}
-                      value={unit}
-                      className="flex flex-row"
-                      subtitle={
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {TIME_UNIT_DESCRIPTIONS[unit]}
-                        </span>
-                      }
-                    >
-                      {capitalize(unit)}
+              <SelectContent className="w-72">
+                {field.value && (
+                  <>
+                    <SelectItem value={CLEAR_VALUE}>
+                      <div className="flex items-center truncate">
+                        <XIcon className="w-3 h-3 mr-2" />
+                        Clear
+                      </div>
                     </SelectItem>
-                  ))}
+                    <SelectSeparator />
+                  </>
+                )}
+                <SelectGroup>
+                  {COMBINED_TIME_UNITS.map(renderTimeUnit)}
+                  <SelectSeparator />
+                  {SINGLE_TIME_UNITS.map(renderTimeUnit)}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -529,25 +600,28 @@ export const AggregationSelect = <T extends object>({
         <FormControl>
           <Select
             {...field}
-            value={field.value ?? DEFAULT_AGGREGATION}
+            value={field.value ?? NONE_AGGREGATION}
             onValueChange={field.onChange}
           >
-            <SelectTrigger>
+            <SelectTrigger variant="ghost">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Aggregation</SelectLabel>
-                <SelectItem value={DEFAULT_AGGREGATION}>
-                  <div className="flex items-center">
-                    <SquareFunctionIcon className="w-3 h-3 mr-2" />
-                    {capitalize(DEFAULT_AGGREGATION)}
-                  </div>
-                </SelectItem>
                 {AGGREGATION_FNS.map((agg) => {
                   const Icon = AGGREGATION_TYPE_ICON[agg];
                   return (
-                    <SelectItem key={agg} value={agg}>
+                    <SelectItem
+                      key={agg}
+                      value={agg}
+                      className="flex flex-col items-start justify-center"
+                      subtitle={
+                        <span className="text-xs text-muted-foreground pr-10">
+                          {AGGREGATION_TYPE_DESCRIPTIONS[agg]}
+                        </span>
+                      }
+                    >
                       <div className="flex items-center">
                         <Icon className="w-3 h-3 mr-2" />
                         {capitalize(agg)}

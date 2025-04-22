@@ -1,20 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
-/**
- * Convert marimo chart configuration to Vega-Lite specification.
- */
-
 import type { TopLevelSpec } from "vega-lite";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { DataType } from "@/core/kernel/messages";
 import {
   type BinSchema,
-  DEFAULT_AGGREGATION,
   DEFAULT_BIN_VALUE,
   type ChartSchema,
-  DEFAULT_COLOR_SCHEME,
+  type AxisSchema,
 } from "./chart-schemas";
-import type { SelectableDataType } from "./types";
+import { NONE_AGGREGATION, type SelectableDataType } from "./types";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";
@@ -28,7 +22,16 @@ import type {
 } from "vega-lite/build/src/channeldef";
 import type { ColorScheme } from "vega";
 import type { TypedString } from "@/utils/typed";
-import { ChartType, EMPTY_VALUE } from "./constants";
+import {
+  ChartType,
+  COUNT_FIELD,
+  DEFAULT_COLOR_SCHEME,
+  EMPTY_VALUE,
+} from "./constants";
+
+/**
+ * Convert marimo chart configuration to Vega-Lite specification.
+ */
 
 export type ErrorMessage = TypedString<"ErrorMessage">;
 
@@ -61,7 +64,7 @@ export function createVegaSpec(
     formValues.xAxis?.label,
   );
   const yAxisLabel = FieldValidators.getLabel(
-    FieldValidators.getAggregatedLabel(yColumn.field, yColumn.agg),
+    FieldValidators.getAggregatedLabel(yColumn.field, yColumn.aggregate),
     formValues.yAxis?.label,
   );
 
@@ -70,27 +73,19 @@ export function createVegaSpec(
   const yEncodingKey = "y";
 
   // Create encodings
-  const xEncoding: PositionDef<string> | PolarDef<string> = {
-    field: xColumn.field,
-    type: TypeConverters.toVegaType(xColumn.selectedDataType ?? "unknown"),
-    bin: EncodingUtils.getBin(formValues.xAxis?.bin),
-    title: xAxisLabel,
-    stack: colorByColumn?.field && horizontal ? stacking : undefined,
-    sort: xColumn.sort,
-    timeUnit:
-      xColumn.selectedDataType === "temporal" ? xColumn.timeUnit : undefined,
-  };
+  const xEncoding = getAxisEncoding(
+    xColumn,
+    formValues.xAxis?.bin,
+    xAxisLabel,
+    colorByColumn?.field && horizontal ? stacking : undefined,
+  );
 
-  const yEncoding: PositionDef<string> | PolarDef<string> = {
-    field: yColumn.field,
-    type: TypeConverters.toVegaType(yColumn.selectedDataType ?? "unknown"),
-    bin: EncodingUtils.getBin(formValues.yAxis?.bin),
-    title: yAxisLabel,
-    stack: colorByColumn?.field && !horizontal ? stacking : undefined,
-    aggregate: yColumn.agg === DEFAULT_AGGREGATION ? undefined : yColumn.agg,
-    timeUnit:
-      yColumn.selectedDataType === "temporal" ? yColumn.timeUnit : undefined,
-  };
+  const yEncoding = getAxisEncoding(
+    yColumn,
+    formValues.yAxis?.bin,
+    yAxisLabel,
+    colorByColumn?.field && !horizontal ? stacking : undefined,
+  );
 
   // Create the final spec
   return {
@@ -103,6 +98,35 @@ export function createVegaSpec(
       ...ColorUtils.getColor(chartType, formValues),
       tooltip: EncodingUtils.getTooltips(formValues),
     },
+  };
+}
+
+function getAxisEncoding(
+  column: NonNullable<z.infer<typeof AxisSchema>>,
+  binValues: z.infer<typeof BinSchema> | undefined,
+  label: string | undefined,
+  stack: boolean | undefined,
+): PositionDef<string> {
+  if (column.field === COUNT_FIELD) {
+    return {
+      aggregate: "count",
+      type: "quantitative",
+      bin: EncodingUtils.getBin(binValues),
+      title: label === COUNT_FIELD ? undefined : label,
+      stack: stack,
+    };
+  }
+
+  return {
+    field: column.field,
+    type: TypeConverters.toVegaType(column.selectedDataType || "unknown"),
+    bin: EncodingUtils.getBin(binValues),
+    title: label,
+    stack: stack,
+    aggregate:
+      column.aggregate === NONE_AGGREGATION ? undefined : column.aggregate,
+    timeUnit:
+      column.selectedDataType === "temporal" ? column.timeUnit : undefined,
   };
 }
 
@@ -133,9 +157,9 @@ function getPieChartSpec(
     formValues.xAxis?.label,
   );
 
-  const thetaEncoding: PositionDef<string> | PolarDef<string> = {
+  const thetaEncoding: PolarDef<string> = {
     field: yColumn.field,
-    type: TypeConverters.toVegaType(yColumn.type ?? "unknown"),
+    type: TypeConverters.toVegaType(yColumn.type || "unknown"),
     bin: EncodingUtils.getBin(formValues.xAxis?.bin),
     title: thetaFieldLabel,
   };
@@ -245,7 +269,7 @@ export const FieldValidators = {
   },
 
   getAggregatedLabel(field: string, agg?: string): string {
-    if (!agg || agg === DEFAULT_AGGREGATION) {
+    if (!agg || agg === NONE_AGGREGATION) {
       return field;
     }
     return `${agg.toUpperCase()}(${field})`;
@@ -291,14 +315,20 @@ const EncodingUtils = {
 
   getTooltipAggregate(
     field: string,
-    yColumn?: { field: string; agg: string },
+    yColumn?: { field: string; aggregate: string },
   ): "count" | "sum" | "mean" | "median" | "min" | "max" | undefined {
     if (field !== yColumn?.field) {
       return undefined;
     }
-    return yColumn.agg === DEFAULT_AGGREGATION
+    return yColumn.aggregate === NONE_AGGREGATION
       ? undefined
-      : (yColumn.agg as "count" | "sum" | "mean" | "median" | "min" | "max");
+      : (yColumn.aggregate as
+          | "count"
+          | "sum"
+          | "mean"
+          | "median"
+          | "min"
+          | "max");
   },
 
   getTooltipFormat(dataType: DataType): string | undefined {
@@ -322,10 +352,11 @@ const EncodingUtils = {
         field: tooltip.field,
         aggregate: this.getTooltipAggregate(
           tooltip.field,
-          formValues.general.yColumn?.field && formValues.general.yColumn?.agg
+          formValues.general.yColumn?.field &&
+            formValues.general.yColumn?.aggregate
             ? {
                 field: formValues.general.yColumn.field,
-                agg: formValues.general.yColumn.agg,
+                aggregate: formValues.general.yColumn.aggregate,
               }
             : undefined,
         ),
@@ -348,7 +379,7 @@ const ColorUtils = {
       return undefined;
     }
 
-    const aggregate = formValues.general.colorByColumn.agg;
+    const aggregate = formValues.general.colorByColumn.aggregate;
 
     return {
       color: {
@@ -357,7 +388,7 @@ const ColorUtils = {
           formValues.general.colorByColumn.selectedDataType ?? "unknown",
         ),
         scale: EncodingUtils.getColorInScale(formValues),
-        aggregate: aggregate === DEFAULT_AGGREGATION ? undefined : aggregate,
+        aggregate: aggregate === NONE_AGGREGATION ? undefined : aggregate,
       },
     };
   },

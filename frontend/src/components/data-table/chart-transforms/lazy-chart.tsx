@@ -7,38 +7,13 @@ import { useTheme } from "@/theme/useTheme";
 import type { z } from "zod";
 import type { ChartSchema } from "./chart-schemas";
 import type { TopLevelSpec } from "vega-lite";
-import type { ResolvedTheme } from "@/theme/useTheme";
 import type { ErrorMessage } from "./chart-spec";
 import { ChartPieIcon } from "lucide-react";
+import { createVegaSpec } from "./chart-spec";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
 );
-
-const LazyChartSpec = React.lazy(() =>
-  import("./chart-spec").then((m) => ({
-    default: (props: {
-      chartType: ChartType;
-      data: object[];
-      formValues: z.infer<typeof ChartSchema>;
-      theme: ResolvedTheme;
-      width: number | "container";
-      height: number;
-      children: (spec: TopLevelSpec | ErrorMessage) => React.ReactNode;
-    }) => {
-      const spec = m.createVegaSpec(
-        props.chartType,
-        props.data,
-        props.formValues,
-        props.theme,
-        props.width,
-        props.height,
-      );
-      return props.children(spec);
-    },
-  })),
-);
-
 export const LazyChart: React.FC<{
   chartType: ChartType;
   formValues: z.infer<typeof ChartSchema>;
@@ -52,56 +27,54 @@ export const LazyChart: React.FC<{
     return <div>No data</div>;
   }
 
+  const specOrMessage = createVegaSpec(
+    chartType,
+    data,
+    formValues,
+    theme,
+    width,
+    height,
+  );
+
+  const renderChart = (specOrMessage: TopLevelSpec | ErrorMessage) => {
+    if (typeof specOrMessage === "string") {
+      return <ChartEmptyState>{specOrMessage}</ChartEmptyState>;
+    }
+
+    return (
+      <React.Suspense fallback={<LoadingChart />}>
+        <LazyVega
+          spec={specOrMessage}
+          theme={theme === "dark" ? "dark" : undefined}
+          height={height}
+          actions={{
+            export: true,
+            source: false,
+            compiled: false,
+            editor: true,
+          }}
+        />
+      </React.Suspense>
+    );
+  };
+
   return (
     <div className="h-full m-auto rounded-md mt-4 w-full">
-      <React.Suspense fallback={<LoadingChart />}>
-        <LazyChartSpec
-          chartType={chartType}
-          data={data}
-          formValues={formValues}
-          theme={theme}
-          width={width}
-          height={height}
-        >
-          {(specOrMessage) => {
-            if (typeof specOrMessage === "string") {
-              return (
-                <div className="h-full flex flex-col items-center justify-center gap-2">
-                  <ChartPieIcon className="w-8 h-8 text-muted-foreground" />
-                  <span className="text-md font-semibold text-muted-foreground">
-                    {specOrMessage}
-                  </span>
-                </div>
-              );
-            }
-
-            return (
-              <React.Suspense fallback={<LoadingChart />}>
-                <LazyVega
-                  spec={specOrMessage}
-                  theme={theme === "dark" ? "dark" : undefined}
-                  actions={{
-                    export: true,
-                    source: false,
-                    compiled: false,
-                    editor: true,
-                  }}
-                />
-              </React.Suspense>
-            );
-          }}
-        </LazyChartSpec>
-      </React.Suspense>
+      {renderChart(specOrMessage)}
     </div>
   );
 };
 
 const LoadingChart = () => {
+  return <ChartEmptyState>Loading chart...</ChartEmptyState>;
+};
+
+const ChartEmptyState = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-2">
-      <ChartPieIcon className="w-8 h-8 text-muted-foreground" />
+    <div className="h-full flex flex-col items-center justify-center gap-4">
+      <ChartPieIcon className="w-10 h-10 text-muted-foreground" />
       <span className="text-md font-semibold text-muted-foreground">
-        Loading chart...
+        {children}
       </span>
     </div>
   );
