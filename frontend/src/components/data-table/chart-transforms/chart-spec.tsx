@@ -90,12 +90,7 @@ export function createVegaSpec(
 
   // Create the final spec
   return {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    background: theme === "dark" ? "dark" : "white",
-    title,
-    data: { values: data },
-    height: formValues.yAxis?.height ?? height,
-    width: formValues.xAxis?.width ?? width,
+    ...getBaseSpec(data, formValues, theme, width, height, title),
     mark: { type: TypeConverters.toMark(chartType) },
     encoding: {
       [xEncodingKey]: horizontal ? yEncoding : xEncoding,
@@ -151,12 +146,7 @@ function getPieChartSpec(
   };
 
   return {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    background: theme === "dark" ? "dark" : "white",
-    title,
-    data: { values: data },
-    height: formValues.yAxis?.height ?? height,
-    width: formValues.xAxis?.width ?? width,
+    ...getBaseSpec(data, formValues, theme, width, height, title),
     mark: {
       type: TypeConverters.toMark(ChartType.PIE),
       innerRadius: formValues.style?.innerRadius,
@@ -168,6 +158,25 @@ function getPieChartSpec(
     },
   };
 }
+
+function getBaseSpec(
+  data: object[],
+  formValues: z.infer<typeof ChartSchema>,
+  theme: ResolvedTheme,
+  width: number | "container",
+  height: number,
+  title?: string,
+) {
+  return {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    background: theme === "dark" ? "dark" : "white",
+    title: title,
+    data: { values: data },
+    height: formValues.yAxis?.height ?? height,
+    width: formValues.xAxis?.width ?? width,
+  };
+}
+
 // Type conversion utilities
 export const TypeConverters = {
   toVegaType(dataType: DataType | SelectableDataType): Type | undefined {

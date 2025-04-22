@@ -438,12 +438,16 @@ const CommonChartForm: React.FC<{
     formValues.general?.colorByColumn,
   );
 
-  const xColumnChosen = FieldValidators.exists(xColumn?.field);
+  const xColumnExists = FieldValidators.exists(xColumn?.field);
 
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
   // For now, we'll use the inferred scale type
-  const inferredDataType = xColumn?.type
+  const inferredXDataType = xColumn?.type
     ? TypeConverters.toSelectableDataType(xColumn.type)
+    : "string";
+
+  const inferredYDataType = yColumn?.type
+    ? TypeConverters.toSelectableDataType(yColumn.type)
     : "string";
 
   const inferredGroupByDataType = groupByColumn?.type
@@ -461,12 +465,12 @@ const CommonChartForm: React.FC<{
           setXColumn({ field: fieldName, type });
         }}
       />
-      {xColumnChosen && (
+      {xColumnExists && (
         <DataTypeSelect
           form={form}
           formFieldLabel="Data Type"
           name="general.xColumn.selectedDataType"
-          defaultValue={inferredDataType}
+          defaultValue={inferredXDataType}
           onValueChange={(value) => {
             setXColumn({
               ...xColumn,
@@ -482,7 +486,7 @@ const CommonChartForm: React.FC<{
           formFieldLabel="Time Resolution"
         />
       )}
-      {xColumnChosen && (
+      {xColumnExists && (
         <SelectField
           form={form}
           name="general.xColumn.sort"
@@ -503,6 +507,7 @@ const CommonChartForm: React.FC<{
           defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
         />
       )}
+
       <Title text="Y-Axis" />
       <div className="flex flex-row gap-2">
         <ColumnSelector
@@ -521,7 +526,7 @@ const CommonChartForm: React.FC<{
             form={form}
             formFieldLabel="Data Type"
             name="general.yColumn.selectedDataType"
-            defaultValue={inferredDataType}
+            defaultValue={inferredYDataType}
             onValueChange={(value) => {
               setYColumn({
                 ...yColumn,
@@ -543,6 +548,7 @@ const CommonChartForm: React.FC<{
           />
         </>
       )}
+
       {yColumn && (
         <>
           <Title text="Color by" />
