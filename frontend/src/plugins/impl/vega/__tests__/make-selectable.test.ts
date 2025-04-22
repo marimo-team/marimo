@@ -354,6 +354,10 @@ describe("makeSelectable", () => {
       "select_point_0",
       "select_interval_0",
       "pan_zoom",
+      "select_point_1",
+      "select_interval_1",
+      "select_point_2",
+      "select_interval_2",
     ]);
   });
 
