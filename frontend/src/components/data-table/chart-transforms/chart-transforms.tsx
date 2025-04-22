@@ -21,7 +21,12 @@ import {
 import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema, DEFAULT_COLOR_SCHEME, SORT_TYPES } from "./chart-schemas";
+import {
+  ChartSchema,
+  DEFAULT_COLOR_SCHEME,
+  type SelectableDataType,
+  SORT_TYPES,
+} from "./chart-schemas";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -40,9 +45,10 @@ import {
   type Field,
   InputField,
   NumberField,
-  ScaleTypeSelect,
+  DataTypeSelect,
   SelectField,
   SliderField,
+  TimeUnitSelect,
 } from "./form-components";
 import {
   CHART_TYPE_ICON,
@@ -478,12 +484,12 @@ const CommonChartForm: React.FC<{
 
   // TODO: How/when do we choose between a saved scale type and an inferred scale type?
   // For now, we'll use the inferred scale type
-  const inferredScaleType = xColumn?.type
-    ? TypeConverters.toScaleType(xColumn.type)
+  const inferredDataType = xColumn?.type
+    ? TypeConverters.toSelectableDataType(xColumn.type)
     : "string";
 
-  const inferredGroupByScaleType = groupByColumn?.type
-    ? TypeConverters.toScaleType(groupByColumn.type)
+  const inferredGroupByDataType = groupByColumn?.type
+    ? TypeConverters.toSelectableDataType(groupByColumn.type)
     : "string";
 
   return (
@@ -498,11 +504,24 @@ const CommonChartForm: React.FC<{
         }}
       />
       {xColumnChosen && (
-        <ScaleTypeSelect
+        <DataTypeSelect
           form={form}
-          formFieldLabel="Scale Type"
-          name="general.xColumn.scaleType"
-          defaultValue={inferredScaleType}
+          formFieldLabel="Data Type"
+          name="general.xColumn.selectedDataType"
+          defaultValue={inferredDataType}
+          onValueChange={(value) => {
+            setXColumn({
+              ...xColumn,
+              selectedDataType: value as SelectableDataType,
+            });
+          }}
+        />
+      )}
+      {xColumn?.selectedDataType === "temporal" && (
+        <TimeUnitSelect
+          form={form}
+          name="general.xColumn.timeUnit"
+          formFieldLabel="Time Resolution"
         />
       )}
       {xColumnChosen && (
@@ -561,11 +580,11 @@ const CommonChartForm: React.FC<{
           </div>
           {FieldValidators.exists(groupByColumn?.field) && (
             <>
-              <ScaleTypeSelect
+              <DataTypeSelect
                 form={form}
-                name="general.colorByColumn.scaleType"
-                formFieldLabel="Scale Type"
-                defaultValue={inferredGroupByScaleType}
+                name="general.colorByColumn.selectedDataType"
+                formFieldLabel="Data Type"
+                defaultValue={inferredGroupByDataType}
               />
               <div className="flex flex-row gap-2">
                 <BooleanField

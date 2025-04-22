@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 import type { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import type { ColorScheme } from "vega";
-import { DEFAULT_COLOR_SCHEME, type ScaleType } from "./chart-schemas";
+import {
+  DEFAULT_COLOR_SCHEME,
+  type TimeUnit,
+  type SelectableDataType,
+} from "./chart-schemas";
 
 export enum ChartType {
   LINE = "line",
@@ -95,7 +99,7 @@ export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [
   "sinebow",
 ] as const;
 
-export const SCALE_TYPE_DESCRIPTIONS: Record<ScaleType, string> = {
+export const SCALE_TYPE_DESCRIPTIONS: Record<SelectableDataType, string> = {
   number: "Continuous numerical scale",
   string: "Discrete categorical scale (inputs treated as strings)",
   temporal: "Continuous temporal scale",
@@ -103,3 +107,14 @@ export const SCALE_TYPE_DESCRIPTIONS: Record<ScaleType, string> = {
 
 // Set a field to this to reflect that it is not set
 export const EMPTY_VALUE = "";
+
+export const TIME_UNIT_DESCRIPTIONS: Record<TimeUnit, string> = {
+  year: "2025",
+  quarter: "Q1 2025",
+  month: "Jan 2025",
+  week: "Jan 01, 2025",
+  day: "Jan 01, 2025",
+  hours: "Jan 01, 2025 12:00",
+  minutes: "Jan 01, 2025 12:34",
+  seconds: "Jan 01, 2025 12:34:56",
+};

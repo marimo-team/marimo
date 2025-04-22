@@ -35,12 +35,14 @@ import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import {
   DEFAULT_AGGREGATION,
   DEFAULT_BIN_VALUE,
-  SCALE_TYPES,
+  SELECTABLE_DATA_TYPES,
+  TIME_UNITS,
 } from "./chart-schemas";
 import {
   AGGREGATION_TYPE_ICON,
   EMPTY_VALUE,
   SCALE_TYPE_DESCRIPTIONS,
+  TIME_UNIT_DESCRIPTIONS,
 } from "./constants";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { TypeConverters } from "./chart-spec";
@@ -107,10 +109,9 @@ export const ColumnSelector = <T extends object>({
                   );
                   form.setValue(
                     name.replace(".field", ".scaleType") as Path<T>,
-                    TypeConverters.toScaleType(column.type) as PathValue<
-                      T,
-                      Path<T>
-                    >,
+                    TypeConverters.toSelectableDataType(
+                      column.type,
+                    ) as PathValue<T, Path<T>>,
                   );
                   onValueChange?.(name, column.type);
                 }
@@ -169,7 +170,7 @@ export const SelectField = <T extends object>({
             onValueChange={field.onChange}
             value={field.value ?? defaultValue}
           >
-            <SelectTrigger>
+            <SelectTrigger className="ml-auto">
               <SelectValue placeholder="Select an option" />
             </SelectTrigger>
             <SelectContent>
@@ -402,13 +403,14 @@ export const ColorArrayField = <T extends object>({
   );
 };
 
-export const ScaleTypeSelect = <T extends object>({
+export const TimeUnitSelect = <T extends object>({
   form,
   name,
   formFieldLabel,
-  defaultValue,
-}: BaseFormFieldProps<T> & { defaultValue: string }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
+}: BaseFormFieldProps<T>) => {
+  const clear = () => {
+    form.setValue(name, EMPTY_VALUE as PathValue<T, Path<T>>);
+  };
 
   return (
     <FormField
@@ -421,16 +423,76 @@ export const ScaleTypeSelect = <T extends object>({
             <Select
               {...field}
               onValueChange={field.onChange}
+              value={field.value}
+            >
+              <SelectTrigger
+                onClear={field.value ? clear : undefined}
+                className="ml-auto"
+              >
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent className="w-60">
+                <SelectGroup>
+                  {TIME_UNITS.map((unit) => (
+                    <SelectItem
+                      key={unit}
+                      value={unit}
+                      className="flex flex-row"
+                      subtitle={
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {TIME_UNIT_DESCRIPTIONS[unit]}
+                        </span>
+                      }
+                    >
+                      {capitalize(unit)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
+
+export const DataTypeSelect = <T extends object>({
+  form,
+  name,
+  formFieldLabel,
+  defaultValue,
+  onValueChange,
+}: BaseFormFieldProps<T> & {
+  defaultValue: string;
+  onValueChange?: (value: string) => void;
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-2 w-full">
+          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormControl>
+            <Select
+              {...field}
+              onValueChange={(value) => {
+                field.onChange(value);
+                onValueChange?.(value);
+              }}
               value={field.value ?? defaultValue}
               open={isOpen}
               onOpenChange={setIsOpen}
             >
-              <SelectTrigger>
+              <SelectTrigger className="ml-auto">
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {SCALE_TYPES.map((type) => {
+                  {SELECTABLE_DATA_TYPES.map((type) => {
                     const Icon = DATA_TYPE_ICON[type];
                     return (
                       <SelectItem

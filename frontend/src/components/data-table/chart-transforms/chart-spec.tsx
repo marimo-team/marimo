@@ -9,7 +9,7 @@ import {
   DEFAULT_BIN_VALUE,
   type ChartSchema,
   DEFAULT_COLOR_SCHEME,
-  type ScaleType,
+  type SelectableDataType,
 } from "./chart-schemas";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
@@ -68,11 +68,12 @@ export function createVegaSpec(
   // Create encodings
   const xEncoding: PositionDef<string> | PolarDef<string> = {
     field: xColumn.field,
-    type: TypeConverters.toVegaType(xColumn.scaleType ?? "unknown"),
+    type: TypeConverters.toVegaType(xColumn.selectedDataType ?? "unknown"),
     bin: EncodingUtils.getBin(formValues.xAxis?.bin),
     title: xAxisLabel,
     stack: colorByColumn?.field && horizontal ? stacking : undefined,
     sort: xColumn.sort,
+    timeUnit: xColumn.timeUnit,
   };
 
   const yEncoding: PositionDef<string> | PolarDef<string> = {
@@ -161,7 +162,7 @@ function getPieChartSpec(
 }
 // Type conversion utilities
 export const TypeConverters = {
-  toVegaType(dataType: DataType | ScaleType): Type {
+  toVegaType(dataType: DataType | SelectableDataType): Type | undefined {
     switch (dataType) {
       case "number":
       case "integer":
@@ -177,11 +178,11 @@ export const TypeConverters = {
         return "temporal";
       default:
         logNever(dataType);
-        return "nominal";
+        return undefined;
     }
   },
 
-  toScaleType(type: DataType): ScaleType {
+  toSelectableDataType(type: DataType): SelectableDataType {
     switch (type) {
       case "number":
       case "integer":

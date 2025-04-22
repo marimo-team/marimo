@@ -9,11 +9,23 @@ export const DEFAULT_BIN_VALUE = 0;
 export const NONE_GROUP_BY = "None";
 export const DEFAULT_COLOR_SCHEME = "default";
 
-// These scale types can be selected to override the default scale type
-export const SCALE_TYPES = ["number", "string", "temporal"] as const;
-export type ScaleType = (typeof SCALE_TYPES)[number];
+// These data types can be selected to override the default data type
+export const SELECTABLE_DATA_TYPES = ["number", "string", "temporal"] as const;
+export type SelectableDataType = (typeof SELECTABLE_DATA_TYPES)[number];
 
 export const SORT_TYPES = ["ascending", "descending"] as const;
+
+export const TIME_UNITS = [
+  "year",
+  "quarter",
+  "month",
+  "week",
+  "day",
+  "hours",
+  "minutes",
+  "seconds",
+] as const;
+export type TimeUnit = (typeof TIME_UNITS)[number];
 
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
@@ -27,15 +39,16 @@ export const ChartSchema = z.object({
       .object({
         field: z.string().optional(),
         type: z.enum(DATA_TYPES).optional(),
-        scaleType: z.enum(SCALE_TYPES).optional(),
+        selectedDataType: z.enum(SELECTABLE_DATA_TYPES).optional(),
         sort: z.enum(SORT_TYPES).default("ascending").optional(),
+        timeUnit: z.enum(TIME_UNITS).optional(),
       })
       .optional(),
     yColumn: z
       .object({
         field: z.string().optional(),
         type: z.enum(DATA_TYPES).optional(),
-        scaleType: z.enum(SCALE_TYPES).optional(),
+        selectedDataType: z.enum(SELECTABLE_DATA_TYPES).optional(),
         agg: z
           .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
           .default(DEFAULT_AGGREGATION)
@@ -47,7 +60,7 @@ export const ChartSchema = z.object({
       .object({
         field: z.string().optional(),
         type: z.enum(DATA_TYPES).optional(),
-        scaleType: z.enum(SCALE_TYPES).optional(),
+        selectedDataType: z.enum(SELECTABLE_DATA_TYPES).optional(),
         binned: z.boolean().optional(),
         agg: z
           .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
