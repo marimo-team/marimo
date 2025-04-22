@@ -336,7 +336,7 @@ export const ChartPanel: React.FC<{
 
   return (
     <div className="flex flex-row gap-6 p-3 pt-4 h-full rounded-md border overflow-auto">
-      <div className="flex flex-col gap-3 w-1/3">
+      <div className="flex flex-col gap-3 w-1/3 max-w-[270px]">
         <ChartTypeSelect
           value={selectedChartType}
           onValueChange={(value) => {
@@ -509,7 +509,7 @@ const CommonChartForm: React.FC<{
       )}
 
       <Title text="Y-Axis" />
-      <div className="flex flex-row gap-2">
+      <div className="flex flex-row gap-2 justify-between">
         <ColumnSelector
           form={form}
           name="general.yColumn.field"
@@ -552,7 +552,7 @@ const CommonChartForm: React.FC<{
       {yColumn && (
         <>
           <Title text="Color by" />
-          <div className="flex flex-row gap-2">
+          <div className="flex flex-row gap-2 justify-between">
             <ColumnSelector
               form={form}
               name="general.colorByColumn.field"

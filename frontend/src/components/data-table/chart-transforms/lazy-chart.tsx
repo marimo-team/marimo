@@ -54,7 +54,7 @@ export const LazyChart: React.FC<{
 
   return (
     <div className="h-full m-auto rounded-md mt-4 w-full">
-      <React.Suspense fallback={<div>Loading chart...</div>}>
+      <React.Suspense fallback={<LoadingChart />}>
         <LazyChartSpec
           chartType={chartType}
           data={data}
@@ -66,9 +66,11 @@ export const LazyChart: React.FC<{
           {(specOrMessage) => {
             if (typeof specOrMessage === "string") {
               return (
-                <div className="h-full flex items-center justify-center gap-2">
-                  <ChartPieIcon className="w-6 h-6" />
-                  <span className="text-md">{specOrMessage}</span>
+                <div className="h-full flex flex-col items-center justify-center gap-2">
+                  <ChartPieIcon className="w-8 h-8 text-muted-foreground" />
+                  <span className="text-md font-semibold text-muted-foreground">
+                    {specOrMessage}
+                  </span>
                 </div>
               );
             }
