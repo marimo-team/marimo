@@ -8,6 +8,8 @@ import {
   InfoIcon,
   ArrowUpWideNarrowIcon,
   ArrowDownWideNarrowIcon,
+  DatabaseIcon,
+  PaintRollerIcon,
 } from "lucide-react";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import type { z } from "zod";
@@ -335,8 +337,8 @@ export const ChartPanel: React.FC<{
   }, [loading, error, memoizedFormValues, data, selectedChartType]);
 
   return (
-    <div className="flex flex-row gap-6 p-3 pt-4 h-full rounded-md border overflow-auto">
-      <div className="flex flex-col gap-3 w-1/3 max-w-[270px]">
+    <div className="flex flex-row gap-6 h-full rounded-md border">
+      <div className="flex flex-col gap-2 w-1/3 max-w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
         <ChartTypeSelect
           value={selectedChartType}
           onValueChange={(value) => {
@@ -390,16 +392,18 @@ const ChartForm = ({
       <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
         <Tabs defaultValue="data">
           <TabsList className="w-full">
-            <TabsTrigger value="data" className="w-1/2">
+            <TabsTrigger value="data" className="w-1/2 h-6">
+              <DatabaseIcon className="w-4 h-4 mr-2" />
               Data
             </TabsTrigger>
-            <TabsTrigger value="style" className="w-1/2">
+            <TabsTrigger value="style" className="w-1/2 h-6">
+              <PaintRollerIcon className="w-4 h-4 mr-2" />
               Style
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="data">
-            <hr className="my-3" />
+            <hr className="my-2" />
             <TabContainer>
               <ChartForm
                 form={form}
@@ -410,7 +414,7 @@ const ChartForm = ({
           </TabsContent>
 
           <TabsContent value="style">
-            <hr className="my-3" />
+            <hr className="my-2" />
             <TabContainer>
               <StyleForm
                 form={form}

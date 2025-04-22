@@ -2,17 +2,18 @@
 
 import type { LucideProps } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { capitalize } from "lodash-es";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { CHART_TYPE_ICON, CHART_TYPES, type ChartType } from "./constants";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { buttonVariants } from "@/components/ui/button";
 
 export const IconWithText: React.FC<{
   Icon: React.ForwardRefExoticComponent<
@@ -59,10 +60,17 @@ export const ChartTypeSelect: React.FC<{
   return (
     <Select value={value} onValueChange={onValueChange}>
       <div className="flex flex-row gap-2 items-center">
-        <span className="text-sm font-semibold">Type</span>
-        <SelectTrigger className="flex-1">
+        <SelectPrimitive.Trigger
+          className={buttonVariants({
+            variant: "outline",
+            className: "user-select-none w-full justify-between px-3",
+          })}
+        >
           <SelectValue />
-        </SelectTrigger>
+          <SelectPrimitive.Icon asChild={true}>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </SelectPrimitive.Icon>
+        </SelectPrimitive.Trigger>
         <SelectContent>
           {CHART_TYPES.map((chartType) => (
             <ChartSelectItem key={chartType} chartType={chartType} />
