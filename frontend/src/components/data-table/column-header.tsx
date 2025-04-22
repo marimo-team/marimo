@@ -466,12 +466,6 @@ const PopoverFilterByValues = <TData, TValue>({
               >
                 <Checkbox
                   checked={chosenValues.size === filteredData.length}
-                  onCheckedChange={(checked) => {
-                    if (typeof checked === "string") {
-                      return;
-                    }
-                    handleToggleAll(checked);
-                  }}
                   aria-label="Select all"
                   className="mr-3 h-3.5 w-3.5"
                 />
@@ -490,9 +484,6 @@ const PopoverFilterByValues = <TData, TValue>({
                 >
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={() => {
-                      handleToggle(value);
-                    }}
                     aria-label="Select row"
                     className="mr-3 h-3.5 w-3.5"
                   />
