@@ -32,12 +32,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
-import {
-  DEFAULT_AGGREGATION,
-  DEFAULT_BIN_VALUE,
-  SELECTABLE_DATA_TYPES,
-  TIME_UNITS,
-} from "./chart-schemas";
+import { DEFAULT_AGGREGATION, DEFAULT_BIN_VALUE } from "./chart-schemas";
+import { SELECTABLE_DATA_TYPES, TIME_UNITS } from "./types";
 import {
   AGGREGATION_TYPE_ICON,
   EMPTY_VALUE,

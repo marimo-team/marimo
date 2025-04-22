@@ -98,9 +98,11 @@ export const LazyChart: React.FC<{
 
 const LoadingChart = () => {
   return (
-    <div className="h-full flex items-center justify-center gap-2">
-      <ChartPieIcon className="w-6 h-6" />
-      <span className="text-md">Loading chart...</span>
+    <div className="h-full flex flex-col items-center justify-center gap-2">
+      <ChartPieIcon className="w-8 h-8 text-muted-foreground" />
+      <span className="text-md font-semibold text-muted-foreground">
+        Loading chart...
+      </span>
     </div>
   );
 };

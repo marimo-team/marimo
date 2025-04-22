@@ -15,12 +15,8 @@ import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ChartSchema,
-  DEFAULT_COLOR_SCHEME,
-  type SelectableDataType,
-  SORT_TYPES,
-} from "./chart-schemas";
+import { ChartSchema, DEFAULT_COLOR_SCHEME } from "./chart-schemas";
+import { SORT_TYPES, type SelectableDataType } from "./types";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";

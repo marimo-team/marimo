@@ -1,31 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+/**
+ * Zod schema validation for marimo chart configuration.
+ */
+
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import { z } from "zod";
+import { SELECTABLE_DATA_TYPES, SORT_TYPES, TIME_UNITS } from "./types";
 
 export const DEFAULT_AGGREGATION = "default";
 export const DEFAULT_BIN_VALUE = 0;
 export const NONE_GROUP_BY = "None";
 export const DEFAULT_COLOR_SCHEME = "default";
-
-// These data types can be selected to override the default data type
-export const SELECTABLE_DATA_TYPES = ["number", "string", "temporal"] as const;
-export type SelectableDataType = (typeof SELECTABLE_DATA_TYPES)[number];
-
-export const SORT_TYPES = ["ascending", "descending"] as const;
-
-export const TIME_UNITS = [
-  "year",
-  "quarter",
-  "month",
-  "week",
-  "day",
-  "hours",
-  "minutes",
-  "seconds",
-] as const;
-export type TimeUnit = (typeof TIME_UNITS)[number];
 
 export const BinSchema = z.object({
   binned: z.boolean().optional(),

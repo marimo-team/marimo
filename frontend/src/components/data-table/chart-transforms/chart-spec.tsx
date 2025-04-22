@@ -1,5 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+/**
+ * Convert marimo chart configuration to Vega-Lite specification.
+ */
+
 import type { TopLevelSpec } from "vega-lite";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { DataType } from "@/core/kernel/messages";
@@ -9,8 +13,8 @@ import {
   DEFAULT_BIN_VALUE,
   type ChartSchema,
   DEFAULT_COLOR_SCHEME,
-  type SelectableDataType,
 } from "./chart-schemas";
+import type { SelectableDataType } from "./types";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";

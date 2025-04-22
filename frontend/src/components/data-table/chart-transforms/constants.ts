@@ -5,26 +5,24 @@ import {
   BarChartIcon,
   PieChartIcon,
   SigmaIcon,
-  CircleSlash2,
-  MinusIcon,
-  PlusIcon,
-  BinaryIcon,
+  HashIcon,
+  BaselineIcon,
+  AlignCenterVerticalIcon,
+  ArrowDownToLineIcon,
+  ArrowUpToLineIcon,
   ChartScatterIcon,
 } from "lucide-react";
-import type { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import type { ColorScheme } from "vega";
-import {
-  DEFAULT_COLOR_SCHEME,
-  type TimeUnit,
-  type SelectableDataType,
-} from "./chart-schemas";
+import { DEFAULT_COLOR_SCHEME } from "./chart-schemas";
+import type { AggregationFn, SelectableDataType, TimeUnit } from "./types";
 
-export enum ChartType {
-  LINE = "line",
-  BAR = "bar",
-  PIE = "pie",
-  SCATTER = "scatter",
-}
+export const ChartType = {
+  LINE: "line",
+  BAR: "bar",
+  PIE: "pie",
+  SCATTER: "scatter",
+} as const;
+export type ChartType = (typeof ChartType)[keyof typeof ChartType];
 export const CHART_TYPES = Object.values(ChartType);
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
@@ -34,16 +32,13 @@ export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   scatter: ChartScatterIcon,
 };
 
-export const AGGREGATION_TYPE_ICON: Record<
-  (typeof AGGREGATION_FNS)[number],
-  React.ElementType
-> = {
-  count: BinaryIcon,
+export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
+  count: HashIcon,
   sum: SigmaIcon,
-  mean: CircleSlash2,
-  median: CircleSlash2,
-  min: MinusIcon,
-  max: PlusIcon,
+  mean: BaselineIcon,
+  median: AlignCenterVerticalIcon,
+  min: ArrowDownToLineIcon,
+  max: ArrowUpToLineIcon,
 };
 
 export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [
@@ -117,4 +112,10 @@ export const TIME_UNIT_DESCRIPTIONS: Record<TimeUnit, string> = {
   hours: "Jan 01, 2025 12:00",
   minutes: "Jan 01, 2025 12:34",
   seconds: "Jan 01, 2025 12:34:56",
+  milliseconds: "Jan 01, 2025 12:34:56.789",
+  date: "Jan 01, 2025",
+  dayofyear: "Day 1 of 2025",
+  yearmonth: "Jan 2025",
+  yearmonthdate: "Jan 01, 2025",
+  monthdate: "Jan 01",
 };
