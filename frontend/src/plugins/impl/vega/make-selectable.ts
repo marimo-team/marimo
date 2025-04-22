@@ -214,10 +214,7 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
     return spec;
   }
 
-  let mark: Mark;
-  try {
-    mark = Marks.getMarkType(spec.mark);
-  } catch {
+  if (!Marks.isInteractive(spec.mark)) {
     return spec;
   }
 
