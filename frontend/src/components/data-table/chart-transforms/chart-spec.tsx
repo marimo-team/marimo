@@ -73,16 +73,19 @@ export function createVegaSpec(
     title: xAxisLabel,
     stack: colorByColumn?.field && horizontal ? stacking : undefined,
     sort: xColumn.sort,
-    timeUnit: xColumn.timeUnit,
+    timeUnit:
+      xColumn.selectedDataType === "temporal" ? xColumn.timeUnit : undefined,
   };
 
   const yEncoding: PositionDef<string> | PolarDef<string> = {
     field: yColumn.field,
-    type: TypeConverters.toVegaType(yColumn.type ?? "unknown"),
+    type: TypeConverters.toVegaType(yColumn.selectedDataType ?? "unknown"),
     bin: EncodingUtils.getBin(formValues.yAxis?.bin),
     title: yAxisLabel,
     stack: colorByColumn?.field && !horizontal ? stacking : undefined,
     aggregate: yColumn.agg === DEFAULT_AGGREGATION ? undefined : yColumn.agg,
+    timeUnit:
+      yColumn.selectedDataType === "temporal" ? yColumn.timeUnit : undefined,
   };
 
   // Create the final spec
@@ -140,7 +143,9 @@ function getPieChartSpec(
 
   const colorEncoding: ColorDef<string> = {
     field: colorByColumn.field,
-    type: TypeConverters.toVegaType(colorByColumn.type ?? "unknown"),
+    type: TypeConverters.toVegaType(
+      colorByColumn.selectedDataType ?? "unknown",
+    ),
     scale: EncodingUtils.getColorInScale(formValues),
     title: colorFieldLabel,
   };
@@ -327,13 +332,16 @@ const ColorUtils = {
       return undefined;
     }
 
+    const aggregate = formValues.general.colorByColumn.agg;
+
     return {
       color: {
         field: formValues.general.colorByColumn.field,
         type: TypeConverters.toVegaType(
-          formValues.general.colorByColumn.type ?? "unknown",
+          formValues.general.colorByColumn.selectedDataType ?? "unknown",
         ),
         scale: EncodingUtils.getColorInScale(formValues),
+        aggregate: aggregate === DEFAULT_AGGREGATION ? undefined : aggregate,
       },
     };
   },

@@ -558,11 +558,32 @@ const CommonChartForm: React.FC<{
         <AggregationSelect form={form} name="general.yColumn.agg" />
       </div>
       {FieldValidators.exists(yColumn?.field) && (
-        <BooleanField
-          form={form}
-          name="general.horizontal"
-          formFieldLabel="Horizontal chart"
-        />
+        <>
+          <DataTypeSelect
+            form={form}
+            formFieldLabel="Data Type"
+            name="general.yColumn.selectedDataType"
+            defaultValue={inferredDataType}
+            onValueChange={(value) => {
+              setYColumn({
+                ...yColumn,
+                selectedDataType: value as SelectableDataType,
+              });
+            }}
+          />
+          {yColumn?.selectedDataType === "temporal" && (
+            <TimeUnitSelect
+              form={form}
+              name="general.yColumn.timeUnit"
+              formFieldLabel="Time Resolution"
+            />
+          )}
+          <BooleanField
+            form={form}
+            name="general.horizontal"
+            formFieldLabel="Horizontal chart"
+          />
+        </>
       )}
       {yColumn && (
         <>
@@ -587,11 +608,6 @@ const CommonChartForm: React.FC<{
                 defaultValue={inferredGroupByDataType}
               />
               <div className="flex flex-row gap-2">
-                <BooleanField
-                  form={form}
-                  name="general.colorByColumn.binned"
-                  formFieldLabel="Binned"
-                />
                 <BooleanField
                   form={form}
                   name="general.stacking"

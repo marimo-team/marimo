@@ -41,6 +41,10 @@ export const ChartSchema = z.object({
         type: z.enum(DATA_TYPES).optional(),
         selectedDataType: z.enum(SELECTABLE_DATA_TYPES).optional(),
         sort: z.enum(SORT_TYPES).default("ascending").optional(),
+        agg: z
+          .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
+          .default(DEFAULT_AGGREGATION)
+          .optional(),
         timeUnit: z.enum(TIME_UNITS).optional(),
       })
       .optional(),
@@ -53,6 +57,7 @@ export const ChartSchema = z.object({
           .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
           .default(DEFAULT_AGGREGATION)
           .optional(),
+        timeUnit: z.enum(TIME_UNITS).optional(),
       })
       .optional(),
     horizontal: z.boolean().optional(),
