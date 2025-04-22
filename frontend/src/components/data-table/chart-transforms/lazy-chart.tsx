@@ -74,7 +74,7 @@ export const LazyChart: React.FC<{
             }
 
             return (
-              <React.Suspense fallback={<div>Loading Vega...</div>}>
+              <React.Suspense fallback={<LoadingChart />}>
                 <LazyVega
                   spec={specOrMessage}
                   theme={theme === "dark" ? "dark" : undefined}
@@ -90,6 +90,15 @@ export const LazyChart: React.FC<{
           }}
         </LazyChartSpec>
       </React.Suspense>
+    </div>
+  );
+};
+
+const LoadingChart = () => {
+  return (
+    <div className="h-full flex items-center justify-center gap-2">
+      <ChartPieIcon className="w-6 h-6" />
+      <span className="text-md">Loading chart...</span>
     </div>
   );
 };

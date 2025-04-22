@@ -49,6 +49,7 @@ import {
   SelectField,
   SliderField,
   TimeUnitSelect,
+  TooltipSelect,
 } from "./form-components";
 import {
   CHART_TYPE_ICON,
@@ -66,12 +67,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  IconWithText,
-  TabContainer,
-  Title,
-  TooltipForm,
-} from "./chart-components";
+import { IconWithText, TabContainer, Title } from "./chart-components";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -618,8 +614,16 @@ const CommonChartForm: React.FC<{
           )}
         </>
       )}
+
       <hr />
-      <TooltipForm form={form} fields={fields} saveForm={saveForm} />
+      <Title text="General" />
+      <TooltipSelect
+        form={form}
+        name="general.tooltips"
+        fields={fields}
+        saveFunction={saveForm}
+        formFieldLabel="Tooltips"
+      />
     </>
   );
 };
@@ -629,8 +633,9 @@ const PieChartForm: React.FC<{
   fields: Field[];
   saveForm: () => void;
 }> = ({ form, fields, saveForm }) => {
-  const formValues = form.getValues();
-  const colorByColumn = formValues.general.colorByColumn;
+  const [colorByColumn, setColorByColumn] = useState(
+    form.getValues().general.colorByColumn,
+  );
 
   const inferredColorByDataType = colorByColumn?.type
     ? TypeConverters.toSelectableDataType(colorByColumn.type)
@@ -643,6 +648,9 @@ const PieChartForm: React.FC<{
         form={form}
         name="general.colorByColumn.field"
         columns={fields}
+        onValueChange={(fieldName, type) => {
+          setColorByColumn({ field: fieldName, type });
+        }}
       />
       {FieldValidators.exists(colorByColumn?.field) && (
         <DataTypeSelect
@@ -650,6 +658,12 @@ const PieChartForm: React.FC<{
           name="general.colorByColumn.selectedDataType"
           formFieldLabel="Data Type"
           defaultValue={inferredColorByDataType}
+          onValueChange={(value) => {
+            setColorByColumn({
+              ...colorByColumn,
+              selectedDataType: value as SelectableDataType,
+            });
+          }}
         />
       )}
 
@@ -664,7 +678,14 @@ const PieChartForm: React.FC<{
       </div>
 
       <hr />
-      <TooltipForm form={form} fields={fields} saveForm={saveForm} />
+      <Title text="General" />
+      <TooltipSelect
+        form={form}
+        name="general.tooltips"
+        fields={fields}
+        saveFunction={saveForm}
+        formFieldLabel="Tooltips"
+      />
       <NumberField
         form={form}
         name="style.innerRadius"

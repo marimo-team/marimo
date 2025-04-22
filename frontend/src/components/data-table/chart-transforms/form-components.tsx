@@ -571,10 +571,12 @@ export const AggregationSelect = <T extends object>({
 export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
   form,
   name,
+  formFieldLabel,
   fields,
   saveFunction,
 }: {
   form: UseFormReturn<T>;
+  formFieldLabel?: string;
   name: Path<T>;
   fields: Field[];
   saveFunction: () => void;
@@ -585,7 +587,8 @@ export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
     render={({ field }) => {
       const tooltips = field.value as Tooltip[] | undefined;
       return (
-        <FormItem>
+        <FormItem className="flex flex-row gap-2 items-center">
+          {formFieldLabel && <FormLabel>{formFieldLabel}</FormLabel>}
           <FormControl>
             <Multiselect
               options={fields?.map((field) => field.name) ?? []}
