@@ -34,11 +34,17 @@
 
     > pre,
     > ul,
+    > ol,
+    > blockquote,
     div.codehilite,
     /* Target <span> that is not empty and does not consist entirely of child elements;
      * this makes sure text with embedded HTML (such as a slider) has a max width,
      * but standalone elements (like tables, plots) don't get a max width. */
-      > span.paragraph:not(:has(> :only-child)):not(:empty) {
+      > span.paragraph:not(:has(> :only-child)):not(:empty),
+    /* Target span.paragraph that only contains basic elements */
+      > span.paragraph:not(
+        :has(> :not(code, a, strong, i, b, del, em, u, mark, sub, sup))
+      ) {
       max-width: var(--markdown-max-width);
     }
   }
