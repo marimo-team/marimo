@@ -29,10 +29,9 @@ class ProgressBarTqdmPatch(progress_bar):
             title=desc or "Loading...",
             total=total,
         )
-        
+
     def update(self, n: int = 1) -> None:
         """Update the progress bar by incrementing it by n.
-        
         Args:
             n (int, optional): Number of iterations to increment by. Defaults to 1.
         """
