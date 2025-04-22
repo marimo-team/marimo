@@ -3,21 +3,13 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowDownWideNarrowIcon,
-  ArrowUpWideNarrowIcon,
-  InfoIcon,
-  Loader2,
   TableIcon,
   XIcon,
+  InfoIcon,
+  ArrowUpWideNarrowIcon,
+  ArrowDownWideNarrowIcon,
 } from "lucide-react";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
 import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,12 +43,7 @@ import {
   TimeUnitSelect,
   TooltipSelect,
 } from "./form-components";
-import {
-  CHART_TYPE_ICON,
-  CHART_TYPES,
-  ChartType,
-  COLOR_SCHEMES,
-} from "./constants";
+import { ChartType, COLOR_SCHEMES } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
@@ -67,7 +54,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { IconWithText, TabContainer, Title } from "./chart-components";
+import {
+  IconWithText,
+  TabContainer,
+  Title,
+  ChartLoadingState,
+  ChartErrorState,
+  ChartTypeSelect,
+} from "./chart-components";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -287,7 +281,7 @@ export const ChartPanel: React.FC<{
     resolver: zodResolver(ChartSchema),
   });
 
-  const [chartTypeSelected, setChartTypeSelected] =
+  const [selectedChartType, setSelectedChartType] =
     useState<ChartType>(chartType);
 
   const { data, loading, error } = useAsyncData(async () => {
@@ -324,74 +318,42 @@ export const ChartPanel: React.FC<{
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {
     if (loading) {
-      return (
-        <div className="flex items-center justify-center h-full w-full">
-          <Loader2 className="w-10 h-10 animate-spin" strokeWidth={1} />
-        </div>
-      );
+      return <ChartLoadingState />;
     }
     if (error) {
-      return (
-        <div className="flex items-center justify-center h-full w-full">
-          Error: {error.message}
-        </div>
-      );
+      return <ChartErrorState error={error} />;
     }
     return (
       <LazyChart
-        chartType={chartTypeSelected}
+        chartType={selectedChartType}
         formValues={memoizedFormValues}
         data={data}
         width="container"
         height={300}
       />
     );
-  }, [loading, error, memoizedFormValues, data, chartTypeSelected]);
+  }, [loading, error, memoizedFormValues, data, selectedChartType]);
 
   return (
     <div className="flex flex-row gap-6 p-3 pt-4 h-full rounded-md border overflow-auto">
       <div className="flex flex-col gap-3 w-1/3">
-        <Select
-          value={chartTypeSelected}
+        <ChartTypeSelect
+          value={selectedChartType}
           onValueChange={(value) => {
-            setChartTypeSelected(value as ChartType);
-            saveChartType(value as ChartType);
+            setSelectedChartType(value);
+            saveChartType(value);
           }}
-        >
-          <div className="flex flex-row gap-2 items-center">
-            <span className="text-sm font-semibold">Type</span>
-            <SelectTrigger className="flex-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CHART_TYPES.map((chartType) => (
-                <ChartSelectItem key={chartType} chartType={chartType} />
-              ))}
-            </SelectContent>
-          </div>
-        </Select>
+        />
 
         <ChartForm
           form={form}
           saveChart={saveChart}
           fieldTypes={fieldTypes}
-          chartType={chartTypeSelected}
+          chartType={selectedChartType}
         />
       </div>
       <div className="w-2/3">{memoizedChart}</div>
     </div>
-  );
-};
-
-const ChartSelectItem: React.FC<{ chartType: ChartType }> = ({ chartType }) => {
-  const Icon = CHART_TYPE_ICON[chartType];
-  return (
-    <SelectItem value={chartType} className="gap-2">
-      <div className="flex items-center">
-        <Icon className="w-4 h-4 mr-2" />
-        {capitalize(chartType)}
-      </div>
-    </SelectItem>
   );
 };
 
