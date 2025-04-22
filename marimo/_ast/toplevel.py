@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.names import (
+    DEFAULT_CELL_NAME,
+    SETUP_CELL_NAME,
+    TOPLEVEL_CELL_PREFIX,
+)
 from marimo._ast.visitor import Name
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
@@ -19,17 +23,19 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# Constant for easy reuse in tests
+# Constant for easy reuse in tests.
+# The formatting here affects how the error is rendered in the frontend.
+# This is a hack but fine for now ...
 TopLevelInvalidHints = Literal[
     "Cannot parse cell.",
     (
-        "Top level definitions cannot be named 'app', '__name__' or "
+        "Reusable definitions cannot be named 'app', '__name__' or "
         "'__generated_with'"
     ),
     "Cell must contain exactly one function definition",
     "Signature and decorators depend on {} defined out of correct cell order",
-    "Function contains references to variables {} which are not top level.",
-    "Function contains references to variables {} which failed to be toplevel.",
+    "This function depends on variables defined by other cells:\n\n{}\n\nTo make this function importable from other Python modules,\nmove these variables to the setup cell.",
+    "Function contains references to variables {} which were unable to become reusable.",
     "Cell cannot contain non-indented trailing comments.",
 ]
 (
@@ -84,7 +90,7 @@ class TopLevelStatus:
     ):
         self.cell_id = cell_id
         self.name = name
-        self._name = name
+        self.previous_name = name
         self._type: TopLevelType = TopLevelType.UNPARSABLE
         self.dependencies: set[Name] = set()
         self._cell: Optional[CellImpl] = None
@@ -285,7 +291,10 @@ class TopLevelExtraction:
         self._resolve_dependencies()
         # Don't change names of objects that are not toplevel.
         for status in self.cells.values():
-            status.name = status._name
+            status.name = status.previous_name
+            # For something that used to be top level, revert to default name.
+            if status.name.startswith(TOPLEVEL_CELL_PREFIX):
+                status.name = DEFAULT_CELL_NAME
         # Set the hint of all valid cells to HINT_VALID
         for status in self.toplevel.values():
             status.hint = HINT_VALID
@@ -378,7 +387,7 @@ class TopLevelExtraction:
 
         from marimo._ast.codegen import pop_setup_cell
 
-        setup = pop_setup_cell(codes, names, cell_configs, True)
+        setup = pop_setup_cell(codes, names, cell_configs)
         if setup:
             return cls(codes, names, cell_configs, setup.defs)
         return cls(codes, names, cell_configs, set())

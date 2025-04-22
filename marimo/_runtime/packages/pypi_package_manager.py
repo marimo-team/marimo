@@ -118,7 +118,16 @@ class UvPackageManager(PypiPackageManager):
 
     async def _install(self, package: str) -> bool:
         return self.run(
-            ["uv", "pip", "install", *split_packages(package), "-p", PY_EXE]
+            [
+                "uv",
+                "pip",
+                "install",
+                # trade installation time for faster start time
+                "--compile",
+                *split_packages(package),
+                "-p",
+                PY_EXE,
+            ]
         )
 
     def update_notebook_script_metadata(

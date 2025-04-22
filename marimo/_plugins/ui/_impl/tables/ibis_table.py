@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from typing import Any, Optional
 
 from marimo._data.models import (
@@ -193,6 +194,24 @@ class IbisTableManagerFactory(TableManagerFactory):
                     ibis.desc(by) if descending else ibis.asc(by)
                 )
                 return IbisTableManager(sorted_data)
+
+            @functools.lru_cache(maxsize=5)  # noqa: B019
+            def calculate_top_k_rows(
+                self, column: ColumnName, k: int
+            ) -> list[tuple[Any, int]]:
+                count_col_name = f"{column}_count"
+                result = (
+                    self.data[[column]]
+                    .value_counts(name=count_col_name)
+                    .order_by(ibis.desc(count_col_name))
+                    .limit(k)
+                    .execute()
+                )
+
+                return [
+                    (row[0], int(row[1]))
+                    for row in result.itertuples(index=False)
+                ]
 
             def get_field_type(
                 self, column_name: str

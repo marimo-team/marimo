@@ -17,18 +17,11 @@ class tabs(UIElement[str, str]):
     Examples:
         Show content in tabs:
         ```python
-        tab1 = mo.vstack([
-            "slider": mo.ui.slider(1, 10),
-            "text": mo.ui.text(),
-            "date": mo.ui.date()
-        ])
+        tab1 = mo.vstack([mo.ui.slider(1, 10), mo.ui.text(), mo.ui.date()])
 
         tab2 = mo.md("You can show arbitrary content in a tab.")
 
-        tabs = mo.ui.tabs({
-            "Heading 1": tab1,
-            "Heading 2": tab2
-        })
+        tabs = mo.ui.tabs({"Heading 1": tab1, "Heading 2": tab2})
         ```
 
         Control which tab is selected:

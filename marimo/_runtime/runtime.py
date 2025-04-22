@@ -136,7 +136,10 @@ from marimo._runtime.runner.hooks import (
     PREPARATION_HOOKS,
 )
 from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
+from marimo._runtime.runner.hooks_post_execution import (
+    PostExecutionHookType,
+    render_toplevel_defs,
+)
 from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
 from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -518,18 +521,13 @@ class Kernel:
         # Adds in a post_execution hook to run pytest immediately
         if user_config["runtime"].get("reactive_tests", False):
             from marimo._runtime.runner.hooks_post_execution import (
-                _attempt_pytest,
+                attempt_pytest,
             )
 
-            self._post_execution_hooks.append(_attempt_pytest)
+            self._post_execution_hooks.append(attempt_pytest)
 
-        # Adds in a post_execution hook to run pytest immediately
-        if user_config.get("experimental", {}).get("toplevel_defs", False):
-            from marimo._runtime.runner.hooks_post_execution import (
-                _render_toplevel_defs,
-            )
-
-            self._post_execution_hooks.append(_render_toplevel_defs)
+        # Must be last to properly trigger render.
+        self._post_execution_hooks.append(render_toplevel_defs)
 
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False

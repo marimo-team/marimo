@@ -126,7 +126,7 @@ class TestGetCodes:
         app = load_app(get_filepath("test_get_setup"))
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["setup", "fn"]
+        assert list(cell_manager.names()) == ["setup", "*fn"]
         assert list(cell_manager.codes()) == [
             "variable = 1",
             textwrap.dedent(
@@ -141,7 +141,7 @@ class TestGetCodes:
         app = load_app(get_filepath("test_get_setup_blank"))
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["setup", "fn"]
+        assert list(cell_manager.names()) == ["setup", "*fn"]
         assert list(cell_manager.codes()) == [
             "# Only comments\n# and a pass",
             textwrap.dedent(
@@ -156,7 +156,7 @@ class TestGetCodes:
         app = load_app(get_filepath("test_get_codes_messy_toplevel"))
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["fn", "wrapped"]
+        assert list(cell_manager.names()) == ["*fn", "wrapped"]
         assert list(cell_manager.codes()) == [
             "def fn(a,\n        b, #   hello,\n        c,    # again\n        d,) -> int:\n"
             + "    # comment\n    # another comment\n\n    # yet another comment\n"
@@ -232,17 +232,17 @@ class TestGetCodes:
         assert list(cell_manager.names()) == [
             "setup",
             "_",
-            "addition",
-            "shadow_case",
+            "*addition",
+            "*shadow_case",
             "_",
             "_",
-            "fun_that_uses_mo",
-            "fun_that_uses_another_but_out_of_order",
-            "fun_that_uses_another",
+            "*fun_that_uses_mo",
+            "*fun_that_uses_another_but_out_of_order",
+            "*fun_that_uses_another",
             "cell_with_ref_and_def",
             "_",
-            "ExampleClass",
-            "SubClass",
+            "*ExampleClass",
+            "*SubClass",
         ]
 
     @staticmethod

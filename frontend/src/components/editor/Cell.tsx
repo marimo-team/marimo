@@ -738,6 +738,10 @@ const EditableCellComponent = ({
     return undefined;
   };
 
+  const isToplevel = !!(
+    serialization && serialization.toLowerCase() === "valid"
+  );
+
   return (
     <TooltipProvider>
       <CellActionsContextMenu
@@ -847,11 +851,35 @@ const EditableCellComponent = ({
             </div>
             {cellOutput === "below" && outputArea}
             {serialization && (
-              <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
+              <a
+                href="https://links.marimo.app/reusable-definitions"
+                target="_blank"
+                className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
+              >
+                {isToplevel && (
+                  <span className="text-muted-foreground text-xs font-bold">
+                    reusable
+                  </span>
+                )}
                 <Tooltip
-                  content={<span className="max-w-16">{serialization}</span>}
+                  content={
+                    <span className="max-w-16 text-xs">
+                      {(isToplevel &&
+                        "This function or class can be imported into other Python notebooks or modules.") || (
+                        <>
+                          This definition can't be reused in other Python
+                          modules:
+                          <br />
+                          <br />
+                          <pre>{serialization}</pre>
+                          <br />
+                          Click this icon to learn more.
+                        </>
+                      )}
+                    </span>
+                  }
                 >
-                  {(serialization.toLowerCase() === "valid" && (
+                  {(isToplevel && (
                     <SquareFunctionIcon
                       size={16}
                       strokeWidth={1.5}
@@ -865,7 +893,7 @@ const EditableCellComponent = ({
                     />
                   )}
                 </Tooltip>
-              </div>
+              </a>
             )}
             <ConsoleOutput
               consoleOutputs={consoleOutputs}

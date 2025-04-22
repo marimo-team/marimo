@@ -46,12 +46,32 @@ export const WriteSecretModal: React.FC<{
 }> = ({ providerNames, onClose, onSuccess }) => {
   const [key, setKey] = React.useState("");
   const [value, setValue] = React.useState("");
-  const [location, setLocation] = React.useState(providerNames[0] || ".env");
+  const [location, setLocation] = React.useState<string | undefined>(
+    providerNames[0],
+  );
   // Only dotenv is supported for now
   const provider = "dotenv";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!location) {
+      toast({
+        title: "Error",
+        description: "No location selected for the secret.",
+        variant: "danger",
+      });
+      return;
+    }
+
+    if (!key || !value || !location) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields.",
+        variant: "danger",
+      });
+      return;
+    }
+
     try {
       await writeSecret({
         key,
@@ -89,8 +109,8 @@ export const WriteSecretModal: React.FC<{
               id="key"
               value={key}
               onChange={(e) => {
-                // Remove any whitespace from the input
-                setKey(e.target.value.replaceAll(/\s+/g, "_"));
+                // Remove any non-word characters from the input
+                setKey(replaceInvalid(e.target.value));
               }}
               placeholder="MY_SECRET_KEY"
               required={true}
@@ -106,24 +126,37 @@ export const WriteSecretModal: React.FC<{
               required={true}
               autoComplete="off"
             />
+            {/* http is prone to man-in-the-middle */}
+            {isHttpUrl() && (
+              <FormDescription>
+                Note: You are sending this key over http.
+              </FormDescription>
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="location">Location</Label>
-            <Select
-              value={location}
-              onValueChange={(value) => setLocation(value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a provider" />
-              </SelectTrigger>
-              <SelectContent>
-                {providerNames.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {providerNames.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No dotenv locations configured.
+              </p>
+            )}
+            {providerNames.length > 0 && (
+              <Select
+                value={location}
+                onValueChange={(value) => setLocation(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {providerNames.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <FormDescription>
               You can configure the location by setting the{" "}
               <ExternalLink href="https://links.marimo.app/dotenv">
@@ -137,9 +170,20 @@ export const WriteSecretModal: React.FC<{
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit">Add Secret</Button>
+          <Button type="submit" disabled={!key || !value || !location}>
+            Add Secret
+          </Button>
         </DialogFooter>
       </form>
     </DialogContent>
   );
 };
+
+export function replaceInvalid(input: string): string {
+  return input.replaceAll(/\W/g, "_");
+}
+
+function isHttpUrl(): boolean {
+  const url = window.location.href;
+  return url.startsWith("http://");
+}

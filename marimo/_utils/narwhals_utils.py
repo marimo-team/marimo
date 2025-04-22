@@ -158,6 +158,12 @@ def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
     """
     if nw.dependencies.is_polars_lazyframe(df):
         return True
+    if hasattr(
+        nw.dependencies, "is_pyspark_dataframe"
+    ) and nw.dependencies.is_pyspark_dataframe(df):
+        return True
+    if nw.dependencies.is_dask_dataframe(df):
+        return True
     if hasattr(nw.dependencies, "is_duckdb_relation"):
         if nw.dependencies.is_duckdb_relation(df):
             return True

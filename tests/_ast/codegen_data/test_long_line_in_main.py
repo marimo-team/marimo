@@ -23,7 +23,7 @@ def two(
     yet_another_very_long_name,
 ):
     z = i_am_a_very_long_name + i_am_another_very_long_name + yet_another_very_long_name
-    return (z,)
+    return
 
 
 if __name__ == "__main__":

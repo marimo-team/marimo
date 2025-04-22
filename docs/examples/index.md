@@ -68,25 +68,25 @@ cells](../guides/reactivity.md).
 
     ---
 
-    <a href="markdown/dynamic_markdown.md"><img src="/_static/example-thumbs/dynamic_markdown.png" /></a>
+    <a href="markdown/dynamic_markdown"><img src="/_static/example-thumbs/dynamic_markdown.png" /></a>
 
 -   🪄 [**Mermaid diagrams**](markdown/mermaid.md)
 
     ---
 
-    <a href="markdown/mermaid.md"><img src="/_static/example-thumbs/mermaid.png" /></a>
+    <a href="markdown/mermaid"><img src="/_static/example-thumbs/mermaid.png" /></a>
 
 -   🚨 [**Admonitions**](markdown/admonitions.md)
 
     ---
 
-    <a href="markdown/admonitions.md"><img src="/_static/example-thumbs/admonitions.png" /></a>
+    <a href="markdown/admonitions"><img src="/_static/example-thumbs/admonitions.png" /></a>
 
 -   📂 [**Collapsible details**](markdown/details.md)
 
     ---
 
-    <a href="markdown/details.md"><img src="/_static/example-thumbs/details.png" /></a>
+    <a href="markdown/details"><img src="/_static/example-thumbs/details.png" /></a>
 
 -   😀 [**Emoji**](markdown/emoji.md)
 
@@ -105,25 +105,25 @@ the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
 
     ---
 
-    <a href="outputs/dataframes.md"><img src="/_static/example-thumbs/dataframes.png" /></a>
+    <a href="outputs/dataframes"><img src="/_static/example-thumbs/dataframes.png" /></a>
 
 -   🔍 [**Select dataframe rows**](../api/inputs/table.md)
 
     ---
 
-    <a href="../api/inputs/table.md"><img src="/_static/example-thumbs/tables.png" /></a>
+    <a href="../api/inputs/table"><img src="/_static/example-thumbs/tables.png" /></a>
 
 -   ✏️  [**Editable dataframe**](../api/inputs/data_editor.md)
 
     ---
 
-    <a href="api/inputs/data_editor.md"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
+    <a href="api/inputs/data_editor"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
 
 -   🛠️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
 
     ---
 
-    <a href="api/inputs/dataframe.md"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
+    <a href="api/inputs/dataframe"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
 
 </div>
 
@@ -147,17 +147,17 @@ overview.
 
 <div class="grid cards examples-grid" markdown>
 
--   📊 [**Selecting data with Altair**](../api/plotting.md#reactive-charts-with-altair)
+-   📊 [**Selecting data with Altair**](../api/plotting#reactive-charts-with-altair)
 
     ---
 
-    <a href="../api/plotting.md#reactive-charts-with-altair"><img src="/_static/example-thumbs/altair.png" /></a>
+    <a href="../api/plotting#reactive-charts-with-altair"><img src="/_static/example-thumbs/altair.png" /></a>
 
 -   📉 [**Selecting data with Plotly**](../guides/working_with_data/plotting.md#plotly)
 
     ---
 
-    <a href="../guides/working_with_data/plotting.md#Plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
+    <a href="../guides/working_with_data/plotting#Plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
 
 -   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
@@ -171,13 +171,13 @@ overview.
 
     ---
 
-    <a href=outputs/progress_bar.md"><img src="/_static/example-thumbs/progress_bar.png" /></a>
+    <a href=outputs/progress_bar"><img src="/_static/example-thumbs/progress_bar.png" /></a>
 
 -   🌀 [**Loading spinner**](outputs/spinner.md)
 
     ---
 
-    <a href=outputs/spinner.md"><img src="/_static/example-thumbs/spinner.png" /></a>
+    <a href=outputs/spinner"><img src="/_static/example-thumbs/spinner.png" /></a>
 
 </div>
 
@@ -196,13 +196,13 @@ overview.
 
     ---
 
-    <a href="../api/layouts/accordion.md"><img src="/_static/example-thumbs/accordion.png" /></a>
+    <a href="../api/layouts/accordion"><img src="/_static/example-thumbs/accordion.png" /></a>
 
 -   🗂️ [**Tabs**](../api/inputs/tabs.md)
 
     ---
 
-    <a href="../api/inputs/tabs.md"><img src="/_static/example-thumbs/tabs.png" /></a>
+    <a href="../api/inputs/tabs"><img src="/_static/example-thumbs/tabs.png" /></a>
 
 </div>
 

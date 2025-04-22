@@ -1294,35 +1294,37 @@ export const UserConfigForm: React.FC = () => {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="experimental.lsp"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      LSP (Language Server Protocol)
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="inline-ai-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental LSP support. You will need to have
-                    <Kbd className="inline">marimo[lsp]</Kbd> installed in your
-                    environment to use this. See{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
-                      docs
-                    </ExternalLink>{" "}
-                    for more info.
-                  </FormDescription>
-                </div>
-              )}
-            />
+            {!isWasm() && (
+              <FormField
+                control={form.control}
+                name="experimental.lsp"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        LSP (Language Server Protocol)
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="inline-ai-checkbox"
+                          checked={field.value === true}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                    <FormDescription>
+                      Enable experimental LSP support. You will need to have
+                      <Kbd className="inline">marimo[lsp]</Kbd> installed in
+                      your environment to use this. See{" "}
+                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                        docs
+                      </ExternalLink>{" "}
+                      for more info.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="experimental.inline_ai_tooltip"
@@ -1344,31 +1346,6 @@ export const UserConfigForm: React.FC = () => {
                     Enable experimental "Edit with AI" tooltip when selecting
                     code.
                   </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="experimental.toplevel_defs"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Library Save Format
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="toplevel-defs-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable saving in an experimental file format for marimo.
-                    This will expose functions that are defined in their own
-                    cell for function reuse and import by other programs.
-                  </FormDescription>{" "}
                 </div>
               )}
             />

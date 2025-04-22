@@ -347,6 +347,37 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert formatted_manager == expected_data
 
+    def test_calculate_top_k_rows(self) -> None:
+        data = [
+            {"name": "Alice", "score": 46, "grade": "A"},
+            {"name": "Bob", "score": 85, "grade": "A"},
+            {"name": "Charlie", "score": 32, "grade": None},
+        ]
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [("A", 2), (None, 1)]
+        assert result == expected_data
+
+        # test with single value and conflicting column name
+        data = [{"name": "Alice", "age": 31, "count": date(1994, 5, 24)}]
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("count", 10)
+        expected_data = [(date(1994, 5, 24), 1)]
+        assert result == expected_data
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        data = [
+            {"name": "Alice", "age": 31, "birth_year": date(1994, 5, 24)},
+            {"name": "Bob", "age": 25, "birth_year": None},
+            {"name": "Charlie", "age": 35, "birth_year": None},
+            {"name": "Dave", "age": 28, "birth_year": date(1994, 5, 24)},
+        ]
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("birth_year", 10)
+        # Nulls should be sorted to the end
+        expected_data = [(date(1994, 5, 24), 2), (None, 2)]
+        assert result == expected_data
+
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -662,6 +693,36 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert formatted_manager == expected_data
 
+    def test_calculate_top_k_rows(self) -> None:
+        data = {
+            "grade": ["A", "A", None],
+            "name": ["Alice", "Bob", "Charlie"],
+        }
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [
+            ("A", 2),
+            (None, 1),
+        ]
+        assert result == expected_data
+
+        # Single value
+        data = {"grade": ["A", "A", "A"]}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [("A", 3)]
+        assert result == expected_data
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        data = {"grade": ["A", "A", None, None]}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [
+            ("A", 2),
+            (None, 2),
+        ]
+        assert result == expected_data
+
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
@@ -868,6 +929,24 @@ class TestDictionaryDefaultTable(unittest.TestCase):
             {"key": "c", "value": "N/A"},
         ]
         assert formatted_data == expected_data
+
+    def test_calculate_top_k_rows(self) -> None:
+        data = {"grade": "A", "name": "Alice", "another_grade": "A"}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("value", 10)
+        expected_data = [("A", 2), ("Alice", 1)]
+        assert result == expected_data
+
+        result = manager.calculate_top_k_rows("key", 10)
+        expected_data = [("grade", 1), ("name", 1), ("another_grade", 1)]
+        assert result == expected_data
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        data = {"grade": "A", "name": None, "another_grade": None}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("value", 10)
+        expected_data = [(None, 2), ("A", 1)]
+        assert result == expected_data
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"

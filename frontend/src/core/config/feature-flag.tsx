@@ -13,8 +13,6 @@ export interface ExperimentalFeatures {
   scratchpad: boolean;
   rtc_v2: boolean;
   reactive_tests: boolean;
-  toplevel_defs: boolean;
-  secrets: boolean;
   table_charts: boolean;
   // Add new feature flags here
 }
@@ -26,8 +24,6 @@ const defaultValues: ExperimentalFeatures = {
   scratchpad: true,
   rtc_v2: false,
   reactive_tests: false,
-  toplevel_defs: false,
-  secrets: false,
   table_charts: false,
 };
 

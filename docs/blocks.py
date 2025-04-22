@@ -4,7 +4,12 @@ from typing import Any, Dict, List, Union, cast
 import urllib.parse
 
 from pymdownx.blocks import BlocksExtension  # type: ignore
-from pymdownx.blocks.block import Block, type_boolean, type_string, type_string_in  # type: ignore
+from pymdownx.blocks.block import (
+    Block,
+    type_boolean,
+    type_string,
+    type_string_in,
+)  # type: ignore
 
 
 class BaseMarimoBlock(Block):
@@ -72,7 +77,6 @@ class MarimoEmbedBlock(BaseMarimoBlock):
             code=create_marimo_app_code(code=code, app_width=app_width),
             mode=mode,
             show_chrome=show_chrome,
-
         )
         self._create_iframe(block, url)
 
@@ -99,7 +103,9 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
 
         mode: str = cast(str, self.options["mode"])
         show_chrome: bool = cast(bool, self.options["show-chrome"])
-        url = create_marimo_app_url(code=code, mode=mode, show_chrome=show_chrome)
+        url = create_marimo_app_url(
+            code=code, mode=mode, show_chrome=show_chrome
+        )
         self._create_iframe(block, url)
 
         # Add source code section if enabled
@@ -139,7 +145,8 @@ def create_marimo_app_code(
             f'app = marimo.App(width="{app_width}")',
             "",
         ]
-    ) + "\n".join(
+    )
+    mo_cell = "\n".join(
         [
             "",
             "@app.cell",
@@ -148,12 +155,18 @@ def create_marimo_app_code(
             "    return",
         ]
     )
-    return header + code
+
+    mo_at_bottom = "with app.setup:" in code
+    if mo_at_bottom:
+        return header + code + mo_cell
+    return header + mo_cell + code
 
 
-def create_marimo_app_url(code: str, mode: str = "edit", show_chrome: bool = False) -> str:
+def create_marimo_app_url(
+    code: str, mode: str = "edit", show_chrome: bool = False
+) -> str:
     encoded_code = uri_encode_component(code)
-    return f'https://marimo.app/?code={encoded_code}&embed=true&mode={mode}&show-chrome={"true" if show_chrome else "false"}'
+    return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}&show-chrome={'true' if show_chrome else 'false'}"
 
 
 class MarimoBlocksExtension(BlocksExtension):

@@ -65,3 +65,33 @@ export const AcceptTxtOnlyButton = {
 
   name: "Accept .txt only, button",
 };
+
+export const SingleFileArea = {
+  render: () => (
+    <FileUpload
+      filetypes={[".png", ".jpg", ".jpeg"]}
+      multiple={false}
+      kind="area"
+      label={null}
+      value={[]}
+      setValue={() => null}
+    />
+  ),
+
+  name: "Single file, area",
+};
+
+export const SingleFileButton = {
+  render: () => (
+    <FileUpload
+      filetypes={[".png", ".jpg", ".jpeg"]}
+      multiple={false}
+      kind="button"
+      label={null}
+      value={[]}
+      setValue={() => null}
+    />
+  ),
+
+  name: "Single file, button",
+};

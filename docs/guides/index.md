@@ -17,11 +17,12 @@ These guides cover marimo's core concepts.
 | [Understanding errors](understanding_errors/index.md) | Understanding marimo's constraints on notebook code        |
 | [Working with data](working_with_data/index.md)       | Using SQL cells, no-code dataframe, and reactive plots     |
 | [Package reproducibility](package_reproducibility.md) | Making notebooks reproducible down to the packages         |
-| [Generate with AI](generate_with_ai/index.md)           | Generate notebooks with AI   |
+| [Generate with AI](generate_with_ai/index.md)         | Generate notebooks with AI                                 |
 | [Editor features](editor_features/index.md)           | View variables, dataframe schemas, docstrings, and more    |
 | [Using your own editor](editor_features/watching.md)  | Edit notebooks in your own editor and stream changes back to the browser |
 | [Apps](apps.md)                                       | Running notebooks as apps                                  |
 | [Scripts](scripts.md)                                 | Running notebooks as scripts                               |
+| [Reusing functions and classes](reusing_functions.md) | Importing functions and classes defined in marimo notebooks |
 | [Tests](testing/index.md)                             | Running unit tests in notebooks                            |
 | [Export notebooks](exporting.md)                      | Exporting notebooks to HTML, ipynb, flat scripts, and more |
 | [Publish to the web](publishing/index.md)             | Edit and publish notebooks on the web                      |

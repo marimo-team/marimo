@@ -119,6 +119,38 @@ When developing a local package, you can install it in editable mode using the `
 
 This is particularly useful when you want to test changes to your package without reinstalling it. The package will be installed in "editable" mode, meaning changes to the source code will be reflected immediately in your notebook.
 
+### Specifying alternative package indexes
+
+When you need to use packages from a custom PyPI server or alternative index, you can specify these in your script metadata using the `[[tool.uv.index]]` section. This is useful for private packages or when you want to use packages from a specific source.
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pandas==<version>",
+#     "private-package==<version>",
+# ]
+#
+# [[tool.uv.index]]
+# name = "custom-index"
+# url = "https://custom-pypi-server.example.com/simple/"
+# explicit = true
+#
+# [tool.uv.sources]
+# private-package = { index = "custom-index" }
+# ///
+```
+
+In this example:
+
+- `[[tool.uv.index]]` defines a custom package index
+- `name` is an identifier for the index
+- `url` points to your custom PyPI server
+- `explicit = true` means this index will only be used for packages explicitly associated with it
+- `[tool.uv.sources]` specifies which packages should come from which indexes
+
+This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
+
 ## Configuration
 
 Running marimo in a sandbox environment uses `uv` to create an isolated virtual
