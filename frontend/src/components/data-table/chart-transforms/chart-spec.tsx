@@ -157,7 +157,10 @@ function getPieChartSpec(
     data: { values: data },
     height: formValues.yAxis?.height ?? height,
     width: formValues.xAxis?.width ?? width,
-    mark: { type: TypeConverters.toMark(ChartType.PIE) },
+    mark: {
+      type: TypeConverters.toMark(ChartType.PIE),
+      innerRadius: formValues.style?.innerRadius,
+    },
     encoding: {
       theta: thetaEncoding,
       color: colorEncoding,

@@ -629,6 +629,13 @@ const PieChartForm: React.FC<{
   fields: Field[];
   saveForm: () => void;
 }> = ({ form, fields, saveForm }) => {
+  const formValues = form.getValues();
+  const colorByColumn = formValues.general.colorByColumn;
+
+  const inferredColorByDataType = colorByColumn?.type
+    ? TypeConverters.toSelectableDataType(colorByColumn.type)
+    : "string";
+
   return (
     <>
       <Title text="Color by" />
@@ -637,6 +644,15 @@ const PieChartForm: React.FC<{
         name="general.colorByColumn.field"
         columns={fields}
       />
+      {FieldValidators.exists(colorByColumn?.field) && (
+        <DataTypeSelect
+          form={form}
+          name="general.colorByColumn.selectedDataType"
+          formFieldLabel="Data Type"
+          defaultValue={inferredColorByDataType}
+        />
+      )}
+
       <Title text="Size by" />
       <div className="flex flex-row gap-2">
         <ColumnSelector
@@ -649,6 +665,12 @@ const PieChartForm: React.FC<{
 
       <hr />
       <TooltipForm form={form} fields={fields} saveForm={saveForm} />
+      <NumberField
+        form={form}
+        name="style.innerRadius"
+        formFieldLabel="Donut size"
+        className="w-32"
+      />
     </>
   );
 };

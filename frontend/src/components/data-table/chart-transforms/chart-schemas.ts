@@ -104,4 +104,7 @@ export const ChartSchema = z.object({
       domain: z.array(z.string()).optional(),
     })
     .optional(),
+  style: z.object({
+    innerRadius: z.number().optional(),
+  }),
 });
