@@ -5,13 +5,22 @@ from marimo._server.print import _utf8
 
 
 def create_cloudflare_files(title: str, out_dir: Path) -> None:
+    echo("\n" + _utf8("☁️☁️☁️☁️☁️☁️") + "\n")
+
     parent_dir = out_dir.parent
     index_js = parent_dir / "index.js"
     wrangler_jsonc = parent_dir / "wrangler.jsonc"
+    created_files = False
 
-    # Create index.js
-    index_js.write_text(
-        """
+    if index_js.exists():
+        echo(
+            f"Cloudflare {index_js.name} already exists at {green(str(index_js.absolute()))}. Skipping..."
+        )
+    else:
+        created_files = True
+        # Create index.js
+        index_js.write_text(
+            """
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -25,11 +34,17 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };""".strip()
-    )
+        )
 
-    # Create wrangler.jsonc
-    wrangler_jsonc.write_text(
-        f"""
+    if wrangler_jsonc.exists():
+        echo(
+            f"Cloudflare {wrangler_jsonc.name} already exists at {green(str(wrangler_jsonc.absolute()))}. Skipping..."
+        )
+    else:
+        created_files = True
+        # Create wrangler.jsonc
+        wrangler_jsonc.write_text(
+            f"""
 {{
   "name": "{title}",
   "main": "{index_js.name}",
@@ -39,17 +54,19 @@ export default {
     "binding": "ASSETS"
   }}
 }}""".strip()
-    )
+        )
 
     cwd = ""
     if parent_dir != Path.cwd() and str(parent_dir) != ".":
         cwd = f" --cwd {parent_dir}"
 
+    if created_files:
+        echo(
+            f"Cloudflare configuration files created at {green(str(parent_dir.absolute()))}."
+        )
+
     echo(
         f"""
-{_utf8("☁️☁️☁️☁️☁️☁️")}
-Cloudflare configuration files created at {green(str(parent_dir.absolute()))}.
-
 To run locally, run:
 
     {bold("npx wrangler dev" + cwd)}
@@ -57,7 +74,6 @@ To run locally, run:
 To deploy to Cloudflare Pages, run:
 
     {bold("npx wrangler deploy" + cwd)}
-
-{_utf8("☁️☁️☁️☁️☁️☁️")}
 """
     )
+    echo(_utf8("☁️☁️☁️☁️☁️☁️"))
