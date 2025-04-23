@@ -165,12 +165,13 @@ function getPieChartSpec(
     formValues.xAxis?.label,
   );
 
-  const thetaEncoding: PolarDef<string> = {
-    field: yColumn.field,
-    type: TypeConverters.toVegaType(yColumn.type || "unknown"),
-    bin: EncodingUtils.getBin(formValues.xAxis?.bin),
-    title: thetaFieldLabel,
-  };
+  const thetaEncoding: PolarDef<string> = getAxisEncoding(
+    yColumn,
+    formValues.xAxis?.bin,
+    thetaFieldLabel,
+    undefined,
+    ChartType.PIE,
+  );
 
   const colorEncoding: ColorDef<string> = {
     field: colorByColumn.field,
@@ -318,10 +319,11 @@ const EncodingUtils = {
     chartType: ChartType,
     formValues: z.infer<typeof ChartSchema>,
   ): OffsetDef<string> | undefined {
+    // Offset only applies to bar charts, to unstack them
     if (
       formValues.general.stacking ||
       !FieldValidators.exists(formValues.general.colorByColumn?.field) ||
-      chartType === ChartType.PIE
+      chartType !== ChartType.BAR
     ) {
       return undefined;
     }
