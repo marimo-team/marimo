@@ -2,11 +2,10 @@
 
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec";
-import { ChartType } from "../constants";
 import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "../chart-schemas";
 import type { z } from "zod";
 import type { ChartSchema, ChartSchemaType } from "../chart-schemas";
-import { NONE_AGGREGATION } from "../types";
+import { NONE_AGGREGATION, ChartType } from "../types";
 
 describe("createVegaSpec", () => {
   // Sample data for testing

@@ -16,21 +16,15 @@ import {
   AreaChartIcon,
 } from "lucide-react";
 import type { ColorScheme } from "vega";
-import type { AggregationFn, SelectableDataType, TimeUnit } from "./types";
+import type {
+  AggregationFn,
+  ChartType,
+  SelectableDataType,
+  TimeUnit,
+} from "./types";
 
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
-
-export const ChartType = {
-  LINE: "line",
-  BAR: "bar",
-  PIE: "pie",
-  SCATTER: "scatter",
-  HEATMAP: "heatmap",
-  AREA: "area",
-} as const;
-export type ChartType = (typeof ChartType)[keyof typeof ChartType];
-export const CHART_TYPES = Object.values(ChartType);
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,

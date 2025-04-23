@@ -9,6 +9,7 @@ import {
   type AxisSchema,
 } from "./chart-schemas";
 import {
+  ChartType,
   NONE_AGGREGATION,
   type SelectableDataType,
   type TimeUnitTooltip,
@@ -26,12 +27,7 @@ import type {
 } from "vega-lite/build/src/channeldef";
 import type { ColorScheme } from "vega";
 import type { TypedString } from "@/utils/typed";
-import {
-  ChartType,
-  COUNT_FIELD,
-  DEFAULT_COLOR_SCHEME,
-  EMPTY_VALUE,
-} from "./constants";
+import { COUNT_FIELD, DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
 import type { Tooltip } from "./form-components";
 
 /**
@@ -108,7 +104,7 @@ export function createVegaSpec(
   };
 }
 
-function getAxisEncoding(
+export function getAxisEncoding(
   column: NonNullable<z.infer<typeof AxisSchema>>,
   binValues: z.infer<typeof BinSchema> | undefined,
   label: string | undefined,

@@ -6,7 +6,7 @@ import { tabsStorageAtom, KEY } from "../storage";
 import { ChartSchema } from "../chart-schemas";
 import type { CellId } from "@/core/cells/ids";
 import type { TabName } from "../storage";
-import { ChartType } from "../constants";
+import { ChartType } from "../types";
 
 // Mock localStorage
 const mockLocalStorage = {

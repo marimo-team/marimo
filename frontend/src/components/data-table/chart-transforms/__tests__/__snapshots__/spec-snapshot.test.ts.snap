@@ -303,9 +303,6 @@ exports[`createVegaSpec > Scatter Chart > should create a scatter chart with gro
       "title": "category",
       "type": "nominal",
     },
-    "xOffset": {
-      "field": "group",
-    },
     "y": {
       "field": "value",
       "title": "value",

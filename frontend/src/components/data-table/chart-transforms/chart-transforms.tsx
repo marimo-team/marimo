@@ -37,7 +37,7 @@ import {
   SliderField,
   TooltipSelect,
 } from "./form-components";
-import { ChartType, COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "./constants";
+import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
@@ -58,6 +58,7 @@ import {
   ColorByAxis,
   XAxis,
 } from "./chart-components";
+import { ChartType } from "./types";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;

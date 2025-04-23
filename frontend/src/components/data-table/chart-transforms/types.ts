@@ -66,3 +66,17 @@ export const AGGREGATION_FNS = [
   "distinct",
 ] as const;
 export type AggregationFn = (typeof AGGREGATION_FNS)[number];
+
+/**
+ * Subset of VegaLite's MarkType, https://vega.github.io/vega-lite/docs/mark.html#types
+ */
+export const ChartType = {
+  LINE: "line",
+  BAR: "bar",
+  PIE: "pie",
+  SCATTER: "scatter",
+  HEATMAP: "heatmap",
+  AREA: "area",
+} as const;
+export type ChartType = (typeof ChartType)[keyof typeof ChartType];
+export const CHART_TYPES = Object.values(ChartType);
