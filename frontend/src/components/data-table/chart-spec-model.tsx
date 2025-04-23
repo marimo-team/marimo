@@ -166,17 +166,18 @@ export class ColumnChartSpecModel<T> {
                 y: { aggregate: "max", type: "quantitative", axis: null },
                 tooltip: [
                   {
-                    // Column name is used as the bin start value
-                    field: column,
+                    // Can also use column, but this is more explicit
+                    field: `bin_maxbins_10_${column}`,
                     type: "temporal",
                     format: format,
-                    bin: true,
+                    bin: { binned: true },
                     title: "Start",
                   },
                   {
                     field: `bin_maxbins_10_${column}_end`,
                     type: "temporal",
                     format: format,
+                    bin: { binned: true },
                     title: "End",
                   },
                   {
