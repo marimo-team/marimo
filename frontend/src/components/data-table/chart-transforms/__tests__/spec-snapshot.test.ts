@@ -2,14 +2,10 @@
 
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec";
-import { ChartType } from "../storage";
-import {
-  DEFAULT_AGGREGATION,
-  DEFAULT_BIN_VALUE,
-  NONE_GROUP_BY,
-} from "../chart-schemas";
+import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "../chart-schemas";
 import type { z } from "zod";
-import type { ChartSchema } from "../chart-schemas";
+import type { ChartSchema, ChartSchemaType } from "../chart-schemas";
+import { NONE_AGGREGATION, ChartType } from "../types";
 
 describe("createVegaSpec", () => {
   // Sample data for testing
@@ -37,14 +33,14 @@ describe("createVegaSpec", () => {
       yColumn: {
         field: "value",
         type: "number" as const,
-        agg: DEFAULT_AGGREGATION as "default",
+        aggregate: NONE_AGGREGATION,
       },
     },
   });
 
   describe("Bar Chart", () => {
     it("should create a horizontal bar chart", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
@@ -61,15 +57,15 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
 
     it("should create a stacked bar chart with grouping", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
-          groupByColumn: {
+          colorByColumn: {
             field: "group",
             type: "string" as const,
           },
@@ -86,12 +82,12 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
   });
 
   it("should create a bar chart with binning", () => {
-    const formValues = {
+    const formValues: ChartSchemaType = {
       ...createBasicFormValues(),
       xAxis: { bin: { binned: true, step: DEFAULT_BIN_VALUE } },
     };
@@ -105,12 +101,12 @@ describe("createVegaSpec", () => {
       height,
     );
 
-    expect(spec).toMatchSnapshot();
+    expect(removeUndefined(spec)).toMatchSnapshot();
   });
 
   describe("Line Chart", () => {
     it("should create a basic line chart spec", () => {
-      const formValues = createBasicFormValues();
+      const formValues: ChartSchemaType = createBasicFormValues();
       const spec = createVegaSpec(
         ChartType.LINE,
         sampleData,
@@ -120,13 +116,13 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
   });
 
   describe("Pie Chart", () => {
     it("should create a pie chart with tooltips", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
@@ -146,17 +142,17 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
   });
 
   describe("Scatter Chart", () => {
     it("should create a scatter chart with grouping", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
-          groupByColumn: {
+          colorByColumn: {
             field: "group",
             type: "string" as const,
           },
@@ -172,13 +168,13 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
   });
 
   describe("Theme variations", () => {
     it("should create a chart with dark theme", () => {
-      const formValues = createBasicFormValues();
+      const formValues: ChartSchemaType = createBasicFormValues();
       const spec = createVegaSpec(
         ChartType.BAR,
         sampleData,
@@ -188,13 +184,13 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
   });
 
   describe("Edge cases", () => {
     it("should handle missing xColumn field", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
@@ -214,18 +210,18 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
 
     it("should handle missing yColumn field", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
           yColumn: {
             field: undefined,
             type: "number" as const,
-            agg: DEFAULT_AGGREGATION as "default",
+            aggregate: NONE_AGGREGATION,
           },
         },
       };
@@ -239,15 +235,15 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
 
     it("should handle NONE_GROUP_BY for groupByColumn", () => {
-      const formValues = {
+      const formValues: ChartSchemaType = {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
-          groupByColumn: {
+          colorByColumn: {
             field: NONE_GROUP_BY,
             type: "string" as const,
           },
@@ -264,7 +260,20 @@ describe("createVegaSpec", () => {
         height,
       );
 
-      expect(spec).toMatchSnapshot();
+      expect(removeUndefined(spec)).toMatchSnapshot();
     });
   });
 });
+
+function removeUndefined<T>(obj: T): T {
+  if (typeof obj === "object" && obj !== null && !Array.isArray(obj)) {
+    const result = {} as T;
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        result[key] = removeUndefined(obj[key]);
+      }
+    }
+    return result;
+  }
+  return obj;
+}

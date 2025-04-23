@@ -3,76 +3,67 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  ChartBarIcon,
-  InfoIcon,
-  Loader2,
-  SquareFunctionIcon,
   TableIcon,
   XIcon,
+  InfoIcon,
+  DatabaseIcon,
+  PaintRollerIcon,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
 import type { z } from "zod";
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ChartSchema,
-  DEFAULT_AGGREGATION,
-  DEFAULT_COLOR_SCHEME,
-} from "./chart-schemas";
-import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { ChartSchema } from "./chart-schemas";
+import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { capitalize } from "lodash-es";
-import {
-  type TabName,
-  tabsStorageAtom,
-  ChartType,
-  tabNumberAtom,
-  CHART_TYPES,
-} from "./storage";
+import { type TabName, tabsStorageAtom, tabNumberAtom } from "./storage";
 import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
 import {
+  AggregationSelect,
   BooleanField,
   ColorArrayField,
   ColumnSelector,
+  type Field,
   InputField,
   NumberField,
+  DataTypeSelect,
   SelectField,
+  SliderField,
+  TooltipSelect,
 } from "./form-components";
-import {
-  AGGREGATION_TYPE_ICON,
-  CHART_TYPE_ICON,
-  COLOR_SCHEMES,
-} from "./constants";
-import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
+import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
-import { cn } from "@/utils/cn";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
+import { FieldValidators, TypeConverters } from "./chart-spec";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  TabContainer,
+  Title,
+  ChartLoadingState,
+  ChartErrorState,
+  ChartTypeSelect,
+  YAxis,
+  ColorByAxis,
+  XAxis,
+} from "./chart-components";
+import { ChartType } from "./types";
 
 const NEW_TAB_NAME = "Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
+const CHART_HEIGHT = 300;
 
 export interface TablePanelProps {
   dataTable: JSX.Element;
@@ -104,24 +95,9 @@ export const TablePanel: React.FC<TablePanelProps> = ({
 
     // If the element is in the light DOM, we can find it directly
     // Otherwise, we need to traverse up through shadow DOM boundaries
-    let cellElement = HTMLCellId.findElement(containerRef.current);
-
-    if (!cellElement) {
-      const root = containerRef.current.getRootNode();
-      let element: Element | null = containerRef.current;
-
-      while (element && element !== root) {
-        cellElement = HTMLCellId.findElement(element);
-        if (cellElement) {
-          break;
-        }
-        element =
-          element.getRootNode() instanceof ShadowRoot
-            ? (element.getRootNode() as ShadowRoot).host
-            : element.parentElement;
-      }
-    }
-
+    const cellElement = HTMLCellId.findElementThroughShadowDOMs(
+      containerRef.current,
+    );
     if (cellElement) {
       setCellId(HTMLCellId.parse(cellElement.id));
     }
@@ -231,19 +207,14 @@ export const TablePanel: React.FC<TablePanelProps> = ({
             />
           </TabsTrigger>
         ))}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild={true}>
-            <Button variant="text" size="icon">
-              +
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={handleAddTab}>
-              <ChartBarIcon className="w-3 h-3 mr-2" />
-              Add chart
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="text"
+          size="icon"
+          onClick={handleAddTab}
+          title="Add chart"
+        >
+          +
+        </Button>
       </TabsList>
 
       <TabsContent className="mt-1 overflow-hidden" value={DEFAULT_TAB_NAME}>
@@ -293,7 +264,7 @@ export const ChartPanel: React.FC<{
     resolver: zodResolver(ChartSchema),
   });
 
-  const [chartTypeSelected, setChartTypeSelected] =
+  const [selectedChartType, setSelectedChartType] =
     useState<ChartType>(chartType);
 
   const { data, loading, error } = useAsyncData(async () => {
@@ -330,89 +301,57 @@ export const ChartPanel: React.FC<{
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {
     if (loading) {
-      return (
-        <div className="flex items-center justify-center h-full w-full">
-          <Loader2 className="w-10 h-10 animate-spin" strokeWidth={1} />
-        </div>
-      );
+      return <ChartLoadingState />;
     }
     if (error) {
-      return (
-        <div className="flex items-center justify-center h-full w-full">
-          Error: ""
-        </div>
-      );
+      return <ChartErrorState error={error} />;
     }
     return (
-      <Chart
-        chartType={chartTypeSelected}
+      <LazyChart
+        chartType={selectedChartType}
         formValues={memoizedFormValues}
         data={data}
+        width="container"
+        height={CHART_HEIGHT}
       />
     );
-  }, [loading, error, memoizedFormValues, data, chartTypeSelected]);
+  }, [loading, error, memoizedFormValues, data, selectedChartType]);
 
   return (
-    <div className="flex flex-row gap-6 p-3 h-full rounded-md border overflow-auto">
-      <div className="flex flex-col gap-3">
-        <Select
-          value={chartTypeSelected}
+    <div className="flex flex-row gap-2 h-full rounded-md border pr-2">
+      <div className="flex flex-col gap-2 w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
+        <ChartTypeSelect
+          value={selectedChartType}
           onValueChange={(value) => {
-            setChartTypeSelected(value as ChartType);
-            saveChartType(value as ChartType);
+            setSelectedChartType(value);
+            saveChartType(value);
           }}
-        >
-          <div className="flex flex-col gap-1">
-            <span className="text-sm">Visualization Type</span>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CHART_TYPES.map((chartType) => (
-                <ChartSelectItem key={chartType} chartType={chartType} />
-              ))}
-            </SelectContent>
-          </div>
-        </Select>
+        />
 
-        <ChartForm
+        <ChartFormContainer
           form={form}
           saveChart={saveChart}
           fieldTypes={fieldTypes}
-          chartType={chartTypeSelected}
+          chartType={selectedChartType}
         />
       </div>
-      {memoizedChart}
+      <div className="flex-1">{memoizedChart}</div>
     </div>
   );
 };
 
-const ChartSelectItem: React.FC<{ chartType: ChartType }> = ({ chartType }) => {
-  const Icon = CHART_TYPE_ICON[chartType];
-  return (
-    <SelectItem value={chartType} className="gap-2">
-      <div className="flex items-center">
-        <Icon className="w-4 h-4 mr-2" />
-        {capitalize(chartType)}
-      </div>
-    </SelectItem>
-  );
-};
-
-interface ChartFormProps {
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  chartType: ChartType;
-  saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
-  fieldTypes?: FieldTypesWithExternalType | null;
-}
-
-const ChartForm = ({
+const ChartFormContainer = ({
   form,
   saveChart,
   fieldTypes,
   chartType,
-}: ChartFormProps) => {
-  const fields = fieldTypes?.map((field) => {
+}: {
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  chartType: ChartType;
+  saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
+  fieldTypes?: FieldTypesWithExternalType | null;
+}) => {
+  const fields: Field[] | undefined = fieldTypes?.map((field) => {
     return {
       name: field[0],
       type: field[1][0],
@@ -424,190 +363,49 @@ const ChartForm = ({
     saveChart(values);
   }, 300);
 
+  let ChartForm = CommonChartForm;
+
+  if (chartType === ChartType.PIE) {
+    ChartForm = PieChartForm;
+  } else if (chartType === ChartType.HEATMAP) {
+    ChartForm = HeatmapChartForm;
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
-        <Tabs defaultValue="general">
-          <TabsList>
-            <TabsTrigger value="general">General</TabsTrigger>
-            {chartType !== ChartType.PIE && (
-              <>
-                <TabsTrigger value="x-axis">X-Axis</TabsTrigger>
-                <TabsTrigger value="y-axis">Y-Axis</TabsTrigger>
-              </>
-            )}
-            <TabsTrigger value="color">Color</TabsTrigger>
+        <Tabs defaultValue="data">
+          <TabsList className="w-full">
+            <TabsTrigger value="data" className="w-1/2 h-6">
+              <DatabaseIcon className="w-4 h-4 mr-2" />
+              Data
+            </TabsTrigger>
+            <TabsTrigger value="style" className="w-1/2 h-6">
+              <PaintRollerIcon className="w-4 h-4 mr-2" />
+              Style
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="general">
+
+          <TabsContent value="data">
+            <hr className="my-2" />
             <TabContainer>
-              <BooleanField
+              <ChartForm
                 form={form}
-                name="general.horizontal"
-                formFieldLabel="Horizontal chart"
-              />
-              <ColumnSelector
-                form={form}
-                name="general.xColumn.field"
-                formFieldLabel={
-                  chartType === ChartType.PIE ? "Theta" : "X column"
-                }
-                columns={fields || []}
-              />
-              <div className="flex flex-row gap-2">
-                <ColumnSelector
-                  form={form}
-                  name="general.yColumn.field"
-                  formFieldLabel={
-                    chartType === ChartType.PIE ? "Color" : "Y column"
-                  }
-                  columns={fields || []}
-                />
-                <FormField
-                  control={form.control}
-                  name="general.yColumn.agg"
-                  render={({ field }) => (
-                    <FormItem className="self-end w-24">
-                      <FormControl>
-                        <Select
-                          {...field}
-                          value={field.value ?? DEFAULT_AGGREGATION}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>Aggregation</SelectLabel>
-                              <SelectItem value={DEFAULT_AGGREGATION}>
-                                <div className="flex items-center">
-                                  <SquareFunctionIcon className="w-3 h-3 mr-2" />
-                                  {capitalize(DEFAULT_AGGREGATION)}
-                                </div>
-                              </SelectItem>
-                              {AGGREGATION_FNS.map((agg) => {
-                                const Icon = AGGREGATION_TYPE_ICON[agg];
-                                return (
-                                  <SelectItem key={agg} value={agg}>
-                                    <div className="flex items-center">
-                                      <Icon className="w-3 h-3 mr-2" />
-                                      {capitalize(agg)}
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {chartType !== ChartType.PIE && (
-                <div className="flex flex-row gap-2">
-                  <ColumnSelector
-                    form={form}
-                    name="general.groupByColumn.field"
-                    formFieldLabel="Group by (color)"
-                    columns={fields ?? []}
-                    includeNoneOption={true}
-                  />
-                  <div
-                    className={cn(
-                      "flex flex-col self-end gap-1 items-end",
-                      chartType === ChartType.BAR && "mt-1.5",
-                    )}
-                  >
-                    <BooleanField
-                      form={form}
-                      name="general.groupByColumn.binned"
-                      formFieldLabel="Binned"
-                    />
-                    <BooleanField
-                      form={form}
-                      name="general.stacking"
-                      formFieldLabel="Stacked"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <hr />
-
-              <InputField
-                form={form}
-                formFieldLabel="Plot title"
-                name="general.title"
-              />
-              <FormField
-                control={form.control}
-                name="general.tooltips"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Multiselect
-                        options={fields?.map((field) => field.name) ?? []}
-                        value={field.value?.map((item) => item.field) ?? []}
-                        setValue={(values) => {
-                          const selectedValues =
-                            typeof values === "function" ? values([]) : values;
-
-                          // find the field types and form objects
-                          const tooltipObjects = selectedValues.map(
-                            (fieldName) => {
-                              const fieldType = fields?.find(
-                                (f) => f.name === fieldName,
-                              )?.type;
-
-                              return {
-                                field: fieldName,
-                                type: fieldType ?? "string",
-                              };
-                            },
-                          );
-
-                          field.onChange(tooltipObjects);
-                          // Multiselect doesn't trigger onChange, so we need to save the form manually
-                          debouncedSave();
-                        }}
-                        label="Tooltips"
-                        fullWidth={false}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
+                fields={fields ?? []}
+                saveForm={debouncedSave}
+                chartType={chartType}
               />
             </TabContainer>
           </TabsContent>
-          {chartType !== ChartType.PIE && (
-            <>
-              <AxisTabContent axis="x" form={form} />
-              <AxisTabContent axis="y" form={form} />
-            </>
-          )}
-          <TabsContent value="color">
+
+          <TabsContent value="style">
+            <hr className="my-2" />
             <TabContainer>
-              <SelectField
+              <StyleForm
                 form={form}
-                name="color.scheme"
-                formFieldLabel="Color scheme"
-                defaultValue={DEFAULT_COLOR_SCHEME}
-                options={COLOR_SCHEMES.map((scheme) => ({
-                  label: capitalize(scheme),
-                  value: scheme,
-                }))}
+                fields={fields ?? []}
+                saveForm={debouncedSave}
               />
-              <ColorArrayField
-                form={form}
-                name="color.range"
-                formFieldLabel="Color range"
-              />
-              <p className="text-xs">
-                <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
-                If you are using color range, color scheme will be ignored.
-              </p>
             </TabContainer>
           </TabsContent>
         </Tabs>
@@ -616,60 +414,251 @@ const ChartForm = ({
   );
 };
 
-interface AxisTabContentProps {
-  axis: "x" | "y";
+const CommonChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
-}
-
-const AxisTabContent: React.FC<AxisTabContentProps> = ({ axis, form }) => {
-  const axisName = axis === "x" ? "X" : "Y";
-
-  return (
-    <TabsContent value={`${axis}-axis`}>
-      <TabContainer className="gap-1">
-        <InputField
-          form={form}
-          name={`${axis}Axis.label`}
-          formFieldLabel={`${axisName}-axis Label`}
-        />
-        <div className="flex flex-row gap-2 w-full">
-          <BooleanField
-            form={form}
-            name={`${axis}Axis.bin.binned`}
-            formFieldLabel="Binned"
-          />
-          <NumberField
-            form={form}
-            name={`${axis}Axis.bin.step`}
-            formFieldLabel="Bin step"
-            step={0.05}
-            className="w-32"
-          />
-        </div>
-      </TabContainer>
-    </TabsContent>
-  );
-};
-
-const Chart: React.FC<{
+  fields: Field[];
+  saveForm: () => void;
   chartType: ChartType;
-  formValues: z.infer<typeof ChartSchema>;
-  data?: object[];
-}> = ({ chartType, formValues, data }) => {
+}> = ({ form, fields, saveForm, chartType }) => {
+  const formValues = useWatch({ control: form.control });
+  const yColumn = formValues.general?.yColumn;
+  const groupByColumn = formValues.general?.colorByColumn;
+
+  const yColumnExists = FieldValidators.exists(yColumn?.field);
+  const showStacking = FieldValidators.exists(groupByColumn?.field);
+
   return (
-    <LazyChart
-      chartType={chartType}
-      formValues={formValues}
-      data={data}
-      width="container"
-      height={300}
-    />
+    <>
+      <XAxis form={form} fields={fields} />
+      <YAxis form={form} fields={fields} />
+
+      {yColumnExists && (
+        <>
+          <ColorByAxis form={form} fields={fields} />
+          {showStacking && (
+            <div className="flex flex-row gap-2">
+              <BooleanField
+                form={form}
+                name="general.stacking"
+                formFieldLabel="Stacked"
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      <hr className="my-2" />
+      <TooltipSelect
+        form={form}
+        name="general.tooltips"
+        fields={fields}
+        saveFunction={saveForm}
+        formFieldLabel="Tooltips"
+      />
+    </>
   );
 };
 
-const TabContainer: React.FC<{
-  className?: string;
-  children: React.ReactNode;
-}> = ({ children, className }) => {
-  return <div className={cn("flex flex-col gap-3", className)}>{children}</div>;
+const HeatmapChartForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+  chartType: ChartType;
+}> = ({ form, fields, saveForm, chartType }) => {
+  const formValues = useWatch({ control: form.control });
+  const xColumnExists = FieldValidators.exists(
+    formValues.general?.xColumn?.field,
+  );
+  const yColumnExists = FieldValidators.exists(
+    formValues.general?.yColumn?.field,
+  );
+
+  return (
+    <>
+      <XAxis form={form} fields={fields} />
+      {xColumnExists && (
+        <NumberField
+          form={form}
+          name="xAxis.bin.maxbins"
+          formFieldLabel="Number of boxes (max)"
+          className="justify-between"
+        />
+      )}
+      <YAxis form={form} fields={fields} />
+      {yColumnExists && (
+        <NumberField
+          form={form}
+          name="yAxis.bin.maxbins"
+          formFieldLabel="Number of boxes (max)"
+          className="justify-between"
+        />
+      )}
+      <ColorByAxis form={form} fields={fields} />
+    </>
+  );
+};
+
+const PieChartForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+  chartType: ChartType;
+}> = ({ form, fields, saveForm, chartType }) => {
+  const formValues = useWatch({ control: form.control });
+  const colorByColumn = formValues.general?.colorByColumn;
+
+  const inferredColorByDataType = colorByColumn?.type
+    ? TypeConverters.toSelectableDataType(colorByColumn.type)
+    : "string";
+
+  return (
+    <>
+      <Title text="Color by" />
+      <ColumnSelector
+        form={form}
+        name="general.colorByColumn.field"
+        columns={fields}
+        includeCountField={false}
+      />
+      {FieldValidators.exists(colorByColumn?.field) && (
+        <DataTypeSelect
+          form={form}
+          name="general.colorByColumn.selectedDataType"
+          formFieldLabel="Data Type"
+          defaultValue={inferredColorByDataType}
+        />
+      )}
+
+      <Title text="Size by" />
+      <div className="flex flex-row justify-between">
+        <ColumnSelector
+          form={form}
+          name="general.yColumn.field"
+          columns={fields}
+        />
+        <AggregationSelect form={form} name="general.yColumn.aggregate" />
+      </div>
+
+      <hr />
+      <Title text="General" />
+      <TooltipSelect
+        form={form}
+        name="general.tooltips"
+        fields={fields}
+        saveFunction={saveForm}
+        formFieldLabel="Tooltips"
+      />
+      <NumberField
+        form={form}
+        name="style.innerRadius"
+        formFieldLabel="Donut size"
+        className="w-32"
+      />
+    </>
+  );
+};
+
+const StyleForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+}> = ({ form }) => {
+  const renderBinFields = (axis: "x" | "y") => {
+    return (
+      <div className="flex flex-row gap-2 w-full">
+        <BooleanField
+          form={form}
+          name={`${axis}Axis.bin.binned`}
+          formFieldLabel="Binned"
+        />
+        <NumberField
+          form={form}
+          name={`${axis}Axis.bin.step`}
+          formFieldLabel="Bin step"
+          step={0.05}
+          className="w-32"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <Accordion type="multiple">
+      <AccordionItem value="general" className="border-none">
+        <AccordionTrigger className="pt-0 pb-2">
+          <Title text="General" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2">
+          <InputField
+            form={form}
+            formFieldLabel="Plot title"
+            name="general.title"
+          />
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="xAxis" className="border-none">
+        <AccordionTrigger className="py-2">
+          <Title text="X-Axis" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
+          <InputField form={form} formFieldLabel="Label" name="xAxis.label" />
+          <SliderField
+            form={form}
+            name="xAxis.width"
+            formFieldLabel="Width"
+            value={400}
+            start={200}
+            stop={800}
+          />
+          {renderBinFields("x")}
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="yAxis" className="border-none">
+        <AccordionTrigger className="py-2">
+          <Title text="Y-Axis" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
+          <InputField form={form} formFieldLabel="Label" name="yAxis.label" />
+          <SliderField
+            form={form}
+            name="yAxis.height"
+            formFieldLabel="Height"
+            value={300}
+            start={150}
+            stop={600}
+          />
+          {renderBinFields("y")}
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="color" className="border-none">
+        <AccordionTrigger className="py-2">
+          <Title text="Color" />
+        </AccordionTrigger>
+        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
+          <SelectField
+            form={form}
+            name="color.scheme"
+            formFieldLabel="Color scheme"
+            defaultValue={DEFAULT_COLOR_SCHEME}
+            options={COLOR_SCHEMES.map((scheme) => ({
+              display: capitalize(scheme),
+              value: scheme,
+            }))}
+          />
+          <ColorArrayField
+            form={form}
+            name="color.range"
+            formFieldLabel="Color range"
+          />
+          <p className="text-xs">
+            <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
+            If you are using color range, color scheme will be ignored.
+          </p>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
 };

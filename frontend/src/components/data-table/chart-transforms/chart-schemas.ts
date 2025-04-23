@@ -1,42 +1,49 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { DATA_TYPES } from "@/core/kernel/messages";
-import { AGGREGATION_FNS } from "@/plugins/impl/data-frames/types";
-import { z } from "zod";
+/**
+ * Zod schema validation for marimo chart configuration.
+ */
 
-export const DEFAULT_AGGREGATION = "default";
+import { DATA_TYPES } from "@/core/kernel/messages";
+import { z } from "zod";
+import {
+  AGGREGATION_FNS,
+  NONE_AGGREGATION,
+  SELECTABLE_DATA_TYPES,
+  SORT_TYPES,
+  TIME_UNITS,
+} from "./types";
+import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
+
 export const DEFAULT_BIN_VALUE = 0;
 export const NONE_GROUP_BY = "None";
-export const DEFAULT_COLOR_SCHEME = "default";
 
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
   step: z.number().optional(),
+  maxbins: z.number().optional(),
 });
+
+export const AxisSchema = z
+  .object({
+    field: z.string().optional(),
+    type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
+    selectedDataType: z
+      .enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE])
+      .optional(),
+    aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
+    sort: z.enum(SORT_TYPES).default("ascending").optional(),
+    timeUnit: z.enum(TIME_UNITS).optional(),
+  })
+  .optional();
 
 export const ChartSchema = z.object({
   general: z.object({
     title: z.string().optional(),
-    xColumn: z.object({
-      field: z.string().optional(),
-      type: z.enum(DATA_TYPES).optional(),
-    }),
-    yColumn: z.object({
-      field: z.string().optional(),
-      type: z.enum(DATA_TYPES).optional(),
-      agg: z
-        .enum([...AGGREGATION_FNS, DEFAULT_AGGREGATION])
-        .default(DEFAULT_AGGREGATION)
-        .optional(),
-    }),
+    xColumn: AxisSchema,
+    yColumn: AxisSchema,
+    colorByColumn: AxisSchema,
     horizontal: z.boolean().optional(),
-    groupByColumn: z
-      .object({
-        field: z.string().default(NONE_GROUP_BY).optional(),
-        type: z.enum(DATA_TYPES).optional(),
-        binned: z.boolean().optional(),
-      })
-      .optional(),
     stacking: z.boolean().optional(),
     tooltips: z
       .array(
@@ -50,12 +57,14 @@ export const ChartSchema = z.object({
   xAxis: z
     .object({
       label: z.string().optional(),
+      width: z.number().optional(),
       bin: BinSchema.optional(),
     })
     .optional(),
   yAxis: z
     .object({
       label: z.string().optional(),
+      height: z.number().optional(),
       bin: BinSchema.optional(),
     })
     .optional(),
@@ -66,9 +75,11 @@ export const ChartSchema = z.object({
       domain: z.array(z.string()).optional(),
     })
     .optional(),
+  style: z
+    .object({
+      innerRadius: z.number().optional(),
+    })
+    .optional(),
 });
 
-// if groupBy col is nominal,
-// color can be a domain with range
-
-// else probably should be a scale
+export type ChartSchemaType = z.infer<typeof ChartSchema>;
