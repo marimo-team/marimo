@@ -7,7 +7,7 @@ import { z } from "zod";
 import { atom } from "jotai";
 import { ChartSchema } from "./chart-schemas";
 import { Logger } from "@/utils/Logger";
-import type { ChartType } from "./constants";
+import type { ChartType } from "./types";
 
 export type TabName = TypedString<"TabName">;
 export const KEY = "marimo:charts:v2";
