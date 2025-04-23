@@ -549,7 +549,7 @@ const CommonChartForm: React.FC<{
       {yColumnExists && (
         <>
           <Title text="Color by" />
-          <div className="flex flex-row gap-2 justify-between">
+          <div className="flex flex-row justify-between">
             <ColumnSelector
               form={form}
               name="general.colorByColumn.field"
@@ -623,7 +623,7 @@ const PieChartForm: React.FC<{
       )}
 
       <Title text="Size by" />
-      <div className="flex flex-row gap-2">
+      <div className="flex flex-row justify-between">
         <ColumnSelector
           form={form}
           name="general.yColumn.field"

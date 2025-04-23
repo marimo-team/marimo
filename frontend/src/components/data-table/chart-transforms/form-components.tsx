@@ -206,7 +206,7 @@ export const SelectField = <T extends object>({
     control={form.control}
     name={name}
     render={({ field }) => (
-      <FormItem className="flex flex-row items-center gap-2">
+      <FormItem className="flex flex-row items-center justify-between">
         <FormLabel>{formFieldLabel}</FormLabel>
         <FormControl>
           <Select
@@ -214,7 +214,7 @@ export const SelectField = <T extends object>({
             onValueChange={field.onChange}
             value={field.value ?? defaultValue}
           >
-            <SelectTrigger className="ml-auto">
+            <SelectTrigger>
               <SelectValue placeholder="Select an option" />
             </SelectTrigger>
             <SelectContent>
@@ -478,7 +478,7 @@ export const TimeUnitSelect = <T extends object>({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormItem className="flex flex-row items-center gap-2 w-full">
+        <FormItem className="flex flex-row items-center justify-between w-full">
           <FormLabel>{formFieldLabel}</FormLabel>
           <FormControl>
             <Select
@@ -492,10 +492,7 @@ export const TimeUnitSelect = <T extends object>({
               }}
               value={field.value}
             >
-              <SelectTrigger
-                onClear={field.value ? clear : undefined}
-                className="ml-auto"
-              >
+              <SelectTrigger onClear={field.value ? clear : undefined}>
                 <SelectValue placeholder="Select unit" />
               </SelectTrigger>
               <SelectContent className="w-72">
@@ -541,7 +538,7 @@ export const DataTypeSelect = <T extends object>({
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormItem className="flex flex-row items-center gap-2 w-full">
+        <FormItem className="flex flex-row items-center justify-between w-full">
           <FormLabel>{formFieldLabel}</FormLabel>
           <FormControl>
             <Select
@@ -554,7 +551,7 @@ export const DataTypeSelect = <T extends object>({
               open={isOpen}
               onOpenChange={setIsOpen}
             >
-              <SelectTrigger className="ml-auto">
+              <SelectTrigger>
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
