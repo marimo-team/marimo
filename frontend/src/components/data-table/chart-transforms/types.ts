@@ -35,6 +35,15 @@ export const TIME_UNITS = [
 ] as const;
 export type TimeUnit = (typeof TIME_UNITS)[number];
 
+// Time units that are not selectable options but are used for tooltips
+export const TIME_UNIT_TOOLTIPS = [
+  ...TIME_UNITS,
+  "yearmonthdatehoursminutesseconds",
+  "yearmonthdate",
+  "hoursminutesseconds",
+] as const;
+export type TimeUnitTooltip = (typeof TIME_UNIT_TOOLTIPS)[number];
+
 /**
  * Similar to VegaLite's SortOrder, https://vega.github.io/vega-lite/docs/sort.html#order
  */

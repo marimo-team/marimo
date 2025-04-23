@@ -8,7 +8,11 @@ import {
   type ChartSchema,
   type AxisSchema,
 } from "./chart-schemas";
-import { NONE_AGGREGATION, type SelectableDataType } from "./types";
+import {
+  NONE_AGGREGATION,
+  type SelectableDataType,
+  type TimeUnitTooltip,
+} from "./types";
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";
@@ -28,6 +32,7 @@ import {
   DEFAULT_COLOR_SCHEME,
   EMPTY_VALUE,
 } from "./constants";
+import type { Tooltip } from "./form-components";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -167,7 +172,7 @@ function getPieChartSpec(
   const colorEncoding: ColorDef<string> = {
     field: colorByColumn.field,
     type: TypeConverters.toVegaType(
-      colorByColumn.selectedDataType ?? "unknown",
+      colorByColumn.selectedDataType || "unknown",
     ),
     scale: EncodingUtils.getColorInScale(formValues),
     title: colorFieldLabel,
@@ -315,7 +320,7 @@ const EncodingUtils = {
 
   getTooltipAggregate(
     field: string,
-    yColumn?: { field: string; aggregate: string },
+    yColumn?: z.infer<typeof AxisSchema>,
   ): "count" | "sum" | "mean" | "median" | "min" | "max" | undefined {
     if (field !== yColumn?.field) {
       return undefined;
@@ -342,26 +347,58 @@ const EncodingUtils = {
     }
   },
 
+  getTooltipTimeUnit(
+    tooltip: Tooltip,
+    formValues: z.infer<typeof ChartSchema>,
+  ): TimeUnitTooltip | undefined {
+    const xColumn = formValues.general.xColumn;
+    const yColumn = formValues.general.yColumn;
+    const colorByColumn = formValues.general.colorByColumn;
+    const columns = [xColumn, yColumn, colorByColumn];
+
+    // Check if tooltip field matches any temporal column with timeUnit
+    const matchingColumn = columns.find(
+      (col) =>
+        tooltip.field === col?.field &&
+        col?.selectedDataType === "temporal" &&
+        col?.timeUnit,
+    );
+
+    if (matchingColumn?.timeUnit) {
+      return matchingColumn.timeUnit;
+    }
+
+    switch (tooltip.type) {
+      case "datetime":
+        return "yearmonthdatehoursminutesseconds";
+      case "date":
+        return "yearmonthdate";
+      case "time":
+        return "hoursminutesseconds";
+      default:
+        return undefined;
+    }
+  },
+
   getTooltips(formValues: z.infer<typeof ChartSchema>) {
     if (!formValues.general.tooltips) {
       return undefined;
     }
 
     return formValues.general.tooltips.map(
-      (tooltip): StringFieldDef<string> => ({
-        field: tooltip.field,
-        aggregate: this.getTooltipAggregate(
-          tooltip.field,
-          formValues.general.yColumn?.field &&
-            formValues.general.yColumn?.aggregate
-            ? {
-                field: formValues.general.yColumn.field,
-                aggregate: formValues.general.yColumn.aggregate,
-              }
-            : undefined,
-        ),
-        format: this.getTooltipFormat(tooltip.type),
-      }),
+      (tooltip): StringFieldDef<string> => {
+        const timeUnit = this.getTooltipTimeUnit(tooltip, formValues);
+        return {
+          field: tooltip.field,
+          aggregate: this.getTooltipAggregate(
+            tooltip.field,
+            formValues.general.yColumn,
+          ),
+          format: this.getTooltipFormat(tooltip.type),
+          timeUnit: timeUnit,
+          title: timeUnit ? tooltip.field : undefined,
+        };
+      },
     );
   },
 };
@@ -385,7 +422,7 @@ const ColorUtils = {
       color: {
         field: formValues.general.colorByColumn.field,
         type: TypeConverters.toVegaType(
-          formValues.general.colorByColumn.selectedDataType ?? "unknown",
+          formValues.general.colorByColumn.selectedDataType || "unknown",
         ),
         scale: EncodingUtils.getColorInScale(formValues),
         aggregate: aggregate === NONE_AGGREGATION ? undefined : aggregate,
