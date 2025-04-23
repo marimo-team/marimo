@@ -41,16 +41,8 @@ export const ChartSchema = z.object({
     title: z.string().optional(),
     xColumn: AxisSchema,
     yColumn: AxisSchema,
+    colorByColumn: AxisSchema,
     horizontal: z.boolean().optional(),
-    colorByColumn: z
-      .object({
-        field: z.string().optional(),
-        type: z.enum(DATA_TYPES).optional(),
-        selectedDataType: z.enum(SELECTABLE_DATA_TYPES).optional(),
-        binned: z.boolean().optional(),
-        aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
-      })
-      .optional(),
     stacking: z.boolean().optional(),
     tooltips: z
       .array(

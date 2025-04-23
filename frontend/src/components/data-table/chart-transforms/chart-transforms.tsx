@@ -439,10 +439,6 @@ const CommonChartForm: React.FC<{
     ? TypeConverters.toSelectableDataType(yColumn.type)
     : "string";
 
-  // const inferredGroupByDataType = groupByColumn?.type
-  //   ? TypeConverters.toSelectableDataType(groupByColumn.type)
-  //   : "string";
-
   const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
   const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
   const isXCountField = xColumn?.field === COUNT_FIELD;
@@ -451,9 +447,7 @@ const CommonChartForm: React.FC<{
   const shouldShowXAggregation =
     xColumnExists && selectedXDataType !== "temporal" && !isXCountField;
   const shouldShowYAggregation =
-    FieldValidators.exists(yColumn?.field) &&
-    selectedYDataType === "temporal" &&
-    !isYCountField;
+    yColumnExists && selectedYDataType !== "temporal" && !isYCountField;
 
   const shouldShowXTimeUnit =
     xColumnExists && selectedXDataType === "temporal" && !isXCountField;
@@ -539,15 +533,12 @@ const CommonChartForm: React.FC<{
       )}
 
       {yColumnExists && (
-        <BooleanField
-          form={form}
-          name="general.horizontal"
-          formFieldLabel="Horizontal chart"
-        />
-      )}
-
-      {yColumnExists && (
         <>
+          <BooleanField
+            form={form}
+            name="general.horizontal"
+            formFieldLabel="Horizontal chart"
+          />
           <Title text="Color by" />
           <div className="flex flex-row justify-between">
             <ColumnSelector
@@ -561,21 +552,13 @@ const CommonChartForm: React.FC<{
             />
           </div>
           {FieldValidators.exists(groupByColumn?.field) && (
-            <>
-              {/* <DataTypeSelect
+            <div className="flex flex-row gap-2">
+              <BooleanField
                 form={form}
-                name="general.colorByColumn.selectedDataType"
-                formFieldLabel="Data Type"
-                defaultValue={inferredGroupByDataType}
-              /> */}
-              <div className="flex flex-row gap-2">
-                <BooleanField
-                  form={form}
-                  name="general.stacking"
-                  formFieldLabel="Stacked"
-                />
-              </div>
-            </>
+                name="general.stacking"
+                formFieldLabel="Stacked"
+              />
+            </div>
           )}
         </>
       )}
