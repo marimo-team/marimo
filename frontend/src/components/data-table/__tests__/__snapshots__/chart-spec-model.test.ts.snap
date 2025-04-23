@@ -322,7 +322,7 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
             },
             "field": "bin_maxbins_10_date",
             "format": "%Y-%m-%d",
-            "title": "Start",
+            "title": "date (start)",
             "type": "temporal",
           },
           {
@@ -331,7 +331,7 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
             },
             "field": "bin_maxbins_10_date_end",
             "format": "%Y-%m-%d",
-            "title": "End",
+            "title": "date (end)",
             "type": "temporal",
           },
           {

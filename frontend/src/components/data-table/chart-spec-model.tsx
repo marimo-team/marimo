@@ -171,14 +171,14 @@ export class ColumnChartSpecModel<T> {
                     type: "temporal",
                     format: format,
                     bin: { binned: true },
-                    title: "Start",
+                    title: `${column} (start)`,
                   },
                   {
                     field: `bin_maxbins_10_${column}_end`,
                     type: "temporal",
                     format: format,
                     bin: { binned: true },
-                    title: "End",
+                    title: `${column} (end)`,
                   },
                   {
                     aggregate: "count",
