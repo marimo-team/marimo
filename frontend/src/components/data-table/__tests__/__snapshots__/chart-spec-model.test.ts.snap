@@ -317,10 +317,21 @@ exports[`ColumnChartSpecModel > snapshot > url data 1`] = `
         },
         "tooltip": [
           {
-            "bin": true,
-            "field": "date",
+            "bin": {
+              "binned": true,
+            },
+            "field": "bin_maxbins_10_date",
             "format": "%Y-%m-%d",
-            "title": "date",
+            "title": "date (start)",
+            "type": "temporal",
+          },
+          {
+            "bin": {
+              "binned": true,
+            },
+            "field": "bin_maxbins_10_date_end",
+            "format": "%Y-%m-%d",
+            "title": "date (end)",
             "type": "temporal",
           },
           {
