@@ -43,21 +43,37 @@ df
 /// tab | polars
 
 ```python
-import polars as pl
+import pandas as pd
 
-df = pl.read_json(
-    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+df = pd.read_json(
+"https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
 df
 ```
 
 ///
 
+<div>
+<marimo-iframe data-height="700px">
+```python
+import pandas as pd
+
+df = pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+)
+df
+```
+</marimo-iframe>
+</div>
+
 To opt out of the rich dataframe viewer, use [`mo.plain`][marimo.plain]:
 
 /// tab | pandas
 
 ```python
+import pandas as pd
+import marimo as mo
+
 df = pd.read_json(
 "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
@@ -69,6 +85,9 @@ mo.plain(df)
 /// tab | polars
 
 ```python
+import polars as pl
+import marimo as mo
+
 df = pl.read_json(
 "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
@@ -76,6 +95,21 @@ mo.plain(df)
 ```
 
 ///
+
+<div>
+<marimo-iframe data-height="700px">
+```python
+import pandas as pd
+import marimo as mo
+
+df = pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+)
+mo.plain(df)
+```
+</marimo-iframe>
+</div>
+
 
 ## Transforming dataframes
 
@@ -134,11 +168,24 @@ transformed_df.value
 
 ///
 
-<div align="center">
-<figure>
-<img src="/_static/docs-dataframe-transform-code.png"/>
-<figcaption>Copy the code of the transformation</figcaption>
-</figure>
+<div>
+<marimo-iframe data-height="980px">
+```python
+import marimo as mo
+import pandas as pd
+
+df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+transformed_df = mo.ui.dataframe(df)
+
+transformed_df
+```
+
+```python
+# transformed_df.value holds the transformed dataframe
+transformed_df.value
+```
+
+</marimo-iframe>
 </div>
 
 ### Custom filters
@@ -256,3 +303,5 @@ Run it with:
 ```bash
 marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars/polars_example.py
 ```
+
+<script src="https://cdn.jsdelivr.net/npm/@marimo-team/marimo-snippets@1"></script>
