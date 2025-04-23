@@ -353,7 +353,7 @@ class TestExportHTML:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
-        output = p.stdout.decode()
+        output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
         assert "uv run --isolated" in output
@@ -892,7 +892,7 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
-        output = p.stdout.decode()
+        output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
         assert "uv run --isolated" in output
