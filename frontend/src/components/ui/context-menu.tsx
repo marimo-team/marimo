@@ -66,13 +66,26 @@ ContextMenuSubContent.displayName = ContextMenuPrimitive.SubContent.displayName;
 
 const ContextMenuContent = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content> & {
+    scrollable?: boolean;
+  }
+>(({ className, scrollable = true, ...props }, ref) => (
   <ContextMenuPortal>
     <StyleNamespace>
       <ContextMenuPrimitive.Content
         ref={ref}
-        className={cn(menuContentCommon(), contentCommon, className)}
+        className={cn(
+          menuContentCommon(),
+          contentCommon,
+          scrollable && "overflow-auto",
+          className,
+        )}
+        style={{
+          ...props.style,
+          maxHeight: scrollable
+            ? "calc(var(--radix-context-menu-content-available-height) - 30px)"
+            : undefined,
+        }}
         {...props}
       />
     </StyleNamespace>
