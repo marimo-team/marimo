@@ -135,6 +135,7 @@
     "react-virtuoso": "^4.12.6",
     "reactflow": "^11.11.4",
     "rpc-anywhere": "^1.7.0",
+    "sql-formatter": "^15.6.0",
     "string-dedent": "^3.0.1",
     "swiper": "^11.2.6",
     "tailwind-merge": "^2.6.0",

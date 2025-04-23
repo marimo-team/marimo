@@ -10,7 +10,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CircleHelpIcon } from "lucide-react";
+import { AlertCircle, CircleHelpIcon, PaintRollerIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -25,6 +25,11 @@ import { DatabaseLogo } from "@/components/databases/icon";
 import { transformDisplayName } from "@/components/databases/display";
 import { useNonce } from "@/hooks/useNonce";
 import type { DataSourceConnection } from "@/core/kernel/messages";
+import { formatSQL } from "../format";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+
+const Divider = () => <div className="h-4 border-r border-border" />;
 
 export const LanguagePanelComponent: React.FC<{
   view: EditorView;
@@ -83,27 +88,43 @@ export const LanguagePanelComponent: React.FC<{
           languageAdapter={languageAdapter}
           onChange={triggerUpdate}
         />
-        <label className="flex items-center gap-2 ml-auto">
-          <input
-            type="checkbox"
-            onChange={(e) => {
-              languageAdapter.setShowOutput(!e.target.checked);
-              triggerUpdate();
-            }}
-            checked={!languageAdapter.showOutput}
-          />
-          <span className="select-none">Hide output</span>
-        </label>
+        <div className="flex items-center gap-2 ml-auto">
+          <Tooltip content="Format SQL">
+            <Button
+              variant="text"
+              size="icon"
+              onClick={async () => {
+                await formatSQL(view);
+              }}
+            >
+              <PaintRollerIcon className="h-3 w-3" />
+            </Button>
+          </Tooltip>
+          <Divider />
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              onChange={(e) => {
+                languageAdapter.setShowOutput(!e.target.checked);
+                triggerUpdate();
+              }}
+              checked={!languageAdapter.showOutput}
+            />
+            <span className="select-none">Hide output</span>
+          </label>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-between items-center gap-4 pl-2 pt-2">
-      {actions}
-      {showDivider && <div className="h-4 border-r border-border" />}
-      {languageAdapter.type}
-    </div>
+    <TooltipProvider>
+      <div className="flex justify-between items-center gap-4 pl-2 pt-2">
+        {actions}
+        {showDivider && <Divider />}
+        {languageAdapter.type}
+      </div>
+    </TooltipProvider>
   );
 };
 
@@ -190,6 +211,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
                 className="flex items-center gap-1"
                 href={HELP_URL}
                 target="_blank"
+                rel="noreferrer"
               >
                 <CircleHelpIcon className="h-3 w-3" />
                 <span>How to add a database connection</span>
