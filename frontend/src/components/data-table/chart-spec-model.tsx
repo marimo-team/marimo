@@ -109,7 +109,14 @@ export class ColumnChartSpecModel<T> {
     switch (type) {
       case "date":
       case "datetime":
-      case "time":
+      case "time": {
+        const format =
+          type === "date"
+            ? "%Y-%m-%d"
+            : type === "time"
+              ? "%H:%M:%S"
+              : "%Y-%m-%dT%H:%M:%S";
+
         return {
           ...base,
           // Two layers: one with the visible bars, and one with invisible bars
@@ -159,16 +166,18 @@ export class ColumnChartSpecModel<T> {
                 y: { aggregate: "max", type: "quantitative", axis: null },
                 tooltip: [
                   {
+                    // Column name is used as the bin start value
                     field: column,
                     type: "temporal",
-                    format:
-                      type === "date"
-                        ? "%Y-%m-%d"
-                        : type === "time"
-                          ? "%H:%M:%S"
-                          : "%Y-%m-%dT%H:%M:%S",
+                    format: format,
                     bin: true,
-                    title: column,
+                    title: "Start",
+                  },
+                  {
+                    field: `bin_maxbins_10_${column}_end`,
+                    type: "temporal",
+                    format: format,
+                    title: "End",
                   },
                   {
                     aggregate: "count",
@@ -189,6 +198,7 @@ export class ColumnChartSpecModel<T> {
             },
           ],
         };
+      }
       case "integer":
       case "number": {
         // Create a histogram spec that properly handles null values
