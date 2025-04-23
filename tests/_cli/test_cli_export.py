@@ -130,6 +130,36 @@ class TestExportHTML:
         shutil.rmtree(public_dir)
 
     @staticmethod
+    def test_cli_export_html_wasm_cloudflare(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "cloudflare" / "out"
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                out_dir,
+                "--include-cloudflare",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        # Verify Cloudflare files were created
+        assert (out_dir.parent / "index.js").exists()
+        assert (out_dir.parent / "wrangler.jsonc").exists()
+
+        # Verify index.js content
+        index_js = (out_dir.parent / "index.js").read_text()
+        assert "env.ASSETS.fetch(request)" in index_js
+
+        # Verify wrangler.jsonc content
+        wrangler = (out_dir.parent / "wrangler.jsonc").read_text()
+        assert "name" in wrangler
+        assert "main" in wrangler
+
+    @staticmethod
     def test_cli_export_html_wasm_output_is_file(
         temp_marimo_file: str,
     ) -> None:
