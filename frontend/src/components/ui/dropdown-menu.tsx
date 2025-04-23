@@ -61,8 +61,10 @@ DropdownMenuSubContent.displayName =
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
+    scrollable?: boolean;
+  }
+>(({ className, scrollable = true, sideOffset = 4, ...props }, ref) => (
   <DropdownMenuPortal>
     <StyleNamespace>
       <DropdownMenuPrimitive.Content
@@ -71,8 +73,15 @@ const DropdownMenuContent = React.forwardRef<
         className={cn(
           menuContentCommon(),
           "animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          scrollable && "overflow-auto",
           className,
         )}
+        style={{
+          ...props.style,
+          maxHeight: scrollable
+            ? "calc(var(--radix-dropdown-menu-content-available-height) - 30px)"
+            : undefined,
+        }}
         {...props}
       />
     </StyleNamespace>
