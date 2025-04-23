@@ -6,8 +6,6 @@ import {
   TableIcon,
   XIcon,
   InfoIcon,
-  ArrowUpWideNarrowIcon,
-  ArrowDownWideNarrowIcon,
   DatabaseIcon,
   PaintRollerIcon,
 } from "lucide-react";
@@ -16,7 +14,6 @@ import type { z } from "zod";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChartSchema } from "./chart-schemas";
-import { SORT_TYPES } from "./types";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -38,15 +35,9 @@ import {
   DataTypeSelect,
   SelectField,
   SliderField,
-  TimeUnitSelect,
   TooltipSelect,
 } from "./form-components";
-import {
-  ChartType,
-  COLOR_SCHEMES,
-  COUNT_FIELD,
-  DEFAULT_COLOR_SCHEME,
-} from "./constants";
+import { ChartType, COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "./constants";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
@@ -58,12 +49,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  IconWithText,
   TabContainer,
   Title,
   ChartLoadingState,
   ChartErrorState,
   ChartTypeSelect,
+  YAxis,
+  ColorByAxis,
+  XAxis,
 } from "./chart-components";
 
 const NEW_TAB_NAME = "Chart" as TabName;
@@ -334,7 +327,7 @@ export const ChartPanel: React.FC<{
           }}
         />
 
-        <ChartForm
+        <ChartFormContainer
           form={form}
           saveChart={saveChart}
           fieldTypes={fieldTypes}
@@ -346,19 +339,17 @@ export const ChartPanel: React.FC<{
   );
 };
 
-interface ChartFormProps {
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  chartType: ChartType;
-  saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
-  fieldTypes?: FieldTypesWithExternalType | null;
-}
-
-const ChartForm = ({
+const ChartFormContainer = ({
   form,
   saveChart,
   fieldTypes,
   chartType,
-}: ChartFormProps) => {
+}: {
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  chartType: ChartType;
+  saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
+  fieldTypes?: FieldTypesWithExternalType | null;
+}) => {
   const fields: Field[] | undefined = fieldTypes?.map((field) => {
     return {
       name: field[0],
@@ -371,8 +362,13 @@ const ChartForm = ({
     saveChart(values);
   }, 300);
 
-  const ChartForm =
-    chartType === ChartType.PIE ? PieChartForm : CommonChartForm;
+  let ChartForm = CommonChartForm;
+
+  if (chartType === ChartType.PIE) {
+    ChartForm = PieChartForm;
+  } else if (chartType === ChartType.HEATMAP) {
+    ChartForm = HeatmapChartForm;
+  }
 
   return (
     <Form {...form}>
@@ -396,6 +392,7 @@ const ChartForm = ({
                 form={form}
                 fields={fields ?? []}
                 saveForm={debouncedSave}
+                chartType={chartType}
               />
             </TabContainer>
           </TabsContent>
@@ -420,138 +417,24 @@ const CommonChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
   saveForm: () => void;
-}> = ({ form, fields, saveForm }) => {
+  chartType: ChartType;
+}> = ({ form, fields, saveForm, chartType }) => {
   const formValues = useWatch({ control: form.control });
-  const xColumn = formValues.general?.xColumn;
   const yColumn = formValues.general?.yColumn;
   const groupByColumn = formValues.general?.colorByColumn;
 
-  const xColumnExists = FieldValidators.exists(xColumn?.field);
   const yColumnExists = FieldValidators.exists(yColumn?.field);
-
-  // TODO: How/when do we choose between a saved scale type and an inferred scale type?
-  // For now, we'll use the inferred scale type
-  const inferredXDataType = xColumn?.type
-    ? TypeConverters.toSelectableDataType(xColumn.type)
-    : "string";
-
-  const inferredYDataType = yColumn?.type
-    ? TypeConverters.toSelectableDataType(yColumn.type)
-    : "string";
-
-  const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
-  const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
-  const isXCountField = xColumn?.field === COUNT_FIELD;
-  const isYCountField = yColumn?.field === COUNT_FIELD;
-
-  const shouldShowXAggregation =
-    xColumnExists && selectedXDataType !== "temporal" && !isXCountField;
-  const shouldShowYAggregation =
-    yColumnExists && selectedYDataType !== "temporal" && !isYCountField;
-
-  const shouldShowXTimeUnit =
-    xColumnExists && selectedXDataType === "temporal" && !isXCountField;
-  const shouldShowYTimeUnit =
-    yColumnExists && selectedYDataType === "temporal" && !isYCountField;
+  const showStacking = FieldValidators.exists(groupByColumn?.field);
 
   return (
     <>
-      <Title text="X-Axis" />
-      <div className="flex flex-row gap-2 justify-between">
-        <ColumnSelector
-          form={form}
-          name="general.xColumn.field"
-          columns={fields}
-        />
-        {shouldShowXAggregation && (
-          <AggregationSelect form={form} name="general.xColumn.aggregate" />
-        )}
-      </div>
-      {xColumnExists && !isXCountField && (
-        <DataTypeSelect
-          form={form}
-          formFieldLabel="Data Type"
-          name="general.xColumn.selectedDataType"
-          defaultValue={inferredXDataType}
-        />
-      )}
-      {shouldShowXTimeUnit && (
-        <TimeUnitSelect
-          form={form}
-          name="general.xColumn.timeUnit"
-          formFieldLabel="Time Resolution"
-        />
-      )}
-      {xColumnExists && !isXCountField && (
-        <SelectField
-          form={form}
-          name="general.xColumn.sort"
-          formFieldLabel="Sort"
-          options={SORT_TYPES.map((type) => ({
-            display: (
-              <IconWithText
-                Icon={
-                  type === "ascending"
-                    ? ArrowUpWideNarrowIcon
-                    : ArrowDownWideNarrowIcon
-                }
-                text={capitalize(type)}
-              />
-            ),
-            value: type,
-          }))}
-          defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
-        />
-      )}
-
-      <Title text="Y-Axis" />
-      <div className="flex flex-row gap-2 justify-between">
-        <ColumnSelector
-          form={form}
-          name="general.yColumn.field"
-          columns={fields}
-        />
-        {shouldShowYAggregation && (
-          <AggregationSelect form={form} name="general.yColumn.aggregate" />
-        )}
-      </div>
-
-      {yColumnExists && !isYCountField && (
-        <DataTypeSelect
-          form={form}
-          formFieldLabel="Data Type"
-          name="general.yColumn.selectedDataType"
-          defaultValue={inferredYDataType}
-        />
-      )}
-      {shouldShowYTimeUnit && (
-        <TimeUnitSelect
-          form={form}
-          name="general.yColumn.timeUnit"
-          formFieldLabel="Time Resolution"
-        />
-      )}
+      <XAxis form={form} fields={fields} />
+      <YAxis form={form} fields={fields} />
 
       {yColumnExists && (
         <>
-          <BooleanField
-            form={form}
-            name="general.horizontal"
-            formFieldLabel="Horizontal chart"
-          />
-          <Title text="Color by" />
-          <div className="flex flex-row justify-between">
-            <ColumnSelector
-              form={form}
-              name="general.colorByColumn.field"
-              columns={fields}
-            />
-            <AggregationSelect
-              form={form}
-              name="general.colorByColumn.aggregate"
-            />
-          </div>
-          {FieldValidators.exists(groupByColumn?.field) && (
+          <ColorByAxis form={form} fields={fields} />
+          {showStacking && (
             <div className="flex flex-row gap-2">
               <BooleanField
                 form={form}
@@ -575,11 +458,51 @@ const CommonChartForm: React.FC<{
   );
 };
 
+const HeatmapChartForm: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+  saveForm: () => void;
+  chartType: ChartType;
+}> = ({ form, fields, saveForm, chartType }) => {
+  const formValues = useWatch({ control: form.control });
+  const xColumnExists = FieldValidators.exists(
+    formValues.general?.xColumn?.field,
+  );
+  const yColumnExists = FieldValidators.exists(
+    formValues.general?.yColumn?.field,
+  );
+
+  return (
+    <>
+      <XAxis form={form} fields={fields} />
+      {xColumnExists && (
+        <NumberField
+          form={form}
+          name="xAxis.bin.maxbins"
+          formFieldLabel="Number of boxes (max)"
+          className="justify-between"
+        />
+      )}
+      <YAxis form={form} fields={fields} />
+      {yColumnExists && (
+        <NumberField
+          form={form}
+          name="yAxis.bin.maxbins"
+          formFieldLabel="Number of boxes (max)"
+          className="justify-between"
+        />
+      )}
+      <ColorByAxis form={form} fields={fields} />
+    </>
+  );
+};
+
 const PieChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
   saveForm: () => void;
-}> = ({ form, fields, saveForm }) => {
+  chartType: ChartType;
+}> = ({ form, fields, saveForm, chartType }) => {
   const formValues = useWatch({ control: form.control });
   const colorByColumn = formValues.general?.colorByColumn;
 

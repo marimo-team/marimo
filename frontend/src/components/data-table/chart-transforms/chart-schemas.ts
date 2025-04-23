@@ -21,6 +21,7 @@ export const NONE_GROUP_BY = "None";
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
   step: z.number().optional(),
+  maxbins: z.number().optional(),
 });
 
 export const AxisSchema = z

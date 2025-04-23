@@ -12,6 +12,7 @@ import {
   ArrowUpToLineIcon,
   ChartScatterIcon,
   SquareFunctionIcon,
+  TableIcon,
 } from "lucide-react";
 import type { ColorScheme } from "vega";
 import type { AggregationFn, SelectableDataType, TimeUnit } from "./types";
@@ -24,6 +25,7 @@ export const ChartType = {
   BAR: "bar",
   PIE: "pie",
   SCATTER: "scatter",
+  HEATMAP: "heatmap",
 } as const;
 export type ChartType = (typeof ChartType)[keyof typeof ChartType];
 export const CHART_TYPES = Object.values(ChartType);
@@ -33,6 +35,7 @@ export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   bar: BarChartIcon,
   pie: PieChartIcon,
   scatter: ChartScatterIcon,
+  heatmap: TableIcon,
 };
 
 export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {

@@ -2,7 +2,12 @@
 
 import type { LucideProps } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { ChevronDown, Loader2 } from "lucide-react";
+import {
+  ArrowDownWideNarrowIcon,
+  ArrowUpWideNarrowIcon,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 import { capitalize } from "lodash-es";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import {
@@ -11,9 +16,28 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { CHART_TYPE_ICON, CHART_TYPES, type ChartType } from "./constants";
+import {
+  CHART_TYPE_ICON,
+  CHART_TYPES,
+  COUNT_FIELD,
+  type ChartType,
+} from "./constants";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { buttonVariants } from "@/components/ui/button";
+import { type UseFormReturn, useWatch } from "react-hook-form";
+import type { z } from "zod";
+import type { ChartSchema } from "./chart-schemas";
+import { FieldValidators, TypeConverters } from "./chart-spec";
+import {
+  ColumnSelector,
+  AggregationSelect,
+  DataTypeSelect,
+  TimeUnitSelect,
+  SelectField,
+  BooleanField,
+  type Field,
+} from "./form-components";
+import { SORT_TYPES } from "./types";
 
 export const IconWithText: React.FC<{
   Icon: React.ForwardRefExoticComponent<
@@ -90,5 +114,157 @@ const ChartSelectItem: React.FC<{ chartType: ChartType }> = ({ chartType }) => {
         {capitalize(chartType)}
       </div>
     </SelectItem>
+  );
+};
+
+export const XAxis: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+}> = ({ form, fields }) => {
+  const formValues = useWatch({ control: form.control });
+  const xColumn = formValues.general?.xColumn;
+  const xColumnExists = FieldValidators.exists(xColumn?.field);
+
+  const inferredXDataType = xColumn?.type
+    ? TypeConverters.toSelectableDataType(xColumn.type)
+    : "string";
+
+  const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
+  const isXCountField = xColumn?.field === COUNT_FIELD;
+
+  const shouldShowXAggregation =
+    xColumnExists && selectedXDataType !== "temporal" && !isXCountField;
+
+  const shouldShowXTimeUnit =
+    xColumnExists && selectedXDataType === "temporal" && !isXCountField;
+
+  return (
+    <>
+      <Title text="X-Axis" />
+      <div className="flex flex-row gap-2 justify-between">
+        <ColumnSelector
+          form={form}
+          name="general.xColumn.field"
+          columns={fields}
+        />
+        {shouldShowXAggregation && (
+          <AggregationSelect form={form} name="general.xColumn.aggregate" />
+        )}
+      </div>
+      {xColumnExists && !isXCountField && (
+        <DataTypeSelect
+          form={form}
+          formFieldLabel="Data Type"
+          name="general.xColumn.selectedDataType"
+          defaultValue={inferredXDataType}
+        />
+      )}
+      {shouldShowXTimeUnit && (
+        <TimeUnitSelect
+          form={form}
+          name="general.xColumn.timeUnit"
+          formFieldLabel="Time Resolution"
+        />
+      )}
+      {xColumnExists && !isXCountField && (
+        <SelectField
+          form={form}
+          name="general.xColumn.sort"
+          formFieldLabel="Sort"
+          options={SORT_TYPES.map((type) => ({
+            display: (
+              <IconWithText
+                Icon={
+                  type === "ascending"
+                    ? ArrowUpWideNarrowIcon
+                    : ArrowDownWideNarrowIcon
+                }
+                text={capitalize(type)}
+              />
+            ),
+            value: type,
+          }))}
+          defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
+        />
+      )}
+    </>
+  );
+};
+
+export const YAxis: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+}> = ({ form, fields }) => {
+  const formValues = useWatch({ control: form.control });
+  const yColumn = formValues.general?.yColumn;
+  const yColumnExists = FieldValidators.exists(yColumn?.field);
+
+  const inferredYDataType = yColumn?.type
+    ? TypeConverters.toSelectableDataType(yColumn.type)
+    : "string";
+
+  const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
+  const isYCountField = yColumn?.field === COUNT_FIELD;
+
+  const shouldShowYAggregation =
+    yColumnExists && selectedYDataType !== "temporal" && !isYCountField;
+
+  const shouldShowYTimeUnit =
+    yColumnExists && selectedYDataType === "temporal" && !isYCountField;
+
+  return (
+    <>
+      <Title text="Y-Axis" />
+      <div className="flex flex-row gap-2 justify-between">
+        <ColumnSelector
+          form={form}
+          name="general.yColumn.field"
+          columns={fields}
+        />
+        {shouldShowYAggregation && (
+          <AggregationSelect form={form} name="general.yColumn.aggregate" />
+        )}
+      </div>
+
+      {yColumnExists && !isYCountField && (
+        <DataTypeSelect
+          form={form}
+          formFieldLabel="Data Type"
+          name="general.yColumn.selectedDataType"
+          defaultValue={inferredYDataType}
+        />
+      )}
+      {shouldShowYTimeUnit && (
+        <TimeUnitSelect
+          form={form}
+          name="general.yColumn.timeUnit"
+          formFieldLabel="Time Resolution"
+        />
+      )}
+    </>
+  );
+};
+
+export const ColorByAxis: React.FC<{
+  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  fields: Field[];
+}> = ({ form, fields }) => {
+  return (
+    <>
+      <BooleanField
+        form={form}
+        name="general.horizontal"
+        formFieldLabel="Horizontal chart"
+      />
+      <Title text="Color by" />
+      <div className="flex flex-row justify-between">
+        <ColumnSelector
+          form={form}
+          name="general.colorByColumn.field"
+          columns={fields}
+        />
+        <AggregationSelect form={form} name="general.colorByColumn.aggregate" />
+      </div>
+    </>
   );
 };

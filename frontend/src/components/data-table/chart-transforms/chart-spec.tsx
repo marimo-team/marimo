@@ -83,6 +83,7 @@ export function createVegaSpec(
     formValues.xAxis?.bin,
     xAxisLabel,
     colorByColumn?.field && horizontal ? stacking : undefined,
+    chartType,
   );
 
   const yEncoding = getAxisEncoding(
@@ -90,6 +91,7 @@ export function createVegaSpec(
     formValues.yAxis?.bin,
     yAxisLabel,
     colorByColumn?.field && !horizontal ? stacking : undefined,
+    chartType,
   );
 
   // Create the final spec
@@ -111,6 +113,7 @@ function getAxisEncoding(
   binValues: z.infer<typeof BinSchema> | undefined,
   label: string | undefined,
   stack: boolean | undefined,
+  chartType: ChartType,
 ): PositionDef<string> {
   if (column.field === COUNT_FIELD) {
     return {
@@ -125,7 +128,7 @@ function getAxisEncoding(
   return {
     field: column.field,
     type: TypeConverters.toVegaType(column.selectedDataType || "unknown"),
-    bin: EncodingUtils.getBin(binValues),
+    bin: EncodingUtils.getBin(binValues, chartType),
     title: label,
     stack: stack,
     aggregate:
@@ -257,6 +260,8 @@ export const TypeConverters = {
         return "arc";
       case ChartType.SCATTER:
         return "point";
+      case ChartType.HEATMAP:
+        return "rect";
       default:
         return chartType;
     }
@@ -283,10 +288,15 @@ export const FieldValidators = {
 
 // Encoding utilities
 const EncodingUtils = {
-  getBin(binValues?: z.infer<typeof BinSchema>) {
+  getBin(binValues?: z.infer<typeof BinSchema>, chartType?: ChartType) {
+    if (chartType === ChartType.HEATMAP) {
+      return { maxbins: binValues?.maxbins };
+    }
+
     if (!binValues?.binned) {
       return undefined;
     }
+
     return binValues.step === DEFAULT_BIN_VALUE
       ? true
       : { binned: true, step: binValues.step };
@@ -416,13 +426,23 @@ const ColorUtils = {
       return undefined;
     }
 
+    const colorByColumn = formValues.general.colorByColumn;
+    if (colorByColumn.field === COUNT_FIELD) {
+      return {
+        color: {
+          aggregate: "count",
+          type: "quantitative",
+        },
+      };
+    }
+
     const aggregate = formValues.general.colorByColumn.aggregate;
 
     return {
       color: {
-        field: formValues.general.colorByColumn.field,
+        field: colorByColumn.field,
         type: TypeConverters.toVegaType(
-          formValues.general.colorByColumn.selectedDataType || "unknown",
+          colorByColumn.selectedDataType || "unknown",
         ),
         scale: EncodingUtils.getColorInScale(formValues),
         aggregate: aggregate === NONE_AGGREGATION ? undefined : aggregate,

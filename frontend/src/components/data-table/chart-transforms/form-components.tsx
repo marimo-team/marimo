@@ -144,7 +144,7 @@ export const ColumnSelector = <T extends object>({
               value={field.value ?? EMPTY_VALUE}
             >
               <SelectTrigger
-                className="w-40"
+                className="w-40 truncate"
                 onClear={field.value ? clear : undefined}
               >
                 <SelectValue placeholder="Select column" />
@@ -214,7 +214,7 @@ export const SelectField = <T extends object>({
             onValueChange={field.onChange}
             value={field.value ?? defaultValue}
           >
-            <SelectTrigger>
+            <SelectTrigger className="truncate">
               <SelectValue placeholder="Select an option" />
             </SelectTrigger>
             <SelectContent>
@@ -280,6 +280,7 @@ export const NumberField = <T extends object>({
             onValueChange={field.onChange}
             aria-label={formFieldLabel}
             {...props}
+            className="w-16"
           />
         </FormControl>
       </FormItem>
