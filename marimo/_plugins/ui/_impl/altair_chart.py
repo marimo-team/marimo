@@ -563,7 +563,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         from altair import Undefined
 
         value = super().value
-        if value is Undefined:
+        if value is Undefined: # type: ignore
             sys.stderr.write(
                 "The underlying chart data is not available in layered"
                 " or stacked charts. "
