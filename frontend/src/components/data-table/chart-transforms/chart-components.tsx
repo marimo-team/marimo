@@ -16,12 +16,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  CHART_TYPE_ICON,
-  CHART_TYPES,
-  COUNT_FIELD,
-  type ChartType,
-} from "./constants";
+import { CHART_TYPE_ICON, COUNT_FIELD } from "./constants";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { buttonVariants } from "@/components/ui/button";
 import { type UseFormReturn, useWatch } from "react-hook-form";
@@ -37,7 +32,7 @@ import {
   BooleanField,
   type Field,
 } from "./form-components";
-import { SORT_TYPES } from "./types";
+import { CHART_TYPES, type ChartType, SORT_TYPES } from "./types";
 
 export const IconWithText: React.FC<{
   Icon: React.ForwardRefExoticComponent<
