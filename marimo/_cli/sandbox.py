@@ -195,6 +195,7 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
                 bold=True,
             ),
             default=True,
+            err=True,
         )
     else:
         echo(
@@ -374,7 +375,7 @@ def run_in_sandbox(
         args, name, additional_features or [], additional_deps or []
     )
 
-    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
+    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}", err=True)
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
