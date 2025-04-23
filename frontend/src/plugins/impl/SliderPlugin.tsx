@@ -64,7 +64,7 @@ interface SliderProps extends Data {
   valueMap: (sliderValue: number) => number;
 }
 
-export const SliderComponent = ({
+const SliderComponent = ({
   label,
   setValue,
   value,
