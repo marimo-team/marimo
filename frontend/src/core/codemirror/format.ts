@@ -111,5 +111,6 @@ export async function formatSQL(editor: EditorView) {
       to: editor.state.doc.length,
       insert: formattedSQL,
     },
+    effects: [formattingChangeEffect.of(true)],
   });
 }
