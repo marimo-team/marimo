@@ -84,10 +84,7 @@ class Exporter:
                     e,
                 )
                 continue
-            mime_type, _ = mimetypes.guess_type(basename) or (
-                "text/plain",
-                None,
-            )
+            mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
             files[filename_and_length] = build_data_url(
                 cast(KnownMimeType, mime_type),
                 base64.b64encode(buffer_contents),
