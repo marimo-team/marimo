@@ -66,7 +66,7 @@ export const AppConfigForm: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-          <SettingSection title="Display Settings">
+          <SettingSection title="Display">
             <FormField
               control={form.control}
               name="width"
@@ -189,7 +189,7 @@ export const AppConfigForm: React.FC = () => {
             />
           </SettingSection>
 
-          <SettingSection title="Data Settings">
+          <SettingSection title="Data">
             <FormField
               control={form.control}
               name="sql_output"
@@ -237,7 +237,7 @@ export const AppConfigForm: React.FC = () => {
             />
           </SettingSection>
 
-          <SettingSection title="Auto-save Settings">
+          <SettingSection title="Exporting outputs">
             <FormField
               control={form.control}
               name="auto_download"
