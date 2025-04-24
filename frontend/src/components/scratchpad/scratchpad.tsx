@@ -209,6 +209,11 @@ export const ScratchPad: React.FC = () => {
       className="flex flex-col h-full overflow-hidden divide-y"
       id={HTMLCellId.create(cellId)}
     >
+      <p className="mx-2 my-2 text-muted-foreground text-sm">
+        Use this scratchpad cell to experiment with throwaway code. Scratchpad
+        code can redefine variables from the notebook; its variables aren't
+        saved to notebook memory.
+      </p>
       <div className="flex items-center flex-shrink-0">
         <Tooltip content={renderShortcut("cell.run")}>
           <Button

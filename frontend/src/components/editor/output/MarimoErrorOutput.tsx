@@ -11,12 +11,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Fragment } from "react";
+import { Button } from "@/components/ui/button";
+import { Fragment, useCallback } from "react";
 import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";
-import { SquareArrowOutUpRightIcon } from "lucide-react";
+import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { ExternalLink } from "@/components/ui/links";
+import { useChromeActions } from "../chrome/state";
 
 const Tip = (props: {
   title?: string;
@@ -128,6 +130,12 @@ export const MarimoErrorOutput = ({
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
   );
+
+  const chromeActions = useChromeActions();
+
+  const openScratchpad = useCallback(() => {
+    chromeActions.openApplication("scratchpad");
+  }, [chromeActions]);
 
   const renderMessages = () => {
     const messages: JSX.Element[] = [];
@@ -270,9 +278,24 @@ export const MarimoErrorOutput = ({
               </ul>
             </Fragment>
           ))}
+
+          <div>
+            Throwaway code?{" "}
+            <Button
+              size="xs"
+              variant="outline"
+              className="my-2 font-normal"
+              onClick={openScratchpad}
+            >
+              <NotebookPenIcon className="h-3 w-3 mr-2" />
+              Open the scratchpad
+            </Button>
+          </div>
+
           {cellId && (
             <AutoFixButton errors={multipleDefsErrors} cellId={cellId} />
           )}
+
           <Tip title="Why can't I redefine variables?">
             <p className="pb-2">
               marimo requires that each variable is defined in just one cell.
@@ -509,7 +532,7 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div>
-        <ul className="flex flex-col gap-8">{renderMessages()}</ul>
+        <ul className="flex flex-col gap-8">{renderMessages(chromeActions)}</ul>
       </div>
     </Alert>
   );
