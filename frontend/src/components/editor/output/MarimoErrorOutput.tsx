@@ -11,12 +11,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";
-import { SquareArrowOutUpRightIcon } from "lucide-react";
+import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { ExternalLink } from "@/components/ui/links";
+import { useChromeActions } from "../chrome/state";
 
 const Tip = (props: {
   title?: string;
@@ -51,6 +53,8 @@ export const MarimoErrorOutput = ({
   cellId,
   className,
 }: Props): JSX.Element => {
+  const chromeActions = useChromeActions();
+
   let titleContents = "This cell wasn't run because it has errors";
   let alertVariant: "destructive" | "default" = "destructive";
   let titleColor = "text-error";
@@ -128,6 +132,10 @@ export const MarimoErrorOutput = ({
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
   );
+
+  const openScratchpad = () => {
+    chromeActions.openApplication("scratchpad");
+  };
 
   const renderMessages = () => {
     const messages: JSX.Element[] = [];
@@ -270,9 +278,11 @@ export const MarimoErrorOutput = ({
               </ul>
             </Fragment>
           ))}
+
           {cellId && (
             <AutoFixButton errors={multipleDefsErrors} cellId={cellId} />
           )}
+
           <Tip title="Why can't I redefine variables?">
             <p className="pb-2">
               marimo requires that each variable is defined in just one cell.
@@ -294,6 +304,21 @@ export const MarimoErrorOutput = ({
               </ExternalLink>
               .
             </p>
+          </Tip>
+
+          <Tip title="Need a scratchpad?">
+            <div className="flex flex-row gap-2 items-center">
+              <Button
+                size="xs"
+                variant="link"
+                className="my-2 font-normal mx-0 px-0"
+                onClick={openScratchpad}
+              >
+                <NotebookPenIcon className="h-3" />
+                <span>Try the scratchpad</span>
+              </Button>
+              <span>to experiment without restrictions on variable names.</span>
+            </div>
           </Tip>
         </li>,
       );

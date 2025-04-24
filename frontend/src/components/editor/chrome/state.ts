@@ -43,6 +43,11 @@ const {
     openApplication: (state, selectedPanel: PanelType) => ({
       ...state,
       selectedPanel,
+      isSidebarOpen: true,
+    }),
+    toggleApplication: (state, selectedPanel: PanelType) => ({
+      ...state,
+      selectedPanel,
       // If it was closed, open it
       // If it was open, keep it open unless it was the same application
       isSidebarOpen: state.isSidebarOpen
