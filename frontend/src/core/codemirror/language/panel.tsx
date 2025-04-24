@@ -133,7 +133,11 @@ export const LanguagePanelComponent: React.FC<{
       <div className="flex flex-row w-full justify-end">
         <Tooltip content={tooltipContent}>
           <Button variant="text" size="icon" onClick={handleClick}>
-            <i>{languageAdapter.lastQuotePrefix}</i>
+            {languageAdapter.lastQuotePrefix === "" ? (
+              <i>f</i>
+            ) : (
+              <i>{languageAdapter.lastQuotePrefix}</i>
+            )}
           </Button>
         </Tooltip>
       </div>
@@ -274,7 +278,7 @@ const prefixMap: Record<
     tooltip: "Toggle raw string",
   },
   "": {
-    next: "r",
-    tooltip: "Toggle raw string",
+    next: "f",
+    tooltip: "Toggle f string",
   },
 };
