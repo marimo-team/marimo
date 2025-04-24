@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import builtins
 import re
 from collections import namedtuple
 from typing import Optional
@@ -10,6 +11,17 @@ from marimo._types.ids import CellId_t
 UnmagledLocal = namedtuple("UnmagledLocal", "name cell")
 
 _EMPTY_CELL_ID = CellId_t("")
+
+BUILTINS = set(
+    {
+        *set(builtins.__dict__.keys()),
+        # resolved from:
+        #   set(globals().keys()) - set(builtins.__dict__.keys())
+        "__builtin__",
+        "__file__",
+        "__builtins__",
+    }
+)
 
 
 def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:

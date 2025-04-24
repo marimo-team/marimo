@@ -8,7 +8,6 @@ from tokenize import tokenize
 from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 
 from marimo._ast.app import InternalApp
-from marimo._ast.builtins import BUILTINS
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import (
@@ -16,6 +15,7 @@ from marimo._ast.names import (
     SETUP_CELL_NAME,
     TOPLEVEL_CELL_PREFIX,
 )
+from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t

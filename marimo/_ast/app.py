@@ -24,7 +24,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.builtins import BUILTINS
+from marimo._ast.variables import BUILTINS
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
