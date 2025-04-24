@@ -41,6 +41,7 @@ import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { isSchemaless } from "@/components/datasources/utils";
 import { datasetTablesAtom } from "@/core/datasets/state";
+import { variableCompletionSource } from "./embedded-python";
 
 /**
  * Language adapter for SQL.
@@ -186,6 +187,8 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
         override: [
           tablesCompletionSource(this),
+          // Complete for variables in SQL {} blocks
+          variableCompletionSource,
           (ctx) => {
             // We want to ignore keyword completions on something like
             // `WHERE my_table.col`

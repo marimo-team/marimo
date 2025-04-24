@@ -7,12 +7,11 @@ import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variable, VariableName } from "@/core/variables/types";
 import { Logger } from "@/utils/Logger";
-import {
-  autocompletion,
-  type Completion,
-  type CompletionContext,
+import type {
+  CompletionSource,
+  Completion,
+  CompletionContext,
 } from "@codemirror/autocomplete";
-import type { Extension } from "@codemirror/state";
 
 /**
  * Gets the request body for the AI completion API.
@@ -88,27 +87,23 @@ function extractDatasetsAndVariables(input: string): {
  * Adapted from @uiw/codemirror-extensions-mentions
  * Allows you to specify a custom regex to trigger the autocompletion.
  */
-export function mentions(
+export function mentionsCompletionSource(
   matchBeforeRegexes: RegExp[],
   data: Completion[] = [],
-): Extension {
-  return autocompletion({
-    override: [
-      (context: CompletionContext) => {
-        const word = matchBeforeRegexes
-          .map((regex) => context.matchBefore(regex))
-          .find(Boolean);
-        if (!word) {
-          return null;
-        }
-        if (word && word.from === word.to && !context.explicit) {
-          return null;
-        }
-        return {
-          from: word?.from,
-          options: [...data],
-        };
-      },
-    ],
-  });
+): CompletionSource {
+  return (context: CompletionContext) => {
+    const word = matchBeforeRegexes
+      .map((regex) => context.matchBefore(regex))
+      .find(Boolean);
+    if (!word) {
+      return null;
+    }
+    if (word && word.from === word.to && !context.explicit) {
+      return null;
+    }
+    return {
+      from: word?.from,
+      options: [...data],
+    };
+  };
 }

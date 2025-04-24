@@ -2,7 +2,7 @@
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { python, pythonLanguage } from "@codemirror/lang-python";
+import { pythonLanguage } from "@codemirror/lang-python";
 import { languages } from "@codemirror/language-data";
 import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 // @ts-expect-error: no declaration file
@@ -23,9 +23,9 @@ import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
 import { markdownAutoRunExtension } from "../cells/extensions";
 import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
-import { parseMixed } from "@lezer/common";
 import { parseLatex } from "./latex";
 import { StreamLanguage } from "@codemirror/language";
+import { embeddedPythonCompletions, parsePython } from "./embedded-python";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -167,55 +167,36 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     hotkeys: HotkeyProvider,
     _: PlaceholderType,
   ): Extension[] {
+    const markdownLanguageData = markdown().language.data;
+    // Only activate completions for f-strings
+    const isFStringActive = () => this.lastQuotePrefix.includes("f");
+
     return [
       markdown({
         base: markdownLanguage,
         codeLanguages: languages,
         extensions: [
+          // Embedded LateX in Markdown
           parseLatex(StreamLanguage.define(stexMath).parser),
-          // Wrapper extension to handle f-string substitutions
-          {
-            wrap: parseMixed((node, input) => {
-              const text = input.read(node.from, node.to);
-              const overlays: Array<{ from: number; to: number }> = [];
-
-              // Find all { } groupings
-              const pattern = /{(.*?)}/g;
-              let match: RegExpExecArray | null;
-
-              while ((match = pattern.exec(text)) !== null) {
-                const start = match.index + 1;
-                const end = pattern.lastIndex - 1;
-                overlays.push({ from: start, to: end });
-              }
-
-              if (overlays.length === 0) {
-                return null;
-              }
-
-              return {
-                parser: pythonLanguage.parser,
-                overlays,
-              };
-            }),
-          },
+          // Embedded Python in Markdown
+          parsePython(pythonLanguage.parser, isFStringActive),
         ],
       }),
       enhancedMarkdownExtension(hotkeys),
+      // Completions for markdown
+      markdownLanguageData.of({ autocomplete: emojiCompletionSource }),
+      markdownLanguageData.of({ autocomplete: lucideIconCompletionSource }),
+      markdownLanguageData.of({ autocomplete: latexSymbolCompletionSource }),
+      // Completions for embedded Python
+      embeddedPythonCompletions(isFStringActive),
       autocompletion({
         // We remove the default keymap because we use our own which
         // handles the Escape key correctly in Vim
         defaultKeymap: false,
         activateOnTyping: true,
-        override: [
-          emojiCompletionSource,
-          lucideIconCompletionSource,
-          latexSymbolCompletionSource,
-        ],
       }),
       // Markdown autorun
       markdownAutoRunExtension(),
-      python().support,
     ];
   }
 }
