@@ -64,7 +64,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     return `mo.md(r"""\n${markdown}\n""")`;
   }
 
-  lastQuotePrefix: QuotePrefixKind = "";
+  lastQuotePrefix: QuotePrefixKind | "unset" = "unset";
 
   transformIn(pythonCode: string): [string, number] {
     pythonCode = pythonCode.trim();
@@ -97,8 +97,9 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   transformOut(code: string): [string, number] {
-    // Get the quote type from the last transformIn
-    const prefix = this.lastQuotePrefix;
+    // Get the quote type from the last transformIn or defaults to "r"
+    const prefix =
+      this.lastQuotePrefix === "unset" ? "r" : this.lastQuotePrefix;
 
     // Empty string
     if (code === "") {
@@ -183,10 +184,12 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
               const pattern = /{(.*?)}/g;
               let match: RegExpExecArray | null;
 
-              while ((match = pattern.exec(text)) !== null) {
+              match = pattern.exec(text);
+              while (match !== null) {
                 const start = match.index + 1;
                 const end = pattern.lastIndex - 1;
                 overlays.push({ from: start, to: end });
+                match = pattern.exec(text);
               }
 
               if (overlays.length === 0) {

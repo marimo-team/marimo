@@ -180,6 +180,14 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(9);
     });
 
+    it("defaults to r-string when there is no last quote prefix", () => {
+      const adapter = new MarkdownLanguageAdapter();
+      const code = "Hello world";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toBe(`mo.md(r"""Hello world""")`);
+      expect(offset).toBe(10);
+    });
+
     it("single line", () => {
       const code = "Hello world";
       adapter.lastQuotePrefix = "";
