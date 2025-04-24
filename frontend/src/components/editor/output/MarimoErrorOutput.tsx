@@ -532,7 +532,7 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div>
-        <ul className="flex flex-col gap-8">{renderMessages(chromeActions)}</ul>
+        <ul className="flex flex-col gap-8">{renderMessages()}</ul>
       </div>
     </Alert>
   );
