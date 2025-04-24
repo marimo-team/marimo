@@ -12,7 +12,7 @@ import { useAtomValue } from "jotai";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();
-  const { openApplication } = useChromeActions();
+  const { toggleApplication } = useChromeActions();
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
@@ -29,7 +29,7 @@ export const Sidebar: React.FC = () => {
           key={p.type}
           tooltip={p.tooltip}
           selected={selectedPanel === p.type}
-          onClick={() => openApplication(p.type)}
+          onClick={() => toggleApplication(p.type)}
         >
           {renderIcon(p)}
         </SidebarItem>

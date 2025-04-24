@@ -94,7 +94,7 @@ const NOOP_HANDLER = (event?: Event) => {
 export function useNotebookActions() {
   const filename = useFilename();
   const { openModal, closeModal } = useImperativeModal();
-  const { openApplication } = useChromeActions();
+  const { toggleApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
@@ -272,7 +272,7 @@ export function useNotebookActions() {
           label: startCase(type),
           rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => openApplication(type),
+          handle: () => toggleApplication(type),
         };
       }),
     },

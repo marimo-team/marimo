@@ -288,7 +288,7 @@ export const MarimoErrorOutput = ({
               onClick={openScratchpad}
             >
               <NotebookPenIcon className="h-3 w-3 mr-2" />
-              Open the scratchpad
+              Use the scratchpad
             </Button>
           </div>
 
