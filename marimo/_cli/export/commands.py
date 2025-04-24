@@ -7,10 +7,12 @@ from typing import Callable, Literal, Optional
 
 import click
 
+from marimo._cli.export.cloudflare import create_cloudflare_files
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.api.utils import parse_title
 from marimo._server.export import (
     ExportResult,
     export_as_ipynb,
@@ -493,6 +495,15 @@ and cannot be opened directly from the file system (e.g. file://).
     ),
 )
 @click.option(
+    "--include-cloudflare/--no-include-cloudflare",
+    default=False,
+    show_default=True,
+    help=(
+        "Whether to include Cloudflare Worker configuration files"
+        " (index.js and wrangler.jsonc) for easy deployment."
+    ),
+)
+@click.option(
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
@@ -511,6 +522,7 @@ def html_wasm(
     mode: Literal["edit", "run"],
     watch: bool,
     show_code: bool,
+    include_cloudflare: bool,
     sandbox: Optional[bool],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
@@ -566,6 +578,9 @@ def html_wasm(
         f"  python -m http.server --directory {out_dir}\n"
         "Then open the URL that is printed to your terminal."
     )
+
+    if include_cloudflare:
+        create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
     return watch_and_export(MarimoPath(name), outfile, watch, export_callback)
