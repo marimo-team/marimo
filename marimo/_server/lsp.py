@@ -180,8 +180,8 @@ class PyLspServer(BaseLspServer):
     def start(self) -> Optional[Alert]:
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
+            LOGGER.debug("pylsp is not installed. Skipping LSP server.")
             return None
-
         return super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
@@ -255,10 +255,6 @@ class CompositeLspServer(LspServer):
         if server_name == "copilot":
             copilot = config["completion"]["copilot"]
             return copilot is True or copilot == "github"
-
-        # If flag not enabled, return False
-        if not config.get("experimental", {}).get("lsp", False):
-            return False
 
         return cast(
             bool,
