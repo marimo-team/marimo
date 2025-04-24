@@ -28,6 +28,8 @@ import type { DataSourceConnection } from "@/core/kernel/messages";
 import { formatSQL } from "../format";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { MarkdownLanguageAdapter } from "./markdown";
+import type { QuotePrefixKind } from "./utils/quotes";
 
 const Divider = () => <div className="h-4 border-r border-border" />;
 
@@ -117,6 +119,19 @@ export const LanguagePanelComponent: React.FC<{
     );
   }
 
+  if (languageAdapter instanceof MarkdownLanguageAdapter) {
+    showDivider = true;
+
+    actions = (
+      <div className="flex flex-row w-full justify-end">
+        <MarkdownPrefixButton
+          languageAdapter={languageAdapter}
+          triggerUpdate={triggerUpdate}
+        />
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
       <div className="flex justify-between items-center gap-4 pl-2 pt-2">
@@ -125,6 +140,54 @@ export const LanguagePanelComponent: React.FC<{
         {languageAdapter.type}
       </div>
     </TooltipProvider>
+  );
+};
+
+const MarkdownPrefixButton: React.FC<{
+  languageAdapter: MarkdownLanguageAdapter;
+  triggerUpdate: () => void;
+}> = ({ languageAdapter, triggerUpdate }) => {
+  // Cycle through the different quote prefixes when clicked
+  const prefixMap: Record<
+    QuotePrefixKind,
+    { next: QuotePrefixKind; tooltip: string }
+  > = {
+    r: {
+      next: "f",
+      tooltip: "Toggle f-string",
+    },
+    f: {
+      next: "rf",
+      tooltip: "Toggle raw + f-string",
+    },
+    fr: {
+      next: "r",
+      tooltip: "Toggle raw string",
+    },
+    rf: {
+      next: "r",
+      tooltip: "Toggle raw string",
+    },
+    "": {
+      next: "r",
+      tooltip: "Toggle raw string",
+    },
+  };
+
+  const handleClick = () => {
+    const nextPrefix = prefixMap[languageAdapter.lastQuotePrefix].next;
+    languageAdapter.setQuotePrefix(nextPrefix);
+    triggerUpdate();
+  };
+
+  const tooltipContent = prefixMap[languageAdapter.lastQuotePrefix].tooltip;
+
+  return (
+    <Tooltip content={tooltipContent}>
+      <Button variant="text" size="icon" onClick={handleClick}>
+        <i>{languageAdapter.lastQuotePrefix}</i>
+      </Button>
+    </Tooltip>
   );
 };
 
