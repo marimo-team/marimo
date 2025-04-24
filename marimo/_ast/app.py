@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 import base64
-import builtins
 import inspect
 import sys
 import threading
@@ -25,6 +24,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.builtins import BUILTINS
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -113,7 +113,7 @@ class _SetupContext:
     def __enter__(self) -> None:
         with_frame = sys._getframe(1)
 
-        if refs := self._cell.refs - set(builtins.__dict__.keys()):
+        if refs := self._cell.refs - BUILTINS:
             # Otherwise fail in say a script context.
             raise SetupRootError(
                 f"The setup cell cannot reference any additional variables: {refs}"

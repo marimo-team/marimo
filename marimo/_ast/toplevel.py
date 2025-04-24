@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import builtins
 import token as token_types
 from enum import Enum
 from io import BytesIO
@@ -9,6 +8,7 @@ from tokenize import tokenize
 from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 
 from marimo._ast.app import InternalApp
+from marimo._ast.builtins import BUILTINS
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import (
@@ -264,7 +264,7 @@ class TopLevelExtraction:
             [status.name for status in self.statuses if not status.is_toplevel]
         )
 
-        self.unshadowed = set(builtins.__dict__.keys()) - defs
+        self.unshadowed = BUILTINS - defs
         self.allowed_refs.update(self.unshadowed)
         self.used_refs = refs
 

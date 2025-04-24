@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import builtins
 import json
 import os
 import re
@@ -12,6 +11,7 @@ from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.builtins import BUILTINS
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
@@ -177,7 +177,7 @@ def to_functiondef(
     # should not be taken as args by a cell's functiondef (since they are
     # already in globals)
     if allowed_refs is None:
-        allowed_refs = set(builtins.__dict__.keys())
+        allowed_refs = BUILTINS
     refs = tuple(ref for ref in sorted(cell.refs) if ref not in allowed_refs)
 
     decorator = to_decorator(cell.config, fn=fn)
@@ -218,7 +218,7 @@ def to_top_functiondef(
     # For the top-level function criteria to be satisfied,
     # the cell, it must pass basic checks in the cell impl.
     if allowed_refs is None:
-        allowed_refs = set(builtins.__dict__.keys())
+        allowed_refs = BUILTINS
     toplevel_var = cell.toplevel_variable
 
     assert toplevel_var, "Cell is not a top-level function"
