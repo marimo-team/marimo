@@ -34,7 +34,9 @@ describe("parsePython", () => {
     expect(config.defineNodes).toBeDefined();
     if (config.defineNodes) {
       expect(config.defineNodes).toHaveLength(2);
+      // @ts-expect-error - we know that the defineNodes are NodeSpec
       expect(config.defineNodes[0].name).toBe("Python");
+      // @ts-expect-error - we know that the defineNodes are NodeSpec
       expect(config.defineNodes[1].name).toBe("PythonMark");
     }
   });
