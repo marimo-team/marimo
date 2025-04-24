@@ -182,9 +182,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
               // Find all { } groupings
               const pattern = /{(.*?)}/g;
-              let match: RegExpExecArray | null;
-
-              match = pattern.exec(text);
+              let match: RegExpExecArray | null = pattern.exec(text);
               while (match !== null) {
                 const start = match.index + 1;
                 const end = pattern.lastIndex - 1;
