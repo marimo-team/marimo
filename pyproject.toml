@@ -512,8 +512,6 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 chat_sidebar = true
-# Very experimental!
-lsp = true
 
 [tool.marimo.display]
 dataframes = "rich"
