@@ -122,12 +122,20 @@ export const LanguagePanelComponent: React.FC<{
   if (languageAdapter instanceof MarkdownLanguageAdapter) {
     showDivider = true;
 
+    const handleClick = () => {
+      const nextPrefix = prefixMap[languageAdapter.lastQuotePrefix].next;
+      languageAdapter.setQuotePrefix(nextPrefix);
+      triggerUpdate();
+    };
+    const tooltipContent = prefixMap[languageAdapter.lastQuotePrefix].tooltip;
+
     actions = (
       <div className="flex flex-row w-full justify-end">
-        <MarkdownPrefixButton
-          languageAdapter={languageAdapter}
-          triggerUpdate={triggerUpdate}
-        />
+        <Tooltip content={tooltipContent}>
+          <Button variant="text" size="icon" onClick={handleClick}>
+            <i>{languageAdapter.lastQuotePrefix}</i>
+          </Button>
+        </Tooltip>
       </div>
     );
   }
@@ -140,54 +148,6 @@ export const LanguagePanelComponent: React.FC<{
         {languageAdapter.type}
       </div>
     </TooltipProvider>
-  );
-};
-
-const MarkdownPrefixButton: React.FC<{
-  languageAdapter: MarkdownLanguageAdapter;
-  triggerUpdate: () => void;
-}> = ({ languageAdapter, triggerUpdate }) => {
-  // Cycle through the different quote prefixes when clicked
-  const prefixMap: Record<
-    QuotePrefixKind,
-    { next: QuotePrefixKind; tooltip: string }
-  > = {
-    r: {
-      next: "f",
-      tooltip: "Toggle f-string",
-    },
-    f: {
-      next: "rf",
-      tooltip: "Toggle raw + f-string",
-    },
-    fr: {
-      next: "r",
-      tooltip: "Toggle raw string",
-    },
-    rf: {
-      next: "r",
-      tooltip: "Toggle raw string",
-    },
-    "": {
-      next: "r",
-      tooltip: "Toggle raw string",
-    },
-  };
-
-  const handleClick = () => {
-    const nextPrefix = prefixMap[languageAdapter.lastQuotePrefix].next;
-    languageAdapter.setQuotePrefix(nextPrefix);
-    triggerUpdate();
-  };
-
-  const tooltipContent = prefixMap[languageAdapter.lastQuotePrefix].tooltip;
-
-  return (
-    <Tooltip content={tooltipContent}>
-      <Button variant="text" size="icon" onClick={handleClick}>
-        <i>{languageAdapter.lastQuotePrefix}</i>
-      </Button>
-    </Tooltip>
   );
 };
 
@@ -290,3 +250,31 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
 const HELP_KEY = "__help__";
 const HELP_URL =
   "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";
+
+// Cycle through the different quote prefixes for markdown when clicked
+// rf and fr are almost identical, we can remove one for clarity
+const prefixMap: Record<
+  QuotePrefixKind,
+  { next: QuotePrefixKind; tooltip: string }
+> = {
+  r: {
+    next: "f",
+    tooltip: "Toggle f-string",
+  },
+  f: {
+    next: "rf",
+    tooltip: "Toggle raw + f-string",
+  },
+  fr: {
+    next: "r",
+    tooltip: "Toggle raw string",
+  },
+  rf: {
+    next: "r",
+    tooltip: "Toggle raw string",
+  },
+  "": {
+    next: "r",
+    tooltip: "Toggle raw string",
+  },
+};

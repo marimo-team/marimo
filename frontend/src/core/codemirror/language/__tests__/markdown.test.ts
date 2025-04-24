@@ -278,15 +278,23 @@ describe("MarkdownLanguageAdapter", () => {
   describe("isSupported", () => {
     it("should return true for supported markdown string formats", () => {
       const pythonCode = 'mo.md("""# Markdown Title\n\nSome content here.""")';
-      expect(adapter.isSupported(pythonCode)).toBe(true);
-      expect(adapter.isSupported("mo.md()")).toBe(true);
-      expect(adapter.isSupported("mo.md('')")).toBe(true);
-      expect(adapter.isSupported('mo.md("")')).toBe(true);
-    });
-
-    it("should return false for unsupported markdown string formats", () => {
-      expect(adapter.isSupported("mo.md(f'hello world')")).toBe(false);
-      expect(adapter.isSupported('mo.md(f"hello world")')).toBe(false);
+      const VALID_FORMATS = [
+        pythonCode,
+        "mo.md()",
+        "mo.md('')",
+        'mo.md("")',
+        "mo.md(f'hello world')",
+        'mo.md(f"hello world")',
+        "mo.md(r'hello world')",
+        'mo.md(r"hello world")',
+        "mo.md(rf'hello world')",
+        'mo.md(rf"hello world")',
+        "mo.md(fr'hello world')",
+        'mo.md(fr"hello world")',
+      ];
+      for (const format of VALID_FORMATS) {
+        expect(adapter.isSupported(format)).toBe(true);
+      }
     });
 
     it("should return false for unsupported string formats", () => {
