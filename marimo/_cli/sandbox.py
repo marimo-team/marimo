@@ -25,11 +25,6 @@ LOGGER = _loggers.marimo_logger()
 
 DepFeatures = Literal["lsp", "recommended"]
 
-if sys.version_info < (3, 12):
-    TempFile = "tempfile._TemporaryFileWrapper[str]"
-else:
-    TempFile = tempfile._TemporaryFileWrapper[str]
-
 
 class PyProjectReader:
     def __init__(self, project: dict[str, Any]):
@@ -281,7 +276,7 @@ def get_marimo_dir() -> Path:
 
 def construct_uv_flags(
     pyproject: PyProjectReader,
-    temp_file: TempFile,
+    temp_file: "tempfile._TemporaryFileWrapper[str]",  # noqa: UP037
     additional_features: list[DepFeatures],
     additional_deps: list[str],
 ) -> list[str]:
