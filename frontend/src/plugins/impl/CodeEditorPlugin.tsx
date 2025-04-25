@@ -6,7 +6,7 @@ import { Labeled } from "./common/labeled";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { EditorView } from "@codemirror/view";
 import useEvent from "react-use-event-hook";
@@ -70,6 +70,12 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
     onChange: props.setValue,
     disabled: !Number.isFinite(props.debounce),
   });
+
+  // This is to sync the value from Python whenever the cell is updated
+  // as useState doesn't reinitialize on re-renders
+  useEffect(() => {
+    setLocalValue(props.value);
+  }, [props.value]);
 
   const handleChange = useCallback(
     (newValue: string) => {

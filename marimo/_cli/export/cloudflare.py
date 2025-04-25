@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from pathlib import Path
 
 from marimo._cli.print import bold, echo, green

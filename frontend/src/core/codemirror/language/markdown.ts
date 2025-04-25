@@ -19,7 +19,11 @@ import { enhancedMarkdownExtension } from "../markdown/extension";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
-import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
+import {
+  QUOTE_PREFIX_KINDS,
+  type QuotePrefixKind,
+  splitQuotePrefix,
+} from "./utils/quotes";
 import { markdownAutoRunExtension } from "../cells/extensions";
 import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
@@ -35,12 +39,7 @@ const quoteKinds = [
 ];
 
 // explode into all combinations
-//
-// A note on f-strings:
-//
-// f-strings are not yet supported due to bad interactions with
-// string escaping, LaTeX, and loss of Python syntax highlighting
-const pairs = ["", "r"].flatMap((prefix) =>
+const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
   quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
 
@@ -64,7 +63,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     return `mo.md(r"""\n${markdown}\n""")`;
   }
 
-  lastQuotePrefix: QuotePrefixKind = "";
+  lastQuotePrefix: QuotePrefixKind = "r";
 
   transformIn(pythonCode: string): [string, number] {
     pythonCode = pythonCode.trim();
@@ -198,6 +197,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       // Markdown autorun
       markdownAutoRunExtension(),
     ];
+  }
+
+  setQuotePrefix(prefix: QuotePrefixKind) {
+    this.lastQuotePrefix = prefix;
   }
 }
 

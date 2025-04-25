@@ -10,7 +10,12 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CircleHelpIcon, PaintRollerIcon } from "lucide-react";
+import {
+  AlertCircle,
+  CircleHelpIcon,
+  InfoIcon,
+  PaintRollerIcon,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,6 +33,9 @@ import type { DataSourceConnection } from "@/core/kernel/messages";
 import { formatSQL } from "../format";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { MarkdownLanguageAdapter } from "./markdown";
+import type { QuotePrefixKind } from "./utils/quotes";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Divider = () => <div className="h-4 border-r border-border" />;
 
@@ -117,6 +125,52 @@ export const LanguagePanelComponent: React.FC<{
     );
   }
 
+  if (languageAdapter instanceof MarkdownLanguageAdapter) {
+    showDivider = true;
+    const lastQuotePrefix = languageAdapter.lastQuotePrefix;
+    const togglePrefix = (
+      prefix: QuotePrefixKind,
+      checked: boolean | string,
+    ) => {
+      if (typeof checked !== "boolean") {
+        return;
+      }
+      const newPrefix = getQuotePrefix(lastQuotePrefix, checked, prefix);
+      languageAdapter.setQuotePrefix(newPrefix);
+      triggerUpdate();
+    };
+
+    actions = (
+      <div className="flex flex-row w-full justify-end gap-1.5 items-center">
+        <div className="flex items-center gap-1.5">
+          <span>r</span>
+          <Checkbox
+            aria-label="Toggle raw string"
+            className="w-3 h-3"
+            checked={lastQuotePrefix.includes("r")}
+            onCheckedChange={(checked) => {
+              togglePrefix("r", checked);
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span>f</span>
+          <Checkbox
+            aria-label="Toggle f-string"
+            className="w-3 h-3"
+            checked={lastQuotePrefix.includes("f")}
+            onCheckedChange={(checked) => {
+              togglePrefix("f", checked);
+            }}
+          />
+        </div>
+        <Tooltip content={<MarkdownQuotePrefixTooltip />}>
+          <InfoIcon className="w-3 h-3" />
+        </Tooltip>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
       <div className="flex justify-between items-center gap-4 pl-2 pt-2">
@@ -125,6 +179,69 @@ export const LanguagePanelComponent: React.FC<{
         {languageAdapter.type}
       </div>
     </TooltipProvider>
+  );
+};
+
+// Based on the current quote prefix and the checkbox state, return the new quote prefix
+export function getQuotePrefix(
+  currentQuotePrefix: QuotePrefixKind,
+  checked: boolean,
+  prefix: QuotePrefixKind,
+) {
+  let newQuotePrefix = currentQuotePrefix;
+  if (checked) {
+    // Add a prefix
+    if (currentQuotePrefix === "") {
+      newQuotePrefix = prefix;
+    } else if (currentQuotePrefix !== "rf" && prefix !== currentQuotePrefix) {
+      newQuotePrefix = "rf";
+    }
+  } else {
+    // Removing a prefix
+    if (currentQuotePrefix === prefix) {
+      // Removing the only prefix
+      newQuotePrefix = "";
+    } else if (currentQuotePrefix === "rf") {
+      newQuotePrefix = prefix === "r" ? "f" : "r";
+    }
+  }
+
+  return newQuotePrefix;
+}
+
+const MarkdownQuotePrefixTooltip: React.FC = () => {
+  return (
+    <div className="flex flex-col gap-3.5">
+      <section className="flex flex-col gap-0.5">
+        <header className="flex items-center gap-1">
+          <code className="text-xs px-1 py-0.5 bg-[var(--slate-2)] rounded">
+            r
+          </code>
+          <span className="font-semibold">Raw String</span>
+        </header>
+        <p className="text-sm text-muted-foreground">
+          Write LaTeX without escaping special characters
+        </p>
+        <pre className="text-xs bg-[var(--slate-2)] p-2 rounded">
+          \alpha \beta
+        </pre>
+      </section>
+
+      <section className="flex flex-col gap-0.5">
+        <header className="flex items-center gap-1">
+          <code className="text-xs px-1 py-0.5 bg-[var(--slate-2)] rounded">
+            f
+          </code>
+          <span className="font-semibold">Format String</span>
+        </header>
+        <p className="text-sm text-muted-foreground">
+          Interpolate Python values
+        </p>
+        <pre className="text-xs bg-[var(--slate-2)] p-2 rounded">
+          Hello {"{name}"}! 😁
+        </pre>
+      </section>
+    </div>
   );
 };
 

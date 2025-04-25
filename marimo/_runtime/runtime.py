@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import builtins
 import contextlib
 import dataclasses
 import io
@@ -26,7 +25,7 @@ from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
-from marimo._ast.variables import is_local
+from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -209,7 +208,7 @@ def refs() -> tuple[str, ...]:
         return tuple()
 
     # builtins that have not been shadowed by the user
-    unshadowed_builtins = set(builtins.__dict__.keys()).difference(
+    unshadowed_builtins = BUILTINS.difference(
         set(ctx.graph.definitions.keys())
     )
 

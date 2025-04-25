@@ -31,8 +31,8 @@ make check-prereqs
 
 - Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 20
   - We use Node.js version 23
-- Install [pnpm](https://github.com/pnpm/pnpm) == 9.x
-  - `npm install -g pnpm@9`
+- Install [pnpm](https://github.com/pnpm/pnpm) == 10.x
+  - `npm install -g pnpm@10`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
 - Install [Python](https://www.python.org/) >= 3.9. (You may already it installed. To see your version, use `python -V` at the command line.)
 - Install [Hatch](https://hatch.pypa.io/latest/install/). Some installation options:

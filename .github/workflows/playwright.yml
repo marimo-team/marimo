@@ -51,9 +51,9 @@ jobs:
           echo "[experimental]" > .marimo.toml
           echo "layouts=true" >> .marimo.toml
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4

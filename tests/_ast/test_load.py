@@ -238,6 +238,7 @@ class TestGetCodes:
             "_",
             "*fun_that_uses_mo",
             "*fun_that_uses_another_but_out_of_order",
+            "*fun_uses_file",
             "*fun_that_uses_another",
             "cell_with_ref_and_def",
             "_",
