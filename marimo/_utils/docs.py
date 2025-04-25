@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from textwrap import dedent
 
+from marimo._runtime.patches import patch_jedi_parameter_completion
+
 
 def google_docstring_to_markdown(docstring: str) -> str:
     """
@@ -200,6 +202,9 @@ def google_docstring_to_markdown(docstring: str) -> str:
 # See https://github.com/python-lsp/docstring-to-markdown?tab=readme-ov-file#extensibility
 class MarimoConverter:
     priority = 100
+
+    def __init__(self):
+        patch_jedi_parameter_completion()
 
     SECTION_HEADERS = ["Args", "Returns", "Raises", "Examples"]
 
