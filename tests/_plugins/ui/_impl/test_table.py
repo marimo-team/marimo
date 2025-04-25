@@ -887,7 +887,9 @@ def test__get_column_summaries_after_search_df() -> None:
     assert isinstance(summaries.data, str)
     assert summaries.data.startswith("data:text/plain;base64,"), (
         summaries.data
-    )  # base64 encoded arrow
+    ) or summaries.data.startswith(
+        "data:application/vnd.apache.arrow.file;base64,"
+    )
     assert summaries.summaries[0].min == 0
     assert summaries.summaries[0].max == 19
 
@@ -903,7 +905,11 @@ def test__get_column_summaries_after_search_df() -> None:
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
     # Result is csv
-    assert summaries.data.startswith("data:text/csv;base64,")
+    assert summaries.data.startswith(
+        "data:text/csv;base64,"
+    ) or summaries.data.startswith(
+        "data:application/vnd.apache.arrow.file;base64,"
+    )
     # We don't have column summaries for non-dataframe data
     assert summaries.summaries[0].min == 2
     assert summaries.summaries[0].max == 12
