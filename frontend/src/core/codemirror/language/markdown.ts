@@ -29,8 +29,9 @@ import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
 import { parseLatex } from "./latex";
 import { StreamLanguage } from "@codemirror/language";
-import { parsePython, variableCompletionSource } from "./embedded-python";
+import { parsePython } from "./embedded-python";
 import { conditionalCompletion } from "../completion/utils";
+import { pythonCompletionSource } from "../completion/completer";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -190,7 +191,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       // Completions for embedded Python
       python().language.data.of({
         autocomplete: conditionalCompletion({
-          completion: variableCompletionSource,
+          completion: pythonCompletionSource,
           predicate: isFStringActive,
         }),
       }),

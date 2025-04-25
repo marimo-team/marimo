@@ -91,8 +91,6 @@ export function parsePython(
   };
 }
 
-const languageData = python().language.data;
-
 /**
  * Cheap variable completion source without having to go through the
  * backend.
