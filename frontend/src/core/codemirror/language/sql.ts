@@ -234,7 +234,6 @@ export class SQLCompletionStore {
       tablesMap[table.name] = tableColumns;
     }
 
-    // We hash the connection and tablesMap (include col names) to avoid large cache keys
     const cacheKey: [DataSourceConnection, TableToCols] = [
       connection,
       tablesMap,
