@@ -53,6 +53,8 @@ You can modify the `index.js` to include authentication or custom endpoints. Thi
 - Add authentication logic to protect your notebook
 - Create API endpoints that serve data from the same domain, avoiding CORS issues
 
+///
+
 ## Publish to Cloudflare Pages using GitHub
 
 As an alternative to Cloudflare Workers, you can publish to Cloudflare Pages. To get started, create a new GitHub repository by visiting [repo.new](https://repo.new/) . After creating a new repository, go to your newly created project directory to prepare and push your local application to GitHub by running the following commands in your terminal:
