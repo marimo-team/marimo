@@ -374,7 +374,7 @@ describe("insertTextFile", () => {
 });
 
 describe("insertBoldMarker", () => {
-  test("inserts bold marker at cursor position", () => {
+  test("do not insert bold marker at cursor position", () => {
     view = createEditor("Hello, world!");
     view.dispatch({
       selection: { anchor: 7, head: 7 },
@@ -382,7 +382,7 @@ describe("insertBoldMarker", () => {
 
     insertBoldMarker(view);
 
-    expect(view.state.doc.toString()).toBe("Hello, **world**!");
+    expect(view.state.doc.toString()).toBe("Hello, world!");
   });
 
   test("inserts bold marker at cursor position with selected text", () => {
