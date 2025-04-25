@@ -52,6 +52,11 @@ export function parsePython(
             return -1;
           }
 
+          // Check for double curly braces
+          if (next === OPEN_BRACE && cx.slice(pos - 1, pos) === "{") {
+            return -1;
+          }
+
           return cx.addDelimiter(
             MARK,
             pos,
@@ -137,6 +142,11 @@ export const variableCompletionSource = (
   // Check if we're inside a {} block by looking for an opening brace
   const beforeCursor = context.state.doc.sliceString(0, context.pos);
   const lastOpenBrace = beforeCursor.lastIndexOf("{");
+
+  // Check it is not double {{
+  if (beforeCursor.at(lastOpenBrace - 1) === "{") {
+    return null;
+  }
 
   // If no opening brace or a closing brace appears after the last opening brace, we're not in a {} block
   if (

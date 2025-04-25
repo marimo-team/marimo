@@ -15,6 +15,7 @@ import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
+import type { InlineContext } from "@lezer/markdown";
 
 interface LanguageDataValue {
   autocomplete: (context: CompletionContext) => CompletionResult | null;
@@ -39,6 +40,26 @@ describe("parsePython", () => {
       // @ts-expect-error - we know that the defineNodes are NodeSpec
       expect(config.defineNodes[1].name).toBe("PythonMark");
     }
+  });
+
+  it("should not parse double curly braces", () => {
+    const pythonParser = python().language.parser;
+    const config = parsePython(pythonParser, IS_ACTIVE);
+
+    // Create a mock context
+    const mockContext = {
+      slice: (from: number, to: number) => {
+        if (from === 5 && to === 6) {
+          return "{";
+        }
+        return "";
+      },
+      addDelimiter: () => -1,
+    } as unknown as InlineContext;
+
+    // Test with double curly braces
+    const result = config.parseInline![0].parse(mockContext, 123, 6); // 123 is OPEN_BRACE
+    expect(result).toBe(-1);
   });
 });
 
@@ -237,6 +258,24 @@ describe("variableCompletionSource", () => {
       pos: 8,
       explicit: false,
       matchBefore: () => null,
+      state,
+      aborted: false,
+      tokenBefore: (types: readonly string[]) => null,
+    };
+
+    const result = variableCompletionSource(context as CompletionContext);
+    expect(result).toBeNull();
+  });
+
+  it("should not provide completions for double curly braces", () => {
+    const state = EditorState.create({
+      doc: "print({{v",
+    });
+
+    const context: Partial<CompletionContext> = {
+      pos: 9,
+      explicit: false,
+      matchBefore: (expr: RegExp) => ({ from: 8, to: 9, text: "v" }),
       state,
       aborted: false,
       tokenBefore: (types: readonly string[]) => null,
