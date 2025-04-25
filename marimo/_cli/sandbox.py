@@ -25,6 +25,11 @@ LOGGER = _loggers.marimo_logger()
 
 DepFeatures = Literal["lsp", "recommended"]
 
+if sys.version_info < (3, 11):
+    TempFile = "tempfile._TemporaryFileWrapper[str]"
+else:
+    TempFile = tempfile._TemporaryFileWrapper[str]
+
 
 class PyProjectReader:
     def __init__(self, project: dict[str, Any]):
@@ -274,21 +279,13 @@ def get_marimo_dir() -> Path:
     return Path(__file__).parent.parent.parent
 
 
-def construct_uv_command(
-    args: list[str],
-    name: str | None,
+def construct_uv_flags(
+    pyproject: PyProjectReader,
+    temp_file: TempFile,
     additional_features: list[DepFeatures],
     additional_deps: list[str],
 ) -> list[str]:
-    cmd = ["marimo"] + args
-    if "--sandbox" in cmd:
-        cmd.remove("--sandbox")
-
-    pyproject = (
-        PyProjectReader.from_filename(name)
-        if name is not None
-        else PyProjectReader({})
-    )
+    # NB. Used in quarto plugin
 
     # If name if a filepath, parse the dependencies from the file
     dependencies = pyproject.requirements_txt_lines
@@ -307,18 +304,10 @@ def construct_uv_command(
     # Add additional dependencies
     dependencies.extend(additional_deps)
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", delete=False, suffix=".txt"
-    ) as temp_file:
-        temp_file.write("\n".join(dependencies))
-        temp_file_path = temp_file.name
-    # Clean up the temporary file after the subprocess has run
-    atexit.register(lambda: os.unlink(temp_file_path))
+    temp_file.write("\n".join(dependencies))
 
     # Construct base UV command
-    uv_cmd = [
-        "uv",
-        "run",
+    uv_flags = [
         "--isolated",
         # sandboxed notebook shouldn't pick up existing pyproject.toml,
         # which may conflict with the sandbox requirements
@@ -326,28 +315,28 @@ def construct_uv_command(
         # trade installation time for faster start time
         "--compile-bytecode",
         "--with-requirements",
-        temp_file_path,
+        temp_file.name,
     ]
 
     # Add refresh
     if uv_needs_refresh:
-        uv_cmd.append("--refresh")
+        uv_flags.append("--refresh")
 
     # Add Python version if specified
     python_version = pyproject.python_version
     if python_version:
-        uv_cmd.extend(["--python", python_version])
+        uv_flags.extend(["--python", python_version])
 
     # Add index URL if specified
     index_url = pyproject.index_url
     if index_url:
-        uv_cmd.extend(["--index-url", index_url])
+        uv_flags.extend(["--index-url", index_url])
 
     # Add extra-index-urls if specified
     extra_index_urls = pyproject.extra_index_urls
     if extra_index_urls:
         for url in extra_index_urls:
-            uv_cmd.extend(["--extra-index-url", url])
+            uv_flags.extend(["--extra-index-url", url])
 
     # Add index configs if specified
     index_configs = pyproject.index_configs
@@ -355,7 +344,38 @@ def construct_uv_command(
         for config in index_configs:
             if "url" in config:
                 # Looks like: https://docs.astral.sh/uv/guides/scripts/#using-alternative-package-indexes
-                uv_cmd.extend(["--index", config["url"]])
+                uv_flags.extend(["--index", config["url"]])
+    return uv_flags
+
+
+def construct_uv_command(
+    args: list[str],
+    name: str | None,
+    additional_features: list[DepFeatures],
+    additional_deps: list[str],
+) -> list[str]:
+    cmd = ["marimo"] + args
+    if "--sandbox" in cmd:
+        cmd.remove("--sandbox")
+
+    pyproject = (
+        PyProjectReader.from_filename(name)
+        if name is not None
+        else PyProjectReader({})
+    )
+
+    uv_cmd = ["uv", "run"]
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".txt"
+    ) as temp_file:
+        temp_file_path = temp_file.name
+        uv_cmd.extend(
+            construct_uv_flags(
+                pyproject, temp_file, additional_features, additional_deps
+            )
+        )
+    # Clean up the temporary file after the subprocess has run
+    atexit.register(lambda: os.unlink(temp_file_path))
 
     # Final command assembly: combine the uv prefix with the original marimo
     # command.
