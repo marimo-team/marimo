@@ -6,7 +6,7 @@ import { Labeled } from "./common/labeled";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useCallback, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { EditorView } from "@codemirror/view";
 import useEvent from "react-use-event-hook";
@@ -71,17 +71,14 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
     disabled: !Number.isFinite(props.debounce),
   });
 
-  const handleChange = useCallback(
-    (newValue: string) => {
-      setLocalValue((_) => newValue);
-      if (typeof props.debounce === "number") {
-        setValueDebounced(newValue);
-      } else if (!props.debounce) {
-        props.setValue(newValue);
-      }
-    },
-    [setValueDebounced, props.debounce, props.setValue],
-  );
+  const handleChange = useEvent((newValue: string) => {
+    setLocalValue((_) => newValue);
+    if (typeof props.debounce === "number") {
+      setValueDebounced(newValue);
+    } else if (!props.debounce) {
+      props.setValue(newValue);
+    }
+  });
 
   const onBlur = useEvent(() => {
     props.setValue(localValue);
