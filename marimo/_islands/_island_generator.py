@@ -29,6 +29,17 @@ LOGGER = _loggers.marimo_logger()
 
 
 class MarimoIslandStub:
+    """
+    Args:
+        display_code: Whether to display code.
+        display_output: Whether to display output.
+        is_reactive: Whether it is reactive.
+        cell_id: Cell identifier.
+        app_id: App identifier.
+        app_id: App identifier.
+        code: Code.
+    """
+
     def __init__(
         self,
         display_code: bool = False,
@@ -156,8 +167,7 @@ class MarimoIslandGenerator:
     3. Replace all code snippets with the rendered HTML.
     4. Include the header in the <head> tag.
 
-    # Example
-
+    Examples:
     Using the MarimoIslandGenerator class:
     ```python
     import asyncio
@@ -214,6 +224,8 @@ class MarimoIslandGenerator:
         f.write(html)
     ```
 
+    Args:
+        app_id: The optional identifier of the app, defaults to `main`.
     """
 
     def __init__(self, app_id: str = "main"):

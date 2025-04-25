@@ -495,13 +495,12 @@ def completion_worker(
     """Code completion worker.
 
 
-    **Args:**
-
-    - `completion_queue`: queue from which requests are pulled.
-    - `graph`: dataflow graph backing the marimo program
-    - `glbls`: dictionary of global variables in interpreter memory
-    - `glbls_lock`: lock protecting globals
-    - `stream`: stream used to communicate completion results
+    Args:
+        completion_queue: queue from which requests are pulled.
+        graph: dataflow graph backing the marimo program
+        glbls: dictionary of global variables in interpreter memory
+        glbls_lock: lock protecting globals
+        stream: stream used to communicate completion results
     """
 
     while True:

@@ -209,13 +209,11 @@ def md(text: str) -> Html:
     $$
 
 
-    **Args**:
+    Args:
+        text: a string of markdown
 
-    - `text`: a string of markdown
-
-    **Returns**:
-
-    - An `Html` object.
+    Returns:
+        An `Html` object.
     """
     return _md(text)
 
@@ -237,11 +235,11 @@ def latex(*, filename: Union[str, Path]) -> None:
     mo.latex(filename="https://example.com/macros.tex")
     ```
 
-    **Args**:
-    - `filename`: Path to a LaTeX file
+    Args:
+        filename: Path to a LaTeX file
 
-    **Returns**:
-    - An `Html` object
+    Returns:
+        An `Html` object
     """
 
     if isinstance(filename, Path):

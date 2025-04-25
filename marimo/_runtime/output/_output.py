@@ -32,9 +32,8 @@ def replace(value: object) -> None:
     Call `mo.output.replace()` to write to a cell's output area, replacing
     the existing output, if any.
 
-    **Args:**
-
-    - `value`: object to output
+    Args:
+        value: object to output
     """
     try:
         ctx = get_context()
@@ -57,10 +56,9 @@ def replace_at_index(value: object, idx: int) -> None:
     Call this function to replace an existing object in a cell's output. If idx
     is equal to the length of the output, this is equivalent to an append.
 
-    **Args:**
-
-    - `value`: new object to replace an existing object
-    - `idx`: index of output to replace
+    Args:
+        value: new object to replace an existing object
+        idx: index of output to replace
     """
 
     try:
@@ -91,9 +89,8 @@ def append(value: object) -> None:
     Call this function to incrementally build a cell's output. Appended
     outputs are stacked vertically.
 
-    **Args:**
-
-    - `value`: object to output
+    Args:
+        value: object to output
     """
     try:
         ctx = get_context()
