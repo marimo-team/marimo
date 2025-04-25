@@ -26,7 +26,7 @@ class ProgressBarTqdmPatch(progress_bar):
 
         super().__init__(
             collection=iterable,
-            title=desc or "Loading...",
+            title=desc or "",
             total=total,
         )
 
@@ -74,7 +74,6 @@ class TqdmFormatter(FormatterFactory):
 
     def register(self) -> None:
         if running_in_notebook():
-            import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
+            import tqdm.notebook, tqdm.autonotebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
 
-            tqdm.notebook.tqdm = ProgressBarTqdmPatch
-
+            tqdm.notebook.tqdm = tqdm.autonotebook.tqdm = ProgressBarTqdmPatch
