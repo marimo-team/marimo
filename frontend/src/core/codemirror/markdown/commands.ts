@@ -146,7 +146,10 @@ export function insertBlockquote(view: EditorView) {
 }
 
 export function insertBoldMarker(view: EditorView) {
-  // Apply with or without selection
+  // Only apply on selection
+  if (!hasSelection(view)) {
+    return false;
+  }
 
   const changes = view.state.changeByRange((range) => {
     if (range.empty) {
