@@ -85,11 +85,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def supports_filters(self) -> bool:
         return False
 
-    def to_data(
-        self, format_mapping: Optional[FormatMapping] = None
-    ) -> JSONType:
-        return self._normalize_data(self.apply_formatting(format_mapping).data)
-
     def to_csv_str(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> str:

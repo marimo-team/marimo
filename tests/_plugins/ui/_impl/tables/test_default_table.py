@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import date
 from typing import Any
@@ -879,13 +880,6 @@ class TestDictionaryDefaultTable(unittest.TestCase):
             "b": 2,
         }
 
-        assert DefaultTableManager(self.manager.to_data()).apply_formatting(
-            {"value": lambda x: x + 1}
-        ).data == [
-            {"key": "a", "value": 2},
-            {"key": "b", "value": 3},
-        ]
-
     def test_apply_formatting_empty(self) -> None:
         formatted_manager = self.manager.apply_formatting({})
         assert formatted_manager.data == self.manager.data
@@ -916,7 +910,7 @@ class TestDictionaryDefaultTable(unittest.TestCase):
 
         # Test converted to rows formatting
         formatted_data = (
-            DefaultTableManager(manager.to_data())
+            DefaultTableManager(json.loads(manager.to_json_str()))
             .apply_formatting(
                 {"value": lambda x: "N/A" if x is None else x * 2}
             )

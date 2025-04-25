@@ -52,6 +52,7 @@ import {
 } from "@/components/data-table/filters";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { vegaLoadData } from "./vega/loader";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -424,6 +425,15 @@ export const LoadingDataTableComponent = memo(
       if (Array.isArray(tableData)) {
         return {
           rows: tableData,
+          totalRows: totalRows,
+          cellStyles,
+        };
+      }
+
+      // If it looks like json, parse it
+      if (tableData.startsWith("{") || tableData.startsWith("[")) {
+        return {
+          rows: jsonParseWithSpecialChar(tableData),
           totalRows: totalRows,
           cellStyles,
         };
