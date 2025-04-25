@@ -25,6 +25,7 @@ from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
 from marimo._utils.data_uri import from_data_uri
+from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
 
 if TYPE_CHECKING:
@@ -851,6 +852,7 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
     assert charts_enabled.is_disabled is False
 
 
+@pytest.mark.skipif(is_windows(), reason=r"windows returns \r instead")
 def test__get_column_summaries_after_search() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data)
