@@ -39,6 +39,33 @@ class ProgressBarTqdmPatch(progress_bar):
         if hasattr(self, "progress") and self.progress is not None:
             self.progress.update(increment=n)
 
+    def close(self) -> None:
+        """Close the progress bar and clean up.
+        
+        This method is called when the progress bar is no longer needed.
+        In tqdm, this method also handles styling based on completion status.
+        """
+        if hasattr(self, "progress") and self.progress is not None:
+            self.progress.clear()
+            self.progress.close()
+
+    @classmethod
+    def write(cls, s: str, file=None, end="\n", nolock=False) -> None:
+        """Print a message via tqdm (without overlap with bars).
+
+        Args:
+            s (str): The message to print
+            file: The file to write to (defaults to sys.stdout)
+            end (str): The end character to use (defaults to newline)
+            nolock (bool): Whether to acquire the lock or not
+        """
+        import sys
+        fp = file if file is not None else sys.stdout
+        # In marimo, we don't need special handling to avoid overlapping with bars
+        # as the output is handled differently than in terminal environments
+        fp.write(s)
+        fp.write(end)
+
 
 class TqdmFormatter(FormatterFactory):
     @staticmethod
@@ -50,3 +77,4 @@ class TqdmFormatter(FormatterFactory):
             import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
 
             tqdm.notebook.tqdm = ProgressBarTqdmPatch
+
