@@ -4,11 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-pnpmfileChecksum: eqzj7c6t3bs5v7xcjer2wfwkp4
+pnpmfileChecksum: sha256-QrioRE0rVa7k37ba9jgFOwNQflzbUTpdxTezotowvIE=
 
 patchedDependencies:
   react-plotly.js:
-    hash: bpeex744nmt6722etqry6essaq
+    hash: e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189
     path: patches/react-plotly.js.patch
 
 importers:
@@ -365,7 +365,7 @@ importers:
         version: 9.1.0(@types/react@18.3.20)(react@18.3.1)
       react-plotly.js:
         specifier: ^2.6.0
-        version: 2.6.0(patch_hash=bpeex744nmt6722etqry6essaq)(plotly.js@2.35.3(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.25.2)))(react@18.3.1)
+        version: 2.6.0(patch_hash=e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189)(plotly.js@2.35.3(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.25.2)))(react@18.3.1)
       react-resizable-panels:
         specifier: 2.1.7
         version: 2.1.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -17793,7 +17793,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  react-plotly.js@2.6.0(patch_hash=bpeex744nmt6722etqry6essaq)(plotly.js@2.35.3(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.25.2)))(react@18.3.1):
+  react-plotly.js@2.6.0(patch_hash=e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189)(plotly.js@2.35.3(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.25.2)))(react@18.3.1):
     dependencies:
       plotly.js: 2.35.3(mapbox-gl@1.13.3)(webpack@5.96.1(esbuild@0.25.2))
       prop-types: 15.8.1
