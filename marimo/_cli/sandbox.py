@@ -25,7 +25,7 @@ LOGGER = _loggers.marimo_logger()
 
 DepFeatures = Literal["lsp", "recommended"]
 
-if sys.version_info < (3, 11):
+if sys.version_info < (3, 12):
     TempFile = "tempfile._TemporaryFileWrapper[str]"
 else:
     TempFile = tempfile._TemporaryFileWrapper[str]
