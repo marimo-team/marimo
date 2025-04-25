@@ -10,7 +10,12 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/data-source-connections";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CircleHelpIcon, PaintRollerIcon } from "lucide-react";
+import {
+  AlertCircle,
+  CircleHelpIcon,
+  InfoIcon,
+  PaintRollerIcon,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -30,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { MarkdownLanguageAdapter } from "./markdown";
 import type { QuotePrefixKind } from "./utils/quotes";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Divider = () => <div className="h-4 border-r border-border" />;
 
@@ -121,24 +127,49 @@ export const LanguagePanelComponent: React.FC<{
 
   if (languageAdapter instanceof MarkdownLanguageAdapter) {
     showDivider = true;
-
-    const handleClick = () => {
-      const nextPrefix = prefixMap[languageAdapter.lastQuotePrefix].next;
-      languageAdapter.setQuotePrefix(nextPrefix);
+    const lastQuotePrefix = languageAdapter.lastQuotePrefix;
+    const togglePrefix = (
+      prefix: QuotePrefixKind,
+      checked: boolean | string,
+    ) => {
+      if (typeof checked !== "boolean") {
+        return;
+      }
+      const newPrefix = getQuotePrefix(lastQuotePrefix, checked, prefix);
+      languageAdapter.setQuotePrefix(newPrefix);
       triggerUpdate();
     };
-    const tooltipContent = prefixMap[languageAdapter.lastQuotePrefix].tooltip;
 
     actions = (
-      <div className="flex flex-row w-full justify-end">
-        <Tooltip content={tooltipContent}>
-          <Button variant="text" size="icon" onClick={handleClick}>
-            {languageAdapter.lastQuotePrefix === "" ? (
-              <i>f</i>
-            ) : (
-              <i>{languageAdapter.lastQuotePrefix}</i>
-            )}
-          </Button>
+      <div className="flex flex-row w-full justify-end gap-1 items-center">
+        <div className="flex items-center gap-2">
+          <span>
+            <i>r</i>
+          </span>
+          <Checkbox
+            aria-label="Toggle raw string"
+            className="w-3 h-3"
+            checked={lastQuotePrefix.includes("r")}
+            onCheckedChange={(checked) => {
+              togglePrefix("r", checked);
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span>
+            <i>f</i>
+          </span>
+          <Checkbox
+            aria-label="Toggle f-string"
+            className="w-3 h-3"
+            checked={lastQuotePrefix.includes("f")}
+            onCheckedChange={(checked) => {
+              togglePrefix("f", checked);
+            }}
+          />
+        </div>
+        <Tooltip content={<MarkdownQuotePrefixTooltip />}>
+          <InfoIcon className="w-3 h-3" />
         </Tooltip>
       </div>
     );
@@ -152,6 +183,69 @@ export const LanguagePanelComponent: React.FC<{
         {languageAdapter.type}
       </div>
     </TooltipProvider>
+  );
+};
+
+// Based on the current quote prefix and the checkbox state, return the new quote prefix
+export function getQuotePrefix(
+  currentQuotePrefix: QuotePrefixKind,
+  checked: boolean,
+  prefix: QuotePrefixKind,
+) {
+  let newQuotePrefix = currentQuotePrefix;
+  if (checked) {
+    // Add a prefix
+    if (currentQuotePrefix === "") {
+      newQuotePrefix = prefix;
+    } else if (currentQuotePrefix !== "rf" && prefix !== currentQuotePrefix) {
+      newQuotePrefix = "rf";
+    }
+  } else {
+    // Removing a prefix
+    if (currentQuotePrefix === prefix) {
+      // Removing the only prefix
+      newQuotePrefix = "";
+    } else if (currentQuotePrefix === "rf") {
+      newQuotePrefix = prefix === "r" ? "f" : "r";
+    }
+  }
+
+  return newQuotePrefix;
+}
+
+const MarkdownQuotePrefixTooltip: React.FC = () => {
+  return (
+    <div className="flex flex-col gap-3.5">
+      <section className="flex flex-col gap-0.5">
+        <header className="flex items-center gap-1">
+          <code className="text-xs px-1 py-0.5 bg-[var(--slate-2)] rounded">
+            r
+          </code>
+          <span className="font-semibold">Raw String</span>
+        </header>
+        <p className="text-sm text-muted-foreground">
+          Write LaTeX without escaping special characters
+        </p>
+        <pre className="text-xs bg-[var(--slate-2)] p-2 rounded">
+          \alpha \beta
+        </pre>
+      </section>
+
+      <section className="flex flex-col gap-0.5">
+        <header className="flex items-center gap-1">
+          <code className="text-xs px-1 py-0.5 bg-[var(--slate-2)] rounded">
+            f
+          </code>
+          <span className="font-semibold">Format String</span>
+        </header>
+        <p className="text-sm text-muted-foreground">
+          Interpolate Python values
+        </p>
+        <pre className="text-xs bg-[var(--slate-2)] p-2 rounded">
+          Hello {"{name}"}! 😁
+        </pre>
+      </section>
+    </div>
   );
 };
 
@@ -254,31 +348,3 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
 const HELP_KEY = "__help__";
 const HELP_URL =
   "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";
-
-// Cycle through the different quote prefixes for markdown when clicked
-// rf and fr are almost identical, we can remove one for clarity
-const prefixMap: Record<
-  QuotePrefixKind,
-  { next: QuotePrefixKind; tooltip: string }
-> = {
-  r: {
-    next: "f",
-    tooltip: "Toggle f-string",
-  },
-  f: {
-    next: "rf",
-    tooltip: "Toggle raw + f-string",
-  },
-  fr: {
-    next: "r",
-    tooltip: "Toggle raw string",
-  },
-  rf: {
-    next: "r",
-    tooltip: "Toggle raw string",
-  },
-  "": {
-    next: "f",
-    tooltip: "Toggle f string",
-  },
-};

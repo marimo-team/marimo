@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { MarkdownLanguageAdapter } from "../markdown";
+import { getQuotePrefix } from "../panel";
 
 const adapter = new MarkdownLanguageAdapter();
 
@@ -341,5 +342,36 @@ describe("MarkdownLanguageAdapter", () => {
         expect(adapter.isSupported(pythonCode)).toBe(true);
       }
     });
+  });
+});
+
+describe("getQuotePrefix", () => {
+  it("should return the correct quote prefix when checked", () => {
+    expect(getQuotePrefix("", true, "r")).toBe("r");
+    expect(getQuotePrefix("", true, "f")).toBe("f");
+    expect(getQuotePrefix("r", true, "f")).toBe("rf");
+    expect(getQuotePrefix("f", true, "r")).toBe("rf");
+  });
+
+  it("should return the correct quote prefix when unchecked", () => {
+    expect(getQuotePrefix("r", false, "r")).toBe("");
+    expect(getQuotePrefix("f", false, "f")).toBe("");
+    expect(getQuotePrefix("rf", false, "r")).toBe("f");
+    expect(getQuotePrefix("rf", false, "f")).toBe("r");
+  });
+
+  it("should return the correct quote prefix even when not possible to toggle", () => {
+    expect(getQuotePrefix("", false, "r")).toBe("");
+    expect(getQuotePrefix("", false, "f")).toBe("");
+    expect(getQuotePrefix("r", false, "f")).toBe("r");
+    expect(getQuotePrefix("f", false, "r")).toBe("f");
+
+    expect(getQuotePrefix("rf", true, "r")).toBe("rf");
+    expect(getQuotePrefix("rf", true, "f")).toBe("rf");
+    expect(getQuotePrefix("f", true, "f")).toBe("f");
+    expect(getQuotePrefix("r", true, "r")).toBe("r");
+
+    expect(getQuotePrefix("", false, "")).toBe("");
+    expect(getQuotePrefix("", true, "")).toBe("");
   });
 });
