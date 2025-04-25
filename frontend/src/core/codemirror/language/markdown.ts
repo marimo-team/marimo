@@ -2,7 +2,7 @@
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { pythonLanguage } from "@codemirror/lang-python";
+import { python, pythonLanguage } from "@codemirror/lang-python";
 import { languages } from "@codemirror/language-data";
 import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 // @ts-expect-error: no declaration file
@@ -29,7 +29,8 @@ import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
 import { parseLatex } from "./latex";
 import { StreamLanguage } from "@codemirror/language";
-import { embeddedPythonCompletions, parsePython } from "./embedded-python";
+import { parsePython, variableCompletionSource } from "./embedded-python";
+import { conditionalCompletion } from "../completion/utils";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -187,7 +188,13 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       markdownLanguageData.of({ autocomplete: lucideIconCompletionSource }),
       markdownLanguageData.of({ autocomplete: latexSymbolCompletionSource }),
       // Completions for embedded Python
-      embeddedPythonCompletions(isFStringActive),
+      python().language.data.of({
+        autocomplete: conditionalCompletion({
+          completion: variableCompletionSource,
+          predicate: isFStringActive,
+        }),
+      }),
+
       autocompletion({
         // We remove the default keymap because we use our own which
         // handles the Escape key correctly in Vim
@@ -195,7 +202,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
       }),
       // Markdown autorun
-      markdownAutoRunExtension(),
+      markdownAutoRunExtension({ predicate: () => !isFStringActive() }),
     ];
   }
 
