@@ -32,7 +32,7 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
   // eslint-disable-next-line react/hook-use-state
   const previousSize = useRef<Size>({ ...initialSize });
   const onResize = useRef<((size: Size) => void) | undefined>(undefined);
-  // eslint-disable-next-line react-compiler/react-compiler
+  // eslint-disable-next-line react-hooks/react-compiler
   onResize.current = options.onResize;
 
   useEffect(() => {

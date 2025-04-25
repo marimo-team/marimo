@@ -27,7 +27,7 @@
         "useIframeTitle": "info",
         "useKeyWithClickEvents": "off",
         "useGenericFontNames": "off",
-        "useSemanticElements": "warn",
+        "useSemanticElements": "off",
         "useMediaCaption": "info"
       },
       "complexity": {

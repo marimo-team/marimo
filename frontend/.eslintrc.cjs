@@ -16,7 +16,7 @@ module.exports = {
     // Accessibility
     "plugin:jsx-a11y/strict",
     // React
-    "plugin:react-hooks/recommended",
+    "plugin:react-hooks/recommended-legacy",
     "plugin:react/recommended",
     "plugin:react/jsx-runtime",
     "plugin:ssr-friendly/recommended",
@@ -38,9 +38,9 @@ module.exports = {
   parserOptions: {
     project: require.resolve("./tsconfig.json"),
   },
-  plugins: ["@typescript-eslint", "header", "react-compiler"],
+  plugins: ["@typescript-eslint", "header"],
   rules: {
-    "react-compiler/react-compiler": "warn",
+    "react-hooks/react-compiler": "warn",
 
     "header/header": [
       "error",
