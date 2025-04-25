@@ -55,7 +55,7 @@ You can modify the `index.js` to include authentication or custom endpoints. Thi
 
 ## Publish to Cloudflare Pages using GitHub
 
-Create a new GitHub repository by visiting [repo.new](https://repo.new/) . After creating a new repository, go to your newly created project directory to prepare and push your local application to GitHub by running the following commands in your terminal:
+As an alternative to Cloudflare Workers, you can publish to Cloudflare Pages. To get started, create a new GitHub repository by visiting [repo.new](https://repo.new/) . After creating a new repository, go to your newly created project directory to prepare and push your local application to GitHub by running the following commands in your terminal:
 
 ```bash
 cd output_dir
