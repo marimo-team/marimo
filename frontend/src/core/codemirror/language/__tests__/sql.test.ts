@@ -9,6 +9,8 @@ import {
 } from "@/core/datasets/data-source-connections";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { PostgreSQL } from "@codemirror/lang-sql";
+import { datasetsAtom } from "@/core/datasets/state";
+import type { DatasetsState } from "@/core/datasets/types";
 
 const adapter = new SQLLanguageAdapter();
 
@@ -600,6 +602,16 @@ describe("tablesCompletionSource", () => {
   beforeEach(() => {
     // Reset the adapter engine
     adapter.engine = DUCKDB_ENGINE;
+    // reset the datasets state
+    mockStore.set(datasetsAtom, {
+      tables: [],
+    } as unknown as DatasetsState);
+
+    // reset the dataSourceConnectionsAtom
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map(),
+      latestEngineSelected: DUCKDB_ENGINE,
+    });
   });
 
   it("should return null if connection not found", () => {
@@ -1172,4 +1184,222 @@ describe("tablesCompletionSource", () => {
       }
       `);
   });
+
+  it("should return local tables", () => {
+    const testDatasets = [
+      {
+        name: "dataset1",
+        columns: [
+          { name: "col1", type: "number" },
+          { name: "col2", type: "string" },
+        ],
+      },
+    ];
+    mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+
+    const mockConnection: DataSourceConnection = {
+      name: "test_engine",
+      dialect: "duckdb",
+      display_name: "duckdb",
+      default_database: "test_db",
+      default_schema: "test_schema",
+      source: "duckdb",
+      databases: [
+        {
+          dialect: "duckdb",
+          name: "test_db",
+          schemas: [
+            {
+              name: "test_schema",
+              tables: [
+                {
+                  name: "dataset2",
+                  source: "duckdb",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col1",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "dataset1": [
+          "col1",
+          "col2",
+        ],
+        "test_schema": {
+          "dataset2": [
+            "col1",
+          ],
+        },
+      }
+    `);
+  });
+
+  it("should return new connection tables when connection is updated", () => {
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+    {
+      "test_schema": {
+        "dataset2": [
+          "col1",
+        ],
+      },
+    }
+    `);
+
+    const newConnection: DataSourceConnection = {
+      ...mockConnection,
+      default_schema: "new_schema",
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      ...mockStore.get(dataSourceConnectionsAtom),
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, newConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+
+    const completionSource2 = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource2?.defaultSchema).toBe("new_schema");
+  });
+
+  it("should return new local tables when local tables are updated", () => {
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+    mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+    {
+      "dataset1": [
+        "col1",
+        "col2",
+      ],
+      "test_schema": {
+        "dataset2": [
+          "col1",
+        ],
+      },
+    }
+    `);
+
+    const newTestDatasets = [
+      {
+        name: "dataset3",
+        columns: [
+          { name: "col1", type: "number" },
+          { name: "col2", type: "string" },
+        ],
+      },
+    ];
+    mockStore.set(datasetsAtom, { tables: newTestDatasets } as DatasetsState);
+
+    const newCompletionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(newCompletionSource?.schema).toMatchInlineSnapshot(`
+    {
+      "dataset3": [
+        "col1",
+        "col2",
+      ],
+      "test_schema": {
+        "dataset2": [
+          "col1",
+        ],
+      },
+    }
+    `);
+  });
 });
+
+const mockConnection: DataSourceConnection = {
+  name: "test_engine",
+  dialect: "duckdb",
+  display_name: "duckdb",
+  default_database: "test_db",
+  default_schema: "test_schema",
+  source: "duckdb",
+  databases: [
+    {
+      dialect: "duckdb",
+      name: "test_db",
+      schemas: [
+        {
+          name: "test_schema",
+          tables: [
+            {
+              name: "dataset2",
+              source: "duckdb",
+              source_type: "local",
+              type: "table",
+              columns: [
+                {
+                  name: "col1",
+                  external_type: "string",
+                  type: "string",
+                  sample_values: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const testDatasets = [
+  {
+    name: "dataset1",
+    columns: [
+      { name: "col1", type: "number" },
+      { name: "col2", type: "string" },
+    ],
+  },
+];

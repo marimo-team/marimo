@@ -17,8 +17,8 @@
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.2",
+    "typescript": "^5.8.3",
     "ws": "^8.18.1"
   },
-  "packageManager": "pnpm@9.15.9"
+  "packageManager": "pnpm@10.9.0"
 }

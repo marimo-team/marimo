@@ -263,6 +263,7 @@ export const VariableTable: React.FC<Props> = memo(
       getFilteredRowModel: getFilteredRowModel(),
       enableFilters: true,
       enableGlobalFilter: true,
+      enableColumnPinning: false,
       getColumnCanGlobalFilter(column) {
         // Opt-out only
         return column.columnDef.enableGlobalFilter ?? true;

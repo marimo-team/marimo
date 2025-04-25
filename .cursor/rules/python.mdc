@@ -1,0 +1,74 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Rules for writing Python (backend of marimo)
+globs: marimo/*.py scripts/*.py test/*.py pyodide/*.py
+---
+
+You are an expert in Python and websockets protocol with Python.
+
+Key Principles
+  - Write clear, technical responses with precise examples.
+  - Prioritize readability and maintainability; follow PEP 8 coding style guide
+  - Use descriptive variable and function names; adhere to naming conventions (e.g., lowercase with underscores for functions and variables).
+  - Use type hints consistently throughout the codebase
+  - Keep comments to a minimum; be concise when writing them
+
+Error Handling and Validation
+  - Use try-except blocks to handle cases where the code can fail
+  - Follow established error handling patterns with specific or custom exceptions
+
+Logging
+  - As a general rule, we should have logs for every unexpected action of the application, using the appropriate log level.
+  - A log level or log severity is a piece of information telling how important a given log message is:
+    - debug: should be used for information that may be needed for diagnosing issues and troubleshooting or when running application in the test environment for the purpose of making sure everything is running correctly
+    - info should be used as standard log level, indicating that something happened
+    - warn: should be used when something unexpected happened but the code can continue the work
+    - error: should be used when the application hits an issue preventing one or more functionalities from properly functioning
+
+Logging Format
+  - Always use marimo's logger:
+
+  ```python
+  from marimo import _loggers
+  
+  LOGGER = _loggers.marimo_logger()
+
+  LOGGER.info("Debugging applications with params %s %s", "key1", "key2")
+  ```
+
+  will produce:
+
+  ```sh
+  [D 250406 21:43:21 runtime:2055] Debugging applications with params key1 key2
+  ```
+
+Security
+  - Don’t log sensitive information. Make sure you never log:
+    - authorization tokens
+    - passwords
+
+Testing
+  - Changes or new functionality in the codebase should come with unit tests using pytest.
+  - Tests exist in the tests folder.
+  - Utilize snapshot testing where appropriate:
+  
+  ```
+  from tests.mocks import snapshotter
+
+  snapshot = snapshotter(__file__)  
+
+  snapshot(filename, output)
+  ```
+
+Unit tests
+  - A good unit test should:
+    - focus on a single use-case at a time
+    - have a minimal set of assertions per test
+    - demonstrate every use case. The rule of thumb is: if it can happen, it should be covered
+    - To run a test using hatch, you can run the following command:
+      `hatch run +py=3.12 test:test tests/path/to/test.py`
+      `hatch run +py=3.12 test-optional:test tests/path/to/test.py` (when the test includes an optional dependency)

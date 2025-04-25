@@ -75,8 +75,9 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    file_button = lambda: mo.ui.file(kind="button")
-    file_area = lambda: mo.ui.file(kind="area")
+    file_button = lambda: mo.ui.file(kind="button", multiple=True)
+    file_area = lambda: mo.ui.file(kind="area", multiple=True)
+    file_area_single = lambda: mo.ui.file(kind="area", multiple=False)
 
     basic_ui_elements = mo.ui.dropdown(
         options=dict(
@@ -88,6 +89,7 @@ def __(mo):
                     "dropdown": mo.ui.dropdown,
                     "file button": file_button,
                     "file area": file_area,
+                    "file area single": file_area_single,
                     "multiselect": mo.ui.multiselect,
                     "number": mo.ui.number,
                     "radio": mo.ui.radio,
@@ -100,11 +102,11 @@ def __(mo):
             )
         ),
     )
-    return basic_ui_elements, file_area, file_button
+    return basic_ui_elements, file_area, file_area_single, file_button
 
 
 @app.cell
-def __(file_area, file_button, mo):
+def __(file_area, file_area_single, file_button, mo):
     def construct_element(value):
         if value == mo.ui.array:
             return mo.ui.array([mo.ui.text(), mo.ui.slider(1, 10), mo.ui.date()])
@@ -156,6 +158,8 @@ def __(file_area, file_button, mo):
             return file_button()
         elif value == file_area:
             return file_area()
+        elif value == file_area_single:
+            return file_area_single()
         elif value == mo.ui.form:
             return mo.ui.text_area(placeholder="...").form()
         elif value == mo.ui.multiselect:

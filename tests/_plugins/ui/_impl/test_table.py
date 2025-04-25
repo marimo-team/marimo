@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -11,9 +11,12 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
+    CalculateTopKRowsArgs,
+    CalculateTopKRowsResponse,
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
+    get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
@@ -23,6 +26,9 @@ from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
 from marimo._utils.data_uri import from_data_uri
 from tests._data.mocks import create_dataframes
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @pytest.fixture
@@ -285,7 +291,8 @@ def test_value_with_sorting_then_selection() -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": ["x", "z", "y"]}, exclude=["ibis", "duckdb", "pyarrow"]
+        {"a": ["x", "z", "y"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
@@ -358,7 +365,8 @@ def test_value_with_search_then_selection() -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+        {"a": ["foo", "bar", "baz"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_value_with_search_then_selection_dfs(df: Any) -> None:
@@ -403,7 +411,8 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": ["foo", "bar", "baz"]}, exclude=["ibis", "duckdb", "pyarrow"]
+        {"a": ["foo", "bar", "baz"]},
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_value_with_search_then_cell_selection_dfs(df: Any) -> None:
@@ -652,7 +661,7 @@ def test_get_row_ids_for_lists() -> None:
             "fruits": ["banana", "apple", "cherry"] * 3,
             "quantity": [10, 20, 30] * 3,
         },
-        exclude=["ibis", "duckdb", "pyarrow"],
+        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 def test_get_row_ids_with_df(df: any) -> None:
@@ -1042,13 +1051,14 @@ def test_show_download():
     assert table_false._component_args["show-download"] is False
 
 
+DOWNLOAD_FORMATS = ["csv", "json", "parquet"]
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
 def test_download_as_pandas() -> None:
     """Test downloading table data as different formats with pandas DataFrame."""
-    import io
-
     import pandas as pd
     from pandas.testing import assert_frame_equal
 
@@ -1062,27 +1072,23 @@ def test_download_as_pandas() -> None:
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
         )
-        data_bytes = from_data_uri(download_str)[1]
-
-        if format_type == "json":
-            return pd.read_json(io.BytesIO(data_bytes))
-        return pd.read_csv(io.BytesIO(data_bytes))
+        return _convert_data_bytes_to_pandas_df(download_str, format_type)
 
     # Test base downloads (full data)
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
         assert_frame_equal(data, downloaded_df)
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].isin(["Newark", "New York"]))
 
     # Test downloads with selection (includes search from before)
     table._convert_value(["1"])
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
         assert len(selected_df) == 1
         assert selected_df["cities"].iloc[0] == "New York"
@@ -1110,23 +1116,27 @@ def test_download_as_polars() -> None:
 
         if format_type == "json":
             return pl.read_json(data_bytes)
-        return pl.read_csv(data_bytes)
+        if format_type == "parquet":
+            return pl.read_parquet(data_bytes)
+        if format_type == "csv":
+            return pl.read_csv(data_bytes)
+        raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         downloaded_df = download_and_convert(format_type, table)
         assert_frame_equal(data, downloaded_df)
 
     # Test downloads with search filter
     table._search(SearchTableArgs(query="New", page_size=10, page_number=0))
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         filtered_df = download_and_convert(format_type, table)
         assert len(filtered_df) == 2
         assert all(filtered_df["cities"].is_in(["Newark", "New York"]))
 
     # Test downloads with selection (includes search from before)
     table._convert_value(["1"])
-    for format_type in ["csv", "json"]:
+    for format_type in DOWNLOAD_FORMATS:
         selected_df = download_and_convert(format_type, table)
         assert len(selected_df) == 1
         assert selected_df["cities"][0] == "New York"
@@ -1148,6 +1158,22 @@ def test_download_as_for_supported_cell_selection() -> None:
     for selection in ["single", "multi", None]:
         table = ui.table(data=[], selection=selection)
         table._download_as(DownloadAsArgs(format="csv"))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Polars not installed",
+)
+@pytest.mark.parametrize(
+    "fmt",
+    ["csv", "json", "parquet"],
+)
+def test_download_as_for_dataframes(fmt: str) -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    table = ui.table(df)
+    table._download_as(DownloadAsArgs(format=fmt))
 
 
 def test_pagination_behavior() -> None:
@@ -1487,3 +1513,165 @@ def test_json_multi_col_idx_table() -> None:
             "('basic_amt', 'QLD')": 2,
         }
     ]
+
+
+# Test for lazy dataframes
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Polars not installed",
+)
+def test_lazy_dataframe() -> None:
+    import warnings
+
+    # Capture warnings that might be raised during lazy dataframe operations
+    with warnings.catch_warnings(record=True) as recorded_warnings:
+        import polars as pl
+
+        num_rows = 21
+
+        # Create a large dataframe that would trigger lazy loading
+        large_df = pl.LazyFrame(
+            {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
+        )
+
+        # Create table with _internal_lazy=True to simulate lazy loading
+        table = ui.table.lazy(large_df, page_size=num_rows)
+
+        # Verify the lazy flag is set
+        assert table._lazy is True
+
+        # Check that the banner text indicates lazy loading
+        assert (
+            table._get_banner_text()
+            == f"Previewing only the first {num_rows} rows."
+        )
+
+        # Verify the component args are set
+        assert table._component_args["lazy"] is True
+        assert table._component_args["total-rows"] == "too_many"
+        assert table._component_args["page-size"] == num_rows
+        assert table._component_args["pagination"] is False
+        assert table._component_args["data"] == []
+        assert table._component_args["total-columns"] == 0
+        assert table._component_args["field-types"] is None
+
+        # Verify that search response indicates "too_many" for total_rows
+        # but returns the preview rows
+        search_args = SearchTableArgs(page_size=num_rows, page_number=0)
+        search_response = table._search(search_args)
+        assert search_response.total_rows == "too_many"
+
+        # Check that only the preview rows are returned
+        json_data = from_data_uri(search_response.data)[1].decode("utf-8")
+        json_data = json.loads(json_data)
+        assert len(json_data) == num_rows
+
+    # Warning comes from search
+    assert len(recorded_warnings) == 0
+
+    # Select rows
+    value = table._convert_value([])
+    assert value is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Polars not installed",
+)
+def test_lazy_dataframe_with_non_lazy_dataframe():
+    import polars as pl
+
+    # Create a Polars LazyFrame
+    df = pl.DataFrame(
+        {"col1": range(1000), "col2": [f"value_{i}" for i in range(1000)]}
+    )
+    with pytest.raises(ValueError):
+        table = ui.table.lazy(df)
+
+
+@pytest.mark.skipif(
+    DependencyManager.altair.has(),
+    reason="If altair is installed, it will trigger to_marimo_arrow()",
+)
+def test_get_data_url_no_deps() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    assert response.data_url == [{"value": 1}, {"value": 2}, {"value": 3}]
+    assert response.format == "json"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.altair.has(), reason="Altair not installed"
+)
+def test_get_data_url_with_altair() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    assert response.data_url.startswith("data:text/csv;base64,")
+    assert response.format == "csv"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_get_data_url_values() -> None:
+    table = ui.table([1, 2, 3])
+    response = table._get_data_url({})
+    initial_data_url = response.data_url
+    assert initial_data_url.startswith("data:text/csv;base64,")
+    assert response.format == "csv"
+
+    import pandas as pd
+    from pandas.testing import assert_frame_equal
+
+    df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    expected_df = pd.DataFrame({0: [1, 2, 3]})
+    assert_frame_equal(df, expected_df)
+
+    # Test search
+    table._search(SearchTableArgs(query="2", page_size=3, page_number=0))
+    response = table._get_data_url({})
+
+    df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
+    expected_df = pd.DataFrame({"value": [2]})
+    assert_frame_equal(df, expected_df)
+
+
+def test_default_table_page_size():
+    assert get_default_table_page_size() == 10
+
+
+def test_calculate_top_k_rows():
+    table = ui.table({"A": [1, 3, 3, None, None]})
+    result = table._calculate_top_k_rows(
+        CalculateTopKRowsArgs(column="A", k=10)
+    )
+    assert result == CalculateTopKRowsResponse(
+        data=[(3, 2), (None, 2), (1, 1)],
+    )
+
+
+def _convert_data_bytes_to_pandas_df(
+    data: str, data_format: str
+) -> pd.DataFrame:
+    import io
+
+    import pandas as pd
+
+    data_bytes = from_data_uri(data)[1]
+
+    if data_format == "csv":
+        df = pd.read_csv(io.BytesIO(data_bytes))
+        # Convert column names to integers if they represent integers
+        df.columns = pd.Index(
+            [
+                int(col) if isinstance(col, str) and col.isdigit() else col
+                for col in df.columns
+            ]
+        )
+        return df
+    elif data_format == "json":
+        return pd.read_json(io.BytesIO(data_bytes))
+    elif data_format == "parquet":
+        return pd.read_parquet(io.BytesIO(data_bytes))
+    else:
+        raise ValueError(f"Unsupported data_format: {data_format}")

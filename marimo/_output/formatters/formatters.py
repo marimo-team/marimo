@@ -18,6 +18,7 @@ from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.df_formatters import (
     PolarsFormatter,
     PyArrowFormatter,
+    PySparkFormatter,
 )
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
@@ -48,6 +49,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     PandasFormatter.package_name(): PandasFormatter(),
     PolarsFormatter.package_name(): PolarsFormatter(),
     PyArrowFormatter.package_name(): PyArrowFormatter(),
+    PySparkFormatter.package_name(): PySparkFormatter(),
     PygWalkerFormatter.package_name(): PygWalkerFormatter(),
     PlotlyFormatter.package_name(): PlotlyFormatter(),
     SeabornFormatter.package_name(): SeabornFormatter(),

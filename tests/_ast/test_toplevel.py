@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -451,5 +451,60 @@ class TestTopLevelClasses:
         extraction = TopLevelExtraction.from_app(InternalApp(app))
         assert [
             TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_class_invocation(app) -> None:
+        @app.class_definition
+        class Example: ...
+
+        @app.function
+        def f():
+            return Example()
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_name_is_not_propagated(app) -> None:
+        @app.cell
+        def cell():
+            value = 1
+
+        @app.function
+        def to_be_demoted():
+            return value + 1  # type: ignore # noqa: F821
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.CELL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+        assert ["cell", "_"] == [s.name for s in extraction], [
+            s.hint for s in extraction
+        ]
+
+
+class TestTopLevelHook:
+    @staticmethod
+    def test_toplevel_hook(app) -> None:
+        @app.class_definition
+        class Example: ...
+
+        @app.cell()
+        def f():
+            def f():
+                return Example()
+
+        extraction = TopLevelExtraction.from_graph(
+            f._cell,
+            InternalApp(app).graph,
+        )
+        assert [
+            TopLevelType.TOPLEVEL,
             TopLevelType.TOPLEVEL,
         ] == [s.type for s in extraction], [s.hint for s in extraction]

@@ -10,6 +10,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import _query_includes_limit, sql
 
 if TYPE_CHECKING:
@@ -331,3 +332,14 @@ def test_sql_output_flag(mock_replace: MagicMock) -> None:
 
     # Clean up
     duckdb.sql("DROP TABLE test_table_2")
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sql_with_cursor_result(sqlite_engine: sa.Engine):
+    from sqlalchemy.engine import CursorResult
+
+    with patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="native"
+    ):
+        result = sql("SELECT * FROM test", engine=sqlite_engine)
+        assert isinstance(result, CursorResult)

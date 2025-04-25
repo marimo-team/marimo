@@ -7,7 +7,7 @@ app = marimo.App()
 @app.cell
 def one():
     import numpy as np
-    return (np,)
+    return
 
 
 if __name__ == "__main__":

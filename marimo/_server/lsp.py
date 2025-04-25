@@ -177,6 +177,13 @@ class CopilotLspServer(BaseLspServer):
 class PyLspServer(BaseLspServer):
     id = "pylsp"
 
+    def start(self) -> Optional[Alert]:
+        # pylsp is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.pylsp.has():
+            LOGGER.debug("pylsp is not installed. Skipping LSP server.")
+            return None
+        return super().start()
+
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if DependencyManager.pylsp.has():
             return True
@@ -229,21 +236,18 @@ class CompositeLspServer(LspServer):
         self.config_reader = config_reader
         self.min_port = min_port
 
+        last_free_port = find_free_port(min_port)
+
         # NOTE: we construct all servers up front regardless of whether they are enabled
         # in order to properly mount them as Starlette routes with their own ports
         # With 2 servers, this is OK, but if we want to support more, we should
         # lazily construct servers, routes, and ports.
         # We still lazily start servers as they are enabled.
         # We also need to ensure that the ports are unique
-        self.servers: dict[str, LspServer] = {
-            # We offset the ports by 2 to ensure they are unique
-            server_name: server_constructor(
-                find_free_port(self.min_port + i * 5)
-            )
-            for i, (server_name, server_constructor) in enumerate(
-                self.LANGUAGE_SERVERS.items()
-            )
-        }
+        self.servers: dict[str, LspServer] = {}
+        for server_name, server_constructor in self.LANGUAGE_SERVERS.items():
+            last_free_port = find_free_port(last_free_port + 1)
+            self.servers[server_name] = server_constructor(last_free_port)
 
     def _is_enabled(self, server_name: str) -> bool:
         # .get_config() is not cached
@@ -251,10 +255,6 @@ class CompositeLspServer(LspServer):
         if server_name == "copilot":
             copilot = config["completion"]["copilot"]
             return copilot is True or copilot == "github"
-
-        # If flag not enabled, return False
-        if not config.get("experimental", {}).get("lsp", False):
-            return False
 
         return cast(
             bool,

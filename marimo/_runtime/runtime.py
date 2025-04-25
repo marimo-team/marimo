@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import builtins
 import contextlib
 import dataclasses
 import io
@@ -25,7 +24,8 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.errors import ImportStarError
-from marimo._ast.variables import is_local
+from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -135,7 +135,10 @@ from marimo._runtime.runner.hooks import (
     PREPARATION_HOOKS,
 )
 from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
+from marimo._runtime.runner.hooks_post_execution import (
+    PostExecutionHookType,
+    render_toplevel_defs,
+)
 from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
 from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -205,7 +208,7 @@ def refs() -> tuple[str, ...]:
         return tuple()
 
     # builtins that have not been shadowed by the user
-    unshadowed_builtins = set(builtins.__dict__.keys()).difference(
+    unshadowed_builtins = BUILTINS.difference(
         set(ctx.graph.definitions.keys())
     )
 
@@ -515,20 +518,15 @@ class Kernel:
         self._original_environ = os.environ.copy()
 
         # Adds in a post_execution hook to run pytest immediately
-        if user_config.get("experimental", {}).get("reactive_tests", False):
+        if user_config["runtime"].get("reactive_tests", False):
             from marimo._runtime.runner.hooks_post_execution import (
-                _attempt_pytest,
+                attempt_pytest,
             )
 
-            self._post_execution_hooks.append(_attempt_pytest)
+            self._post_execution_hooks.append(attempt_pytest)
 
-        # Adds in a post_execution hook to run pytest immediately
-        if user_config.get("experimental", {}).get("toplevel_defs", False):
-            from marimo._runtime.runner.hooks_post_execution import (
-                _render_toplevel_defs,
-            )
-
-            self._post_execution_hooks.append(_render_toplevel_defs)
+        # Must be last to properly trigger render.
+        self._post_execution_hooks.append(render_toplevel_defs)
 
         self._globals_lock = threading.RLock()
         self._completion_worker_started = False
@@ -1272,6 +1270,12 @@ class Kernel:
             - cells_registered_without_error
         ) & cells_in_graph
 
+        # If there is a setup cell and it is currently stale
+        if setup_cell := self.graph.cells.get(CellId_t(SETUP_CELL_NAME)):
+            # - then add it to the set of cells to run.
+            # This makes the setup cell like a "root" cell to everything.
+            if setup_cell.stale:
+                cells_registered_without_error.add(setup_cell.cell_id)
         if self.reactive_execution_mode == "lazy":
             self.graph.set_stale(stale_cells, prune_imports=True)
             return cells_registered_without_error

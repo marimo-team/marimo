@@ -94,18 +94,33 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
+    def to_csv_str(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> str:
+        pass
+
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
-        pass
+        return self.to_csv_str(format_mapping).encode("utf-8")
 
     def to_arrow_ipc(self) -> bytes:
         raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
         pass
+
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self.to_json_str(format_mapping).encode("utf-8")
+
+    @abc.abstractmethod
+    def to_parquet(self) -> bytes:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
@@ -176,6 +191,12 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_sample_values(self, column: str) -> list[Any]:
+        pass
+
+    @abc.abstractmethod
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
         pass
 
     def __repr__(self) -> str:

@@ -8,7 +8,8 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import __version__, _loggers
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput

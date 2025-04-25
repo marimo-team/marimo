@@ -40,6 +40,29 @@ marimo supports vim keybindings.
 
 - `gd` - go to definition
 - `dd` - when a cell is empty, delete it
+- `:w` - to save the notebook
+
+**Custom vimrc:**
+
+You can customize your vim experience by adding a `.vimrc` configuration in the user settings or pyproject.toml
+
+/// tab | User config
+
+```toml title="marimo.toml"
+[keymap]
+vimrc = /User/absolute/path/to/.vimrc
+```
+
+///
+
+/// tab | pyproject.toml
+
+```toml title="pyproject.toml"
+[tool.marimo.keymap]
+vimrc = relative/path/.vimrc
+```
+
+///
 
 ## Overview panels
 

@@ -6,6 +6,10 @@ import subprocess
 import sys
 from typing import Optional
 
+from marimo import _loggers
+
+LOGGER = _loggers.marimo_logger()
+
 
 def get_node_version() -> Optional[str]:
     try:
@@ -18,7 +22,10 @@ def get_node_version() -> Optional[str]:
         stdout, stderr = process.communicate()
         if stderr:
             return None
-        return stdout.strip().split()[-1]
+        if stdout and (stripped := stdout.strip()):
+            return stripped.split()[-1]
+        else:
+            return None
     except FileNotFoundError:
         return None
 
@@ -36,7 +43,6 @@ def get_required_modules_list() -> dict[str, str]:
         "pygments",
         "pymdown-extensions",
         "pyyaml",
-        "ruff",
         "starlette",
         "tomlkit",
         "typing-extensions",
@@ -53,10 +59,19 @@ def get_optional_modules_list() -> dict[str, str]:
         "anywidget",
         "duckdb",
         "ibis-framework",
+        "nbformat",
+        "openai",
         "opentelemetry",
         "pandas",
         "polars",
         "pyarrow",
+        "pycrdt",
+        "pylsp-mypy",
+        "pytest",
+        "python-lsp-ruff",
+        "python-lsp-server",
+        "ruff",
+        "sqlglot",
     ]
     return _get_versions(packages, include_missing=False)
 
@@ -143,6 +158,9 @@ def get_chrome_version() -> Optional[str]:
         else:
             return None
     except FileNotFoundError:
+        return None
+    except Exception as e:
+        LOGGER.error(f"An error occurred: {e}")
         return None
 
 

@@ -4,7 +4,6 @@ import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
-export type AppMetadata = schemas["AppMetadata"];
 export type BaseResponse = schemas["BaseResponse"];
 export type CellConfig = schemas["CellConfig"];
 /**
@@ -60,7 +59,7 @@ export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
 export type RunRequest = schemas["RunRequest"];
-export type RunScratchpadRequest = schemas["RunScratchpadRequest"];
+export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
 export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
@@ -107,7 +106,7 @@ export interface EditRequests {
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: RunRequest) => Promise<null>;
-  sendRunScratchpad: (request: RunScratchpadRequest) => Promise<null>;
+  sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<FormatResponse>;

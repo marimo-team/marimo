@@ -32,7 +32,7 @@ import { isWasm } from "@/core/wasm/utils";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
-  const { openApplication, toggleTerminal } = useChromeActions();
+  const { toggleApplication, toggleTerminal } = useChromeActions();
   const [config, setConfig] = useResolvedMarimoConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
@@ -52,7 +52,7 @@ export const Footer: React.FC = () => {
       <FooterItem
         tooltip={errorPanel.tooltip}
         selected={selectedPanel === errorPanel.type}
-        onClick={() => openApplication(errorPanel.type)}
+        onClick={() => toggleApplication(errorPanel.type)}
       >
         {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>

@@ -42,4 +42,8 @@ export class ZodLocalStorage<T> {
   set(value: T) {
     window.localStorage.setItem(this.key, JSON.stringify(value));
   }
+
+  remove() {
+    window.localStorage.removeItem(this.key);
+  }
 }

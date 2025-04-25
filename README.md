@@ -8,7 +8,8 @@
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
   <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> ·
-  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a> ·
+  <a href="https://docs.marimo.io/examples/" target="_blank"><strong>Examples</strong></a> ·
+  <a href="https://marimo.io/gallery/" target="_blank"><strong>Gallery</strong></a> ·
   <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a>
 </p>
 
@@ -22,7 +23,7 @@
 </p>
 
 <p align="center">
-<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
+<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
 <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
 <a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
 <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
@@ -190,7 +191,7 @@ For example, here's an embedding visualizer made in marimo
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
 Check out our [docs](https://docs.marimo.io),
-the [`examples/`](examples/) folder, and our [gallery](https://marimo.io/gallery) to learn more.
+[usage examples](https://docs.marimo.io/examples/), and our [gallery](https://marimo.io/gallery) to learn more.
 
 <table border="0">
   <tr>

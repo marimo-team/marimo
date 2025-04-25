@@ -84,10 +84,34 @@ def sqlite_engine() -> sa.Engine:
     return engine
 
 
+@pytest.fixture
+def sqlite_engine_meta() -> sa.Engine:
+    """Create a temporary SQLite database with information_schema.
+    Use a mock information_schema"""
+
+    import sqlalchemy as sa
+
+    engine = sa.create_engine("sqlite:///:memory:")
+
+    sql("ATTACH ':memory:' AS information_schema", engine=engine)
+    sql(
+        "CREATE TABLE information_schema.tables (table_name TEXT)",
+        engine=engine,
+    )
+    sql(
+        "INSERT INTO information_schema.tables VALUES ('tables')",
+        engine=engine,
+    )
+
+    return engine
+
+
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine dialect property."""
-    engine = SQLAlchemyEngine(sqlite_engine)
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
     assert engine.dialect == "sqlite"
 
 
@@ -95,7 +119,7 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
 def test_sqlalchemy_invalid_engine() -> None:
     """Test SQLAlchemyEngine with an invalid engine and inspector does not raise errors."""
 
-    engine = SQLAlchemyEngine(connection=None)  # type: ignore
+    engine = SQLAlchemyEngine(connection=None, engine_name=None)  # type: ignore
     assert engine.inspector is None
     assert engine.default_database is None
     assert engine.default_schema is None
@@ -338,6 +362,25 @@ def test_sqlalchemy_engine_get_tables_in_schema(
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_skip_meta_schemas(
+    sqlite_engine_meta: sa.Engine,
+) -> None:
+    """Test SQLAlchemyEngine get_tables method."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine_meta, engine_name=VariableName("test_sqlite")
+    )
+    databases = engine.get_databases(
+        include_schemas=True, include_tables=True, include_table_details=True
+    )
+    assert len(databases[0].schemas) == 2
+    assert databases[0].schemas[0].name == "main"
+    assert databases[0].schemas[1].name == "information_schema"
+
+    information_schema = databases[0].schemas[1]
+    assert information_schema.tables == []
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_schemas method."""
     engine = SQLAlchemyEngine(
@@ -537,7 +580,9 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
     import pandas as pd
     import polars as pl
 
-    engine = SQLAlchemyEngine(sqlite_engine)
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
     result = engine.execute("SELECT * FROM test ORDER BY id")
     assert isinstance(result, (pd.DataFrame, pl.DataFrame))
     assert len(result) == 4
@@ -546,11 +591,108 @@ def test_sqlalchemy_engine_execute(sqlite_engine: sa.Engine) -> None:
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_get_database_name(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_database_name."""
-    engine = SQLAlchemyEngine(sqlite_engine)
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
     assert engine.get_default_database() == ":memory:"
 
     import sqlalchemy as sa
 
     # Test with no database name
-    engine = SQLAlchemyEngine(sa.create_engine("sqlite:///"))
+    engine = SQLAlchemyEngine(
+        sa.create_engine("sqlite:///"), engine_name=VariableName("test_sqlite")
+    )
     assert engine.get_default_database() == ""
+
+
+@pytest.mark.skipif(
+    not HAS_SQLALCHEMY or not HAS_POLARS or not HAS_PANDAS,
+    reason="SQLAlchemy, Polars, and Pandas not installed",
+)
+def test_sqlalchemy_engine_sql_output_formats(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """Test SQLAlchemyEngine execute with different SQL output formats."""
+    from unittest import mock
+
+    import pandas as pd
+    import polars as pl
+
+    # Test with polars output format
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="polars"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert isinstance(result, pl.DataFrame)
+        assert len(result) == 4
+
+    # Test with lazy-polars output format
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="lazy-polars"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert isinstance(result, pl.LazyFrame)
+        assert len(result.collect()) == 4
+
+    # Test with pandas output format
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="pandas"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 4
+
+    # Test with native output format
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="native"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert not isinstance(
+            result, (pd.DataFrame, pl.DataFrame, pl.LazyFrame)
+        )
+        assert hasattr(result, "fetchall")
+
+    # Test with auto output format (should use polars if available)
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="auto"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert isinstance(result, (pd.DataFrame, pl.DataFrame))
+        assert len(result) == 4
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_get_cursor_metadata(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """Test SQLAlchemyEngine get_cursor_metadata."""
+    from sqlalchemy.engine import CursorResult
+
+    with mock.patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="native"
+    ):
+        engine = SQLAlchemyEngine(
+            sqlite_engine, engine_name=VariableName("test_sqlite")
+        )
+        result = engine.execute("SELECT * FROM test ORDER BY id")
+        assert isinstance(result, CursorResult)
+
+        assert SQLAlchemyEngine.is_cursor_result(result)
+        metadata = SQLAlchemyEngine.get_cursor_metadata(result)
+        assert metadata is not None
+        assert metadata["sql_statement_type"] == "Query"

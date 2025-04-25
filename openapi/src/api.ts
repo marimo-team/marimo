@@ -1647,7 +1647,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["RunScratchpadRequest"];
+          "application/json": components["schemas"]["ExecuteScratchpadRequest"];
         };
       };
       responses: {
@@ -2338,6 +2338,7 @@ export interface components {
     };
     AiCompletionContext: {
       schema: components["schemas"]["SchemaTable"][];
+      variables: (components["schemas"]["VariableContext"] | string)[];
     };
     AiCompletionRequest: {
       code: string;
@@ -2346,6 +2347,7 @@ export interface components {
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
       prompt: string;
+      selectedText?: string | null;
     };
     AiInlineCompletionRequest: {
       /** @enum {string} */
@@ -2360,20 +2362,6 @@ export interface components {
       title: string;
       /** @enum {string|null} */
       variant?: "danger" | null;
-    };
-    AppMetadata: {
-      argv?: string[] | null;
-      cliArgs: {
-        [key: string]:
-          | string
-          | boolean
-          | number
-          | (string | boolean | number)[];
-      };
-      filename?: string | null;
-      queryParams: {
-        [key: string]: string | string[];
-      };
     };
     Banner: {
       /** @enum {string|null} */
@@ -2448,7 +2436,7 @@ export interface components {
         role: "user" | "assistant" | "system";
       }[];
       model?: string | null;
-      variables?: string[] | null;
+      variables?: (components["schemas"]["VariableContext"] | string)[] | null;
     };
     CodeCompletionRequest: {
       cellId: string;
@@ -2593,6 +2581,7 @@ export interface components {
       key: string;
     };
     Error:
+      | components["schemas"]["SetupRootError"]
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["ImportStarError"]
@@ -2791,16 +2780,18 @@ export interface components {
       | null;
     KernelReady: {
       app_config: {
-        _toplevel_fn: boolean;
         app_title?: string | null;
         auto_download: ("html" | "markdown")[];
         css_file?: string | null;
         html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
+        sql_output: "polars" | "lazy-polars" | "pandas" | "native" | "auto";
+        /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
+        pylsp: boolean;
         terminal: boolean;
       };
       cell_ids: string[];
@@ -2935,6 +2926,7 @@ export interface components {
         custom_css?: string[];
         /** @enum {string} */
         dataframes: "rich" | "plain";
+        default_table_page_size: number;
         /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full" | "columns";
         /** @enum {string} */
@@ -2952,6 +2944,7 @@ export interface components {
         };
         /** @enum {string} */
         preset: "default" | "vim";
+        vimrc?: string | null;
       };
       language_servers?: {
         pylsp?: {
@@ -2977,6 +2970,7 @@ export interface components {
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
         pythonpath?: string[];
+        reactive_tests: boolean;
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
@@ -3196,10 +3190,6 @@ export interface components {
       codes: string[];
       request?: components["schemas"]["HTTPRequest"];
     };
-    RunScratchpadRequest: {
-      code: string;
-      request?: components["schemas"]["HTTPRequest"];
-    };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
@@ -3288,6 +3278,11 @@ export interface components {
     SetUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
     };
+    SetupRootError: {
+      edges_with_vars: [string, string[], string][];
+      /** @enum {string} */
+      type: "setup-refs";
+    };
     ShutdownSessionRequest: {
       sessionId: string;
     };
@@ -3330,6 +3325,11 @@ export interface components {
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
+    };
+    VariableContext: {
+      name: string;
+      previewValue: unknown;
+      valueType: string;
     };
     VariableDeclaration: {
       declared_by: string[];

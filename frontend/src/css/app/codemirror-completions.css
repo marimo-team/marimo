@@ -4,7 +4,7 @@
   /* Base styling for autocomplete container */
   .cm-tooltip-autocomplete {
     /* CodeMirror's default is too wide. */
-    max-width: 200px;
+    max-width: 250px;
     @apply bg-popover shadow-md border border-border;
   }
 
@@ -25,8 +25,19 @@
   }
 
   .cm-completionLabel {
-    padding: 1px 0;
-    @apply text-xs;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    padding-right: 12px;
+    @apply text-xs font-mono;
+  }
+
+  .cm-completionDetail {
+    flex-grow: 1;
+    text-align: right;
+  }
+
+  .cm-tooltip-autocomplete > ul > completion-section {
+    @apply text-xs bg-muted-foreground/10 border-y border-border;
   }
 
   /* Hover state for list items */
@@ -151,14 +162,37 @@
     }
   }
 
+  .cm-completionIcon-table {
+    color: var(--gray-11);
+    background-color: var(--gray-3);
+
+    &::after {
+      content: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2NjY2NjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1kYXRhYmFzZS1pY29uIGx1Y2lkZS1kYXRhYmFzZSI+PGVsbGlwc2UgY3g9IjEyIiBjeT0iNSIgcng9IjkiIHJ5PSIzIi8+PHBhdGggZD0iTTMgNVYxOUE5IDMgMCAwIDAgMjEgMTlWNSIvPjxwYXRoIGQ9Ik0zIDEyQTkgMyAwIDAgMCAyMSAxMiIvPjwvc3ZnPg=="); /* Database icon for tables */
+    }
+  }
+
+  .cm-completionIcon-dataframe {
+    color: var(--gray-11);
+    background-color: var(--gray-3);
+
+    &::after {
+      content: "𝌆"; /* Dataframe icon for tables */
+    }
+  }
+
   /* Completion info tooltip */
   .cm-completionInfo {
     @apply max-w-md border-l border-border;
   }
 
+  .cm-completionDetail {
+    font-style: normal;
+    @apply text-xs text-muted-foreground;
+  }
+
   /* Completion matching text highlight */
   .cm-completionMatchedText {
-    @apply font-semibold text-primary underline underline-offset-2;
+    @apply text-accent-foreground font-medium underline underline-offset-2;
   }
 
   /* Scrollbar styling for autocomplete list */

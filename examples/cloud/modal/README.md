@@ -21,6 +21,8 @@ You can configure your GPU selection by editing `modal_edit`.
 notebook as an app on Modal. Run with
 
 ```bash
-uvx -p 3.12 modal run modal_app.py
+uvx -p 3.12 \
+  --with modal \
+  --with marimo \
+  modal serve modal_app.py
 ```
-

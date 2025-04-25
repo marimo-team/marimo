@@ -31,9 +31,9 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
@@ -47,6 +47,8 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install

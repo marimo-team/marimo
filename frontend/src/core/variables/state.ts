@@ -15,9 +15,6 @@ const {
   useActions,
 } = createReducerAndAtoms(initialState, {
   setVariables: (state, variables: Variable[]) => {
-    if (variables.length === 0) {
-      return state;
-    }
     // start with empty state, but keep the old state's metadata
     const oldVariables = { ...state };
     const newVariables: Variables = {};

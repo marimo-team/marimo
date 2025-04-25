@@ -38,8 +38,15 @@ class CellConfig:
     hide_code: bool = False
 
     @classmethod
-    def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
-        return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
+    def from_dict(
+        cls, kwargs: dict[str, Any], warn: bool = True
+    ) -> CellConfig:
+        config = cls(
+            **{k: v for k, v in kwargs.items() if k in CellConfigKeys}
+        )
+        if warn and (invalid := set(kwargs.keys()) - CellConfigKeys):
+            LOGGER.warning(f"Invalid config keys: {invalid}")
+        return config
 
     def asdict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -600,6 +607,17 @@ class Cell:
         """
         assert self._app is not None
 
+        # Inject setup cell definitions so that we do not rerun the setup cell.
+        # With an exception for tests that should act as if it's in runtime.
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            if self._app._app._setup is not None:
+                from_setup = {
+                    k: v
+                    for k, v in self._app._app._setup._glbls.items()
+                    if k in self._cell.refs
+                }
+                refs = {**from_setup, **refs}
+
         try:
             if self._is_coroutine:
                 return self._app.run_cell_async(cell=self, kwargs=refs)
@@ -614,10 +632,13 @@ class Cell:
         assert self._app is not None
         # Definitions on a module level are not part of the signature, and as
         # such, should not be provided with the call.
-        extraction = TopLevelExtraction.from_app(self._app)
-        arg_names = sorted(
-            (self._cell.refs - extraction.allowed_refs) - self._cell.defs
-        )
+
+        # NB. TopLevelExtraction assumes that all cells that can be exposed will
+        # be, but signature provides context for what is actually scoped.
+        allowed_refs = TopLevelExtraction.from_app(self._app).allowed_refs
+        allowed_refs -= set(self._expected_signature or ())
+
+        arg_names = sorted((self._cell.refs - allowed_refs) - self._cell.defs)
         argc = len(arg_names)
 
         call_args = {name: arg for name, arg in zip(arg_names, args)}
@@ -629,7 +650,10 @@ class Cell:
                 f"{self.name}() got an unexpected argument(s) '{unexpected}'"
             )
 
-        is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+        is_pytest = (
+            "PYTEST_CURRENT_TEST" in os.environ
+            or "MARIMO_PYTEST_WASM" in os.environ
+        )
         # Capture pytest case, where arguments don't match the references.
         if self._pytest_reserved - set(arg_names):
             raise TypeError(

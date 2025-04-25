@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
+from marimo._config.config import SqlOutputType
 from marimo._data.models import (
     Database,
     DataTable,
@@ -17,7 +18,7 @@ from marimo._sql.engines.types import (
     SQLEngine,
     register_engine,
 )
-from marimo._sql.utils import sql_type_to_data_type
+from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -27,8 +28,9 @@ if TYPE_CHECKING:
     from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
 
 
-PANDAS_REQUIRED_MSG = (
-    "Pandas is required to convert Clickhouse results to a DataFrame"
+WHY_PANDAS_REQUIRED = (
+    "required to convert Clickhouse results to a DataFrame. "
+    "You may opt to choose Native output instead."
 )
 
 
@@ -54,31 +56,111 @@ class ClickhouseEmbedded(SQLEngine):
         return "clickhouse"
 
     def execute(self, query: str) -> Any:
-        # chdb currently only supports pandas
-        DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
-
         import chdb  # type: ignore
-        import pandas as pd
 
-        # TODO: this will fail weirdly / silently when there is another connection
+        query = query.strip()
+        sql_output_format = self.sql_output_format()
 
-        # Do not catch exceptions here or it may silently fail
+        # Handle connection-based execution
         if self._cursor:
             self._cursor.execute(query)
+
+            if sql_output_format == "native":
+                LOGGER.info(
+                    "Native output chosen, query is executed but results are not fetched"
+                )
+                return None
+
             rows = self._cursor.fetchall()
             col_names = self._cursor.column_names()
-            # col_types = self._cursor.column_types()
 
-            return pd.DataFrame(rows, columns=col_names)
+            return self._convert_to_output_format(
+                sql_output_format, rows, col_names
+            )
 
+        # Handle connectionless execution
+        # Although this connection method isn't exposed to the user, it's still good to handle
+        # Maybe we want to move all queries to connectionless execution, but the API is still evolving
         try:
-            result = chdb.query(query, "Dataframe")
+            if sql_output_format == "native":
+                return chdb.query(query, output_format="Native")
+            elif sql_output_format == "polars":
+                import polars as pl
+
+                arrow_result = chdb.query(query, output_format="Arrow")
+                return pl.read_ipc(arrow_result.bytes())
+            elif sql_output_format == "lazy-polars":
+                import polars as pl
+
+                arrow_result = chdb.query(query, output_format="Arrow")
+                return pl.scan_ipc(arrow_result.bytes())  # type: ignore
+            elif sql_output_format == "pandas":
+                return chdb.query(query, output_format="Dataframe")
+            else:  # Auto
+                if DependencyManager.polars.has():
+                    import polars as pl
+
+                    try:
+                        arrow_result = chdb.query(query, output_format="Arrow")
+                        return pl.read_ipc(arrow_result.bytes())
+                    except (
+                        pl.exceptions.PanicException,
+                        pl.exceptions.ComputeError,
+                    ):
+                        LOGGER.exception(
+                            "Failed to convert to polars, fallback to pandas"
+                        )
+
+                if DependencyManager.pandas.has():
+                    return chdb.query(query, output_format="Dataframe")
+
+                raise_df_import_error("pandas")
+
         except Exception:
             LOGGER.exception("Failed to execute query")
             return None
-        if isinstance(result, pd.DataFrame):
-            return result
-        return None
+
+    def _convert_to_output_format(
+        self,
+        output_format: SqlOutputType,
+        rows: list[tuple[Any, ...]],
+        col_names: list[str],
+    ) -> Any:
+        # For polars, orient the rows since each tuple represents a column
+        if output_format == "polars":
+            import polars as pl
+
+            return pl.DataFrame(rows, schema=col_names, orient="row")
+        elif output_format == "lazy-polars":
+            import polars as pl
+
+            return pl.LazyFrame(rows, schema=col_names, orient="row")
+        elif output_format == "pandas":
+            import pandas as pd
+
+            return pd.DataFrame(rows, columns=col_names)
+        elif output_format == "auto":
+            # Try polars first if available
+            if DependencyManager.polars.has():
+                import polars as pl
+
+                try:
+                    return pl.DataFrame(rows, schema=col_names, orient="row")
+                except (
+                    pl.exceptions.PanicException,
+                    pl.exceptions.ComputeError,
+                ):
+                    LOGGER.exception(
+                        "Failed to convert to polars, falling back to pandas"
+                    )
+
+            # Fall back to pandas
+            if DependencyManager.pandas.has():
+                import pandas as pd
+
+                return pd.DataFrame(rows, columns=col_names)
+
+            raise_df_import_error("pandas")
 
     # TODO: Implement the following functionalities
     def get_databases(
@@ -141,6 +223,7 @@ class ClickhouseServer(SQLEngine):
     ) -> None:
         self._connection = connection
         self._engine_name = engine_name
+        self._meta_dbs = ["system", "information_schema"]
 
     @property
     def source(self) -> str:
@@ -154,19 +237,46 @@ class ClickhouseServer(SQLEngine):
         if self._connection is None:
             return None
 
-        # clickhouse connect supports pandas and arrow format
-        DependencyManager.pandas.require(PANDAS_REQUIRED_MSG)
-
-        import pandas as pd
-
         query = query.strip()
 
-        # If wrapped with try/catch, an error may not be caught
-        result = self._connection.query_df(query)
+        sql_output_format = self.sql_output_format()
+        if sql_output_format == "native":
+            return self._connection.query(query)
+        elif sql_output_format == "polars":
+            import polars as pl
 
-        if isinstance(result, pd.DataFrame):
-            return result
-        return None
+            arrow_result = self._connection.query_arrow(query)
+            return pl.from_arrow(arrow_result)
+        elif sql_output_format == "lazy-polars":
+            import polars as pl
+
+            arrow_result = self._connection.query_arrow(query)
+            return pl.from_arrow(arrow_result).lazy()  # type: ignore
+        elif sql_output_format == "pandas":
+            return self._connection.query_df(query)
+
+        # Auto
+        if DependencyManager.polars.has():
+            import polars as pl
+
+            try:
+                arrow_result = self._connection.query_arrow(query)
+                return pl.from_arrow(arrow_result)
+            except (pl.exceptions.PanicException, pl.exceptions.ComputeError):
+                LOGGER.info(
+                    "Failed to convert to polars, falling back to pandas"
+                )
+
+        if DependencyManager.pandas.has():
+            import pandas as pd
+
+            # If wrapped with try/catch, an error may not be caught
+            result = self._connection.query_df(query)
+            if isinstance(result, pd.DataFrame):
+                return result
+            return None
+
+        raise_df_import_error("polars[pyarrow]")
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
@@ -238,11 +348,8 @@ class ClickhouseServer(SQLEngine):
         db_names = db_df[db_df.columns[0]].tolist()
         for db in db_names:
             db_name = cast(str, db)
-            if (
-                # Skip meta db's, TODO: do this for other engines too.
-                db_name.lower() in ["system", "information_schema"]
-                or not include_tables
-            ):
+            # Skip introspection for meta tables for performance
+            if db_name.lower() in self._meta_dbs or not include_tables:
                 tables = []
             else:
                 tables = self.get_tables_in_schema(

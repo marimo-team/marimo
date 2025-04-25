@@ -5,10 +5,12 @@ from functools import partial
 from typing import cast
 
 from marimo._ast import compiler
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
+    SetupRootError,
 )
 from marimo._runtime import dataflow
 from marimo._runtime.validate_graph import check_for_errors
@@ -134,3 +136,18 @@ def test_cycle_and_multiple_def() -> None:
         )
         assert multiple_definition_error.name == "z"
         assert multiple_definition_error.cells == (str((int(cell) + 1) % 2),)
+
+
+def test_setup_has_refs() -> None:
+    graph = dataflow.DirectedGraph()
+    graph.register_cell(SETUP_CELL_NAME, parse_cell("z = y"))
+    graph.register_cell("0", parse_cell("y = 1"))
+    errors = check_for_errors(graph)
+    assert set(errors.keys()) == set([SETUP_CELL_NAME])
+    for t in errors.values():
+        assert len(t) == 1
+        assert isinstance(t[0], SetupRootError)
+        setup_error = cast(SetupRootError, t[0])
+        edges_with_vars = setup_error.edges_with_vars
+        assert len(edges_with_vars) == 1
+        assert ("0", ["y"], SETUP_CELL_NAME) in edges_with_vars

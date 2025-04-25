@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.9.31"
+__generated_with = "0.12.4"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(mo, x):
+def _(mo, x):
     import datetime
 
     [
@@ -35,7 +35,24 @@ def __(mo, x):
 
 
 @app.cell
-def __():
+def _():
+    import random
+    from marimo._output.formatters.structures import format_structure
+    from collections import defaultdict
+
+    # Create a defaultdict with lists
+    random_data = defaultdict(list)
+
+    # Populate the defaultdict with random data
+    for i in range(10):
+        random_data[f"key_{i}"].extend(random.sample(range(100), 5))
+
+    random_data
+    return defaultdict, format_structure, i, random, random_data
+
+
+@app.cell
+def _():
     class CustomList(list):
         def __init__(self, extra_arg):
             super().__init__((1, 2))
@@ -46,13 +63,13 @@ def __():
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 
 
 @app.cell
-def __():
+def _():
     import sys
 
     # Even though this extends tuple, we preserve the repr
@@ -61,38 +78,38 @@ def __():
 
 
 @app.cell
-def __(sys):
+def _(sys):
     repr(sys.version_info)
     return
 
 
 @app.cell
-def __(sys):
+def _(sys):
     # Nested, so it is not preserved
     (sys.version_info,)
     return
 
 
 @app.cell
-def __(sys):
+def _(sys):
     {1, 2, 3, sys.version_info}
     return
 
 
 @app.cell
-def __():
+def _():
     (1, 2, 3)
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.refs()
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     x = 1
     mo.defs()
     return (x,)

@@ -95,6 +95,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
         description: prettyError(error),
       });
     },
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
+    },
   });
 
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
@@ -149,7 +153,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               value={input}
               onChange={(newValue) => {
                 setInput(newValue);
-                setCompletionBody(getAICompletionBody(newValue));
+                setCompletionBody(getAICompletionBody({ input: newValue }));
               }}
               onSubmit={() => {
                 if (!isLoading) {

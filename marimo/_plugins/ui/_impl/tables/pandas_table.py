@@ -9,6 +9,7 @@ import narwhals.stable.v1 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
+from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -44,30 +45,28 @@ class PandasTableManagerFactory(TableManagerFactory):
             def schema(self) -> pd.Series[Any]:
                 return self._original_data.dtypes  # type: ignore
 
-            # We override narwhals's to_csv to handle pandas
+            # We override narwhals's to_csv_str to handle pandas
             # headers
-            def to_csv(
+            def to_csv_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
+            ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
                 # Pandas omits H:M:S for datetimes when H:M:S is identically
                 # 0; this doesn't play well with our frontend table component,
                 # so we use an explicit date format.
-                return (
-                    self.apply_formatting(format_mapping)
-                    ._original_data.to_csv(
-                        # By adding %H:%M:%S and %z, we ensure that the
-                        # datetime is displayed in the frontend with the
-                        # correct timezone.
-                        index=has_headers,
-                        date_format="%Y-%m-%d %H:%M:%S%z",
-                    )
-                    .encode("utf-8")
+                return self.apply_formatting(
+                    format_mapping
+                )._original_data.to_csv(
+                    # By adding %H:%M:%S and %z, we ensure that the
+                    # datetime is displayed in the frontend with the
+                    # correct timezone.
+                    index=has_headers,
+                    date_format="%Y-%m-%d %H:%M:%S%z",
                 )
 
-            def to_json(
+            def to_json_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
+            ) -> str:
                 from pandas.api.types import (
                     is_complex_dtype,
                     is_object_dtype,
@@ -98,7 +97,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                         "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
-                    return result.to_json(orient="records").encode("utf-8")
+                    return sanitize_json_bigint(
+                        result.to_json(orient="records")
+                    )
 
                 # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
@@ -120,10 +121,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 "Indexes with more than one level are not supported properly, call reset_index() to flatten"
                             )
 
-                return result.to_json(
-                    orient="records",
-                    date_format="iso",
-                ).encode("utf-8")
+                return sanitize_json_bigint(
+                    result.to_json(orient="records", date_format="iso")
+                )
 
             def to_arrow_ipc(self) -> bytes:
                 out = io.BytesIO()

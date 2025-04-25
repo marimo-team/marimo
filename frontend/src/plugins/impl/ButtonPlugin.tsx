@@ -44,6 +44,7 @@ export class ButtonPlugin implements IPlugin<number, Data> {
         keyboardShortcut={keyboardShortcut}
         className={cn({
           "w-full": fullWidth,
+          "w-fit": !fullWidth,
         })}
         onClick={(evt) => {
           if (disabled) {

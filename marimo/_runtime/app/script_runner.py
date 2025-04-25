@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import NoopStream
 from marimo._runtime import dataflow
@@ -35,10 +36,16 @@ if TYPE_CHECKING:
 class AppScriptRunner:
     """Runs an app in a script context."""
 
-    def __init__(self, app: InternalApp, filename: str | None) -> None:
+    def __init__(
+        self,
+        app: InternalApp,
+        filename: str | None,
+        glbls: Optional[dict[str, Any]] = None,
+    ) -> None:
         self.app = app
         self.filename = filename
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        self._glbls = glbls if glbls else {}
         self.cells_to_run = [
             cid
             for cid in self.app.execution_order
@@ -67,9 +74,16 @@ class AppScriptRunner:
             )
         ) as module:
             glbls = module.__dict__
+            glbls.update(self._glbls)
             outputs: dict[CellId_t, Any] = {}
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
+                # Set up has already run in this case.
+                if cid == CellId_t(SETUP_CELL_NAME):
+                    for hook in post_execute_hooks:
+                        hook()
+                    continue
+
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
@@ -97,10 +111,16 @@ class AppScriptRunner:
             )
         ) as module:
             glbls = module.__dict__
+            glbls.update(self._glbls)
             outputs: dict[CellId_t, Any] = {}
 
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
+                if cid == CellId_t(SETUP_CELL_NAME):
+                    for hook in post_execute_hooks:
+                        hook()
+                    continue
+
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:

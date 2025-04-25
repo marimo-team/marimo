@@ -4,7 +4,7 @@
 import React from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, ChartBarIcon } from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
@@ -24,6 +24,8 @@ interface TableActionsProps<TData> {
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
   getRowIds?: GetRowIds;
+  toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
 
 export const TableActions = <TData,>({
@@ -38,6 +40,8 @@ export const TableActions = <TData,>({
   table,
   downloadAs,
   getRowIds,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -94,6 +98,18 @@ export const TableActions = <TData,>({
             onClick={() => setIsSearchEnabled(!isSearchEnabled)}
           >
             <SearchIcon className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </Tooltip>
+      )}
+      {chartsFeatureEnabled && (
+        <Tooltip content="Show charts">
+          <Button
+            variant="text"
+            size="xs"
+            className="mb-0 mr-auto"
+            onClick={toggleDisplayHeader}
+          >
+            <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
           </Button>
         </Tooltip>
       )}

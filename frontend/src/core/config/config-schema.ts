@@ -29,6 +29,18 @@ const VALID_APP_WIDTHS = [
   "full",
   "columns",
 ] as const;
+
+/**
+ * SQL output formats
+ */
+const VALID_SQL_OUTPUT_FORMATS = [
+  "auto",
+  "native",
+  "polars",
+  "lazy-polars",
+  "pandas",
+] as const;
+
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -92,6 +104,7 @@ export const UserConfigSchema = z
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
         dataframes: z.enum(["rich", "plain"]).default("rich"),
+        default_table_page_size: z.number().default(10),
         default_width: z
           .enum(VALID_APP_WIDTHS)
           .default("medium")
@@ -168,6 +181,8 @@ export type LSPConfig = UserConfig["language_servers"];
 export type DiagnosticsConfig = UserConfig["diagnostics"];
 
 export const AppTitleSchema = z.string();
+export const SqlOutputSchema = z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto");
+
 export const AppConfigSchema = z
   .object({
     width: z
@@ -183,6 +198,7 @@ export const AppConfigSchema = z
     css_file: z.string().nullish(),
     html_head_file: z.string().nullish(),
     auto_download: z.array(z.enum(["html", "markdown", "ipynb"])).default([]),
+    sql_output: SqlOutputSchema,
   })
   .default({ width: "medium", auto_download: [] });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

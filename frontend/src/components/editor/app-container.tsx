@@ -34,6 +34,7 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
             data-config-width={width}
             data-connection-state={connectionState}
             className={cn(
+              "mathjax_ignore",
               connectionState === WebSocketState.CLOSED && "disconnected",
               "bg-background w-full h-full text-textColor",
               "flex flex-col overflow-y-auto",

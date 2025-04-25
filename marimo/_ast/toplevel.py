@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import builtins
 import token as token_types
 from enum import Enum
 from io import BytesIO
@@ -11,23 +10,32 @@ from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.names import (
+    DEFAULT_CELL_NAME,
+    SETUP_CELL_NAME,
+    TOPLEVEL_CELL_PREFIX,
+)
+from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name
+from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# Constant for easy reuse in tests
+# Constant for easy reuse in tests.
+# The formatting here affects how the error is rendered in the frontend.
+# This is a hack but fine for now ...
 TopLevelInvalidHints = Literal[
     "Cannot parse cell.",
     (
-        "Top level definitions cannot be named 'app', '__name__' or "
+        "Reusable definitions cannot be named 'app', '__name__' or "
         "'__generated_with'"
     ),
     "Cell must contain exactly one function definition",
     "Signature and decorators depend on {} defined out of correct cell order",
-    "Function contains references to variables {} which are not top level.",
-    "Function contains references to variables {} which failed to be toplevel.",
+    "This function depends on variables defined by other cells:\n\n{}\n\nTo make this function importable from other Python modules,\nmove these variables to the setup cell.",
+    "Function contains references to variables {} which were unable to become reusable.",
     "Cell cannot contain non-indented trailing comments.",
 ]
 (
@@ -41,7 +49,8 @@ TopLevelInvalidHints = Literal[
 ) = get_args(TopLevelInvalidHints)
 
 TopLevelHints = Union[Literal["Valid"], TopLevelInvalidHints]
-HINT_VALID, *_ = get_args(TopLevelHints)
+# Fancy typing caused an issue, so just set the value explicitly.
+HINT_VALID: Literal["Valid"] = "Valid"
 
 
 def has_trailing_comment(code: str) -> bool:
@@ -81,7 +90,7 @@ class TopLevelStatus:
     ):
         self.cell_id = cell_id
         self.name = name
-        self._name = name
+        self.previous_name = name
         self._type: TopLevelType = TopLevelType.UNPARSABLE
         self.dependencies: set[Name] = set()
         self._cell: Optional[CellImpl] = None
@@ -154,6 +163,7 @@ class TopLevelStatus:
         dependent_refs = self._cell.refs - (allowed_refs | toplevel)
         if not dependent_refs:
             self.type = TopLevelType.TOPLEVEL
+            self.hint = HINT_VALID
             return
 
         defined_refs = dependent_refs - potential_refs
@@ -254,7 +264,7 @@ class TopLevelExtraction:
             [status.name for status in self.statuses if not status.is_toplevel]
         )
 
-        self.unshadowed = set(builtins.__dict__.keys()) - defs
+        self.unshadowed = BUILTINS - defs
         self.allowed_refs.update(self.unshadowed)
         self.used_refs = refs
 
@@ -281,7 +291,10 @@ class TopLevelExtraction:
         self._resolve_dependencies()
         # Don't change names of objects that are not toplevel.
         for status in self.cells.values():
-            status.name = status._name
+            status.name = status.previous_name
+            # For something that used to be top level, revert to default name.
+            if status.name.startswith(TOPLEVEL_CELL_PREFIX):
+                status.name = DEFAULT_CELL_NAME
         # Set the hint of all valid cells to HINT_VALID
         for status in self.toplevel.values():
             status.hint = HINT_VALID
@@ -337,14 +350,31 @@ class TopLevelExtraction:
         assert not self.unresolved
 
     @classmethod
-    def from_cells(cls, cells: list[CellImpl]) -> TopLevelExtraction:
+    def from_graph(
+        cls,
+        cell: CellImpl,
+        graph: DirectedGraph,
+    ) -> TopLevelExtraction:
+        ancestors = graph.ancestors(cell.cell_id)
+        deps = {cid: graph.cells[cid] for cid in ancestors}
+        setup_id = CellId_t(SETUP_CELL_NAME)
+        setup = graph.cells.get(setup_id)
+        setup = graph.cells.get(setup_id)
+        deps.pop(setup_id, None)
+
+        # TODO: Technically, order does matter incase there is a type definition
+        # or decorator.
+        path = list(deps.values()) + [cell]
+        return cls.from_cells(path, setup=setup)
+
+    @classmethod
+    def from_cells(
+        cls, cells: list[CellImpl], setup: Optional[CellImpl] = None
+    ) -> TopLevelExtraction:
         codes = [cell.code for cell in cells]
-        names = ["_" for cell in cells]
+        names = ["_" for _ in cells]
         cell_configs = [cell.config for cell in cells]
 
-        from marimo._ast.codegen import pop_setup_cell
-
-        setup = pop_setup_cell(codes, names, cell_configs, True)
         if setup:
             return cls(codes, names, cell_configs, setup.defs)
         return cls(codes, names, cell_configs, set())
@@ -357,7 +387,7 @@ class TopLevelExtraction:
 
         from marimo._ast.codegen import pop_setup_cell
 
-        setup = pop_setup_cell(codes, names, cell_configs, True)
+        setup = pop_setup_cell(codes, names, cell_configs)
         if setup:
             return cls(codes, names, cell_configs, setup.defs)
         return cls(codes, names, cell_configs, set())

@@ -160,5 +160,6 @@ def initialize_script_context(
         children=[],
         parent=None,
         filename=filename,
+        app_config=app.config,
     )
     initialize_context(runtime_context=runtime_context)

@@ -31,7 +31,6 @@ import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
@@ -41,6 +40,7 @@ import { cellActionsState } from "../cells/state";
 import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { CellDocumentUri } from "../lsp/types";
+import { hasCapability } from "@/core/config/capabilities";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -79,6 +79,12 @@ const lspClient = once((lspConfig: LSPConfig) => {
         },
         jedi: {
           auto_import_modules: ["marimo", "numpy"],
+        },
+        jedi_completion: {
+          // Ensure that parameters are included for completion snippets.
+          include_params: true,
+          // Include snippets and signatures it at most 50 suggestions.
+          resolve_at_most: 50,
         },
         flake8: {
           enabled: config?.enable_flake8,
@@ -168,7 +174,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
         hideOnChange: true,
       };
 
-      if (getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled) {
+      if (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) {
         const client = lspClient(lspConfig);
         return [
           languageServerWithClient({
@@ -179,6 +185,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             completionConfig: autocompleteOptions,
             // Default to false
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
+            sendIncrementalChanges: false,
             signatureHelpEnabled: true,
             signatureActivateOnTyping: false,
             keyboardShortcuts: {

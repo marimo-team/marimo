@@ -25,6 +25,7 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
+    from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.sql.type_api import TypeEngine
 
 
@@ -59,17 +60,15 @@ class SQLAlchemyEngine(SQLEngine):
         return str(self._engine.dialect.name)
 
     def execute(self, query: str) -> Any:
-        # Can't use polars.imported() because this is the first time we
-        # might come across polars.
-        if not (
-            DependencyManager.polars.has() or DependencyManager.pandas.has()
-        ):
-            raise_df_import_error("polars[pyarrow]")
+        sql_output_format = self.sql_output_format()
 
         from sqlalchemy import text
 
         with self._engine.connect() as connection:
             result = connection.execute(text(query))
+            if sql_output_format == "native":
+                return result
+
             rows = result.fetchall() if result.returns_rows else None
 
             try:
@@ -79,6 +78,21 @@ class SQLAlchemyEngine(SQLEngine):
 
             if rows is None:
                 return None
+
+            if sql_output_format == "polars":
+                import polars as pl
+
+                return pl.DataFrame(rows)  # type: ignore
+            if sql_output_format == "lazy-polars":
+                import polars as pl
+
+                return pl.DataFrame(rows).lazy()  # type: ignore
+            if sql_output_format == "pandas":
+                import pandas as pd
+
+                return pd.DataFrame(rows)
+
+            # Auto
 
             if DependencyManager.polars.has():
                 import polars as pl
@@ -101,6 +115,8 @@ class SQLAlchemyEngine(SQLEngine):
                 except Exception as e:
                     LOGGER.warning("Failed to convert dataframe", exc_info=e)
                     return None
+
+            raise_df_import_error("polars[pyarrow]")
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
@@ -248,20 +264,23 @@ class SQLAlchemyEngine(SQLEngine):
         schemas: list[Schema] = []
 
         for schema in schema_names:
-            schemas.append(
-                Schema(
-                    name=schema,
-                    tables=self.get_tables_in_schema(
-                        schema=schema,
-                        database=database if database is not None else "",
-                        include_table_details=include_table_details,
-                    )
-                    if include_tables
-                    else [],
+            tables: list[DataTable] = []
+            meta_schemas = self._get_meta_schemas()
+            if schema.lower() not in meta_schemas and include_tables:
+                tables = self.get_tables_in_schema(
+                    schema=schema,
+                    database=database if database is not None else "",
+                    include_table_details=include_table_details,
                 )
-            )
+            schemas.append(Schema(name=schema, tables=tables))
 
         return schemas
+
+    def _get_meta_schemas(self) -> list[str]:
+        dialect = self.dialect.lower()
+        if dialect == "postgresql":
+            return ["information_schema", "pg_catalog"]
+        return ["information_schema"]
 
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
@@ -418,3 +437,50 @@ class SQLAlchemyEngine(SQLEngine):
 
     def _is_cheap_discovery(self) -> bool:
         return self.dialect.lower() in ("sqlite", "mysql", "postgresql")
+
+    @staticmethod
+    def is_cursor_result(result: Any) -> bool:
+        if not DependencyManager.sqlalchemy.has():
+            return False
+
+        from sqlalchemy.engine.cursor import CursorResult
+
+        return isinstance(result, CursorResult)
+
+    @staticmethod
+    def get_cursor_metadata(
+        result: CursorResult[Any],
+    ) -> Optional[dict[str, Any]]:
+        try:
+            description = result.cursor.description
+            column_info = {
+                "column_names": [col[0] for col in description],
+                "type_code": [col[1] for col in description],
+                "display_size": [col[2] for col in description],
+                "internal_size": [col[3] for col in description],
+                "precision": [col[4] for col in description],
+                "scale": [col[5] for col in description],
+                "null_ok": [col[6] for col in description],
+            }
+
+            if result.context.isddl:
+                sql_statement_type = "DDL"
+            elif result.context.is_crud:
+                sql_statement_type = "DML"
+            else:
+                sql_statement_type = "Query"
+
+            data = {
+                "result_type": str(type(result)),
+                "column_info": column_info,
+                "sqlalchemy_rowcount": result.rowcount,
+                "sql_statement_type": sql_statement_type,
+                "cache_status": str(result.context.cache_hit.name),
+            }
+
+            return data
+        except Exception:
+            LOGGER.warning(
+                "Failed to convert cursor result to df", exc_info=True
+            )
+            return None

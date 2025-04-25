@@ -439,6 +439,7 @@ import marimo
     assert ">=3.11" in uv_cmd
     assert "--isolated" in uv_cmd
     assert "--no-project" in uv_cmd
+    assert "--compile-bytecode" in uv_cmd
     assert "--sandbox" not in uv_cmd
 
 
@@ -517,6 +518,7 @@ def test_construct_uv_cmd_empty_dependencies() -> None:
         )
         assert "--refresh" in uv_cmd
         assert "--isolated" in uv_cmd
+        assert "--compile-bytecode" in uv_cmd
         assert "--no-project" in uv_cmd
 
 

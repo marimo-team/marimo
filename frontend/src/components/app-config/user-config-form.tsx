@@ -43,6 +43,7 @@ import {
   FlaskConicalIcon,
   FolderCog2,
 } from "lucide-react";
+import { ExternalLink } from "../ui/links";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
@@ -50,8 +51,9 @@ import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
 import { OptionalFeatures } from "./optional-features";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { Badge } from "../ui/badge";
+import { capabilitiesAtom } from "@/core/config/capabilities";
+import { Banner } from "@/plugins/impl/common/error-banner";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -112,6 +114,7 @@ export const UserConfigForm: React.FC = () => {
   const [activeCategory, setActiveCategory] = useAtom(
     activeUserConfigCategoryAtom,
   );
+  const capabilities = useAtomValue(capabilitiesAtom);
 
   // Create form
   const form = useForm<UserConfig>({
@@ -138,14 +141,9 @@ export const UserConfigForm: React.FC = () => {
         <>
           <p className="text-sm text-muted-secondary">
             To get a Codeium API key, follow{" "}
-            <a
-              className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot">
               these instructions
-            </a>
+            </ExternalLink>
             .
           </p>
           <FormField
@@ -427,26 +425,21 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
-            {getFeatureFlag("lsp") && (
-              <SettingGroup title="Language Servers">
-                <FormField
-                  control={form.control}
-                  name="language_servers.pylsp.enabled"
-                  render={({ field }) => (
+            <SettingGroup title="Language Servers">
+              <FormField
+                control={form.control}
+                name="language_servers.pylsp.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
                       <FormLabel>
                         <Badge variant="defaultOutline" className="mr-2">
                           Beta
                         </Badge>
                         Python Language Server (
-                        <a
-                          href="https://github.com/python-lsp/python-lsp-server"
-                          target="_blank"
-                          className="text-link hover:underline"
-                          rel="noreferrer"
-                        >
+                        <ExternalLink href="https://github.com/python-lsp/python-lsp-server">
                           pylsp
-                        </a>
+                        </ExternalLink>
                         )
                       </FormLabel>
                       <FormControl>
@@ -465,52 +458,55 @@ export const UserConfigForm: React.FC = () => {
                         name="language_servers.pylsp.enabled"
                       />
                     </FormItem>
-                  )}
-                />
-                <FormDescription>
-                  See the{" "}
-                  <a
-                    className="text-link hover:underline"
-                    href="https://docs.marimo.io/guides/editor_features/language_server/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    docs
-                  </a>{" "}
-                  for more information about language server support.
-                </FormDescription>
+                    {field.value && !capabilities.pylsp && (
+                      <Banner kind="danger">
+                        The Python Language Server is not available in your
+                        current environment. Please install{" "}
+                        <Kbd className="inline">python-lsp-server</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormDescription>
+                See the{" "}
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                  docs
+                </ExternalLink>{" "}
+                for more information about language server support.
+              </FormDescription>
 
-                <FormField
-                  control={form.control}
-                  name="diagnostics.enabled"
-                  render={({ field }) => (
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>
-                        <Badge variant="defaultOutline" className="mr-2">
-                          Beta
-                        </Badge>
-                        Diagnostics
-                      </FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          data-testid="diagnostics-checkbox"
-                          checked={field.value}
-                          disabled={field.disabled}
-                          onCheckedChange={(checked) => {
-                            field.onChange(Boolean(checked));
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="diagnostics.enabled"
+              <FormField
+                control={form.control}
+                name="diagnostics.enabled"
+                render={({ field }) => (
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>
+                      <Badge variant="defaultOutline" className="mr-2">
+                        Beta
+                      </Badge>
+                      Diagnostics
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="diagnostics-checkbox"
+                        checked={field.value}
+                        disabled={field.disabled}
+                        onCheckedChange={(checked) => {
+                          field.onChange(Boolean(checked));
+                        }}
                       />
-                    </FormItem>
-                  )}
-                />
-              </SettingGroup>
-            )}
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="diagnostics.enabled"
+                    />
+                  </FormItem>
+                )}
+              />
+            </SettingGroup>
 
             <SettingGroup title="Keymap">
               <FormField
@@ -736,6 +732,42 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="display.default_table_page_size"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Default table page size</FormLabel>
+                      <FormControl>
+                        <NumberField
+                          data-testid="default-table-page-size-input"
+                          className="m-0 w-24"
+                          {...field}
+                          value={field.value}
+                          minValue={1}
+                          step={1}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            if (!Number.isNaN(value)) {
+                              onSubmit(form.getValues());
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.default_table_page_size"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      The default number of rows displayed in dataframes and SQL
+                      results.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
           </>
         );
@@ -776,26 +808,16 @@ export const UserConfigForm: React.FC = () => {
                     When marimo comes across a module that is not installed, you
                     will be prompted to install it using your preferred package
                     manager. Learn more in the{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
                       docs
-                    </a>
+                    </ExternalLink>
                     .
                     <br />
                     <br />
                     Running marimo in a{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
                       sandboxed environment
-                    </a>{" "}
+                    </ExternalLink>{" "}
                     is only supported by <Kbd className="inline">uv</Kbd>
                   </FormDescription>
                 </div>
@@ -914,17 +936,43 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="runtime.reactive_tests"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Autorun Unit Tests
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="reactive-test-checkbox"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="runtime.reactive_tests"
+                  />
+                  <FormMessage />
+                  <FormDescription>
+                    Enable reactive pytest tests in notebook. When a cell
+                    contains only test functions (test_*) and classes (Test_*),
+                    marimo will automatically run them with pytest (requires
+                    notebook restart).
+                  </FormDescription>{" "}
+                </div>
+              )}
+            />
 
             <FormDescription>
               Learn more in the{" "}
-              <a
-                className="text-link hover:underline"
-                href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <ExternalLink href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells">
                 docs
-              </a>
+              </ExternalLink>
               .
             </FormDescription>
           </SettingGroup>
@@ -1017,14 +1065,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your OpenAI API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://platform.openai.com/account/api-keys"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://platform.openai.com/account/api-keys">
                         platform.openai.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -1061,14 +1104,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your Anthropic API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://console.anthropic.com/settings/keys"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://console.anthropic.com/settings/keys">
                         console.anthropic.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -1105,14 +1143,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your Google AI API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://aistudio.google.com/app/apikey">
                         aistudio.google.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -1124,14 +1157,9 @@ export const UserConfigForm: React.FC = () => {
               <p className="text-sm text-muted-secondary">
                 Add an API key to <Kbd className="inline">marimo.toml</Kbd> to
                 activate marimo's AI assistant; see{" "}
-                <a
-                  className="text-link hover:underline"
-                  href="https://docs.marimo.io/guides/editor_features/ai_completion.html"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html">
                   docs
-                </a>{" "}
+                </ExternalLink>{" "}
                 for more info.
               </p>
               <FormField
@@ -1266,40 +1294,37 @@ export const UserConfigForm: React.FC = () => {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="experimental.lsp"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      LSP (Language Server Protocol)
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="inline-ai-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental LSP support. You will need to have
-                    <Kbd className="inline">marimo[lsp]</Kbd> installed in your
-                    environment to use this. See{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/language_server/"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      docs
-                    </a>{" "}
-                    for more info.
-                  </FormDescription>
-                </div>
-              )}
-            />
+            {!isWasm() && (
+              <FormField
+                control={form.control}
+                name="experimental.lsp"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        LSP (Language Server Protocol)
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="inline-ai-checkbox"
+                          checked={field.value === true}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                    <FormDescription>
+                      Enable experimental LSP support. You will need to have
+                      <Kbd className="inline">marimo[lsp]</Kbd> installed in
+                      your environment to use this. See{" "}
+                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                        docs
+                      </ExternalLink>{" "}
+                      for more info.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="experimental.inline_ai_tooltip"
@@ -1326,51 +1351,23 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.reactive_tests"
+              name="experimental.table_charts"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Autorun Unit Tests
-                    </FormLabel>
+                    <FormLabel className="font-normal">Table Charts</FormLabel>
                     <FormControl>
                       <Checkbox
-                        data-testid="reactive-test-checkbox"
+                        data-testid="data-table-plugin-checkbox"
                         checked={field.value === true}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
                   </FormItem>
                   <FormDescription>
-                    Enable experimental reactive pytest tests in notebook. When
-                    a cell contains only test functions and classes, marimo will
-                    automatically run relevant tests.
-                  </FormDescription>{" "}
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="experimental.toplevel_defs"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Library Save Format
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="toplevel-defs-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable saving in an experimental file format for marimo.
-                    This will expose functions that are defined in their own
-                    cell for function reuse and import by other programs.
-                  </FormDescription>{" "}
+                    Enable experimental charting feature on tables. Data is
+                    saved in local storage. May not be performant.
+                  </FormDescription>
                 </div>
               )}
             />

@@ -34,7 +34,6 @@ TOKEN_QUERY_PARAM = "access_token"
 def validate_auth(
     conn: HTTPConnection, form_dict: Optional[dict[str, str]] = None
 ) -> bool:
-    LOGGER.debug("Validating auth")
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
 

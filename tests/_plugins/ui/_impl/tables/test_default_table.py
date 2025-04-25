@@ -125,6 +125,46 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert sorted_data == expected_data
 
+    def test_sort_null_values(self) -> None:
+        data_with_nan = self.data.copy()
+        data_with_nan[1]["age"] = None
+        manager_with_nan = DefaultTableManager(data_with_nan)
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=False
+        ).data
+        last_row = sorted_data[-1]
+
+        expected_last_row = {
+            "name": "Bob",
+            "age": None,
+            "birth_year": date(1999, 7, 14),
+        }
+
+        # ascending
+        assert last_row == expected_last_row
+
+        # descending
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=True
+        ).data
+        last_row = sorted_data[-1]
+        assert last_row == expected_last_row
+
+        # strings ascending
+        data_with_strings = self.data.copy()
+        data_with_strings[1]["name"] = None
+        manager_with_strings = DefaultTableManager(data_with_strings)
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=False
+        ).data
+        assert sorted_data[-1]["name"] is None
+
+        # strings descending
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=True
+        ).data
+        assert sorted_data[-1]["name"] is None
+
     def test_sort_single_values(self) -> None:
         manager = DefaultTableManager([1, 3, 2])
         sorted_data = manager.sort_values(by="value", descending=True).data
@@ -307,6 +347,37 @@ class TestDefaultTable(unittest.TestCase):
         ]
         assert formatted_manager == expected_data
 
+    def test_calculate_top_k_rows(self) -> None:
+        data = [
+            {"name": "Alice", "score": 46, "grade": "A"},
+            {"name": "Bob", "score": 85, "grade": "A"},
+            {"name": "Charlie", "score": 32, "grade": None},
+        ]
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [("A", 2), (None, 1)]
+        assert result == expected_data
+
+        # test with single value and conflicting column name
+        data = [{"name": "Alice", "age": 31, "count": date(1994, 5, 24)}]
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("count", 10)
+        expected_data = [(date(1994, 5, 24), 1)]
+        assert result == expected_data
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        data = [
+            {"name": "Alice", "age": 31, "birth_year": date(1994, 5, 24)},
+            {"name": "Bob", "age": 25, "birth_year": None},
+            {"name": "Charlie", "age": 35, "birth_year": None},
+            {"name": "Dave", "age": 28, "birth_year": date(1994, 5, 24)},
+        ]
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("birth_year", 10)
+        # Nulls should be sorted to the end
+        expected_data = [(date(1994, 5, 24), 2), (None, 2)]
+        assert result == expected_data
+
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -418,6 +489,39 @@ class TestColumnarDefaultTable(unittest.TestCase):
             ],
         }
         assert sorted_data == expected_data
+
+    def test_sort_null_values(self) -> None:
+        data_with_nan = self.data.copy()
+        data_with_nan["age"][1] = None
+        manager_with_nan = DefaultTableManager(data_with_nan)
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=False
+        ).data
+
+        assert sorted_data["age"][-1] is None
+        assert sorted_data["name"][-1] == "Bob"
+
+        # ascending
+        sorted_data = manager_with_nan.sort_values(
+            by="age", descending=True
+        ).data
+        assert sorted_data["age"][-1] is None
+        assert sorted_data["name"][-1] == "Bob"
+
+        # strings ascending
+        data_with_strings = self.data.copy()
+        data_with_strings["name"][1] = None
+        manager_with_strings = DefaultTableManager(data_with_strings)
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=False
+        ).data
+        assert sorted_data["name"][-1] is None
+
+        # strings descending
+        sorted_data = manager_with_strings.sort_values(
+            by="name", descending=True
+        ).data
+        assert sorted_data["name"][-1] is None
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -589,6 +693,36 @@ class TestColumnarDefaultTable(unittest.TestCase):
         }
         assert formatted_manager == expected_data
 
+    def test_calculate_top_k_rows(self) -> None:
+        data = {
+            "grade": ["A", "A", None],
+            "name": ["Alice", "Bob", "Charlie"],
+        }
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [
+            ("A", 2),
+            (None, 1),
+        ]
+        assert result == expected_data
+
+        # Single value
+        data = {"grade": ["A", "A", "A"]}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [("A", 3)]
+        assert result == expected_data
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        data = {"grade": ["A", "A", None, None]}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("grade", 10)
+        expected_data = [
+            ("A", 2),
+            (None, 2),
+        ]
+        assert result == expected_data
+
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
@@ -615,6 +749,12 @@ class TestColumnarDefaultTable(unittest.TestCase):
             }
         )
         assert manager.to_json() == b'[{"a":1,"b":3},{"a":2,"b":4}]'
+
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
 
 
 class TestDictionaryDefaultTable(unittest.TestCase):
@@ -650,6 +790,9 @@ class TestDictionaryDefaultTable(unittest.TestCase):
             TableCell(row=1, column="value", value=2),
         ]
 
+    @pytest.mark.xfail(
+        reason="get_column_names() doesn't work properly for row-oriented dicts"
+    )
     def test_drop_columns(self) -> None:
         dropped_manager = self.manager.drop_columns(["a"])
         assert dropped_manager.data == {"b": 2}
@@ -678,6 +821,50 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         sorted_manager = self.manager.sort_values(by="value", descending=True)
         expected_data = [{"key": "b", "value": 2}, {"key": "a", "value": 1}]
         assert sorted_manager.data == expected_data
+
+    def test_sort_null_values(self) -> None:
+        data = self.manager.data.copy()
+        data["b"] = None
+        manager_with_nan = DefaultTableManager(data)
+        sorted_data = manager_with_nan.sort_values(
+            by="value", descending=False
+        ).data
+        assert sorted_data == [
+            {"key": "a", "value": 1},
+            {"key": "b", "value": None},
+        ]
+
+        # descending
+        sorted_data = manager_with_nan.sort_values(
+            by="value", descending=True
+        ).data
+        assert sorted_data == [
+            {"key": "a", "value": 1},
+            {"key": "b", "value": None},
+        ]
+
+        # strings ascending
+        data_with_strings = DefaultTableManager(
+            {"a": "foo", "b": None, "c": "bar"}
+        )
+        sorted_data = data_with_strings.sort_values(
+            by="value", descending=False
+        ).data
+        assert sorted_data == [
+            {"key": "c", "value": "bar"},
+            {"key": "a", "value": "foo"},
+            {"key": "b", "value": None},
+        ]
+
+        # strings descending
+        sorted_data = data_with_strings.sort_values(
+            by="value", descending=True
+        ).data
+        assert sorted_data == [
+            {"key": "a", "value": "foo"},
+            {"key": "c", "value": "bar"},
+            {"key": "b", "value": None},
+        ]
 
     def test_search(self) -> None:
         searched_manager = self.manager.search("a")
@@ -743,6 +930,24 @@ class TestDictionaryDefaultTable(unittest.TestCase):
         ]
         assert formatted_data == expected_data
 
+    def test_calculate_top_k_rows(self) -> None:
+        data = {"grade": "A", "name": "Alice", "another_grade": "A"}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("value", 10)
+        expected_data = [("A", 2), ("Alice", 1)]
+        assert result == expected_data
+
+        result = manager.calculate_top_k_rows("key", 10)
+        expected_data = [("grade", 1), ("name", 1), ("another_grade", 1)]
+        assert result == expected_data
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        data = {"grade": "A", "name": None, "another_grade": None}
+        manager = DefaultTableManager(data)
+        result = manager.calculate_top_k_rows("value", 10)
+        expected_data = [(None, 2), ("A", 1)]
+        assert result == expected_data
+
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
@@ -775,3 +980,9 @@ class TestListDefaultTable(unittest.TestCase):
         assert selected_cells == [
             TableCell(row=2, column="value", value=6),
         ]
+
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)

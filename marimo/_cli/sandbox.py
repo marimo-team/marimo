@@ -195,6 +195,7 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
                 bold=True,
             ),
             default=True,
+            err=True,
         )
     else:
         echo(
@@ -322,6 +323,8 @@ def construct_uv_command(
         # sandboxed notebook shouldn't pick up existing pyproject.toml,
         # which may conflict with the sandbox requirements
         "--no-project",
+        # trade installation time for faster start time
+        "--compile-bytecode",
         "--with-requirements",
         temp_file_path,
     ]
@@ -372,7 +375,7 @@ def run_in_sandbox(
         args, name, additional_features or [], additional_deps or []
     )
 
-    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}")
+    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}", err=True)
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
@@ -382,10 +385,14 @@ def run_in_sandbox(
     def handler(sig: int, frame: Any) -> None:
         del sig
         del frame
-        if sys.platform == "win32":
-            os.kill(process.pid, signal.CTRL_C_EVENT)
-        else:
-            os.kill(process.pid, signal.SIGINT)
+        try:
+            if sys.platform == "win32":
+                os.kill(process.pid, signal.CTRL_C_EVENT)
+            else:
+                os.kill(process.pid, signal.SIGINT)
+        except ProcessLookupError:
+            # Process may have already been terminated.
+            pass
 
     signal.signal(signal.SIGINT, handler)
 

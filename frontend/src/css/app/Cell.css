@@ -42,6 +42,12 @@
       overflow: auto;
     }
 
+    /* Special case for particular components */
+    .output-area:has(> .output > marimo-ui-element > marimo-table) {
+      max-height: none;
+      overflow: hidden;
+    }
+
     & > :first-child {
       border-top-left-radius: 9px;
       border-top-right-radius: 9px;

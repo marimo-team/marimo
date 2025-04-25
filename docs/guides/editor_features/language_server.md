@@ -23,7 +23,7 @@ LSP support requires additional dependencies. You can install them with:
 ```bash
 pip install "marimo[lsp]"
 # or
-uv add marimo[lsp]
+uv add "marimo[lsp]"
 # or
 conda install -c conda-forge python-lsp-server python-lsp-ruff
 ```

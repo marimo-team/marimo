@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import ast
-import builtins
-import importlib.util
 import json
 import os
 import re
@@ -12,13 +10,13 @@ import textwrap
 from typing import Any, Literal, Optional, cast
 
 from marimo import __version__
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
+from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name
-from marimo._config.manager import get_default_config_manager
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -45,10 +43,9 @@ def pop_setup_cell(
     code: list[str],
     names: list[str],
     configs: list[CellConfig],
-    toplevel_fn: bool,
 ) -> Optional[CellImpl]:
     # Find the cell named setup, compile, and remove the index from all lists.
-    if SETUP_CELL_NAME not in names or not toplevel_fn:
+    if SETUP_CELL_NAME not in names:
         return None
     setup_index = names.index(SETUP_CELL_NAME)
     try:
@@ -147,9 +144,19 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
     block = setup_cell.code
     if not block.strip():
         return ""
+    prefix = "" if not setup_cell.is_coroutine() else "async "
+
+    has_only_comments = all(
+        not line.strip() or line.strip().startswith("#")
+        for line in setup_cell.code.splitlines()
+    )
+    # Fails otherwise
+    if has_only_comments:
+        block += "\npass"
+
     return "\n".join(
         [
-            "with app.setup:",
+            f"{prefix}with app.setup:",
             indent_text(block),
             "\n",
         ]
@@ -170,7 +177,7 @@ def to_functiondef(
     # should not be taken as args by a cell's functiondef (since they are
     # already in globals)
     if allowed_refs is None:
-        allowed_refs = set(builtins.__dict__.keys())
+        allowed_refs = BUILTINS
     refs = tuple(ref for ref in sorted(cell.refs) if ref not in allowed_refs)
 
     decorator = to_decorator(cell.config, fn=fn)
@@ -211,7 +218,7 @@ def to_top_functiondef(
     # For the top-level function criteria to be satisfied,
     # the cell, it must pass basic checks in the cell impl.
     if allowed_refs is None:
-        allowed_refs = set(builtins.__dict__.keys())
+        allowed_refs = BUILTINS
     toplevel_var = cell.toplevel_variable
 
     assert toplevel_var, "Cell is not a top-level function"
@@ -258,7 +265,7 @@ def generate_unparsable_cell(
 
 
 def serialize_cell(
-    extraction: TopLevelExtraction, status: TopLevelStatus, toplevel_fn: bool
+    extraction: TopLevelExtraction, status: TopLevelStatus
 ) -> str:
     if status.is_unparsable:
         return generate_unparsable_cell(
@@ -266,11 +273,7 @@ def serialize_cell(
         )
     cell = status._cell
     assert cell is not None
-    if not toplevel_fn:
-        return to_functiondef(
-            cell, status.name, extraction.unshadowed, None, fn="cell"
-        )
-    elif status.is_cell:
+    if status.is_cell:
         return to_functiondef(
             cell,
             status.name,
@@ -304,66 +307,25 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def _classic_export(
-    fndefs: list[str],
-    header_comments: Optional[str],
-    config: Optional[_AppConfig],
-) -> str:
-    filecontents = "".join(
-        "import marimo"
-        + "\n\n"
-        + f'__generated_with = "{__version__}"'
-        + "\n"
-        + generate_app_constructor(config)
-        + "\n\n\n"
-        + "\n\n\n".join(fndefs)
-        + "\n\n\n"
-        + 'if __name__ == "__main__":'
-        + "\n"
-        + indent_text("app.run()")
-    )
-
-    if header_comments:
-        filecontents = header_comments.rstrip() + "\n\n" + filecontents
-    return filecontents + "\n"
-
-
 def generate_filecontents(
     codes: list[str],
     names: list[str],
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
     header_comments: Optional[str] = None,
-    _toplevel_fn: bool = False,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
-    # Until an appropriate means of controlling top-level functions exists,
-    # Let's keep it disabled by default.
-    toplevel_fn = (
-        get_default_config_manager(current_path=None)
-        .get_config()
-        .get("experimental", {})
-        .get("toplevel_defs", False)
-    ) or _toplevel_fn
-
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):
         if name == "__":
             names[idx] = DEFAULT_CELL_NAME
 
-    # TODO: replace with dedicated cell
-    setup_cell = pop_setup_cell(codes, names, cell_configs, toplevel_fn)
+    setup_cell = pop_setup_cell(codes, names, cell_configs)
     toplevel_defs: set[Name] = set()
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
-    cell_blocks = [
-        serialize_cell(extraction, status, toplevel_fn)
-        for status in extraction
-    ]
-
-    if not toplevel_fn:
-        return _classic_export(cell_blocks, header_comments, config)
+    cell_blocks = [serialize_cell(extraction, status) for status in extraction]
 
     filecontents = []
     if header_comments is not None:
@@ -385,73 +347,6 @@ def generate_filecontents(
         ]
     )
     return "\n".join(filecontents)
-
-
-class MarimoFileError(Exception):
-    pass
-
-
-def get_app(filename: Optional[str]) -> Optional[App]:
-    """Load and return app from a marimo-generated module.
-
-    Args:
-        filename: Path to a marimo notebook file (.py or .md)
-
-    Returns:
-        The marimo App instance if the file exists and contains valid code,
-        None if the file is empty or contains only comments.
-
-    Raises:
-        MarimoFileError: If the file exists but doesn't define a valid marimo app
-        RuntimeError: If there are issues loading the module
-        SyntaxError: If the file contains a syntax error
-        FileNotFoundError: If the file doesn't exist
-    """
-    if filename is None:
-        return None
-
-    with open(filename, encoding="utf-8") as f:
-        contents = f.read().strip()
-
-    if not contents:
-        return None
-
-    if filename.endswith(".md"):
-        from marimo._cli.convert.markdown import convert_from_md_to_app
-
-        return convert_from_md_to_app(contents)
-
-    # Below assumes it's a Python file
-
-    # This means it could have only the package dependencies
-    # but no actual code yet.
-    has_only_comments = all(
-        not line.strip() or line.strip().startswith("#")
-        for line in contents.splitlines()
-    )
-    if has_only_comments:
-        return None
-
-    # TODO(dmadisetti): Consider replacing with a completely static load for
-    # edit.
-    spec = importlib.util.spec_from_file_location("marimo_app", filename)
-    if spec is None:
-        raise RuntimeError("Failed to load module spec")
-    marimo_app = importlib.util.module_from_spec(spec)
-    if spec.loader is None:
-        raise RuntimeError("Failed to load module spec's loader")
-    try:
-        sys.modules["marimo_app"] = marimo_app
-        spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
-    finally:
-        sys.modules.pop("marimo_app", None)
-    if not hasattr(marimo_app, "app"):
-        raise MarimoFileError(f"{filename} missing attribute `app`.")
-    if not isinstance(marimo_app.app, App):
-        raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
-
-    app = marimo_app.app
-    return app
 
 
 def recover(filename: str) -> str:

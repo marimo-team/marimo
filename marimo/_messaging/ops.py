@@ -23,7 +23,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers as loggers
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (
@@ -32,6 +32,7 @@ from marimo._data.models import (
     DataTable,
     DataTableSource,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
@@ -323,7 +324,7 @@ class CellOp(Op):
         stream: Stream | None = None,
     ) -> None:
         status: Optional[TopLevelHints] = serialization.hint
-        CellOp(cell_id=cell_id, serialization=status).broadcast(stream)
+        CellOp(cell_id=cell_id, serialization=str(status)).broadcast(stream)
 
 
 @dataclass
@@ -415,10 +416,12 @@ class CompletedRun(Op):
 @dataclass
 class KernelCapabilities:
     terminal: bool = False
+    pylsp: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
+        self.pylsp = DependencyManager.pylsp.has()
 
 
 @dataclass

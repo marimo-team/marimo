@@ -1061,6 +1061,22 @@ exports[`makeSelectable > should work for multi-layered charts with different se
     },
     {
       "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_1",
+                },
+                {
+                  "param": "select_interval_1",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
         "text": {
           "aggregate": "min",
           "field": "temp_min",
@@ -1079,12 +1095,61 @@ exports[`makeSelectable > should work for multi-layered charts with different se
       },
       "mark": {
         "align": "right",
+        "cursor": "pointer",
         "dx": -5,
+        "tooltip": true,
         "type": "text",
       },
+      "params": [
+        {
+          "name": "select_point_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_1",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
     },
     {
       "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_2",
+                },
+                {
+                  "param": "select_interval_2",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
         "text": {
           "aggregate": "max",
           "field": "temp_max",
@@ -1103,9 +1168,42 @@ exports[`makeSelectable > should work for multi-layered charts with different se
       },
       "mark": {
         "align": "left",
+        "cursor": "pointer",
         "dx": 5,
+        "tooltip": true,
         "type": "text",
       },
+      "params": [
+        {
+          "name": "select_point_2",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "on": "click[!event.metaKey]",
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_2",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "on": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "translate": "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+            "type": "interval",
+          },
+        },
+      ],
     },
   ],
 }

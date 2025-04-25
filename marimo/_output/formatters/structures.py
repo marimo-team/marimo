@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import defaultdict
 from typing import Any, Union
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -63,8 +64,14 @@ class StructuresFormatter(FormatterFactory):
         @formatting.formatter(list)
         @formatting.formatter(tuple)
         @formatting.formatter(dict)
+        @formatting.formatter(defaultdict)
         def _format_structure(
-            t: Union[tuple[Any, ...], list[Any], dict[str, Any]],
+            t: Union[
+                tuple[Any, ...],
+                list[Any],
+                dict[str, Any],
+                defaultdict[Any, Any],
+            ],
         ) -> tuple[KnownMimeType, str]:
             # Some objects extend list/tuple/dict, but also have _repr_ methods
             # that we want to use preferentially.
@@ -81,8 +88,15 @@ class StructuresFormatter(FormatterFactory):
             elif isinstance(t, list) and type(t) is not list:
                 if str(t) != str(list(t)):
                     return plain_text.plain_text(str(t))._mime_()
-            elif isinstance(t, dict) and type(t) is not dict:
+            elif (
+                isinstance(t, dict)
+                and type(t) is not dict
+                and type(t) is not defaultdict
+            ):
                 if str(t) != str(dict(t)):
+                    return plain_text.plain_text(str(t))._mime_()
+            elif isinstance(t, defaultdict) and type(t) is not defaultdict:
+                if str(t) != str(defaultdict(t.default_factory, t)):
                     return plain_text.plain_text(str(t))._mime_()
 
             if t and "matplotlib" in sys.modules:

@@ -11,10 +11,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Fragment } from "react";
 import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";
+import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { ExternalLink } from "@/components/ui/links";
+import { useChromeActions } from "../chrome/state";
 
 const Tip = (props: {
   title?: string;
@@ -49,6 +53,8 @@ export const MarimoErrorOutput = ({
   cellId,
   className,
 }: Props): JSX.Element => {
+  const chromeActions = useChromeActions();
+
   let titleContents = "This cell wasn't run because it has errors";
   let alertVariant: "destructive" | "default" = "destructive";
   let titleColor = "text-error";
@@ -77,6 +83,10 @@ export const MarimoErrorOutput = ({
   }
 
   // Group errors by type
+  const setupErrors = errors.filter(
+    (e): e is Extract<MarimoError, { type: "setup-refs" }> =>
+      e.type === "setup-refs",
+  );
   const cycleErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "cycle" }> => e.type === "cycle",
   );
@@ -123,6 +133,10 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
   );
 
+  const openScratchpad = () => {
+    chromeActions.openApplication("scratchpad");
+  };
+
   const renderMessages = () => {
     const messages: JSX.Element[] = [];
 
@@ -141,6 +155,57 @@ export const MarimoErrorOutput = ({
               cellId={cellId}
             />
           )}
+        </li>,
+      );
+    }
+
+    if (setupErrors.length > 0) {
+      messages.push(
+        <li key="setup-refs">
+          <p className="text-muted-foreground font-medium">
+            The setup cell cannot be run because it has references.
+          </p>
+          <ul className="list-disc">
+            {setupErrors.flatMap((error, errorIdx) =>
+              error.edges_with_vars.map((edge, edgeIdx) => (
+                <li
+                  className={liStyle}
+                  key={`setup-refs-${errorIdx}-${edgeIdx}`}
+                >
+                  <CellLinkError cellId={edge[0] as CellId} />
+                  <span className="text-muted-foreground">
+                    {": "}{" "}
+                    {edge[1].length === 1 ? edge[1][0] : edge[1].join(", ")}
+                  </span>
+                </li>
+              )),
+            )}
+          </ul>
+          {cellId && <AutoFixButton errors={setupErrors} cellId={cellId} />}
+          <Tip
+            title="Why can't the setup cell have references?"
+            className="mb-2"
+          >
+            <p className="pb-2">
+              The setup cell contains logic that must be run before any other
+              cell runs, including top-level imports used by top-level
+              functions. For this reason, it can't refer to other cells'
+              variables.
+            </p>
+
+            <p className="py-2">
+              Try simplifying the setup cell to only contain only necessary
+              variables.
+            </p>
+
+            <p className="py-2">
+              <ExternalLink href="https://links.marimo.app/errors-setup">
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </ExternalLink>
+              .
+            </p>
+          </Tip>
         </li>,
       );
     }
@@ -181,6 +246,14 @@ export const MarimoErrorOutput = ({
             <p className="py-2">
               Try merging these cells into a single cell to eliminate the cycle.
             </p>
+
+            <p className="py-2">
+              <ExternalLink href="https://links.marimo.app/errors-cycles">
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </ExternalLink>
+              .
+            </p>
           </Tip>
         </li>,
       );
@@ -192,6 +265,7 @@ export const MarimoErrorOutput = ({
           <p className="text-muted-foreground font-medium">
             This cell redefines variables from other cells.
           </p>
+
           {multipleDefsErrors.map((error, idx) => (
             <Fragment key={`multiple-defs-${idx}`}>
               <p className="text-muted-foreground mt-2">{`'${error.name}' was also defined by:`}</p>
@@ -204,9 +278,11 @@ export const MarimoErrorOutput = ({
               </ul>
             </Fragment>
           ))}
+
           {cellId && (
             <AutoFixButton errors={multipleDefsErrors} cellId={cellId} />
           )}
+
           <Tip title="Why can't I redefine variables?">
             <p className="pb-2">
               marimo requires that each variable is defined in just one cell.
@@ -220,6 +296,29 @@ export const MarimoErrorOutput = ({
               function. Alternatively, rename variables to make them private to
               this cell by prefixing them with an underscore.
             </p>
+
+            <p className="py-2">
+              <ExternalLink href="https://links.marimo.app/errors-multiple-definitions">
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </ExternalLink>
+              .
+            </p>
+          </Tip>
+
+          <Tip title="Need a scratchpad?">
+            <div className="flex flex-row gap-2 items-center">
+              <Button
+                size="xs"
+                variant="link"
+                className="my-2 font-normal mx-0 px-0"
+                onClick={openScratchpad}
+              >
+                <NotebookPenIcon className="h-3" />
+                <span>Try the scratchpad</span>
+              </Button>
+              <span>to experiment without restrictions on variable names.</span>
+            </div>
           </Tip>
         </li>,
       );
@@ -252,6 +351,14 @@ export const MarimoErrorOutput = ({
             <p className="py-2">
               Star imports would also silently add names to globals, which would
               be incompatible with reactive execution.
+            </p>
+
+            <p className="py-2">
+              <ExternalLink href="https://links.marimo.app/errors-import-star">
+                Learn more at our docs{" "}
+                <SquareArrowOutUpRightIcon size="0.75rem" className="inline" />
+              </ExternalLink>
+              .
             </p>
           </Tip>
         </li>,

@@ -7,13 +7,14 @@ import type { EditorState, Text } from "@codemirror/state";
 import { debounce } from "lodash-es";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { chromeAtom } from "@/components/editor/chrome/state";
+import type { LSPConfig } from "@/core/config/config-schema";
+import { hasCapability } from "@/core/config/capabilities";
 
-export function hintTooltip() {
+export function hintTooltip(lspConfig: LSPConfig) {
   return [
     // Hover tooltip is already covered by LSP
-    getFeatureFlag("lsp")
+    lspConfig?.pylsp?.enabled && hasCapability("pylsp")
       ? []
       : hoverTooltip(
           async (view, pos) => {

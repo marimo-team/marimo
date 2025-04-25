@@ -13,6 +13,10 @@ import {
 import { StateEffect } from "@codemirror/state";
 import { getResolvedMarimoConfig } from "../config/config";
 import { cellActionsState } from "./cells/state";
+import { languageAdapterState } from "./language/extension";
+import { Logger } from "@/utils/Logger";
+import { cellIdState } from "./config/extension";
+import { getIndentUnit } from "@codemirror/language";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -61,4 +65,52 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
 export function formatAll() {
   const views = notebookCellEditorViews(getNotebook());
   return formatEditorViews(views);
+}
+
+/**
+ * Format the SQL code in the editor view.
+ *
+ * This is currently only used by explicitly clicking the format button.
+ * We do not use it for auto-formatting onSave or globally because
+ * SQL formatting is much more opinionated than Python formatting, and we
+ * don't want to tie the two together (just yet).
+ */
+export async function formatSQL(editor: EditorView) {
+  // Lazy import sql-formatter
+  const { formatDialect, duckdb } = await import("sql-formatter");
+
+  // Get language adapter
+  const languageAdapter = editor.state.field(languageAdapterState);
+  const tabWidth = getIndentUnit(editor.state);
+  if (languageAdapter.type !== "sql") {
+    Logger.error("Language adapter is not SQL");
+    return;
+  }
+
+  const codeAsSQL = editor.state.doc.toString();
+  const formattedSQL = formatDialect(codeAsSQL, {
+    dialect: duckdb,
+    tabWidth: tabWidth,
+    useTabs: false,
+  });
+
+  // Update Python in the notebook state
+  const codeAsPython = languageAdapter.transformIn(formattedSQL)[0];
+  const actions = editor.state.facet(cellActionsState);
+  const cellId = editor.state.facet(cellIdState);
+  actions.updateCellCode({
+    cellId,
+    code: codeAsPython,
+    formattingChange: true,
+  });
+
+  // Update editor with formatted SQL
+  editor.dispatch({
+    changes: {
+      from: 0,
+      to: editor.state.doc.length,
+      insert: formattedSQL,
+    },
+    effects: [formattingChangeEffect.of(true)],
+  });
 }

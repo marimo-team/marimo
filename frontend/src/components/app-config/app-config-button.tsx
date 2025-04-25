@@ -55,7 +55,7 @@ export const ConfigButton: React.FC<Props> = ({ showAppConfig = true }) => {
       <Popover>
         <PopoverTrigger asChild={true}>{button}</PopoverTrigger>
         <PopoverContent
-          className="w-80 overflow-auto"
+          className="w-[650px] overflow-auto max-h-[80vh] max-w-[80vw]"
           align="end"
           side="bottom"
           // prevent focus outside to hack around a bug in which

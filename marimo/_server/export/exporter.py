@@ -84,10 +84,7 @@ class Exporter:
                     e,
                 )
                 continue
-            mime_type, _ = mimetypes.guess_type(basename) or (
-                "text/plain",
-                None,
-            )
+            mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
             files[filename_and_length] = build_data_url(
                 cast(KnownMimeType, mime_type),
                 base64.b64encode(buffer_contents),
@@ -229,7 +226,7 @@ class Exporter:
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
         import yaml
 
-        from marimo._ast.app import _AppConfig
+        from marimo._ast.app_config import _AppConfig
         from marimo._ast.cell import Cell
         from marimo._ast.compiler import compile_cell
         from marimo._cli.convert.markdown import (

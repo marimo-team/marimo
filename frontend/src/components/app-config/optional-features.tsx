@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { SettingSubtitle } from "./common";
 import { isWasm } from "@/core/wasm/utils";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 interface Package {
   name: string;
@@ -81,14 +80,21 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
     additionalPackageInstalls: [],
     description: "Export as IPYNB",
   },
+  {
+    id: "testing",
+    packagesRequired: [{ name: "pytest" }],
+    additionalPackageInstalls: [],
+    description: "Autorun unit tests",
+  },
 ];
 
-if (getFeatureFlag("lsp")) {
+// Only available outside wasm
+if (!isWasm()) {
   OPTIONAL_DEPENDENCIES.push({
     id: "lsp",
     packagesRequired: [{ name: "python-lsp-server" }, { name: "websockets" }],
     additionalPackageInstalls: [{ name: "python-lsp-ruff" }],
-    description: "Language Server Protocol",
+    description: "Language Server Protocol*",
   });
 }
 
@@ -172,6 +178,8 @@ export const OptionalFeatures: React.FC = () => {
           })}
         </TableBody>
       </Table>
+
+      <p className="text-muted-foreground mt-2">*Requires server restart</p>
     </div>
   );
 };

@@ -35,10 +35,13 @@ import {
   MySQL,
   SQLite,
   MSSQL,
+  keywordCompletionSource,
 } from "@codemirror/lang-sql";
 import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { isSchemaless } from "@/components/datasources/utils";
+import { datasetTablesAtom } from "@/core/datasets/state";
+import { variableCompletionSource } from "./embedded-python";
 
 /**
  * Language adapter for SQL.
@@ -172,6 +175,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
   ): Extension[] {
+    const keywordCompletion = keywordCompletionSource(StandardSQL);
     return [
       sql({
         dialect: StandardSQL,
@@ -181,9 +185,25 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         // handles the Escape key correctly in Vim
         defaultKeymap: false,
         activateOnTyping: true,
-      }),
-      StandardSQL.language.data.of({
-        autocomplete: tablesCompletionSource(this),
+        override: [
+          tablesCompletionSource(this),
+          // Complete for variables in SQL {} blocks
+          variableCompletionSource,
+          (ctx) => {
+            // We want to ignore keyword completions on something like
+            // `WHERE my_table.col`
+            //                    ^cursor
+            const textBefore = ctx.matchBefore(/\.\w*/);
+            if (textBefore) {
+              // If there is a match, we are typing after a dot,
+              // so we don't want to trigger SQL keyword completion
+              return null;
+            }
+
+            const result = keywordCompletion(ctx);
+            return result;
+          },
+        ],
       }),
     ];
   }
@@ -193,7 +213,9 @@ type TableToCols = Record<string, string[]>;
 type Schemas = Record<string, TableToCols>;
 
 export class SQLCompletionStore {
-  private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
+  private cache = new LRUCache<[DataSourceConnection, TableToCols], SQLConfig>(
+    10,
+  );
 
   getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
     const dataConnectionsMap = store.get(dataConnectionsMapAtom);
@@ -202,7 +224,22 @@ export class SQLCompletionStore {
       return null;
     }
 
-    let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
+    const localTables = store.get(datasetTablesAtom);
+
+    // If there is a conflict with connection tables,
+    // the engine will prioritize the connection tables without special handling
+    const tablesMap: TableToCols = {};
+    for (const table of localTables) {
+      const tableColumns = table.columns.map((col) => col.name);
+      tablesMap[table.name] = tableColumns;
+    }
+
+    const cacheKey: [DataSourceConnection, TableToCols] = [
+      connection,
+      tablesMap,
+    ];
+
+    let cacheConfig: SQLConfig | undefined = this.cache.get(cacheKey);
     if (!cacheConfig) {
       const schemaMap: Record<string, TableToCols> = {};
       const databaseMap: Record<string, Schemas> = {};
@@ -286,10 +323,10 @@ export class SQLCompletionStore {
 
       cacheConfig = {
         ...baseConfig,
-        schema: { ...databaseMap, ...schemaMap },
+        schema: { ...databaseMap, ...schemaMap, ...tablesMap },
         defaultSchema: connection.default_schema ?? undefined,
       };
-      this.cache.set(connection, cacheConfig);
+      this.cache.set(cacheKey, cacheConfig);
     }
 
     return cacheConfig;

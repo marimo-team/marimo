@@ -8,10 +8,10 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.app import (
     App,
     AppKernelRunnerRegistry,
-    _AppConfig,
     InternalApp,
 )
 from marimo._ast.errors import (
@@ -82,7 +82,9 @@ class TestApp:
 
         with app.setup:
             x = 0
-            x
+
+        # Evaluate whether returning a value on setup run makes sense.
+        # x
 
         @app.cell
         def two(z: int) -> tuple[int]:
@@ -103,15 +105,14 @@ class TestApp:
         assert cell_names[2] == "__"
 
         codes = tuple(cell_manager.codes())
-        assert codes[0] == "x = 0\nx"
+        assert codes[0] == "x = 0"
         assert codes[1] == "a = x + z\na + 1"
         assert codes[2] == "y = x + 1\nz = y + 1"
 
         outputs, defs = app.run()
 
-        assert outputs[0] == defs["x"]
-        assert outputs[1] == defs["a"] + 1
-        assert outputs[2] is None
+        assert outputs[0] == defs["a"] + 1
+        assert outputs[1] is None
 
         assert defs["x"] == 0
         assert (defs["y"], defs["z"]) == (1, 2)
@@ -362,6 +363,7 @@ class TestApp:
             "width": "full",
             "layout_file": None,
             "auto_download": [],
+            "sql_output": "auto",
         }
 
     @staticmethod
@@ -691,6 +693,7 @@ def test_app_config() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 
@@ -707,6 +710,7 @@ def test_app_config_extra_args_ignored() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 

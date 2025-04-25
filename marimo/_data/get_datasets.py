@@ -233,6 +233,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "time"
     if db_type in [
         "timestamp",
+        "timestamp_ns",
         "timestamp with time zone",
         "timestamptz",
         "datetime",
@@ -240,12 +241,12 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     ]:
         return "datetime"
     # Nested types
-    if db_type in ["array", "list", "struct", "map", "union"]:
+    if db_type in ["array", "list", "struct", "map", "union", "varchar[]"]:
         return "unknown"
     # Special types
     if db_type == "bit":
         return "string"  # Representing bit as string
-    if db_type == "enum":
+    if db_type == "enum" or db_type.startswith("enum"):
         return "string"  # Representing enum as string
 
     LOGGER.warning("Unknown DuckDB type: %s", db_type)

@@ -20,11 +20,7 @@
   }
 
   .section {
-    padding: 0.5rem 0;
-  }
-
-  dt {
-    padding-top: 0.6rem;
+    line-height: normal;
   }
 
   ul,
@@ -102,12 +98,12 @@
       font-weight: initial;
       @apply text-sm font-mono;
     }
-
-    .docutils dd {
-      white-space: pre-wrap;
-      padding-left: 1rem;
-    }
   }
+}
+
+.docutils dd {
+  white-space: pre-wrap;
+  padding-left: 1rem;
 }
 
 /* Custom overrides when in a tooltip */

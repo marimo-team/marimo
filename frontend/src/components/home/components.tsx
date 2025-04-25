@@ -154,7 +154,6 @@ export const ResourceLinks: React.FC = () => {
             key={resource.title}
             href={resource.url}
             target="_blank"
-            rel="noreferrer"
             className="flex items-start gap-3 py-3 px-3 rounded-lg border hover:bg-accent/20 transition-colors shadow-xs"
           >
             <resource.icon className="w-5 h-5 mt-1.5 text-primary" />

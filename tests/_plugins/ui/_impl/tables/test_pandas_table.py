@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 from unittest.mock import Mock
 
@@ -155,6 +156,9 @@ class TestPandasTableManager(unittest.TestCase):
         if isinstance(df, pd.DataFrame):
             manager = self.factory.create()(df)
             return json.loads(manager.to_json().decode("utf-8"))
+
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
 
     def test_to_json(self) -> None:
         expected_json = self.data.to_json(
@@ -962,11 +966,23 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list()[1:] == [
+        assert sorted_manager.data["A"].to_list()[:-1] == [
             3.0,
             2.0,
             1.0,
         ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
+
+        # ascending
+        sorted_manager = manager.sort_values("A", descending=False)
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
 
     def test_dataframe_with_multiindex(self) -> None:
         df = pd.DataFrame(
@@ -1039,5 +1055,31 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.get_field_type("image_col") == ("string", "object")
         assert manager.get_field_type("text_col") == ("string", "object")
 
-        as_json = manager.to_json()
-        assert "data:image\\/png" in as_json.decode("utf-8")
+        as_json = manager.to_json_str()
+        assert "data:image/png" in as_json
+
+    def test_to_json_bigint(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json())
+
+        # Regular integers should remain as numbers
+        assert json_data[0]["A"] == 20
+        assert json_data[0]["B"] == -20
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"

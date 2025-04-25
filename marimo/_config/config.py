@@ -83,10 +83,12 @@ class KeymapConfig(TypedDict):
 
     - `preset`: one of `"default"` or `"vim"`
     - `overrides`: a dict of keymap actions to their keymap override
+    - `vimrc`: path to a vimrc file to load keymaps from
     """
 
     preset: Literal["default", "vim"]
     overrides: NotRequired[dict[str, str]]
+    vimrc: NotRequired[Optional[str]]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -107,6 +109,8 @@ class RuntimeConfig(TypedDict):
     - `auto_reload`: if `lazy`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
+    - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
+      execution.
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
@@ -130,6 +134,7 @@ class RuntimeConfig(TypedDict):
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
+    reactive_tests: bool
     on_cell_change: OnCellChangeType
     watcher_on_save: Literal["lazy", "autorun"]
     output_max_bytes: int
@@ -142,6 +147,7 @@ class RuntimeConfig(TypedDict):
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
+SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 
 
 @mddoc
@@ -156,6 +162,7 @@ class DisplayConfig(TypedDict):
     - `cell_output`: `"above"` or `"below"`
     - `dataframes`: `"rich"` or `"plain"`
     - `custom_css`: list of paths to custom CSS files
+    - `default_table_page_size`: default number of rows to display in tables
     """
 
     theme: Theme
@@ -164,6 +171,7 @@ class DisplayConfig(TypedDict):
     default_width: WidthType
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]
+    default_table_page_size: int
 
 
 @mddoc
@@ -394,12 +402,14 @@ DEFAULT_CONFIG: MarimoConfig = {
         "cell_output": "above",
         "default_width": "medium",
         "dataframes": "rich",
+        "default_table_page_size": 10,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
     "runtime": {
         "auto_instantiate": True,
         "auto_reload": "off",
+        "reactive_tests": True,
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(

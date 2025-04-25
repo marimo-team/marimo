@@ -36,6 +36,7 @@ import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
+import { CopyColumnFeature } from "./copy-column/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -72,6 +73,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -105,6 +108,8 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -120,6 +125,7 @@ const DataTableInternal = <TData,>({
       ColumnFormattingFeature,
       CellSelectionFeature,
       CellStylingFeature,
+      CopyColumnFeature,
     ],
     data,
     columns,
@@ -164,6 +170,9 @@ const DataTableInternal = <TData,>({
     enableCellSelection:
       selection === "single-cell" || selection === "multi-cell",
     enableMultiCellSelection: selection === "multi-cell",
+    // pinning
+    onColumnPinningChange: setColumnPinning,
+    // state
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
@@ -180,7 +189,6 @@ const DataTableInternal = <TData,>({
       cellStyling,
       columnPinning: columnPinning,
     },
-    onColumnPinningChange: setColumnPinning,
   });
 
   return (
@@ -213,6 +221,8 @@ const DataTableInternal = <TData,>({
         table={table}
         downloadAs={downloadAs}
         getRowIds={getRowIds}
+        toggleDisplayHeader={toggleDisplayHeader}
+        chartsFeatureEnabled={chartsFeatureEnabled}
       />
     </div>
   );

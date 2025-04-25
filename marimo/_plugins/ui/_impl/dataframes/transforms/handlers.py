@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+    python_print_ibis,
     python_print_pandas,
     python_print_polars,
     python_print_transforms,
@@ -320,7 +321,11 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             elif condition.operator == "ends_with":
                 condition_expr = column.str.ends_with(value_str)
             elif condition.operator == "in":
-                condition_expr = column.is_in(value or [])
+                # is_in doesn't support None values, so we need to handle them separately
+                if value is not None and None in value:
+                    condition_expr = column.is_in(value) | column.is_null()
+                else:
+                    condition_expr = column.is_in(value or [])
             else:
                 assert_never(condition.operator)
 
@@ -464,13 +469,15 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     ) -> ibis.Table:
         import ibis
 
+        transform_data_type = transform.data_type.replace("_", "")
+
         if transform.errors == "ignore":
             try:
                 # Use coalesce to handle conversion errors
                 return df.mutate(
                     ibis.coalesce(
                         df[transform.column_id].cast(
-                            ibis.dtype(transform.data_type)
+                            ibis.dtype(transform_data_type)
                         ),
                         df[transform.column_id],
                     ).name(transform.column_id)
@@ -481,7 +488,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             # Default behavior (raise errors)
             return df.mutate(
                 df[transform.column_id]
-                .cast(ibis.dtype(transform.data_type))
+                .cast(ibis.dtype(transform_data_type))
                 .name(transform.column_id)
             )
 
@@ -548,7 +555,13 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             elif condition.operator == "ends_with":
                 filter_conditions.append(column.endswith(value))
             elif condition.operator == "in":
-                filter_conditions.append(column.isin(value))
+                # is_in doesn't support None values, so we need to handle them separately
+                if value is not None and None in value:
+                    filter_conditions.append(
+                        column.isnull() | column.isin(value)
+                    )
+                else:
+                    filter_conditions.append(column.isin(value))
             else:
                 assert_never(condition.operator)
 
@@ -642,14 +655,13 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     ) -> ibis.Table:
         return df.unpack(transform.column_id)
 
-    # TODO: support as_python_code for Ibis
-    # @staticmethod
-    # def as_python_code(
-    #     df_name: str, columns: List[str], transforms: List[Transform]
-    # ) -> str | None:
-    #     return python_print_transforms(
-    #         df_name, columns, transforms, python_print_ibis
-    #     )
+    @staticmethod
+    def as_python_code(
+        df_name: str, columns: list[str], transforms: list[Transform]
+    ) -> str | None:
+        return python_print_transforms(
+            df_name, columns, transforms, python_print_ibis
+        )
 
     @staticmethod
     def as_sql_code(transformed_df: ibis.Table) -> str | None:

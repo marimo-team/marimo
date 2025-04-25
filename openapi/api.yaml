@@ -13,8 +13,15 @@ components:
           items:
             $ref: '#/components/schemas/SchemaTable'
           type: array
+        variables:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
+          type: array
       required:
       - schema
+      - variables
       type: object
     AiCompletionRequest:
       properties:
@@ -32,6 +39,9 @@ components:
           - sql
           type: string
         prompt:
+          type: string
+        selectedText:
+          nullable: true
           type: string
       required:
       - prompt
@@ -75,43 +85,6 @@ components:
       - title
       - description
       - name
-      type: object
-    AppMetadata:
-      properties:
-        argv:
-          items:
-            type: string
-          nullable: true
-          type: array
-        cliArgs:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
-            - items:
-                oneOf:
-                - type: string
-                - type: boolean
-                - type: integer
-                - type: number
-              type: array
-          type: object
-        filename:
-          nullable: true
-          type: string
-        queryParams:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - items:
-                type: string
-              type: array
-          type: object
-      required:
-      - queryParams
-      - cliArgs
       type: object
     Banner:
       properties:
@@ -271,7 +244,9 @@ components:
           type: string
         variables:
           items:
-            type: string
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
           nullable: true
           type: array
       required:
@@ -678,6 +653,7 @@ components:
       type: object
     Error:
       oneOf:
+      - $ref: '#/components/schemas/SetupRootError'
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
@@ -1127,8 +1103,6 @@ components:
       properties:
         app_config:
           properties:
-            _toplevel_fn:
-              type: boolean
             app_title:
               nullable: true
               type: string
@@ -1148,6 +1122,14 @@ components:
             layout_file:
               nullable: true
               type: string
+            sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
             width:
               enum:
               - normal
@@ -1159,14 +1141,17 @@ components:
           required:
           - width
           - auto_download
-          - _toplevel_fn
+          - sql_output
           type: object
         capabilities:
           properties:
+            pylsp:
+              type: boolean
             terminal:
               type: boolean
           required:
           - terminal
+          - pylsp
           type: object
         cell_ids:
           items:
@@ -1439,6 +1424,8 @@ components:
               - rich
               - plain
               type: string
+            default_table_page_size:
+              type: integer
             default_width:
               enum:
               - normal
@@ -1459,6 +1446,7 @@ components:
           - cell_output
           - default_width
           - dataframes
+          - default_table_page_size
           type: object
         experimental:
           additionalProperties: {}
@@ -1480,6 +1468,9 @@ components:
               enum:
               - default
               - vim
+              type: string
+            vimrc:
+              nullable: true
               type: string
           required:
           - preset
@@ -1542,6 +1533,8 @@ components:
               items:
                 type: string
               type: array
+            reactive_tests:
+              type: boolean
             std_stream_max_bytes:
               type: integer
             watcher_on_save:
@@ -1552,6 +1545,7 @@ components:
           required:
           - auto_instantiate
           - auto_reload
+          - reactive_tests
           - on_cell_change
           - watcher_on_save
           - output_max_bytes
@@ -2042,16 +2036,6 @@ components:
       - cellIds
       - codes
       type: object
-    RunScratchpadRequest:
-      properties:
-        code:
-          type: string
-        request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
-      required:
-      - code
-      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -2285,6 +2269,26 @@ components:
       required:
       - config
       type: object
+    SetupRootError:
+      properties:
+        edges_with_vars:
+          items:
+            prefixItems:
+            - type: string
+            - items:
+                type: string
+              type: array
+            - type: string
+            type: array
+          type: array
+        type:
+          enum:
+          - setup-refs
+          type: string
+      required:
+      - edges_with_vars
+      - type
+      type: object
     ShutdownSessionRequest:
       properties:
         sessionId:
@@ -2404,6 +2408,18 @@ components:
       - objectIds
       - values
       type: object
+    VariableContext:
+      properties:
+        name:
+          type: string
+        previewValue: {}
+        valueType:
+          type: string
+      required:
+      - name
+      - valueType
+      - previewValue
+      type: object
     VariableDeclaration:
       properties:
         declared_by:
@@ -2483,7 +2499,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.12.2
+  version: 0.12.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3056,7 +3072,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunScratchpadRequest'
+              $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
         200:
           content:

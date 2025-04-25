@@ -123,7 +123,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
-    getFeatureFlag("lsp") && diagnosticsConfig?.enabled ? lintGutter() : [],
+    diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({
@@ -188,7 +188,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     scrollActiveLineIntoView(),
     theme === "dark" ? darkTheme : lightTheme,
 
-    hintTooltip(),
+    hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
     closeBrackets(),

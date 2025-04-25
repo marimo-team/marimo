@@ -14,6 +14,7 @@ from typing import (
 )
 from uuid import uuid4
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._types.ids import CellId_t, RequestId, UIElementId
@@ -21,6 +22,7 @@ from marimo._types.ids import CellId_t, RequestId, UIElementId
 if TYPE_CHECKING:
     from starlette.datastructures import URL
     from starlette.requests import HTTPConnection
+
 
 CompletionRequestId = str
 
@@ -171,7 +173,7 @@ class ExecuteMultipleRequest:
 class ExecuteScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -234,6 +236,7 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    app_config: _AppConfig
     argv: Union[list[str], None] = None
 
     filename: Optional[str] = None

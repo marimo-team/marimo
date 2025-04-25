@@ -58,6 +58,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         CellConfig,
         MarimoConfig,
         # Errors
+        errors.SetupRootError,
+        errors.MultipleDefinitionError,
         errors.CycleError,
         errors.MultipleDefinitionError,
         errors.ImportStarError,
@@ -122,7 +124,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     # dataclass components used in requests/responses
     REQUEST_RESPONSES = [
         # Sub components
-        requests.AppMetadata,
         home.MarimoFile,
         files.FileInfo,
         requests.ExecutionRequest,
@@ -131,6 +132,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         snippets.Snippets,
         requests.SetUIElementValueRequest,
         # Requests/responses
+        completion.VariableContext,
         completion.SchemaColumn,
         completion.SchemaTable,
         completion.AiCompletionContext,
@@ -174,7 +176,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ReadCodeResponse,
         models.RenameFileRequest,
         models.RunRequest,
-        models.RunScratchpadRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
         models.CopyNotebookRequest,

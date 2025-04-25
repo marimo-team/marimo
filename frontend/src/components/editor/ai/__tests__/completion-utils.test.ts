@@ -9,6 +9,8 @@ import {
   dataSourceConnectionsAtom,
   DUCKDB_ENGINE,
 } from "@/core/datasets/data-source-connections";
+import { variablesAtom } from "@/core/variables/state";
+import type { Variable, VariableName } from "@/core/variables/types";
 
 // Mock getCodes function
 vi.mock("@/core/codemirror/copilot/getCodes", () => ({
@@ -25,6 +27,7 @@ describe("getAICompletionBody", () => {
       latestEngineSelected: DUCKDB_ENGINE,
       connectionsMap: new Map(),
     });
+    store.set(variablesAtom, {});
     (getCodes as Mock).mockReturnValue("// Some other code");
   });
 
@@ -49,7 +52,7 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const input = "Use @dataset1 and @dataset2 for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -70,18 +73,20 @@ describe("getAICompletionBody", () => {
             ],
           },
         ],
+        variables: [],
       },
     });
   });
 
   it("should handle input with no mentioned datasets", () => {
     const input = "Perform some analysis without mentioning datasets";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
       context: {
         schema: [],
+        variables: [],
       },
     });
   });
@@ -100,7 +105,7 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const input = "Use @existingDataset and @nonExistentDataset for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -114,6 +119,7 @@ describe("getAICompletionBody", () => {
             ],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -136,7 +142,7 @@ describe("getAICompletionBody", () => {
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const input = "Use @dataset.with.dots and @regular_dataset for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -154,6 +160,7 @@ describe("getAICompletionBody", () => {
             columns: [{ name: "col3", type: "boolean" }],
           },
         ],
+        variables: [],
       },
     });
   });
@@ -191,7 +198,7 @@ describe("getAICompletionBody", () => {
     });
 
     const input = "Use @table1 for analysis";
-    const result = getAICompletionBody(input);
+    const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
       includeOtherCode: "// Some other code",
@@ -202,6 +209,169 @@ describe("getAICompletionBody", () => {
             columns: [{ name: "col1", type: "number" }],
           },
         ],
+        variables: [],
+      },
+    });
+  });
+
+  it("should return the correct completion body with mentioned variables", () => {
+    // Set up test data in the Jotai store
+    const testVariables: Record<VariableName, Variable> = {
+      ["var1" as VariableName]: {
+        name: "var1" as VariableName,
+        value: "string value",
+        dataType: "string",
+        declaredBy: [],
+        usedBy: [],
+      },
+      ["var2" as VariableName]: {
+        name: "var2" as VariableName,
+        value: "42",
+        dataType: "number",
+        declaredBy: [],
+        usedBy: [],
+      },
+    };
+    store.set(variablesAtom, testVariables);
+
+    const input = "Use @var1 and @var2 for analysis";
+    const result = getAICompletionBody({ input });
+
+    expect(result).toEqual({
+      includeOtherCode: "// Some other code",
+      context: {
+        schema: [],
+        variables: [
+          {
+            name: "var1",
+            valueType: "string",
+            previewValue: "string value",
+          },
+          {
+            name: "var2",
+            valueType: "number",
+            previewValue: "42",
+          },
+        ],
+      },
+    });
+  });
+
+  it("should handle input with both datasets and variables", () => {
+    // Set up test data in the Jotai store
+    const testDatasets = [
+      {
+        name: "dataset1",
+        columns: [
+          { name: "col1", type: "number" },
+          { name: "col2", type: "string" },
+        ],
+      },
+    ];
+    store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+
+    const testVariables: Record<VariableName, Variable> = {
+      ["var1" as VariableName]: {
+        name: "var1" as VariableName,
+        value: "string value",
+        dataType: "string",
+        declaredBy: [],
+        usedBy: [],
+      },
+    };
+    store.set(variablesAtom, testVariables);
+
+    const input = "Use @dataset1 and @var1 for analysis";
+    const result = getAICompletionBody({ input });
+
+    expect(result).toEqual({
+      includeOtherCode: "// Some other code",
+      context: {
+        schema: [
+          {
+            name: "dataset1",
+            columns: [
+              { name: "col1", type: "number" },
+              { name: "col2", type: "string" },
+            ],
+          },
+        ],
+        variables: [
+          {
+            name: "var1",
+            valueType: "string",
+            previewValue: "string value",
+          },
+        ],
+      },
+    });
+  });
+
+  it("should handle non-existent variables", () => {
+    // Set up test data in the Jotai store
+    const testVariables: Record<VariableName, Variable> = {
+      ["existingVar" as VariableName]: {
+        name: "existingVar" as VariableName,
+        value: "string value",
+        dataType: "string",
+        declaredBy: [],
+        usedBy: [],
+      },
+    };
+    store.set(variablesAtom, testVariables);
+
+    const input = "Use @existingVar and @nonExistentVar for analysis";
+    const result = getAICompletionBody({ input });
+
+    expect(result).toEqual({
+      includeOtherCode: "// Some other code",
+      context: {
+        schema: [],
+        variables: [
+          {
+            name: "existingVar",
+            valueType: "string",
+            previewValue: "string value",
+          },
+        ],
+      },
+    });
+  });
+
+  it("should prioritize datasets over variables when there's a name conflict", () => {
+    // Set up test data in the Jotai store with a name conflict
+    const testDatasets = [
+      {
+        name: "conflict",
+        columns: [{ name: "col1", type: "number" }],
+      },
+    ];
+    store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+
+    const testVariables: Record<VariableName, Variable> = {
+      ["conflict" as VariableName]: {
+        name: "conflict" as VariableName,
+        value: "string value",
+        dataType: "string",
+        declaredBy: [],
+        usedBy: [],
+      },
+    };
+    store.set(variablesAtom, testVariables);
+
+    const input = "Use @conflict for analysis";
+    const result = getAICompletionBody({ input });
+
+    expect(result).toEqual({
+      includeOtherCode: "// Some other code",
+      context: {
+        schema: [
+          {
+            name: "conflict",
+            columns: [{ name: "col1", type: "number" }],
+          },
+        ],
+        variables: [],
       },
     });
   });

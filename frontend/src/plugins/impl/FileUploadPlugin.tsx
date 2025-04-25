@@ -211,7 +211,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                 <span className="text-xs text-muted-foreground">
                   Uploaded{" "}
                   <span className="underline cursor-pointer">
-                    {value.length} {value.length > 1 ? "files" : "file"}.
+                    {value.length} {value.length === 1 ? "file" : "files"}.
                   </span>
                 </span>
               </Tooltip>
@@ -232,7 +232,9 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
   }
 
   const label =
-    props.label ?? "Drag and drop files here, or click to open file browser";
+    props.label ??
+    `Drag and drop ${multiple ? "files" : "a file"} here, or click to open file browser`;
+
   return (
     <section>
       <div className="flex flex-col items-start justify-start flex-grow gap-3">
@@ -284,7 +286,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                 Uploaded{" "}
                 <Tooltip content={uploadedFiles}>
                   <span className="underline cursor-pointer">
-                    {value.length} {value.length > 1 ? "files" : "file"}.
+                    {value.length} {value.length === 1 ? "file" : "files"}.
                   </span>
                 </Tooltip>
               </TooltipProvider>
@@ -294,7 +296,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                 className={cn("text-destructive", "hover:underline")}
                 onClick={() => setValue([])}
               >
-                Click to clear files.
+                Click to clear {multiple ? "files" : "file"}.
               </button>
             </span>
           </div>

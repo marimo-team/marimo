@@ -12,7 +12,7 @@
 }
 
 .markdown h1 {
-  text-align: center;
+  text-align: start;
 }
 
 .config-width-full .markdown h1 {
