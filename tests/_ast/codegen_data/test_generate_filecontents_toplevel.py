@@ -69,6 +69,12 @@ def fun_that_uses_another_but_out_of_order():
 
 
 @app.function
+def fun_uses_file():
+    # file is in globals but not builtins
+    return __file__
+
+
+@app.function
 def fun_that_uses_another():
     return fun_that_uses_mo()
 

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import builtins
 import token as token_types
 from enum import Enum
 from io import BytesIO
@@ -16,6 +15,7 @@ from marimo._ast.names import (
     SETUP_CELL_NAME,
     TOPLEVEL_CELL_PREFIX,
 )
+from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
@@ -264,7 +264,7 @@ class TopLevelExtraction:
             [status.name for status in self.statuses if not status.is_toplevel]
         )
 
-        self.unshadowed = set(builtins.__dict__.keys()) - defs
+        self.unshadowed = BUILTINS - defs
         self.allowed_refs.update(self.unshadowed)
         self.used_refs = refs
 
