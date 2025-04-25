@@ -18,7 +18,12 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { asURL } from "@/utils/url";
 import { useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import type { Completion } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionSource,
+} from "@codemirror/autocomplete";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,10 +34,17 @@ import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import { getAICompletionBody, mentions } from "./completion-utils";
+import {
+  getAICompletionBody,
+  mentionsCompletionSource,
+} from "./completion-utils";
 import { allTablesAtom } from "@/core/datasets/data-source-connections";
 import { variablesAtom } from "@/core/variables/state";
-import { getTableCompletions, getVariableCompletions } from "./completions";
+import {
+  getTableMentionCompletions,
+  getVariableMentionCompletions,
+} from "./completions";
+import useEvent from "react-use-event-hook";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -238,21 +250,33 @@ export const PromptInput = ({
   const tablesMap = useAtomValue(allTablesAtom);
   const variables = useAtomValue(variablesAtom);
 
+  // TablesMap and variable change a lot,
+  // so we use useEvent to memoize the completion source
+  const completionSource: CompletionSource = useEvent(
+    (context: CompletionContext) => {
+      const completions = [
+        ...getTableMentionCompletions(tablesMap),
+        ...getVariableMentionCompletions(variables, tablesMap),
+      ];
+
+      // Trigger autocompletion for text that begins with @, can contain dots
+      const matchBeforeRegexes = [/@([\w.]+)?/];
+      if (additionalCompletions) {
+        matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
+        completions.push(...additionalCompletions.completions);
+      }
+
+      return mentionsCompletionSource(matchBeforeRegexes, completions)(context);
+    },
+  );
+
+  // Changing extensions can be expensive, so
+  // it is worth making sure this is memoized well.
   const extensions = useMemo(() => {
-    const completions = [
-      ...getTableCompletions(tablesMap),
-      ...getVariableCompletions(variables, new Set(tablesMap.keys())),
-    ];
-
-    // Trigger autocompletion for text that begins with @, can contain dots
-    const matchBeforeRegexes = [/@([\w.]+)?/];
-    if (additionalCompletions) {
-      matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
-      completions.push(...additionalCompletions.completions);
-    }
-
     return [
-      mentions(matchBeforeRegexes, completions),
+      autocompletion({
+        override: [completionSource],
+      }),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
@@ -323,7 +347,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tablesMap, variables, additionalCompletions, handleSubmit, handleEscape]);
+  }, [completionSource, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror

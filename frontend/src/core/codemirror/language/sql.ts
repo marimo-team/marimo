@@ -41,6 +41,7 @@ import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { isSchemaless } from "@/components/datasources/utils";
 import { datasetTablesAtom } from "@/core/datasets/state";
+import { variableCompletionSource } from "./embedded-python";
 
 /**
  * Language adapter for SQL.
@@ -186,6 +187,8 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         activateOnTyping: true,
         override: [
           tablesCompletionSource(this),
+          // Complete for variables in SQL {} blocks
+          variableCompletionSource,
           (ctx) => {
             // We want to ignore keyword completions on something like
             // `WHERE my_table.col`
@@ -210,7 +213,9 @@ type TableToCols = Record<string, string[]>;
 type Schemas = Record<string, TableToCols>;
 
 export class SQLCompletionStore {
-  private cache = new LRUCache<DataSourceConnection, SQLConfig>(10);
+  private cache = new LRUCache<[DataSourceConnection, TableToCols], SQLConfig>(
+    10,
+  );
 
   getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
     const dataConnectionsMap = store.get(dataConnectionsMapAtom);
@@ -229,7 +234,12 @@ export class SQLCompletionStore {
       tablesMap[table.name] = tableColumns;
     }
 
-    let cacheConfig: SQLConfig | undefined = this.cache.get(connection);
+    const cacheKey: [DataSourceConnection, TableToCols] = [
+      connection,
+      tablesMap,
+    ];
+
+    let cacheConfig: SQLConfig | undefined = this.cache.get(cacheKey);
     if (!cacheConfig) {
       const schemaMap: Record<string, TableToCols> = {};
       const databaseMap: Record<string, Schemas> = {};
@@ -316,7 +326,7 @@ export class SQLCompletionStore {
         schema: { ...databaseMap, ...schemaMap, ...tablesMap },
         defaultSchema: connection.default_schema ?? undefined,
       };
-      this.cache.set(connection, cacheConfig);
+      this.cache.set(cacheKey, cacheConfig);
     }
 
     return cacheConfig;
