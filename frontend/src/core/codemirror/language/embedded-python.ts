@@ -11,7 +11,6 @@ import type {
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { variablesAtom } from "@/core/variables/state";
-import type { Extension } from "@codemirror/state";
 import { getVariableCompletions } from "../completion/variable-completions";
 
 // Python code block delimiters
@@ -90,46 +89,6 @@ export function parsePython(
       };
     }),
   };
-}
-
-const languageData = python().language.data;
-
-/**
- * Embedded Python completions
- *
- * @param isActivated Function that returns whether the extension should be activated
- */
-export function embeddedPythonCompletions(
-  isActivated: () => boolean,
-): Extension {
-  return [
-    languageData.of({
-      autocomplete: (context: CompletionContext): CompletionResult | null => {
-        if (!isActivated()) {
-          return null;
-        }
-
-        // Check if the cursor is at a position where a variable can be inserted
-        const wordMatch = context.matchBefore(/\w*$/);
-        if (!context.explicit && !wordMatch) {
-          return null;
-        }
-
-        const filter = wordMatch?.text ?? "";
-
-        const options = getVariableCompletions(
-          store.get(variablesAtom),
-          new Set(),
-        );
-
-        return {
-          from: context.pos - filter.length,
-          options,
-          validFor: /^\w*$/,
-        };
-      },
-    }),
-  ];
 }
 
 /**

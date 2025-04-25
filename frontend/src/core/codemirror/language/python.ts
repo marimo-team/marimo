@@ -32,7 +32,7 @@ import { WebSocketTransport } from "@open-rpc/client-js";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
 import { autocompletion } from "@codemirror/autocomplete";
-import { completer } from "../completion/completer";
+import { pythonCompletionSource } from "../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { Paths } from "@/utils/paths";
 import type { CellId } from "@/core/cells/ids";
@@ -214,7 +214,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
 
       return autocompletion({
         ...autocompleteOptions,
-        override: [completer],
+        override: [pythonCompletionSource],
       });
     };
 
