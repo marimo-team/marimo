@@ -3,7 +3,6 @@
 import { batch } from "@/utils/batch-requests";
 import { createLoader, type Loader } from "./vega-loader";
 import { tableFromIPC } from "@uwdata/flechette";
-import { batchedArrowLoader } from "./loader";
 
 export function createBatchedLoader(): Loader {
   const loader = withArrowSupport(createLoader());
@@ -31,3 +30,11 @@ export function withArrowSupport(loader: Loader): Loader {
     },
   };
 }
+
+/**
+ * Batch requests to the same URL returning the same promise for all calls with the same key.
+ */
+export const batchedArrowLoader = batch(
+  (url: string) => fetch(url).then((r) => r.arrayBuffer()),
+  (url: string) => url,
+);
