@@ -141,11 +141,9 @@ export const LanguagePanelComponent: React.FC<{
     };
 
     actions = (
-      <div className="flex flex-row w-full justify-end gap-1 items-center">
-        <div className="flex items-center gap-2">
-          <span>
-            <i>r</i>
-          </span>
+      <div className="flex flex-row w-full justify-end gap-1.5 items-center">
+        <div className="flex items-center gap-1.5">
+          <span>r</span>
           <Checkbox
             aria-label="Toggle raw string"
             className="w-3 h-3"
@@ -155,10 +153,8 @@ export const LanguagePanelComponent: React.FC<{
             }}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <span>
-            <i>f</i>
-          </span>
+        <div className="flex items-center gap-1.5">
+          <span>f</span>
           <Checkbox
             aria-label="Toggle f-string"
             className="w-3 h-3"
