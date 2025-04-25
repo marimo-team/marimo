@@ -1258,7 +1258,7 @@ describe("tablesCompletionSource", () => {
     `);
   });
 
-  it("should refresh cache when connection is updated", () => {
+  it("should return new connection tables when connection is updated", () => {
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([
         ["test_engine" as ConnectionName, mockConnection],
@@ -1301,7 +1301,7 @@ describe("tablesCompletionSource", () => {
     expect(completionSource2?.defaultSchema).toBe("new_schema");
   });
 
-  it("should refresh cache when local tables are updated", () => {
+  it("should return new local tables when local tables are updated", () => {
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([
         ["test_engine" as ConnectionName, mockConnection],
