@@ -46,6 +46,7 @@
     "@marimo-team/codemirror-languageserver": "^1.15.13",
     "@marimo-team/marimo-api": "file:../openapi",
     "@marimo-team/react-slotz": "^0.1.8",
+    "@mui/material": "^6.4.11",
     "@open-rpc/client-js": "^1.8.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "@radix-ui/colors": "^3.0.0",
