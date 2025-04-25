@@ -24,6 +24,9 @@ class ProgressBarTqdmPatch(progress_bar):
         if len(args) >= 3:
             total = args[2]
 
+        # Store the iterable for later use in __iter__
+        self.iterable = iterable
+
         super().__init__(
             collection=iterable,
             title=desc or "",
@@ -49,6 +52,28 @@ class ProgressBarTqdmPatch(progress_bar):
             self.progress.clear()
             self.progress.close()
 
+    def __iter__(self):
+        """Iterate over the wrapped iterable and update the progress bar.
+        
+        This method allows the ProgressBarTqdmPatch to be used as an iterator,
+        similar to how tqdm works, automatically updating the progress bar
+        for each item yielded.
+        
+        Returns:
+            Iterator: An iterator over the wrapped iterable
+        """
+        if self.iterable is None:
+            return iter([])
+            
+        # Use the parent class's __iter__ if it exists
+        if hasattr(super(), "__iter__"):
+            return super().__iter__()
+            
+        # Otherwise, implement our own iteration logic
+        for obj in self.iterable:
+            self.update()
+            yield obj
+            
     @classmethod
     def write(cls, s: str, file=None, end="\n", nolock=False) -> None:
         """Print a message via tqdm (without overlap with bars).
