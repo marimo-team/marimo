@@ -39,11 +39,6 @@ const quoteKinds = [
 ];
 
 // explode into all combinations
-//
-// A note on f-strings:
-//
-// f-strings are not well supported due to bad interactions with
-// string escaping, LaTeX, and loss of Python syntax highlighting
 const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
   quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
