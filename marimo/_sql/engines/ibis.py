@@ -31,8 +31,6 @@ LOGGER = _loggers.marimo_logger()
 class IbisToMarimoConversionError(Exception):
     """Raise for unhandled type during Ibis to Marimo conversion"""
 
-    pass
-
 
 @register_engine
 class IbisEngine(SQLEngine):
