@@ -530,12 +530,14 @@ def test_ibis_type_conversion() -> None:
     assert to_marimo(dt.String()) == "string"
 
     # temporal
-    assert to_marimo(dt.Interval(unit="D")) == "datetime"
     assert to_marimo(dt.Date()) == "date"
     assert to_marimo(dt.Time()) == "datetime"  # verify
     assert to_marimo(dt.Timestamp()) == "datetime"
 
     # unhandled cases will be converted to string
+    with pytest.raises(IbisToMarimoConversionError):
+        to_marimo(dt.Interval(unit="D"))
+
     # nested types
     with pytest.raises(IbisToMarimoConversionError):
         to_marimo(dt.Array(value_type=dt.Int32()))

@@ -308,7 +308,11 @@ def test_get_engines_ibis_databases() -> None:
     assert connection.default_schema == "main"
 
     assert connection.databases == [
-        Database(name="memory", dialect="duckdb", schemas=[])
+        Database(
+            name="memory",
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=[])],
+        )
     ]
 
 

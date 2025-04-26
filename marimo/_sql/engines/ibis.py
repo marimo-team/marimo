@@ -130,10 +130,17 @@ class IbisEngine(SQLEngine):
             - An empty string if the connection is detached but valid
             - None if the connection is invalid
         """
+        database_name = None
         try:
             database_name = self._backend.current_catalog
         except AttributeError:
-            database_name = self._backend.name
+            pass
+
+        if database_name is None:
+            try:
+                database_name = self._backend.name
+            except AttributeError:
+                pass
 
         return database_name
 
@@ -221,7 +228,6 @@ class IbisEngine(SQLEngine):
                     LOGGER.debug(
                         f"No table found for schema `{schema_name}`. Not displaying schema."
                     )
-                    continue
 
             schema = Schema(name=schema_name, tables=tables)
             schemas.append(schema)
@@ -230,7 +236,7 @@ class IbisEngine(SQLEngine):
 
     def _get_meta_schemas(self) -> list[str]:
         """List of schemas for internal tables we want to ignore."""
-        # TODO find a way to support all Ibis backends
+        # TODO find a way to support meta schemas from all Ibis backends
         return ["information_schema", "pg_catalog"]
 
     def get_tables_in_schema(
@@ -264,7 +270,7 @@ class IbisEngine(SQLEngine):
             else:
                 table = DataTable(
                     source_type="connection",
-                    source=self.dialect,
+                    source=self.source,
                     name=table_name,
                     num_rows=None,
                     num_columns=None,
@@ -272,8 +278,8 @@ class IbisEngine(SQLEngine):
                     engine=self._engine_name,
                     type="table",
                     columns=[],
-                    primary_keys=[],
-                    indexes=[],
+                    primary_keys=None,
+                    indexes=None,
                 )
             tables.append(table)
 
@@ -290,7 +296,7 @@ class IbisEngine(SQLEngine):
             table = self._backend.table(
                 table_name, database=(database_name, schema_name)
             )
-            schema = table.schema()
+            table_schema = table.schema()
         except Exception:
             LOGGER.warning(
                 f"Failed to get details for {table_name} in database {database_name}",
@@ -299,7 +305,7 @@ class IbisEngine(SQLEngine):
             return None
 
         cols: list[DataTableColumn] = []
-        for col_name, ibis_dtype in schema.fields.items():
+        for col_name, ibis_dtype in table_schema.fields.items():
             try:
                 col_type: DataType = self._ibis_to_marimo_dtype(ibis_dtype)
             except IbisToMarimoConversionError:
@@ -323,10 +329,10 @@ class IbisEngine(SQLEngine):
         # ibis is unaware of primary keys and indices
         return DataTable(
             source_type="connection",
-            source=self.dialect,
+            source=self.source,
             name=table_name,
             num_rows=None,
-            num_columns=len(schema.fields),
+            num_columns=len(table_schema.fields),
             variable_name=None,
             engine=self._engine_name,
             columns=cols,
@@ -342,7 +348,7 @@ class IbisEngine(SQLEngine):
         """
         if ibis_dtype.is_integer():
             marimo_dtype = "integer"
-        # numeric should be a superset of integer, so we evaluate after
+        # numeric is a superset of integer, so we evaluate after is_integer
         elif ibis_dtype.is_numeric():
             marimo_dtype = "number"
 
@@ -354,9 +360,6 @@ class IbisEngine(SQLEngine):
 
         # NOTE handle ibis_dtype.is_time() which doesn't have a date part
         elif ibis_dtype.is_time():
-            marimo_dtype = "datetime"
-
-        elif ibis_dtype.is_interval():
             marimo_dtype = "datetime"
 
         elif ibis_dtype.is_boolean():
@@ -377,7 +380,14 @@ class IbisEngine(SQLEngine):
         self,
         value: Union[bool, Literal["auto"]],
     ) -> bool:
-        CHEAP_TO_DISCOVER = ("duckdb", "sqlite", "mysql", "postgresql")
         if value == "auto":
-            return self.dialect.lower() in CHEAP_TO_DISCOVER
+            return self._is_cheap_discovery()
         return value
+
+    def _is_cheap_discovery(self) -> bool:
+        return self.dialect.lower() in (
+            "duckdb",
+            "sqlite",
+            "mysql",
+            "postgresql",
+        )
