@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { cn } from "@/utils/cn";
-import { memo, useRef, useCallback } from "react";
+import { memo, useRef } from "react";
 import { SortableColumn } from "./sortable-column";
 import type { CellColumnId } from "@/utils/id-tree";
 import type { AppConfig } from "@/core/config/config-schema";
@@ -25,12 +25,17 @@ export const Column = memo((props: Props) => {
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
   const startingWidth = getColumnWidth(props.columnId);
 
-  const onResize = useCallback((size: ObservedSize) => {
+  const onResize = (size: ObservedSize) => {
     if (!resizableDivRef.current) {
       return;
     }
 
     const width = size.width ?? startingWidth;
+
+    resizableDivRef.current.scrollIntoView({
+      behavior: "instant",
+      block: "nearest",
+    });
 
     // Clear any existing timeout
     if (debounceTimeoutRef.current) {
@@ -40,16 +45,17 @@ export const Column = memo((props: Props) => {
     // Set a new timeout to save after 500ms of no changes
     debounceTimeoutRef.current = setTimeout(() => {
       storage.set({
+        // TODO: When a column is moved, we should get the new index/id
+        // Because when cols are initialized, they use a new index
         colToWidth: { ...storage.get().colToWidth, [props.columnId]: width },
       });
     }, 500);
-  }, []);
+  };
 
-  const { width, height } = useResizeObserver({
+  useResizeObserver({
     ref: resizableDivRef,
     onResize: onResize,
   });
-  console.log("width", width, "height", height);
 
   const widthClass =
     typeof startingWidth === "string" ? startingWidth : `${startingWidth}px`;
@@ -61,7 +67,7 @@ export const Column = memo((props: Props) => {
         "flex flex-col gap-5",
         // box-content is needed so the column is width=contentWidth, but not affected by padding
         props.width === "columns" &&
-          "w-contentWidth box-content min-h-[100px] px-11 py-6 overflow-hidden resize-x",
+          "w-contentWidth box-content min-h-[100px] px-11 py-6 overflow-hidden resize-x min-w-[400px]",
       )}
       style={{ width: widthClass }}
     >
