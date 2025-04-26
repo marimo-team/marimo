@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { filenameAtom } from "@/core/saving/filename";
 import type { TypedString } from "./typed";
+import { store } from "@/core/state/jotai";
 
 export type FilePath = TypedString<"FilePath">;
 
@@ -28,6 +30,14 @@ export const Paths = {
       return "";
     }
     return parts.at(-1) ?? "";
+  },
+  filenameWithDirectory: () => {
+    const filename = store.get(filenameAtom);
+    if (!filename) {
+      return null;
+    }
+    const filenameWithDirectory = Paths.dirname(filename);
+    return filenameWithDirectory;
   },
 };
 
