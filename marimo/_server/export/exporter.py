@@ -224,7 +224,7 @@ class Exporter:
         return stream.read(), download_filename
 
     def export_as_md(
-        self, file_manager: AppFileManager, type_changed: bool = False
+        self, file_manager: AppFileManager, previous: Path | None = None
     ) -> tuple[str, str]:
         from marimo._ast import codegen
         from marimo._ast.app_config import _AppConfig
@@ -239,17 +239,6 @@ class Exporter:
 
         filename = get_filename(file_manager)
         metadata: dict[str, str | list[str]] = {}
-        # If previously a markdown file, extract frontmatter.
-        # otherwise if it was a python file, extract header.
-        if type_changed:
-            header = codegen.get_header_comments(filename)
-            if header:
-                metadata["header"] = header
-        else:
-            with open(filename, encoding="utf-8") as f:
-                _metadata, _ = extract_frontmatter(f.read())
-            metadata.update(_metadata)
-
         metadata.update(
             {
                 "title": get_app_title(file_manager),
@@ -270,6 +259,16 @@ class Exporter:
                 if k not in ignored_keys and v != default_config.get(k)
             }
         )
+        # If previously a markdown file, extract frontmatter.
+        # otherwise if it was a python file, extract header.
+        if previous and previous.suffix == ".py":
+            header = codegen.get_header_comments(previous)
+            if header:
+                metadata["header"] = header.strip()
+        elif previous:
+            with open(previous, encoding="utf-8") as f:
+                _metadata, _ = extract_frontmatter(f.read())
+            metadata.update(_metadata)
 
         # Add the expected qmd filter to the metadata.
         if filename.endswith(".qmd"):

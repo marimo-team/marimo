@@ -7,7 +7,7 @@ import os
 import re
 import sys
 import textwrap
-from typing import Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
@@ -18,6 +18,9 @@ from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
@@ -380,7 +383,7 @@ def is_multiline_comment(node: ast.stmt) -> bool:
     return False
 
 
-def get_header_comments(filename: str) -> Optional[str]:
+def get_header_comments(filename: str | Path) -> Optional[str]:
     """Gets the header comments from a file. Returns
     None if the file does not exist or the header is
     invalid, which is determined by:

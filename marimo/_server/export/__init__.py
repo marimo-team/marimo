@@ -66,10 +66,9 @@ def export_as_md(
     file_manager = file_router.get_file_manager(file_key)
 
     # py -> md
-    type_changed = not path.is_markdown()
     if new_filename:
         file_manager.filename = str(new_filename)
-    result = Exporter().export_as_md(file_manager, type_changed)
+    result = Exporter().export_as_md(file_manager, previous=path.path)
     return ExportResult(
         contents=result[0],
         download_filename=result[1],

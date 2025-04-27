@@ -130,15 +130,22 @@ class AppFileManager:
         # Whether or not to persist the app to the file system
         persist: bool,
         # Whether save was triggered by a rename
-        type_changed: bool = False,
+        previous_filename: Optional[str] = None,
     ) -> str:
         LOGGER.debug("Saving app to %s", filename)
+
+        type_changed = (
+            previous_filename and filename[-2:] != previous_filename[-2:]
+        )
         if filename.endswith(".md") or filename.endswith(".qmd"):
             # TODO: Potentially restructure, such that code compilation doesn't
             # have to occur multiple times.
             from marimo._server.export.exporter import Exporter
 
-            contents, _ = Exporter().export_as_md(self, type_changed)
+            previous = None
+            if previous_filename:
+                previous = Path(previous_filename)
+            contents, _ = Exporter().export_as_md(self, previous)
         else:
             # Header might be better kept on the AppConfig side, opposed to
             # reparsing it. Also would allow for md equivalent in a field like
@@ -203,19 +210,17 @@ class AppFileManager:
         self._assert_path_does_not_exist(new_filename)
 
         needs_save = False
-        type_changed = False
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
         if self.is_notebook_named and self.filename is not None:
             # Force a save after rename in case filetype changed.
             needs_save = self.filename[-3:] != new_filename[-3:]
-            # catches py -> {md, qmd} -> py but not md <-> qmd
-            type_changed = self.filename[-2:] != new_filename[-2:]
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
 
+        previous_filename = self.filename
         self.filename = new_filename
         if needs_save:
             self._save_file(
@@ -225,7 +230,7 @@ class AppFileManager:
                 list(self.app.cell_manager.configs()),
                 self.app.config,
                 persist=True,
-                type_changed=type_changed,
+                previous_filename=previous_filename,
             )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
