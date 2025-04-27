@@ -223,45 +223,70 @@ class Exporter:
         download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
 
-    def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
-        import yaml
-
+    def export_as_md(
+        self, file_manager: AppFileManager, change_type: bool = False
+    ) -> tuple[str, str]:
+        from marimo._ast import codegen
         from marimo._ast.app_config import _AppConfig
         from marimo._ast.cell import Cell
         from marimo._ast.compiler import compile_cell
         from marimo._cli.convert.markdown import (
+            extract_frontmatter,
             formatted_code_block,
             is_sanitized_markdown,
         )
+        from marimo._utils import yaml
 
-        # TODO: Provide filter or kernel in yaml header such that markdown
-        # documents are executable.
+        filename = get_filename(file_manager)
+        metadata: dict[str, str | list[str]] = {}
+        # If previously a markdown file, extract frontmatter.
+        # otherwise if it was a python file, extract header.
+        if change_type:
+            header = codegen.get_header_comments(filename)
+            if header:
+                metadata["header"] = header
+        else:
+            with open(filename, encoding="utf-8") as f:
+                _metadata, _ = extract_frontmatter(f.read())
+            metadata.update(_metadata)
 
-        #  Put data from AppFileManager into the yaml header.
+        metadata.update(
+            {
+                "title": get_app_title(file_manager),
+                "marimo-version": __version__,
+            }
+        )
+
+        # Put data from AppFileManager into the yaml header.
         ignored_keys = {"app_title"}
-        metadata: dict[str, str | list[str]] = {
-            "title": get_app_title(file_manager),
-            "marimo-version": __version__,
-        }
-
-        def _format_value(v: Optional[str | list[str]]) -> str | list[str]:
-            if isinstance(v, list):
-                return v
-            return str(v)
-
         default_config = _AppConfig().asdict()
 
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
         metadata.update(
             {
-                k: _format_value(v)
+                k: v
                 for k, v in file_manager.app.config.asdict().items()
                 if k not in ignored_keys and v != default_config.get(k)
             }
         )
 
-        header = yaml.dump(
+        # Add the expected qmd filter to the metadata.
+        if filename.endswith(".qmd"):
+            if "filters" not in metadata:
+                metadata["filters"] = []
+            if "marimo" not in str(metadata["filters"]):
+                if isinstance(metadata["filters"], str):
+                    metadata["filters"] = metadata["filters"].split(",")
+                if isinstance(metadata["filters"], list):
+                    metadata["filters"].append("marimo-team/marimo")
+                else:
+                    LOGGER.warning(
+                        "Unexpected type for filters: %s",
+                        type(metadata["filters"]),
+                    )
+
+        header = yaml.marimo_compat_dump(
             {
                 k: v
                 for k, v in metadata.items()

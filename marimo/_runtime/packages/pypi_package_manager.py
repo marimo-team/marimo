@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from typing import Optional
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
@@ -186,6 +188,79 @@ class UvPackageManager(PypiPackageManager):
             if _is_installed(im)
         ]
 
+        if filepath.endswith(".md") or filepath.endswith(".qmd"):
+            # md and qmd require writing to a faux python file first.
+            return self._process_md_changes(
+                filepath, packages_to_add, packages_to_remove
+            )
+        return self._process_changes(
+            filepath, packages_to_add, packages_to_remove
+        )
+
+    def _process_md_changes(
+        self,
+        filepath: str,
+        packages_to_add: list[str],
+        packages_to_remove: list[str],
+    ) -> None:
+        from marimo._cli.convert.markdown import extract_frontmatter
+        from marimo._cli.sandbox import get_headers_from_frontmatter
+        from marimo._utils import yaml
+
+        # Get script metadata
+        with open(filepath) as f:
+            frontmatter, body = extract_frontmatter(f.read())
+        headers = get_headers_from_frontmatter(frontmatter)
+        sandbox = bool(headers.get("sandbox", ""))
+        header = (
+            headers.get("sandbox", "")
+            if sandbox
+            else headers.get("header", "")
+        )
+        sandbox = sandbox or not bool(header)
+
+        # Write out and process the header
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".py"
+        ) as temp_file:
+            temp_file.write(header)
+            temp_file.flush()
+        # Have UV modify it
+        self._process_changes(
+            temp_file.name,
+            packages_to_add,
+            packages_to_remove,
+        )
+        with open(temp_file.name) as f:
+            header = f.read()
+        # Clean up the temporary file
+        os.unlink(temp_file.name)
+
+        # Write back the changes to the original file
+        if sandbox:
+            # Strip '# '
+            # and leading/trailing ///
+            header = "\n".join(
+                [line[2:] for line in header.strip().splitlines()[1:-1]]
+            )
+            frontmatter["sandbox"] = header
+        else:
+            frontmatter["header"] = header
+
+        header = yaml.marimo_compat_dump(
+            frontmatter,
+            sort_keys=False,
+        )
+        document = ["---", header.strip(), "---", body]
+        with open(filepath, "w") as f:
+            f.write("\n".join(document))
+
+    def _process_changes(
+        self,
+        filepath: str,
+        packages_to_add: list[str],
+        packages_to_remove: list[str],
+    ) -> None:
         if packages_to_add:
             self.run(
                 ["uv", "--quiet", "add", "--script", filepath]

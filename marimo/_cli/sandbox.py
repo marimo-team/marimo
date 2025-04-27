@@ -85,6 +85,29 @@ class PyProjectReader:
             return []
 
 
+def get_headers_from_markdown(contents: str) -> dict[str, str]:
+    from marimo._cli.convert.markdown import extract_frontmatter
+
+    frontmatter, _ = extract_frontmatter(contents)
+    return get_headers_from_frontmatter(frontmatter)
+
+
+def get_headers_from_frontmatter(
+    frontmatter: dict[str, Any],
+) -> dict[str, str]:
+    headers = {"sandbox": "", "header": ""}
+
+    sandbox = frontmatter.get("sandbox", "")
+    if sandbox:
+        if not sandbox.startswith("#"):
+            sandbox = "\n# ".join(
+                [r"# /// script", *sandbox.splitlines(), r"///"]
+            )
+        headers["sandbox"] = sandbox
+    headers["header"] = frontmatter.get("header", "")
+    return headers
+
+
 def _pyproject_toml_to_requirements_txt(
     pyproject: dict[str, Any],
 ) -> list[str]:
@@ -158,7 +181,17 @@ def _pyproject_toml_to_requirements_txt(
 def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
     try:
         contents, _ = FileContentReader().read_file(name)
-        return read_pyproject_from_script(contents)
+        if name.endswith(".py"):
+            return read_pyproject_from_script(contents)
+
+        if not (name.endswith(".md") or name.endswith(".qmd")):
+            raise ValueError(
+                f"Unsupported file type: {name}. Only .py and .md files are supported."
+            )
+
+        headers = get_headers_from_markdown(contents)
+        header = headers["sandbox"] or headers["header"]
+        return read_pyproject_from_script(header)
     except FileNotFoundError:
         return None
     except Exception:

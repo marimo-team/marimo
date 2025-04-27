@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, Union, cast
 
@@ -38,16 +39,6 @@ MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
 
 ConvertKeys = Union[Literal["marimo"], Literal["marimo-app"]]
-
-# Regex captures loose yaml for frontmatter
-# Should match the following:
-# ---
-# title: "Title"
-# whatever
-# ---
-YAML_FRONT_MATTER_REGEX = re.compile(
-    r"^---\s*\n(.*?\n?)(?:---)\s*\n", re.UNICODE | re.DOTALL
-)
 
 
 def backwards_compatible_sanitization(line: str) -> str:
@@ -132,7 +123,7 @@ def app_config_from_root(root: Element) -> _AppConfig:
     # Remove values particular to markdown saves.
     config.pop("marimo-version", None)
 
-    return _AppConfig.from_untrusted_dict(config)
+    return _AppConfig.from_untrusted_dict(config, silent=True)
 
 
 def get_source_from_tag(tag: Element) -> str:
@@ -280,7 +271,7 @@ class IdentityParser(Markdown):
 class MarimoParser(IdentityParser):
     """Parses Markdown to marimo notebook string."""
 
-    meta: dict[str, Any]
+    meta: dict[str, Any] = defaultdict(dict)
 
     output_formats: dict[ConvertKeys, Callable[[Element], Union[str, App]]] = {  # type: ignore[assignment, misc]
         "marimo": _tree_to_app,
@@ -349,34 +340,18 @@ class FrontMatterPreprocessor(Preprocessor):
 
     def __init__(self, md: MarimoParser):
         super().__init__(md)
-        self.md = md
-        self.md.meta = {}
+        self.md: MarimoParser = md
 
     def run(self, lines: list[str]) -> list[str]:
-        import yaml
-
-        # CSafeLoader is faster than SafeLoader.
-        try:
-            from yaml import CSafeLoader as SafeLoader
-        except ImportError:
-            from yaml import SafeLoader  # type: ignore[assignment]
-
         if not lines:
             return lines
 
         doc = "\n".join(lines)
-        result = YAML_FRONT_MATTER_REGEX.match(doc)
 
-        if result:
-            yaml_content = result.group(1)
-            try:
-                meta = yaml.load(yaml_content, SafeLoader)
-                if isinstance(meta, dict):
-                    self.md.meta = meta  # type: ignore[attr-defined]
-                doc = doc[result.end() :].lstrip("\n")
-            # If there's an error in parsing YAML, ignore the meta and proceed.
-            except yaml.YAMLError as e:
-                raise e
+        meta, doc = extract_frontmatter(doc)
+        if isinstance(meta, dict):
+            self.md.meta.update(meta)
+
         return doc.split("\n")
 
 
@@ -439,7 +414,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
-        for key, value in self.parser.md.meta.items():  # type: ignore[attr-defined]
+        for key, value in self.parser.md.meta.items():
             if isinstance(value, str):
                 parent.set(key, value)
 
@@ -509,6 +484,25 @@ def convert_from_md_to_app(text: str) -> App:
 
 def convert_from_md(text: str) -> str:
     return MarimoParser(output_format="marimo").convert(text)  # type: ignore[arg-type]
+
+
+def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    from marimo._utils import yaml
+
+    result = yaml.YAML_FRONT_MATTER_REGEX.match(text)
+
+    if result:
+        yaml_content = result.group(1)
+        body = text[result.end() :].lstrip("\n")
+        try:
+            return yaml.load(yaml_content), body
+        # If there's an error in parsing YAML, ignore the meta and proceed.
+        except yaml.YAMLError:
+            LOGGER.warning(
+                "Error parsing frontmatter YAML. Ignoring frontmatter."
+            )
+            return {}, body
+    return {}, text
 
 
 def sanitize_markdown(text: str) -> str:
