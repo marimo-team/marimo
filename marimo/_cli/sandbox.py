@@ -190,7 +190,16 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
             )
 
         headers = get_headers_from_markdown(contents)
-        header = headers["sandbox"] or headers["header"]
+        header = headers["sandbox"]
+        if not header:
+            header = headers["header"]
+        elif headers["header"]:
+            pyproject = PyProjectReader.from_script(headers["header"])
+            if pyproject.dependencies or pyproject.python_version:
+                LOGGER.warning(
+                    "Both header and sandbox provide dependencies. "
+                    "Prefering sandbox."
+                )
         return read_pyproject_from_script(header)
     except FileNotFoundError:
         return None

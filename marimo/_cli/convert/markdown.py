@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Optional, Union, cast
 
@@ -223,11 +222,16 @@ def _tree_to_app(root: Element) -> str:
         )
         sources.append(get_source_from_tag(child))
 
+    header = root.get("header", None)
+    sandbox = root.get("sandbox", None)
+    if sandbox and not header:
+        header = "\n# ".join(["# ///script", *sandbox.splitlines(), "///"])
     return codegen.generate_filecontents(
         sources,
         names,
         cell_config,
         config=app_config,
+        header_comments=header,
     )
 
 
@@ -271,7 +275,7 @@ class IdentityParser(Markdown):
 class MarimoParser(IdentityParser):
     """Parses Markdown to marimo notebook string."""
 
-    meta: dict[str, Any] = defaultdict(dict)
+    meta: dict[str, Any]
 
     output_formats: dict[ConvertKeys, Callable[[Element], Union[str, App]]] = {  # type: ignore[assignment, misc]
         "marimo": _tree_to_app,
@@ -280,6 +284,7 @@ class MarimoParser(IdentityParser):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self.meta = {}
         # Build here opposed to the parent class since there is intermediate
         # logic after the parser is built, and it is more clear here what is
         # registered.

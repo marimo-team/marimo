@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Union, cast
 
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
@@ -28,6 +28,9 @@ from marimo._server.session.session_view import SessionView
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.parse_dataclass import parse_raw
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass
@@ -55,13 +58,18 @@ def export_as_script(
 
 def export_as_md(
     path: MarimoPath,
+    new_filename: Optional[Path] = None,
 ) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    result = Exporter().export_as_md(file_manager)
+    # py -> md
+    type_changed = not path.is_markdown()
+    if new_filename:
+        file_manager.filename = str(new_filename)
+    result = Exporter().export_as_md(file_manager, type_changed)
     return ExportResult(
         contents=result[0],
         download_filename=result[1],

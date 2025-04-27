@@ -224,7 +224,7 @@ class Exporter:
         return stream.read(), download_filename
 
     def export_as_md(
-        self, file_manager: AppFileManager, change_type: bool = False
+        self, file_manager: AppFileManager, type_changed: bool = False
     ) -> tuple[str, str]:
         from marimo._ast import codegen
         from marimo._ast.app_config import _AppConfig
@@ -241,7 +241,7 @@ class Exporter:
         metadata: dict[str, str | list[str]] = {}
         # If previously a markdown file, extract frontmatter.
         # otherwise if it was a python file, extract header.
-        if change_type:
+        if type_changed:
             header = codegen.get_header_comments(filename)
             if header:
                 metadata["header"] = header

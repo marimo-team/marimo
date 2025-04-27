@@ -130,7 +130,7 @@ class AppFileManager:
         # Whether or not to persist the app to the file system
         persist: bool,
         # Whether save was triggered by a rename
-        change_type: bool = False,
+        type_changed: bool = False,
     ) -> str:
         LOGGER.debug("Saving app to %s", filename)
         if filename.endswith(".md") or filename.endswith(".qmd"):
@@ -138,12 +138,12 @@ class AppFileManager:
             # have to occur multiple times.
             from marimo._server.export.exporter import Exporter
 
-            contents, _ = Exporter().export_as_md(self, change_type)
+            contents, _ = Exporter().export_as_md(self, type_changed)
         else:
             # Header might be better kept on the AppConfig side, opposed to
             # reparsing it. Also would allow for md equivalent in a field like
             # `description`.
-            if change_type:
+            if type_changed:
                 from marimo._cli.sandbox import get_headers_from_markdown
 
                 with open(filename, encoding="utf-8") as f:
@@ -203,7 +203,7 @@ class AppFileManager:
         self._assert_path_does_not_exist(new_filename)
 
         needs_save = False
-        change_type = False
+        type_changed = False
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
@@ -211,7 +211,7 @@ class AppFileManager:
             # Force a save after rename in case filetype changed.
             needs_save = self.filename[-3:] != new_filename[-3:]
             # catches py -> {md, qmd} -> py but not md <-> qmd
-            change_type = self.filename[-2:] != new_filename[-2:]
+            type_changed = self.filename[-2:] != new_filename[-2:]
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
@@ -225,7 +225,7 @@ class AppFileManager:
                 list(self.app.cell_manager.configs()),
                 self.app.config,
                 persist=True,
-                change_type=change_type,
+                type_changed=type_changed,
             )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
