@@ -414,6 +414,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
+        assert isinstance(self.parser.md, MarimoParser)
         for key, value in self.parser.md.meta.items():
             if isinstance(value, str):
                 parent.set(key, value)
@@ -483,7 +484,7 @@ def convert_from_md_to_app(text: str) -> App:
 
 
 def convert_from_md(text: str) -> str:
-    return MarimoParser(output_format="marimo").convert(text)  # type: ignore[arg-type]
+    return MarimoParser(output_format="marimo").convert(text)
 
 
 def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -506,7 +507,7 @@ def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 
 def sanitize_markdown(text: str) -> str:
-    return SanitizeParser(output_format="identity").convert(text)  # type: ignore[arg-type]
+    return SanitizeParser(output_format="identity").convert(text)
 
 
 def is_sanitized_markdown(text: str) -> bool:
