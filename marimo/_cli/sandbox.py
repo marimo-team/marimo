@@ -198,7 +198,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
             if pyproject.dependencies or pyproject.python_version:
                 LOGGER.warning(
                     "Both header and sandbox provide dependencies. "
-                    "Prefering sandbox."
+                    "Preferring sandbox."
                 )
         return read_pyproject_from_script(header)
     except FileNotFoundError:
