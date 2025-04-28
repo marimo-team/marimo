@@ -15,11 +15,15 @@ export function prettyDate(
     // If type is date, drop the timezone by rendering in UTC
     // since dates are absolute
     if (type === "date") {
-      value = new Date(value).toLocaleDateString(undefined, {
+      return new Date(value).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
         timeZone: "UTC",
       });
     }
 
+    // For datetime, we keep the original timezone
     return new Date(value).toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
