@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useTimer } from "./useTimer";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
+import { useOnUnmount } from "./useLifecycle";
 
 export type RecordingStatus = "recording" | "paused" | "stopped";
 
@@ -69,14 +70,11 @@ export function useAudioRecorder(opts: {
   });
 
   // Cleanup
-  useEffect(() => {
-    return () => {
-      mediaRecorder.current?.stream.getTracks().forEach((t) => t.stop());
-      mediaRecorder.current?.stop();
-      timer.stop();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useOnUnmount(() => {
+    mediaRecorder.current?.stream.getTracks().forEach((t) => t.stop());
+    mediaRecorder.current?.stop();
+    timer.stop();
+  });
 
   return {
     start,

@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any, cast
 from unittest.mock import Mock
 
@@ -448,6 +449,39 @@ class TestTransformHandler:
         ("df", "expected"),
         [
             (
+                pd.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                pd.DataFrame({"date": [date(2001, 1, 1)]}),
+            ),
+            (
+                pl.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                pl.DataFrame({"date": [date(2001, 1, 1)]}),
+            ),
+            (
+                ibis.memtable({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                ibis.memtable({"date": [date(2001, 1, 1)]}),
+            ),
+        ],
+    )
+    def test_handle_filter_rows_date(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="date", operator="==", value=date(2001, 1, 1)
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
                 pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 pd.DataFrame({"A": [1, 2], "B": [4, 5]}),
             ),
@@ -468,6 +502,58 @@ class TestTransformHandler:
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
             where=[Condition(column_id="A", operator="in", value=[1, 2])],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected", "column"),
+        [
+            # TODO: Pandas treats date objects as strings
+            # (
+            #     pd.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+            #     pd.DataFrame({"date": [date(2001, 1, 1)]}),
+            # ),
+            (
+                pl.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                pl.DataFrame({"date": [date(2001, 1, 1)]}),
+                "date",
+            ),
+            (
+                pl.DataFrame(
+                    {"datetime": [datetime(2001, 1, 1), datetime(2001, 1, 2)]}
+                ),
+                pl.DataFrame({"datetime": [datetime(2001, 1, 1)]}),
+                "datetime",
+            ),
+            (
+                ibis.memtable({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                ibis.memtable({"date": [date(2001, 1, 1)]}),
+                "date",
+            ),
+            (
+                ibis.memtable(
+                    {"datetime": [datetime(2001, 1, 1), datetime(2001, 1, 2)]}
+                ),
+                ibis.memtable({"datetime": [datetime(2001, 1, 1)]}),
+                "datetime",
+            ),
+        ],
+    )
+    def test_filter_rows_in_dates(
+        df: DataFrameType, expected: DataFrameType, column: str
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id=column,
+                    operator="in",
+                    value=["2001-01-01"],  # Backend will receive as string
+                ),
+            ],
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)

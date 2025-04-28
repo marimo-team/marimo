@@ -301,7 +301,11 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
 /**
  * Extension for auto-running markdown cells
  */
-export function markdownAutoRunExtension(): Extension {
+export function markdownAutoRunExtension({
+  predicate,
+}: {
+  predicate: () => boolean;
+}): Extension {
   return EditorView.updateListener.of((update) => {
     // If the doc didn't change, ignore
     if (!update.docChanged) {
@@ -311,6 +315,10 @@ export function markdownAutoRunExtension(): Extension {
     // If not focused, ignore
     // This can cause multiple runs when in RTC mode
     if (!update.view.hasFocus) {
+      return;
+    }
+
+    if (!predicate()) {
       return;
     }
 
