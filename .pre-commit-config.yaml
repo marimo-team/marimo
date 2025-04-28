@@ -25,12 +25,12 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.31.1
+    rev: v1
     hooks:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.6
+    rev: v0.11.7
     hooks:
       # Run the linter
       - id: ruff
@@ -39,7 +39,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v1.9.4
+    rev: v2.0.0-beta.1
     hooks:
       - id: biome-check
         args: [--config-path, biome.json, --diagnostic-level, warn]
