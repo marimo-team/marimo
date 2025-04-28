@@ -19,6 +19,54 @@ interface Props {
 
 export const Column = memo((props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
+
+  let column = null;
+  column =
+    props.width === "columns" ? (
+      <ResizableComponent index={props.index}>
+        {props.children}
+      </ResizableComponent>
+    ) : (
+      <div className="flex flex-col gap-5">{props.children}</div>
+    );
+
+  if (props.width === "columns") {
+    return (
+      <SortableColumn
+        tabIndex={-1}
+        ref={columnRef}
+        canDelete={props.canDelete}
+        columnId={props.columnId}
+        canMoveLeft={props.canMoveLeft}
+        canMoveRight={props.canMoveRight}
+        className="group/column"
+      >
+        {column}
+        {props.footer}
+      </SortableColumn>
+    );
+  }
+
+  return (
+    <>
+      {column}
+      {props.footer}
+    </>
+  );
+});
+
+Column.displayName = "Column";
+
+interface ResizableComponentProps {
+  index: number;
+  children: React.ReactNode;
+}
+
+const ResizableComponent = <
+  T extends React.ForwardRefExoticComponent<ResizableComponentProps>,
+>(
+  props: React.ComponentProps<T>,
+) => {
   const resizableDivRef = useRef<HTMLDivElement>(null);
   const rightHandleRef = useRef<HTMLDivElement>(null);
 
@@ -84,55 +132,25 @@ export const Column = memo((props: Props) => {
     };
   }, [props.index, setColumnWidth]);
 
-  let column = null;
-  column =
-    props.width === "columns" ? (
-      <div className="flex flex-row gap-2">
-        <div
-          ref={resizableDivRef}
-          className="flex flex-col gap-5 box-content min-h-[100px] px-11 py-6 min-w-[500px]"
-          style={{
-            width:
-              typeof startingWidth === "string"
-                ? startingWidth
-                : `${startingWidth}px`,
-          }}
-        >
-          {props.children}
-        </div>
-        <div
-          ref={rightHandleRef}
-          className="w-0.5 px-[2px] group-hover/column:bg-[var(--slate-2)] 
-          dark:group-hover/column:bg-[var(--slate-3)] cursor-col-resize"
-        />
-      </div>
-    ) : (
-      <div className="flex flex-col gap-5">{props.children}</div>
-    );
-
-  if (props.width === "columns") {
-    return (
-      <SortableColumn
-        tabIndex={-1}
-        ref={columnRef}
-        canDelete={props.canDelete}
-        columnId={props.columnId}
-        canMoveLeft={props.canMoveLeft}
-        canMoveRight={props.canMoveRight}
-        className="group/column"
-      >
-        {column}
-        {props.footer}
-      </SortableColumn>
-    );
-  }
-
   return (
-    <>
-      {column}
-      {props.footer}
-    </>
+    <div className="flex flex-row gap-2">
+      <div
+        ref={resizableDivRef}
+        className="flex flex-col gap-5 box-content min-h-[100px] px-11 py-6 min-w-[500px]"
+        style={{
+          width:
+            typeof startingWidth === "string"
+              ? startingWidth
+              : `${startingWidth}px`,
+        }}
+      >
+        {props.children}
+      </div>
+      <div
+        ref={rightHandleRef}
+        className="w-0.5 px-[2px] group-hover/column:bg-[var(--slate-2)] 
+          dark:group-hover/column:bg-[var(--slate-3)] cursor-col-resize"
+      />
+    </div>
   );
-});
-
-Column.displayName = "Column";
+};
