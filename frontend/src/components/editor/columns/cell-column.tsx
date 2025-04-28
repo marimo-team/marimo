@@ -29,6 +29,7 @@ export const Column = memo((props: Props) => {
     if (!rightHandleRef.current || !resizableDivRef.current) {
       return;
     }
+    const handleRef = rightHandleRef.current;
 
     let width = Number.parseInt(
       window.getComputedStyle(resizableDivRef.current).width,
@@ -66,19 +67,16 @@ export const Column = memo((props: Props) => {
       document.addEventListener("mouseup", onMouseUp);
     };
 
-    rightHandleRef.current.addEventListener("mousedown", onMouseRightDown);
+    handleRef.addEventListener("mousedown", onMouseRightDown);
 
     return () => {
-      rightHandleRef.current?.removeEventListener(
-        "mousedown",
-        onMouseRightDown,
-      );
+      handleRef.removeEventListener("mousedown", onMouseRightDown);
     };
-  }, []);
+  }, [props.index, setColumnWidth]);
 
   let column = null;
-  if (props.width === "columns") {
-    column = (
+  column =
+    props.width === "columns" ? (
       <div className="flex flex-row gap-2">
         <div
           ref={resizableDivRef}
@@ -97,10 +95,9 @@ export const Column = memo((props: Props) => {
           className="w-0.5 px-[2px] group-hover/column:bg-[var(--slate-2)] cursor-col-resize"
         />
       </div>
+    ) : (
+      <div className="flex flex-col gap-5">{props.children}</div>
     );
-  } else {
-    column = <div className="flex flex-col gap-5">{props.children}</div>;
-  }
 
   if (props.width === "columns") {
     return (

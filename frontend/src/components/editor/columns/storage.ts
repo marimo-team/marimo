@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { arrayMove } from "@/utils/arrays";
 import { NotebookScopedLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
@@ -5,7 +6,7 @@ import { z } from "zod";
 const BASE_KEY = "marimo:notebook-col-sizes";
 
 interface ColumnSizes {
-  widths: (number | "contentWidth")[];
+  widths: Array<number | "contentWidth">;
 }
 
 function initialState(): ColumnSizes {
@@ -26,8 +27,6 @@ export const storageFn = {
     const widths = storage.get().widths;
     return widths[index] ?? "contentWidth";
   },
-  // TODO: When cols are reordered, we should use the new index
-  // Alternatively, we may want to start persisting the column_id to avoid hacking around it
   setColumnWidth: (index: number, width: number | "contentWidth") => {
     const widths = storage.get().widths;
     if (widths[index]) {

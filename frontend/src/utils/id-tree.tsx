@@ -3,7 +3,6 @@
 import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
 import { Memoize } from "typescript-memoize";
 import { Logger } from "./Logger";
-import { reorderColumnSizes } from "@/components/editor/columns/storage";
 
 /**
  * Branded number to help with type safety
@@ -762,19 +761,16 @@ export class MultiColumn<T> {
     }
     const fromIdx = this.indexOfOrThrow(fromCol);
     if (toCol === "_left_") {
-      reorderColumnSizes(fromIdx, fromIdx - 1);
       return new MultiColumn(
         arrayMove([...this.columns], fromIdx, fromIdx - 1),
       );
     }
     if (toCol === "_right_") {
-      reorderColumnSizes(fromIdx, fromIdx + 1);
       return new MultiColumn(
         arrayMove([...this.columns], fromIdx, fromIdx + 1),
       );
     }
     const toIdx = this.indexOfOrThrow(toCol);
-    reorderColumnSizes(fromIdx, toIdx);
     return new MultiColumn(arrayMove([...this.columns], fromIdx, toIdx));
   }
 
