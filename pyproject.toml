@@ -524,3 +524,17 @@ dotenv = [".env"]
 
 [tool.marimo.keymap]
 vimrc = "configs/.vimrc"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.dependencies]
+nodejs = "20.*"
+pnpm = "9.*"
+hatch = ">=1.14.0,<2"
+make = ">=4.4.1,<5"
+pre_commit = ">=4.2.0,<5"
+uv = ">=0.6.12,<0.7"
+python = "3.12.*"
+pip = ">=25.0.1,<26"
