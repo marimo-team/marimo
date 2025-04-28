@@ -594,4 +594,52 @@ class TestProxyMiddleware:
             assert message["type"] == "error"
             assert "invalid" in message["message"].lower()
 
-    # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
+    async def test_proxy_middleware_websocket_protocol(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that ProxyMiddleware correctly converts http/https to ws/wss."""
+        # Create a simple app and middleware
+        app = Starlette()
+        middleware = ProxyMiddleware(app, "/proxy", "http://example.com")
+
+        # Mock the _proxy_websocket method to capture the URL
+        proxy_calls: list[str] = []
+
+        async def mock_proxy_websocket(
+            self: Any, scope: Scope, receive: Receive, send: Send, ws_url: str
+        ):
+            del self, scope, receive, send
+            proxy_calls.append(ws_url)
+
+        monkeypatch.setattr(
+            ProxyMiddleware, "_proxy_websocket", mock_proxy_websocket
+        )
+
+        # Create test scope for websocket
+        scope = {
+            "type": "websocket",
+            "path": "/proxy/test",
+            "query_string": b"",
+        }
+
+        # Test with http target
+        middleware.target_url = "http://example.com"
+        await middleware(scope, None, None)
+        assert proxy_calls[-1] == "ws://example.com/proxy/test"
+
+        # Test with https target
+        middleware.target_url = "https://example.com"
+        await middleware(scope, None, None)
+        assert proxy_calls[-1] == "wss://example.com/proxy/test"
+
+        # Test with callable target that returns http
+        middleware.target_url = lambda _path: "http://example.com"
+        await middleware(scope, None, None)
+        assert proxy_calls[-1] == "ws://example.com/proxy/test"
+
+        # Test with callable target that returns https
+        middleware.target_url = lambda _path: "https://example.com"
+        await middleware(scope, None, None)
+        assert proxy_calls[-1] == "wss://example.com/proxy/test"
+
+        # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
