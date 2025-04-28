@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
-from ibis import BaseBackend
-from ibis.backends.sql import SQLBackend
-
 from marimo import _loggers
 from marimo._data.models import (
     Database,
@@ -23,6 +20,7 @@ from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
+    from ibis.backends.sql import SQLBackend
     from ibis.expr import datatypes as dt
 
 LOGGER = _loggers.marimo_logger()
@@ -106,9 +104,15 @@ class IbisEngine(SQLEngine):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        if not DependencyManager.ibis.imported():
+            return False
+
+        from ibis import BaseBackend
+        from ibis.backends.sql import SQLBackend
+
         if isinstance(var, BaseBackend) and not isinstance(var, SQLBackend):
             LOGGER.debug(
-                f"Ibis backend found, but it's not an SQLBackend subclass. {var}"
+                f"Ibis backend found, but it's not an SQLBackend subclass. Variable name: {var}"
             )
 
         return isinstance(var, SQLBackend)
