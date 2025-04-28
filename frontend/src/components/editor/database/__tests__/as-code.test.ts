@@ -88,6 +88,54 @@ describe("generateDatabaseCode", () => {
     async_support: false,
   };
 
+  const icebergRestConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "rest",
+      uri: "http://localhost:8181",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergSqlConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "sql",
+      uri: "postgresql://localhost:5432/iceberg",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergHiveConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "hive",
+      uri: "thrift://localhost:9083",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergGlueConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "glue",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergDynamoDBConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "dynamodb",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
   describe("basic connections", () => {
     it.each([
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
@@ -102,6 +150,11 @@ describe("generateDatabaseCode", () => {
       ["chdb", chdbConnection, "chdb"],
       ["timeplus", timeplusConnection, "sqlalchemy"],
       ["trino", trinoConnection, "sqlmodel"],
+      ["iceberg rest", icebergRestConnection, "pyiceberg"],
+      ["iceberg sql", icebergSqlConnection, "pyiceberg"],
+      ["iceberg hive", icebergHiveConnection, "pyiceberg"],
+      ["iceberg glue", icebergGlueConnection, "pyiceberg"],
+      ["iceberg dynamodb", icebergDynamoDBConnection, "pyiceberg"],
     ])("%s", (name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),

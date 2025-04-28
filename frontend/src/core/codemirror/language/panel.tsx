@@ -287,6 +287,12 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
   };
 
   const renderConnections = (connections: DataSourceConnection[]) => {
+    // HACK: Ignore iceberg connections
+    // Ideally source_type should be on the DataSourceConnection object
+    connections = connections.filter(
+      (connection) => connection.source !== "iceberg",
+    );
+
     return connections.map((connection) => (
       <SelectItem key={connection.name} value={connection.name}>
         <div className="flex items-center gap-1">

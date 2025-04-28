@@ -176,6 +176,7 @@ class DependencyManager:
     plotly = Dependency("plotly")
     bokeh = Dependency("bokeh")
     pyarrow = Dependency("pyarrow")
+    pyiceberg = Dependency("pyiceberg")
     openai = Dependency("openai")
     matplotlib = Dependency("matplotlib")
     anywidget = Dependency("anywidget")

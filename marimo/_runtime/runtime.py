@@ -2105,6 +2105,13 @@ class DatasetCallbacks:
                     table_name=table_name,
                 ).broadcast()
                 return
+            elif source_type == "catalog":
+                DataColumnPreview(
+                    error="Column preview for catalog data sources is not supported",
+                    column_name=column_name,
+                    table_name=table_name,
+                ).broadcast()
+                return
             else:
                 assert_never(source_type)
 

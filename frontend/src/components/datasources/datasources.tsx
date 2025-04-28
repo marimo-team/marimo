@@ -514,26 +514,32 @@ const DatasetTableItem: React.FC<{
 
   const handleAddTable = () => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    let code = "";
-    if (sqlTableContext) {
-      code = sqlCode(table, "*", sqlTableContext);
-    } else {
+    const getCode = () => {
+      if (table.source_type === "catalog") {
+        const identifier = sqlTableContext?.database
+          ? `${sqlTableContext.database}.${table.name}`
+          : table.name;
+        return `${table.engine}.load_table("${identifier}")`;
+      }
+
+      if (sqlTableContext) {
+        return sqlCode(table, "*", sqlTableContext);
+      }
+
       switch (table.source_type) {
         case "local":
-          code = `mo.ui.table(${table.name})`;
-          break;
+          return `mo.ui.table(${table.name})`;
         case "duckdb":
         case "connection":
-          code = sqlCode(table, "*", sqlTableContext);
-          break;
+          return sqlCode(table, "*", sqlTableContext);
         default:
           logNever(table.source_type);
-          break;
+          return "";
       }
-    }
+    };
 
     createNewCell({
-      code,
+      code: getCode(),
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
     });
@@ -799,6 +805,15 @@ const DatasetColumnPreview: React.FC<{
         >
           <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
         </Button>
+      </span>
+    );
+  }
+
+  // TODO: Add support for catalog data sources
+  if (table.source_type === "catalog") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+        {column.name} ({column.external_type})
       </span>
     );
   }

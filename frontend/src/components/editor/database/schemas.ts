@@ -16,6 +16,40 @@ function passwordField() {
     );
 }
 
+function tokenField() {
+  return z
+    .string()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Token",
+        inputType: "password",
+        placeholder: "token",
+        optionRegex: ".*token.*",
+      }),
+    );
+}
+
+function warehouseNameField() {
+  return z
+    .string()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Warehouse Name",
+        placeholder: "warehouse",
+        optionRegex: ".*warehouse.*",
+      }),
+    );
+}
+
+function uriField() {
+  return z
+    .string()
+    .optional()
+    .describe(FieldOptions.of({ label: "URI", optionRegex: ".*uri.*" }));
+}
+
 function hostField() {
   return z
     .string()
@@ -259,6 +293,100 @@ export const TrinoConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const IcebergConnectionSchema = z.object({
+  type: z.literal("iceberg"),
+  name: z.string().describe(FieldOptions.of({ label: "Catalog Name" })),
+  catalog: z
+    .discriminatedUnion("type", [
+      z.object({
+        type: z.literal("rest"),
+        warehouse: warehouseNameField(),
+        uri: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "URI",
+              placeholder: "https://",
+              optionRegex: ".*uri.*",
+            }),
+          ),
+        token: tokenField(),
+      }),
+      z.object({
+        type: z.literal("sql"),
+        warehouse: warehouseNameField(),
+        uri: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "URI",
+              placeholder: "jdbc:iceberg://host:port/database",
+              optionRegex: ".*uri.*",
+            }),
+          ),
+      }),
+      z.object({
+        type: z.literal("hive"),
+        warehouse: warehouseNameField(),
+        uri: uriField(),
+      }),
+      z.object({
+        type: z.literal("glue"),
+        warehouse: warehouseNameField(),
+        uri: uriField(),
+      }),
+      z.object({
+        type: z.literal("dynamodb"),
+        warehouse: warehouseNameField(),
+        profile_name: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Profile Name",
+            }),
+          ),
+        region: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Region",
+            }),
+          ),
+        access_key_id: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Access Key ID",
+            }),
+          ),
+        secret_access_key: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Secret Access Key",
+              inputType: "password",
+            }),
+          ),
+        session_token: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Session Token",
+              inputType: "password",
+            }),
+          ),
+      }),
+    ])
+    .describe(FieldOptions.of({ special: "tabs" })),
+});
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -270,6 +398,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   TimeplusConnectionSchema,
   ChdbConnectionSchema,
   TrinoConnectionSchema,
+  IcebergConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;
