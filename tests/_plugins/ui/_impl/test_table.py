@@ -885,8 +885,8 @@ def test__get_column_summaries_after_search_df() -> None:
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
-    assert summaries.data.startswith("data:text/plain;base64,"), (
-        summaries.data
+    assert summaries.data.startswith(
+        "data:text/plain;base64,"
     ) or summaries.data.startswith(
         "data:application/vnd.apache.arrow.file;base64,"
     )
