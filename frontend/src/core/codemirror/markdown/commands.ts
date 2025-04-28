@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/filename";
+import { store } from "@/core/state/jotai";
 import { Paths, type FilePath } from "@/utils/paths";
 import {
   EditorSelection,
@@ -297,9 +299,10 @@ export async function insertImage(view: EditorView, file: File) {
           inputFilename = `${inputFilename}.${extension}`;
         }
 
-        const notebookPath = Paths.notebookDir();
-        const publicFolderPath = notebookPath
-          ? `${notebookPath}/public`
+        const filepath = store.get(filenameAtom);
+        const notebookDir = filepath ? Paths.dirname(filepath) : null;
+        const publicFolderPath = notebookDir
+          ? `${notebookDir}/public`
           : "public";
 
         const createFileRes = await sendCreateFileOrFolder({
