@@ -26,26 +26,29 @@ export const Column = memo((props: Props) => {
   const startingWidth = getColumnWidth(props.index);
 
   useEffect(() => {
-    if (!rightHandleRef.current || !resizableDivRef.current) {
+    const handleRef = rightHandleRef.current;
+    const resizableDiv = resizableDivRef.current;
+
+    if (!handleRef || !resizableDiv) {
       return;
     }
-    const handleRef = rightHandleRef.current;
 
     let width = Number.parseInt(
-      window.getComputedStyle(resizableDivRef.current).width,
+      window.getComputedStyle(resizableDiv).width,
       10,
     );
     let lastX = 0;
+    let isResizing = false;
 
     // Right handle
     const onMouseMoveRight = (e: MouseEvent) => {
-      if (!resizableDivRef.current) {
+      if (!resizableDiv || !isResizing) {
         return;
       }
       const dx = e.clientX - lastX;
       lastX = e.clientX;
       width += dx;
-      resizableDivRef.current.style.width = `${width}px`;
+      resizableDiv.style.width = `${width}px`;
 
       // const viewportWidth = window.innerWidth;
       // if (e.clientX > viewportWidth - 100) {
@@ -57,11 +60,16 @@ export const Column = memo((props: Props) => {
     };
 
     const onMouseUp = (e: MouseEvent) => {
-      setColumnWidth(props.index, width);
+      if (isResizing) {
+        setColumnWidth(props.index, width);
+        isResizing = false;
+      }
       document.removeEventListener("mousemove", onMouseMoveRight);
+      document.removeEventListener("mouseup", onMouseUp);
     };
 
     const onMouseRightDown = (e: MouseEvent) => {
+      isResizing = true;
       lastX = e.clientX;
       document.addEventListener("mousemove", onMouseMoveRight);
       document.addEventListener("mouseup", onMouseUp);
@@ -71,6 +79,8 @@ export const Column = memo((props: Props) => {
 
     return () => {
       handleRef.removeEventListener("mousedown", onMouseRightDown);
+      document.removeEventListener("mousemove", onMouseMoveRight);
+      document.removeEventListener("mouseup", onMouseUp);
     };
   }, [props.index, setColumnWidth]);
 
