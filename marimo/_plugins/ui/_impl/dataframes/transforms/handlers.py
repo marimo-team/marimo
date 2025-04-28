@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
@@ -268,6 +268,12 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         # Start with no filter (all rows included)
         filter_expr: Optional[pl.Expr] = None
 
+        # Convert a value whether it's a list or single value
+        def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
+            if isinstance(v, (tuple, list)):
+                return [converter(str(item)) for item in v]
+            return converter(str(v))
+
         # Iterate over all conditions and build the filter expression
         for condition in transform.where:
             column = col(str(condition.column_id))
@@ -275,13 +281,12 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             value = condition.value
             value_str = str(value)
 
-            # If columns type is a Datetime, we need to convert the value to a datetime
-            if dtype == pl.Datetime and isinstance(value, str):
-                value = datetime.datetime.fromisoformat(value)
-            elif dtype == pl.Date and isinstance(value, str):
-                value = datetime.date.fromisoformat(value)
-            elif dtype == pl.Time and isinstance(value, str):
-                value = datetime.time.fromisoformat(value)
+            if dtype == pl.Datetime:
+                value = convert_value(value, datetime.datetime.fromisoformat)
+            elif dtype == pl.Date:
+                value = convert_value(value, datetime.date.fromisoformat)
+            elif dtype == pl.Time:
+                value = convert_value(value, datetime.time.fromisoformat)
 
             # If columns type is a Categorical, we need to cast the value to a string
             if dtype == pl.Categorical:
