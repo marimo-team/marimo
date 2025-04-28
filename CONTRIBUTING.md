@@ -52,6 +52,35 @@ when making a commit:
 pre-commit install
 ```
 
+You can conveniently create a [pixi](https://github.com/prefix-dev/pixi) environment with all your development dependencies.
+These accomplish the next 3 things respectively:
+
+- Install and activate your development environment (`node`, `pnpm`, `make`, `python`, `uv`, `hatch`, `pre-commit`, `pip`)
+- Set up your front end and python environment
+- Start up your python environment using `hatch`
+You can simply run:
+
+```sh
+pixi shell 
+make fe && make py 
+hatch shell 
+```
+
+After doing this, you can instantiate your marimo dev environment by running the following command:
+
+```sh
+make dev
+```
+
+Under the hood this runs the following 2 commands as 2 separate processes:
+
+```sh
+# in one terminal 
+marimo edit --no-token --headless /tmp/nb.py # port 2718
+# in another terminal 
+cd frontend; pnpm dev # this will open at port 3000
+```
+
 > [!NOTE]
 >
 > As an alternative to building from source, you can try developing

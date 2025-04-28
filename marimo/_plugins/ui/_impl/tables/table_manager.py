@@ -5,9 +5,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
-import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
-from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
@@ -55,18 +53,6 @@ class TableManager(abc.ABC, Generic[T]):
 
     def __init__(self, data: T) -> None:
         self.data = data
-
-    def to_data(
-        self,
-        format_mapping: Optional[FormatMapping] = None,
-    ) -> JSONType:
-        """
-        The best way to represent the data in a table as JSON.
-
-        By default, this method calls `to_json` and returns the result as
-        a string. `to_json` supports most data types (e.g. nested lists)
-        """
-        return mo_data.json(self.to_json(format_mapping)).url
 
     def supports_download(self) -> bool:
         return True

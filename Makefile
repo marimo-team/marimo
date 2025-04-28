@@ -53,6 +53,14 @@ marimo/_static: $(shell find frontend/src) $(wildcard frontend/*)
 # 🔧 Install/build lsp if anything in lsp/ has changed
 marimo/_lsp: $(shell find lsp)
 	cd lsp; pnpm install; cd ..; ./scripts/buildlsp.sh
+  
+.PHONY: dev
+dev:
+	@echo "Starting development servers..."
+	@# Start both processes, with marimo in background
+	@(trap 'kill %1; exit' INT; \
+	marimo edit --no-token --headless /tmp & \
+	cd frontend && pnpm dev && cd ..)
 
 #############
 # Testing   #

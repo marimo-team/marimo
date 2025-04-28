@@ -132,6 +132,11 @@ class _SetupContext:
         instance: Optional[BaseException],
         _traceback: Optional[TracebackType],
     ) -> Literal[False]:
+        if exception is not None:
+            # Always should fail, since static loading still allows bad apps to
+            # load.
+            return False
+
         # Manually hold on to defs for injection into script mode.
         if self._frame is not None:
             for var in self._cell.defs:
@@ -148,10 +153,6 @@ class _SetupContext:
             self._frame.f_locals["app"] = self._previous.get("app", app)
             self._previous = {}
 
-        if exception is not None:
-            # Always should fail, since static loading still allows bad apps to
-            # load.
-            raise exception
         return False
 
 

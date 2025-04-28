@@ -14,19 +14,31 @@ What happens if I just leave a \"\"\"
 print("Hello, World!")
 ```
 
--->
+````python {.marimo hide_code="true"}
+mo.md(
+    r"""
+    -->
 
-```marimo run convert document.md```
+    ```marimo run convert document.md```
+    """
+)
+````
 
 ```python {.marimo unparsable="true"}
 it's an unparsable cell
 ```
 
-<!-- Actually markdown -->
-```python {.marimo} `
-  print("Hello, World!")
+````python {.marimo hide_code="true"}
+mo.md(
+    r"""
+    <!-- Actually markdown -->
+    ```python {.marimo} `
+      print("Hello, World!")
 
-<!-- Disabled code block -->
+    <!-- Disabled code block -->
+    """
+)
+````
 
 ```python {.marimo disabled="true"}
 1 + 1
