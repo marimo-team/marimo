@@ -20,10 +20,18 @@ interface Props {
 export const Column = memo((props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
 
+  const { getColumnWidth, setColumnWidth } = storageFn;
+  const startingWidth = getColumnWidth(props.index);
+
   let column = null;
   column =
     props.width === "columns" ? (
-      <ResizableComponent index={props.index}>
+      <ResizableComponent
+        startingWidth={startingWidth}
+        onResize={(width: number) => {
+          setColumnWidth(props.index, width);
+        }}
+      >
         {props.children}
       </ResizableComponent>
     ) : (
@@ -58,20 +66,18 @@ export const Column = memo((props: Props) => {
 Column.displayName = "Column";
 
 interface ResizableComponentProps {
-  index: number;
+  startingWidth: number | "contentWidth";
+  onResize?: (width: number) => void;
   children: React.ReactNode;
 }
 
-const ResizableComponent = <
-  T extends React.ForwardRefExoticComponent<ResizableComponentProps>,
->(
-  props: React.ComponentProps<T>,
-) => {
+const ResizableComponent = ({
+  startingWidth,
+  onResize,
+  children,
+}: ResizableComponentProps) => {
   const resizableDivRef = useRef<HTMLDivElement>(null);
   const rightHandleRef = useRef<HTMLDivElement>(null);
-
-  const { getColumnWidth, setColumnWidth } = storageFn;
-  const startingWidth = getColumnWidth(props.index);
 
   useEffect(() => {
     const handleRef = rightHandleRef.current;
@@ -81,14 +87,10 @@ const ResizableComponent = <
       return;
     }
 
-    let width = Number.parseInt(
-      window.getComputedStyle(resizableDiv).width,
-      10,
-    );
+    let width = Number.parseInt(window.getComputedStyle(resizableDiv).width);
     let lastX = 0;
     let isResizing = false;
 
-    // Right handle
     const onMouseMoveRight = (e: MouseEvent) => {
       if (!resizableDiv || !isResizing) {
         return;
@@ -98,6 +100,7 @@ const ResizableComponent = <
       width += dx;
       resizableDiv.style.width = `${width}px`;
 
+      // TODO: Handle scrolling beyond viewport
       // const viewportWidth = window.innerWidth;
       // if (e.clientX > viewportWidth - 100) {
       //   const appContainer = document.getElementById("App");
@@ -109,7 +112,7 @@ const ResizableComponent = <
 
     const onMouseUp = (e: MouseEvent) => {
       if (isResizing) {
-        setColumnWidth(props.index, width);
+        onResize?.(width);
         isResizing = false;
       }
       document.removeEventListener("mousemove", onMouseMoveRight);
@@ -130,7 +133,7 @@ const ResizableComponent = <
       document.removeEventListener("mousemove", onMouseMoveRight);
       document.removeEventListener("mouseup", onMouseUp);
     };
-  }, [props.index, setColumnWidth]);
+  }, [onResize]);
 
   return (
     <div className="flex flex-row gap-2">
@@ -144,7 +147,7 @@ const ResizableComponent = <
               : `${startingWidth}px`,
         }}
       >
-        {props.children}
+        {children}
       </div>
       <div
         ref={rightHandleRef}
