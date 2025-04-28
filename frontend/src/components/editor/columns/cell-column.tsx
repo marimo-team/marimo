@@ -1,16 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
-import { memo, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { SortableColumn } from "./sortable-column";
 import type { CellColumnId } from "@/utils/id-tree";
 import type { AppConfig } from "@/core/config/config-schema";
-import useResizeObserver, { type ObservedSize } from "use-resize-observer";
-import { storage } from "./storage";
-import { getColumnWidth } from "./storage";
+import { storageFn } from "./storage";
 
 interface Props {
   className?: string;
   columnId: CellColumnId;
+  index: number;
   children: React.ReactNode;
   width: AppConfig["width"];
   footer?: React.ReactNode;
@@ -22,58 +20,87 @@ interface Props {
 export const Column = memo((props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
   const resizableDivRef = useRef<HTMLDivElement>(null);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-  const startingWidth = getColumnWidth(props.columnId);
+  const rightHandleRef = useRef<HTMLDivElement>(null);
 
-  const onResize = (size: ObservedSize) => {
-    if (!resizableDivRef.current) {
+  const { getColumnWidth, setColumnWidth } = storageFn;
+  const startingWidth = getColumnWidth(props.index);
+
+  useEffect(() => {
+    if (!rightHandleRef.current || !resizableDivRef.current) {
       return;
     }
 
-    const width = size.width ?? startingWidth;
+    let width = Number.parseInt(
+      window.getComputedStyle(resizableDivRef.current).width,
+      10,
+    );
+    let lastX = 0;
 
-    resizableDivRef.current.scrollIntoView({
-      behavior: "instant",
-      block: "nearest",
-    });
+    // Right handle
+    const onMouseMoveRight = (e: MouseEvent) => {
+      if (!resizableDivRef.current) {
+        return;
+      }
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      width += dx;
+      resizableDivRef.current.style.width = `${width}px`;
 
-    // Clear any existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
+      // const viewportWidth = window.innerWidth;
+      // if (e.clientX > viewportWidth - 100) {
+      //   const appContainer = document.getElementById("App");
+      //   if (appContainer) {
+      //     appContainer.scrollLeft += 10;
+      //   }
+      // }
+    };
 
-    // Set a new timeout to save after 500ms of no changes
-    debounceTimeoutRef.current = setTimeout(() => {
-      storage.set({
-        // TODO: When a column is moved, we should get the new index/id
-        // Because when cols are initialized, they use a new index
-        colToWidth: { ...storage.get().colToWidth, [props.columnId]: width },
-      });
-    }, 500);
-  };
+    const onMouseUp = (e: MouseEvent) => {
+      setColumnWidth(props.index, width);
+      document.removeEventListener("mousemove", onMouseMoveRight);
+    };
 
-  useResizeObserver({
-    ref: resizableDivRef,
-    onResize: onResize,
-  });
+    const onMouseRightDown = (e: MouseEvent) => {
+      lastX = e.clientX;
+      document.addEventListener("mousemove", onMouseMoveRight);
+      document.addEventListener("mouseup", onMouseUp);
+    };
 
-  const widthClass =
-    typeof startingWidth === "string" ? startingWidth : `${startingWidth}px`;
+    rightHandleRef.current.addEventListener("mousedown", onMouseRightDown);
 
-  const column = (
-    <div
-      ref={resizableDivRef}
-      className={cn(
-        "flex flex-col gap-5",
-        // box-content is needed so the column is width=contentWidth, but not affected by padding
-        props.width === "columns" &&
-          "w-contentWidth box-content min-h-[100px] px-11 py-6 overflow-hidden resize-x min-w-[400px]",
-      )}
-      style={{ width: widthClass }}
-    >
-      {props.children}
-    </div>
-  );
+    return () => {
+      rightHandleRef.current?.removeEventListener(
+        "mousedown",
+        onMouseRightDown,
+      );
+    };
+  }, []);
+
+  let column = null;
+  if (props.width === "columns") {
+    column = (
+      <div className="flex flex-row gap-2">
+        <div
+          ref={resizableDivRef}
+          className="flex flex-col gap-5 box-content min-h-[100px] px-11 py-6 min-w-[500px]"
+          style={{
+            width:
+              typeof startingWidth === "string"
+                ? startingWidth
+                : `${startingWidth}px`,
+          }}
+        >
+          {props.children}
+        </div>
+        <div
+          ref={rightHandleRef}
+          className="w-0.5 px-[2px] group-hover/column:bg-[var(--slate-2)] cursor-col-resize"
+        />
+      </div>
+    );
+  } else {
+    column = <div className="flex flex-col gap-5">{props.children}</div>;
+  }
 
   if (props.width === "columns") {
     return (

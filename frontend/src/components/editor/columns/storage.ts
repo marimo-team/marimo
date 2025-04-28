@@ -1,40 +1,54 @@
-import type { CellColumnId } from "@/utils/id-tree";
-import { ZodLocalStorage } from "@/utils/localStorage";
-import { Logger } from "@/utils/Logger";
-import { Paths } from "@/utils/paths";
+import { arrayMove } from "@/utils/arrays";
+import { NotebookScopedLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
 
-const BASE_KEY = "marimo:notebook_col_sizes";
+const BASE_KEY = "marimo:notebook-col-sizes";
 
 interface ColumnSizes {
-  colToWidth: Record<CellColumnId, number>;
+  widths: (number | "contentWidth")[];
 }
 
 function initialState(): ColumnSizes {
-  return { colToWidth: {} };
+  return { widths: [] };
 }
 
-export const storage = new ZodLocalStorage<ColumnSizes>(
-  getKey(),
+const storage = new NotebookScopedLocalStorage<ColumnSizes>(
+  BASE_KEY,
   z.object({
-    colToWidth: z.record(z.string(), z.number()),
+    widths: z.array(z.number().or(z.literal("contentWidth"))),
   }),
   initialState,
 );
 
-function getKey() {
-  const notebookPath = Paths.filenameWithDirectory();
-  if (!notebookPath) {
-    Logger.warn("No notebook path found");
-    return BASE_KEY;
-  }
-  return `${BASE_KEY}:${notebookPath}`;
-}
+export const storageFn = {
+  // Default to "contentWidth" if the column width is not set.
+  getColumnWidth: (index: number) => {
+    const widths = storage.get().widths;
+    return widths[index] ?? "contentWidth";
+  },
+  // TODO: When cols are reordered, we should use the new index
+  // Alternatively, we may want to start persisting the column_id to avoid hacking around it
+  setColumnWidth: (index: number, width: number | "contentWidth") => {
+    const widths = storage.get().widths;
+    if (widths[index]) {
+      widths[index] = width;
+    } else {
+      // If the index is out of bounds, add "contentWidth" until we reach the index
+      while (widths.length <= index) {
+        widths.push("contentWidth");
+      }
+      widths[index] = width;
+    }
+    storage.set({ widths });
+  },
+  clearStorage: () => {
+    storage.remove();
+  },
+};
 
-// Helper function to get width with default
-export function getColumnWidth(
-  columnId: CellColumnId,
-): number | "contentWidth" {
-  const width = storage.get().colToWidth[columnId];
-  return width ?? "contentWidth";
+// When a column is reordered, we need to update the storage to reflect the new order.
+export function reorderColumnSizes(fromIdx: number, toIdx: number) {
+  const widths = storage.get().widths;
+  const newWidths = arrayMove(widths, fromIdx, toIdx);
+  storage.set({ widths: newWidths });
 }

@@ -130,7 +130,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <div
         className={cn(
           appConfig.width === "columns" &&
-            "grid grid-flow-col auto-cols-min gap-6 overflow-auto",
+            "grid grid-flow-col auto-cols-min gap-6",
         )}
       >
         {columns.map((column, index) => (
@@ -197,6 +197,7 @@ const CellColumn: React.FC<{
   return (
     <Column
       columnId={column.id}
+      index={index}
       canMoveLeft={index > 0}
       canMoveRight={index < columnsLength - 1}
       width={appConfig.width}

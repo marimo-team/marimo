@@ -31,7 +31,7 @@ export const Paths = {
     }
     return parts.at(-1) ?? "";
   },
-  filenameWithDirectory: () => {
+  notebookDir: () => {
     const filename = store.get(filenameAtom);
     if (!filename) {
       return null;

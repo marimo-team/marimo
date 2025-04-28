@@ -297,7 +297,7 @@ export async function insertImage(view: EditorView, file: File) {
           inputFilename = `${inputFilename}.${extension}`;
         }
 
-        const notebookPath = Paths.filenameWithDirectory();
+        const notebookPath = Paths.notebookDir();
         const publicFolderPath = notebookPath
           ? `${notebookPath}/public`
           : "public";
