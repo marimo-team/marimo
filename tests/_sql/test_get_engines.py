@@ -25,7 +25,7 @@ from marimo._sql.get_engines import (
 from marimo._sql.sql import sql
 
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
-HAS_IBIS = DependencyManager.sqlglot.has()
+HAS_IBIS = DependencyManager.ibis.has()
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_CLICKHOUSE = DependencyManager.chdb.has()
 
