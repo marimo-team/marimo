@@ -40,7 +40,7 @@ class literal_str(str):
 def _format_header_value(k: str, v: Any) -> Any:
     if not isinstance(v, str):
         return v
-    if k in ("sandbox", "header") or "\n" in v:
+    if k in ("pyproject", "header") or "\n" in v:
         return literal_str(v)
     if k == "description":
         return folded_str(v)

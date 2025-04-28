@@ -1,5 +1,7 @@
 ---
-header: |+
+title: Dataflow
+marimo-version: 0.0.0
+header: |-
   # Copyright 2025 Marimo. All rights reserved.
   # /// script
   # requires-python = ">=3.12"
@@ -9,9 +11,6 @@ header: |+
   #     "numpy==2.2.4",
   # ]
   # ///
-
-title: Dataflow
-marimo-version: 0.0.0
 ---
 
 # How marimo notebooks run

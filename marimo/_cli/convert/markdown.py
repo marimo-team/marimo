@@ -223,9 +223,9 @@ def _tree_to_app(root: Element) -> str:
         sources.append(get_source_from_tag(child))
 
     header = root.get("header", None)
-    sandbox = root.get("sandbox", None)
-    if sandbox and not header:
-        header = "\n# ".join(["# ///script", *sandbox.splitlines(), "///"])
+    pyproject = root.get("pyproject", None)
+    if pyproject and not header:
+        header = "\n# ".join(["# ///script", *pyproject.splitlines(), "///"])
     return codegen.generate_filecontents(
         sources,
         names,

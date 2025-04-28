@@ -95,15 +95,15 @@ def get_headers_from_markdown(contents: str) -> dict[str, str]:
 def get_headers_from_frontmatter(
     frontmatter: dict[str, Any],
 ) -> dict[str, str]:
-    headers = {"sandbox": "", "header": ""}
+    headers = {"pyproject": "", "header": ""}
 
-    sandbox = frontmatter.get("sandbox", "")
-    if sandbox:
-        if not sandbox.startswith("#"):
-            sandbox = "\n# ".join(
-                [r"# /// script", *sandbox.splitlines(), r"///"]
+    pyproject = frontmatter.get("pyproject", "")
+    if pyproject:
+        if not pyproject.startswith("#"):
+            pyproject = "\n# ".join(
+                [r"# /// script", *pyproject.splitlines(), r"///"]
             )
-        headers["sandbox"] = sandbox
+        headers["pyproject"] = pyproject
     headers["header"] = frontmatter.get("header", "")
     return headers
 
@@ -190,15 +190,15 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
             )
 
         headers = get_headers_from_markdown(contents)
-        header = headers["sandbox"]
+        header = headers["pyproject"]
         if not header:
             header = headers["header"]
         elif headers["header"]:
             pyproject = PyProjectReader.from_script(headers["header"])
             if pyproject.dependencies or pyproject.python_version:
                 LOGGER.warning(
-                    "Both header and sandbox provide dependencies. "
-                    "Preferring sandbox."
+                    "Both header and pyproject provide dependencies. "
+                    "Preferring pyproject."
                 )
         return read_pyproject_from_script(header)
     except FileNotFoundError:

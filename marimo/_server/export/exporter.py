@@ -265,10 +265,12 @@ class Exporter:
             header = codegen.get_header_comments(previous)
             if header:
                 metadata["header"] = header.strip()
-        elif previous:
-            with open(previous, encoding="utf-8") as f:
-                _metadata, _ = extract_frontmatter(f.read())
-            metadata.update(_metadata)
+        else:
+            header_file = previous if previous else file_manager.filename
+            if header_file:
+                with open(header_file, encoding="utf-8") as f:
+                    _metadata, _ = extract_frontmatter(f.read())
+                metadata.update(_metadata)
 
         # Add the expected qmd filter to the metadata.
         if filename.endswith(".qmd"):

@@ -211,13 +211,13 @@ class UvPackageManager(PypiPackageManager):
         with open(filepath) as f:
             frontmatter, body = extract_frontmatter(f.read())
         headers = get_headers_from_frontmatter(frontmatter)
-        sandbox = bool(headers.get("sandbox", ""))
+        pyproject = bool(headers.get("pyproject", ""))
         header = (
-            headers.get("sandbox", "")
-            if sandbox
+            headers.get("pyproject", "")
+            if pyproject
             else headers.get("header", "")
         )
-        sandbox = sandbox or not bool(header)
+        pyproject = pyproject or not bool(header)
 
         # Write out and process the header
         with tempfile.NamedTemporaryFile(
@@ -237,13 +237,13 @@ class UvPackageManager(PypiPackageManager):
         os.unlink(temp_file.name)
 
         # Write back the changes to the original file
-        if sandbox:
+        if pyproject:
             # Strip '# '
             # and leading/trailing ///
             header = "\n".join(
                 [line[2:] for line in header.strip().splitlines()[1:-1]]
             )
-            frontmatter["sandbox"] = header
+            frontmatter["pyproject"] = header
         else:
             frontmatter["header"] = header
 

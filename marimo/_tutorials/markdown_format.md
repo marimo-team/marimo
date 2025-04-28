@@ -6,7 +6,7 @@ description: >-
   Markdown is a lightweight markup language with plain text formatting syntax. `marimo`
   notebooks can be stored as markdown files, allowing you to work on prose-heavy notebooks
   in your editor of choice.
-sandbox: |-
+pyproject: |-
   requires-python = ">=3.12"
   dependencies = [
       "marimo",

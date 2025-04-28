@@ -157,7 +157,7 @@ class AppFileManager:
                     markdown = f.read()
                 headers = get_headers_from_markdown(markdown)
                 header_comments = headers.get("header", None) or headers.get(
-                    "sandbox", None
+                    "pyproject", None
                 )
             else:
                 header_comments = codegen.get_header_comments(filename)

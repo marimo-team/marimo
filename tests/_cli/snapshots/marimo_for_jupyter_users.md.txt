@@ -1,9 +1,8 @@
 ---
-header: |+
-  # Copyright 2024 Marimo. All rights reserved.
-
 title: marimo for Jupyter users
 marimo-version: 0.0.0
+header: |-
+  # Copyright 2024 Marimo. All rights reserved.
 ---
 
 # marimo for Jupyter users

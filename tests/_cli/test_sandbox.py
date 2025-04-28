@@ -572,7 +572,7 @@ def test_markdown_sandbox(tmp_path: Path) -> None:
     script_path.write_text(
         """---
 title: Test
-sandbox: |
+pyproject: |
     requires-python = ">=3.11"
     dependencies = ["numpy"]
 ---
@@ -605,7 +605,7 @@ def test_markdown_header(tmp_path: Path) -> None:
     script_path.write_text(
         """---
 title: Test
-sandbox: |
+pyproject: |
 header: |
     #! /usr/bin/env python
     # /// script
@@ -643,7 +643,7 @@ def test_markdown_sandbox_and_header(tmp_path: Path) -> None:
     script_path.write_text(
         """---
 title: Test
-sandbox: |
+pyproject: |
     requires-python = ">=3.11"
     dependencies = ["numpy"]
 header: |

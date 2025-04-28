@@ -1,5 +1,8 @@
 ---
-header: |+
+title: Sql
+marimo-version: 0.0.0
+width: medium
+header: |-
   # Copyright 2025 Marimo. All rights reserved.
   # /// script
   # requires-python = ">=3.12"
@@ -12,10 +15,6 @@ header: |+
   #     "sqlglot==26.13.0",
   # ]
   # ///
-
-title: Sql
-marimo-version: 0.0.0
-width: medium
 ---
 
 # Hello, SQL!
