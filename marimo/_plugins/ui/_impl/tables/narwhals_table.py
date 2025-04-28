@@ -284,9 +284,18 @@ class NarwhalsTableManager(
 
     def get_summary(self, column: str) -> ColumnSummary:
         summary = self._get_summary_internal(column)
-        for key, value in summary.__dict__.items():
-            if value is not None:
-                summary.__dict__[key] = unwrap_py_scalar(value)
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Discarding nonzero nanoseconds in conversion",
+                category=UserWarning,
+            )
+
+            for key, value in summary.__dict__.items():
+                if value is not None:
+                    summary.__dict__[key] = unwrap_py_scalar(value)
         return summary
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
