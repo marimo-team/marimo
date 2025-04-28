@@ -24,6 +24,8 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from pyiceberg.catalog import Catalog
 
+NO_SCHEMA_NAME = ""
+
 
 @register_engine
 class PyIcebergEngine(SQLEngine):
@@ -91,7 +93,7 @@ class PyIcebergEngine(SQLEngine):
                 tables = []
                 if self._resolve_should_auto_discover(include_tables):
                     tables = self.get_tables_in_schema(
-                        schema=Catalog.identifier_to_database(namespace),
+                        schema=NO_SCHEMA_NAME,
                         database=Catalog.identifier_to_database(namespace),
                         include_table_details=self._resolve_should_auto_discover(
                             include_table_details
@@ -104,7 +106,7 @@ class PyIcebergEngine(SQLEngine):
                         dialect=self.dialect,
                         schemas=[
                             Schema(
-                                name=Catalog.identifier_to_database(namespace),
+                                name=NO_SCHEMA_NAME,
                                 tables=tables,
                             )
                         ],
@@ -120,10 +122,12 @@ class PyIcebergEngine(SQLEngine):
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
+        del schema  # Not used since Iceberg doesn't have schemas
+
         from pyiceberg.catalog import Catalog
 
         try:
-            tables = self._catalog.list_tables(schema)
+            tables = self._catalog.list_tables(database)
             if not include_table_details:
                 return [
                     DataTable(
@@ -146,7 +150,7 @@ class PyIcebergEngine(SQLEngine):
             for table_name in tables:
                 table: DataTable | None = self.get_table_details(
                     table_name=Catalog.table_name_from(table_name),
-                    schema_name=Catalog.identifier_to_database(schema),
+                    schema_name=NO_SCHEMA_NAME,
                     database_name=Catalog.identifier_to_database(database),
                 )
                 if table is not None:
@@ -161,9 +165,9 @@ class PyIcebergEngine(SQLEngine):
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
-        del database_name
+        del schema_name  # Not used since Iceberg doesn't have schemas
         try:
-            table = self._catalog.load_table((schema_name, table_name))
+            table = self._catalog.load_table((database_name, table_name))
             schema = table.schema()
 
             cols: list[DataTableColumn] = []
@@ -191,7 +195,7 @@ class PyIcebergEngine(SQLEngine):
             )
         except Exception:
             LOGGER.warning(
-                f"Failed to get table {table_name} in schema {schema_name}",
+                f"Failed to get table {table_name} in namespace {database_name}",
                 exc_info=True,
             )
             return None
