@@ -102,7 +102,8 @@ export const Column = memo((props: Props) => {
         </div>
         <div
           ref={rightHandleRef}
-          className="w-0.5 px-[2px] group-hover/column:bg-[var(--slate-2)] cursor-col-resize"
+          className="w-0.5 px-[2px] group-hover/column:bg-[var(--slate-2)] 
+          dark:group-hover/column:bg-[var(--slate-3)] cursor-col-resize"
         />
       </div>
     ) : (

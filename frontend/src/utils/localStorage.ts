@@ -25,7 +25,7 @@ export class TypedLocalStorage<T> {
 
 export class ZodLocalStorage<T> {
   constructor(
-    private key: string,
+    protected key: string,
     private schema: ZodType<T, ZodTypeDef, unknown>,
     private getDefaultValue: () => T,
   ) {}
@@ -55,6 +55,10 @@ export class ZodLocalStorage<T> {
  * Useful for storing notebook-specific settings, such as column widths.
  */
 export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
+  private filename: string | null;
+  private baseKey: string;
+  private unsubscribeFromFilename: (() => void) | null;
+
   constructor(
     key: string,
     schema: ZodType<T, ZodTypeDef, unknown>,
@@ -63,8 +67,39 @@ export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
     const filename = store.get(filenameAtom);
     const scopedKey = filename ? `${key}:${filename}` : key;
     super(scopedKey, schema, getDefaultValue);
+    this.filename = filename;
+    this.baseKey = key;
+
+    try {
+      this.unsubscribeFromFilename = store.sub(filenameAtom, () => {
+        const newFilename = store.get(filenameAtom);
+        this.handleFilenameChange(newFilename);
+      });
+    } catch {
+      this.unsubscribeFromFilename = null;
+    }
   }
 
-  // TODO: When a file is renamed, we should rename the localStorage key
-  renameFile(newFilename: string) {}
+  private createScopedKey(filename: string | null) {
+    return filename ? `${this.baseKey}:${filename}` : this.baseKey;
+  }
+
+  private handleFilenameChange(newFilename: string | null) {
+    if (newFilename && newFilename !== this.filename) {
+      const currentValue = this.get();
+      this.remove();
+
+      this.filename = newFilename;
+      this.key = this.createScopedKey(newFilename);
+      this.set(currentValue);
+    }
+  }
+
+  // Is this needed? If yes, can we make this always be called if so?
+  public dispose() {
+    if (this.unsubscribeFromFilename) {
+      this.unsubscribeFromFilename();
+      this.unsubscribeFromFilename = null;
+    }
+  }
 }
