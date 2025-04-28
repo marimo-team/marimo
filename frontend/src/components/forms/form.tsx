@@ -406,34 +406,6 @@ export function renderZodSchema<T extends FieldValues, S>(
             return getUnionLiteral(option)._def.value === value;
           });
 
-          const useTabs = special === "tabs";
-
-          if (useTabs) {
-            return (
-              <div className="flex flex-col">
-                <FormLabel>{label}</FormLabel>
-                <div className="flex border-b mb-4 -mt-2">
-                  {types.map((type: string) => (
-                    <button
-                      key={type}
-                      type="button"
-                      className={`px-4 py-2 ${
-                        value === type
-                          ? "border-b-2 border-primary font-medium"
-                          : "text-muted-foreground"
-                      }`}
-                      onClick={() => field.onChange({ type })}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-                {selectedOption &&
-                  renderZodSchema(selectedOption, form, path, renderers)}
-              </div>
-            );
-          }
-
           return (
             <div className="flex flex-col mb-4 gap-1">
               <FormLabel>{label}</FormLabel>

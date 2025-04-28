@@ -809,7 +809,6 @@ const DatasetColumnPreview: React.FC<{
     );
   }
 
-  // TODO: Add support for catalog data sources
   if (table.source_type === "catalog") {
     return (
       <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">

@@ -132,7 +132,11 @@ describe("generateDatabaseCode", () => {
     name: "my_catalog",
     catalog: {
       type: "dynamodb",
-      warehouse: "/path/to/warehouse",
+      "dynamodb.profile-name": "my_profile",
+      "dynamodb.region": "us-east-1",
+      "dynamodb.access-key-id": "my_access_key_id",
+      "dynamodb.secret-access-key": "my_secret_access_key",
+      "dynamodb.session-token": "my_session_token",
     },
   };
 

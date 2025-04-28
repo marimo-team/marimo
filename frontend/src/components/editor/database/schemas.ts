@@ -339,32 +339,19 @@ export const IcebergConnectionSchema = z.object({
       }),
       z.object({
         type: z.literal("dynamodb"),
-        warehouse: warehouseNameField(),
-        profile_name: z
+        "dynamodb.profile-name": z
           .string()
           .optional()
-          .describe(
-            FieldOptions.of({
-              label: "Profile Name",
-            }),
-          ),
-        region: z
+          .describe(FieldOptions.of({ label: "Profile Name" })),
+        "dynamodb.region": z
           .string()
           .optional()
-          .describe(
-            FieldOptions.of({
-              label: "Region",
-            }),
-          ),
-        access_key_id: z
+          .describe(FieldOptions.of({ label: "Region" })),
+        "dynamodb.access-key-id": z
           .string()
           .optional()
-          .describe(
-            FieldOptions.of({
-              label: "Access Key ID",
-            }),
-          ),
-        secret_access_key: z
+          .describe(FieldOptions.of({ label: "Access Key ID" })),
+        "dynamodb.secret-access-key": z
           .string()
           .optional()
           .describe(
@@ -373,7 +360,7 @@ export const IcebergConnectionSchema = z.object({
               inputType: "password",
             }),
           ),
-        session_token: z
+        "dynamodb.session-token": z
           .string()
           .optional()
           .describe(
