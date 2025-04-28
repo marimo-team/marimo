@@ -272,7 +272,7 @@ def test_ibis_sql_types() -> None:
         str(dt.Binary()): "string",
         str(dt.String()): "string",
         str(dt.Date()): "date",
-        str(dt.Time()): "datetime",
+        str(dt.Time()): "time",
         str(dt.Timestamp()): "datetime",
         str(dt.Interval(unit="D")): "string",  # default case
         str(dt.Array(value_type=dt.Int32())): "string",  # default case
@@ -342,7 +342,7 @@ def test_ibis_type_conversion() -> None:
 
     # temporal
     assert to_marimo(dt.Date()) == "date"
-    assert to_marimo(dt.Time()) == "datetime"  # verify
+    assert to_marimo(dt.Time()) == "time"
     assert to_marimo(dt.Timestamp()) == "datetime"
 
     # unhandled cases will be converted to string

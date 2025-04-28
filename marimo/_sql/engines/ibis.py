@@ -20,8 +20,8 @@ from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
-    from ibis.backends.sql import SQLBackend
-    from ibis.expr import datatypes as dt
+    from ibis.backends.sql import SQLBackend  # type: ignore
+    from ibis.expr import datatypes as dt  # type: ignore
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,6 +56,7 @@ class IbisEngine(SQLEngine):
         # reverse lookup
         for dialect_name, dialect_class in dialect_registry.items():
             if self._backend.dialect == dialect_class:
+                assert isinstance(dialect_name, str)
                 return dialect_name
 
         return str(self._backend.dialect)
@@ -107,8 +108,8 @@ class IbisEngine(SQLEngine):
         if not DependencyManager.ibis.imported():
             return False
 
-        from ibis import BaseBackend
-        from ibis.backends.sql import SQLBackend
+        from ibis import BaseBackend  # type: ignore
+        from ibis.backends.sql import SQLBackend  # type: ignore
 
         if isinstance(var, BaseBackend) and not isinstance(var, SQLBackend):
             LOGGER.debug(
@@ -151,7 +152,7 @@ class IbisEngine(SQLEngine):
     def get_default_schema(self) -> Optional[str]:
         """Get the default schema name"""
         try:
-            schema_name = self._backend.current_database
+            schema_name: str | None = self._backend.current_database
         except AttributeError:
             schema_name = None
 
@@ -351,34 +352,31 @@ class IbisEngine(SQLEngine):
         Ibis datatypes ref: https://ibis-project.org/reference/datatypes
         """
         if ibis_dtype.is_integer():
-            marimo_dtype = "integer"
+            return "integer"
         # numeric is a superset of integer, so we evaluate after is_integer
         elif ibis_dtype.is_numeric():
-            marimo_dtype = "number"
+            return "number"
 
         elif ibis_dtype.is_date():
-            marimo_dtype = "date"
+            return "date"
 
         elif ibis_dtype.is_timestamp():
-            marimo_dtype = "datetime"
+            return "datetime"
 
-        # NOTE handle ibis_dtype.is_time() which doesn't have a date part
         elif ibis_dtype.is_time():
-            marimo_dtype = "datetime"
+            return "time"
 
         elif ibis_dtype.is_boolean():
-            marimo_dtype = "boolean"
+            return "boolean"
 
         elif ibis_dtype.is_string():
-            marimo_dtype = "string"
+            return "string"
 
         elif ibis_dtype.is_binary():
-            marimo_dtype = "string"
+            return "string"
 
         else:
             raise IbisToMarimoConversionError
-
-        return marimo_dtype
 
     def _resolve_should_auto_discover(
         self,
