@@ -281,6 +281,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             value = condition.value
             value_str = str(value)
 
+            # If columns type is a Datetime, we need to convert the value to a datetime
             if dtype == pl.Datetime:
                 value = convert_value(value, datetime.datetime.fromisoformat)
             elif dtype == pl.Date:
