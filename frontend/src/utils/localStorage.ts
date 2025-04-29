@@ -95,12 +95,12 @@ export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
     }
   }
 
-  // Used for testing
+  // Used in testing
   public getKey() {
     return this.key;
   }
 
-  // Is this needed? If yes, can we make this always be called if so?
+  // Used in testing. Can also call in cleanup functions
   public dispose() {
     if (this.unsubscribeFromFilename) {
       this.unsubscribeFromFilename();
