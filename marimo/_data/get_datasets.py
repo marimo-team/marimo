@@ -112,10 +112,10 @@ def _get_databases_from_duckdb_internal(
     if connection is None:
         import duckdb
 
-        databases = duckdb.execute("SHOW ALL TABLES").fetchall()
+        databases_result = duckdb.execute("SHOW ALL TABLES").fetchall()
     else:
-        databases = connection.execute("SHOW ALL TABLES").fetchall()
-    if not len(databases):
+        databases_result = connection.execute("SHOW ALL TABLES").fetchall()
+    if not len(databases_result):
         # No tables
         return []
 
@@ -130,7 +130,7 @@ def _get_databases_from_duckdb_internal(
         column_names,
         column_types,
         *_rest,
-    ) in databases:
+    ) in databases_result:
         assert len(column_names) == len(column_types)
         assert isinstance(column_names, list)
         assert isinstance(column_types, list)
