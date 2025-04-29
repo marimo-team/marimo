@@ -11,9 +11,9 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
-## marimo's File Format
+## marimo's File format
 
-### Python File Format
+### Python file format
 
 !!! tip "File format tutorial"
 
@@ -83,10 +83,9 @@ def cell_2(x: int, y: str):
     z = f"{x} & {y}"
 ```
 
-### Markdown File Format
+### Markdown file format
 
 !!! tip "Markdown File format tutorial"
-
     Run `marimo tutorial markdown-format` at the command line for a full guide.
 
 marimo notebooks can also be stored as Markdown files. This is a good option

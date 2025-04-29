@@ -151,7 +151,7 @@ In this example:
 
 This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
 
-## Markdown File Support
+## Markdown file support
 
 Sandboxing support is also provided in marimo's markdown file format under the
 `pyproject` entry of your frontmatter.
