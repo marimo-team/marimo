@@ -274,7 +274,7 @@ catalog = RestCatalog(
 )
 ```
 
-Catalogs will appear in the Datasources panel, but they cannot be used as an engine in SQL cells. However, you can still load the table into one cell and use it in subsequent Python or SQL cells.
+Catalogs will appear in the Datasources panel, but they cannot be used as an engine in SQL cells. However, you can still load the table and use it in subsequent Python or SQL cells.
 
 ```python
 df = catalog.load_table(("my-namespace", "my-table")).to_polars()

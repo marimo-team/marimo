@@ -230,7 +230,7 @@ const DatabaseForm: React.FC<{
     reValidateMode: "onChange",
   });
 
-  const connectionLibraries = DATABASES.find(
+  const connectionLibraries = [...DATABASES, ...DATA_CATALOGS].find(
     (s) => s.schema === schema,
   )?.connectionLibraries;
   const [preferredConnection, setPreferredConnection] =

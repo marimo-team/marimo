@@ -430,15 +430,15 @@ class TrinoGenerator extends CodeGenerator<"trino"> {
 class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
   generateImports(): string[] {
     switch (this.connection.catalog.type) {
-      case "rest":
+      case "REST":
         return ["from pyiceberg.catalog.rest import RestCatalog"];
-      case "sql":
+      case "SQL":
         return ["from pyiceberg.catalog.sql import SqlCatalog"];
-      case "hive":
+      case "Hive":
         return ["from pyiceberg.catalog.hive import HiveCatalog"];
-      case "glue":
+      case "Glue":
         return ["from pyiceberg.catalog.glue import GlueCatalog"];
-      case "dynamodb":
+      case "DynamoDB":
         return ["from pyiceberg.catalog.dynamodb import DynamoDBCatalog"];
       default:
         assertNever(this.connection.catalog);
@@ -473,7 +473,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
     const name = `"${this.connection.name}"`;
 
     switch (this.connection.catalog.type) {
-      case "rest":
+      case "REST":
         return dedent(`
           catalog = RestCatalog(
             ${name},
@@ -481,7 +481,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "sql":
+      case "SQL":
         return dedent(`
           catalog = SqlCatalog(
             ${name},
@@ -489,7 +489,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "hive":
+      case "Hive":
         return dedent(`
           catalog = HiveCatalog(
             ${name},
@@ -497,7 +497,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "glue":
+      case "Glue":
         return dedent(`
           catalog = GlueCatalog(
             ${name},
@@ -505,7 +505,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "dynamodb":
+      case "DynamoDB":
         return dedent(`
           catalog = DynamoDBCatalog(
             ${name},

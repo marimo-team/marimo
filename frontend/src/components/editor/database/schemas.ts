@@ -299,7 +299,7 @@ export const IcebergConnectionSchema = z.object({
   catalog: z
     .discriminatedUnion("type", [
       z.object({
-        type: z.literal("rest"),
+        type: z.literal("REST"),
         warehouse: warehouseNameField(),
         uri: z
           .string()
@@ -314,7 +314,7 @@ export const IcebergConnectionSchema = z.object({
         token: tokenField(),
       }),
       z.object({
-        type: z.literal("sql"),
+        type: z.literal("SQL"),
         warehouse: warehouseNameField(),
         uri: z
           .string()
@@ -328,17 +328,17 @@ export const IcebergConnectionSchema = z.object({
           ),
       }),
       z.object({
-        type: z.literal("hive"),
+        type: z.literal("Hive"),
         warehouse: warehouseNameField(),
         uri: uriField(),
       }),
       z.object({
-        type: z.literal("glue"),
+        type: z.literal("Glue"),
         warehouse: warehouseNameField(),
         uri: uriField(),
       }),
       z.object({
-        type: z.literal("dynamodb"),
+        type: z.literal("DynamoDB"),
         "dynamodb.profile-name": z
           .string()
           .optional()

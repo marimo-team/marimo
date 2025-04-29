@@ -15,6 +15,7 @@ from marimo._runtime.context.types import (
 )
 
 ENGINE_REGISTRY: list[type[SQLEngine]] = []
+NO_SCHEMA_NAME = ""
 
 
 def register_engine(cls: type[SQLEngine]) -> type[SQLEngine]:

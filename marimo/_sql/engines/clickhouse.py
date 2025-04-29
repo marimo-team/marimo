@@ -14,6 +14,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
+    NO_SCHEMA_NAME,
     InferenceConfig,
     SQLEngine,
     register_engine,
@@ -353,7 +354,7 @@ class ClickhouseServer(SQLEngine):
                 tables = []
             else:
                 tables = self.get_tables_in_schema(
-                    schema="",
+                    schema=NO_SCHEMA_NAME,
                     database=db,
                     include_table_details=include_table_details,
                 )
@@ -363,7 +364,7 @@ class ClickhouseServer(SQLEngine):
                     dialect=self.dialect,
                     engine=self._engine_name,
                     # ClickHouse does not have schemas
-                    schemas=[Schema(name="", tables=tables)],
+                    schemas=[Schema(name=NO_SCHEMA_NAME, tables=tables)],
                 )
             )
         return databases
