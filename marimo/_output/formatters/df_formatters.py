@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
+
 import narwhals.stable.v1 as nw
 
 from marimo import _loggers
@@ -18,6 +20,9 @@ def include_opinionated() -> bool:
         get_context,
         runtime_context_installed,
     )
+
+    if os.getenv("MARIMO_NO_JS", "false").lower() == "true":
+        return False
 
     if runtime_context_installed():
         ctx = get_context()

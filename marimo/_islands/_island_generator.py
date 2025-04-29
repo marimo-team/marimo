@@ -69,6 +69,7 @@ class MarimoIslandStub:
         display_code: Optional[bool] = None,
         display_output: Optional[bool] = None,
         is_reactive: Optional[bool] = None,
+        as_raw: bool = False,
     ) -> str:
         """
         Render the HTML island code for the cell.
@@ -79,6 +80,7 @@ class MarimoIslandStub:
         - display_code (bool): Whether to display the code in HTML.
         - display_output (bool): Whether to include the output in the HTML.
         - is_reactive (bool): Whether this code block will run with pyodide.
+        - as_raw (bool): Removes some of the HTML to directly include the data.
 
         *Returns:*
 
@@ -121,6 +123,23 @@ class MarimoIslandStub:
                 f"{uri_encode_component(self.code) if is_reactive else ''}"
                 "</marimo-cell-code>"
             )
+
+        if as_raw:
+            # If as_raw is True, we don't want to include the code block
+            # in the HTML. This is useful for when you want to use the
+            # MarimoIslandGenerator to generate HTML without running the
+            # cells.
+            released = (
+                output.text.encode().decode("unicode_escape")
+                if output and display_output
+                else ""
+            )
+            return dedent(
+                f"""
+                    {released}
+                    {code_block}
+                    """
+            ).strip()
 
         # Cell may not have output
         # (e.g. imports, but still needs to be included)

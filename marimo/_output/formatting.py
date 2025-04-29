@@ -18,6 +18,7 @@ taking precedence over the MIME protocol.
 from __future__ import annotations
 
 import json
+import os
 import traceback
 from dataclasses import dataclass
 from html import escape
@@ -96,7 +97,7 @@ def get_formatter(
     obj: T,
     # Include opinionated formatters by default
     # (e.g., for pandas, polars, arrow, etc.)
-    include_opinionated: bool = True,
+    include_opinionated: Optional[bool] = None,
 ) -> Optional[Formatter[T]]:
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
@@ -111,6 +112,12 @@ def get_formatter(
             # Install formatters when marimo is being used without
             # a kernel (eg, in a unit test or when run as a Python script)
             register_formatters()
+
+    # If not explicitly opinionated, we defer to the environment.
+    if include_opinionated is None:
+        include_opinionated = (
+            os.getenv("MARIMO_NO_JS", "false").lower() == "true"
+        )
 
     # Plain opts out of opinionated formatters
     if isinstance(obj, Plain):
@@ -179,7 +186,9 @@ class FormattedOutput:
         return FormattedOutput(mimetype="text/plain", data="")
 
 
-def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
+def try_format(
+    obj: Any, include_opinionated: Optional[bool] = None
+) -> FormattedOutput:
     if obj is None:
         return FormattedOutput.empty()
 
