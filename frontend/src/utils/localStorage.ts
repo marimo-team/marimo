@@ -3,7 +3,13 @@ import { filenameAtom } from "@/core/saving/filenameAtom";
 import { store } from "@/core/state/jotai";
 import type { ZodType, ZodTypeDef } from "zod";
 
-export class TypedLocalStorage<T> {
+interface Storage<T> {
+  get(): T;
+  set(value: T): void;
+  remove(): void;
+}
+
+export class TypedLocalStorage<T> implements Storage<T> {
   constructor(
     private key: string,
     private defaultValue: T,
@@ -21,9 +27,13 @@ export class TypedLocalStorage<T> {
   set(value: T) {
     window.localStorage.setItem(this.key, JSON.stringify(value));
   }
+
+  remove() {
+    window.localStorage.removeItem(this.key);
+  }
 }
 
-export class ZodLocalStorage<T> {
+export class ZodLocalStorage<T> implements Storage<T> {
   constructor(
     protected key: string,
     private schema: ZodType<T, ZodTypeDef, unknown>,
