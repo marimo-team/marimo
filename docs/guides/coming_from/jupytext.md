@@ -7,11 +7,14 @@ are stored as `.py` files by default. However, Jupytext works with IPython
 notebooks, whereas marimo works with marimo notebooks, which are not based
 on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 
+!!! tip "marimo also has a markdown fileformat"
+    Learn more about it with `marimo tutorials markdown-format`.
+
 ## Notebook Format
 
 | Jupytext | marimo |
 |----------|--------|
-| Jupytext uses comments or special markers to define cell types in notebooks. | Notebooks are pure Python (`.py`) files by default, using standard Python syntax, such as decorators and functions, to define cells. |
+| Jupytext uses comments or special markers to define cell types in notebooks. | Notebooks are pure Python (`.py`) files by default, using standard Python syntax, such as decorators and functions, to define cells. In markdown form (`.md`), marimo has no special syntax, meaning your notebook will render well in locations like Github. |
 
 ## Converting Jupyter notebooks
 

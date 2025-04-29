@@ -151,6 +151,26 @@ In this example:
 
 This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
 
+## Markdown File Support
+
+Sandboxing support is also provided in marimo's markdown file format under the
+`pyproject` entry of your frontmatter.
+
+```markdown
+---
+title: My Notebook
+marimo-version: 0.0.0
+pyproject: |
+  requires-python: ">=3.11"
+  dependencies:
+    - pandas==<version>
+    - altair==<version>
+---
+```
+
+Note, that sandboxing will still work in the `header` entry of markdown
+frontmatter.
+
 ## Configuration
 
 Running marimo in a sandbox environment uses `uv` to create an isolated virtual
