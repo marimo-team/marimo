@@ -241,20 +241,23 @@ def to_functiondef(
 
     decorator = to_decorator(cell.config, fn=fn)
     prefix = "" if not cell.is_coroutine() else "async "
-    if not defs:
-        signature = format_tuple_elements(f"{prefix}def {name}(...) -> None:", refs)
-    elif len(def_annotation) == len(defs):
-        signature = format_tuple_elements(f"{prefix}def {name}(...) -> tuple[", refs)
+    # Require all the defs to have types to properly return.
+    if defs and len(def_annotation) == len(defs):
+        signature = format_tuple_elements(
+            f"{prefix}def {name}(...) -> tuple[", refs
+        )
         signature_body, sep, last_line = signature.rpartition("\n")
-        signature = "".join([
-            signature_body,
-            sep,
-            format_tuple_elements(
-                f"{last_line[:-1]}(...):",
-                tuple([def_annotation[df] for df in defs]),
-                brace="[",
-            )
-        ])
+        signature = "".join(
+            [
+                signature_body,
+                sep,
+                format_tuple_elements(
+                    f"{last_line[:-1]}(...):",
+                    tuple([def_annotation[df] for df in defs]),
+                    brace="[",
+                ),
+            ]
+        )
     else:
         signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
 

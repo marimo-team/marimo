@@ -271,7 +271,7 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                "def foo(something) -> tuple[\"something\"]:",
+                'def foo(something) -> tuple["something"]:',
                 "    z: something = 0",
                 "    return (z,)",
             ]
@@ -336,7 +336,7 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                "def foo(x: \"something\"):",
+                'def foo(x: "something"):',
                 "    z = x + 0",
                 "    return (z,)",
             ]
