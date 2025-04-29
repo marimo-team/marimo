@@ -206,6 +206,7 @@ def test_sqlalchemy_sql_types() -> None:
     assert len(tables) == 1
     table = tables[0]
     assert table.source == "sqlite"
+    assert table.source_type == "connection"
     assert table.name == "all_types"
     assert table.num_columns == 6
     assert table.num_rows is None

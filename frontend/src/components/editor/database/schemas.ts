@@ -299,7 +299,7 @@ export const IcebergConnectionSchema = z.object({
   catalog: z
     .discriminatedUnion("type", [
       z.object({
-        type: z.literal("rest"),
+        type: z.literal("REST"),
         warehouse: warehouseNameField(),
         uri: z
           .string()
@@ -314,7 +314,7 @@ export const IcebergConnectionSchema = z.object({
         token: tokenField(),
       }),
       z.object({
-        type: z.literal("sql"),
+        type: z.literal("SQL"),
         warehouse: warehouseNameField(),
         uri: z
           .string()
@@ -328,17 +328,17 @@ export const IcebergConnectionSchema = z.object({
           ),
       }),
       z.object({
-        type: z.literal("hive"),
+        type: z.literal("Hive"),
         warehouse: warehouseNameField(),
         uri: uriField(),
       }),
       z.object({
-        type: z.literal("glue"),
+        type: z.literal("Glue"),
         warehouse: warehouseNameField(),
         uri: uriField(),
       }),
       z.object({
-        type: z.literal("dynamodb"),
+        type: z.literal("DynamoDB"),
         "dynamodb.profile-name": z
           .string()
           .optional()
@@ -374,6 +374,26 @@ export const IcebergConnectionSchema = z.object({
     .describe(FieldOptions.of({ special: "tabs" })),
 });
 
+export const DataFusionConnectionSchema = z.object({
+  type: z.literal("datafusion"),
+  sessionContext: z
+    .boolean()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Use Session Context",
+      }),
+    ),
+});
+
+// Ideally, we can conditionally render the username, host, and port fields.
+export const PySparkConnectionSchema = z.object({
+  type: z.literal("pyspark"),
+  username: usernameField().optional(),
+  host: hostField().optional(),
+  port: portField().optional(),
+});
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -386,6 +406,8 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   ChdbConnectionSchema,
   TrinoConnectionSchema,
   IcebergConnectionSchema,
+  DataFusionConnectionSchema,
+  PySparkConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

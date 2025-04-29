@@ -10,6 +10,7 @@ import pytest
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
+from marimo._sql.engines.types import NO_SCHEMA_NAME
 from marimo._types.ids import VariableName
 
 HAS_PYICEBERG = DependencyManager.pyiceberg.has()
@@ -168,7 +169,9 @@ def test_pyiceberg_get_table_details(memory_catalog: Catalog) -> None:
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
     table = engine.get_table_details(
-        table_name="table1", schema_name="", database_name="default"
+        table_name="table1",
+        schema_name=NO_SCHEMA_NAME,
+        database_name="default",
     )
 
     assert table is not None
@@ -234,12 +237,12 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     assert databases[0].name == "default"
     assert databases[0].dialect == "iceberg"
     assert len(databases[0].schemas) == 1
-    assert databases[0].schemas[0].name == ""
+    assert databases[0].schemas[0].name == NO_SCHEMA_NAME
     assert len(databases[0].schemas[0].tables) == 2
 
     assert databases[1].name == "test_namespace"
     assert len(databases[1].schemas) == 1
-    assert databases[1].schemas[0].name == ""
+    assert databases[1].schemas[0].name == NO_SCHEMA_NAME
     assert len(databases[1].schemas[0].tables) == 1
 
     # Test with include_tables=False
@@ -251,12 +254,12 @@ def test_pyiceberg_get_databases(memory_catalog: Catalog) -> None:
     assert len(databases) == 2
     assert databases[0].name == "default"
     assert len(databases[0].schemas) == 1
-    assert databases[0].schemas[0].name == ""
+    assert databases[0].schemas[0].name == NO_SCHEMA_NAME
     assert len(databases[0].schemas[0].tables) == 0
 
     assert databases[1].name == "test_namespace"
     assert len(databases[1].schemas) == 1
-    assert databases[1].schemas[0].name == ""
+    assert databases[1].schemas[0].name == NO_SCHEMA_NAME
     assert len(databases[1].schemas[0].tables) == 0
 
 
@@ -275,7 +278,7 @@ def test_pyiceberg_auto_discovery(memory_catalog: Catalog) -> None:
 
     assert isinstance(databases, list)
     assert len(databases) == 2
-    assert databases[0].schemas[0].name == ""
+    assert databases[0].schemas[0].name == NO_SCHEMA_NAME
     assert len(databases[0].schemas[0].tables) == 2
 
     # Test with _is_cheap_discovery mocked to return False

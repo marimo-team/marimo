@@ -11,7 +11,8 @@ export type ConnectionLibrary =
   | "duckdb"
   | "clickhouse_connect"
   | "chdb"
-  | "pyiceberg";
+  | "pyiceberg"
+  | "ibis";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -20,6 +21,7 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   clickhouse_connect: "ClickHouse Connect",
   chdb: "chDB",
   pyiceberg: "PyIceberg",
+  ibis: "Ibis",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -430,15 +432,15 @@ class TrinoGenerator extends CodeGenerator<"trino"> {
 class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
   generateImports(): string[] {
     switch (this.connection.catalog.type) {
-      case "rest":
+      case "REST":
         return ["from pyiceberg.catalog.rest import RestCatalog"];
-      case "sql":
+      case "SQL":
         return ["from pyiceberg.catalog.sql import SqlCatalog"];
-      case "hive":
+      case "Hive":
         return ["from pyiceberg.catalog.hive import HiveCatalog"];
-      case "glue":
+      case "Glue":
         return ["from pyiceberg.catalog.glue import GlueCatalog"];
-      case "dynamodb":
+      case "DynamoDB":
         return ["from pyiceberg.catalog.dynamodb import DynamoDBCatalog"];
       default:
         assertNever(this.connection.catalog);
@@ -473,7 +475,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
     const name = `"${this.connection.name}"`;
 
     switch (this.connection.catalog.type) {
-      case "rest":
+      case "REST":
         return dedent(`
           catalog = RestCatalog(
             ${name},
@@ -481,7 +483,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "sql":
+      case "SQL":
         return dedent(`
           catalog = SqlCatalog(
             ${name},
@@ -489,7 +491,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "hive":
+      case "Hive":
         return dedent(`
           catalog = HiveCatalog(
             ${name},
@@ -497,7 +499,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "glue":
+      case "Glue":
         return dedent(`
           catalog = GlueCatalog(
             ${name},
@@ -505,7 +507,7 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
             },
           )
         `);
-      case "dynamodb":
+      case "DynamoDB":
         return dedent(`
           catalog = DynamoDBCatalog(
             ${name},
@@ -516,6 +518,56 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
       default:
         assertNever(this.connection.catalog);
     }
+  }
+}
+
+class DataFusionGenerator extends CodeGenerator<"datafusion"> {
+  generateImports(): string[] {
+    // To trigger installation of ibis-datafusion
+    return ["import ibis", "from datafusion import SessionContext"];
+  }
+
+  generateConnectionCode(): string {
+    if (this.connection.sessionContext) {
+      return dedent(`
+        ctx = SessionContext()
+        # Sample table
+        _ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
+  
+        con = ibis.datafusion.connect(ctx)
+      `);
+    }
+    return dedent(`
+      con = ibis.datafusion.connect()
+    `);
+  }
+}
+
+class PySparkGenerator extends CodeGenerator<"pyspark"> {
+  generateImports(): string[] {
+    return ["import ibis", "from pyspark.sql import SparkSession"];
+  }
+
+  generateConnectionCode(): string {
+    if (
+      this.connection.username ||
+      this.connection.host ||
+      this.connection.port
+    ) {
+      const username = this.secrets.printInFString(
+        "username",
+        this.connection.username,
+      );
+      const host = this.secrets.printInFString("host", this.connection.host);
+      const port = this.secrets.printInFString("port", this.connection.port);
+      return dedent(`
+        session = SparkSession.builder.remote(f"${username}://${host}:${port}").getOrCreate()
+        con = ibis.pyspark.connect(session)
+      `);
+    }
+    return dedent(`
+      con = ibis.pyspark.connect()
+    `);
   }
 }
 
@@ -549,6 +601,10 @@ class CodeGeneratorFactory {
         return new TrinoGenerator(connection, orm, this.secrets);
       case "iceberg":
         return new PyIcebergGenerator(connection, orm, this.secrets);
+      case "datafusion":
+        return new DataFusionGenerator(connection, orm, this.secrets);
+      case "pyspark":
+        return new PySparkGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

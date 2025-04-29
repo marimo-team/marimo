@@ -71,7 +71,7 @@ def test_engine_to_data_source_connection() -> None:
         "my_postgres", sqlalchemy_engine
     )
     assert isinstance(connection, DataSourceConnection)
-    assert connection.source == "postgresql"
+    assert connection.source == "sqlalchemy"
     assert connection.dialect == "postgresql"
     assert connection.name == "my_postgres"
     assert connection.display_name == "postgresql (my_postgres)"
@@ -274,7 +274,7 @@ def test_get_engines_sqlalchemy_databases() -> None:
     connection = engine_to_data_source_connection("sqlite", engine)
     assert isinstance(connection, DataSourceConnection)
 
-    assert connection.source == "sqlite"
+    assert connection.source == "sqlalchemy"
     assert connection.dialect == "sqlite"
     assert connection.name == "sqlite"
     assert connection.display_name == "sqlite (sqlite)"

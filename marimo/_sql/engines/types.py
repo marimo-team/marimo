@@ -15,6 +15,7 @@ from marimo._runtime.context.types import (
 )
 
 ENGINE_REGISTRY: list[type[SQLEngine]] = []
+NO_SCHEMA_NAME = ""
 
 
 def register_engine(cls: type[SQLEngine]) -> type[SQLEngine]:
@@ -62,7 +63,7 @@ class SQLEngine(ABC):
     @property
     @abstractmethod
     def source(self) -> str:
-        """Return the source of the engine."""
+        """Return the source of the engine. Usually the name of the library used to connect to the database."""
         pass
 
     @property

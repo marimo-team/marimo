@@ -53,7 +53,7 @@ class SQLAlchemyEngine(SQLEngine):
 
     @property
     def source(self) -> str:
-        return str(self._engine.dialect.name)
+        return "sqlalchemy"
 
     @property
     def dialect(self) -> str:

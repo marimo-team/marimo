@@ -18,6 +18,8 @@ import {
   ChdbConnectionSchema,
   TrinoConnectionSchema,
   IcebergConnectionSchema,
+  DataFusionConnectionSchema,
+  PySparkConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -165,6 +167,26 @@ const DATABASES = [
       preferred: "sqlalchemy",
     },
   },
+  {
+    name: "DataFusion",
+    schema: DataFusionConnectionSchema,
+    color: "#202A37",
+    logo: "datafusion",
+    connectionLibraries: {
+      libraries: ["ibis"],
+      preferred: "ibis",
+    },
+  },
+  {
+    name: "PySpark",
+    schema: PySparkConnectionSchema,
+    color: "#1C5162",
+    logo: "pyspark",
+    connectionLibraries: {
+      libraries: ["ibis"],
+      preferred: "ibis",
+    },
+  },
 ] satisfies ConnectionSchema[];
 
 const DATA_CATALOGS = [
@@ -230,7 +252,7 @@ const DatabaseForm: React.FC<{
     reValidateMode: "onChange",
   });
 
-  const connectionLibraries = DATABASES.find(
+  const connectionLibraries = [...DATABASES, ...DATA_CATALOGS].find(
     (s) => s.schema === schema,
   )?.connectionLibraries;
   const [preferredConnection, setPreferredConnection] =

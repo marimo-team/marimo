@@ -105,7 +105,7 @@ def test_sqlalchemy_source_and_dialect() -> None:
     sqlite_engine = sa.create_engine("sqlite:///:memory:")
     engine = SQLAlchemyEngine(sqlite_engine)
 
-    assert engine.source == "sqlite"
+    assert engine.source == "sqlalchemy"
     assert engine.dialect == "sqlite"
 
     # We can test multiple dialects without mocking by creating different engines
@@ -113,7 +113,7 @@ def test_sqlalchemy_source_and_dialect() -> None:
     mock_engine = MagicMock()
     mock_engine.dialect.name = "postgresql"
     pg_engine = SQLAlchemyEngine(mock_engine)
-    assert pg_engine.source == "postgresql"
+    assert pg_engine.source == "sqlalchemy"
     assert pg_engine.dialect == "postgresql"
 
 

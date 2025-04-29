@@ -12,6 +12,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
+    NO_SCHEMA_NAME,
     InferenceConfig,
     SQLEngine,
     register_engine,
@@ -23,8 +24,6 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from pyiceberg.catalog import Catalog
-
-NO_SCHEMA_NAME = ""
 
 
 @register_engine
