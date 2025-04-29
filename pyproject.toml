@@ -46,9 +46,6 @@ dependencies = [
     "itsdangerous>=2.0.0",
     # for dataframe support
     "narwhals>=1.12.0",
-    # for cell formatting; if user version is not compatible, no-op
-    # so no lower bound needed
-    "ruff",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
 ]

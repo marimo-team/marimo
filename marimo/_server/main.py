@@ -105,6 +105,7 @@ def create_starlette_app(
             Exception: handle_error,
             HTTPException: handle_error,
             MarimoHTTPException: handle_error,
+            ModuleNotFoundError: handle_error,
         },
     )
 

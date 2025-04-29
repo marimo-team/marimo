@@ -50,6 +50,7 @@ async def handle_error(request: Request, response: Any) -> Any:
             status_code=response.status_code,
         )
     if isinstance(response, ModuleNotFoundError) and response.name:
+        LOGGER.warning(response.msg)  # print to terminal
         try:
             app_state = AppState(request)
             session_id = app_state.get_current_session_id()
