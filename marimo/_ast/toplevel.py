@@ -356,9 +356,13 @@ class TopLevelExtraction:
             return self._variables
         variables = {}
         for status in self.cells.values():
-            variables.update(status._cell.init_variable_data)
+            if status._cell:
+                variables.update(status._cell.init_variable_data)
         for var, status in self.toplevel.items():
-            variables[var] = status._cell.toplevel_variable
+            if status._cell:
+                toplevel_variable = status._cell.toplevel_variable
+                if toplevel_variable:
+                    variables[var] = toplevel_variable
         self._variables = variables
         return variables
 

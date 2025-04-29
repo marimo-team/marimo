@@ -178,7 +178,7 @@ def to_annotated_string(
     names: tuple[Name, ...],
     allowed_refs: set[Name],
 ) -> dict[str, str]:
-    response = {}
+    response: dict[str, str] = {}
     if not variable_data:
         return response
     for name in names:
