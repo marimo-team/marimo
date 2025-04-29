@@ -237,12 +237,7 @@ def to_functiondef(
 
     decorator = to_decorator(cell.config, fn=fn)
     prefix = "" if not cell.is_coroutine() else "async "
-    if not defs:
-        signature = format_tuple_elements(
-            f"{prefix}def {name}(...) -> None:", refs
-        )
-    else:
-        signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
+    signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
 
     definition_body = [decorator, signature]
     if body := indent_text(cell.code):
