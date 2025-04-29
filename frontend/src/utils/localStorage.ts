@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { filenameAtom } from "@/core/saving/filename";
+import { filenameAtom } from "@/core/saving/filenameAtom";
 import { store } from "@/core/state/jotai";
 import type { ZodType, ZodTypeDef } from "zod";
 
@@ -93,6 +93,11 @@ export class NotebookScopedLocalStorage<T> extends ZodLocalStorage<T> {
       this.key = this.createScopedKey(newFilename);
       this.set(currentValue);
     }
+  }
+
+  // Used for testing
+  public getKey() {
+    return this.key;
   }
 
   // Is this needed? If yes, can we make this always be called if so?

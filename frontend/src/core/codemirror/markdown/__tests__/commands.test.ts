@@ -21,7 +21,7 @@ import {
   insertUL,
 } from "../commands";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { filenameAtom } from "@/core/saving/filename";
+import { filenameAtom } from "@/core/saving/filenameAtom";
 import { store } from "@/core/state/jotai";
 
 function createEditor(content: string) {
