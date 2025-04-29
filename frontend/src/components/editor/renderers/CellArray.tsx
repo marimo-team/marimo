@@ -197,6 +197,7 @@ const CellColumn: React.FC<{
   return (
     <Column
       columnId={column.id}
+      index={index}
       canMoveLeft={index > 0}
       canMoveRight={index < columnsLength - 1}
       width={appConfig.width}

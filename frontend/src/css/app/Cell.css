@@ -220,8 +220,8 @@
     justify-content: flex-end;
     height: 100%;
     position: absolute;
-    right: -90px;
-    width: 80px;
+    left: calc(100% + 12px);
+    width: fit-content;
     gap: 4px;
   }
 
