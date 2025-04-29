@@ -195,6 +195,7 @@ dependencies = [
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
     "pandas-stubs>=1.5.3.230321",
+    "pyiceberg>=0.9.0",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
@@ -258,6 +259,7 @@ extra-dependencies = [
     "polars~=1.24.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
     "clickhouse-connect>=0.8.16",
@@ -522,5 +524,22 @@ output_max_bytes = 10_000_000
 std_stream_max_bytes = 2_000_000
 dotenv = [".env"]
 
+[tool.marimo.package_management]
+manager = "uv"
+
 [tool.marimo.keymap]
 vimrc = "configs/.vimrc"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.dependencies]
+nodejs = "20.*"
+pnpm = "9.*"
+hatch = ">=1.14.0,<2"
+make = ">=4.4.1,<5"
+pre_commit = ">=4.2.0,<5"
+uv = ">=0.6.12,<0.7"
+python = "3.12.*"
+pip = ">=25.0.1,<26"

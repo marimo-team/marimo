@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import narwhals.stable.v1 as nw
+
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -124,10 +126,12 @@ class PySparkFormatter(FormatterFactory):
             def _show_connect_df(
                 df: pyspark_connect_DataFrame,
             ) -> tuple[KnownMimeType, str]:
-                # pyspark.sql.connect.dataframe.DataFrame is not yet supported by narwhals
-                # so we convert it to Arrow.
+                # narwhals (1.37.0) supports pyspark.sql.connect.dataframe.DataFrame
+                if hasattr(nw.dependencies, "is_pyspark_connect_dataframe"):
+                    return table.lazy(df)._mime_()
+
+                # Otherwise, we convert to Arrow and load the first page of data
                 # NOTE: this is no longer lazy, but will only load the first page of data
-                # See https://github.com/narwhals-dev/narwhals/issues/2189
                 return table(
                     df.limit(get_default_table_page_size()).toArrow(),
                     selection=None,

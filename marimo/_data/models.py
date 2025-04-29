@@ -44,7 +44,8 @@ class DataTableColumn:
 # Local -> Python dataframes
 # DuckDB -> DuckDB tables using the global in-memory DuckDB instance
 # Connection -> SQL tables using a named data source connection (e.g. SQLAlchemy, or a custom DuckDB connection)
-DataTableSource = Literal["local", "duckdb", "connection"]
+# Catalog -> Data catalog (e.g. iceberg)
+DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 

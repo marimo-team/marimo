@@ -112,7 +112,7 @@ CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
 
 @dataclass(frozen=True)
 class SearchTableResponse:
-    data: Union[JSONType, str]
+    data: str
     total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
 
@@ -530,7 +530,7 @@ class table(
             )
             self._has_any_selection = True
 
-        # We will need this when calling table manager's to_data()
+        # We will need this when calling table manager's to_json_str()
         self._format_mapping = format_mapping
 
         if pagination is False and total_rows != "too_many":
@@ -812,13 +812,37 @@ class table(
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         ):
-            chart_data = self._searched_manager.to_data({})
+            chart_data, _ = self._to_chart_data_url(self._searched_manager)
 
         return ColumnSummaries(
             data=chart_data,
             summaries=summaries,
             is_disabled=False,
         )
+
+    @classmethod
+    def _to_chart_data_url(
+        cls, table_manager: TableManager[Any]
+    ) -> tuple[str, Literal["csv", "json", "arrow"]]:
+        """
+        Get the data for the column summaries.
+
+        Arrow is preferred (less memory and faster)
+        fallback to CSV (more compact than JSON)
+
+        We return a URL instead of the data directly
+        so the browser can cache requests
+        """
+        try:
+            data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
+            return data_url, "arrow"
+        except NotImplementedError:
+            try:
+                data_url = mo_data.csv(table_manager.to_csv({})).url
+                return data_url, "csv"
+            except ValueError:
+                data_url = mo_data.json(table_manager.to_json({})).url
+                return data_url, "json"
 
     def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
         """Get the data URL for the entire table. Used for charting."""
@@ -831,8 +855,10 @@ class table(
                 format=result["format"]["type"],
             )
 
+        url, data_format = self._to_chart_data_url(self._searched_manager)
         return GetDataUrlResponse(
-            data_url=self._searched_manager.to_data({}), format="json"
+            data_url=url,
+            format=data_format,
         )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
@@ -935,7 +961,7 @@ class table(
         """
         offset = args.page_number * args.page_size
 
-        def clamp_rows_and_columns(manager: TableManager[Any]) -> JSONType:
+        def clamp_rows_and_columns(manager: TableManager[Any]) -> str:
             # Limit to page and column clamping for the frontend
             data = manager.take(args.page_size, offset)
             column_names = data.get_column_names()
@@ -944,7 +970,7 @@ class table(
                 and len(column_names) > self._max_columns
             ):
                 data = data.select_columns(column_names[: self._max_columns])
-            return data.to_data(self._format_mapping)
+            return data.to_json_str(self._format_mapping)
 
         # If no query or sort, return nothing
         # The frontend will just show the original data

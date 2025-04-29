@@ -35,6 +35,68 @@ DATABASE_URL = "data.duckdb"
 engine = duckdb.connect(DATABASE_URL, read_only=True)"
 `;
 
+exports[`generateDatabaseCode > basic connections > iceberg dynamodb 1`] = `
+"from pyiceberg.catalog.dynamodb import DynamoDBCatalog
+
+catalog = DynamoDBCatalog(
+  "my_catalog",
+  **{
+    "dynamodb.profile-name": "my_profile",
+    "dynamodb.region": "us-east-1",
+    "dynamodb.access-key-id": "my_access_key_id",
+    "dynamodb.secret-access-key": "my_secret_access_key",
+    "dynamodb.session-token": "my_session_token"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg glue 1`] = `
+"from pyiceberg.catalog.glue import GlueCatalog
+
+catalog = GlueCatalog(
+  "my_catalog",
+  **{
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg hive 1`] = `
+"from pyiceberg.catalog.hive import HiveCatalog
+
+catalog = HiveCatalog(
+  "my_catalog",
+  **{
+    "uri": "thrift://localhost:9083",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg rest 1`] = `
+"from pyiceberg.catalog.rest import RestCatalog
+
+catalog = RestCatalog(
+  "my_catalog",
+  **{
+    "uri": "http://localhost:8181",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg sql 1`] = `
+"from pyiceberg.catalog.sql import SqlCatalog
+
+catalog = SqlCatalog(
+  "my_catalog",
+  **{
+    "uri": "postgresql://localhost:5432/iceberg",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
 exports[`generateDatabaseCode > basic connections > mysql with SQLAlchemy 1`] = `
 "import os
 import sqlalchemy

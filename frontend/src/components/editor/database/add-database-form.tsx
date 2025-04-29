@@ -17,6 +17,7 @@ import {
   TimeplusConnectionSchema,
   ChdbConnectionSchema,
   TrinoConnectionSchema,
+  IcebergConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -51,8 +52,19 @@ interface Props {
   onSubmit: () => void;
 }
 
+interface ConnectionSchema {
+  name: string;
+  schema: z.ZodType;
+  color: string;
+  logo: DBLogoName;
+  connectionLibraries: {
+    libraries: ConnectionLibrary[];
+    preferred: ConnectionLibrary;
+  };
+}
+
 // default to sqlalchemy because it has fewer dependencies
-const SCHEMAS = [
+const DATABASES = [
   {
     name: "PostgreSQL",
     schema: PostgresConnectionSchema,
@@ -153,38 +165,55 @@ const SCHEMAS = [
       preferred: "sqlalchemy",
     },
   },
-] satisfies Array<{
-  name: string;
-  schema: z.ZodType;
-  color: string;
-  logo: DBLogoName;
-  connectionLibraries: {
-    libraries: ConnectionLibrary[];
-    preferred: ConnectionLibrary;
-  };
-}>;
+] satisfies ConnectionSchema[];
+
+const DATA_CATALOGS = [
+  {
+    name: "Iceberg",
+    schema: IcebergConnectionSchema,
+    color: "#000000",
+    logo: "iceberg",
+    connectionLibraries: {
+      libraries: ["pyiceberg"],
+      preferred: "pyiceberg",
+    },
+  },
+] satisfies ConnectionSchema[];
 
 const DatabaseSchemaSelector: React.FC<{
   onSelect: (schema: z.ZodType) => void;
 }> = ({ onSelect }) => {
+  const renderItem = ({ name, schema, color, logo }: ConnectionSchema) => {
+    return (
+      <button
+        type="button"
+        key={name}
+        className="py-3 flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 hover:brightness-110 rounded shadow-smSolid hover:shadow-mdSolid"
+        style={{ backgroundColor: color }}
+        onClick={() => onSelect(schema)}
+      >
+        <DatabaseLogo
+          name={logo}
+          className="w-8 h-8 text-white brightness-0 invert dark:invert"
+        />
+        <span className="text-white font-medium text-lg">{name}</span>
+      </button>
+    );
+  };
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-      {SCHEMAS.map(({ name, schema, color, logo }) => (
-        <button
-          type="button"
-          key={name}
-          className="h-28 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 hover:brightness-110 rounded shadow-smSolid hover:shadow-mdSolid"
-          style={{ backgroundColor: color }}
-          onClick={() => onSelect(schema)}
-        >
-          <DatabaseLogo
-            name={logo}
-            className="w-10 h-10 text-white brightness-0 invert dark:invert"
-          />
-          <span className="text-white font-medium text-lg">{name}</span>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {DATABASES.map(renderItem)}
+      </div>
+      <h4 className="font-semibold text-muted-foreground text-lg flex items-center gap-4">
+        Data Catalogs
+        <hr className="flex-1" />
+      </h4>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {DATA_CATALOGS.map(renderItem)}
+      </div>
+    </>
   );
 };
 
@@ -201,7 +230,7 @@ const DatabaseForm: React.FC<{
     reValidateMode: "onChange",
   });
 
-  const connectionLibraries = SCHEMAS.find(
+  const connectionLibraries = DATABASES.find(
     (s) => s.schema === schema,
   )?.connectionLibraries;
   const [preferredConnection, setPreferredConnection] =
@@ -305,12 +334,12 @@ export const AddDatabaseDialogContent: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[75vh] overflow-y-auto">
       <DialogHeader className="mb-4">
-        <DialogTitle>Add Database Connection</DialogTitle>
+        <DialogTitle>Add Connection</DialogTitle>
         <DialogDescription>
-          Connect to your database to query data directly from your notebook.
-          Learn more about how to connect to your database in our{" "}
+          Connect to your database or data catalog to query data directly from
+          your notebook. Learn more about how to connect to your database in our{" "}
           <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database">
             docs.
           </ExternalLink>

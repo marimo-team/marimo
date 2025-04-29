@@ -256,7 +256,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         )
 
         # Save the manager to be used for selection
-        data = result.take(args.page_size, offset).to_data()
+        data = result.take(args.page_size, offset).to_json_str()
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,
