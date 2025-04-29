@@ -127,7 +127,7 @@ marimo export ipynb notebook.py -o notebook.ipynb
 The marimo [Quarto](https://www.github.com/marimo-team/quarto-marimo) plugin
 enables exporting to PDF and other formats with Pandoc. See this [publishing](./publishing/quarto.md) for more details.
 
-Howeverm If you export to a Jupyter notebook, you can leverage various other Jupyter ecosystem tools. For PDFs, you will
+However If you export to a Jupyter notebook, you can leverage various other Jupyter ecosystem tools. For PDFs, you will
 need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
