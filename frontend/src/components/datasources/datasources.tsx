@@ -135,7 +135,7 @@ export const DataSources: React.FC = () => {
         action={
           <AddDatabaseDialog>
             <Button variant="outline" size="sm">
-              Add database
+              Add database or catalog
               <PlusIcon className="h-4 w-4 ml-2" />
             </Button>
           </AddDatabaseDialog>
