@@ -85,6 +85,29 @@ class PyProjectReader:
             return []
 
 
+def get_headers_from_markdown(contents: str) -> dict[str, str]:
+    from marimo._cli.convert.markdown import extract_frontmatter
+
+    frontmatter, _ = extract_frontmatter(contents)
+    return get_headers_from_frontmatter(frontmatter)
+
+
+def get_headers_from_frontmatter(
+    frontmatter: dict[str, Any],
+) -> dict[str, str]:
+    headers = {"pyproject": "", "header": ""}
+
+    pyproject = frontmatter.get("pyproject", "")
+    if pyproject:
+        if not pyproject.startswith("#"):
+            pyproject = "\n# ".join(
+                [r"# /// script", *pyproject.splitlines(), r"///"]
+            )
+        headers["pyproject"] = pyproject
+    headers["header"] = frontmatter.get("header", "")
+    return headers
+
+
 def _pyproject_toml_to_requirements_txt(
     pyproject: dict[str, Any],
 ) -> list[str]:
@@ -158,7 +181,26 @@ def _pyproject_toml_to_requirements_txt(
 def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
     try:
         contents, _ = FileContentReader().read_file(name)
-        return read_pyproject_from_script(contents)
+        if name.endswith(".py"):
+            return read_pyproject_from_script(contents)
+
+        if not (name.endswith(".md") or name.endswith(".qmd")):
+            raise ValueError(
+                f"Unsupported file type: {name}. Only .py and .md files are supported."
+            )
+
+        headers = get_headers_from_markdown(contents)
+        header = headers["pyproject"]
+        if not header:
+            header = headers["header"]
+        elif headers["header"]:
+            pyproject = PyProjectReader.from_script(headers["header"])
+            if pyproject.dependencies or pyproject.python_version:
+                LOGGER.warning(
+                    "Both header and pyproject provide dependencies. "
+                    "Preferring pyproject."
+                )
+        return read_pyproject_from_script(header)
     except FileNotFoundError:
         return None
     except Exception:

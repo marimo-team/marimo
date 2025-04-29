@@ -2,6 +2,19 @@
 title: Sql
 marimo-version: 0.0.0
 width: medium
+header: |-
+  # Copyright 2025 Marimo. All rights reserved.
+  # /// script
+  # requires-python = ">=3.12"
+  # dependencies = [
+  #     "duckdb==1.2.2",
+  #     "marimo",
+  #     "pandas==2.2.3",
+  #     "polars==1.27.1",
+  #     "pyarrow==19.0.1",
+  #     "sqlglot==26.13.0",
+  # ]
+  # ///
 ---
 
 # Hello, SQL!

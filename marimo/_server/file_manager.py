@@ -129,19 +129,38 @@ class AppFileManager:
         app_config: _AppConfig,
         # Whether or not to persist the app to the file system
         persist: bool,
+        # Whether save was triggered by a rename
+        previous_filename: Optional[str] = None,
     ) -> str:
         LOGGER.debug("Saving app to %s", filename)
-        if filename.endswith(".md"):
-            # TODO: Remember just proof of concept, potentially needs
-            # restructuring.
+
+        type_changed = (
+            previous_filename and filename[-2:] != previous_filename[-2:]
+        )
+        if filename.endswith(".md") or filename.endswith(".qmd"):
+            # TODO: Potentially restructure, such that code compilation doesn't
+            # have to occur multiple times.
             from marimo._server.export.exporter import Exporter
 
-            contents, _ = Exporter().export_as_md(self)
+            previous = None
+            if previous_filename:
+                previous = Path(previous_filename)
+            contents, _ = Exporter().export_as_md(self, previous)
         else:
             # Header might be better kept on the AppConfig side, opposed to
             # reparsing it. Also would allow for md equivalent in a field like
             # `description`.
-            header_comments = codegen.get_header_comments(filename)
+            if type_changed:
+                from marimo._cli.sandbox import get_headers_from_markdown
+
+                with open(filename, encoding="utf-8") as f:
+                    markdown = f.read()
+                headers = get_headers_from_markdown(markdown)
+                header_comments = headers.get("header", None) or headers.get(
+                    "pyproject", None
+                )
+            else:
+                header_comments = codegen.get_header_comments(filename)
             # try to save the app under the name `filename`
             contents = codegen.generate_filecontents(
                 codes,
@@ -190,19 +209,20 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_filename)
 
-        need_save = False
+        needs_save = False
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
         if self.is_notebook_named and self.filename is not None:
             # Force a save after rename in case filetype changed.
-            need_save = self.filename[-3:] != new_filename[-3:]
+            needs_save = self.filename[-3:] != new_filename[-3:]
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
 
+        previous_filename = self.filename
         self.filename = new_filename
-        if need_save:
+        if needs_save:
             self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
@@ -210,6 +230,7 @@ class AppFileManager:
                 list(self.app.cell_manager.configs()),
                 self.app.config,
                 persist=True,
+                previous_filename=previous_filename,
             )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:

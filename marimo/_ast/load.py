@@ -93,7 +93,7 @@ def load_app(filename: Optional[str]) -> Optional[App]:
     if filename is None:
         return None
 
-    if filename.endswith(".md"):
+    if filename.endswith(".md") or filename.endswith(".qmd"):
         contents = _maybe_contents(filename)
         if not contents:
             return None
