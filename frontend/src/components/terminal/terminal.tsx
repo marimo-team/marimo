@@ -15,7 +15,15 @@ const TerminalComponent: React.FC<{
   // eslint-disable-next-line react/hook-use-state
   const [{ terminal, fitAddon }] = useState(() => {
     // Create a new terminal instance
-    const term = new Terminal({});
+    const term = new Terminal({
+      fontFamily: 'Menlo, DejaVu Sans Mono, Consolas, Lucida Console, monospace',
+      fontSize: 14,
+      theme: {
+        background: 'var(--slate-1)',
+        foreground: 'var(--slate-12)',
+        cursor: 'var(--slate-12)'
+      }
+    });
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     return { terminal: term, fitAddon };
