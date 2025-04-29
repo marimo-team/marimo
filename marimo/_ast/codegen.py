@@ -235,9 +235,28 @@ def to_functiondef(
                 name for name in sorted(cell.defs) if name in used_refs
             )
 
+    def_annotation = to_annotated_string(
+        cell.init_variable_data, defs, allowed_refs
+    )
+
     decorator = to_decorator(cell.config, fn=fn)
     prefix = "" if not cell.is_coroutine() else "async "
-    signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
+    if not defs:
+        signature = format_tuple_elements(f"{prefix}def {name}(...) -> None:", refs)
+    elif len(def_annotation) == len(defs):
+        signature = format_tuple_elements(f"{prefix}def {name}(...) -> tuple[", refs)
+        signature_body, sep, last_line = signature.rpartition("\n")
+        signature = "".join([
+            signature_body,
+            sep,
+            format_tuple_elements(
+                f"{last_line[:-1]}(...):",
+                tuple([def_annotation[df] for df in defs]),
+                brace="[",
+            )
+        ])
+    else:
+        signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
 
     definition_body = [decorator, signature]
     if body := indent_text(cell.code):
