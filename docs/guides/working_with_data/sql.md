@@ -259,6 +259,31 @@ marimo will automatically discover the database connection and display the datab
     auto_discover_columns = "auto"  # Default: false
     ```
 
+## Catalogs
+
+marimo supports connecting to Iceberg catalogs. You can click the "plus" button in the Datasources panel or manually create a [PyIceberg](https://py.iceberg.apache.org/) `Catalog` connection. PyIceberg supports a variety of catalog implementations including REST, SQL, Glue, DynamoDB, and more.
+
+```python
+from pyiceberg.catalog.rest import RestCatalog
+
+catalog = RestCatalog(
+    name="catalog",
+    warehouse="1234567890",
+    uri="https://my-catalog.com",
+    token="my-token",
+)
+```
+
+Catalogs will appear in the Datasources panel, but they cannot be used as an engine in SQL cells. However, you can still load the table into one cell and use it in subsequent Python or SQL cells.
+
+```python
+df = catalog.load_table(("my-namespace", "my-table")).to_polars()
+```
+
+```sql
+SUMMARIZE df;
+```
+
 ## Interactive tutorial
 
 For an interactive tutorial, run

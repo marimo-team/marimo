@@ -48,6 +48,8 @@ export function dbDisplayName(name: string) {
       return "Apache Cassandra";
     case "mongodb":
       return "MongoDB";
+    case "iceberg":
+      return "Apache Iceberg";
     default:
       return name;
   }

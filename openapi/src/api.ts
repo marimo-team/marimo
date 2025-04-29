@@ -2534,7 +2534,7 @@ export interface components {
       primary_keys?: string[] | null;
       source: string;
       /** @enum {string} */
-      source_type: "local" | "duckdb" | "connection";
+      source_type: "local" | "duckdb" | "connection" | "catalog";
       /** @enum {string} */
       type: "table" | "view";
       variable_name?: string | null;
@@ -2563,7 +2563,7 @@ export interface components {
     };
     Datasets: {
       /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | "connection" | null;
+      clear_channel?: "local" | "duckdb" | "connection" | "catalog" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -3119,7 +3119,7 @@ export interface components {
       fullyQualifiedTableName?: string | null;
       source: string;
       /** @enum {string} */
-      sourceType: "local" | "duckdb" | "connection";
+      sourceType: "local" | "duckdb" | "connection" | "catalog";
       tableName: string;
     };
     PreviewSQLTableListRequest: {

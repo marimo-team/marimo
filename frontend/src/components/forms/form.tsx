@@ -327,6 +327,64 @@ export function renderZodSchema<T extends FieldValues, S>(
       </div>
     );
   }
+
+  if (schema instanceof z.ZodDiscriminatedUnion) {
+    const options = schema._def.options as Array<z.ZodType<unknown>>;
+    const discriminator = schema._def.discriminator;
+    const optionsMap = schema._def.optionsMap;
+    return (
+      <FormField
+        control={form.control}
+        name={path}
+        render={({ field }) => {
+          const value = field.value;
+          const types = options.map((option) => {
+            return getUnionLiteral(option)._def.value;
+          });
+
+          const unionTypeValue: string =
+            value && typeof value === "object" && discriminator in value
+              ? value[discriminator]
+              : types[0];
+
+          const selectedOption = optionsMap.get(unionTypeValue) || options[0];
+
+          return (
+            <div className="flex flex-col">
+              <FormLabel>{label}</FormLabel>
+              <div className="flex border-b mb-4 -mt-2">
+                {types.map((type: string) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`px-4 py-2 ${
+                      unionTypeValue === type
+                        ? "border-b-2 border-primary font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                    onClick={() => {
+                      const nextSchema = optionsMap.get(type);
+                      if (nextSchema) {
+                        field.onChange(getDefaults(nextSchema));
+                      } else {
+                        field.onChange({ [discriminator]: type });
+                      }
+                    }}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col" key={unionTypeValue}>
+                {selectedOption &&
+                  renderZodSchema(selectedOption, form, path, renderers)}
+              </div>
+            </div>
+          );
+        }}
+      />
+    );
+  }
   if (schema instanceof z.ZodUnion) {
     return (
       <FormField
@@ -349,7 +407,7 @@ export function renderZodSchema<T extends FieldValues, S>(
           });
 
           return (
-            <div className="flex flex-col">
+            <div className="flex flex-col mb-4 gap-1">
               <FormLabel>{label}</FormLabel>
               <NativeSelect
                 data-testid="marimo-plugin-data-frames-union-select"
@@ -371,6 +429,7 @@ export function renderZodSchema<T extends FieldValues, S>(
       />
     );
   }
+
   if (schema instanceof z.ZodLiteral) {
     return (
       <FormField

@@ -10,6 +10,7 @@ import ClickhouseIcon from "./icons/clickhouse.svg";
 import TimeplusIcon from "./icons/timeplus.svg";
 import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
 import TrinoIcon from "./icons/trino.svg";
+import IcebergIcon from "./icons/iceberg.png";
 import { cn } from "@/utils/cn";
 
 export type DBLogoName =
@@ -23,7 +24,8 @@ export type DBLogoName =
   | "clickhouse"
   | "timeplus"
   | "bigquery"
-  | "trino";
+  | "trino"
+  | "iceberg";
 
 /**
  * Icons are from https://simpleicons.org/
@@ -46,6 +48,7 @@ const URLS: Record<DBLogoName, string | undefined> = {
   timeplus: TimeplusIcon,
   bigquery: GoogleBigQueryIcon,
   trino: TrinoIcon,
+  iceberg: IcebergIcon,
 };
 
 export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
@@ -61,7 +64,13 @@ export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
     <img
       src={url}
       alt={name}
-      className={cn("invert-[.5] dark:invert-[.7]", className)}
+      className={cn(
+        "invert-[.5] dark:invert-[.7]",
+        className,
+        // Remove filters for PNG icons
+        url.endsWith(".png") &&
+          "brightness-100 dark:brightness-100 invert-0 dark:invert-0",
+      )}
     />
   );
 };
