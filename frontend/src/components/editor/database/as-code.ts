@@ -10,7 +10,8 @@ export type ConnectionLibrary =
   | "sqlalchemy"
   | "duckdb"
   | "clickhouse_connect"
-  | "chdb";
+  | "chdb"
+  | "pyiceberg";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -18,6 +19,7 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   duckdb: "DuckDB",
   clickhouse_connect: "ClickHouse Connect",
   chdb: "chDB",
+  pyiceberg: "PyIceberg",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -425,6 +427,98 @@ class TrinoGenerator extends CodeGenerator<"trino"> {
   }
 }
 
+class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
+  generateImports(): string[] {
+    switch (this.connection.catalog.type) {
+      case "rest":
+        return ["from pyiceberg.catalog.rest import RestCatalog"];
+      case "sql":
+        return ["from pyiceberg.catalog.sql import SqlCatalog"];
+      case "hive":
+        return ["from pyiceberg.catalog.hive import HiveCatalog"];
+      case "glue":
+        return ["from pyiceberg.catalog.glue import GlueCatalog"];
+      case "dynamodb":
+        return ["from pyiceberg.catalog.dynamodb import DynamoDBCatalog"];
+      default:
+        assertNever(this.connection.catalog);
+    }
+  }
+
+  generateConnectionCode(): string {
+    let options: Record<string, string | number | boolean> = {
+      ...this.connection.catalog,
+    };
+    // Remove k='type' and v=nullish values
+    options = Object.fromEntries(
+      Object.entries(options).filter(
+        ([k, v]) => v != null && v !== "" && k !== "type",
+      ),
+    );
+    // Convert to secrets if they are secrets
+    for (const [k, v] of Object.entries(options)) {
+      if (isSecret(v)) {
+        options[k] = this.secrets.print(k, v);
+      } else if (typeof v === "string") {
+        options[k] = `"${v}"`;
+      }
+    }
+
+    const indent = "              ";
+    const optionsAsPython = formatDictionaryEntries(
+      options,
+      (line) => `${indent}${line}`,
+    );
+
+    const name = `"${this.connection.name}"`;
+
+    switch (this.connection.catalog.type) {
+      case "rest":
+        return dedent(`
+          catalog = RestCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "sql":
+        return dedent(`
+          catalog = SqlCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "hive":
+        return dedent(`
+          catalog = HiveCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "glue":
+        return dedent(`
+          catalog = GlueCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "dynamodb":
+        return dedent(`
+          catalog = DynamoDBCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      default:
+        assertNever(this.connection.catalog);
+    }
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -453,6 +547,8 @@ class CodeGeneratorFactory {
         return new ChDBGenerator(connection, orm, this.secrets);
       case "trino":
         return new TrinoGenerator(connection, orm, this.secrets);
+      case "iceberg":
+        return new PyIcebergGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }
@@ -509,6 +605,25 @@ function formatUrlParams(
         return formatLine(`${k}=${v}`);
       }
       return formatLine(`${k}=${v}`);
+    })
+    .join(",\n");
+}
+
+function formatDictionaryEntries(
+  params: Record<string, string | number | boolean | undefined>,
+  formatLine: (line: string) => string,
+): string {
+  return Object.entries(params)
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v]) => {
+      const key = `"${k}"`;
+      if (typeof v === "boolean") {
+        return formatLine(`${key}: ${formatBoolean(v)}`);
+      }
+      if (typeof v === "number") {
+        return formatLine(`${key}: ${v}`);
+      }
+      return formatLine(`${key}: ${v}`);
     })
     .join(",\n");
 }

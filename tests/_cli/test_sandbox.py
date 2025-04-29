@@ -564,3 +564,109 @@ def test_construct_uv_cmd_with_additional_deps() -> None:
         requirements = f.read()
         assert "numpy>=1.20.0" in requirements
         assert "pandas" in requirements
+
+
+def test_markdown_sandbox(tmp_path: Path) -> None:
+    # Test Python version requirement is passed through
+    script_path = tmp_path / "test.md"
+    script_path.write_text(
+        """---
+title: Test
+pyproject: |
+    requires-python = ">=3.11"
+    dependencies = ["numpy"]
+---
+
+Hello world!"""
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path), "--sandbox"],
+        str(script_path),
+        additional_features=[],
+        additional_deps=[],
+    )
+    assert "--python" in uv_cmd
+    assert ">=3.11" in uv_cmd
+    assert "--isolated" in uv_cmd
+    assert "--no-project" in uv_cmd
+    assert "--compile-bytecode" in uv_cmd
+    assert "--sandbox" not in uv_cmd
+
+    req_file_index = uv_cmd.index("--with-requirements") + 1
+    req_file_path = uv_cmd[req_file_index]
+    with open(req_file_path) as f:
+        requirements = f.read()
+        assert "numpy" in requirements
+
+
+def test_markdown_header(tmp_path: Path) -> None:
+    # Test Python version requirement is passed through
+    script_path = tmp_path / "test.md"
+    script_path.write_text(
+        """---
+title: Test
+pyproject: |
+header: |
+    #! /usr/bin/env python
+    # /// script
+    # requires-python = ">=3.11"
+    # dependencies = ["numpy"]
+    # ///
+    "Other metadata"
+---
+import marimo
+    """
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path), "--sandbox"],
+        str(script_path),
+        additional_features=[],
+        additional_deps=[],
+    )
+    assert "--python" in uv_cmd
+    assert ">=3.11" in uv_cmd
+    assert "--isolated" in uv_cmd
+    assert "--no-project" in uv_cmd
+    assert "--compile-bytecode" in uv_cmd
+    assert "--sandbox" not in uv_cmd
+
+    req_file_index = uv_cmd.index("--with-requirements") + 1
+    req_file_path = uv_cmd[req_file_index]
+    with open(req_file_path) as f:
+        requirements = f.read()
+        assert "numpy" in requirements
+
+
+def test_markdown_sandbox_and_header(tmp_path: Path) -> None:
+    # Test Python version requirement is passed through
+    script_path = tmp_path / "test.md"
+    script_path.write_text(
+        """---
+title: Test
+pyproject: |
+    requires-python = ">=3.11"
+    dependencies = ["numpy"]
+header: |
+    #! /usr/bin/env python
+---
+import marimo
+    """
+    )
+    uv_cmd = construct_uv_command(
+        ["edit", str(script_path), "--sandbox"],
+        str(script_path),
+        additional_features=[],
+        additional_deps=[],
+    )
+    assert "--python" in uv_cmd
+    assert ">=3.11" in uv_cmd
+    assert "--isolated" in uv_cmd
+    assert "--no-project" in uv_cmd
+    assert "--compile-bytecode" in uv_cmd
+    assert "--sandbox" not in uv_cmd
+
+    req_file_index = uv_cmd.index("--with-requirements") + 1
+    req_file_path = uv_cmd[req_file_index]
+    with open(req_file_path) as f:
+        requirements = f.read()
+        assert "numpy" in requirements

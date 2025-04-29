@@ -38,7 +38,9 @@ class _AppConfig:
     sql_output: SqlOutputType = "auto"
 
     @staticmethod
-    def from_untrusted_dict(updates: dict[str, Any]) -> "_AppConfig":
+    def from_untrusted_dict(
+        updates: dict[str, Any], silent: bool = False
+    ) -> "_AppConfig":
         # Certain flags are useful to pass to App for construction, but
         # shouldn't make it into the config. (e.g. the _filename flag is
         # internal)
@@ -48,9 +50,10 @@ class _AppConfig:
             if hasattr(config, key):
                 config.__setattr__(key, updates[key])
             elif key not in other_allowed:
-                LOGGER.warning(
-                    f"Unrecognized key '{key}' in app config. Ignoring."
-                )
+                if not silent:
+                    LOGGER.warning(
+                        f"Unrecognized key '{key}' in app config. Ignoring."
+                    )
         return config
 
     def asdict(self) -> dict[str, Any]:

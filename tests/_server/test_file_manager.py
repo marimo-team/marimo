@@ -148,6 +148,27 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
         assert "app = marimo.App()" not in contents
 
 
+def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
+    initial_filename = app_file_manager.filename
+    assert initial_filename
+    assert initial_filename.endswith(".py")
+    with open(initial_filename) as f:
+        contents = f.read()
+        assert "app = marimo.App()" in contents
+        assert "marimo-team/marimo" not in contents
+        assert "marimo-version" not in contents
+    app_file_manager.rename(initial_filename[:-3] + ".qmd")
+    next_filename = app_file_manager.filename
+    assert next_filename
+    assert next_filename.endswith(".qmd")
+    with open(next_filename) as f:
+        contents = f.read()
+        assert "marimo-version" in contents
+        assert "filters:" in contents
+        assert "marimo-team/marimo" in contents
+        assert "app = marimo.App()" not in contents
+
+
 def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "app_config.py"
     try:

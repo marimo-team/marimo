@@ -47,7 +47,7 @@ def test_raise_df_import_error() -> None:
 
 @pytest.mark.skipif(
     not (HAS_DUCKDB and HAS_SQLALCHEMY and HAS_CLICKHOUSE),
-    reason="Duckdb, sqlalchemy and Clickhouse not installed",
+    reason="Duckdb, sqlalchemy, and Clickhouse not installed",
 )
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
