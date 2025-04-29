@@ -8,6 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import ENGINE_REGISTRY
 from marimo._sql.utils import raise_df_import_error
@@ -32,7 +33,11 @@ def sql(
     *,
     output: bool = True,
     engine: Optional[
-        SAEngine | DuckDBPyConnection | ClickhouseClient | ChdbConnection
+        SAEngine
+        | DuckDBPyConnection
+        | ClickhouseClient
+        | ChdbConnection
+        | IbisEngine
     ] = None,
 ) -> Any:
     """
@@ -73,7 +78,7 @@ def sql(
                 break
         else:
             raise ValueError(
-                "Unsupported engine. Must be a SQLAlchemy, Clickhouse, or DuckDB engine."
+                "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, or DuckDB engine."
             )
 
     df = sql_engine.execute(query)

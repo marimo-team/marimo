@@ -19,6 +19,7 @@ from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
 )
+from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import SQLEngine
@@ -34,6 +35,7 @@ def get_engines_from_variables(
 
     supported_engines: list[type[SQLEngine]] = [
         SQLAlchemyEngine,
+        IbisEngine,
         DuckDBEngine,
         ClickhouseEmbedded,
         ClickhouseServer,
