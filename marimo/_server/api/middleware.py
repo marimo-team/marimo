@@ -360,11 +360,10 @@ class ProxyMiddleware:
             if self.path_rewrite:
                 ws_path = self.path_rewrite(ws_path)
             ws_url = urljoin(ws_target_url, ws_path)
-            scheme = urlparse(ws_url).scheme
-            if scheme in ("http", "ws"):
+            if ws_url.startswith("http"):
+                # http -> ws
+                # https -> wss
                 ws_url = ws_url.replace("http", "ws", 1)
-            elif scheme in ("https", "wss"):
-                ws_url = ws_url.replace("https", "wss", 1)
 
             LOGGER.debug(f"Creating websocket proxy for {ws_url}")
             try:
