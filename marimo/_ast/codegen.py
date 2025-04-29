@@ -179,7 +179,7 @@ def to_annotated_string(
     allowed_refs: set[Name],
 ) -> dict[str, str]:
     """Checks relevant variables for annotation data, and if found either
-    represents the type directly or as a string (as a safetely measure)"""
+    represents the type directly or as a string (as a safety measure)"""
     response: dict[str, str] = {}
     if not variable_data:
         return response
@@ -240,34 +240,9 @@ def to_functiondef(
                 name for name in sorted(cell.defs) if name in used_refs
             )
 
-    def_annotation = to_annotated_string(
-        cell.init_variable_data, defs, allowed_refs
-    )
-
     decorator = to_decorator(cell.config, fn=fn)
     prefix = "" if not cell.is_coroutine() else "async "
-    # Require all the defs to have types to properly return.
-    if defs and len(def_annotation) == len(defs):
-        # Format return signatures in 2 phases
-        # 1. for the arguments
-        # 2. for the return types
-        signature = format_tuple_elements(
-            f"{prefix}def {name}(...) -> tuple[", refs
-        )
-        signature_body, sep, last_line = signature.rpartition("\n")
-        signature = "".join(
-            [
-                signature_body,
-                sep,
-                format_tuple_elements(
-                    f"{last_line[:-1]}(...):",
-                    tuple([def_annotation[df] for df in defs]),
-                    brace="[",
-                ),
-            ]
-        )
-    else:
-        signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
+    signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
 
     definition_body = [decorator, signature]
     if body := indent_text(cell.code):

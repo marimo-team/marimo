@@ -264,34 +264,6 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
-    def test_with_unknown_return_types(self) -> None:
-        code = "z: something = 0"
-        cell = compile_cell(code)
-        fndef = codegen.to_functiondef(cell, "foo")
-        expected = "\n".join(
-            [
-                "@app.cell",
-                'def foo(something) -> tuple["something"]:',
-                "    z: something = 0",
-                "    return (z,)",
-            ]
-        )
-        assert fndef == expected
-
-    def test_with_return_types(self) -> None:
-        code = "z: int = 0"
-        cell = compile_cell(code)
-        fndef = codegen.to_functiondef(cell, "foo")
-        expected = "\n".join(
-            [
-                "@app.cell",
-                "def foo() -> tuple[int]:",
-                "    z: int = 0",
-                "    return (z,)",
-            ]
-        )
-        assert fndef == expected
-
     def test_with_second_type_noop(self) -> None:
         referring = "x = 1; x: int = 0"
         ref_vars = compile_cell(referring).init_variable_data
@@ -338,7 +310,7 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                "def foo(x: T) -> tuple[T]:",
+                "def foo(x: T):",
                 "    z: T = x + 0",
                 "    return (z,)",
             ]
@@ -355,7 +327,25 @@ class TestGeneration:
         expected = "\n".join(
             [
                 "@app.cell",
-                "def foo(x: 'int'):",
+                'def foo(x: "int"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_nested_string_types(self) -> None:
+        referring = '''x: "TT[\\"i\\"]" = 0; A:"""
+        a new line type"""'''
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: 'TT[\"i\"]'):",
                 "    z = x + 0",
                 "    return (z,)",
             ]

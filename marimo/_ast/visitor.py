@@ -696,8 +696,17 @@ class ScopedVisitor(ast.NodeVisitor):
         # Visit must have inserted the variable, attach the annotation data to
         # it.
         if record_annotation and name in self.variable_data:
+            annotation = ast.unparse(node.annotation)
+            # It's also possible for multiline types/ strings
+            annotation = annotation.replace("\n", "").strip()
+            # ast seems to give single quote strings regardless
+            # but ruff asks for double quotes (unless double quotes are
+            # contained).
+            if annotation.startswith("'") and '"' not in annotation[1:-1]:
+                annotation = f'"{annotation[1:-1]}"'
+
             self.variable_data[name][0].annotation_data = AnnotationData(
-                ast.unparse(node.annotation), annotation_refs
+                annotation, annotation_refs
             )
 
         refs = self.ref_stack.pop()
