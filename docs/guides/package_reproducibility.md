@@ -153,7 +153,7 @@ This approach ensures that specific packages are always fetched from your design
 
 ## Markdown file support
 
-Sandboxing support is also provided in marimo's markdown file format under the
+Sandboxing support is also provided in [marimo's markdown file format](./editor_features/watching.md#markdown-file-format) under the
 `pyproject` entry of your frontmatter.
 
 ```markdown
