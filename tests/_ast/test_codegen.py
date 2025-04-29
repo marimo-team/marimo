@@ -264,6 +264,111 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
+    def test_with_second_type_noop(self) -> None:
+        referring = "x = 1; x: int = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_types(self) -> None:
+        referring = "x: int = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: int):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_toplevel_types(self) -> None:
+        referring = "x: T = 1"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z: T = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"T"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: T):",
+                "    z: T = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_string_types(self) -> None:
+        referring = 'x: "int" = 0'
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "int"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_nested_string_types(self) -> None:
+        referring = '''x: "TT[\\"i\\"]" = 0; A:"""
+        a new line type"""'''
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: 'TT[\"i\"]'):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_unknown_types(self) -> None:
+        referring = "x: something = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "something"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
         config = _AppConfig(

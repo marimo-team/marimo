@@ -330,6 +330,10 @@ class CellImpl:
 
         return list(variable_data)[0]
 
+    @property
+    def init_variable_data(self) -> dict[Name, VariableData]:
+        return {key: vs[0] for key, vs in self.variable_data.items()}
+
     def set_runtime_state(
         self, status: RuntimeStateType, stream: Stream | None = None
     ) -> None:
