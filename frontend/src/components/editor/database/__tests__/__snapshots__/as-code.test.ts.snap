@@ -28,6 +28,24 @@ engine = clickhouse_connect.get_client(
 )"
 `;
 
+exports[`generateDatabaseCode > basic connections > datafusion 1`] = `
+"from datafusion import SessionContext
+import ibis
+
+con = ibis.datafusion.connect()"
+`;
+
+exports[`generateDatabaseCode > basic connections > datafusion with session 1`] = `
+"from datafusion import SessionContext
+import ibis
+
+ctx = SessionContext()
+# Sample table
+_ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
+
+con = ibis.datafusion.connect(ctx)"
+`;
+
 exports[`generateDatabaseCode > basic connections > duckdb 1`] = `
 "import duckdb
 
@@ -131,6 +149,21 @@ import sqlmodel
 _password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/test"
 engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+`;
+
+exports[`generateDatabaseCode > basic connections > pyspark 1`] = `
+"from pyspark.sql import SparkSession
+import ibis
+
+con = ibis.pyspark.connect()"
+`;
+
+exports[`generateDatabaseCode > basic connections > pyspark with session 1`] = `
+"from pyspark.sql import SparkSession
+import ibis
+
+session = SparkSession.builder.remote(f"user://localhost:15002").getOrCreate()
+con = ibis.pyspark.connect(session)"
 `;
 
 exports[`generateDatabaseCode > basic connections > snowflake 1`] = `

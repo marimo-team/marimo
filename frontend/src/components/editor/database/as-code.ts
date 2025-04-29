@@ -523,10 +523,8 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
 
 class DataFusionGenerator extends CodeGenerator<"datafusion"> {
   generateImports(): string[] {
-    if (this.connection.sessionContext) {
-      return ["import ibis", "from datafusion import SessionContext"];
-    }
-    return ["import ibis"];
+    // To trigger installation of ibis-datafusion
+    return ["import ibis", "from datafusion import SessionContext"];
   }
 
   generateConnectionCode(): string {
@@ -541,6 +539,34 @@ class DataFusionGenerator extends CodeGenerator<"datafusion"> {
     }
     return dedent(`
       con = ibis.datafusion.connect()
+    `);
+  }
+}
+
+class PySparkGenerator extends CodeGenerator<"pyspark"> {
+  generateImports(): string[] {
+    return ["import ibis", "from pyspark.sql import SparkSession"];
+  }
+
+  generateConnectionCode(): string {
+    if (
+      this.connection.username ||
+      this.connection.host ||
+      this.connection.port
+    ) {
+      const username = this.secrets.printInFString(
+        "username",
+        this.connection.username,
+      );
+      const host = this.secrets.printInFString("host", this.connection.host);
+      const port = this.secrets.printInFString("port", this.connection.port);
+      return dedent(`
+        session = SparkSession.builder.remote(f"${username}://${host}:${port}").getOrCreate()
+        con = ibis.pyspark.connect(session)
+      `);
+    }
+    return dedent(`
+      con = ibis.pyspark.connect()
     `);
   }
 }
@@ -577,6 +603,8 @@ class CodeGeneratorFactory {
         return new PyIcebergGenerator(connection, orm, this.secrets);
       case "datafusion":
         return new DataFusionGenerator(connection, orm, this.secrets);
+      case "pyspark":
+        return new PySparkGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

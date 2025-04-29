@@ -19,6 +19,7 @@ import {
   TrinoConnectionSchema,
   IcebergConnectionSchema,
   DataFusionConnectionSchema,
+  PySparkConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -171,6 +172,16 @@ const DATABASES = [
     schema: DataFusionConnectionSchema,
     color: "#202A37",
     logo: "datafusion",
+    connectionLibraries: {
+      libraries: ["ibis"],
+      preferred: "ibis",
+    },
+  },
+  {
+    name: "PySpark",
+    schema: PySparkConnectionSchema,
+    color: "#1C5162",
+    logo: "pyspark",
     connectionLibraries: {
       libraries: ["ibis"],
       preferred: "ibis",

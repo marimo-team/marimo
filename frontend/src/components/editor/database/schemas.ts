@@ -386,6 +386,14 @@ export const DataFusionConnectionSchema = z.object({
     ),
 });
 
+// Ideally, we can conditionally render the username, host, and port fields.
+export const PySparkConnectionSchema = z.object({
+  type: z.literal("pyspark"),
+  username: usernameField().optional(),
+  host: hostField().optional(),
+  port: portField().optional(),
+});
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -399,6 +407,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   TrinoConnectionSchema,
   IcebergConnectionSchema,
   DataFusionConnectionSchema,
+  PySparkConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

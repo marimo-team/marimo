@@ -92,7 +92,7 @@ describe("generateDatabaseCode", () => {
     type: "iceberg",
     name: "my_catalog",
     catalog: {
-      type: "rest",
+      type: "REST",
       uri: "http://localhost:8181",
       warehouse: "/path/to/warehouse",
     },
@@ -102,7 +102,7 @@ describe("generateDatabaseCode", () => {
     type: "iceberg",
     name: "my_catalog",
     catalog: {
-      type: "sql",
+      type: "SQL",
       uri: "postgresql://localhost:5432/iceberg",
       warehouse: "/path/to/warehouse",
     },
@@ -112,7 +112,7 @@ describe("generateDatabaseCode", () => {
     type: "iceberg",
     name: "my_catalog",
     catalog: {
-      type: "hive",
+      type: "Hive",
       uri: "thrift://localhost:9083",
       warehouse: "/path/to/warehouse",
     },
@@ -122,7 +122,7 @@ describe("generateDatabaseCode", () => {
     type: "iceberg",
     name: "my_catalog",
     catalog: {
-      type: "glue",
+      type: "Glue",
       warehouse: "/path/to/warehouse",
     },
   };
@@ -131,7 +131,7 @@ describe("generateDatabaseCode", () => {
     type: "iceberg",
     name: "my_catalog",
     catalog: {
-      type: "dynamodb",
+      type: "DynamoDB",
       "dynamodb.profile-name": "my_profile",
       "dynamodb.region": "us-east-1",
       "dynamodb.access-key-id": "my_access_key_id",
@@ -140,8 +140,29 @@ describe("generateDatabaseCode", () => {
     },
   };
 
+  const datafusionConnection: DatabaseConnection = {
+    type: "datafusion",
+    sessionContext: false,
+  };
+
+  const datafusionConnSession: DatabaseConnection = {
+    type: "datafusion",
+    sessionContext: true,
+  };
+
+  const pysparkConnection: DatabaseConnection = {
+    type: "pyspark",
+  };
+
+  const pysparkConnSession: DatabaseConnection = {
+    type: "pyspark",
+    username: "user",
+    host: "localhost",
+    port: 15_002,
+  };
+
   describe("basic connections", () => {
-    it.each([
+    const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
       ["postgres with SQLAlchemy", basePostgres, "sqlalchemy"],
       ["mysql with SQLModel", baseMysql, "sqlmodel"],
@@ -159,10 +180,14 @@ describe("generateDatabaseCode", () => {
       ["iceberg hive", icebergHiveConnection, "pyiceberg"],
       ["iceberg glue", icebergGlueConnection, "pyiceberg"],
       ["iceberg dynamodb", icebergDynamoDBConnection, "pyiceberg"],
-    ])("%s", (name, connection, orm) => {
-      expect(
-        generateDatabaseCode(connection, orm as ConnectionLibrary),
-      ).toMatchSnapshot();
+      ["datafusion", datafusionConnection, "ibis"],
+      ["datafusion with session", datafusionConnSession, "ibis"],
+      ["pyspark", pysparkConnection, "ibis"],
+      ["pyspark with session", pysparkConnSession, "ibis"],
+    ];
+
+    it.each(testCases)("%s", (name, connection, orm) => {
+      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
     });
   });
 
