@@ -63,7 +63,7 @@ class SQLEngine(ABC):
     @property
     @abstractmethod
     def source(self) -> str:
-        """Return the source of the engine."""
+        """Return the source of the engine. Usually the name of the library used to connect to the database."""
         pass
 
     @property

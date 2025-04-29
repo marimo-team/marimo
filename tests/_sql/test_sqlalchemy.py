@@ -205,7 +205,8 @@ def test_sqlalchemy_sql_types() -> None:
 
     assert len(tables) == 1
     table = tables[0]
-    assert table.source == "sqlite"
+    assert table.source == "sqlalchemy"
+    assert table.dialect == "sqlite"
     assert table.name == "all_types"
     assert table.num_columns == 6
     assert table.num_rows is None
@@ -243,7 +244,7 @@ def get_expected_table(
     "This test can be reused for sqlite_engine"
     return DataTable(
         source_type="connection",
-        source="sqlite",
+        source="sqlalchemy",
         name=table_name,
         num_rows=None,
         num_columns=2 if include_table_details else None,
