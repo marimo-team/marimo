@@ -352,6 +352,7 @@ class TopLevelExtraction:
 
     @property
     def variables(self) -> dict[Name, VariableData]:
+        # Grabs all initial variable data from cells for use in annotations.
         if self._variables is not None:
             return self._variables
         variables = {}
