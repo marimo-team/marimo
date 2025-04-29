@@ -20,12 +20,14 @@ type FileUploadType = "button" | "area";
  * @param filetypes - file types to accept (same as HTML input's accept attr)
  * @param multiple - whether to allow the user to upload multiple files
  * @param label - a label for the file upload area
+ * @param max_size - the maximum size of the file to upload (in bytes)
  */
 interface Data {
   filetypes: string[];
   multiple: boolean;
   kind: FileUploadType;
   label: string | null;
+  max_size: number;
 }
 
 type T = Array<[string, string]>;
@@ -38,6 +40,7 @@ export class FileUploadPlugin implements IPlugin<T, Data> {
     multiple: z.boolean(),
     kind: z.enum(["button", "area"]),
     label: z.string().nullable(),
+    max_size: z.number(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -49,6 +52,7 @@ export class FileUploadPlugin implements IPlugin<T, Data> {
         kind={props.data.kind}
         value={props.value}
         setValue={props.setValue}
+        max_size={props.data.max_size}
       />
     );
   }
@@ -110,28 +114,16 @@ function groupFileTypesByMIMEType(extensions: string[]) {
   return filesByMIMEType;
 }
 
-// We may want to increase this based on user feedback
-//
-// But rather than forever increasing this, we should consider
-// adding a non-browser file-chooser which allows users to select files from
-// their local filesystem, and we only return the path.
-//
-// By using the browser's file chooser, it is more secure as we don
-// not get access to the uploaded file's path but
-// we are forced to upload the file to browser memory before
-// sending it to the server.
-const MAX_SIZE = 100_000_000; // 100 MB
-
 /* TODO(akshayka): Allow uploading files one-by-one and removing uploaded files
  * when multiple is `True`*/
 export const FileUpload = (props: FileUploadProps): JSX.Element => {
   const acceptGroups = groupFileTypesByMIMEType(props.filetypes);
-  const { setValue, kind, multiple, value } = props;
+  const { setValue, kind, multiple, value, max_size } = props;
   const { getRootProps, getInputProps, isFocused, isDragAccept, isDragReject } =
     useDropzone({
       accept: acceptGroups,
       multiple: multiple,
-      maxSize: MAX_SIZE,
+      maxSize: max_size,
       onError: (error) => {
         Logger.error(error);
         toast({

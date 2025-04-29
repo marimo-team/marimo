@@ -15,6 +15,7 @@ export const AcceptAny = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -30,6 +31,7 @@ export const AcceptLongText = {
       label={"Drop here, ".repeat(100)}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -45,6 +47,7 @@ export const AcceptTxtOnly = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -60,6 +63,7 @@ export const AcceptTxtOnlyButton = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -75,6 +79,7 @@ export const SingleFileArea = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -90,6 +95,7 @@ export const SingleFileButton = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 

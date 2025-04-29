@@ -1324,6 +1324,8 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         on_change (Callable[[Sequence[FileUploadResults]], None], optional):
             Optional callback to run when this element's value changes.
             Defaults to None.
+        max_size (int, optional): The maximum size of the file to upload
+            (in bytes). Defaults to 100MB.
     """
 
     _name: Final[str] = "marimo-file"
@@ -1334,6 +1336,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
         *,
+        max_size: int = 100_000_000,  # 100MB default
         label: str = "",
         on_change: Optional[
             Callable[[Sequence[FileUploadResults]], None]
@@ -1351,6 +1354,9 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
                     f"Invalid types: {', '.join(invalid_types)}"
                 )
 
+        if max_size <= 0:
+            raise ValueError("max_size must be greater than 0")
+
         super().__init__(
             component_name=file._name,
             initial_value=[],
@@ -1359,6 +1365,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "kind": kind,
+                "max_size": max_size,
             },
             on_change=on_change,
         )
