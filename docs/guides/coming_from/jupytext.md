@@ -8,7 +8,7 @@ notebooks, whereas marimo works with marimo notebooks, which are not based
 on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 
 !!! tip "marimo also has a markdown fileformat"
-    Learn more about it with `marimo tutorials markdown-format`.
+    Learn more by running `marimo tutorial markdown-format` at the command-line.
 
 ## Notebook Format
 
