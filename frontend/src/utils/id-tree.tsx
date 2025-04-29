@@ -884,4 +884,31 @@ export class MultiColumn<T> {
 
     return new MultiColumn(newColumns);
   }
+
+  /**
+   * Apply a transformation function to all columns
+   * @param fn The function to transform each column
+   * @returns A new MultiColumn if any changes were made, otherwise this
+   */
+  transformAll(
+    fn: (tree: CollapsibleTree<T>) => CollapsibleTree<T>,
+  ): MultiColumn<T> {
+    let didChange = false;
+    
+    // Apply the transformation to all columns
+    const newColumns = this.columns.map((column) => {
+      const newColumn = fn(column);
+      if (column !== newColumn) {
+        didChange = true;
+      }
+      return newColumn;
+    });
+    
+    // Avoid unnecessary re-renders if nothing changed
+    if (!didChange) {
+      return this;
+    }
+    
+    return new MultiColumn(newColumns);
+  }
 }
