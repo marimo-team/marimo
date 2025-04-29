@@ -18,6 +18,7 @@ import {
   ChdbConnectionSchema,
   TrinoConnectionSchema,
   IcebergConnectionSchema,
+  DataFusionConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -163,6 +164,16 @@ const DATABASES = [
     connectionLibraries: {
       libraries: ["sqlalchemy", "sqlmodel"],
       preferred: "sqlalchemy",
+    },
+  },
+  {
+    name: "DataFusion",
+    schema: DataFusionConnectionSchema,
+    color: "#202A37",
+    logo: "datafusion",
+    connectionLibraries: {
+      libraries: ["ibis"],
+      preferred: "ibis",
     },
   },
 ] satisfies ConnectionSchema[];

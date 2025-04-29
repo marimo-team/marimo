@@ -296,7 +296,7 @@ const SQLEngineSelect: React.FC<SelectProps> = ({
     return connections.map((connection) => (
       <SelectItem key={connection.name} value={connection.name}>
         <div className="flex items-center gap-1">
-          <DatabaseLogo className="h-3 w-3" name={connection.source} />
+          <DatabaseLogo className="h-3 w-3" name={connection.dialect} />
           <span className="truncate">
             {transformDisplayName(connection.display_name)}
           </span>

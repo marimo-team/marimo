@@ -11,7 +11,8 @@ export type ConnectionLibrary =
   | "duckdb"
   | "clickhouse_connect"
   | "chdb"
-  | "pyiceberg";
+  | "pyiceberg"
+  | "ibis";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -20,6 +21,7 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   clickhouse_connect: "ClickHouse Connect",
   chdb: "chDB",
   pyiceberg: "PyIceberg",
+  ibis: "Ibis",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -519,6 +521,30 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
   }
 }
 
+class DataFusionGenerator extends CodeGenerator<"datafusion"> {
+  generateImports(): string[] {
+    if (this.connection.sessionContext) {
+      return ["import ibis", "from datafusion import SessionContext"];
+    }
+    return ["import ibis"];
+  }
+
+  generateConnectionCode(): string {
+    if (this.connection.sessionContext) {
+      return dedent(`
+        ctx = SessionContext()
+        # Sample table
+        _ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
+  
+        con = ibis.datafusion.connect(ctx)
+      `);
+    }
+    return dedent(`
+      con = ibis.datafusion.connect()
+    `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -549,6 +575,8 @@ class CodeGeneratorFactory {
         return new TrinoGenerator(connection, orm, this.secrets);
       case "iceberg":
         return new PyIcebergGenerator(connection, orm, this.secrets);
+      case "datafusion":
+        return new DataFusionGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

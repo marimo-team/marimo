@@ -374,6 +374,18 @@ export const IcebergConnectionSchema = z.object({
     .describe(FieldOptions.of({ special: "tabs" })),
 });
 
+export const DataFusionConnectionSchema = z.object({
+  type: z.literal("datafusion"),
+  sessionContext: z
+    .boolean()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Use Session Context",
+      }),
+    ),
+});
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -386,6 +398,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   ChdbConnectionSchema,
   TrinoConnectionSchema,
   IcebergConnectionSchema,
+  DataFusionConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

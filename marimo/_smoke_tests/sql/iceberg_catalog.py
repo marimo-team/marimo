@@ -46,11 +46,19 @@ def _(catalog, pa):
         {
             "id": [1, 2, 3],
             "name": ["Alice", "Bob", "Charlie"],
+            "list": [[1, 2], [3, 4], [5, 6]],
+            "dict": [
+                {"name": "Alice", "age": 23},
+                {"name": "Bob", "age": 45},
+                {"name": "Charlie", "age": 4},
+            ],
         }
     )
 
     # Create an Iceberg table
     test_table = ("default", "my_table")
+    # catalog.drop_table(test_table) # Drop table if exists
+
     table = catalog.create_table_if_not_exists(
         test_table,
         schema=df.schema,

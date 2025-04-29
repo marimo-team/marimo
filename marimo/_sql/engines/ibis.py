@@ -47,7 +47,6 @@ class IbisEngine(SQLEngine):
 
     @property
     def source(self) -> str:
-        # TODO should this be the backend name, the SQL dialect, or ibis?
         return "ibis"
 
     @property

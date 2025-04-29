@@ -11,6 +11,7 @@ import TimeplusIcon from "./icons/timeplus.svg";
 import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
 import TrinoIcon from "./icons/trino.svg";
 import IcebergIcon from "./icons/iceberg.png";
+import DataFusionIcon from "./icons/datafusion.png";
 import { cn } from "@/utils/cn";
 
 export type DBLogoName =
@@ -25,7 +26,8 @@ export type DBLogoName =
   | "timeplus"
   | "bigquery"
   | "trino"
-  | "iceberg";
+  | "iceberg"
+  | "datafusion";
 
 /**
  * Icons are from https://simpleicons.org/
@@ -49,6 +51,7 @@ const URLS: Record<DBLogoName, string | undefined> = {
   bigquery: GoogleBigQueryIcon,
   trino: TrinoIcon,
   iceberg: IcebergIcon,
+  datafusion: DataFusionIcon,
 };
 
 export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {
