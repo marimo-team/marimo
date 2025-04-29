@@ -106,7 +106,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
 
   return [
     // Editor keymaps (vim or defaults) based on user config
-    keymapBundle(keymapConfig),
+    keymapBundle(keymapConfig, hotkeys),
     dndBundle(),
     pasteBundle(),
     jupyterHelpExtension(),

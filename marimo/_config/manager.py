@@ -92,12 +92,6 @@ class MarimoConfigReader:
 
     @property
     def language_servers(self) -> LanguageServersConfig:
-        # LSP is behind an experimental flag,
-        # if it's not enabled, return an empty config
-        lsp_enabled = self.experimental.get("lsp", False)
-        if not lsp_enabled:
-            return {}
-
         if "language_servers" in self._config:
             return self._config["language_servers"]
         return {}
