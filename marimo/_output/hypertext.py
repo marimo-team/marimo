@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -147,12 +148,14 @@ class Html(MIME):
                 ),  # ignore[no-untyped-call]
             )
         if no_js and hasattr(self, "_repr_markdown_"):
+            print(cast(Any, self)._repr_markdown_(), file=sys.stderr)
             return (
                 "text/markdown",
                 cast(
                     str, cast(Any, self)._repr_markdown_()
                 ),  # ignore[no-untyped-call]
             )
+        print(no_js, "no markdown", file=sys.stderr)
         return ("text/html", self.text)
 
     def __format__(self, spec: str) -> str:
