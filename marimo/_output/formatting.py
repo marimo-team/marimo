@@ -116,7 +116,7 @@ def get_formatter(
     # If not explicitly opinionated, we defer to the environment.
     if include_opinionated is None:
         include_opinionated = (
-            os.getenv("MARIMO_NO_JS", "false").lower() == "true"
+            os.getenv("MARIMO_NO_JS", "false").lower() == "false"
         )
 
     # Plain opts out of opinionated formatters
