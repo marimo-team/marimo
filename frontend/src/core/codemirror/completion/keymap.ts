@@ -2,7 +2,6 @@
 import { Prec, type Extension } from "@codemirror/state";
 import {
   closeCompletion,
-  completionStatus,
   completionKeymap as defaultCompletionKeymap,
 } from "@codemirror/autocomplete";
 import { keymap } from "@codemirror/view";
@@ -13,16 +12,10 @@ export function completionKeymap(): Extension {
     (binding) => binding.key !== "Escape",
   );
 
-  const closeCompletionIfActive = (view: EditorView) => {
-    const status = completionStatus(view.state);
-    if (status === "pending") {
-      closeCompletion(view);
-      // Return false to propagate the Escape key
-      return false;
-    }
-    // Use the default behavior: when the completion is Active
-    // Return true to stop propagation of the Escape key
-    return closeCompletion(view);
+  const closeCompletionAndPropagate = (view: EditorView) => {
+    closeCompletion(view);
+    // Return false to propagate the Escape key
+    return false;
   };
 
   return Prec.highest(
@@ -32,14 +25,12 @@ export function completionKeymap(): Extension {
       // The default codemirror behavior is to close the completion
       // when Escape is pressed and the completion is Pending or Active.
       // We want to still close the completion, but allow propagation
-      // of the Escape key when it is pending, so downstream hotkeys will work
+      // of the Escape key, so downstream hotkeys (like leaving insert mode) will work.
       //
-      // This happens when using Vim. If a completion is Pending and Esc is hit quickly,
-      // we want to leave Insert mode AND close the completion.
-      // When the completion is Active, we just want to close the completion.
+      // This happens when using Vim.
       {
         key: "Escape",
-        run: closeCompletionIfActive,
+        run: closeCompletionAndPropagate,
       },
     ]),
   );
