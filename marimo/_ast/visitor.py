@@ -46,6 +46,14 @@ class ImportData:
 
 
 @dataclass
+class AnnotationData:
+    # How the annotation is set
+    repr: str
+    # Which references are related to the annotation.
+    refs: set[Name] = field(default_factory=set)
+
+
+@dataclass
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Literal[
@@ -73,6 +81,9 @@ class VariableData:
 
     # A reference needed for function/ class definition
     unbounded_refs: set[Name] = field(default_factory=set)
+
+    # References used for annotation (typing)
+    annotation_data: Optional[AnnotationData] = None
 
     # For kind == import
     import_data: Optional[ImportData] = None
@@ -658,11 +669,37 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         # Annotated assign
         # e.g., x: int = 0
+        #       ^   ^    ^
+        #      tar ann  val?
         self.ref_stack.append(set())
         if node.value is not None:
             self.visit(node.value)
+
+        # Hold on to the annotation references in particular
+        self.ref_stack.append(set())
         self.visit(node.annotation)
+        annotation_refs = self.ref_stack.pop()
+        self.ref_stack[-1].update(annotation_refs)
+        # But only if we are in global scope is it relevant.
+        # annotation data
+        record_annotation = False
+        name = ""
+        # Also possible for "var[subscript]:type"
+        # but we do not care about those.
+        if isinstance(node.target, ast.Name):
+            name = node.target.id
+            record_annotation = (
+                len(self.block_stack) == 1 and name not in self.variable_data
+            )
         self.visit(node.target)
+
+        # Visit must have inserted the variable, attach the annotation data to
+        # it.
+        if record_annotation and name in self.variable_data:
+            self.variable_data[name][0].annotation_data = AnnotationData(
+                ast.unparse(node.annotation), annotation_refs
+            )
+
         refs = self.ref_stack.pop()
         self.ref_stack[-1].update(refs)
         return node

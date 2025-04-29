@@ -16,7 +16,7 @@ from marimo._ast.names import (
     TOPLEVEL_CELL_PREFIX,
 )
 from marimo._ast.variables import BUILTINS
-from marimo._ast.visitor import Name
+from marimo._ast.visitor import Name, VariableData
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
 
@@ -244,7 +244,8 @@ class TopLevelExtraction:
         defs: set[Name] = set()
         refs: set[Name] = set()
         self.allowed_refs: set[Name] = set(toplevel_defs)
-        # Run through and get deff + refs, and a naive attempt at resolving cell
+        self._variables: Optional[dict[Name, VariableData]] = None
+        # Run through and get defs + refs, and a naive attempt at resolving cell
         # status.
         for idx, (code, name, config) in enumerate(
             zip(codes, names, cell_configs)
@@ -348,6 +349,18 @@ class TopLevelExtraction:
             if name in self.unresolved:
                 _ = resolve(name)
         assert not self.unresolved
+
+    @property
+    def variables(self) -> dict[Name, VariableData]:
+        if self._variables is not None:
+            return self._variables
+        variables = {}
+        for status in self.cells.values():
+            variables.update(status._cell.init_variable_data)
+        for var, status in self.toplevel.items():
+            variables[var] = status._cell.toplevel_variable
+        self._variables = variables
+        return variables
 
     @classmethod
     def from_graph(
