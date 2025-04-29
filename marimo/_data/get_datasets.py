@@ -167,9 +167,9 @@ def _get_databases_from_duckdb_internal(
         databases_dict[database][schema].append(table)
 
     # Convert grouped data into Database objects
-    databases = []
+    databases: list[Database] = []
     for database, schemas_dict in databases_dict.items():
-        schema_list = []
+        schema_list: list[Schema] = []
         for schema_name, tables in schemas_dict.items():
             schema_list.append(Schema(name=schema_name, tables=tables))
         databases.append(
@@ -241,7 +241,15 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     ]:
         return "datetime"
     # Nested types
-    if db_type in ["array", "list", "struct", "map", "union", "varchar[]"]:
+    if "[]" in db_type:
+        return "unknown"
+    if (
+        db_type.startswith("union")
+        or db_type.startswith("map")
+        or db_type.startswith("struct")
+        or db_type.startswith("list")
+        or db_type.startswith("array")
+    ):
         return "unknown"
     # Special types
     if db_type == "bit":
