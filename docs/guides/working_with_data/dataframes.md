@@ -53,18 +53,22 @@ df
 
 ///
 
-<div>
-<marimo-iframe data-height="700px">
-```python
-import pandas as pd
+/// marimo-embed
+    size: large
 
-df = pd.read_json(
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    pd.read_json(
     "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
-)
-df
+    )
+    return
 ```
-</marimo-iframe>
-</div>
+
+///
+
 
 To opt out of the rich dataframe viewer, use [`mo.plain`][marimo.plain]:
 
@@ -96,20 +100,22 @@ mo.plain(df)
 
 ///
 
-<div>
-<marimo-iframe data-height="700px">
+/// marimo-embed
+    size: large
+
 ```python
-import pandas as pd
-import marimo as mo
+@app.cell
+def __():
+    import pandas as pd
 
-df = pd.read_json(
+    df = pd.read_json(
     "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
-)
-mo.plain(df)
+    )
+    mo.plain(df)
+    return
 ```
-</marimo-iframe>
-</div>
 
+///
 
 ## Transforming dataframes
 
@@ -168,25 +174,29 @@ transformed_df.value
 
 ///
 
-<div>
-<marimo-iframe data-height="980px">
-```python
-import marimo as mo
-import pandas as pd
-
-df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
-transformed_df = mo.ui.dataframe(df)
-
-transformed_df
-```
+/// marimo-embed
+    size: large
 
 ```python
-# transformed_df.value holds the transformed dataframe
-transformed_df.value
+@app.cell
+def __():
+    import pandas as pd
+
+    df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+    transformed_df = mo.ui.dataframe(df)
+    transformed_df
+    return
+
+@app.cell
+def __():
+    transformed_df.value
+
+    return
 ```
 
-</marimo-iframe>
-</div>
+///
+
+
 
 ### Custom filters
 
@@ -294,6 +304,28 @@ table.value
 
 ///
 
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    table = mo.ui.table(df, selection="multi")
+    table
+    return
+
+@app.cell
+def __():
+    table.value
+    return
+```
+
+///
+
 ## Example notebook
 
 For a comprehensive example of using Polars with marimo, check out our [Polars example notebook](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars/polars_example.py).
@@ -303,5 +335,3 @@ Run it with:
 ```bash
 marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars/polars_example.py
 ```
-
-<script src="https://cdn.jsdelivr.net/npm/@marimo-team/marimo-snippets@1"></script>
