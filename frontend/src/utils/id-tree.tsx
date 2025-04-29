@@ -898,7 +898,7 @@ export class MultiColumn<T> {
     // Apply the transformation to all columns
     const newColumns = this.columns.map((column) => {
       const newColumn = fn(column);
-      if (column !== newColumn) {
+      if (!column.equals(newColumn)) {
         didChange = true;
       }
       return newColumn;
