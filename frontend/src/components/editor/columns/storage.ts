@@ -16,7 +16,7 @@ function initialState(): ColumnSizes {
 const storage = new NotebookScopedLocalStorage<ColumnSizes>(
   BASE_KEY,
   z.object({
-    widths: z.array(z.number().or(z.literal("contentWidth"))),
+    widths: z.array(z.union([z.number(), z.literal("contentWidth")])),
   }),
   initialState,
 );
