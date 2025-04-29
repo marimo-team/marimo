@@ -125,10 +125,8 @@ class MarimoIslandStub:
             )
 
         if as_raw:
-            # If as_raw is True, we don't want to include the code block
-            # in the HTML. This is useful for when you want to use the
-            # MarimoIslandGenerator to generate HTML without running the
-            # cells.
+            # If as_raw is True, output as raw values as possible.
+            # Used primarily for cases with no js (like pdfs)
             released = (
                 output.text.encode().decode("unicode_escape")
                 if output and display_output
