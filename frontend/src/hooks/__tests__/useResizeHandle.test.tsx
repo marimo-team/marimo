@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 describe("useResizeHandle", () => {
   it("should initialize with correct refs and style", () => {
     const { result } = renderHook(() =>
-      useResizeHandle({ startingWidth: 500, onResize: () => {} }),
+      useResizeHandle({ startingWidth: 500, onResize: vi.fn() }),
     );
 
     expect(result.current.resizableDivRef.current).toBeNull();
@@ -16,7 +16,7 @@ describe("useResizeHandle", () => {
 
   it("should handle contentWidth starting width", () => {
     const { result } = renderHook(() =>
-      useResizeHandle({ startingWidth: "contentWidth", onResize: () => {} }),
+      useResizeHandle({ startingWidth: "contentWidth", onResize: vi.fn() }),
     );
 
     expect(result.current.style).toEqual({ width: "contentWidth" });
