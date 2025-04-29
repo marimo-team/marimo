@@ -16,7 +16,8 @@ const TerminalComponent: React.FC<{
   const [{ terminal, fitAddon }] = useState(() => {
     // Create a new terminal instance
     const term = new Terminal({
-      fontFamily: 'Menlo, DejaVu Sans Mono, Consolas, Lucida Console, monospace',
+      fontFamily:
+        "Menlo, DejaVu Sans Mono, Consolas, Lucida Console, monospace",
       fontSize: 14,
     });
     const fitAddon = new FitAddon();
