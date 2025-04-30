@@ -27,7 +27,7 @@ export const storageFn = {
     const widths = storage.get().widths;
     return widths[index] ?? "contentWidth";
   },
-  setColumnWidth: (index: number, width: number | "contentWidth") => {
+  saveColumnWidth: (index: number, width: number | "contentWidth") => {
     const widths = storage.get().widths;
     if (widths[index]) {
       widths[index] = width;
