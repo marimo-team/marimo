@@ -91,9 +91,9 @@ The available options are:
 
 For best performance with large datasets, we recommend using `native` to avoid loading the entire result set into memory and to more easily chain SQL cells together. By default, only the first 10 rows are displayed in the UI to prevent memory issues.
 
-??? note "Set a default"
+???+ tip "Set a default"
 
-  The default output type is currently `auto`, but we recommend explicitly setting the output type to `native` for best performance with large datasets or `polars` if you need to work with the results in Python code. You can configure this in your application settings.
+    The default output type is currently `auto`, but we recommend explicitly setting the output type to `native` for best performance with large datasets or `polars` if you need to work with the results in Python code. You can configure this in your application settings.
 
 ## Reference a local dataframe
 
@@ -168,41 +168,107 @@ If you'd like to connect to a database that isn't supported by the UI, you can u
 
 ### 2. Using Code
 
-You can bring your own database via a **connection engine** created with a library like [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage), [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine), or a [custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options). By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+You can bring your own database via a **connection engine** with one of the following libraries
+
+- [SQLAlchemy](https://docs.sqlalchemy.org/en/20/core/connections.html#basic-usage)
+- [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine)
+- [Ibis](https://ibis-project.org/backends/athena)
+- [Custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options)
+- [ClickHouse Connect (remote)](https://clickhouse.com/docs/integrations/python#introduction)
+- [chDB (embedded)](https://clickhouse.com/docs/chdb)
+
+By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+
+??? info "List of supported databases"
+
+    Updated: 2025-04-30. This list is not exhaustive.
+
+    | Database                   | Library                            |
+    | -------------------------- | ---------------------------------- |
+    | Amazon Athena              | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | Amazon Redshift            | `sqlalchemy`, `sqlmodel`           |
+    | Apache Drill               | `sqlalchemy`, `sqlmodel`           |
+    | Apache Druid               | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | Apache Hive and Presto     | `sqlalchemy`, `sqlmodel`           |
+    | Apache Solr                | `sqlalchemy`, `sqlmodel`           |
+    | BigQuery                   | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | ClickHouse                 | `clickhouse_connect`, `chdb`       |
+    | CockroachDB                | `sqlalchemy`, `sqlmodel`           |
+    | Databricks                 | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | dlt                        | `ibis`                             | 
+    | Datafusion                 | `ibis`                             |
+    | DuckDB                     | `duckdb`                           |
+    | EXASolution                | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | Elasticsearch (readonly)   | `sqlalchemy`, `sqlmodel`           |
+    | Firebolt                   | `sqlalchemy`, `sqlmodel`           |
+    | Flink                      | `ibis`                             |
+    | Google Sheets              | `sqlalchemy`, `sqlmodel`           |
+    | Impala                     | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | Microsoft Access           | `sqlalchemy`, `sqlmodel`           |
+    | Microsoft SQL Server       | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | MonetDB                    | `sqlalchemy`, `sqlmodel`           |
+    | MySQL                      | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | OpenGauss                  | `sqlalchemy`, `sqlmodel`           |
+    | Oracle                     | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | PostgreSQL                 | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | PySpark                    | `ibis`                             |
+    | RisingWave                 | `ibis`                             |
+    | SAP HANA                   | `sqlalchemy`, `sqlmodel`           |
+    | Snowflake                  | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | SQLite                     | `sqlalchemy`, `sqlmodel`, `ibis`   |
+    | Teradata Vantage           | `sqlalchemy`, `sqlmodel`           |
+    | TimePlus                   | `sqlalchemy`, `sqlmodel`           |
+    | Trino                      | `sqlalchemy`, `sqlmodel`, `ibis`   |
 
 Define the engine as a Python variable in a cell:
 
+/// tab | SQLAlchemy
+
 ```python
 import sqlalchemy
-import sqlmodel
-import duckdb
 
 # Create an in-memory SQLite database with SQLAlchemy
 sqlite_engine = sqlachemy.create_engine("sqlite:///:memory:")
-# Create a Postgres database with SQLModel
-postgres_engine = sqlmodel.create_engine("postgresql://username:password@server:port/database")
+```
+
+///
+
+/// tab | SQLModel
+
+```python
+import sqlmodel
+
+# Create an in-memory SQLite database with SQLModel
+sqlite_engine = sqlmodel.create_engine("sqlite:///:memory:")
+```
+
+///
+
+/// tab | Ibis
+
+```python
+import ibis
+
+# Create an in-memory SQLite database with Ibis
+sqlite_engine = ibis.connect("sqlite:///:memory:")
+```
+
+///
+
+/// tab | DuckDB
+
+```python
+import duckdb
+
 # Create a DuckDB connection
 duckdb_conn = duckdb.connect("file.db")
 ```
 
-### Querying a custom database
+///
 
-marimo will auto-discover the engine and let you select it in the SQL cell's connection dropdown.
+/// tab | ClickHouse Connect
 
-<div align="center">
-  <figure>
-    <img width="750" src="/_static/docs-sql-engine-dropdown.png"/>
-    <figcaption>Choose a custom database connection</figcaption>
-  </figure>
-</div>
-
-### ClickHouse Support
-
-marimo supports ClickHouse via [ClickHouse Connect](https://clickhouse.com/docs/integrations/python#introduction) for remote connections or [chDB](https://clickhouse.com/docs/chdb) for embedded connections.
-
-/// tab | clickhouse_connect
-
-Refer to [the official docs](https://clickhouse.com/docs/integrations/python#gather-your-connection-details) for more configuration options.
+ClickHouse Connect enables remote connections to ClickHouse databases. Refer to [the official docs](https://clickhouse.com/docs/integrations/python#gather-your-connection-details) for more configuration options.
 
 ```python
 import clickhouse_connect
@@ -237,6 +303,15 @@ connection = chdb.connect(":memory:")
 
 ///
 
+marimo will auto-discover the engine and let you select it in the SQL cell's connection dropdown.
+
+<div align="center">
+  <figure>
+    <img width="750" src="/_static/docs-sql-engine-dropdown.png"/>
+    <figcaption>Choose a custom database connection</figcaption>
+  </figure>
+</div>
+
 ## Database, schema, and table auto-discovery
 
 marimo will automatically discover the database connection and display the database, schemas, tables, and columns in the Data Sources panel. This panels lets you quickly navigate your database schema and reference tables and columns to pull in your SQL queries.
@@ -261,7 +336,7 @@ marimo will automatically discover the database connection and display the datab
 
 ## Catalogs
 
-marimo supports connecting to Iceberg catalogs. You can click the "plus" button in the Datasources panel or manually create a [PyIceberg](https://py.iceberg.apache.org/) `Catalog` connection. PyIceberg supports a variety of catalog implementations including REST, SQL, Glue, DynamoDB, and more.
+marimo supports connecting to Iceberg catalogs. You can click the "+" button in the Datasources panel or manually create a [PyIceberg](https://py.iceberg.apache.org/) `Catalog` connection. PyIceberg supports a variety of catalog implementations including REST, SQL, Glue, DynamoDB, and more.
 
 ```python
 from pyiceberg.catalog.rest import RestCatalog
