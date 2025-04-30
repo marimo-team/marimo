@@ -11,24 +11,22 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
-## marimo's File format
-
-### Python file format
+## marimo's file format
 
 !!! tip "File format tutorial"
 
     Run `marimo tutorial fileformat` at the command line for a full guide.
 
-marimo stores notebooks as Python files with cell definitions. Cells are stored
+marimo stores notebooks as Python files.  Cells are stored
 as functions, decorated with`@app.cell`; you can optionally give cells names in
 the editor UI or by editing the notebook file.
 
 ```python
 @app.cell
-def memorable_cell_name(auto, determined, references):  # signature denotes cell inputs
+def memorable_cell_name(auto, determined, references):  # signature denotes cell references
     computed_value = auto + determined + references
-    "hello!"                                            # final statement are outputted
-    return computed_value                               # return denotes cell outputs
+    "hello!"                                            # final statement is the visual output
+    return computed_value                               # return denotes cell definitions
 ```
 
 !!! note "Cell signature and returns"
@@ -36,67 +34,119 @@ def memorable_cell_name(auto, determined, references):  # signature denotes cell
     Don't worry about maintaining the signatures of cells and their return
     values; marimo will handle this for you.
 
-You may also expose imports, and top-level functions and classes in your
-notebook. Functions must be decorated with `@app.function`, and classes with
-`app.class_definition`. These functions and classes must be pure, closing over
-only other pure functions and classes or imports and constants defined in
-an `app.setup` with block:
+### Exposing functions and classes top-level
 
-For more details see the [library guide](../reusing_functions.md).
+You can expose top-level functions and classes in your
+notebook, so that other Python modules can import them:
 
 ```python
-with app.setup:
-    CONSTANT: int = 1
-    import marimo as mo
-
-@app.function
-def my_function(x): ...
-
-@app.class_definition
-class MyClass: ...
+from my_notebook import my_function, MyClass
 ```
 
-!!! question "Want to use your own LSP for typing?"
+Top-level functions are added to a notebook using the `@app.function`
+decorator, and classes with `@app.class_definition`; these appear in your
+notebook as cells with just a function or class definition. These functions and
+classes must be pure, closing over only other pure functions and classes, or
+imports and constants defined in an `app.setup` `with` block.
 
-Explicitly typing your definitions will let marimo carry the annotations into
-function signatures. For instance
+Here is a complete example that you can copy/paste and run locally:
+
 
 ```python
+import marimo
+
+app = marimo.App()
+
+with app.setup:
+    # These symbols can be used by top-level functions and classes
+    # (as well as by regular cells)
+    import numpy as np
+
+    CONSTANT: int = 1
+
+@app.function
+def my_function(x: np.ndarray):
+    return np.mean(x) + CONSTANT
+
+@app.class_definition
+class MyClass:
+    ...
+
+@app.cell
+def _():
+    my_function(np.random.randn(2, 2))
+    return
+
+if __name__ == "__main__":
+    app.run()
+```
+
+For more details see the [guide on reusable functions and classes](../reusing_functions.md).
+
+### Types and autocompletion
+
+Add type hints to your variables, and marimo will carry over these types
+hints to cells where these variables use. This, combined with declaring
+your inputs in the setup cell, makes it possible for your editor
+to give completions on cell inputs.
+
+
+For example:
+
+```python
+# setup cell
+import numpy as np
+
 # cell 1
-x: int
-y: str
+x: np.ndarray
 
 # cell 2
-z = f"{x} & {y}"
+np.mean(x)
 ```
 
 will be serialized as
 
 ```python
-@app.cell
-def cell_1():
-    x: int
-    y: str
-    return x, y
+import marimo
+
+app = marimo.App()
+
+with app.setup:
+    import numpy as np
 
 @app.cell
-def cell_2(x: int, y: str):
-    z = f"{x} & {y}"
+def _():
+    x: np.ndarray
+    return x,
+
+@app.cell
+def _(x: np.ndarray):
+    np.mean(x)
+
+if __name__ == "__main__":
+    app.run()
 ```
 
-### Markdown file format
+### As markdown
 
 !!! tip "Markdown File format tutorial"
     Run `marimo tutorial markdown-format` at the command line for a full guide.
 
 marimo notebooks can also be stored as Markdown files. This is a good option
 for prose heavy text, and can be easy to navigate and edit in external editors.
+To convert a marimo notebook to markdown, use
+
+```
+marimo export md notebook.py -o notebook.md
+```
+
+at the command-line, or rename your file to have an `.md` extension in the notebook editor.
 
 marimo conforms to standard markdown document format, and will render most
-places like Github.
-Metadata in this file format is saved in the frontmatter, which marimo may use
-for information like [sandboxing](../package_reproducibility.md), and the
-marimo version. All other fields are kept, but ignored.
+places like Github. Metadata in this file format is saved in the frontmatter,
+which marimo may use for information like
+[sandboxing](../package_reproducibility.md), and the marimo version. All other
+fields are kept, but ignored.
 
 For execution, marimo extracts code fences that contain `marimo` in braces. For
 instance `python {marimo}`, `{marimo}` or `{.marimo .python}`. The marimo
@@ -118,13 +168,16 @@ print("Hello World!")
 ````
 
 marimo's markdown format can be used with a [`mkdocs
-plugin`](https://github.com/marimo-team/mkdocs-marimo), and
+plugin`](https://github.com/marimo-team/mkdocs-marimo) and
 [`Quarto`](https://github.com/marimo-team/quarto-marimo).
 
-Note, there is some feature loss in this format. Reactive tests will not work,
-and the notebooks cannot be imported or used as a library.
+Note that the markdown format is not as fully featured as the Python format.
+Reactive tests will not work, markdown notebooks cannot be imported or used as
+a library, and they cannot be run as scripts.
 
-## `marimo edit --watch`
+## Watching for changes to your notebook
+
+### `marimo edit --watch`
 
 When you run `marimo edit` with the `--watch` flag, the marimo server
 will open your notebook in the browser and watch the underlying notebook
@@ -143,9 +196,9 @@ If you want to run all affected cells automatically when you save, change the
 watcher_on_save = "autorun"
 ```
 
-## `marimo run --watch`
+### `marimo run --watch`
 
-When you run a notebook with the `--watch` flag, whenever the file watcher
+When you run `marimo run` with the `--watch` flag, whenever the file watcher
 detects a change to the notebook file, the application will be refreshed. The
 browser will trigger a page refresh to ensure your notebook starts from a fresh
 state.
@@ -161,8 +214,9 @@ Guide](module_autoreloading.md)
 
 !!! note
     Support for watching data files and automatically refreshing cells that
-    depend on them is coming soon. Follow along at
-    <https://github.com/marimo-team/marimo/issues/3258>
+    depend on them is not yet supported. Follow along at
+    <https://github.com/marimo-team/marimo/issues/3258> and let us know
+    if it is important to you.
 
 ## Hot-reloading WebAssembly notebooks
 

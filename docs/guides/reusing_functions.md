@@ -102,8 +102,8 @@ print(stats)
 
 ## Best practices
 
-- Use setup cells for immediate, widely used imports
-- Keep function dependencies limited to setup-cell references, or other top-level declarations.
+- Use setup cells for widely used imports
+- Keep function dependencies limited to setup-cell references, or other top-level declarations
 - Use descriptive names for your functions
 - Add docstrings to document your functions' behavior
 
