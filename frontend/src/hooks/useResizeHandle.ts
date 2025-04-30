@@ -4,11 +4,13 @@ import { useEffect, useRef } from "react";
 interface UseResizeHandleProps {
   onResize?: (width: number) => void;
   startingWidth: number | "contentWidth";
+  direction: "left" | "right";
 }
 
 export const useResizeHandle = ({
   onResize,
   startingWidth,
+  direction,
 }: UseResizeHandleProps) => {
   const resizableDivRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
@@ -31,7 +33,8 @@ export const useResizeHandle = ({
       }
       const dx = e.clientX - lastX;
       lastX = e.clientX;
-      width += dx;
+      // dx is negative when moving left
+      width = direction === "left" ? width - dx : width + dx;
       resizableDiv.style.width = `${width}px`;
     };
 
@@ -45,6 +48,7 @@ export const useResizeHandle = ({
     };
 
     const onMouseDown = (e: MouseEvent) => {
+      e.preventDefault(); // Prevent selection of elements underneath
       isResizing = true;
       lastX = e.clientX;
       document.addEventListener("mousemove", onMouseMove);
@@ -58,7 +62,7 @@ export const useResizeHandle = ({
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
-  }, [onResize]);
+  }, [direction, onResize]);
 
   return {
     resizableDivRef,

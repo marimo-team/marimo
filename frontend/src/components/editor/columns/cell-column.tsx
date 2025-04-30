@@ -18,7 +18,7 @@ interface Props {
   canMoveRight: boolean;
 }
 
-const { getColumnWidth, setColumnWidth } = storageFn;
+const { getColumnWidth, saveColumnWidth } = storageFn;
 
 export const Column = memo((props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,7 @@ export const Column = memo((props: Props) => {
       <ResizableComponent
         startingWidth={getColumnWidth(props.index)}
         onResize={(width: number) => {
-          setColumnWidth(props.index, width);
+          saveColumnWidth(props.index, width);
         }}
       >
         {props.children}
@@ -78,6 +78,7 @@ const ResizableComponent = ({
   const { resizableDivRef, handleRef, style } = useResizeHandle({
     startingWidth,
     onResize,
+    direction: "right",
   });
 
   return (
@@ -91,7 +92,7 @@ const ResizableComponent = ({
       </div>
       <div
         ref={handleRef}
-        className="w-1 cursor-col-resize transition-colors duration-200 z-10
+        className="w-[3px] cursor-col-resize transition-colors duration-200 z-10
         group-hover/column:bg-[var(--slate-3)] dark:group-hover/column:bg-[var(--slate-5)]
         group-hover/column:hover:bg-primary/60 dark:group-hover/column:hover:bg-primary/60"
       />
