@@ -70,6 +70,11 @@ class ProgressBarTqdmPatch(progress_bar):
         fp.write(end)
 
 
+class ProgressBarTrangePatch(ProgressBarTqdmPatch):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(range(*args), **kwargs)
+
+
 class TqdmFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
@@ -81,3 +86,4 @@ class TqdmFormatter(FormatterFactory):
 
             #tqdm.autonotebook.tqdm = tqdm.notebook.tqdm
             tqdm.notebook.tqdm = ProgressBarTqdmPatch
+            tqdm.notebook.trange = ProgressBarTrangePatch
