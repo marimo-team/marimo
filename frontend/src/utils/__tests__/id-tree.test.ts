@@ -747,6 +747,17 @@ describe("MultiColumn", () => {
     expect(transformed.topLevelIds[1]).toEqual(["B2", "B1"]);
   });
 
+  it("transforms all columns", () => {
+    const transformed = multiColumn.transformAll((tree) =>
+      tree.insertAtStart("NEW"),
+    );
+    expect(transformed.topLevelIds).toEqual([
+      ["NEW", "A1", "A2", "A3"],
+      ["NEW", "B1", "B2"],
+      ["NEW", "C1", "C2", "C3", "C4"],
+    ]);
+  });
+
   it("inserts an id", () => {
     const inserted = multiColumn.insertId("D1", columnIds[1], 1 as CellIndex);
     expect(inserted.topLevelIds[1]).toEqual(["B1", "D1", "B2"]);
