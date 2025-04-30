@@ -140,7 +140,7 @@ To convert a marimo notebook to markdown, use
 marimo export md notebook.py -o notebook.md
 ```
 
-at the command-line.
+at the command-line, or rename your file to have an `.md` extension in the notebook editor.
 
 marimo conforms to standard markdown document format, and will render most
 places like Github. Metadata in this file format is saved in the frontmatter,
