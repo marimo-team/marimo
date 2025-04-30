@@ -12,7 +12,8 @@ export type ConnectionLibrary =
   | "clickhouse_connect"
   | "chdb"
   | "pyiceberg"
-  | "ibis";
+  | "ibis"
+  | "motherduck";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -22,6 +23,7 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   chdb: "chDB",
   pyiceberg: "PyIceberg",
   ibis: "Ibis",
+  motherduck: "MotherDuck",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -327,6 +329,34 @@ class DuckDBGenerator extends CodeGenerator<"duckdb"> {
   }
 }
 
+class MotherDuckGenerator extends CodeGenerator<"motherduck"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database,
+    );
+
+    if (!this.connection.token) {
+      return dedent(`
+        conn = duckdb.connect("md:${database}")
+        `);
+    }
+
+    const token = this.secrets.printPassword(
+      this.connection.token,
+      "MOTHERDUCK_TOKEN",
+      false,
+    );
+    return dedent(`
+      conn = duckdb.connect("md:${database}", config={"motherduck_token": ${token}})
+    `);
+  }
+}
+
 class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
   generateImports(): string[] {
     return ["import clickhouse_connect"];
@@ -356,6 +386,7 @@ ${formatUrlParams(params, (inner) => `        ${inner}`)},
     `);
   }
 }
+
 class TimeplusGenerator extends CodeGenerator<"timeplus"> {
   generateImports(): string[] {
     return [];
@@ -533,7 +564,7 @@ class DataFusionGenerator extends CodeGenerator<"datafusion"> {
         ctx = SessionContext()
         # Sample table
         _ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
-  
+
         con = ibis.datafusion.connect(ctx)
       `);
     }
@@ -591,6 +622,8 @@ class CodeGeneratorFactory {
         return new BigQueryGenerator(connection, orm, this.secrets);
       case "duckdb":
         return new DuckDBGenerator(connection, orm, this.secrets);
+      case "motherduck":
+        return new MotherDuckGenerator(connection, orm, this.secrets);
       case "clickhouse_connect":
         return new ClickHouseGenerator(connection, orm, this.secrets);
       case "timeplus":

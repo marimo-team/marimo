@@ -2,6 +2,7 @@
 import type { FC } from "react";
 import SQLiteIcon from "./icons/sqlite.svg";
 import DuckDBIcon from "./icons/duckdb.svg";
+import MotherDuckIcon from "./icons/motherduck.svg";
 import PostgresQLIcon from "./icons/postgresql.svg";
 import MySQLIcon from "./icons/mysql.svg";
 import SnowflakeIcon from "./icons/snowflake.svg";
@@ -18,6 +19,7 @@ import { cn } from "@/utils/cn";
 export type DBLogoName =
   | "sqlite"
   | "duckdb"
+  | "motherduck"
   | "postgres"
   | "postgresql"
   | "mysql"
@@ -43,6 +45,7 @@ interface DatabaseLogoProps {
 const URLS: Record<DBLogoName, string | undefined> = {
   sqlite: SQLiteIcon,
   duckdb: DuckDBIcon,
+  motherduck: MotherDuckIcon,
   postgres: PostgresQLIcon,
   postgresql: PostgresQLIcon,
   mysql: MySQLIcon,
