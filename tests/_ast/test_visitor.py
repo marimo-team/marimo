@@ -482,6 +482,36 @@ def test_global_def() -> None:
     }
 
 
+def test_global_not_ref() -> None:
+    code = cleandoc(
+        """
+        x = 0
+        def foo(a):
+          global x
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["foo", "x"])
+    assert v.refs == set()
+
+
+def test_global_not_ref_define_later() -> None:
+    code = cleandoc(
+        """
+        def foo(a):
+          global x
+        x = 0
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["foo", "x"])
+    assert v.refs == set()
+
+
 def test_global_ref() -> None:
     code = cleandoc(
         """
