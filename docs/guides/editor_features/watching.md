@@ -26,7 +26,7 @@ the editor UI or by editing the notebook file.
 def memorable_cell_name(auto, determined, references):  # signature denotes cell references
     computed_value = auto + determined + references
     "hello!"                                            # final statement is the visual output
-    return computed_value                               # return denotes cell defnitions
+    return computed_value                               # return denotes cell definitions
 ```
 
 !!! note "Cell signature and returns"
