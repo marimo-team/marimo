@@ -174,8 +174,8 @@ You can bring your own database via a **connection engine** with one of the foll
 - [SQLModel](https://sqlmodel.tiangolo.com/tutorial/create-db-and-table/?h=create+engine#create-the-engine)
 - [Ibis](https://ibis-project.org/backends/athena)
 - [Custom DuckDB connection](https://duckdb.org/docs/api/python/overview.html#connection-options)
-- [ClickHouse Connect (remote)](https://clickhouse.com/docs/integrations/python#introduction)
-- [chDB (embedded)](https://clickhouse.com/docs/chdb)
+- [ClickHouse Connect](https://clickhouse.com/docs/integrations/python#introduction)
+- [chDB](https://clickhouse.com/docs/chdb)
 
 By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
 
