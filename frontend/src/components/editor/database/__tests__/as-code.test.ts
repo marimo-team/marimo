@@ -37,6 +37,12 @@ describe("generateDatabaseCode", () => {
     read_only: true,
   };
 
+  const motherduckConnection: DatabaseConnection = {
+    type: "motherduck",
+    database: "my_db",
+    token: "my_token",
+  };
+
   const snowflakeConnection: DatabaseConnection = {
     type: "snowflake",
     account: "account",
@@ -169,6 +175,7 @@ describe("generateDatabaseCode", () => {
       ["mysql with SQLAlchemy", baseMysql, "sqlalchemy"],
       ["sqlite", sqliteConnection, "sqlmodel"],
       ["duckdb", duckdbConnection, "duckdb"],
+      ["motherduck", motherduckConnection, "duckdb"],
       ["snowflake", snowflakeConnection, "sqlmodel"],
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
@@ -249,6 +256,14 @@ describe("generateDatabaseCode", () => {
           password: prefixSecret("ENV_PASSWORD"),
         },
         "sqlalchemy",
+      ],
+      [
+        "motherduck with token as secret",
+        {
+          ...motherduckConnection,
+          token: prefixSecret("ENV_TOKEN"),
+        },
+        "duckdb",
       ],
     ])("%s", (name, connection, orm) => {
       expect(
@@ -451,6 +466,14 @@ describe("generateDatabaseCode", () => {
           async_support: true,
         },
         "sqlalchemy",
+      ],
+      [
+        "motherduck with special chars in database name",
+        {
+          ...motherduckConnection,
+          database: "test-db.special",
+        },
+        "duckdb",
       ],
     ];
 

@@ -20,6 +20,7 @@ import {
   IcebergConnectionSchema,
   DataFusionConnectionSchema,
   PySparkConnectionSchema,
+  MotherDuckConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -102,6 +103,16 @@ const DATABASES = [
     schema: DuckDBConnectionSchema,
     color: "#FFD700",
     logo: "duckdb",
+    connectionLibraries: {
+      libraries: ["duckdb"],
+      preferred: "duckdb",
+    },
+  },
+  {
+    name: "MotherDuck",
+    schema: MotherDuckConnectionSchema,
+    color: "#ff9538",
+    logo: "motherduck",
     connectionLibraries: {
       libraries: ["duckdb"],
       preferred: "duckdb",

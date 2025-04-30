@@ -174,6 +174,16 @@ export const DuckDBConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const MotherDuckConnectionSchema = z
+  .object({
+    type: z.literal("motherduck"),
+    database: databaseField()
+      .default("my_db")
+      .describe(FieldOptions.of({ label: "Database Name" })),
+    token: tokenField(),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const SnowflakeConnectionSchema = z
   .object({
     type: z.literal("snowflake"),
@@ -399,6 +409,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   MySQLConnectionSchema,
   SQLiteConnectionSchema,
   DuckDBConnectionSchema,
+  MotherDuckConnectionSchema,
   SnowflakeConnectionSchema,
   BigQueryConnectionSchema,
   ClickhouseConnectionSchema,

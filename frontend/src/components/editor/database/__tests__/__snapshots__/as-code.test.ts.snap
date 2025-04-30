@@ -115,6 +115,14 @@ catalog = SqlCatalog(
 )"
 `;
 
+exports[`generateDatabaseCode > basic connections > motherduck 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("MOTHERDUCK_TOKEN", "my_token")
+conn = duckdb.connect("md:my_db", config={"motherduck_token": _password})"
+`;
+
 exports[`generateDatabaseCode > basic connections > mysql with SQLAlchemy 1`] = `
 "import os
 import sqlalchemy
@@ -237,6 +245,14 @@ engine = clickhouse_connect.get_client(
 )"
 `;
 
+exports[`generateDatabaseCode > connections with secrets > motherduck with token as secret 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("ENV_TOKEN")
+conn = duckdb.connect("md:my_db", config={"motherduck_token": _password})"
+`;
+
 exports[`generateDatabaseCode > connections with secrets > mysql with username and password as secrets 1`] = `
 "import os
 import sqlalchemy
@@ -354,6 +370,14 @@ exports[`generateDatabaseCode > edge cases > duckdb with relative path 1`] = `
 
 DATABASE_URL = "./relative/path/db.duckdb"
 engine = sqlmodel.connect(DATABASE_URL, read_only=False)"
+`;
+
+exports[`generateDatabaseCode > edge cases > motherduck with special chars in database name 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("MOTHERDUCK_TOKEN", "my_token")
+conn = duckdb.connect("md:test-db.special", config={"motherduck_token": _password})"
 `;
 
 exports[`generateDatabaseCode > edge cases > mysql with extremely long database name 1`] = `
