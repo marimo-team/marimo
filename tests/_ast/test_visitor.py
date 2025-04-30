@@ -512,6 +512,24 @@ def test_global_not_ref_define_later() -> None:
     assert v.refs == set()
 
 
+def test_global_after_scoped_def() -> None:
+    code = cleandoc(
+        """
+        def f():
+            x = 0
+
+            def g():
+                global x
+                x = 1
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["f", "x"])
+    assert not v.refs
+
+
 def test_global_ref() -> None:
     code = cleandoc(
         """

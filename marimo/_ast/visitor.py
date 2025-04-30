@@ -829,7 +829,9 @@ class ScopedVisitor(ast.NodeVisitor):
         ]
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
-            if not self._is_defined(name):
+            # We only add a reference if the name is not
+            # already defined at the global scope
+            if not self.block_stack[0].is_defined(name):
                 self._add_ref(node, name, deleted=False)
         return node
 
