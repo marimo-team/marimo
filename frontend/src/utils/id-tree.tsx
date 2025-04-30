@@ -894,7 +894,7 @@ export class MultiColumn<T> {
     fn: (tree: CollapsibleTree<T>) => CollapsibleTree<T>,
   ): MultiColumn<T> {
     let didChange = false;
-    
+
     // Apply the transformation to all columns
     const newColumns = this.columns.map((column) => {
       const newColumn = fn(column);
@@ -903,12 +903,12 @@ export class MultiColumn<T> {
       }
       return newColumn;
     });
-    
+
     // Avoid unnecessary re-renders if nothing changed
     if (!didChange) {
       return this;
     }
-    
+
     return new MultiColumn(newColumns);
   }
 }
