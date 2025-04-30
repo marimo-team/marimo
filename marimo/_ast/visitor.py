@@ -214,11 +214,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return set(
             name
             for name in self._refs
-            if any(
-                ref.deleted
-                for ref in self._refs[name]
-                if len(ref.parent_blocks) == 1
-            )
+            if any(ref.deleted for ref in self._refs[name])
         )
 
     def _if_local_then_mangle(

@@ -1036,6 +1036,17 @@ def test_outer_ref_not_resolved_by_inner_resolution() -> None:
     assert v.refs == {"x"}
 
 
+def test_deleted_ref_basic() -> None:
+    code = "del x"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == {"x"}
+    breakpoint()
+    assert v.deleted_refs == {"x"}
+
+
 def test_not_deleted_ref() -> None:
     code = cleandoc(
         """
