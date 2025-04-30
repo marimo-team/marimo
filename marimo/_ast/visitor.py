@@ -194,10 +194,31 @@ class ScopedVisitor(ast.NodeVisitor):
     @property
     def deleted_refs(self) -> set[Name]:
         """Referenced names that were deleted with `del`."""
+
+        # This incorrectly treats `del` on unbound locals as deleted refs,
+        # but correctly treats `del` on a `global` ref as a deleted ref.
+        #
+        # For example,
+        #
+        #   def f():
+        #     del x
+        #
+        # In this code, `x` is technically an (unbound) local. But marimo treats
+        # any variable that has been seen but not defined in a parent block as
+        # a reference, causing it to think that this code deletes a reference.
+        #
+        # In practice, `del` on an unbound local is illegal (at runtime) anyway,
+        # so marking it as a deleted ref is in practice a big deal. For 100%
+        # correctness we would prune unbound locals from refs, not here but
+        # when variables added as defs and refs.
         return set(
             name
             for name in self._refs
-            if any(ref.deleted for ref in self._refs[name])
+            if any(
+                ref.deleted
+                for ref in self._refs[name]
+                if len(ref.parent_blocks) == 1
+            )
         )
 
     def _if_local_then_mangle(

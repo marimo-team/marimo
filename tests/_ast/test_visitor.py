@@ -548,6 +548,22 @@ def test_global_ref() -> None:
     }
 
 
+def test_global_deleted_ref() -> None:
+    code = cleandoc(
+        """
+        def f():
+            global x
+            del x
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["f"])
+    assert v.refs == set(["x"])
+    assert v.deleted_refs == {"x"}
+
+
 def test_nested_local_def_and_global_ref() -> None:
     code = cleandoc(
         """
@@ -1040,13 +1056,21 @@ def test_not_deleted_ref() -> None:
     assert not v.deleted_refs
 
 
-def test_deleted_ref() -> None:
+@pytest.mark.xfail(reason="Unbound locals are currently treated as refs")
+def test_unbound_local_not_deleted_ref() -> None:
+    # here `x` is an unbound local, because
+    # `del` adds `x` to scope. In particular,
+    # `z = x` raises an UnboundLocalError, even
+    # if `x` is in the global scope, meaning
+    # that technically:
+    #
+    #   1. this code should not have any refs
+    #   2. so del `x` is not deleting a ref
     code = cleandoc(
         """
     def fn():
-        if False:
-            z = x
-            del x
+        z = x
+        del x
     """
     )
 
@@ -1054,8 +1078,9 @@ def test_deleted_ref() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == {"fn"}
-    assert v.refs == {"x"}
-    assert v.deleted_refs == {"x"}
+    # TODO(akshayka): These assertions currently fail.
+    assert not v.refs
+    assert not v.deleted_refs
 
 
 HAS_DEPS = DependencyManager.duckdb.has()
