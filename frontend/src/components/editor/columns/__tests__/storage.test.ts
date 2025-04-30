@@ -2,8 +2,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { reorderColumnSizes, storageFn } from "../storage";
 
-describe("setColumnWidth", () => {
-  const { clearStorage, getColumnWidth, setColumnWidth } = storageFn;
+describe("Column width storage", () => {
+  const { clearStorage, getColumnWidth, saveColumnWidth } = storageFn;
 
   afterEach(() => {
     clearStorage();
@@ -11,11 +11,11 @@ describe("setColumnWidth", () => {
 
   it("should set width for an existing index", () => {
     // Setup initial state
-    setColumnWidth(0, 100);
-    setColumnWidth(1, 200);
+    saveColumnWidth(0, 100);
+    saveColumnWidth(1, 200);
 
     // Test
-    setColumnWidth(0, 150);
+    saveColumnWidth(0, 150);
 
     // Verify
     expect(getColumnWidth(0)).toBe(150);
@@ -24,10 +24,10 @@ describe("setColumnWidth", () => {
 
   it("should set width for a new index", () => {
     // Setup initial state
-    setColumnWidth(0, 100);
+    saveColumnWidth(0, 100);
 
     // Test
-    setColumnWidth(1, 200);
+    saveColumnWidth(1, 200);
 
     // Verify
     expect(getColumnWidth(0)).toBe(100);
@@ -36,10 +36,10 @@ describe("setColumnWidth", () => {
 
   it("should pad with contentWidth when setting width for out of bounds index", () => {
     // Setup initial state
-    setColumnWidth(0, 100);
+    saveColumnWidth(0, 100);
 
     // Test
-    setColumnWidth(3, 300);
+    saveColumnWidth(3, 300);
 
     // Verify
     expect(getColumnWidth(0)).toBe(100);
@@ -50,7 +50,7 @@ describe("setColumnWidth", () => {
 
   it("should handle empty initial state", () => {
     // Test
-    setColumnWidth(2, 200);
+    saveColumnWidth(2, 200);
 
     // Verify
     expect(getColumnWidth(0)).toBe("contentWidth");
@@ -60,13 +60,13 @@ describe("setColumnWidth", () => {
 
   it("should update multiple columns", () => {
     // Setup initial state
-    setColumnWidth(0, 100);
-    setColumnWidth(1, 200);
-    setColumnWidth(2, 300);
+    saveColumnWidth(0, 100);
+    saveColumnWidth(1, 200);
+    saveColumnWidth(2, 300);
 
     // Test
-    setColumnWidth(0, 150);
-    setColumnWidth(2, 350);
+    saveColumnWidth(0, 150);
+    saveColumnWidth(2, 350);
 
     // Verify
     expect(getColumnWidth(0)).toBe(150);
@@ -76,11 +76,11 @@ describe("setColumnWidth", () => {
 
   it("should set contentWidth directly", () => {
     // Setup initial state
-    setColumnWidth(0, 100);
-    setColumnWidth(1, 200);
+    saveColumnWidth(0, 100);
+    saveColumnWidth(1, 200);
 
     // Test
-    setColumnWidth(0, "contentWidth");
+    saveColumnWidth(0, "contentWidth");
 
     // Verify
     expect(getColumnWidth(0)).toBe("contentWidth");
@@ -89,9 +89,9 @@ describe("setColumnWidth", () => {
 
   it("should maintain correct widths after reordering", () => {
     // Setup initial state with 3 columns
-    setColumnWidth(0, 100);
-    setColumnWidth(1, 200);
-    setColumnWidth(2, 300);
+    saveColumnWidth(0, 100);
+    saveColumnWidth(1, 200);
+    saveColumnWidth(2, 300);
 
     // Reorder column 0 to position 2
     reorderColumnSizes(0, 2);
