@@ -177,7 +177,7 @@ You can bring your own database via a **connection engine** with one of the foll
 - [ClickHouse Connect](https://clickhouse.com/docs/integrations/python#introduction)
 - [chDB](https://clickhouse.com/docs/chdb)
 
-By default, marimo uses the [In-Memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
+By default, marimo uses the [in-memory duckdb connection](https://duckdb.org/docs/connect/overview.html#in-memory-database).
 
 ??? info "List of supported databases"
 
