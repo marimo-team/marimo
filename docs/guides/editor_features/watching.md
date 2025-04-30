@@ -57,8 +57,9 @@ class MyClass: ...
 ```
 
 !!! question "Want to use your own LSP for typing?"
-    Explicitly typing your definitions will let marimo carry the annotations
-    into function signatures. For instance
+
+Explicitly typing your definitions will let marimo carry the annotations into
+function signatures. For instance
 
 ```python
 # cell 1
