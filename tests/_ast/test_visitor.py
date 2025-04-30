@@ -972,6 +972,44 @@ def test_outer_ref_not_resolved_by_inner_resolution() -> None:
     assert v.refs == {"x"}
 
 
+def test_not_deleted_ref() -> None:
+    code = cleandoc(
+        """
+    x = 0
+    def fn():
+        if False:
+            z = x
+            del x
+    x
+    """
+    )
+
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"x", "fn"}
+    assert not v.refs
+    assert not v.deleted_refs
+
+
+def test_deleted_ref() -> None:
+    code = cleandoc(
+        """
+    def fn():
+        if False:
+            z = x
+            del x
+    """
+    )
+
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"fn"}
+    assert v.refs == {"x"}
+    assert v.deleted_refs == {"x"}
+
+
 HAS_DEPS = DependencyManager.duckdb.has()
 
 

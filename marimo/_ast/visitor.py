@@ -257,7 +257,17 @@ class ScopedVisitor(ast.NodeVisitor):
         # Register the ref if it doesn't already exist
         current_block = self.block_stack[-1]
         parents = self.block_stack[:-1]
-        if all(ref.block != current_block for ref in self._refs[name]):
+        found_ref: RefData | None = None
+
+        for ref in self._refs[name]:
+            if ref.block == current_block:
+                found_ref = ref
+
+        if found_ref is not None and deleted:
+            # The ref may have already existed, but perhaps it
+            # wasn't deleted
+            found_ref.deleted = True
+        elif found_ref is None:
             # The reference does not yet exist in the current block, so
             # we add it.
             self._refs[name].append(
