@@ -207,6 +207,13 @@ def test_bytes_encoding() -> None:
     assert encoded == '"hello"'
 
 
+def test_memoryview_encoding() -> None:
+    bytes_obj = b"hello"
+    memview = memoryview(bytes_obj)
+    encoded = json.dumps(memview, cls=WebComponentEncoder)
+    assert encoded == '"hello"'
+
+
 def test_set_encoding() -> None:
     set_obj = set(["a", "b"])
     encoded = json.dumps(set_obj, cls=WebComponentEncoder)
