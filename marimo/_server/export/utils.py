@@ -55,9 +55,7 @@ def _const_or_id(args: ast.stmt) -> str:
     return f"{args.id}"  # type: ignore[attr-defined]
 
 
-def get_markdown_from_cell(
-    cell: Cell, code: str
-) -> Optional[str]:
+def get_markdown_from_cell(cell: Cell, code: str) -> Optional[str]:
     """Attempt to extract markdown from a cell, or return None"""
 
     if not (cell.refs == {"mo"} and not cell.defs):
