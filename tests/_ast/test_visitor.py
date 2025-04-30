@@ -954,6 +954,24 @@ def test_private_ref_requirement_caught() -> None:
     }
 
 
+def test_outer_ref_not_resolved_by_inner_resolution() -> None:
+    code = cleandoc(
+        """
+        def f():
+            x
+            def g():
+                def h():
+                    x
+                x = 0
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"f"}
+    assert v.refs == {"x"}
+
+
 HAS_DEPS = DependencyManager.duckdb.has()
 
 
