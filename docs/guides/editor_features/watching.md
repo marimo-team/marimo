@@ -11,15 +11,17 @@ have the changes automatically reflected in your browser.
     For better performance, install [watchdog](https://pypi.org/project/watchdog/).
     Without watchdog, marimo resorts to polling.
 
-## marimo's file format
+## marimo's File format
+
+### Python file format
 
 !!! tip "File format tutorial"
 
     Run `marimo tutorial fileformat` at the command line for a full guide.
 
-marimo stores notebooks as Python cells. Cells are stored as functions,
-decorated with`@app.cell`; you can optionally give cells names in the editor
-UI or by editing the notebook file.
+marimo stores notebooks as Python files with cell definitions. Cells are stored
+as functions, decorated with`@app.cell`; you can optionally give cells names in
+the editor UI or by editing the notebook file.
 
 ```python
 @app.cell
@@ -53,6 +55,73 @@ def my_function(x): ...
 @app.class_definition
 class MyClass: ...
 ```
+
+!!! question "Want to use your own LSP for typing?"
+    Explicitly typing your definitions will let marimo carry the annotations
+    into function signatures. For instance
+
+```python
+# cell 1
+x: int
+y: str
+
+# cell 2
+z = f"{x} & {y}"
+```
+
+will be serialized as
+
+```python
+@app.cell
+def cell_1():
+    x: int
+    y: str
+    return x, y
+
+@app.cell
+def cell_2(x: int, y: str):
+    z = f"{x} & {y}"
+```
+
+### Markdown file format
+
+!!! tip "Markdown File format tutorial"
+    Run `marimo tutorial markdown-format` at the command line for a full guide.
+
+marimo notebooks can also be stored as Markdown files. This is a good option
+for prose heavy text, and can be easy to navigate and edit in external editors.
+
+marimo conforms to standard markdown document format, and will render most
+places like Github.
+Metadata in this file format is saved in the frontmatter, which marimo may use
+for information like [sandboxing](../package_reproducibility.md), and the
+marimo version. All other fields are kept, but ignored.
+
+For execution, marimo extracts code fences that contain `marimo` in braces. For
+instance `python {marimo}`, `{marimo}` or `{.marimo .python}`. The marimo
+editor uses `python {.marimo}` which is Pandoc compatible, and correctly
+processed by text highlighters.
+
+````markdown
+---
+title: My Notebook
+marimo-version: 0.0.0
+description: A notebook with a description
+---
+
+# Just a notebook
+
+```python {.marimo}
+print("Hello World!")
+```
+````
+
+marimo's markdown format can be used with a [`mkdocs
+plugin`](https://github.com/marimo-team/mkdocs-marimo), and
+[`Quarto`](https://github.com/marimo-team/quarto-marimo).
+
+Note, there is some feature loss in this format. Reactive tests will not work,
+and the notebooks cannot be imported or used as a library.
 
 ## `marimo edit --watch`
 

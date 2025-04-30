@@ -116,6 +116,7 @@ print(stats)
 
 - Functions cannot depend on variables defined in regular cells
 - Like other cells, cyclic dependencies between functions are not allowed
+- Functions cannot be exported from notebooks in [marimo's markdown format](editor_features/watching.md#markdown-file-support).
 
 ## Learn more
 
