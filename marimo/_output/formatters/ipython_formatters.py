@@ -83,7 +83,7 @@ class IPythonFormatter(FormatterFactory):
                 return
             
             # Clear the output before updating
-            _output.clear()
+            # _output.clear()
             
             # Update the stored object
             raw = kwargs.pop("raw", False)
@@ -93,7 +93,7 @@ class IPythonFormatter(FormatterFactory):
                 display_objects[display_id] = obj
             
             # Append the updated object to the output
-            _output.append(display_objects[display_id])
+            _output.replace(display_objects[display_id])
 
         # Patch both display and update_display
         IPython.display.display = display
