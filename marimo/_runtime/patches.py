@@ -8,12 +8,15 @@ import textwrap
 import types
 from typing import TYPE_CHECKING, Any, Callable
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from jedi.inference.base_value import ValueSet
+    from jedi.inference.base_value import (  # type: ignore[import-untyped]
+        ValueSet,
+    )
     from parso.python.tree import ExprStmt
 
 
@@ -215,16 +218,24 @@ def patch_main_module_context(
 def patch_jedi_parameter_completion() -> None:
     import re
 
-    from docstring_to_markdown import UnknownFormatError, convert
-    from jedi.inference.compiled import CompiledValue
-    from jedi.inference.compiled.value import SignatureParamName
-    from jedi.inference.names import AnonymousParamName, ParamNameWrapper
-    from jedi.parser_utils import clean_scope_docstring
+    from jedi.inference.compiled import (  # type: ignore[import-untyped]
+        CompiledValue,
+    )
+    from jedi.inference.compiled.value import (  # type: ignore[import-untyped]
+        SignatureParamName,
+    )
+    from jedi.inference.names import (  # type: ignore[import-untyped]
+        AnonymousParamName,
+        ParamNameWrapper,
+    )
+    from jedi.parser_utils import (  # type: ignore[import-untyped]
+        clean_scope_docstring,
+    )
 
     original_static_infer = AnonymousParamName.infer
     original_dynamic_infer = SignatureParamName.infer
 
-    original_dynamic_init = SignatureParamName.__init__
+    original_dynamic_init: Callable[..., None] = SignatureParamName.__init__
 
     def find_statement_documentation(tree_node: ExprStmt) -> str:
         """Find documentation of a statement (attribute in a class).
@@ -239,7 +250,7 @@ def patch_jedi_parameter_completion() -> None:
             maybe_name = tree_node.children[0]
             if maybe_name.type != "name":
                 return ""
-            maybe_comment = maybe_name.prefix
+            maybe_comment = getattr(maybe_name, "prefix", None)
             if not isinstance(maybe_comment, str):
                 return ""
             maybe_comment = maybe_comment.strip()
@@ -257,14 +268,14 @@ def patch_jedi_parameter_completion() -> None:
             )
         return ""
 
-    def extract_marimo_style_arguments(docstring: str) -> dict:
+    def extract_marimo_style_arguments(docstring: str) -> dict[str, str]:
         lines = docstring.splitlines()
         try:
             start = lines.index("# Arguments")
         except ValueError:
             return {}
         parsing_marimo_docstring = False
-        param_descriptions = {}
+        param_descriptions: dict[str, str] = {}
         for line in lines[start + 1 :]:
             if line == "| Parameter | Type | Description |":
                 parsing_marimo_docstring = True
@@ -278,12 +289,15 @@ def patch_jedi_parameter_completion() -> None:
                 match = re.match(
                     r"^\| `(.+)` \| `(.*)` \| (.*) \|$", line.strip()
                 )
-                param, _param_type, description = match.groups()
-                param_descriptions[param] = description
+                if match:
+                    param, _param_type, description = match.groups()
+                    param_descriptions[param] = description
         return param_descriptions
 
-    def extract_docstring_to_markdown_arguments(docstring: str) -> dict:
-        param_descriptions = {}
+    def extract_docstring_to_markdown_arguments(
+        docstring: str,
+    ) -> dict[str, str]:
+        param_descriptions: dict[str, str] = {}
         lines = docstring.splitlines()
         try:
             start = lines.index("#### Parameters")
@@ -329,10 +343,16 @@ def patch_jedi_parameter_completion() -> None:
             else:
                 docstring = clean_scope_docstring(definition.parent.parent)
 
-        try:
-            docstring = convert(docstring)
-        except UnknownFormatError:
-            return ""
+        if DependencyManager.docstring_to_markdown.has():
+            from docstring_to_markdown import (  # type: ignore[import-not-found]
+                UnknownFormatError,
+                convert,
+            )
+
+            try:
+                docstring = convert(docstring)
+            except UnknownFormatError:
+                return ""
 
         if "# Arguments" in docstring:
             param_descriptions = extract_marimo_style_arguments(docstring)
@@ -345,10 +365,10 @@ def patch_jedi_parameter_completion() -> None:
             return param_descriptions[arg_name]
         return ""
 
-    def filter_none_value(value) -> bool:
+    def filter_none_value(value: Any) -> bool:
         if not isinstance(value, CompiledValue):
             return True
-        value_repr = value.access_handle.get_repr()
+        value_repr: str = value.access_handle.get_repr()
         return not (
             value_repr == "None"
             or
@@ -357,22 +377,28 @@ def patch_jedi_parameter_completion() -> None:
             "_NoValueType" in value_repr
         )
 
-    def wrap_infer(original_infer) -> Callable:
+    def wrap_infer(
+        original_infer: Callable[[Any], ValueSet],
+    ) -> Callable[[Any], ValueSet]:
         def infer(self: AnonymousParamName | SignatureParamName) -> ValueSet:
             # Patch for https://github.com/davidhalter/jedi/issues/2063
             result = original_infer(self)
             return result.filter(filter_none_value)
 
-        infer.patched = True
+        infer.patched = True  # type: ignore[attr-defined]
         return infer
 
-    py__doc__.patched = True
+    py__doc__.patched = True  # type: ignore[attr-defined]
 
-    def enhanced_init(self, compiled_value, signature_param) -> Callable:
+    def enhanced_init(
+        self: SignatureParamName,
+        compiled_value: CompiledValue,
+        signature_param: str,
+    ) -> None:
         original_dynamic_init(self, compiled_value, signature_param)
         self.compiled_value = compiled_value
 
-    enhanced_init.patched = True
+    enhanced_init.patched = True  # type: ignore[attr-defined]
 
     if not (
         hasattr(ParamNameWrapper, "py__doc__")

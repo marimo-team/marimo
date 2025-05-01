@@ -203,7 +203,7 @@ def google_docstring_to_markdown(docstring: str) -> str:
 class MarimoConverter:
     priority = 100
 
-    def __init__(self):
+    def __init__(self) -> None:
         patch_jedi_parameter_completion()
 
     SECTION_HEADERS = ["Args", "Returns", "Raises", "Examples"]
