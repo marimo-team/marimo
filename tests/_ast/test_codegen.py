@@ -62,9 +62,12 @@ def wrap_generate_filecontents(
         resolved_configs = [CellConfig() for _ in range(len(codes))]
     else:
         resolved_configs = cell_configs
-    return codegen.generate_filecontents(
+    filecontents = codegen.generate_filecontents(
         codes, names, cell_configs=resolved_configs, **kwargs
     )
+    # leading spaces should be removed too
+    assert filecontents.lstrip() == filecontents
+    return filecontents
 
 
 def get_idempotent_marimo_source(name: str) -> str:
