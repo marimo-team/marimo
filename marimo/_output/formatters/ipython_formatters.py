@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import weakref
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -22,7 +23,13 @@ class IPythonFormatter(FormatterFactory):
         from marimo._runtime.output import _output
 
         # Dictionary to store display objects by ID
-        display_objects: dict[str, Any] = {}
+        display_objects: weakref.WeakValueDictionary[str, Any] = (
+            weakref.WeakValueDictionary()
+        )
+
+        def clear_display_objects() -> None:
+            """Clear all stored display objects."""
+            display_objects.clear()
 
         old_display = IPython.display.display
         old_update_display = getattr(IPython.display, "update_display", None)
@@ -61,6 +68,9 @@ class IPythonFormatter(FormatterFactory):
                 # Store the object if display_id is provided
                 if display_id is not None:
                     display_objects[display_id] = output_value
+                    # Clean up old display objects if we have too many
+                    if len(display_objects) > 1000:  # Arbitrary limit
+                        clear_display_objects()
 
                 _output.append(output_value)
 
@@ -110,6 +120,7 @@ class IPythonFormatter(FormatterFactory):
             pass
 
         def unpatch() -> None:
+            clear_display_objects()  # Clean up on unpatch
             IPython.display.display = old_display  # type: ignore
             if old_update_display is not None:
                 IPython.display.update_display = old_update_display  # type: ignore
