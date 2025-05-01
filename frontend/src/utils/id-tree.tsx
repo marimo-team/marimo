@@ -310,15 +310,24 @@ export class CollapsibleTree<T> {
    * Expand all collapsed nodes in the tree, including nested ones
    */
   expandAll(): CollapsibleTree<T> {
-    const expandedNodes = this.nodes.flatMap((node) => {
-      if (node.isCollapsed) {
-        // Create expanded version of this node and include its children
-        return [new TreeNode(node.value, false, []), ...node.children];
-      }
-      return [node];
-    });
+    let nodes = [...this.nodes];
+    let nodeIndex = 0;
 
-    return this.withNodes(expandedNodes);
+    while (nodeIndex < nodes.length) {
+      const node = nodes[nodeIndex];
+      if (node.isCollapsed) {
+        // Replace the collapsed node with an expanded one
+        nodes[nodeIndex] = new TreeNode(node.value, false, []);
+        // Add the children of the collapsed node to the list
+        nodes = arrayInsertMany(nodes, nodeIndex + 1, node.children);
+        nodeIndex++;
+      } else {
+        // Move to the next node
+        nodeIndex++;
+      }
+    }
+
+    return this.withNodes(nodes);
   }
 
   /**
