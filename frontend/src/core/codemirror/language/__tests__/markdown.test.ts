@@ -170,6 +170,36 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(8);
       expect(adapter.lastQuotePrefix).toBe("r");
     });
+
+    it("should preserve indentation in f-strings", () => {
+      const pythonCode =
+        'mo.md(\n    f"""\n```python\n{some_variable}\n```\n"""\n)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("```python\n{some_variable}\n```");
+      expect(offset).toBe(15);
+      expect(adapter.lastQuotePrefix).toBe("f");
+
+      // Transform out
+      const [outerCode, outerOffset] = adapter.transformOut(innerCode);
+      expect(outerCode).toMatch(pythonCode);
+      expect(outerOffset).toBe(17);
+    });
+
+    it("should handle f-strings", () => {
+      const pythonCode = 'mo.md(f"""# Title\n{some_variable}""")';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("# Title\n{some_variable}");
+      expect(offset).toBe(10);
+      expect(adapter.lastQuotePrefix).toBe("f");
+    });
+
+    it("should handle rf-strings", () => {
+      const pythonCode = 'mo.md(rf"""# Title\n{some_variable}""")';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("# Title\n{some_variable}");
+      expect(offset).toBe(11);
+      expect(adapter.lastQuotePrefix).toBe("rf");
+    });
   });
 
   describe("transformOut", () => {
@@ -204,8 +234,8 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
             """
-            "Hello" world
-            """
+        "Hello" world
+        """
         )"
       `);
       expect(offset).toBe(16);
@@ -218,8 +248,8 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
             """
-            Hello "world"
-            """
+        Hello "world"
+        """
         )"
       `);
       expect(offset).toBe(16);
@@ -232,10 +262,10 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
             """
-            # Markdown Title
+        # Markdown Title
 
-            Some content here.
-            """
+        Some content here.
+        """
         )"
       `);
       expect(offset).toBe(16);
@@ -274,6 +304,36 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toBe(pythonCode);
       expect(offset).toBe(10);
     });
+
+    it("should handle f-strings in transformOut", () => {
+      const code = "# Title\n{some_variable}";
+      adapter.lastQuotePrefix = "f";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "mo.md(
+            f"""
+        # Title
+        {some_variable}
+        """
+        )"
+      `);
+      expect(offset).toBe(17);
+    });
+
+    it("should handle rf-strings in transformOut", () => {
+      const code = "# Title\n{some_variable}";
+      adapter.lastQuotePrefix = "rf";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "mo.md(
+            rf"""
+        # Title
+        {some_variable}
+        """
+        )"
+      `);
+      expect(offset).toBe(18);
+    });
   });
 
   describe("isSupported", () => {
@@ -284,6 +344,8 @@ describe("MarkdownLanguageAdapter", () => {
         "mo.md()",
         "mo.md('')",
         'mo.md("")',
+        'mo.md(""" hi """)',
+        "mo.md(''' hi ''')",
         "mo.md(f'hello world')",
         'mo.md(f"hello world")',
         "mo.md(r'hello world')",
@@ -292,10 +354,28 @@ describe("MarkdownLanguageAdapter", () => {
         'mo.md(rf"hello world")',
         "mo.md(fr'hello world')",
         'mo.md(fr"hello world")',
+        'mo.md(f"""\n```python\n{some_variable}\n```\n""")',
+        "mo.md(f'''\n```python\n{some_variable}\n```\n''')",
+        'mo.md(rf"""\n```python\n{some_variable}\n```\n""")',
+        "mo.md(rf'''\n```python\n{some_variable}\n```\n''')",
+        'mo.md(f"""{np.random.randint(0, 10)}""")',
       ];
       for (const format of VALID_FORMATS) {
         expect(adapter.isSupported(format)).toBe(true);
       }
+    });
+
+    it("should return true for complex nested markdown", () => {
+      const pythonCode = String.raw`
+      mo.md(
+        rf"""
+        \`\`\`python
+        {pathlib.Path(__file__).read_text(encoding="utf-8")}
+        \`\`\`
+        """
+      )
+      `;
+      expect(adapter.isSupported(pythonCode)).toBe(true);
     });
 
     it("should return false for unsupported string formats", () => {

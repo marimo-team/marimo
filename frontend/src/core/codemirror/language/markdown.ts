@@ -18,7 +18,6 @@ import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { indentOneTab } from "./utils/indentOneTab";
 import {
   QUOTE_PREFIX_KINDS,
   type QuotePrefixKind,
@@ -122,44 +121,76 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
-    const end = `\n    """\n)`;
-    return [start + indentOneTab(escapedCode) + end, start.length + 1];
+    const end = `\n"""\n)`;
+    return [start + escapedCode + end, start.length + 1];
   }
 
   isSupported(pythonCode: string): boolean {
-    if (pythonCode.trim() === "") {
+    pythonCode = pythonCode.trim();
+
+    // Empty strings are supported
+    if (pythonCode === "") {
       return true;
     }
 
-    if (pythonCode.trim() === "mo.md()") {
+    // Must start with mo.md(
+    if (!pythonCode.startsWith("mo.md(")) {
+      return false;
+    }
+
+    // Empty function calls are supported
+    if (pythonCode === "mo.md()") {
       return true;
     }
 
-    // Handle mo.md("foo"), mo.plain_text("bar") in the same line
-    // If it starts with mo.md, but we have more than one function call, return false
-    if (pythonCode.trim().startsWith("mo.md(")) {
-      const tree = pythonLanguage.parser.parse(pythonCode);
-      let functionCallCount = 0;
+    // Parse the code using Lezer and check for the exact match of mo.md() signature
+    const tree = pythonLanguage.parser.parse(pythonCode);
 
-      // Parse the code using Lezer to check for multiple function calls
-      tree.iterate({
-        enter: (node) => {
-          if (node.name === "CallExpression") {
-            functionCallCount++;
-            if (functionCallCount > 1) {
-              return false; // Stop iterating if we've found more than one function call
-            }
-          }
-        },
-      });
+    // This is the exact match of mo.md() signature
+    const enterOrder: Array<{ match: string | RegExp; stop?: boolean }> = [
+      { match: "Script" },
+      { match: "ExpressionStatement" },
+      { match: "CallExpression" },
+      { match: "MemberExpression" },
+      { match: "VariableName" },
+      { match: "." },
+      { match: "PropertyName" },
+      { match: "ArgList" },
+      { match: "(" },
+      { match: /String|FormatString/, stop: true },
+      { match: ")" },
+    ];
 
-      // If the function call count is greater than 1, we don't want to show "view as markdown"
-      if (functionCallCount > 1) {
-        return false;
-      }
-    }
+    let isValid = true;
 
-    return regexes.some(([, regex]) => regex.test(pythonCode));
+    // Parse the code using Lezer to check for multiple function calls and string content
+    tree.iterate({
+      enter: (node) => {
+        const current = enterOrder.shift();
+        if (current === undefined) {
+          // If our list is empty, but we are still going
+          // then this is not a valid call
+          isValid = false;
+          return false;
+        }
+
+        const match = current.match;
+
+        if (typeof match === "string") {
+          isValid = isValid && match === node.name;
+          return isValid && !current.stop;
+        }
+
+        if (!match.test(node.name)) {
+          isValid = false;
+          return isValid && !current.stop;
+        }
+
+        return isValid && !current.stop;
+      },
+    });
+
+    return isValid;
   }
 
   getExtension(
