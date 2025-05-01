@@ -307,7 +307,7 @@ export class CollapsibleTree<T> {
   }
 
   /**
-   * Expand all collapsed nodes in the tree
+   * Expand all collapsed nodes in the tree including nested ones
    */
   expandAll(): CollapsibleTree<T> {
     let nodes = [...this.nodes];

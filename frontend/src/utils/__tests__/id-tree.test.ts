@@ -138,6 +138,22 @@ describe("CollapsibleTree", () => {
 		`);
   });
 
+  it("expands all nested collapsed nodes correctly in one call", () => {
+    let collapsed = tree.collapse("three", undefined);
+    expect(collapsed.nodes[2].isCollapsed).toBe(true);
+    collapsed = collapsed.collapse("two", undefined);
+    expect(collapsed.nodes[1].isCollapsed).toBe(true);
+    const expandedTree = collapsed.expandAll();
+    expect(expandedTree.nodes[1].isCollapsed).toBe(false);
+    expect(expandedTree.toString()).toMatchInlineSnapshot(`
+      "one
+      two
+      three
+      four
+      "
+    `);
+  });
+
   it("fails to expand", () => {
     expect(() => tree.expand("five")).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node five not found in tree. Valid ids: one,two,three,four]",
