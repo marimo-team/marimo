@@ -126,22 +126,22 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const helpPaneBody = (
     <ErrorBoundary>
-      <Suspense>
-        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
-          <div className="p-3 border-b flex justify-between items-center">
-            <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
-              {selectedPanel}
-            </div>
-            <Button
-              data-testid="close-helper-pane"
-              className="m-0"
-              size="xs"
-              variant="text"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <XIcon className="w-4 h-4" />
-            </Button>
+      <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
+        <div className="p-3 border-b flex justify-between items-center">
+          <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
+            {selectedPanel}
           </div>
+          <Button
+            data-testid="close-helper-pane"
+            className="m-0"
+            size="xs"
+            variant="text"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <XIcon className="w-4 h-4" />
+          </Button>
+        </div>
+        <Suspense>
           <TooltipProvider>
             {selectedPanel === "files" && <FileExplorerPanel />}
             {selectedPanel === "errors" && <ErrorsPanel />}
@@ -158,8 +158,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "tracing" && <TracingPanel />}
             {selectedPanel === "secrets" && <SecretsPanel />}
           </TooltipProvider>
-        </div>
-      </Suspense>
+        </Suspense>
+      </div>
     </ErrorBoundary>
   );
 
