@@ -26,6 +26,7 @@ jobs:
               - '!docs/**'
               - '!examples/**'
               - '!README.md'
+              - '!tests/**'
 
   test:
     needs: changes

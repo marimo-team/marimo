@@ -16,14 +16,17 @@ from marimo._types.ids import VariableName
 HAS_PYICEBERG = DependencyManager.pyiceberg.has()
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pyiceberg.catalog import Catalog
 
 
 @pytest.fixture
-def memory_catalog() -> Catalog:
+def memory_catalog() -> Generator[Catalog, None, None]:
     """Create a mock PyIceberg catalog for testing."""
     if not HAS_PYICEBERG:
-        return mock.MagicMock()
+        yield mock.MagicMock()
+        return
 
     from pyiceberg.catalog.memory import InMemoryCatalog
     from pyiceberg.schema import Schema as IcebergSchema
@@ -66,7 +69,11 @@ def memory_catalog() -> Catalog:
     assert len(catalog.list_tables("default")) == 2
     assert len(catalog.list_tables("test_namespace")) == 1
 
-    return catalog
+    yield catalog
+
+    catalog.drop_table(("default", "table1"))
+    catalog.drop_table(("default", "table2"))
+    catalog.drop_table(("test_namespace", "table3"))
 
 
 def get_expected_table(

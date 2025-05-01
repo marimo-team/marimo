@@ -22,6 +22,7 @@ jobs:
               - 'tests/**'
               - 'pyproject.toml'
               - 'dagger/**'
+              - '!frontend/**'
 
   test_python:
     needs: changes
