@@ -57,7 +57,7 @@ To add a setup cell in the editor, open the notebook menu and select "Add setup 
 ### 2. Define your function
 
 Define a single function in a cell. If the
-[criteria](overview) for top-level
+[criteria](#overview) for top-level
 functions are met, a marker in the bottom right will indicate that it is a
 reusable function.
 
