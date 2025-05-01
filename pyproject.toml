@@ -259,7 +259,7 @@ extra-dependencies = [
     "pyiceberg>=0.9.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
-    "clickhouse-connect>=0.8.16",
+    "clickhouse-connect>=0.8.17",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
     # Causes issues installing `shapely` (v2.0.7)
