@@ -19,10 +19,10 @@ importers:
         specifier: ^1.2.5
         version: 1.2.5
       '@types/node':
-        specifier: ^20.17.28
-        version: 20.17.29
+        specifier: ^20.17.32
+        version: 20.17.32
       '@types/ws':
-        specifier: ^8.18.0
+        specifier: ^8.18.1
         version: 8.18.1
       jsonrpc-ws-proxy:
         specifier: ^0.0.5
@@ -322,8 +322,8 @@ packages:
   '@types/minimist@1.2.5':
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
 
-  '@types/node@20.17.29':
-    resolution: {integrity: sha512-6rbekrnsa5WWCo5UnPYEKfNuoF2yqAmigUKXM8wBzfEbZc+E/CITqjCrHqiq+6QBifsw0ZDaA5VdTFONOtG7+A==}
+  '@types/node@20.17.32':
+    resolution: {integrity: sha512-zeMXFn8zQ+UkjK4ws0RiOC9EWByyW1CcVmLe+2rQocXRsGEDxUCwPEIVgpsGcLHS/P8JkT0oa3839BRABS0oPw==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -870,13 +870,13 @@ snapshots:
 
   '@types/minimist@1.2.5': {}
 
-  '@types/node@20.17.29':
+  '@types/node@20.17.32':
     dependencies:
       undici-types: 6.19.8
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 20.17.29
+      '@types/node': 20.17.32
 
   ansi-regex@5.0.1: {}
 
