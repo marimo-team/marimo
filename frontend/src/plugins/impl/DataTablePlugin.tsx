@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -53,6 +53,9 @@ import {
 import { isStaticNotebook } from "@/core/static/static-state";
 import { vegaLoadData } from "./vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { store } from "@/core/state/jotai";
+import { Provider } from "jotai";
+import { type CellId, useFindCellId } from "@/core/cells/ids";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -245,22 +248,24 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <TooltipProvider>
-        <LazyDataTableComponent
-          isLazy={props.data.lazy}
-          preload={props.data.preload}
-        >
-          <LoadingDataTableComponent
-            {...props.data}
-            {...props.functions}
-            enableSearch={true}
-            data={props.data.data}
-            value={props.value}
-            setValue={props.setValue}
-            experimentalChartsEnabled={true}
-          />
-        </LazyDataTableComponent>
-      </TooltipProvider>
+      <Provider store={store}>
+        <TooltipProvider>
+          <LazyDataTableComponent
+            isLazy={props.data.lazy}
+            preload={props.data.preload}
+          >
+            <LoadingDataTableComponent
+              {...props.data}
+              {...props.functions}
+              enableSearch={true}
+              data={props.data.data}
+              value={props.value}
+              setValue={props.setValue}
+              experimentalChartsEnabled={true}
+            />
+          </LazyDataTableComponent>
+        </TooltipProvider>
+      </Provider>
     );
   });
 
@@ -301,6 +306,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   experimentalChartsEnabled?: boolean;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
+  cellId?: CellId | null;
 }
 
 export type SetFilters = OnChangeFn<ColumnFiltersState>;
@@ -357,6 +363,9 @@ export const LoadingDataTableComponent = memo(
         });
       }
     }, [props.pageSize, paginationState.pageSize]);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const cellId = useFindCellId(containerRef);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{
@@ -545,11 +554,12 @@ export const LoadingDataTableComponent = memo(
         cellStyles={data?.cellStyles ?? props.cellStyles}
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
+        cellId={cellId}
       />
     );
 
     return (
-      <>
+      <div ref={containerRef}>
         {errorComponent}
         {chartsFeatureEnabled ? (
           <TablePanel
@@ -557,11 +567,12 @@ export const LoadingDataTableComponent = memo(
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
+            cellId={cellId}
           />
         ) : (
           dataTable
         )}
-      </>
+      </div>
     );
   },
 );
@@ -602,6 +613,7 @@ const DataTableComponent = ({
   toggleDisplayHeader,
   chartsFeatureEnabled,
   calculate_top_k_rows,
+  cellId,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -754,6 +766,7 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
+            cellId={cellId}
           />
         </Labeled>
       </ColumnChartContext.Provider>

@@ -32,6 +32,7 @@ import { ChatPanel } from "@/components/chat/chat-panel";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { TracingPanel } from "../panels/tracing-panel";
 import { SecretsPanel } from "../panels/secrets-panel";
+import { DataSelectionPanel } from "../panels/data-selection";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -244,6 +245,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             <IfCapability capability="terminal">{terminalPanel}</IfCapability>
           </PanelGroup>
         </Panel>
+        <DataSelectionPanel handleDragging={handleDragging} />
       </PanelGroup>
       <ErrorBoundary>
         <TooltipProvider>

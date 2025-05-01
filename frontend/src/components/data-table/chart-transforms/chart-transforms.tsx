@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   TableIcon,
@@ -17,7 +17,7 @@ import { ChartSchema } from "./chart-schemas";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { capitalize } from "lodash-es";
 import { type TabName, tabsStorageAtom, tabNumberAtom } from "./storage";
 import type { FieldTypesWithExternalType } from "../types";
@@ -66,6 +66,7 @@ const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 300;
 
 export interface TablePanelProps {
+  cellId: CellId | null;
   dataTable: JSX.Element;
   displayHeader: boolean;
   getDataUrl?: GetDataUrl;
@@ -73,35 +74,17 @@ export interface TablePanelProps {
 }
 
 export const TablePanel: React.FC<TablePanelProps> = ({
+  cellId,
   dataTable,
   getDataUrl,
   fieldTypes,
   displayHeader,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [cellId, setCellId] = useState<CellId | null>(null);
-
   const [tabsMap, saveTabsMap] = useAtom(tabsStorageAtom);
   const tabs = cellId ? (tabsMap.get(cellId) ?? []) : [];
 
   const [tabNum, setTabNum] = useAtom(tabNumberAtom);
   const [selectedTab, setSelectedTab] = useState(DEFAULT_TAB_NAME);
-
-  // Finds cellId in shadow / light DOM
-  useEffect(() => {
-    if (!containerRef.current) {
-      return;
-    }
-
-    // If the element is in the light DOM, we can find it directly
-    // Otherwise, we need to traverse up through shadow DOM boundaries
-    const cellElement = HTMLCellId.findElementThroughShadowDOMs(
-      containerRef.current,
-    );
-    if (cellElement) {
-      setCellId(HTMLCellId.parse(cellElement.id));
-    }
-  }, [containerRef, displayHeader]);
 
   if (!displayHeader || (tabs.length === 0 && !displayHeader)) {
     return dataTable;
@@ -180,7 +163,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   };
 
   return (
-    <Tabs value={selectedTab} ref={containerRef} className="-mt-1">
+    <Tabs value={selectedTab} className="-mt-1">
       <TabsList>
         <TabsTrigger
           className="text-xs"
