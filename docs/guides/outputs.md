@@ -64,21 +64,25 @@ mo.md(
 
 ### Markdown editor
 
-marimo automatically renders cells that only use `mo.md("")`, without an
-`f`-string, in a markdown editor that supports common hotkeys.
-
-Because the Markdown editor doesn't support f-strings, you'll need to use
-`mo.md` directly to interpolate Python values into your Markdown. You can
-switch between the Markdown and Python editors by clicking the button in the
-top right.
+marimo automatically renders cells that only use `mo.md` in a markdown editor
+that supports common hotkeys. You can switch between the Markdown and Python
+editors by clicking the button in the top right:
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline width="100%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
+<video autoplay muted loop playsinline width="80%" height="100%" align="center" src="/_static/docs-markdown-toggle.webm">
 </video>
 <figcaption>marimo is pure Python, even when you're using markdown.</figcaption>
 </figure>
 </div>
+
+**Writing LaTeX.** The markdown editor supports writing LaTeX. You should typically
+use a raw string for markdown with LaTeX, which you can activate by checking the `r`
+box in the bottom-right corner of the markdown editor.
+
+**Interpolating Python values.** Interpolating Python values requires using an
+`f`-string, which you can activate by checking the `f` box in the bottom-right
+corner of the markdown editor.
 
 ### Markdown extensions
 #### Details
