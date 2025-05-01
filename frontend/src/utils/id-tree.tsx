@@ -310,7 +310,7 @@ export class CollapsibleTree<T> {
    * Expand all collapsed nodes in the tree, including nested ones
    */
   expandAll(): CollapsibleTree<T> {
-    const expandedNodes = this.nodes.flatMap(node => {
+    const expandedNodes = this.nodes.flatMap((node) => {
       if (node.isCollapsed) {
         // Create expanded version of this node and include its children
         return [new TreeNode(node.value, false, []), ...node.children];
