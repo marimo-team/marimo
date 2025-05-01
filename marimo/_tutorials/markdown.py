@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.12.2"
+__generated_with = "0.13.3"
 app = marimo.App()
 
 
@@ -45,20 +45,20 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(
-        """
+        r"""
         **Tip: toggling between the Markdown and Python editor**
 
         Although markdown is written with `mo.md`, marimo provides a markdown editor
-        that hides this boilerplate from you.
+        that hides this boilerplate from you, for cells that only contain `mo.md(...)`.
 
         Toggle between the Markdown and Python
         editors by clicking the blue icon in the top-right of the editor,
         entering `Ctrl/Cmd+Shift+M`, or using the "cell actions menu". You can
         also **hide** the markdown editor through the cell actions menu.
 
-        **Tip**: To interpolate Python values into markdown strings, you'll
-        need to use `mo.md(f"...")` directly; the markdown view does not support
-        f-strings.
+        **Tip:** To interpolate Python values into markdown strings, you'll need to use
+        a Python f-string; do this by checking the `f` box in the bottom-right corner of the
+        markdown editor, or with `mo.md(f"...")` in the Python view.
         """
     )
     return
@@ -195,7 +195,7 @@ def _(mo):
 
 @app.cell
 def _(leaves, mo):
-    mo.md(f"Your leaves: {'🍃' * leaves.value}")
+    mo.md(f"""Your leaves: {'🍃' * leaves.value}""")
     return
 
 
@@ -239,7 +239,7 @@ def _(mo, np):
         {mo.as_html(make_dataframe())}
         """
     )
-    return make_dataframe, pl
+    return
 
 
 @app.cell(hide_code=True)
