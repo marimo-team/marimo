@@ -7,7 +7,6 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.ipython_formatters import (
     IPythonFormatter,
-    ReprMimeBundle,
 )
 
 HAS_DEPS = DependencyManager.ipython.has()
@@ -61,7 +60,7 @@ def test_display_update(mock_clear: MagicMock, mock_append: MagicMock):
 @pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
 @patch("marimo._runtime.output._output.append")
 @patch("marimo._runtime.output._output.clear")
-def test_display_auto_id(mock_clear: MagicMock, mock_append: MagicMock):
+def test_display_auto_id(_: MagicMock, mock_append: MagicMock):
     """Test that display with display_id=True auto-generates an ID."""
     # Import IPython before patching
     import IPython.display

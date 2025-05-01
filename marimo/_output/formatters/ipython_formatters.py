@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
@@ -22,7 +22,7 @@ class IPythonFormatter(FormatterFactory):
         from marimo._runtime.output import _output
 
         # Dictionary to store display objects by ID
-        display_objects: Dict[str, Any] = {}
+        display_objects: dict[str, Any] = {}
 
         old_display = IPython.display.display
         old_update_display = getattr(IPython.display, "update_display", None)
