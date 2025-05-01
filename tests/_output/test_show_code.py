@@ -130,6 +130,50 @@ async def test_show_code_position_below(
     ), "Output should appear before code"
 
 
+async def test_show_code_position_left(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                'import marimo as mo; x = mo.show_code(1, position="left")'
+            )
+        ]
+    )
+    result = k.globals["x"].text
+    assert "<marimo-code-editor" in result, (
+        "Expected '<marimo-code-editor>' in output but not found"
+    )
+    assert "<span>1</span>" in result, (
+        "Expected '<span>1</span>' in output but not found"
+    )
+    assert result.index("<marimo-code-editor") < result.index(
+        "<span>1</span>"
+    ), "Code should appear before output"
+
+
+async def test_show_code_position_right(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                'import marimo as mo; x = mo.show_code(1, position="right")'
+            )
+        ]
+    )
+    result = k.globals["x"].text
+    assert "<marimo-code-editor" in result, (
+        "Expected '<marimo-code-editor>' in output but not found"
+    )
+    assert "<span>1</span>" in result, (
+        "Expected '<span>1</span>' in output but not found"
+    )
+    assert result.index("<span>1</span>") < result.index(
+        "<marimo-code-editor"
+    ), "Output should appear before code"
+
+
 async def test_show_code_position_default(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
