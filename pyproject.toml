@@ -273,7 +273,7 @@ extra-dependencies = [
     # testing gen ai
     "openai>=1.55.3",
     "anthropic==0.34.1",
-    "google-generativeai==0.8.4",
+    "google-generativeai==0.8.5",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.3",
