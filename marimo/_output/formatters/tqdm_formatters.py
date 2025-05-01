@@ -50,7 +50,7 @@ class ProgressBarTqdmPatch(progress_bar):
             self.progress.close()
 
     @classmethod
-    def write(cls, s: str, file: Any = None, end = "\n") -> None:
+    def write(cls, s: str, file: Any = None, end: str = "\n") -> None:
         """Print a message via tqdm (without overlap with bars).
 
         Args:
