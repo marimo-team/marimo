@@ -68,9 +68,6 @@ class IPythonFormatter(FormatterFactory):
                 # Store the object if display_id is provided
                 if display_id is not None:
                     display_objects[display_id] = output_value
-                    # Clean up old display objects if we have too many
-                    if len(display_objects) > 1000:  # Arbitrary limit
-                        clear_display_objects()
 
                 _output.append(output_value)
 
