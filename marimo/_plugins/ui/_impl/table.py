@@ -279,7 +279,7 @@ class table(
         selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
             'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
-        initial_selection (Union[List[int], List[tuple[str, str]), optional): Indices of the rows you want selected by default.
+        initial_selection (Union[List[int], List[tuple[str, str]], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns and at least 10 rows, False otherwise.
@@ -299,6 +299,7 @@ class table(
         style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
+        label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
     _name: Final[str] = "marimo-table"

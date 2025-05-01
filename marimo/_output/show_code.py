@@ -69,17 +69,15 @@ def show_code(
     mo.show_code()
     ```
 
-    **Args:**
+    Args:
+        output: the output to display with the cell's code; omit the output
+            to just show the cell's code.
+        position: Where to display the code relative to the output.
+            Use "above" to show code above the output, or "below" (default) to show
+            code below the output.
 
-    - `output`: the output to display with the cell's code; omit the output
-      to just show the cell's code.
-    - `position`: Where to display the code relative to the output.
-      Use "above" to show code above the output, or "below" (default) to show
-      code below the output.
-
-    **Returns:**
-
-    HTML of the `output` arg displayed with its code.
+    Returns:
+        HTML of the `output` arg displayed with its code.
     """
     assert position in ["above", "below"], (
         "position must be 'above' or 'below'"

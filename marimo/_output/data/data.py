@@ -85,13 +85,11 @@ def arrow(data: bytes) -> VirtualFile:
 def parquet(data: bytes) -> VirtualFile:
     """Create a virtual file for Parquet data.
 
-    **Args.**
+    Args:
+        data: Parquet data in bytes
 
-    - data: Parquet data in bytes
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     return any_data(data, ext="parquet")  # type: ignore
 

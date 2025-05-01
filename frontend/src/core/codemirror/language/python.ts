@@ -78,7 +78,12 @@ const lspClient = once((lspConfig: LSPConfig) => {
           enabled: true,
         },
         jedi: {
-          auto_import_modules: ["marimo", "numpy"],
+          // Modules which should be imported and use compile-time, rather
+          // than static analysis; this is a trade-off between being able
+          // to access more information set on runtime (e.g. via setattr)
+          // vs being able to read the information from the source code
+          // (e.g. comments with documentation for attributes).
+          auto_import_modules: ["numpy"],
         },
         jedi_completion: {
           // Ensure that parameters are included for completion snippets.

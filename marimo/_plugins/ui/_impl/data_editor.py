@@ -135,6 +135,8 @@ class data_editor(
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
             `auto` will size columns based on the content, `fit` will size columns to fit the view.
+        pagination (Optional[bool]): Whether to use pagination, enabled by default.
+        page_size (Optional[int]): Page size if pagination is in use, 50 by default.
     """
 
     _name: Final[str] = "marimo-data-editor"

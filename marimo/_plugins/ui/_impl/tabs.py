@@ -48,6 +48,9 @@ class tabs(UIElement[str, str]):
         lazy (bool, optional): Whether to lazily load the tab content.
             This is a convenience that wraps each tab in a `mo.lazy`
             component. Defaults to False.
+        label (str, optional): A descriptive name for the tab. Defaults to "".
+        on_change (Callable[[dict[str, object]], None], optional): Optional callback
+            to run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-tabs"

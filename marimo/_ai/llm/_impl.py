@@ -27,10 +27,9 @@ class simple(ChatModel):
     Convenience class for wrapping a ChatModel or callable to
     take a single prompt
 
-    **Args:**
-
-    - delegate: A callable that takes a
-        single prompt and returns a response
+    Args:
+        delegate: A callable that takes a
+            single prompt and returns a response
     """
 
     def __init__(self, delegate: Callable[[str], object]):
@@ -48,15 +47,14 @@ class openai(ChatModel):
     """
     OpenAI ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the OPENAI_API_KEY environment variable or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the OPENAI_API_KEY environment variable or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -160,16 +158,15 @@ class anthropic(ChatModel):
     """
     Anthropic ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the ANTHROPIC_API_KEY environment variable
-        or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the ANTHROPIC_API_KEY environment variable
+            or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -258,15 +255,14 @@ class google(ChatModel):
     """
     Google AI ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the GOOGLE_AI_API_KEY environment variable
-        or the user's config.
+    Args:
+        model: The model to use.
+            Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the GOOGLE_AI_API_KEY environment variable
+            or the user's config.
     """
 
     def __init__(
@@ -338,15 +334,14 @@ class groq(ChatModel):
     """
     Groq ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Groq models page](https://console.groq.com/docs/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the GROQ_API_KEY environment variable or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [Groq models page](https://console.groq.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the GROQ_API_KEY environment variable or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(

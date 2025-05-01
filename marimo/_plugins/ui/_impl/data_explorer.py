@@ -27,6 +27,8 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
 
     Args:
         df (IntoDataFrame): The DataFrame to visualize.
+        on_change (Callable[[dict[str, object]], None], optional): Optional callback
+            to run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-data-explorer"
