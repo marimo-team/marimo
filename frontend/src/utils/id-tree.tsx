@@ -307,6 +307,30 @@ export class CollapsibleTree<T> {
   }
 
   /**
+   * Expand all collapsed nodes in the tree
+   */
+  expandAll(): CollapsibleTree<T> {
+    let nodes = [...this.nodes];
+    let i = 0;
+
+    while (i < nodes.length) {
+      const node = nodes[i];
+      if (node.isCollapsed) {
+        // Replace the collapsed node with an expanded one
+        nodes[i] = new TreeNode(node.value, false, []);
+        // Add the children of the collapsed node to the list
+        nodes = arrayInsertMany(nodes, i + 1, node.children);
+        i++;
+      } else {
+        // Move to the next node
+        i++;
+      }
+    }
+
+    return this.withNodes(nodes);
+  }
+
+  /**
    * Move a node from one index to another
    */
   move(fromIdx: number, toIdx: number): CollapsibleTree<T> {
