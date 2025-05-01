@@ -59,7 +59,8 @@ class ProgressBarTqdmPatch(progress_bar):
             end (str): The end character to use (defaults to newline)
         """
         import sys
-        fp = file if file is not None else sys.stdout
+
+        fp: Any = file if file is not None else sys.stdout
         # In marimo, we don't need special handling to avoid overlapping with bars
         # as the output is handled differently than in terminal environments
         fp.write(s)
@@ -78,7 +79,8 @@ class TqdmFormatter(FormatterFactory):
 
     def register(self) -> None:
         if running_in_notebook():
-            import tqdm.notebook # type: ignore [import-not-found,import-untyped] # noqa: E501
+            # Import tqdm.notebook for notebook-specific progress bar implementation
+            import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
 
             tqdm.notebook.tqdm = ProgressBarTqdmPatch
             tqdm.notebook.trange = ProgressBarTrangePatch
