@@ -13,9 +13,9 @@ HAS_DEPS = DependencyManager.ipython.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
+@patch("marimo._runtime.output._output.replace")
 @patch("marimo._runtime.output._output.append")
-@patch("marimo._runtime.output._output.clear")
-def test_display_update(mock_clear: MagicMock, mock_append: MagicMock):
+def test_display_update(mock_append: MagicMock, mock_replace: MagicMock):
     """Test that display with display_id returns a handle and update works."""
     # Import IPython before patching to ensure we get the module
     import IPython.display
@@ -38,20 +38,17 @@ def test_display_update(mock_clear: MagicMock, mock_append: MagicMock):
         obj2 = IPython.display.HTML("<div>Updated Content</div>")
         IPython.display.update_display(obj2, display_id="test-id")
 
-        # Verify clear and append were called
-        mock_clear.assert_called_once()
-        mock_append.assert_called_once_with(obj2)
+        # Verify replace was called
+        mock_replace.assert_called_once_with(obj2)
 
         # Test handle.update method
-        mock_clear.reset_mock()
-        mock_append.reset_mock()
+        mock_replace.reset_mock()
 
         obj3 = IPython.display.HTML("<div>Handle Updated Content</div>")
         handle.update(obj3)
 
-        # Verify clear and append were called
-        mock_clear.assert_called_once()
-        mock_append.assert_called_once_with(obj3)
+        # Verify replace was called
+        mock_replace.assert_called_once_with(obj3)
 
     finally:
         unpatch()
@@ -59,8 +56,7 @@ def test_display_update(mock_clear: MagicMock, mock_append: MagicMock):
 
 @pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
 @patch("marimo._runtime.output._output.append")
-@patch("marimo._runtime.output._output.clear")
-def test_display_auto_id(_: MagicMock, mock_append: MagicMock):
+def test_display_auto_id(mock_append: MagicMock):
     """Test that display with display_id=True auto-generates an ID."""
     # Import IPython before patching
     import IPython.display
