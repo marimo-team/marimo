@@ -92,9 +92,6 @@ class IPythonFormatter(FormatterFactory):
             if display_id not in display_objects:
                 return
 
-            # Clear the output before updating
-            # _output.clear()
-
             # Update the stored object
             raw = kwargs.pop("raw", False)
             if raw and isinstance(obj, dict):

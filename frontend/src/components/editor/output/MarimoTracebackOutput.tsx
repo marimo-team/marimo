@@ -18,7 +18,6 @@ import {
   ExternalLinkIcon,
   SearchIcon,
   MessageCircleIcon,
-  HelpCircleIcon,
   CopyIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -120,16 +119,6 @@ export const MarimoTracebackOutput = ({
               <a target="_blank" href="https://marimo.io/discord?ref=notebook">
                 <MessageCircleIcon className="h-4 w-4 mr-2" />
                 Ask in Discord
-                <ExternalLinkIcon className="h-3 w-3 ml-auto" />
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild={true}>
-              <a
-                target="_blank"
-                href={`https://community.marimo.io/search?q=${encodeURIComponent(lastTracebackLine)}`}
-              >
-                <HelpCircleIcon className="h-4 w-4 mr-2" />
-                Search Community Forum
                 <ExternalLinkIcon className="h-3 w-3 ml-auto" />
               </a>
             </DropdownMenuItem>

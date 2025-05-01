@@ -110,4 +110,5 @@
 
 .traceback-cell-link {
   color: inherit;
+  text-decoration: underline;
 }
