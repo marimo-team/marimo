@@ -135,6 +135,8 @@ class RefData:
 
     # Whether the ref was deleted
     deleted: bool
+    # Block in which this ref was referenced
+    block: Block
     # Ancestors of the block in which this ref was used
     parent_blocks: list[Block]
 
@@ -168,7 +170,10 @@ class ScopedVisitor(ast.NodeVisitor):
         self.ref_stack: list[set[Name]] = [set()]
         self.obscured_scope_stack: list[ObscuredScope] = []
         # Mapping from referenced names to their metadata
-        self._refs: dict[Name, RefData] = {}
+        # Each referenced name may be defined multiple blocks;
+        # ie, self._refs maps each name to RefData for each block it was
+        # defined in
+        self._refs: dict[Name, list[RefData]] = {}
         # Function (node, name, block stack) -> None
         self._on_def = on_def if on_def is not None else lambda *_: None
         # Function (node) -> None
@@ -200,7 +205,28 @@ class ScopedVisitor(ast.NodeVisitor):
     @property
     def deleted_refs(self) -> set[Name]:
         """Referenced names that were deleted with `del`."""
-        return set(name for name in self._refs if self._refs[name].deleted)
+
+        # This incorrectly treats `del` on unbound locals as deleted refs,
+        # but correctly treats `del` on a `global` ref as a deleted ref.
+        #
+        # For example,
+        #
+        #   def f():
+        #     del x
+        #
+        # In this code, `x` is technically an (unbound) local. But marimo treats
+        # any variable that has been seen but not defined in a parent block as
+        # a reference, causing it to think that this code deletes a reference.
+        #
+        # In practice, `del` on an unbound local is illegal (at runtime) anyway,
+        # so marking it as a deleted ref is in practice a big deal. For 100%
+        # correctness we would prune unbound locals from refs, not here but
+        # when variables added as defs and refs.
+        return set(
+            name
+            for name in self._refs
+            if any(ref.deleted for ref in self._refs[name])
+        )
 
     def _if_local_then_mangle(
         self, name: str, ignore_scope: bool = False
@@ -253,25 +279,55 @@ class ScopedVisitor(ast.NodeVisitor):
         self, node: NamedNode | None, name: Name, deleted: bool
     ) -> None:
         """Register a referenced name."""
-        self._refs[name] = RefData(
-            deleted=deleted,
-            parent_blocks=self.block_stack[:-1],
-        )
+        if name not in self._refs:
+            self._refs[name] = []
+
+        # Register the ref if it doesn't already exist
+        current_block = self.block_stack[-1]
+        parents = self.block_stack[:-1]
+        found_ref: RefData | None = None
+
+        for ref in self._refs[name]:
+            if ref.block == current_block:
+                found_ref = ref
+
+        if found_ref is not None and deleted:
+            # The ref may have already existed, but perhaps it
+            # wasn't deleted
+            found_ref.deleted = True
+        elif found_ref is None:
+            # The reference does not yet exist in the current block, so
+            # we add it.
+            self._refs[name].append(
+                RefData(
+                    deleted=deleted,
+                    parent_blocks=parents,
+                    block=current_block,
+                )
+            )
+
         self.ref_stack[-1].add(name)
         if node is not None:
             self._on_ref(node)
 
-    def _remove_ref(self, name: Name) -> None:
-        """Remove a referenced name."""
-        del self._refs[name]
+    def _remove_ref(self, name: Name, block: Block) -> None:
+        """Remove references of name with block among its parents."""
+        refs = []
+        for ref in self._refs[name]:
+            if block not in ref.parent_blocks:
+                refs.append(ref)
+        self._refs[name] = refs
+        if not self._refs[name]:
+            del self._refs[name]
 
     def _define_in_block(
         self, name: Name, variable_data: VariableData, block_idx: int
     ) -> None:
         """Define a name in a given block."""
 
-        self.block_stack[block_idx].defs.add(name)
-        self.block_stack[block_idx].variable_data[name].append(variable_data)
+        block = self.block_stack[block_idx]
+        block.defs.add(name)
+        block.variable_data[name].append(variable_data)
         # If `name` is added to the top-level block, it is also evicted from
         # any captured refs (if present) --- this handles cases where a name is
         # encountered and captured before it is declared, such as in
@@ -281,12 +337,11 @@ class ScopedVisitor(ast.NodeVisitor):
         #   print(x)
         # x = 0
         # ```
-        if (
-            name in self._refs
-            and self.block_stack[block_idx] in self._refs[name].parent_blocks
+        if name in self._refs and any(
+            block in ref.parent_blocks for ref in self._refs[name]
         ):
             # `name` was used as a capture, not a reference
-            self._remove_ref(name)
+            self._remove_ref(name, block)
 
     def _define(
         self, node: NamedNode | None, name: Name, variable_data: VariableData
@@ -837,7 +892,10 @@ class ScopedVisitor(ast.NodeVisitor):
         ]
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
-            self._add_ref(node, name, deleted=False)
+            # We only add a reference if the name is not
+            # already defined at the global scope
+            if not self.block_stack[0].is_defined(name):
+                self._add_ref(node, name, deleted=False)
         return node
 
     def visit_Import(self, node: ast.Import) -> ast.Import:
