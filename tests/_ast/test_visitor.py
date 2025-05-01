@@ -1043,7 +1043,6 @@ def test_deleted_ref_basic() -> None:
     v.visit(mod)
     assert not v.defs
     assert v.refs == {"x"}
-    breakpoint()
     assert v.deleted_refs == {"x"}
 
 
