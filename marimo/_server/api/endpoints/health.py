@@ -236,13 +236,15 @@ async def usage(request: Request) -> JSONResponse:
                 check=True,
             )
             for line in result.stdout.strip().split("\n"):
-                index, name, total, used, free = line.split(", ")
-                total = int(total) * 1024 * 1024  # Convert MB to bytes
-                used = int(used) * 1024 * 1024
-                free = int(free) * 1024 * 1024
+                index_str, name, total_str, used_str, free_str = line.split(
+                    ", "
+                )
+                total = int(total_str) * 1024 * 1024  # Convert MB to bytes
+                used = int(used_str) * 1024 * 1024
+                free = int(free_str) * 1024 * 1024
                 gpu_stats.append(
                     {
-                        "index": int(index),
+                        "index": int(index_str),
                         "name": name.strip(),
                         "memory": {
                             "total": total,
