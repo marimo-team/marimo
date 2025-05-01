@@ -136,6 +136,10 @@ def collect_functions_to_check():
     return objects_to_check
 
 
+@pytest.mark.skipif(
+    not DependencyManager.docstring_to_markdown.has(),
+    reason="docstring_to_markdown is not installed",
+)
 @pytest.mark.parametrize(
     ("obj", "runtime_inference"),
     [[obj, False] for obj in collect_functions_to_check()]
