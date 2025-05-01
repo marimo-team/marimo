@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue } from "jotai";
+import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { type ReducerWithoutAction, createRef } from "react";
 import type { CellMessage } from "../kernel/messages";
 import {
@@ -14,7 +14,11 @@ import {
   focusAndScrollCellIntoView,
 } from "./scrollCellIntoView";
 import { CellId } from "./ids";
-import { prepareCellForExecution, transitionCell } from "./cell";
+import {
+  outputToTraceback,
+  prepareCellForExecution,
+  transitionCell,
+} from "./cell";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
@@ -49,6 +53,7 @@ import {
 } from "@/utils/id-tree";
 import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
+import type { TracebackInfo } from "@/utils/traceback";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -1493,6 +1498,23 @@ export function flattenTopLevelNotebookCells(
       ...cellRuntime[cellId],
     })),
   );
+}
+
+export function createTacebackInfoAtom(
+  cellId: CellId,
+): Atom<TracebackInfo[] | undefined> {
+  return atom<TracebackInfo[] | undefined>((get) => {
+    const notebook = get(notebookAtom);
+    const data = notebook.cellRuntime[cellId];
+    if (!data) {
+      return undefined;
+    }
+    const outputs = data.consoleOutputs;
+    if (!outputs) {
+      return undefined;
+    }
+    return outputToTraceback(outputs);
+  });
 }
 
 /**

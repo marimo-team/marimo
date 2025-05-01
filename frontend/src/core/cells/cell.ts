@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import type { CellMessage } from "../kernel/messages";
+import type { CellMessage, OutputMessage } from "../kernel/messages";
 import type { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
 import { type Seconds, Time } from "@/utils/time";
 import { invariant } from "@/utils/invariant";
 import type { RuntimeState } from "../network/types";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -217,4 +218,23 @@ export function outputIsStale(
   }
 
   return staleInputs;
+}
+
+/**
+ * Convert a list of outputs to a traceback.
+ */
+export function outputToTraceback(
+  outputs: OutputMessage[],
+): TracebackInfo[] | undefined {
+  const firstTraceback = outputs.find(
+    (output) => output.mimetype === "application/vnd.marimo+traceback",
+  );
+  if (!firstTraceback) {
+    return undefined;
+  }
+  const traceback = firstTraceback.data;
+  if (typeof traceback !== "string") {
+    return undefined;
+  }
+  return extractAllTracebackInfo(traceback);
 }
