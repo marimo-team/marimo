@@ -2502,7 +2502,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.2
+  version: 0.13.3
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3293,6 +3293,35 @@ paths:
                     required:
                     - percent
                     type: object
+                  gpu:
+                    items:
+                      properties:
+                        index:
+                          type: integer
+                        memory:
+                          properties:
+                            free:
+                              type: integer
+                            percent:
+                              type: number
+                            total:
+                              type: integer
+                            used:
+                              type: integer
+                          required:
+                          - total
+                          - used
+                          - free
+                          - percent
+                          type: object
+                        name:
+                          type: string
+                      required:
+                      - index
+                      - memory
+                      - name
+                      type: object
+                    type: array
                   kernel:
                     properties:
                       memory:
