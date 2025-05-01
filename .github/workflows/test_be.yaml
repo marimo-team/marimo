@@ -25,6 +25,7 @@ jobs:
               - '!marimo/_smoke_tests/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - '!frontend/**'
             docs:
               - 'docs/**'
 

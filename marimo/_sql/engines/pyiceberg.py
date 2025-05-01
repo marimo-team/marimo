@@ -87,7 +87,9 @@ class PyIcebergEngine(SQLEngine):
         del include_schemas
         databases: list[Database] = []
         try:
-            namespaces = self._catalog.list_namespaces()
+            namespaces = sorted(
+                self._catalog.list_namespaces()
+            )  # Sort for consistent ordering
             for namespace in namespaces:
                 tables = []
                 if self._resolve_should_auto_discover(include_tables):
