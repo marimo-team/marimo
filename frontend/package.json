@@ -127,7 +127,7 @@
     "react-dropzone": "^14.3.8",
     "react-error-boundary": "^5.0.0",
     "react-grid-layout": "^1.5.1",
-    "react-hook-form": "7.56.1",
+    "react-hook-form": "7.54.2",
     "react-markdown": "^9.1.0",
     "react-plotly.js": "^2.6.0",
     "react-resizable-panels": "2.1.9",
