@@ -47,6 +47,7 @@ class IPythonFormatter(FormatterFactory):
             display_id = kwargs.pop("display_id", None)
             if display_id is True:  # Generate a new display_id if True
                 import uuid
+
                 display_id = str(uuid.uuid4())
 
             raw = kwargs.pop("raw", False)
@@ -56,20 +57,22 @@ class IPythonFormatter(FormatterFactory):
                     output_value = ReprMimeBundle(value)
                 else:
                     output_value = value
-                
+
                 # Store the object if display_id is provided
                 if display_id is not None:
                     display_objects[display_id] = output_value
-                
+
                 _output.append(output_value)
-            
+
             # Return a DisplayHandle if display_id is provided
             if display_id is not None:
                 return DisplayHandle(display_id)
             return None
 
         # Implement update_display function
-        def update_display(obj: Any, *, display_id: str, **kwargs: Any) -> None:
+        def update_display(
+            obj: Any, *, display_id: str, **kwargs: Any
+        ) -> None:
             """Update an existing display by id
 
             Parameters
@@ -81,24 +84,24 @@ class IPythonFormatter(FormatterFactory):
             """
             if display_id not in display_objects:
                 return
-            
+
             # Clear the output before updating
             # _output.clear()
-            
+
             # Update the stored object
             raw = kwargs.pop("raw", False)
             if raw and isinstance(obj, dict):
                 display_objects[display_id] = ReprMimeBundle(obj)
             else:
                 display_objects[display_id] = obj
-            
+
             # Append the updated object to the output
             _output.replace(display_objects[display_id])
 
         # Patch both display and update_display
         IPython.display.display = display
         IPython.display.update_display = update_display
-        
+
         # Patching display_functions handles display_markdown, display_x, etc.
         try:
             IPython.core.display_functions.display = display  # type: ignore
@@ -112,11 +115,13 @@ class IPythonFormatter(FormatterFactory):
                 IPython.display.update_display = old_update_display  # type: ignore
             else:
                 delattr(IPython.display, "update_display")
-                
+
             try:
                 IPython.core.display_functions.display = old_display  # type: ignore
                 if old_update_display is not None:
-                    IPython.core.display_functions.update_display = old_update_display  # type: ignore
+                    IPython.core.display_functions.update_display = (
+                        old_update_display  # type: ignore
+                    )
                 else:
                     delattr(IPython.core.display_functions, "update_display")
             except AttributeError:
