@@ -24,9 +24,6 @@ class ProgressBarTqdmPatch(progress_bar):
         if len(args) >= 3:
             total = args[2]
 
-        # Store the iterable for later use in __iter__
-        self.iterable = iterable
-
         super().__init__(
             collection=iterable,
             title=desc or "",
