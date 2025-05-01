@@ -395,7 +395,7 @@ def generate_filecontents(
             "",
         ]
     )
-    return "\n".join(filecontents)
+    return "\n".join(filecontents).lstrip()
 
 
 def recover(filename: str) -> str:
