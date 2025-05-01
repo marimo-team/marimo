@@ -22,3 +22,5 @@ This guide provides an overview of the various ways to publish marimo notebooks.
 | [Self-host WebAssembly notebooks](self_host_wasm.md)  | Self-hosting interactive WebAssembly (HTML export) notebooks |
 | [View notebooks on GitHub](view_outputs_on_github.md) | Viewing notebook outputs on GitHub                           |
 | [Deploy on a backend](deploy.md)                      | Deploying notebooks on backends                              |
+| [With MkDocs](mkdocs.md)                              | Publish reactive websites with MkDocs from markdown          |
+| [With Quarto](quarto.md)                              | Publish reactive websites with Quarto from markdown          |
