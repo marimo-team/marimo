@@ -4,6 +4,8 @@ import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
 import { Memoize } from "typescript-memoize";
 import { Logger } from "./Logger";
 import { reorderColumnSizes } from "@/components/editor/columns/storage";
+import { findCollapseRange } from "@/core/dom/outline";
+import type { Outline } from "@/core/cells/outline";
 
 /**
  * Branded number to help with type safety
@@ -279,6 +281,43 @@ export class CollapsibleTree<T> {
     // Fold the next nodes into the current node
     const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
     nodes[nodeIndex] = new TreeNode(node.value, true, children);
+
+    return this.withNodes(nodes);
+  }
+
+  /**
+   * Collapse all nodes in the tree, including nested ones
+   *
+   * Only works for the top-level nodes
+   * Does not collapse the children of already collapsed nodes
+   */
+  collapseAll(outlines: (Outline | null)[]): CollapsibleTree<T> {
+    const nodes = [...this.nodes];
+    let nodeIndex = nodes.length - 1;
+
+    // Start from the end of the list and collapse nodes children first
+    while (nodeIndex >= 0) {
+      const node = nodes[nodeIndex];
+      if (!node.isCollapsed) {
+        // Find the start/end of the collapsed range
+        const startIndex = nodeIndex;
+        const range = findCollapseRange(startIndex, outlines);
+        if (!range) {
+          // No range found, move to the next node
+          nodeIndex--;
+          continue;
+        }
+        const untilIndex = range[1];
+
+        // Fold the next nodes into the current node
+        const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
+        nodes[nodeIndex] = new TreeNode(node.value, true, children);
+        nodeIndex--;
+      } else {
+        // Move to the next node
+        nodeIndex--;
+      }
+    }
 
     return this.withNodes(nodes);
   }
