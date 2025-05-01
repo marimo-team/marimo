@@ -82,8 +82,7 @@ class TqdmFormatter(FormatterFactory):
 
     def register(self) -> None:
         if running_in_notebook():
-            import tqdm.notebook, tqdm.autonotebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
+            import tqdm.notebook # type: ignore [import-not-found,import-untyped] # noqa: E501
 
-            #tqdm.autonotebook.tqdm = tqdm.notebook.tqdm
             tqdm.notebook.tqdm = ProgressBarTqdmPatch
             tqdm.notebook.trange = ProgressBarTrangePatch
