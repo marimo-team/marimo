@@ -352,7 +352,8 @@ def patch_jedi_parameter_completion() -> None:
         return not (
             value_repr == "None"
             or
-            # numpy's special type which
+            # numpy's special type acting as a sentinel
+            # in new and deprecated keyword arguments
             "_NoValueType" in value_repr
         )
 
@@ -384,7 +385,7 @@ def patch_jedi_parameter_completion() -> None:
     ):
         AnonymousParamName.infer = wrap_infer(original_static_infer)
 
-    if not getattr(SignatureParamName.infer, "infer", False):
+    if not getattr(SignatureParamName.infer, "patched", False):
         SignatureParamName.infer = wrap_infer(original_dynamic_infer)
     if not getattr(SignatureParamName.__init__, "patched", False):
         SignatureParamName.__init__ = enhanced_init
