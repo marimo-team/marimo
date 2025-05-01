@@ -29,6 +29,9 @@ class WebComponentEncoder(JSONEncoder):
             return o
 
         # Handle bytes objects
+        if isinstance(o, memoryview):
+            o = o.tobytes()
+
         if isinstance(o, bytes):
             try:
                 return o.decode("utf-8")

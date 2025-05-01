@@ -129,7 +129,14 @@ class anywidget(UIElement[T, T]):
         def on_change(change: T) -> None:
             _put_buffers = ipywidgets.widgets.widget._put_buffers  # type: ignore
             _put_buffers(change, buffer_paths, buffers)
-            widget.set_state(change)
+            current_state: dict[str, Any] = widget.get_state()
+            changed_state: dict[str, Any] = {}
+            for k, v in change.items():
+                if k not in current_state:
+                    changed_state[k] = v
+                elif current_state[k] != v:
+                    changed_state[k] = v
+            widget.set_state(changed_state)
 
         js_hash: str = hashlib.md5(
             js.encode("utf-8"), usedforsecurity=False
