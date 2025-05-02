@@ -5,7 +5,8 @@ import inspect
 import re
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellImpl, _is_coroutine
 from marimo._ast.variables import is_mangled_local, unmangle_local
@@ -31,10 +32,14 @@ if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
 
 
-EXECUTION_TYPES: dict[str, type[Executor]] = {}
+@dataclass
+class ExecutionConfig:
+    """Configuration for cell execution."""
+
+    is_strict: bool = False
 
 
-def raise_name_error(
+def _raise_name_error(
     graph: Optional[DirectedGraph], name_error: NameError
 ) -> None:
     if graph is None:
@@ -48,50 +53,27 @@ def raise_name_error(
     raise MarimoRuntimeException from name_error
 
 
-def register_execution_type(
-    key: str,
-) -> Callable[[type[Executor]], type[Executor]]:
-    # Potentially expose as part of custom kernel API
-    def wrapper(cls: type[Executor]) -> type[Executor]:
-        EXECUTION_TYPES[key] = cls
-        return cls
-
-    return wrapper
-
-
-async def execute_cell_async(
-    cell: CellImpl,
-    glbls: dict[str, Any],
-    graph: DirectedGraph,
-    execution_type: str = "relaxed",
-) -> Any:
-    return await EXECUTION_TYPES[execution_type].execute_cell_async(
-        cell, glbls, graph
-    )
-
-
-def execute_cell(
-    cell: CellImpl,
-    glbls: dict[str, Any],
-    graph: DirectedGraph,
-    execution_type: str = "relaxed",
-) -> Any:
-    return EXECUTION_TYPES[execution_type].execute_cell(cell, glbls, graph)
+def get_executor(config: ExecutionConfig) -> Executor:
+    """Get a code executor based on the execution configuration."""
+    base = DefaultExecutor()
+    if config.is_strict:
+        return StrictExecutor(base)
+    return base
 
 
 class Executor(ABC):
-    @staticmethod
     @abstractmethod
     def execute_cell(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
         pass
 
-    @staticmethod
     @abstractmethod
     async def execute_cell_async(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
@@ -99,10 +81,9 @@ class Executor(ABC):
         pass
 
 
-@register_execution_type("relaxed")
 class DefaultExecutor(Executor):
-    @staticmethod
     async def execute_cell_async(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
@@ -121,14 +102,14 @@ class DefaultExecutor(Executor):
             else:
                 return eval(cell.last_expr, glbls)
         except NameError as e:
-            raise_name_error(graph, e)
+            _raise_name_error(graph, e)
         except (BaseException, Exception) as e:
             # Raising from a BaseException will fold in the stacktrace prior
             # to execution
             raise MarimoRuntimeException from e
 
-    @staticmethod
     def execute_cell(
+        self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
@@ -141,16 +122,20 @@ class DefaultExecutor(Executor):
             exec(cell.body, glbls)
             return eval(cell.last_expr, glbls)
         except NameError as e:
-            raise_name_error(graph, e)
+            _raise_name_error(graph, e)
         except (BaseException, Exception) as e:
             raise MarimoRuntimeException from e
 
 
-@register_execution_type("strict")
 class StrictExecutor(Executor):
-    @staticmethod
+    def __init__(self, base: Executor):
+        self.base = base
+
     async def execute_cell_async(
-        cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph
+        self,
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        graph: DirectedGraph,
     ) -> Any:
         # Manage globals and references, but refers to the default beyond that.
         refs = graph.get_transitive_references(
@@ -159,19 +144,19 @@ class StrictExecutor(Executor):
                 glbls, CLONE_PRIMITIVES
             ),
         )
-        backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
+        backup = self._sanitize_inputs(cell, refs, glbls)
         try:
-            response = await DefaultExecutor.execute_cell_async(
-                cell, glbls, graph
-            )
+            response = await self.base.execute_cell_async(cell, glbls, graph)
         finally:
             # Restore globals from backup and backfill outputs
-            StrictExecutor.update_outputs(cell, glbls, backup)
+            self._update_outputs(cell, glbls, backup)
         return response
 
-    @staticmethod
     def execute_cell(
-        cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph
+        self,
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        graph: DirectedGraph,
     ) -> Any:
         refs = graph.get_transitive_references(
             cell.refs,
@@ -179,16 +164,18 @@ class StrictExecutor(Executor):
                 glbls, CLONE_PRIMITIVES
             ),
         )
-        backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
+        backup = self._sanitize_inputs(cell, refs, glbls)
         try:
-            response = DefaultExecutor.execute_cell(cell, glbls, graph)
+            response = self.base.execute_cell(cell, glbls, graph)
         finally:
-            StrictExecutor.update_outputs(cell, glbls, backup)
+            self._update_outputs(cell, glbls, backup)
         return response
 
-    @staticmethod
-    def sanitize_inputs(
-        cell: CellImpl, refs: set[str], glbls: dict[str, Any]
+    def _sanitize_inputs(
+        self,
+        cell: CellImpl,
+        refs: set[str],
+        glbls: dict[str, Any],
     ) -> dict[str, Any]:
         # Some attributes should remain global
         lcls = {
@@ -254,9 +241,11 @@ class StrictExecutor(Executor):
         glbls.update(lcls)
         return backup
 
-    @staticmethod
-    def update_outputs(
-        cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
+    def _update_outputs(
+        self,
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        backup: dict[str, Any],
     ) -> None:
         # NOTE: After execution, restore global state and update outputs.
         lcls = {**glbls}
