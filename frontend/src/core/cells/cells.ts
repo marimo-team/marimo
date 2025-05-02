@@ -1496,7 +1496,7 @@ export function flattenTopLevelNotebookCells(
   );
 }
 
-export function createTacebackInfoAtom(
+export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
   // We create an intermediate atom that just computes the string

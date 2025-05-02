@@ -91,10 +91,10 @@ export function errorLineHighlighter(
     createErrorHighlighter(errorsObservable),
     EditorView.theme({
       ".cm-error-line": {
-        backgroundColor: "var(--red-3)",
+        backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
       },
       "&.cm-focused .cm-error-line.cm-activeLine": {
-        backgroundColor: "var(--red-4)",
+        backgroundColor: "color-mix(in srgb, var(--red-6) 40%, transparent)",
       },
     }),
   ];

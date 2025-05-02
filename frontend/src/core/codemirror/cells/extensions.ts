@@ -14,7 +14,7 @@ import {
   cellIdState,
   type CodemirrorCellActions,
 } from "./state";
-import { createTacebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
 import { errorLineHighlighter } from "./traceback-decorations";
 import { createObservable } from "@/core/state/observable";
 import { store } from "@/core/state/jotai";
@@ -350,7 +350,7 @@ export function cellBundle(
     cellKeymaps(cellId, hotkeys),
     cellCodeEditing(hotkeys),
     errorLineHighlighter(
-      createObservable(createTacebackInfoAtom(cellId), store),
+      createObservable(createTracebackInfoAtom(cellId), store),
     ),
   ];
 }
