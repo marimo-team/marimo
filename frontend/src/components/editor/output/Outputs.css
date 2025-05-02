@@ -112,3 +112,7 @@
   color: inherit;
   text-decoration: underline;
 }
+
+.traceback-cell-link:hover {
+    font-weight: 500;
+}
