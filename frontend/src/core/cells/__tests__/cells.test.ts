@@ -48,6 +48,7 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
 });
 
 const FIRST_COLUMN = 0;
+const SECOND_COLUMN = 1;
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -1444,6 +1445,127 @@ describe("cell reducer", () => {
 
     actions.expandCell({ cellId: id });
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(false);
+  });
+
+  it("can expand all cells in multiple columns", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# First Column Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## First Column Subheader",
+    });
+
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "# Second Column Header",
+    });
+    actions.createNewCell({
+      cellId: "4" as CellId,
+      before: false,
+      code: "## Second Column Subheader",
+    });
+
+    const firstColumnHeaderId = state.cellIds
+      .atOrThrow(FIRST_COLUMN)
+      .atOrThrow(1);
+    state.cellRuntime[firstColumnHeaderId] = {
+      ...state.cellRuntime[firstColumnHeaderId],
+      outline: {
+        items: [
+          { name: "First Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    const secondColumnHeaderId = state.cellIds
+      .atOrThrow(SECOND_COLUMN)
+      .atOrThrow(0);
+    state.cellRuntime[secondColumnHeaderId] = {
+      ...state.cellRuntime[secondColumnHeaderId],
+      outline: {
+        items: [
+          { name: "Second Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    actions.collapseCell({ cellId: firstColumnHeaderId });
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(true);
+
+    actions.collapseCell({ cellId: secondColumnHeaderId });
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(true);
+
+    actions.expandAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(false);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(false);
+  });
+
+  it("can expand nested cells in one call", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## Subheader",
+    });
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "### Subsubheader",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const subheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[subheaderId] = {
+      ...state.cellRuntime[subheaderId],
+      outline: {
+        items: [{ name: "Subheader", level: 2, by: { id: "subheader" } }],
+      },
+    };
+
+    actions.collapseCell({ cellId: subheaderId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      true,
+    );
+    actions.collapseCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+
+    actions.expandAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      false,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      false,
+    );
   });
 
   it("can show hidden cells", () => {

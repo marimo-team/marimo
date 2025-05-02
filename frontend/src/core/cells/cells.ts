@@ -1076,6 +1076,12 @@ const {
       scrollKey: cellId,
     };
   },
+  expandAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => column.expandAll()),
+    };
+  },
   showCellIfHidden: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
     const column = state.cellIds.findWithId(cellId);
