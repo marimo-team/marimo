@@ -580,11 +580,7 @@ class PySparkGenerator extends CodeGenerator<"pyspark"> {
   }
 
   generateConnectionCode(): string {
-    if (
-      this.connection.username ||
-      this.connection.host ||
-      this.connection.port
-    ) {
+    if (this.connection.host || this.connection.port) {
       const host = this.secrets.printInFString("host", this.connection.host);
       const port = this.secrets.printInFString("port", this.connection.port);
       return dedent(`
