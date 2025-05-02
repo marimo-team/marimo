@@ -4,13 +4,19 @@
 import React from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
-import { SearchIcon, ChartBarIcon } from "lucide-react";
+import { SearchIcon, ChartBarIcon, PanelRightIcon } from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
 import type { DataTableSelection } from "./types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { toast } from "../ui/use-toast";
+import {
+  selectionPanelOpenAtom,
+  currentlyFocusedCellAtom,
+} from "@/components/data-table/selection-panel/panel-atoms";
+import { useAtom, useSetAtom } from "jotai";
+import type { CellId } from "@/core/cells/ids";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -26,6 +32,7 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
+  cellId?: CellId | null;
 }
 
 export const TableActions = <TData,>({
@@ -42,6 +49,7 @@ export const TableActions = <TData,>({
   getRowIds,
   toggleDisplayHeader,
   chartsFeatureEnabled,
+  cellId,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -87,8 +95,22 @@ export const TableActions = <TData,>({
     });
   };
 
+  const setSelectionPanelOpen = useSetAtom(selectionPanelOpenAtom);
+  const [currentlyFocusedCell, setCurrentlyFocusedCell] = useAtom(
+    currentlyFocusedCellAtom,
+  );
+  const toggleSelectionPanel = () => {
+    if (currentlyFocusedCell === cellId) {
+      // toggle panel
+      setSelectionPanelOpen((prev) => !prev);
+    } else if (cellId) {
+      setSelectionPanelOpen(true);
+      setCurrentlyFocusedCell(cellId);
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between flex-shrink-0 pt-1">
+    <div className="flex items-center flex-shrink-0 pt-1">
       {onSearchQueryChange && enableSearch && (
         <Tooltip content="Search">
           <Button
@@ -106,24 +128,29 @@ export const TableActions = <TData,>({
           <Button
             variant="text"
             size="xs"
-            className="mb-0 mr-auto"
+            className="mb-0"
             onClick={toggleDisplayHeader}
           >
             <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
           </Button>
         </Tooltip>
       )}
-      {pagination ? (
+      <Tooltip content="Toggle selection panel">
+        <Button variant="text" size="xs" onClick={toggleSelectionPanel}>
+          <PanelRightIcon className="w-4 h-4 text-muted-foreground" />
+        </Button>
+      </Tooltip>
+      {pagination && (
         <DataTablePagination
           totalColumns={totalColumns}
           selection={selection}
           onSelectAllRowsChange={handleSelectAllRows}
           table={table}
         />
-      ) : (
-        <div />
       )}
-      {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+      <div className="ml-auto">
+        {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+      </div>
     </div>
   );
 };

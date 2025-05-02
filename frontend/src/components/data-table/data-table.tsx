@@ -37,6 +37,9 @@ import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
 import { CopyColumnFeature } from "./copy-column/feature";
+import { useSetAtom } from "jotai";
+import { tableDataAtom } from "./selection-panel/panel-atoms";
+import type { CellId } from "@/core/cells/ids";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -74,7 +77,9 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
   toggleDisplayHeader?: () => void;
+  // Others
   chartsFeatureEnabled?: boolean;
+  cellId?: CellId | null;
 }
 
 const DataTableInternal = <TData,>({
@@ -110,6 +115,7 @@ const DataTableInternal = <TData,>({
   freezeColumnsRight,
   toggleDisplayHeader,
   chartsFeatureEnabled,
+  cellId,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -191,6 +197,22 @@ const DataTableInternal = <TData,>({
     },
   });
 
+  const setTableData = useSetAtom(tableDataAtom);
+  if (cellId) {
+    let rows = table.getFilteredSelectedRowModel().rows;
+    if (rows.length === 0) {
+      rows = table.getRowModel().rows;
+    }
+    setTableData((prev) => {
+      return {
+        ...prev,
+        [cellId]: {
+          rows: rows,
+        },
+      };
+    });
+  }
+
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
@@ -223,6 +245,7 @@ const DataTableInternal = <TData,>({
         getRowIds={getRowIds}
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
+        cellId={cellId}
       />
     </div>
   );
