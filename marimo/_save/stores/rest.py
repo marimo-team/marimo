@@ -28,7 +28,7 @@ class RestStore(Store):
         try:
             with urllib.request.urlopen(req) as response:
                 if response.status == 200:
-                    return response.read()
+                    return response.read()  # type: ignore[no-any-return]
         except urllib.error.HTTPError:
             pass
         return None
@@ -59,7 +59,7 @@ class RestStore(Store):
         )
         try:
             with urllib.request.urlopen(req) as response:
-                return response.status == 200
+                return response.status == 200  # type: ignore[no-any-return]
         except urllib.error.HTTPError:
             return False
 

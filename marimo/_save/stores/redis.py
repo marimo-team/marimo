@@ -19,7 +19,7 @@ class RedisStore(Store):
         result = self.redis.get(key)
         if result is None:
             return None
-        return result.encode("utf-8")
+        return result.encode("utf-8")  # type: ignore[no-any-return]
 
     def put(self, key: str, value: bytes) -> None:
         self.redis.set(key, value)
