@@ -14,11 +14,7 @@ import {
   focusAndScrollCellIntoView,
 } from "./scrollCellIntoView";
 import { CellId } from "./ids";
-import {
-  outputToTraceback,
-  prepareCellForExecution,
-  transitionCell,
-} from "./cell";
+import { prepareCellForExecution, transitionCell } from "./cell";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
@@ -53,7 +49,7 @@ import {
 } from "@/utils/id-tree";
 import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
-import type { TracebackInfo } from "@/utils/traceback";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -1503,17 +1499,40 @@ export function flattenTopLevelNotebookCells(
 export function createTacebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
-  return atom<TracebackInfo[] | undefined>((get) => {
+  // We create an intermediate atom that just computes the string
+  // so it prevents downstream recomputations.
+  const tracebackStringAtom = atom<string | undefined>((get) => {
     const notebook = get(notebookAtom);
     const data = notebook.cellRuntime[cellId];
     if (!data) {
       return undefined;
     }
-    const outputs = data.consoleOutputs;
-    if (!outputs) {
+    // Must be errored and idle
+    if (data.status !== "idle") {
       return undefined;
     }
-    return outputToTraceback(outputs);
+    const outputs = data.consoleOutputs;
+    // console.warn(notebook);
+    if (!outputs || outputs.length === 0) {
+      return undefined;
+    }
+
+    const firstTraceback = outputs.find(
+      (output) => output.mimetype === "application/vnd.marimo+traceback",
+    );
+    if (!firstTraceback) {
+      return undefined;
+    }
+    const traceback = firstTraceback.data;
+    return traceback as string;
+  });
+
+  return atom((get) => {
+    const traceback = get(tracebackStringAtom);
+    if (!traceback) {
+      return undefined;
+    }
+    return extractAllTracebackInfo(traceback);
   });
 }
 

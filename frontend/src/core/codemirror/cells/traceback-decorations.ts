@@ -5,50 +5,15 @@ import {
   EditorView,
   type PluginValue,
   ViewPlugin,
+  type ViewUpdate,
 } from "@codemirror/view";
-import {
-  StateField,
-  StateEffect,
-  type Extension,
-  type EditorState,
-} from "@codemirror/state";
+import type { Extension, EditorState } from "@codemirror/state";
 import { RangeSetBuilder } from "@codemirror/state";
 import type { Observable } from "@/core/state/observable";
 import type { TracebackInfo } from "@/utils/traceback";
 import { cellIdState } from "./state";
 
 type TracebackInfos = TracebackInfo[] | undefined;
-
-/**
- * An effect to add errors.
- */
-const addErrorEffect = StateEffect.define<TracebackInfos>();
-/**
- * An effect to clear errors.
- */
-const clearErrorsEffect = StateEffect.define();
-
-/**
- * A state field to store the errors.
- */
-const errorStateField = StateField.define<DecorationSet>({
-  create() {
-    return Decoration.none;
-  },
-  update(decorations, tr) {
-    let newDecorations = decorations.map(tr.changes);
-    for (const effect of tr.effects) {
-      if (effect.is(addErrorEffect)) {
-        newDecorations = createErrorDecorations(tr.state, effect.value);
-      }
-      if (effect.is(clearErrorsEffect)) {
-        newDecorations = Decoration.none;
-      }
-    }
-    return newDecorations;
-  },
-  provide: (f) => EditorView.decorations.from(f),
-});
 
 /**
  * Create the decoration for error lines.
@@ -82,11 +47,21 @@ function createErrorDecorations(state: EditorState, errors: TracebackInfos) {
  */
 class ErrorHighlighter implements PluginValue {
   private unsubscribe: () => void;
+  decorations: DecorationSet;
 
   constructor(view: EditorView, errorsObservable: Observable<TracebackInfos>) {
+    this.decorations = createErrorDecorations(
+      view.state,
+      errorsObservable.get(),
+    );
+
     this.unsubscribe = errorsObservable.sub((errors) => {
-      view.dispatch({ effects: addErrorEffect.of(errors) });
+      this.decorations = createErrorDecorations(view.state, errors);
     });
+  }
+
+  update(update: ViewUpdate) {
+    this.decorations = this.decorations.map(update.changes);
   }
 
   destroy() {
@@ -100,6 +75,9 @@ class ErrorHighlighter implements PluginValue {
 function createErrorHighlighter(errorsObservable: Observable<TracebackInfos>) {
   return ViewPlugin.define(
     (view) => new ErrorHighlighter(view, errorsObservable),
+    {
+      decorations: (f) => f.decorations,
+    },
   );
 }
 
@@ -110,13 +88,12 @@ export function errorLineHighlighter(
   errorsObservable: Observable<TracebackInfos>,
 ): Extension {
   return [
-    errorStateField,
     createErrorHighlighter(errorsObservable),
     EditorView.theme({
       ".cm-error-line": {
         backgroundColor: "var(--red-3)",
       },
-      ".cm-error-line.cm-activeLine": {
+      "&.cm-focused .cm-error-line.cm-activeLine": {
         backgroundColor: "var(--red-4)",
       },
     }),
