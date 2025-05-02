@@ -592,6 +592,7 @@ class PySparkGenerator extends CodeGenerator<"pyspark"> {
       const host = this.secrets.printInFString("host", this.connection.host);
       const port = this.secrets.printInFString("port", this.connection.port);
       return dedent(`
+        ibis.options.interactive = True
         session = SparkSession.builder.remote(f"${username}://${host}:${port}").getOrCreate()
         con = ibis.pyspark.connect(session)
       `);
