@@ -254,8 +254,8 @@ async def usage(request: Request) -> JSONResponse:
                         },
                     }
                 )
-        except (subprocess.SubprocessError, FileNotFoundError):
-            pass
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            LOGGER.warning("Failed to extract GPU stats: %s", e)
 
     return JSONResponse(
         {
