@@ -136,6 +136,17 @@ def collect_functions_to_check():
     return objects_to_check
 
 
+def dummy_func(arg1: str, arg2: str) -> None:
+    """
+    Parameters
+    ----------
+    arg1
+        description
+    arg2
+        description
+    """
+
+
 @pytest.mark.skipif(
     not DependencyManager.docstring_to_markdown.has(),
     reason="docstring_to_markdown is not installed",
@@ -145,7 +156,8 @@ def collect_functions_to_check():
     [[obj, False] for obj in collect_functions_to_check()]
     + [
         # Test runtime inference for a subset of values
-        [marimo.accordion, True]
+        [marimo.accordion, True],
+        [dummy_func, False],
     ],
     ids=lambda obj: f"{obj}"
     if isinstance(obj, bool)
