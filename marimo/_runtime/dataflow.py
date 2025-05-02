@@ -13,7 +13,10 @@ from marimo._ast.cell import (
 from marimo._ast.compiler import code_key
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._runtime.executor import execute_cell, execute_cell_async
+from marimo._runtime.executor import (
+    ExecutionConfig,
+    get_executor,
+)
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -176,7 +179,7 @@ class DirectedGraph:
                     self.parents[child].add(cell_id)
 
             for name in cell.refs:
-                other_ids_defining_name = (
+                other_ids_defining_name: set[CellId_t] = (
                     self.definitions[name]
                     if name in self.definitions
                     else set()
@@ -339,14 +342,14 @@ class DirectedGraph:
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
-        names = []
+        names: list[Name] = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:
                 names.append(name)
         return names
 
     def get_deleted_nonlocal_ref(self) -> list[Name]:
-        names = []
+        names: list[Name] = []
         for cell in self.cells.values():
             for ref in cell.deleted_refs:
                 if ref in self.definitions:
@@ -594,6 +597,7 @@ class Runner:
 
     def __init__(self, graph: DirectedGraph) -> None:
         self._graph = graph
+        self._executor = get_executor(ExecutionConfig())
 
     @staticmethod
     def _returns(cell_impl: CellImpl, glbls: dict[str, Any]) -> dict[str, Any]:
@@ -662,10 +666,12 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            await execute_cell_async(graph.cells[cid], glbls, graph)
+            await self._executor.execute_cell_async(
+                graph.cells[cid], glbls, graph
+            )
 
         Runner._substitute_refs(cell_impl, glbls, kwargs)
-        output = await execute_cell_async(
+        output = await self._executor.execute_cell_async(
             graph.cells[cell_impl.cell_id], glbls, graph
         )
         defs = Runner._returns(cell_impl, glbls)
@@ -701,9 +707,11 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            execute_cell(graph.cells[cid], glbls, graph)
+            self._executor.execute_cell(graph.cells[cid], glbls, graph)
 
         self._substitute_refs(cell_impl, glbls, kwargs)
-        output = execute_cell(graph.cells[cell_impl.cell_id], glbls, graph)
+        output = self._executor.execute_cell(
+            graph.cells[cell_impl.cell_id], glbls, graph
+        )
         defs = Runner._returns(cell_impl, glbls)
         return output, defs
