@@ -40,6 +40,7 @@ class MockLoader(Loader):
             meta={},
         )
 
-    def save_cache(self, _cache: Cache) -> None:
+    def save_cache(self, _cache: Cache) -> bool:
         self._saved = True
         self._cache_hit = True
+        return True
