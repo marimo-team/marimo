@@ -1948,6 +1948,57 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs).toEqual([]);
   });
 
+  it("can clear console output of a single cell", () => {
+    // Set up initial state with output
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "test output",
+        timestamp: 0,
+      },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "console output",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
+    });
+
+    // Add a stdin console output that should be preserved
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      console: {
+        channel: "stdin",
+        mimetype: "text/plain",
+        data: "stdin prompt",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(34).getTime() as Seconds,
+    });
+
+    // Verify initial state has output and console outputs
+    let cell = cells[0];
+    expect(cell.output).not.toBeNull();
+    expect(cell.consoleOutputs.length).toBe(2);
+
+    // Clear console output
+    actions.clearCellConsoleOutput({ cellId: firstCellId });
+
+    // Verify only console output is cleared, but stdin is preserved
+    cell = cells[0];
+    expect(cell.output).not.toBeNull(); // Output should remain
+    expect(cell.consoleOutputs.length).toBe(1);
+    expect(cell.consoleOutputs[0].channel).toBe("stdin");
+    expect(cell.consoleOutputs[0].data).toBe("stdin prompt");
+  });
+
   it("can clear output of all cells", () => {
     // Create multiple cells with output
     actions.createNewCell({ cellId: firstCellId, before: false });

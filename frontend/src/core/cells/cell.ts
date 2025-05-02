@@ -221,9 +221,9 @@ export function outputIsStale(
 }
 
 /**
- * Convert a list of outputs to a traceback.
+ * Convert a list of outputs to a traceback info.
  */
-export function outputToTraceback(
+export function outputToTracebackInfo(
   outputs: OutputMessage[],
 ): TracebackInfo[] | undefined {
   const firstTraceback = outputs.find(

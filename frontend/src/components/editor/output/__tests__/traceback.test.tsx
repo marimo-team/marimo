@@ -8,10 +8,15 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Tracebacks } from "@/__mocks__/tracebacks";
 import { render } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
+import type { CellId } from "@/core/cells/ids";
+
+const cellId = "1" as CellId;
 
 describe("traceback component", () => {
   test("extracts cell-link", () => {
-    const traceback = <MarimoTracebackOutput traceback={Tracebacks.raw} />;
+    const traceback = (
+      <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+    );
     const { unmount, getAllByRole } = render(traceback);
 
     // Has traceback links
@@ -27,7 +32,9 @@ describe("traceback component", () => {
   });
 
   test("renames File to Cell for relevant lines", () => {
-    const traceback = <MarimoTracebackOutput traceback={Tracebacks.raw} />;
+    const traceback = (
+      <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+    );
     const { unmount, container } = render(traceback);
 
     expect(container).not.toBeNull();
