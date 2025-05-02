@@ -115,6 +115,17 @@ describe("CollapsibleTree", () => {
     ).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node one is before node two]",
     );
+    expect(() => tree.collapseAll([])).toThrowErrorMatchingInlineSnapshot(
+      "[Error: No collapse ranges provided]",
+    );
+    expect(() =>
+      tree.collapseAll([
+        { id: "one", until: undefined },
+        { id: "two", until: undefined },
+      ]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Collapse ranges length 2 does not match tree length 4]",
+    );
 
     expect(() => {
       tree = tree.collapse("two", undefined);
