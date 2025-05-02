@@ -46,7 +46,7 @@ def wrapped_sql(
     try:
         relation = eval(
             "connection.sql(query=query)",
-            tables,
+            ctx.globals,
             {"query": query, "connection": connection},
         )
         assert isinstance(relation, duckdb.DuckDBPyRelation)
