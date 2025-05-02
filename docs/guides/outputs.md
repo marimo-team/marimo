@@ -196,6 +196,28 @@ To create a thread that can reliably communicate outputs to the frontend,
 use [`mo.Thread`][marimo.Thread], which has exactly the same API as
 as `threading.Thread`.
 
+### Cleaning up your thread
+
+When the cell that spawned a [`mo.Thread`][marimo.Thread] is invalidated
+(re-run, deleted, interrupted, or otherwise errored), the thread's
+`should_exit` property will evaluate to `True`, at which point it is your
+responsibility to clean up your thread. You can retrieve the current
+[`mo.Thread`][marimo.Thread] with [`mo.current_thread`][marimo.current_thread].
+
+**Example.**
+
+```python
+def target():
+    import marimo as mo
+
+    thread = mo.current_thread()
+    while not thread.should_exit:
+        ...
+```
+
+
+### Patching threads created by third-party code
+
 If you need to forward outputs from threads spawned by third-party code, try
 patching `threading.Thread`:
 
@@ -205,3 +227,6 @@ import marimo as mo
 
 threading.Thread = mo.Thread
 ```
+
+This however may leak threads, since the patched threads won't know to check the `mo.Thread`'s
+`should_exit` property.

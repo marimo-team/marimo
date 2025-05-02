@@ -22,6 +22,7 @@ __all__ = [
     "MarimoIslandGenerator",
     "MarimoStopError",
     "Thread",
+    "current_thread",
     # Other namespaces
     "ai",
     "ui",
@@ -137,7 +138,7 @@ from marimo._runtime.runtime import (
     refs,
 )
 from marimo._runtime.state import state
-from marimo._runtime.threads import Thread
+from marimo._runtime.threads import Thread, current_thread
 from marimo._save.save import cache, lru_cache, persistent_cache
 from marimo._server.asgi import create_asgi_app
 from marimo._sql.sql import sql
