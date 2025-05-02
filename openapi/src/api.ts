@@ -2217,6 +2217,16 @@ export interface paths {
               cpu: {
                 percent: number;
               };
+              gpu?: {
+                index: number;
+                memory: {
+                  free: number;
+                  percent: number;
+                  total: number;
+                  used: number;
+                };
+                name: string;
+              }[];
               kernel?: {
                 memory?: number;
               };
