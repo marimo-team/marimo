@@ -63,15 +63,6 @@ def get_executor(config: ExecutionConfig) -> Executor:
 
 class Executor(ABC):
     @abstractmethod
-    def execute_cell(
-        self,
-        cell: CellImpl,
-        glbls: dict[str, Any],
-        graph: DirectedGraph,
-    ) -> Any:
-        pass
-
-    @abstractmethod
     async def execute_cell_async(
         self,
         cell: CellImpl,
@@ -108,24 +99,6 @@ class DefaultExecutor(Executor):
             # to execution
             raise MarimoRuntimeException from e
 
-    def execute_cell(
-        self,
-        cell: CellImpl,
-        glbls: dict[str, Any],
-        graph: Optional[DirectedGraph] = None,
-    ) -> Any:
-        try:
-            if cell.body is None:
-                return None
-            assert cell.last_expr is not None
-
-            exec(cell.body, glbls)
-            return eval(cell.last_expr, glbls)
-        except NameError as e:
-            _raise_name_error(graph, e)
-        except (BaseException, Exception) as e:
-            raise MarimoRuntimeException from e
-
 
 class StrictExecutor(Executor):
     def __init__(self, base: Executor):
@@ -149,25 +122,6 @@ class StrictExecutor(Executor):
             response = await self.base.execute_cell_async(cell, glbls, graph)
         finally:
             # Restore globals from backup and backfill outputs
-            self._update_outputs(cell, glbls, backup)
-        return response
-
-    def execute_cell(
-        self,
-        cell: CellImpl,
-        glbls: dict[str, Any],
-        graph: DirectedGraph,
-    ) -> Any:
-        refs = graph.get_transitive_references(
-            cell.refs,
-            predicate=build_ref_predicate_for_primitives(
-                glbls, CLONE_PRIMITIVES
-            ),
-        )
-        backup = self._sanitize_inputs(cell, refs, glbls)
-        try:
-            response = self.base.execute_cell(cell, glbls, graph)
-        finally:
             self._update_outputs(cell, glbls, backup)
         return response
 

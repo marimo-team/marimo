@@ -582,13 +582,6 @@ class App:
         )
         return output, _Namespace(defs, owner=self)
 
-    def _run_cell_sync(
-        self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, _Namespace]:
-        self._maybe_initialize()
-        output, defs = self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
-        return output, _Namespace(defs, owner=self)
-
     async def _set_ui_element_value(
         self, request: SetUIElementValueRequest
     ) -> bool:
@@ -794,11 +787,6 @@ class InternalApp:
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
         return await self._app._run_cell_async(cell, kwargs)
-
-    def run_cell_sync(
-        self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, _Namespace]:
-        return self._app._run_cell_sync(cell, kwargs)
 
     async def set_ui_element_value(
         self, request: SetUIElementValueRequest

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 import dataclasses
 import inspect
 import os
@@ -623,10 +624,11 @@ class Cell:
                 refs = {**from_setup, **refs}
 
         try:
+            res = self._app.run_cell_async(cell=self, kwargs=refs)
             if self._is_coroutine:
-                return self._app.run_cell_async(cell=self, kwargs=refs)
+                return res
             else:
-                return self._app.run_cell_sync(cell=self, kwargs=refs)
+                return asyncio.run(res)
         except MarimoRuntimeException as e:
             raise e.__cause__ from None  # type: ignore
 

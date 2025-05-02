@@ -65,45 +65,6 @@ class AppScriptRunner:
         for cid in self.cells_cancelled[cell_id]:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
 
-    def _run_synchronous(
-        self,
-        post_execute_hooks: list[Callable[[], Any]],
-    ) -> RunOutput:
-        with patch_main_module_context(
-            create_main_module(
-                file=self.filename, input_override=None, print_override=None
-            )
-        ) as module:
-            glbls = module.__dict__
-            glbls.update(self._glbls)
-            outputs: dict[CellId_t, Any] = {}
-            while self.cells_to_run:
-                cid = self.cells_to_run.pop(0)
-                # Set up has already run in this case.
-                if cid == CellId_t(SETUP_CELL_NAME):
-                    for hook in post_execute_hooks:
-                        hook()
-                    continue
-
-                cell = self.app.graph.cells[cid]
-                with get_context().with_cell_id(cid):
-                    try:
-                        output = self._executor.execute_cell(
-                            cell, glbls, self.app.graph
-                        )
-                        outputs[cid] = output
-                    except MarimoRuntimeException as e:
-                        unwrapped_exception: BaseException | None = e.__cause__
-
-                        if isinstance(unwrapped_exception, MarimoStopError):
-                            self._cancel(cid)
-                        else:
-                            raise e
-                    finally:
-                        for hook in post_execute_hooks:
-                            hook()
-        return outputs, glbls
-
     async def _run_asynchronous(
         self,
         post_execute_hooks: list[Callable[[], Any]],
@@ -182,22 +143,17 @@ class AppScriptRunner:
             if not FORMATTERS:
                 register_formatters()
 
-            post_execute_hooks = []
+            post_execute_hooks: list[Callable[[], Any]] = []
             if DependencyManager.matplotlib.has():
                 from marimo._output.mpl import close_figures
 
                 post_execute_hooks.append(close_figures)
 
-            if is_async:
-                outputs, defs = asyncio.run(
-                    self._run_asynchronous(
-                        post_execute_hooks=post_execute_hooks,
-                    )
-                )
-            else:
-                outputs, defs = self._run_synchronous(
+            outputs, defs = asyncio.run(
+                self._run_asynchronous(
                     post_execute_hooks=post_execute_hooks,
                 )
+            )
             return outputs, defs
 
         # Cell runner manages the exception handling for kernel

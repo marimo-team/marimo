@@ -344,7 +344,7 @@ class Runner:
                     # by user anyway.
                     return_value = await return_value_future
             else:
-                return_value = self._executor.execute_cell(
+                return_value = await self._executor.execute_cell_async(
                     cell,
                     self.glbls,
                     self.graph,

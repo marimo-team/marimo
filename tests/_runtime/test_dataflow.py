@@ -858,48 +858,6 @@ def test_is_disabled() -> None:
     assert not graph.is_disabled("2")
 
 
-def test_runner_sync() -> None:
-    """Test the Runner class for synchronous execution."""
-    graph = dataflow.DirectedGraph()
-
-    # Create a chain of cells: 0 -> 1 -> 2
-    code = "x = 10"
-    first_cell = compiler.compile_cell(code, cell_id="0")
-    graph.register_cell("0", first_cell)
-
-    code = "y = x * 2"
-    second_cell = compiler.compile_cell(code, cell_id="1")
-    graph.register_cell("1", second_cell)
-
-    code = "z = y + 5; z"
-    third_cell = compiler.compile_cell(code, cell_id="2")
-    graph.register_cell("2", third_cell)
-
-    # Create a runner
-    runner = dataflow.Runner(graph)
-
-    # Run the last cell
-    output, defs = runner.run_cell_sync("2", {})
-
-    # Check output and definitions
-    assert output == 25  # 10 * 2 + 5
-    assert defs == {"z": 25}
-
-    # Run the last cell with substituted values
-    output, defs = runner.run_cell_sync("2", {"y": 50})
-
-    # Check output and definitions with substituted value
-    assert output == 55  # 50 + 5
-    assert defs == {"z": 55}
-
-    # Try to run with an invalid argument
-    try:
-        runner.run_cell_sync("2", {"invalid": 100})
-        raise AssertionError("Should have raised an exception")
-    except ValueError:
-        pass  # Expected
-
-
 def test_runner_ancestors() -> None:
     """Test that the Runner correctly identifies ancestors based on refs."""
     graph = dataflow.DirectedGraph()
