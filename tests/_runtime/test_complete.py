@@ -141,9 +141,9 @@ def dummy_func(arg1: str, arg2: str) -> None:
     Parameters
     ----------
     arg1
-        description
-    arg2
-        description
+        polars often uses this format
+    arg2 : str, required
+        while other libraries prefer this format (which polars uses too)
     """
 
 
