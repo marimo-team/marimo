@@ -527,6 +527,10 @@ manager = "uv"
 [tool.marimo.keymap]
 vimrc = "configs/.vimrc"
 
+[tool.marimo.experimental.cache]
+store = "rest"
+args = { api_key = "marimo-api-key", base_url = "https://cache.marimo.app/api/artifact", project_id = "marimo" }
+
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["osx-arm64"]
