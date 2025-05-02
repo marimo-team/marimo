@@ -14,7 +14,10 @@ import {
   cellIdState,
   type CodemirrorCellActions,
 } from "./state";
-import { SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { errorLineHighlighter } from "./traceback-decorations";
+import { createObservable } from "@/core/state/observable";
+import { store } from "@/core/state/jotai";
 
 /**
  * Extensions for cell actions
@@ -346,5 +349,8 @@ export function cellBundle(
     cellIdState.of(cellId),
     cellKeymaps(cellId, hotkeys),
     cellCodeEditing(hotkeys),
+    errorLineHighlighter(
+      createObservable(createTracebackInfoAtom(cellId), store),
+    ),
   ];
 }

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue } from "jotai";
+import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { type ReducerWithoutAction, createRef } from "react";
 import type { CellMessage } from "../kernel/messages";
 import {
@@ -49,6 +49,7 @@ import {
 } from "@/utils/id-tree";
 import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -1493,6 +1494,46 @@ export function flattenTopLevelNotebookCells(
       ...cellRuntime[cellId],
     })),
   );
+}
+
+export function createTracebackInfoAtom(
+  cellId: CellId,
+): Atom<TracebackInfo[] | undefined> {
+  // We create an intermediate atom that just computes the string
+  // so it prevents downstream recomputations.
+  const tracebackStringAtom = atom<string | undefined>((get) => {
+    const notebook = get(notebookAtom);
+    const data = notebook.cellRuntime[cellId];
+    if (!data) {
+      return undefined;
+    }
+    // Must be errored and idle
+    if (data.status !== "idle") {
+      return undefined;
+    }
+    const outputs = data.consoleOutputs;
+    // console.warn(notebook);
+    if (!outputs || outputs.length === 0) {
+      return undefined;
+    }
+
+    const firstTraceback = outputs.find(
+      (output) => output.mimetype === "application/vnd.marimo+traceback",
+    );
+    if (!firstTraceback) {
+      return undefined;
+    }
+    const traceback = firstTraceback.data;
+    return traceback as string;
+  });
+
+  return atom((get) => {
+    const traceback = get(tracebackStringAtom);
+    if (!traceback) {
+      return undefined;
+    }
+    return extractAllTracebackInfo(traceback);
+  });
 }
 
 /**
