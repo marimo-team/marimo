@@ -39,7 +39,7 @@ def unmangle_local(
     name: str, cell_id: CellId_t = _EMPTY_CELL_ID
 ) -> UnmagledLocal:
     if not is_mangled_local(name, cell_id):
-        return UnmagledLocal(name, "")
+        return UnmagledLocal(name, CellId_t(""))
     private_prefix = r"^_cell_\w+?_"
     if cell_id:
         private_prefix = f"^_cell_{cell_id}_"
