@@ -299,7 +299,7 @@ export class CollapsibleTree<T> {
 
     if (collapseRanges.length !== nodes.length) {
       throw new Error(
-        `Collapse ranges length ${collapseRanges.length} does not match tree length ${this.nodes.length}`,
+        `Collapse ranges length ${collapseRanges.length} does not match tree length ${nodes.length}`,
       );
     }
 
