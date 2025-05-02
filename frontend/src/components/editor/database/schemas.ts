@@ -107,7 +107,7 @@ function portField(defaultPort?: number) {
       }),
     )
     .transform(Number)
-    .refine((n) => n >= 0 && n <= 65_535, {
+    .refine((n: number) => n >= 0 && n <= 65_535, {
       message: "Port must be between 0 and 65535",
     });
 
@@ -399,7 +399,6 @@ export const DataFusionConnectionSchema = z.object({
 // Ideally, we can conditionally render the username, host, and port fields.
 export const PySparkConnectionSchema = z.object({
   type: z.literal("pyspark"),
-  username: usernameField().optional(),
   host: hostField().optional(),
   port: portField().optional(),
 });

@@ -580,19 +580,11 @@ class PySparkGenerator extends CodeGenerator<"pyspark"> {
   }
 
   generateConnectionCode(): string {
-    if (
-      this.connection.username ||
-      this.connection.host ||
-      this.connection.port
-    ) {
-      const username = this.secrets.printInFString(
-        "username",
-        this.connection.username,
-      );
+    if (this.connection.host || this.connection.port) {
       const host = this.secrets.printInFString("host", this.connection.host);
       const port = this.secrets.printInFString("port", this.connection.port);
       return dedent(`
-        session = SparkSession.builder.remote(f"${username}://${host}:${port}").getOrCreate()
+        session = SparkSession.builder.remote(f"sc://${host}:${port}").getOrCreate()
         con = ibis.pyspark.connect(session)
       `);
     }
