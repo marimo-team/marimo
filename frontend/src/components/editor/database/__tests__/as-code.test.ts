@@ -162,7 +162,6 @@ describe("generateDatabaseCode", () => {
 
   const pysparkConnSession: DatabaseConnection = {
     type: "pyspark",
-    username: "user",
     host: "localhost",
     port: 15_002,
   };
