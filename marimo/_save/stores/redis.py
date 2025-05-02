@@ -19,10 +19,13 @@ class RedisStore(Store):
         result = self.redis.get(key)
         if result is None:
             return None
-        return result.encode("utf-8")  # type: ignore[no-any-return]
+        return result  # type: ignore[no-any-return]
 
-    def put(self, key: str, value: bytes) -> None:
-        self.redis.set(key, value)
+    def put(self, key: str, value: bytes) -> bool:
+        result = self.redis.set(key, value)
+        if result is None:
+            return False
+        return True
 
     def hit(self, key: str) -> bool:
         return self.redis.exists(key) > 0

@@ -166,7 +166,7 @@ class Loader(ABC):
         """Load Cache"""
 
     @abstractmethod
-    def save_cache(self, cache: Cache) -> None:
+    def save_cache(self, cache: Cache) -> bool:
         """Save Cache"""
 
 
@@ -199,10 +199,10 @@ class BasePersistenceLoader(Loader):
     def cache_hit(self, key: HashKey) -> bool:
         return self.store.hit(str(self.build_path(key)))
 
-    def save_cache(self, cache: Cache) -> None:
+    def save_cache(self, cache: Cache) -> bool:
         blob = self.to_blob(cache)
         if blob is None:
-            return
+            return False
         return self.store.put(str(self.build_path(cache.key)), blob)
 
     def load_cache(self, key: HashKey) -> Optional[Cache]:

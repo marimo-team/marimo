@@ -11,7 +11,7 @@ class Store(ABC):
         """Get the bytes of a cache from the store"""
 
     @abstractmethod
-    def put(self, key: str, value: bytes) -> None:
+    def put(self, key: str, value: bytes) -> bool:
         """Put a cache into the store"""
 
     @abstractmethod

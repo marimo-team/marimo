@@ -32,10 +32,11 @@ class FileStore(Store):
             return None
         return path.read_bytes()
 
-    def put(self, key: str, value: bytes) -> None:
+    def put(self, key: str, value: bytes) -> bool:
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(value)
+        return True
 
     def hit(self, key: str) -> bool:
         path = self.save_path / key
