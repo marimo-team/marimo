@@ -33,7 +33,7 @@ import type { Cell } from "@tanstack/react-table";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
-import { renderCellContent } from "../columns";
+import { renderCellValue } from "../columns";
 
 export const DataSelectionPanel: React.FC<{
   handleDragging: (isDragging: boolean) => void;
@@ -182,7 +182,11 @@ export const DataSelectionPanel: React.FC<{
                 DATA_TYPE_ICON[
                   cell.column.columnDef.meta?.dataType || "unknown"
                 ];
-              const cellContent = renderCellContent(cell);
+              const cellContent = renderCellValue(
+                cell.column,
+                cell.renderValue,
+                cell.getValue,
+              );
               return (
                 <TableRow key={columnName}>
                   <TableCell className="flex flex-row items-center gap-1.5">
