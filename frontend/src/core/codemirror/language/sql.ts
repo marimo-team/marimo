@@ -131,8 +131,29 @@ export class SQLLanguageAdapter implements LanguageAdapter {
     const showOutputParam = this.showOutput ? "" : ",\n    output=False";
     const engineParam =
       this.engine === this.defaultEngine ? "" : `,\n    engine=${this.engine}`;
-    const end = `\n    """${showOutputParam}${engineParam}\n)`;
 
+    const localTables = store.get(datasetTablesAtom);
+    // Need to check table exists with with boundaries
+    const tablesString = localTables
+      .filter((table) => {
+        const matched = Boolean(
+          new RegExp(`\\b${table.name}\\b`, "g").test(escapedCode),
+        );
+        return table.source_type === "local" && matched;
+      })
+      .map((table) => `"${table.name}": ${table.name}`)
+      .join(",\n        ");
+    // Table params only valid in DuckDB
+    const tablesParam =
+      this.engine === this.defaultEngine && tablesString
+        ? `,\n    tables={\n        ${tablesString}\n    }`
+        : "";
+
+    const end = `\n    """${showOutputParam}${engineParam}${tablesParam}\n)`;
+
+    // TODO: Ruff-wasm is now more main stream (adopted by jupyter-ruff)
+    // we may consider using it opposed to the current approach of manually
+    // formatting.
     return [
       [...commentLines, start].join("\n") + indentOneTab(escapedCode) + end,
       start.length + 1,

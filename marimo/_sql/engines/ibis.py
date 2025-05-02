@@ -61,7 +61,9 @@ class IbisEngine(SQLEngine):
 
         return str(self._backend.dialect)
 
-    def execute(self, query: str) -> Any:
+    def execute(
+        self, query: str, _tables: Optional[dict[str, Any]] = None
+    ) -> Any:
         query_expr = self._backend.sql(query)
 
         sql_output_format = self.sql_output_format()

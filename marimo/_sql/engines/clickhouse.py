@@ -56,7 +56,9 @@ class ClickhouseEmbedded(SQLEngine):
     def dialect(self) -> str:
         return "clickhouse"
 
-    def execute(self, query: str) -> Any:
+    def execute(
+        self, query: str, _tables: Optional[dict[str, Any]] = None
+    ) -> Any:
         import chdb  # type: ignore
 
         query = query.strip()
@@ -234,7 +236,9 @@ class ClickhouseServer(SQLEngine):
     def dialect(self) -> str:
         return "clickhouse"
 
-    def execute(self, query: str) -> Any:
+    def execute(
+        self, query: str, _tables: Optional[dict[str, Any]] = None
+    ) -> Any:
         if self._connection is None:
             return None
 

@@ -360,3 +360,18 @@ def test_sql_with_ibis_expression_result():
     with patch.object(IbisEngine, "sql_output_format", return_value="native"):
         result = sql("SELECT * FROM test", engine=duckdb_backend)
         assert isinstance(result, Expr)
+
+
+@pytest.mark.skipif(not HAS_PANDAS and HAS_DUCKDB, reason="pandas is required")
+def test_as_script():
+    import pandas as pd
+
+    from tests._sql.external_script import script_hook
+
+    # Should fail with type error since an argument expected
+    with pytest.raises(TypeError):
+        script_hook()
+
+    df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
+    # TODO: This functionality seems a little broken.
+    assert script_hook(df) is None
