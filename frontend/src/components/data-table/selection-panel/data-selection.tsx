@@ -8,6 +8,8 @@ import {
   ChevronRight,
   SearchIcon,
   PinIcon,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { PanelResizeHandle, Panel } from "react-resizable-panels";
@@ -31,6 +33,7 @@ import type { Cell } from "@tanstack/react-table";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
+import { renderCellContent } from "../columns";
 
 export const DataSelectionPanel: React.FC<{
   handleDragging: (isDragging: boolean) => void;
@@ -114,6 +117,19 @@ export const DataSelectionPanel: React.FC<{
     setSelectedRowIdx(rowIdx);
   };
 
+  const renderButton = (icon: React.ReactNode, onClick: () => void) => {
+    return (
+      <Button
+        variant="outline"
+        size="xs"
+        className="px-1 h-5 w-5"
+        onClick={onClick}
+      >
+        {icon}
+      </Button>
+    );
+  };
+
   const children = (
     <div className="mt-2">
       <div className="flex flex-row justify-between items-center my-1 mx-2">
@@ -128,31 +144,21 @@ export const DataSelectionPanel: React.FC<{
         </Button>
       </div>
 
-      {/* <h1 className="text-md font-bold tracking-wide text-center mb-3">
-        Selection Panel
-      </h1> */}
-
       <div className="flex flex-col gap-2 mt-4">
         <div className="flex flex-row gap-2 justify-end mr-2">
-          <Button
-            variant="outline"
-            size="xs"
-            className="px-1 h-5 w-5"
-            onClick={() => handleSelectRow(selectedRowIdx - 1)}
-          >
-            <ChevronLeft />
-          </Button>
+          {renderButton(<ChevronsLeft />, () => handleSelectRow(0))}
+          {renderButton(<ChevronLeft />, () =>
+            handleSelectRow(selectedRowIdx - 1),
+          )}
           <span className="text-sm">
             {selectedRowIdx + 1} of {rows.length}
           </span>
-          <Button
-            variant="outline"
-            size="xs"
-            className="px-1 h-5 w-5"
-            onClick={() => handleSelectRow(selectedRowIdx + 1)}
-          >
-            <ChevronRight />
-          </Button>
+          {renderButton(<ChevronRight />, () =>
+            handleSelectRow(selectedRowIdx + 1),
+          )}
+          {renderButton(<ChevronsRight />, () =>
+            handleSelectRow(rows.length - 1),
+          )}
         </div>
 
         <div className="mx-2 my-2">
@@ -166,8 +172,8 @@ export const DataSelectionPanel: React.FC<{
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-1/3">Column</TableHead>
-              <TableHead className="w-2/3">Value</TableHead>
+              <TableHead className="w-1/4">Column</TableHead>
+              <TableHead className="w-3/4">Value</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -176,13 +182,14 @@ export const DataSelectionPanel: React.FC<{
                 DATA_TYPE_ICON[
                   cell.column.columnDef.meta?.dataType || "unknown"
                 ];
+              const cellContent = renderCellContent(cell);
               return (
                 <TableRow key={columnName}>
                   <TableCell className="flex flex-row items-center gap-1.5">
                     <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />
                     {columnName}
                   </TableCell>
-                  <TableCell>{String(cell.getValue())}</TableCell>
+                  <TableCell>{cellContent}</TableCell>
                 </TableRow>
               );
             })}
