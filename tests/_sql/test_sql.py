@@ -362,7 +362,9 @@ def test_sql_with_ibis_expression_result():
         assert isinstance(result, Expr)
 
 
-@pytest.mark.skipif(not HAS_PANDAS and not HAS_DUCKDB, reason="pandas is required")
+@pytest.mark.skipif(
+    not HAS_PANDAS and not HAS_DUCKDB, reason="pandas is required"
+)
 def test_as_script():
     import pandas as pd
 
