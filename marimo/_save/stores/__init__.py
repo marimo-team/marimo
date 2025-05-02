@@ -3,13 +3,15 @@ from typing import Literal
 
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
+from marimo._save.stores.rest import RestStore
 from marimo._save.stores.store import Store, StoreType
 
-StoreKey = Literal["file", "redis"]
+StoreKey = Literal["file", "redis", "rest"]
 
 CACHE_STORES: dict[StoreKey, StoreType] = {
     "file": FileStore,
     "redis": RedisStore,
+    "rest": RestStore,
 }
 DEFAULT_STORE_KEY: StoreKey = "file"
 DEFAULT_STORE: StoreType = CACHE_STORES[DEFAULT_STORE_KEY]

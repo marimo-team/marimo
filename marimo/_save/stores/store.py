@@ -2,37 +2,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
-
-from marimo._save.cache import (
-    Cache,
-)
-
-if TYPE_CHECKING:
-    from marimo._save.hash import HashKey
-    from marimo._save.loaders import BasePersistenceLoader as Loader
+from typing import Optional
 
 
 class Store(ABC):
-    _instance = None
-
-    # Singleton
-    def __new__(cls) -> Store:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            # Put any initialization here.
-        return cls._instance
-
     @abstractmethod
-    def get(self, key: HashKey, loader: Loader) -> Optional[bytes]:
+    def get(self, key: str) -> Optional[bytes]:
         """Get the bytes of a cache from the store"""
 
     @abstractmethod
-    def put(self, cache: Cache, loader: Loader) -> None:
+    def put(self, key: str, value: bytes) -> None:
         """Put a cache into the store"""
 
     @abstractmethod
-    def hit(self, key: HashKey, loader: Loader) -> bool:
+    def hit(self, key: str) -> bool:
         """Check if the cache is in the store"""
 
 

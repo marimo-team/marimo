@@ -17,6 +17,7 @@ from marimo._save.loaders.loader import (
     Loader,
     LoaderPartial,
 )
+from marimo._save.stores.file import FileStore
 from tests._save.loaders.mocks import MockLoader
 
 
@@ -49,7 +50,6 @@ class TestLoaderPartial:
 
 
 class ABCTestLoader(ABC):
-    save_path = None
     suffix = None
     value = None
 
@@ -57,6 +57,7 @@ class ABCTestLoader(ABC):
         """Set up a temporary directory for each test."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.save_path = self.temp_dir.name
+        self.store = FileStore(save_path=self.save_path)
 
     def teardown_method(self) -> None:
         """Clean up the temporary directory."""
@@ -74,9 +75,9 @@ class ABCTestLoader(ABC):
         if self.suffix:
             assert loader.suffix == self.suffix
         if isinstance(loader, BasePersistenceLoader):
-            assert Path(str(loader.save_path)).name == "test"
+            assert self.store.save_path.name == Path(self.temp_dir.name).name
             # Check that the directory was created
-            assert os.path.exists(loader.save_path)
+            assert os.path.exists(self.store.save_path)
 
     def test_build_path(self) -> None:
         """Test building the path for a cache file."""
@@ -97,6 +98,7 @@ class ABCTestLoader(ABC):
 
         # Create a cache file
         cache_path = loader.build_path(key("hash1", "Pure"))
+        assert cache_path
 
         # Create a valid JSON cache
         self.seed_cache()
@@ -115,8 +117,8 @@ class ABCTestLoader(ABC):
 
         # Empty file should miss
         empty_path = loader.build_path(key("empty", "Pure"))
-        with open(empty_path, "w") as f:
-            pass
+        empty_path.parent.mkdir(parents=True, exist_ok=True)
+        empty_path.write_bytes(b"")
         assert not loader.cache_hit(key("empty", "Pure"))
 
         assert loader.hits == 1
@@ -150,7 +152,7 @@ class TestJsonLoader(ABCTestLoader):
     suffix = "json"
 
     def _instance(self) -> Loader:
-        return JsonLoader("test", self.save_path)
+        return JsonLoader("test", store=self.store)
 
     def seed_cache(self):
         cache_path = self.instance().build_path(key("hash1", "Pure"))
@@ -165,15 +167,14 @@ class TestJsonLoader(ABCTestLoader):
             "meta": {},
         }
 
-        with open(cache_path, "w") as f:
-            json.dump(cache_dict, f)
+        self.store.put(str(cache_path), json.dumps(cache_dict).encode("utf-8"))
 
 
 class TestPickleLoader(ABCTestLoader):
     suffix = "pickle"
 
     def _instance(self) -> Loader:
-        return PickleLoader("test", self.save_path)
+        return PickleLoader("test", store=self.store)
 
     def seed_cache(self) -> None:
         cache_path = self.instance().build_path(key("hash1", "Pure"))
@@ -186,5 +187,4 @@ class TestPickleLoader(ABCTestLoader):
             meta={},
         )
 
-        with open(cache_path, "wb") as f:
-            pickle.dump(cache, f)
+        self.store.put(str(cache_path), pickle.dumps(cache))
