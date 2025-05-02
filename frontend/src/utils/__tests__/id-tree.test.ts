@@ -115,12 +115,72 @@ describe("CollapsibleTree", () => {
     ).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node one is before node two]",
     );
-
     expect(() => {
       tree = tree.collapse("two", undefined);
       tree = tree.collapse("two", undefined);
     }).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node two is already collapsed]",
+    );
+  });
+
+  it("collapses all nodes from leaves to root in one call", () => {
+    const collapsedTree = tree.collapseAll([
+      { id: "one", until: undefined },
+      { id: "two", until: undefined },
+      { id: "three", until: undefined },
+      { id: "four", until: undefined },
+    ]);
+    expect(collapsedTree.toString()).toMatchInlineSnapshot(`
+      "one (collapsed)
+        two (collapsed)
+          three (collapsed)
+            four (collapsed)
+      "
+    `);
+  });
+
+  it("collapses some nodes from leaves to root in one call", () => {
+    const collapsedTree = tree.collapseAll([
+      { id: "one", until: undefined },
+      null,
+      { id: "three", until: "four" },
+      null,
+    ]);
+    expect(collapsedTree.toString()).toMatchInlineSnapshot(`
+      "one (collapsed)
+        two
+        three (collapsed)
+          four
+      "
+    `);
+  });
+
+  it("failures to collapse all", () => {
+    expect(() => tree.collapseAll([])).toThrowErrorMatchingInlineSnapshot(
+      "[Error: No collapse ranges provided]",
+    );
+    expect(() =>
+      tree.collapseAll([
+        { id: "one", until: undefined },
+        { id: "two", until: undefined },
+      ]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Collapse ranges length 2 does not match tree length 4]",
+    );
+    expect(() =>
+      tree.collapseAll([null, { id: "one", until: undefined }, null, null]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Node two does not match collapse range id one]",
+    );
+    expect(() =>
+      tree.collapseAll([{ id: "one", until: "five" }, null, null, null]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Node five not found in tree]",
+    );
+    expect(() =>
+      tree.collapseAll([null, { id: "two", until: "one" }, null, null]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Node one is before node two]",
     );
   });
 
