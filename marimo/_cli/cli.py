@@ -14,6 +14,7 @@ import click
 import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen, load
+from marimo._ast.parse import parse_notebook
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -56,7 +57,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 def check_app_correctness(filename: str) -> None:
     try:
-        load.load_app(filename)
+        parse_notebook(filename)
     except SyntaxError:
         import traceback
 
