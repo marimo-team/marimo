@@ -40,13 +40,14 @@ def wrapped_sql(
         ctx = get_context()
         previous_globals = ctx.globals.copy()
         ctx.globals.update(tables)
+        tables = ctx.globals
     except ContextNotInitializedError:
         pass
 
     try:
         relation = eval(
             "connection.sql(query=query)",
-            ctx.globals,
+            tables,
             {"query": query, "connection": connection},
         )
         assert isinstance(relation, duckdb.DuckDBPyRelation)
