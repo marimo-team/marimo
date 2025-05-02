@@ -250,7 +250,9 @@ async def usage(request: Request) -> JSONResponse:
                             "total": total,
                             "used": used,
                             "free": free,
-                            "percent": (used / total) * 100 if total > 0 else 0,
+                            "percent": (used / total) * 100
+                            if total > 0
+                            else 0,
                         },
                     }
                 )
