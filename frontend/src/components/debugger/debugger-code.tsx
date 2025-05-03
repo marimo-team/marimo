@@ -207,7 +207,10 @@ export const DebuggerControls: React.FC<{
             variant="text"
             size="icon"
             data-testid="debugger-clear-button"
-            className={buttonClasses}
+            className={cn(
+              buttonClasses,
+              "text-[var(--red-11)] hover:text-[var(--red-11)] hover:bg-[var(--red-2)] hover:border-[var(--red-8)]",
+            )}
             onClick={onClear}
           >
             <TrashIcon fontSize={36} className={iconClasses} />

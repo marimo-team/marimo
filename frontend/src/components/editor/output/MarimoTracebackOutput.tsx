@@ -98,7 +98,7 @@ export const MarimoTracebackOutput = ({
               {errorMessage}
             </div>
           </div>
-          <AccordionContent className="px-4 text-muted-foreground px-4 pt-2 text-xs overflow-auto">
+          <AccordionContent className="text-muted-foreground px-4 pt-2 text-xs overflow-auto">
             {htmlTraceback}
           </AccordionContent>
         </AccordionItem>
