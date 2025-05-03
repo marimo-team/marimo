@@ -50,6 +50,8 @@ def wrapped_sql(
             tables,
             {"query": query, "connection": connection},
         )
+        import duckdb
+
         assert isinstance(relation, duckdb.DuckDBPyRelation)
     finally:
         if previous_globals:
