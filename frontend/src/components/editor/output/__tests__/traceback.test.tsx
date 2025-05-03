@@ -9,13 +9,16 @@ import { Tracebacks } from "@/__mocks__/tracebacks";
 import { render } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 import type { CellId } from "@/core/cells/ids";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const cellId = "1" as CellId;
 
 describe("traceback component", () => {
   test("extracts cell-link", () => {
     const traceback = (
-      <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+      <TooltipProvider>
+        <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+      </TooltipProvider>
     );
     const { unmount, getAllByRole } = render(traceback);
 
@@ -33,7 +36,9 @@ describe("traceback component", () => {
 
   test("renames File to Cell for relevant lines", () => {
     const traceback = (
-      <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+      <TooltipProvider>
+        <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+      </TooltipProvider>
     );
     const { unmount, container } = render(traceback);
 
@@ -53,7 +58,9 @@ describe("traceback replacement", () => {
       html: Tracebacks.assertion,
       additionalReplacements: [replaceTracebackPrefix],
     });
-    const { unmount, container } = render(traceback);
+    const { unmount, container } = render(
+      <TooltipProvider>{traceback}</TooltipProvider>,
+    );
 
     expect(container).not.toBeNull();
 
@@ -70,7 +77,9 @@ describe("traceback replacement", () => {
       html: Tracebacks.assertion,
       additionalReplacements: [replaceTracebackFilenames],
     });
-    const { unmount, getAllByRole, container } = render(traceback);
+    const { unmount, getAllByRole, container } = render(
+      <TooltipProvider>{traceback}</TooltipProvider>,
+    );
 
     expect(container).not.toBeNull();
 
