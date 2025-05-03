@@ -22,7 +22,7 @@ import {
 import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
-import type { DOMNode } from "html-react-parser";
+import { Element, Text, type DOMNode } from "html-react-parser";
 
 import { CellLinkTraceback } from "../links/cell-link";
 import {
