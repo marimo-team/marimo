@@ -1104,7 +1104,7 @@ const {
 
             // Check if the parent's end point is inside any already-collapsed child range
             const parentEndInChild = rangeIndexes.find(
-              (r) => r.start <= endIndex && r.end === endIndex,
+              (child) => child.start <= endIndex && child.end === endIndex,
             );
 
             if (parentEndInChild) {
