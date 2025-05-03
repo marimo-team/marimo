@@ -41,17 +41,17 @@ export function insertDebuggerAtLine(view: EditorView, line: number): boolean {
       to: insertPos,
       insert: breakpointStatement,
     },
-  });
-
-  // Scroll to the breakpoint
-  view.dispatch({
+    // Scroll to the breakpoint
     selection: {
-      anchor: insertPos,
-      head: insertPos,
+      anchor: insertPos + breakpointStatement.length - 1,
+      head: insertPos + breakpointStatement.length - 1,
     },
     scrollIntoView: true,
-    effects: EditorView.scrollIntoView(insertPos, { y: "center" }),
+    effects: [EditorView.scrollIntoView(insertPos, { y: "center" })],
   });
+
+  // Focus the editor after the transaction
+  view.focus();
 
   return true;
 }
