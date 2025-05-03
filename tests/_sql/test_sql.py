@@ -363,7 +363,7 @@ def test_sql_with_ibis_expression_result():
 
 
 @pytest.mark.skipif(
-    not HAS_PANDAS and not HAS_DUCKDB, reason="pandas is required"
+    not HAS_PANDAS or not HAS_DUCKDB, reason="pandas is required"
 )
 def test_as_script():
     import pandas as pd

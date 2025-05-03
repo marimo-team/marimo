@@ -18,7 +18,7 @@ def wrapped_sql(
     query: str,
     connection: Optional[duckdb.DuckDBPyConnection],
     tables: Optional[dict[str, Any]] = None,
-) -> duckdb.DuckDBPyRelation:
+) -> Optional[duckdb.DuckDBPyRelation]:
     DependencyManager.duckdb.require("to execute sql")
 
     # In Python globals() are scoped to modules; since this function
@@ -44,6 +44,7 @@ def wrapped_sql(
     except ContextNotInitializedError:
         pass
 
+    relation = None
     try:
         relation = eval(
             "connection.sql(query=query)",
@@ -52,12 +53,23 @@ def wrapped_sql(
         )
         import duckdb
 
-        assert isinstance(relation, duckdb.DuckDBPyRelation)
+        assert isinstance(relation, (type(None), duckdb.DuckDBPyRelation))
     finally:
         if previous_globals:
             ctx.globals.clear()
             ctx.globals.update(previous_globals)
     return relation
+
+
+def fetch_one(
+    query: str,
+    connection: Optional[duckdb.DuckDBPyConnection] = None,
+    tables: Optional[dict[str, Any]] = None,
+) -> tuple[Any, ...] | None:
+    stats_table = wrapped_sql(query, connection=connection, tables=tables)
+    if stats_table is None:
+        return None
+    return stats_table.fetchone()
 
 
 def raise_df_import_error(pkg: str) -> None:
