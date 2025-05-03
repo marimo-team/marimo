@@ -1548,7 +1548,7 @@ describe("cell reducer", () => {
       },
     };
 
-    // Check if bother the parent and child are collapsed
+    // Check if both the parent and child are collapsed
     actions.collapseAllCells();
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
       true,
