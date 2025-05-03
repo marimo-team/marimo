@@ -43,6 +43,11 @@ describe("insertDebuggerAtLine", () => {
     const expectedDoc =
       'def test():\n  breakpoint()\n  print("hello")\n  return True';
     expect(view.state.doc.toString()).toBe(expectedDoc);
+
+    // Check that the cursor is at the end of the breakpoint line
+    const cursorPos = view.state.selection.main.head;
+    const breakpointLine = view.state.doc.line(2);
+    expect(cursorPos).toBe(breakpointLine.to);
   });
 
   it("should match the indentation of the target line", () => {
@@ -68,6 +73,11 @@ describe("insertDebuggerAtLine", () => {
     const expectedDoc =
       'def test():\n    if True:\n        breakpoint()\n        print("nested")\n    return True';
     expect(view.state.doc.toString()).toBe(expectedDoc);
+
+    // Check that the cursor is at the end of the breakpoint line
+    const cursorPos = view.state.selection.main.head;
+    const breakpointLine = view.state.doc.line(3);
+    expect(cursorPos).toBe(breakpointLine.to);
   });
 
   it("should handle the first line correctly", () => {
