@@ -1108,17 +1108,16 @@ const {
             );
 
             if (parentEndInChild) {
-              // Adjust the new endIndex it to the child's start
+              // Adjust the new endIndex to the child's start
               endIndex = parentEndInChild.start;
             }
-
-            // Add the range to the list of ranges
-            const cellId = column.atOrThrow(startIndex);
-            const until = column.atOrThrow(endIndex);
 
             // Store this range for future child checks
             rangeIndexes.push({ start: startIndex, end: endIndex });
 
+            // Add the range to the list of ranges
+            const cellId = column.atOrThrow(startIndex);
+            const until = column.atOrThrow(endIndex);
             reversedCollapseRanges.push({ id: cellId, until });
           } else {
             reversedCollapseRanges.push(null);
