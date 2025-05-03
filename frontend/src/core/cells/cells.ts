@@ -1125,10 +1125,7 @@ const {
           i--;
         }
 
-        // Reverse the reversedCollapseRanges to get them in original order
         const collapseRanges = reversedCollapseRanges.reverse();
-
-        // Collapse all ranges
         return column.collapseAll(collapseRanges);
       }),
     };
