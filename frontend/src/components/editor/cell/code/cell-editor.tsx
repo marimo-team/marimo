@@ -113,10 +113,11 @@ const CellEditorInternal = ({
   });
 
   const handleRunCell = useEvent(() => {
-    if (status !== "idle") {
-      return;
+    if (loading) {
+      return false;
     }
     runCell();
+    return true;
   });
 
   const toggleHideCode = useEvent(() => {
