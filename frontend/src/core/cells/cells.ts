@@ -1076,6 +1076,32 @@ const {
       scrollKey: cellId,
     };
   },
+  collapseAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => {
+        // Get all the top-level outlines
+        const outlines = column.topLevelIds.map((id) => {
+          const cell = state.cellRuntime[id];
+          return cell.outline;
+        });
+
+        // Find the start/end of the collapsed ranges
+        const collapseRanges = column.nodes.map((_, i) => {
+          const range = findCollapseRange(i, outlines);
+          if (range) {
+            const cellId = column.atOrThrow(i);
+            const until = column.atOrThrow(range[1]);
+            return { id: cellId, until };
+          }
+          return null;
+        });
+
+        // Collapse all ranges
+        return column.collapseAll(collapseRanges);
+      }),
+    };
+  },
   expandAllCells: (state) => {
     return {
       ...state,
