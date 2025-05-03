@@ -1087,15 +1087,47 @@ const {
         });
 
         // Find the start/end of the collapsed ranges
-        const collapseRanges = column.nodes.map((_, i) => {
+        const nodes = [...column.nodes];
+        const rangeIndexes: {
+          start: CellIndex;
+          end: CellIndex;
+        }[] = [];
+        const reversedCollapseRanges = [];
+
+        // Iterate in reverse order (bottom-up) to process children first
+        let i = nodes.length - 1;
+        while (i >= 0) {
           const range = findCollapseRange(i, outlines);
           if (range) {
-            const cellId = column.atOrThrow(i);
-            const until = column.atOrThrow(range[1]);
-            return { id: cellId, until };
+            const startIndex = i;
+            let endIndex = range[1];
+
+            // Check if the parent's end point is inside any already-collapsed child range
+            const parentEndInChild = rangeIndexes.find(
+              (r) => r.start <= endIndex && r.end === endIndex,
+            );
+
+            if (parentEndInChild) {
+              // Adjust the new endIndex it to the child's start
+              endIndex = parentEndInChild.start;
+            }
+
+            // Add the range to the list of ranges
+            const cellId = column.atOrThrow(startIndex);
+            const until = column.atOrThrow(endIndex);
+
+            // Store this range for future child checks
+            rangeIndexes.push({ start: startIndex, end: endIndex });
+
+            reversedCollapseRanges.push({ id: cellId, until });
+          } else {
+            reversedCollapseRanges.push(null);
           }
-          return null;
-        });
+          i--;
+        }
+
+        // Reverse the reversedCollapseRanges to get them in original order
+        const collapseRanges = reversedCollapseRanges.reverse();
 
         // Collapse all ranges
         return column.collapseAll(collapseRanges);
