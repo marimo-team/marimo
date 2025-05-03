@@ -53,6 +53,15 @@ def _raise_name_error(
     raise MarimoRuntimeException from name_error
 
 
+# Set the last traceback on sys such that pdb can hook in if needed.
+def _set_traceback(tb: "TraceBack", glbls: dict[str, Any]) -> None:
+    try:
+        glbls["__import__"]("sys").last_traceback = tb
+    except:
+        # Silently pass since this only matters in terms of pbd.
+        pass
+
+
 def get_executor(config: ExecutionConfig) -> Executor:
     """Get a code executor based on the execution configuration."""
     base = DefaultExecutor()
@@ -104,6 +113,7 @@ class DefaultExecutor(Executor):
         except NameError as e:
             _raise_name_error(graph, e)
         except (BaseException, Exception) as e:
+            _set_traceback(e.__traceback__, glbls)
             # Raising from a BaseException will fold in the stacktrace prior
             # to execution
             raise MarimoRuntimeException from e
@@ -124,6 +134,7 @@ class DefaultExecutor(Executor):
         except NameError as e:
             _raise_name_error(graph, e)
         except (BaseException, Exception) as e:
+            _set_traceback(e.__traceback__, glbls)
             raise MarimoRuntimeException from e
 
 

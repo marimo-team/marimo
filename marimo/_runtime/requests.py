@@ -123,6 +123,7 @@ class HTTPRequest(Mapping[str, Any]):
 class ExecutionRequest:
     cell_id: CellId_t
     code: str
+    debug: bool = False
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
     timestamp: float = field(default_factory=time.time)
