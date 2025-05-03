@@ -13,6 +13,7 @@ import {
   LayersIcon,
   PlayIcon,
   SkipForwardIcon,
+  TrashIcon,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/utils/cn";
@@ -140,11 +141,15 @@ const DebuggerInput: React.FC<{
   );
 };
 
-const DebuggerControls: React.FC<{
+export const DebuggerControls: React.FC<{
   onSubmit: (code: string) => void;
-}> = ({ onSubmit }) => {
-  const buttonClasses =
-    "border m-0 w-9 h-7 bg-[var(--blue-2)] text-[var(--slate-11)] hover:text-[var(--blue-11)] rounded-none border-[var(--blue-2)] hover:bg-[var(--sky-3)] hover:border-[var(--blue-8)]";
+  onClear?: () => void;
+}> = ({ onSubmit, onClear }) => {
+  const buttonClasses = cn(
+    "m-0 w-9 h-8 bg-[var(--slate-2)] text-[var(--slate-11)] hover:text-[var(--blue-11)] rounded-none hover:bg-[var(--sky-3)] hover:border-[var(--blue-8)]",
+    "first:rounded-l-lg first:border-l border-t border-b hover:border",
+    "last:rounded-r-lg last:border-r",
+  );
   const iconClasses = "w-5 h-5";
 
   return (
@@ -154,7 +159,7 @@ const DebuggerControls: React.FC<{
           variant="text"
           size="icon"
           data-testid="debugger-next-button"
-          className={cn(buttonClasses, "rounded-bl-lg")}
+          className={buttonClasses}
           onClick={() => onSubmit("n")}
         >
           <SkipForwardIcon fontSize={36} className={iconClasses} />
@@ -196,6 +201,22 @@ const DebuggerControls: React.FC<{
           <HelpCircleIcon fontSize={36} className={iconClasses} />
         </Button>
       </Tooltip>
+      {onClear && (
+        <Tooltip content="Clear">
+          <Button
+            variant="text"
+            size="icon"
+            data-testid="debugger-clear-button"
+            className={cn(
+              buttonClasses,
+              "text-[var(--red-11)] hover:text-[var(--red-11)] hover:bg-[var(--red-2)] hover:border-[var(--red-8)]",
+            )}
+            onClick={onClear}
+          >
+            <TrashIcon fontSize={36} className={iconClasses} />
+          </Button>
+        </Tooltip>
+      )}
     </div>
   );
 };

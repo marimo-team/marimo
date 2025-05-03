@@ -325,6 +325,7 @@ export type CellComponentActions = Pick<
   | "updateCellConfig"
   | "clearSerializedEditorState"
   | "setStdinResponse"
+  | "clearCellConsoleOutput"
   | "sendToBottom"
   | "sendToTop"
 >;
@@ -901,6 +902,9 @@ const EditableCellComponent = ({
               // Empty name if serialization triggered
               cellName={serialization ? "_" : name}
               onRefactorWithAI={handleRefactorWithAI}
+              onClear={() => {
+                actions.clearCellConsoleOutput({ cellId });
+              }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({
                   cellId,
@@ -1345,6 +1349,9 @@ const SetupCellComponent = ({
             // Don't show name
             cellName={"_"}
             onRefactorWithAI={handleRefactorWithAI}
+            onClear={() => {
+              actions.clearCellConsoleOutput({ cellId });
+            }}
             onSubmitDebugger={(text, index) => {
               actions.setStdinResponse({
                 cellId,

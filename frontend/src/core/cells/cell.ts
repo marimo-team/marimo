@@ -221,9 +221,12 @@ export function outputIsStale(
 }
 
 /**
- * Convert a list of outputs to a traceback.
+ * Extract traceback information from a list of outputs.
+ * This function searches for the first output with a mimetype of
+ * "application/vnd.marimo+traceback" and parses its data to retrieve
+ * all traceback details.
  */
-export function outputToTraceback(
+export function outputToTracebackInfo(
   outputs: OutputMessage[],
 ): TracebackInfo[] | undefined {
   const firstTraceback = outputs.find(

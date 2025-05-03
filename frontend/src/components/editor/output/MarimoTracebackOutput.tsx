@@ -17,6 +17,7 @@ import {
   SearchIcon,
   MessageCircleIcon,
   CopyIcon,
+  BugPlayIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useAtomValue } from "jotai";
@@ -33,10 +34,17 @@ import {
 import { copyToClipboard } from "@/utils/copy";
 import {
   elementContainsMarimoCellFile,
+  extractAllTracebackInfo,
   getTracebackInfo,
 } from "@/utils/traceback";
+import type { CellId } from "@/core/cells/ids";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
+import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
+import { getCellEditorView } from "@/core/cells/cells";
 
 interface Props {
+  cellId: CellId | undefined;
   traceback: string;
   onRefactorWithAI?: (opts: { prompt: string }) => void;
 }
@@ -49,6 +57,7 @@ const KEY = "item";
 export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
+  cellId,
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
@@ -58,6 +67,9 @@ export const MarimoTracebackOutput = ({
 
   const lastTracebackLine = lastLine(traceback);
   const aiEnabled = useAtomValue(aiEnabledAtom);
+
+  // Get last traceback info
+  const lastTracebackInfo = extractAllTracebackInfo(traceback)?.at(-1);
 
   const handleRefactorWithAI = () => {
     onRefactorWithAI?.({
@@ -86,7 +98,7 @@ export const MarimoTracebackOutput = ({
               {errorMessage}
             </div>
           </div>
-          <AccordionContent className="px-4 text-muted-foreground px-4 pt-2 text-xs overflow-auto">
+          <AccordionContent className="text-muted-foreground px-4 pt-2 text-xs overflow-auto">
             {htmlTraceback}
           </AccordionContent>
         </AccordionItem>
@@ -96,6 +108,21 @@ export const MarimoTracebackOutput = ({
           <Button size="xs" variant="outline" onClick={handleRefactorWithAI}>
             <BugIcon className="h-3 w-3 mr-2" />
             Fix with AI
+          </Button>
+        )}
+        {lastTracebackInfo && (
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={() => {
+              const view = getCellEditorView(lastTracebackInfo.cellId);
+              if (view) {
+                insertDebuggerAtLine(view, lastTracebackInfo.lineNumber);
+              }
+            }}
+          >
+            <BugPlayIcon className="h-3 w-3 mr-2" />
+            Insert breakpoint
           </Button>
         )}
         <DropdownMenu>
@@ -153,9 +180,31 @@ function lastLine(text: string): string {
 export const replaceTracebackFilenames = (domNode: DOMNode) => {
   const info = getTracebackInfo(domNode);
   if (info) {
+    const tooltipContent = <InsertBreakpointContent />;
     return (
       <span className="nb">
-        <CellLinkTraceback cellId={info.cellId} lineNumber={info.lineNumber} />
+        <span className="inline-flex items-center">
+          <CellLinkTraceback
+            cellId={info.cellId}
+            lineNumber={info.lineNumber}
+          />
+          <Tooltip content={tooltipContent}>
+            <button
+              type="button"
+              className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
+            >
+              <BugPlayIcon
+                onClick={() => {
+                  const view = getCellEditorView(info.cellId);
+                  if (view) {
+                    insertDebuggerAtLine(view, info.lineNumber);
+                  }
+                }}
+                className="h-3 w-3"
+              />
+            </button>
+          </Tooltip>
+        </span>
       </span>
     );
   }
@@ -170,4 +219,12 @@ export const replaceTracebackPrefix = (domNode: DOMNode) => {
   ) {
     return <>{domNode.nodeValue.replace("File", "Cell")}</>;
   }
+};
+
+const InsertBreakpointContent = () => {
+  return (
+    <>
+      Insert a <Kbd className="inline">breakpoint()</Kbd> at this line
+    </>
+  );
 };

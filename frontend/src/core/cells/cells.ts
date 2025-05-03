@@ -1198,6 +1198,16 @@ const {
       consoleOutputs: [],
     }));
   },
+  clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => ({
+      ...cell,
+      // Remove everything except unresponsed stdin
+      consoleOutputs: cell.consoleOutputs.filter(
+        (output) => output.channel === "stdin" && output.response == null,
+      ),
+    }));
+  },
   clearAllCellOutputs: (state) => {
     const newCellRuntime = { ...state.cellRuntime };
     for (const cellId of state.cellIds.inOrderIds) {
