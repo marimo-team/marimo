@@ -112,6 +112,13 @@ const CellEditorInternal = ({
     return true;
   });
 
+  const handleRunCell = useEvent(() => {
+    if (status !== "idle") {
+      return;
+    }
+    runCell();
+  });
+
   const toggleHideCode = useEvent(() => {
     // Use cellConfig.hide_code instead of hidden, since it may be temporarily shown
     const nextHidden = !cellConfig.hide_code;
@@ -136,7 +143,7 @@ const CellEditorInternal = ({
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
-        onRun: runCell,
+        onRun: handleRunCell,
         deleteCell: handleDelete,
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
@@ -218,7 +225,7 @@ const CellEditorInternal = ({
     splitCell,
     toggleHideCode,
     handleDelete,
-    runCell,
+    handleRunCell,
     setAiCompletionCell,
     afterToggleMarkdown,
     setLanguageAdapter,

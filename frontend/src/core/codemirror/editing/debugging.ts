@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Logger } from "@/utils/Logger";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 
 export function insertDebuggerAtLine(view: EditorView, line: number): boolean {
   // Get the document
@@ -41,7 +41,17 @@ export function insertDebuggerAtLine(view: EditorView, line: number): boolean {
       to: insertPos,
       insert: breakpointStatement,
     },
+    // Scroll to the breakpoint
+    selection: {
+      anchor: insertPos + breakpointStatement.length - 1,
+      head: insertPos + breakpointStatement.length - 1,
+    },
+    scrollIntoView: true,
+    effects: [EditorView.scrollIntoView(insertPos, { y: "center" })],
   });
+
+  // Focus the editor after the transaction
+  view.focus();
 
   return true;
 }

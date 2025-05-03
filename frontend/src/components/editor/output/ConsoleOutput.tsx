@@ -100,7 +100,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
       data-testid="console-output-area"
       ref={ref}
       className={cn(
-        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full",
+        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
         className,
@@ -200,7 +200,7 @@ const StdInputWithResponse = (props: {
   );
 };
 
-const renderText = (text: string) => {
+const renderText = (text: string | null) => {
   if (!text) {
     return null;
   }
