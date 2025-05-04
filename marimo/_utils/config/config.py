@@ -31,12 +31,12 @@ class ConfigReader:
         return ConfigReader(filepath)
 
     def read_toml(self, cls: type[T], *, fallback: T) -> T:
-        import tomlkit
+        import tomllib
 
         try:
             data = read_toml(self.filepath)
             return parse_raw(data, cls, allow_unknown_keys=True)
-        except (FileNotFoundError, tomlkit.exceptions.TOMLKitError):
+        except (FileNotFoundError, tomllib.TOMLDecodeError):
             return fallback
 
     def write_toml(self, data: Any) -> None:

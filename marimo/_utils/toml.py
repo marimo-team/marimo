@@ -9,7 +9,8 @@ if TYPE_CHECKING:
 
 def read_toml(file_path: Union[str, Path]) -> dict[str, Any]:
     """Read and parse a TOML file."""
-    import tomlkit
+    # Prefer tomllib over tomlkit since it is built-in and works with pyodide
+    import tomllib
 
-    with open(file_path, "rb") as file:
-        return tomlkit.load(file)
+    with open(file_path, "rb", encoding="utf-8") as file:
+        return tomllib.load(file)
