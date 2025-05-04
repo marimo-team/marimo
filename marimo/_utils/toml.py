@@ -12,5 +12,5 @@ def read_toml(file_path: Union[str, Path]) -> dict[str, Any]:
     # Prefer tomllib over tomlkit for reading since it is built-in and works with pyodide
     import tomllib
 
-    with open(file_path, "rb", encoding="utf-8") as file:
+    with open(file_path, "rb") as file:
         return tomllib.load(file)
