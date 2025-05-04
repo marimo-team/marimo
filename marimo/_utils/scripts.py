@@ -26,8 +26,8 @@ def read_pyproject_from_script(script: str) -> dict[str, Any] | None:
             line[2:] if line.startswith("# ") else line[1:]
             for line in matches[0].group("content").splitlines(keepends=True)
         )
-        # Prefer tomllib over tomlkit since it is built-in and works with pyodide
 
+        # Prefer tomllib over tomlkit for reading since it is built-in and works with pyodide
         import tomllib
 
         pyproject = tomllib.loads(content)
