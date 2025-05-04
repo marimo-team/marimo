@@ -257,6 +257,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             <LoadingDataTableComponent
               {...props.data}
               {...props.functions}
+              host={props.host}
               enableSearch={true}
               data={props.data.data}
               value={props.value}
@@ -307,6 +308,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
   cellId?: CellId | null;
+  host: HTMLElement;
 }
 
 export type SetFilters = OnChangeFn<ColumnFiltersState>;
@@ -365,7 +367,7 @@ export const LoadingDataTableComponent = memo(
     }, [props.pageSize, paginationState.pageSize]);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const cellId = useFindCellId(containerRef);
+    const cellId = useFindCellId(props.host);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{

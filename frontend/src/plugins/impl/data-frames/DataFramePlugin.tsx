@@ -135,6 +135,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         {...props.functions}
         value={props.value}
         setValue={props.setValue}
+        host={props.host}
       />
     </TooltipProvider>
   ));
@@ -142,6 +143,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
 interface DataTableProps extends Data, PluginFunctions {
   value: S;
   setValue: (value: S) => void;
+  host: HTMLElement;
 }
 
 const EMPTY: Transformations = {
@@ -157,6 +159,7 @@ export const DataFrameComponent = memo(
     get_dataframe,
     get_column_values,
     search,
+    host,
   }: DataTableProps): JSX.Element => {
     const { data, error, loading } = useAsyncData(
       () => get_dataframe({}),
@@ -280,6 +283,7 @@ export const DataFrameComponent = memo(
           setValue={Functions.NOOP}
           selection={null}
           lazy={false}
+          host={host}
         />
       </div>
     );

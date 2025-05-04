@@ -3,7 +3,6 @@
 
 import { invariant } from "@/utils/invariant";
 import type { TypedString } from "../../utils/typed";
-import { useEffect, useState } from "react";
 
 const lowercase = "abcdefghijklmnopqrstuvwxyz";
 const uppercase = lowercase.toUpperCase();
@@ -76,36 +75,15 @@ export const HTMLCellId = {
   },
 };
 
-// Hook to find cellId in shadow / light DOM
-export const useFindCellId = (elementRef: React.RefObject<HTMLDivElement>) => {
-  const [cellId, setCellId] = useState<CellId | null>(null);
-
-  useEffect(() => {
-    const findCellId = () => {
-      // Skip if we already found the cell ID
-      if (!elementRef.current || cellId) {
-        return;
-      }
-
-      const cellElement = HTMLCellId.findElementThroughShadowDOMs(
-        elementRef.current,
-      );
-      if (cellElement) {
-        setCellId(HTMLCellId.parse(cellElement.id));
-      }
-    };
-
-    // Try immediately
-    findCellId();
-
-    // If not found, try again after a short delay to allow for shadow DOM to be ready
-    const timeoutId = setTimeout(findCellId, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [cellId, elementRef]);
-
+/**
+ * Find the cellId of an element
+ */
+export const useFindCellId = (element: HTMLElement) => {
+  let cellId: CellId | null = null;
+  const cellContainer = HTMLCellId.findElement(element);
+  if (cellContainer) {
+    cellId = HTMLCellId.parse(cellContainer.id);
+  }
   return cellId;
 };
 
