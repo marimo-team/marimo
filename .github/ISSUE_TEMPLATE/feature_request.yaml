@@ -29,8 +29,7 @@ body:
       description: |
         If you plan to submit a PR for this issue, please let us know. We'd love to review a PR!
       options:
-        - label: Yes
-        - label: No
+        - label: 'Yes'
   - type: textarea
     id: alternative
     attributes:
