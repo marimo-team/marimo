@@ -29,3 +29,12 @@ body:
       label: Your Suggestion for Changes
     validations:
       required: true
+  - type: checkboxes
+    id: will-submit-pr
+    attributes:
+      label: Will you submit a PR?
+      description: |
+        If you plan to submit a PR for this issue, please let us know. We'd love to review a PR!
+      options:
+        - label: Yes
+        - label: No
