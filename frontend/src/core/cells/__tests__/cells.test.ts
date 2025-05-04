@@ -1447,7 +1447,7 @@ describe("cell reducer", () => {
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(false);
   });
 
-  it("can expand all cells in multiple columns", () => {
+  it("can collapse and expand all cells in multiple columns", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({
       cellId: "1" as CellId,
@@ -1497,12 +1497,10 @@ describe("cell reducer", () => {
       },
     };
 
-    actions.collapseCell({ cellId: firstColumnHeaderId });
+    actions.collapseAllCells();
     expect(
       state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
     ).toBe(true);
-
-    actions.collapseCell({ cellId: secondColumnHeaderId });
     expect(
       state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
     ).toBe(true);
@@ -1516,7 +1514,7 @@ describe("cell reducer", () => {
     ).toBe(false);
   });
 
-  it("can expand nested cells in one call", () => {
+  it("can collapse and expand nested cells in one call", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({
       cellId: "1" as CellId,
@@ -1550,15 +1548,18 @@ describe("cell reducer", () => {
       },
     };
 
-    actions.collapseCell({ cellId: subheaderId });
+    // Check if both the parent and child are collapsed
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: headerId });
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
       true,
     );
     actions.collapseCell({ cellId: headerId });
-    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
-      true,
-    );
 
+    // Check if both the parent and child are expanded
     actions.expandAllCells();
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
       false,

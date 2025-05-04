@@ -1076,6 +1076,60 @@ const {
       scrollKey: cellId,
     };
   },
+  collapseAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => {
+        // Get all the top-level outlines
+        const outlines = column.topLevelIds.map((id) => {
+          const cell = state.cellRuntime[id];
+          return cell.outline;
+        });
+
+        // Find the start/end of the collapsed ranges
+        const nodes = [...column.nodes];
+        const rangeIndexes: {
+          start: CellIndex;
+          end: CellIndex;
+        }[] = [];
+        const reversedCollapseRanges = [];
+
+        // Iterate in reverse order (bottom-up) to process children first
+        let i = nodes.length - 1;
+        while (i >= 0) {
+          const range = findCollapseRange(i, outlines);
+          if (range) {
+            const startIndex = i;
+            let endIndex = range[1];
+
+            // Check if the parent's end point is inside any already-collapsed child range
+            const parentEndInChild = rangeIndexes.find(
+              (child) => child.start <= endIndex && child.end === endIndex,
+            );
+
+            if (parentEndInChild) {
+              // Adjust the new endIndex to the child's start
+              endIndex = parentEndInChild.start;
+            }
+
+            // Store this range for future child checks
+            rangeIndexes.push({ start: startIndex, end: endIndex });
+
+            // Add the range to the list of ranges
+            const cellId = column.atOrThrow(startIndex);
+            const until = column.atOrThrow(endIndex);
+            reversedCollapseRanges.push({ id: cellId, until });
+          } else {
+            reversedCollapseRanges.push(null);
+          }
+          i--;
+        }
+
+        const collapseRanges = reversedCollapseRanges.reverse();
+        return column.collapseAll(collapseRanges);
+      }),
+    };
+  },
   expandAllCells: (state) => {
     return {
       ...state,
