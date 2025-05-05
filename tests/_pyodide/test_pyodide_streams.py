@@ -28,7 +28,6 @@ def pyodide_input_queue() -> asyncio.Queue[str]:
 def pyodide_(
     pyodide_pipe: Mock,
     pyodide_input_queue: asyncio.Queue[str],
-    cell_id: CellId_t,
 ) -> PyodideStream:
     return PyodideStream(pyodide_pipe, pyodide_input_queue, cell_id)
 
