@@ -53,13 +53,13 @@ describe("DataSelectionPanel", () => {
     );
 
     const overlayButton = screen.getByRole("button", {
-      name: /turn off overlay/i,
+      name: /exit overlay mode/i,
     });
     fireEvent.click(overlayButton);
 
     // Check if the panel is rendered with overlay styles
     expect(
-      screen.getByRole("button", { name: /overlay content/i }),
+      screen.getByRole("button", { name: /overlay mode/i }),
     ).toBeInTheDocument();
   });
 

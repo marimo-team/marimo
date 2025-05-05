@@ -111,12 +111,12 @@ const DataSelection = ({
   const renderModeToggle = () => {
     return (
       <div className="flex flex-row items-center gap-1">
-        <Tooltip content={isOverlay ? "Turn off overlay" : "Overlay content"}>
+        <Tooltip content={isOverlay ? "Exit overlay mode" : "Overlay mode"}>
           <Button
             variant={isOverlay ? "link" : "ghost"}
             size="icon"
             onClick={() => setIsOverlay(!isOverlay)}
-            aria-label={isOverlay ? "Turn off overlay" : "Overlay content"}
+            aria-label={isOverlay ? "Exit overlay mode" : "Overlay mode"}
           >
             <Layers2Icon className="w-4 h-4" />
           </Button>
