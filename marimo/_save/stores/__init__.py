@@ -1,10 +1,13 @@
 # Copyright 2025 Marimo. All rights reserved.
 from typing import Literal
 
+from marimo import _loggers
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
 from marimo._save.stores.rest import RestStore
 from marimo._save.stores.store import Store, StoreType
+
+LOGGER = _loggers.marimo_logger()
 
 StoreKey = Literal["file", "redis", "rest"]
 
@@ -27,8 +30,14 @@ def get_store() -> Store:
         .get("cache", {})
     )
     store_type = cache_config.get("store", DEFAULT_STORE_KEY)
-    assert store_type in CACHE_STORES, f"Invalid store type: {store_type}"
-    return CACHE_STORES[store_type](**cache_config.get("args", {}))
+    if store_type not in CACHE_STORES:
+        LOGGER.error(f"Invalid store type: {store_type}")
+        store_type = DEFAULT_STORE_KEY
+    try:
+        return CACHE_STORES[store_type](**cache_config.get("args", {}))
+    except Exception as e:
+        LOGGER.error(f"Error creating store: {e}")
+        return DEFAULT_STORE()
 
 
 __all__ = [

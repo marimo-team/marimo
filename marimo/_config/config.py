@@ -457,7 +457,16 @@ def merge_default_config(
 def merge_config(
     config: MarimoConfig, new_config: PartialMarimoConfig | MarimoConfig
 ) -> MarimoConfig:
-    """Merge a user configuration with a new configuration."""
+    """Merge a user configuration with a new configuration. The new config
+    will take precedence over the default config.
+
+    Args:
+        config: The default configuration.
+        new_config: The new configuration to merge with the default config.
+
+    Returns:
+        A merged configuration.
+    """
     # Remove the keymap overrides from the incoming config,
     # so that they don't get merged into the new config
     if new_config.get("keymap", {}).get("overrides") is not None:

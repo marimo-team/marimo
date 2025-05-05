@@ -473,6 +473,7 @@ minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 
 [tool.coverage.run]
