@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any, Callable
 
+from marimo import _loggers
 from marimo._config.config import Theme
 from marimo._output.formatters.ai_formatters import (
     GoogleAiFormatter,
@@ -36,6 +37,8 @@ from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
 from marimo._output.formatters.tqdm_formatters import TqdmFormatter
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -149,7 +152,13 @@ def register_formatters(theme: Theme = "light") -> None:
             original_find_spec=original_find_spec,
         ) -> Any:
             del self
-            spec = original_find_spec(fullname, path, target)
+
+            try:
+                spec = original_find_spec(fullname, path, target)
+            except Exception as e:
+                LOGGER.warning(f"Error finding spec for {fullname}: {e}")
+                spec = None
+
             if spec is None:
                 return spec
 

@@ -204,8 +204,10 @@ class UvPackageManager(PypiPackageManager):
         packages_to_remove: list[str],
     ) -> None:
         from marimo._cli.convert.markdown import extract_frontmatter
-        from marimo._cli.sandbox import get_headers_from_frontmatter
         from marimo._utils import yaml
+        from marimo._utils.inline_script_metadata import (
+            get_headers_from_frontmatter,
+        )
 
         # Get script metadata
         with open(filepath) as f:
