@@ -605,12 +605,11 @@ def __():
 
 
 @save_and_restore_main
-def test_watch_mode_config_override() -> None:
+def test_watch_mode_config_override(tmp_path: Path) -> None:
     """Test that watch mode properly overrides config settings."""
     # Create a temporary file
-    with NamedTemporaryFile(delete=False, suffix=".py") as tmp_file:
-        tmp_path = Path(tmp_file.name)
-        tmp_file.write(b"import marimo as mo")
+    tmp_file = tmp_path / "test_watch_mode_config_override.py"
+    tmp_file.write_text("import marimo as mo")
 
     # Create a config with autosave enabled
     config_reader = get_default_config_manager(current_path=None)
@@ -625,7 +624,7 @@ def test_watch_mode_config_override() -> None:
     )
 
     # Create a session manager with watch mode enabled
-    file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_path)))
+    file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
     session_manager = SessionManager(
         file_router=file_router,
         mode=SessionMode.EDIT,
@@ -673,7 +672,6 @@ def test_watch_mode_config_override() -> None:
         # Cleanup
         session_manager.shutdown()
         session_manager_no_watch.shutdown()
-        os.remove(tmp_path)
 
 
 @pytest.mark.skipif(
@@ -1059,6 +1057,7 @@ def __():
         kernel_manager.kernel_task.join()
 
 
+@save_and_restore_main
 def test_session_with_script_config_overrides(
     tmp_path: Path,
 ) -> None:
@@ -1066,7 +1065,7 @@ def test_session_with_script_config_overrides(
     session_consumer.connection_state.return_value = ConnectionState.OPEN
 
     # Create a temporary file with script config
-    tmp_file = tmp_path / "test.py"
+    tmp_file = tmp_path / "test_script_config.py"
     tmp_file.write_text(
         dedent(
             """

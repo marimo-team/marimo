@@ -72,13 +72,11 @@ def patch_micropip(glbls: dict[Any, Any]) -> None:
     definitions = textwrap.dedent(
         """\
 from importlib.abc import Loader, MetaPathFinder
+from importlib.util import spec_from_loader
 
 class _MicropipFinder(MetaPathFinder):
 
-
     def find_spec(self, fullname, path, target=None):
-        from importlib.util import spec_from_loader
-
         if fullname == 'micropip':
             return spec_from_loader(fullname, _MicropipLoader())
         return None
@@ -307,13 +305,16 @@ def patch_jedi_parameter_completion() -> None:
         for line in lines[start + 2 :]:
             if line.strip() == "" or line.startswith("#"):
                 continue
-            param_start = re.match(r"^\- `(.+)`: (.*)$", line.strip())
+            param_start = re.match(r"^\- `(.+)`:(?: (.*))?$", line.strip())
             if param_start:
                 param, first_line = param_start.groups()
-                param_descriptions[param] = first_line
+                param_descriptions[param] = first_line or ""
             else:
                 if param:
-                    param_descriptions[param] += "\n" + line.strip()
+                    if param_descriptions[param]:
+                        param_descriptions[param] += "\n" + line.strip()
+                    else:
+                        param_descriptions[param] = line.strip()
         return param_descriptions
 
     def py__doc__(self: ParamNameWrapper) -> str:
