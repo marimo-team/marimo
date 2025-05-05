@@ -405,6 +405,7 @@ extend-select = [
     "D211",  # No blank lines allowed before class docstring
     "D214",  # Section is over-indented
     "D215",  # Section underline is over-indented
+    "PLW1514", # Unspecified encoding in open()
     "UP",  # Upgrades
 ]
 
@@ -415,7 +416,7 @@ unfixable = ["F401"]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841"]
+"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
