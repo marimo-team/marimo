@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -366,7 +366,6 @@ export const LoadingDataTableComponent = memo(
       }
     }, [props.pageSize, paginationState.pageSize]);
 
-    const containerRef = useRef<HTMLDivElement>(null);
     const cellId = findCellId(props.host);
 
     // Data loading
@@ -561,7 +560,7 @@ export const LoadingDataTableComponent = memo(
     );
 
     return (
-      <div ref={containerRef}>
+      <>
         {errorComponent}
         {chartsFeatureEnabled ? (
           <TablePanel
@@ -574,7 +573,7 @@ export const LoadingDataTableComponent = memo(
         ) : (
           dataTable
         )}
-      </div>
+      </>
     );
   },
 );
