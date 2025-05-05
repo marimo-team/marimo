@@ -35,13 +35,13 @@ export const CopyClipboardIcon: React.FC<Props> = ({
   });
 
   const button = (
-    <span onClick={handleCopy}>
+    <button type="button" onClick={handleCopy} aria-label="Copy to clipboard">
       {isCopied ? (
         <CheckIcon className={cn(className, "text-[var(--grass-11)]")} />
       ) : (
         <Copy className={className} />
       )}
-    </span>
+    </button>
   );
 
   if (tooltip === false) {

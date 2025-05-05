@@ -116,6 +116,7 @@ const DataSelection = ({
             variant={isOverlay ? "link" : "ghost"}
             size="icon"
             onClick={() => setIsOverlay(!isOverlay)}
+            aria-label={isOverlay ? "Turn off overlay" : "Overlay content"}
           >
             <Layers2Icon className="w-4 h-4" />
           </Button>
@@ -131,23 +132,7 @@ const DataSelection = ({
     setSelectedRowIdx(rowIdx);
   };
 
-  const renderButton = (
-    icon: React.ReactNode,
-    onClick: () => void,
-    disabled?: boolean,
-  ) => {
-    return (
-      <Button
-        variant="outline"
-        size="xs"
-        className="h-6 w-6 p-0.5"
-        onClick={onClick}
-        disabled={disabled}
-      >
-        {icon}
-      </Button>
-    );
-  };
+  const buttonStyles = "h-6 w-6 p-0.5";
 
   return (
     <div className="mt-2 pb-7 mb-4 h-full overflow-auto">
@@ -165,29 +150,48 @@ const DataSelection = ({
 
       <div className="flex flex-col gap-3 mt-4">
         <div className="flex flex-row gap-2 justify-end items-center mr-2">
-          {renderButton(
-            <ChevronsLeft />,
-            () => handleSelectRow(0),
-            selectedRowIdx === 0,
-          )}
-          {renderButton(
-            <ChevronLeft />,
-            () => handleSelectRow(selectedRowIdx - 1),
-            selectedRowIdx === 0,
-          )}
+          <Button
+            variant="outline"
+            size="xs"
+            className={buttonStyles}
+            onClick={() => handleSelectRow(0)}
+            disabled={selectedRowIdx === 0}
+            aria-label="Go to first row"
+          >
+            <ChevronsLeft />
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            className={buttonStyles}
+            onClick={() => handleSelectRow(selectedRowIdx - 1)}
+            disabled={selectedRowIdx === 0}
+            aria-label="Previous row"
+          >
+            <ChevronLeft />
+          </Button>
           <span className="text-xs">
-            {selectedRowIdx + 1} of {rows.length}
+            Row {selectedRowIdx + 1} of {rows.length}
           </span>
-          {renderButton(
-            <ChevronRight />,
-            () => handleSelectRow(selectedRowIdx + 1),
-            selectedRowIdx === rows.length - 1,
-          )}
-          {renderButton(
-            <ChevronsRight />,
-            () => handleSelectRow(rows.length - 1),
-            selectedRowIdx === rows.length - 1,
-          )}
+          <Button
+            variant="outline"
+            size="xs"
+            className={buttonStyles}
+            onClick={() => handleSelectRow(selectedRowIdx + 1)}
+            disabled={selectedRowIdx === rows.length - 1}
+            aria-label="Next row"
+          >
+            <ChevronRight />
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            className={buttonStyles}
+            onClick={() => handleSelectRow(rows.length - 1)}
+            aria-label="Go to last row"
+          >
+            <ChevronsRight />
+          </Button>
         </div>
 
         <div className="mx-2 -mb-1">
@@ -197,6 +201,7 @@ const DataSelection = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<SearchIcon className="w-4 h-4" />}
             className="rounded-lg"
+            data-testid="selection-panel-search-input"
           />
         </div>
 
