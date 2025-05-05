@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import random
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from tests._server.conftest import get_session_manager
@@ -29,23 +30,24 @@ def test_rename(client: TestClient) -> None:
     ).file_router.get_unique_file_key()
 
     assert current_filename
-    assert os.path.exists(current_filename)
+    current_path = Path(current_filename)
+    assert current_path.exists()
 
-    directory = os.path.dirname(current_filename)
+    directory = current_path.parent
     random_name = random.randint(0, 100000)
-    new_filename = f"{directory}/test_{random_name}.py"
+    new_path = directory / f"test_{random_name}.py"
 
     response = client.post(
         "/api/kernel/rename",
         headers=HEADERS,
         json={
-            "filename": new_filename,
+            "filename": str(new_path),
         },
     )
     assert response.json() == {"success": True}
 
-    assert os.path.exists(new_filename)
-    assert not os.path.exists(current_filename)
+    assert new_path.exists()
+    assert not current_path.exists()
 
 
 @with_session(SESSION_ID)
@@ -63,13 +65,14 @@ def test_read_code(client: TestClient) -> None:
 def test_save_file(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
+    path = Path(filename)
 
     response = client.post(
         "/api/kernel/save",
         headers=HEADERS,
         json={
             "cell_ids": ["1"],
-            "filename": filename,
+            "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
@@ -82,7 +85,7 @@ def test_save_file(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = open(filename).read()
+    file_contents = path.read_text()
     assert "import marimo as mo" in file_contents
     assert "@app.cell(hide_code=True)" in file_contents
     assert "my_cell" in file_contents
@@ -93,7 +96,7 @@ def test_save_file(client: TestClient) -> None:
         headers=HEADERS,
         json={
             "cell_ids": ["1"],
-            "filename": filename,
+            "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["__"],
             "configs": [
@@ -109,22 +112,23 @@ def test_save_file(client: TestClient) -> None:
 def test_save_with_header(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
-    assert os.path.exists(filename)
+    path = Path(filename)
+    assert path.exists()
 
     header = (
         '"""This is a docstring"""\n\n' + "# Copyright 2024\n# Linter ignore\n"
     )
     # Prepend a header to the file
-    contents = open(filename).read()
+    contents = path.read_text()
     contents = header + contents
-    open(filename, "w", encoding="UTF-8").write(contents)
+    path.write_text(contents, encoding="UTF-8")
 
     response = client.post(
         "/api/kernel/save",
         headers=HEADERS,
         json={
             "cell_ids": ["1"],
-            "filename": filename,
+            "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
@@ -138,7 +142,7 @@ def test_save_with_header(client: TestClient) -> None:
 
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = open(filename).read()
+    file_contents = path.read_text()
     assert "import marimo as mo" in file_contents
     # Race condition with uv (seen in python 3.10)
     if file_contents.startswith("# ///"):
@@ -152,7 +156,8 @@ def test_save_with_header(client: TestClient) -> None:
 def test_save_with_invalid_file(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
-    assert os.path.exists(filename)
+    path = Path(filename)
+    assert path.exists()
 
     header = (
         '"""This is a docstring"""\n\n'
@@ -161,16 +166,16 @@ def test_save_with_invalid_file(client: TestClient) -> None:
     )
 
     # Prepend a header to the file
-    contents = open(filename).read()
+    contents = path.read_text()
     contents = header + contents
-    open(filename, "w", encoding="UTF-8").write(contents)
+    path.write_text(contents)
 
     response = client.post(
         "/api/kernel/save",
         headers=HEADERS,
         json={
             "cell_ids": ["1"],
-            "filename": filename,
+            "filename": str(path),
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
             "configs": [
@@ -184,7 +189,7 @@ def test_save_with_invalid_file(client: TestClient) -> None:
 
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = open(filename).read()
+    file_contents = path.read_text()
     assert "@app.cell(hide_code=True)" in file_contents
     assert "my_cell" in file_contents
 
@@ -222,8 +227,9 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
 def test_save_app_config(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
+    path = Path(filename)
 
-    file_contents = open(filename).read()
+    file_contents = path.read_text()
     assert 'marimo.App(width="medium"' not in file_contents
 
     response = client.post(
@@ -235,7 +241,7 @@ def test_save_app_config(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = open(filename).read()
+    file_contents = path.read_text()
     assert 'marimo.App(width="medium"' in file_contents
 
 
@@ -243,8 +249,9 @@ def test_save_app_config(client: TestClient) -> None:
 def test_copy_file(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
-    assert os.path.exists(filename)
-    file_contents = open(filename).read()
+    path = Path(filename)
+    assert path.exists()
+    file_contents = path.read_text()
     assert "import marimo as mo" in file_contents
     assert 'marimo.App(width="full"' in file_contents
 
