@@ -338,6 +338,16 @@ const DEFAULT_HOT_KEY = {
     group: "Other",
     key: "Ctrl-`",
   },
+  "global.collapseAll": {
+    name: "Collapse all cells",
+    group: "Editing",
+    key: "Mod-Shift-\\",
+  },
+  "global.expandAll": {
+    name: "Expand all cells",
+    group: "Editing",
+    key: "Mod-Shift-/",
+  },
 
   // Global Navigation
   "global.focusTop": {
