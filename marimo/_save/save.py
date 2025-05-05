@@ -540,10 +540,6 @@ def cache(  # type: ignore[misc]
     Note, `mo.cache` can also be used as a drop in replacement for context block
     caching like `mo.persistent_cache`.
 
-    Args:
-        pin_modules: if True, the cache will be invalidated if module versions
-            differ.
-
     ## Context manager to cache the return value of a block of code.
 
     The `mo.cache` context manager lets you delimit a block of code in which
@@ -561,11 +557,9 @@ def cache(  # type: ignore[misc]
     Args:
         name: the name of the cache, used to set saving path- to manually
             invalidate the cache, change the name.
-        pin_modules: if True, the cache will be invalidated if module versions
-            differ.
+        *args: positional arguments
         loader: the loader to use for the cache, defaults to `MemoryLoader`.
         **kwargs: keyword arguments
-        *args: positional arguments
     """
     arg = name
     del name
