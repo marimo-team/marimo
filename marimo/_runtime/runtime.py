@@ -1938,6 +1938,9 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
+        if self._lifespan is not None:
+            await self._lifespan.__aenter__()
+
         self.load_dotenv()
 
         if self.graph.cells:

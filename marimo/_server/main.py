@@ -90,8 +90,6 @@ def create_starlette_app(
         ]
     )
 
-    final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
-
     if lsp_servers is not None:
         final_middlewares.extend(
             _create_lsps_proxy_middleware(servers=lsp_servers)
@@ -99,6 +97,8 @@ def create_starlette_app(
 
     if middleware:
         final_middlewares.extend(middleware)
+
+    final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
 
     return Starlette(
         routes=build_routes(base_url=base_url),
