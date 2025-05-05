@@ -11,159 +11,177 @@ from marimo._pyodide.streams import (
 )
 from marimo._types.ids import CellId_t
 
-
-@pytest.fixture
-def cell_id() -> CellId_t:
-    return CellId_t("test-cell-id")
+cell_id = CellId_t("test-cell-id")
 
 
 @pytest.fixture
-def pipe() -> Mock:
+def pyodide_pipe() -> Mock:
     return Mock()
 
 
 @pytest.fixture
-def input_queue() -> asyncio.Queue[str]:
+def pyodide_input_queue() -> asyncio.Queue[str]:
     return asyncio.Queue()
 
 
 @pytest.fixture
-def stream(
-    pipe: Mock, input_queue: asyncio.Queue[str], cell_id: CellId_t
+def pyodide_(
+    pyodide_pipe: Mock,
+    pyodide_input_queue: asyncio.Queue[str],
+    cell_id: CellId_t,
 ) -> PyodideStream:
-    return PyodideStream(pipe, input_queue, cell_id)
+    return PyodideStream(pyodide_pipe, pyodide_input_queue, cell_id)
 
 
 @pytest.fixture
-def stdout(stream: PyodideStream) -> PyodideStdout:
-    return PyodideStdout(stream)
+def pyodide_stdout(pyodide_: PyodideStream) -> PyodideStdout:
+    return PyodideStdout(pyodide_)
+
+
+@pytest.fixture(scope="session")
+def pyodide_stderr(pyodide_: PyodideStream) -> PyodideStderr:
+    return PyodideStderr(pyodide_)
 
 
 @pytest.fixture
-def stderr(stream: PyodideStream) -> PyodideStderr:
-    return PyodideStderr(stream)
-
-
-@pytest.fixture
-def stdin(stream: PyodideStream) -> PyodideStdin:
-    stdin = PyodideStdin(stream)
+def pyodide_stdin(pyodide_: PyodideStream) -> PyodideStdin:
+    stdin = PyodideStdin(pyodide_)
     stdin._get_response = lambda: "test input\n"
     return stdin
 
 
 class TestPyodideStream:
-    def test_write(self, stream: PyodideStream, pipe: Mock) -> None:
+    def test_write(self, pyodide_: PyodideStream, pyodide_pipe: Mock) -> None:
         op = "test-op"
         data = {"key": "value"}
-        stream.write(op, data)
-        pipe.assert_called_once_with((op, data))
+        pyodide_.write(op, data)
+        pyodide_pipe.assert_called_once_with((op, data))
 
 
 class TestPyodideStdout:
-    def test_writable(self, stdout: PyodideStdout) -> None:
-        assert stdout.writable() is True
+    def test_writable(self, pyodide_stdout: PyodideStdout) -> None:
+        assert pyodide_stdout.writable() is True
 
-    def test_readable(self, stdout: PyodideStdout) -> None:
-        assert stdout.readable() is False
+    def test_readable(self, pyodide_stdout: PyodideStdout) -> None:
+        assert pyodide_stdout.readable() is False
 
-    def test_seekable(self, stdout: PyodideStdout) -> None:
-        assert stdout.seekable() is False
+    def test_seekable(self, pyodide_stdout: PyodideStdout) -> None:
+        assert pyodide_stdout.seekable() is False
 
-    def test_write(self, stdout: PyodideStdout, pipe: Mock) -> None:
+    def test_write(
+        self, pyodide_stdout: PyodideStdout, pyodide_pipe: Mock
+    ) -> None:
         data = "test output"
-        stdout.write(data)
-        assert pipe.call_count == 1
-        op, msg = pipe.call_args[0][0]
+        pyodide_stdout.write(data)
+        assert pyodide_pipe.call_count == 1
+        op, msg = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
-        assert msg["cell_id"] == stdout.stream.cell_id
+        assert msg["cell_id"] == pyodide_stdout.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == data
 
-    def test_writelines(self, stdout: PyodideStdout, pipe: Mock) -> None:
+    def test_writelines(
+        self, pyodide_stdout: PyodideStdout, pyodide_pipe: Mock
+    ) -> None:
         lines = ["line1\n", "line2\n", "line3\n"]
-        stdout.writelines(lines)
-        assert pipe.call_count == 3
+        pyodide_stdout.writelines(lines)
+        assert pyodide_pipe.call_count == 3
 
 
 class TestPyodideStderr:
-    def test_writable(self, stderr: PyodideStderr) -> None:
-        assert stderr.writable() is True
+    def test_writable(self, pyodide_stderr: PyodideStderr) -> None:
+        assert pyodide_stderr.writable() is True
 
-    def test_readable(self, stderr: PyodideStderr) -> None:
-        assert stderr.readable() is False
+    def test_readable(self, pyodide_stderr: PyodideStderr) -> None:
+        assert pyodide_stderr.readable() is False
 
-    def test_seekable(self, stderr: PyodideStderr) -> None:
-        assert stderr.seekable() is False
+    def test_seekable(self, pyodide_stderr: PyodideStderr) -> None:
+        assert pyodide_stderr.seekable() is False
 
-    def test_write(self, stderr: PyodideStderr, pipe: Mock) -> None:
+    def test_write(
+        self, pyodide_stderr: PyodideStderr, pyodide_pipe: Mock
+    ) -> None:
         data = "test error"
-        stderr.write(data)
-        assert pipe.call_count == 1
-        op, msg = pipe.call_args[0][0]
+        pyodide_stderr.write(data)
+        assert pyodide_pipe.call_count == 1
+        op, msg = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
-        assert msg["cell_id"] == stderr.stream.cell_id
+        assert msg["cell_id"] == pyodide_stderr.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == data
 
-    def test_writelines(self, stderr: PyodideStderr, pipe: Mock) -> None:
+    def test_writelines(
+        self, pyodide_stderr: PyodideStderr, pyodide_pipe: Mock
+    ) -> None:
         lines = ["error1\n", "error2\n", "error3\n"]
-        stderr.writelines(lines)
-        assert pipe.call_count == 3
+        pyodide_stderr.writelines(lines)
+        assert pyodide_pipe.call_count == 3
 
 
 class TestPyodideStdin:
-    def test_writable(self, stdin: PyodideStdin) -> None:
-        assert stdin.writable() is False
+    def test_writable(self, pyodide_stdin: PyodideStdin) -> None:
+        assert pyodide_stdin.writable() is False
 
-    def test_readable(self, stdin: PyodideStdin) -> None:
-        assert stdin.readable() is True
+    def test_readable(self, pyodide_stdin: PyodideStdin) -> None:
+        assert pyodide_stdin.readable() is True
 
     async def test_readline(
-        self, stdin: PyodideStdin, pipe: Mock, input_queue: asyncio.Queue[str]
+        self,
+        pyodide_stdin: PyodideStdin,
+        pyodide_pipe: Mock,
+        pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
         # Queue up a response
-        await input_queue.put("test input\n")
+        await pyodide_input_queue.put("test input\n")
         # Read the line
-        result = stdin.readline()
+        result = pyodide_stdin.readline()
         assert result == "test input\n"
         # Verify prompt was sent
-        assert pipe.call_count == 1
-        op, msg = pipe.call_args[0][0]
+        assert pyodide_pipe.call_count == 1
+        op, msg = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
-        assert msg["cell_id"] == stdin.stream.cell_id
+        assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == ""
 
     async def test_readline_with_prompt(
-        self, stdin: PyodideStdin, pipe: Mock, input_queue: asyncio.Queue[str]
+        self,
+        pyodide_stdin: PyodideStdin,
+        pyodide_pipe: Mock,
+        pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
         # Queue up a response
-        await input_queue.put("test input\n")
+        await pyodide_input_queue.put("test input\n")
         # Read the line with prompt
-        result = stdin._readline_with_prompt("Enter: ")
+        result = pyodide_stdin._readline_with_prompt("Enter: ")
         assert result == "test input\n"
         # Verify prompt was sent
-        assert pipe.call_count == 1
-        op, msg = pipe.call_args[0][0]
+        assert pyodide_pipe.call_count == 1
+        op, msg = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
-        assert msg["cell_id"] == stdin.stream.cell_id
+        assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == "Enter: "
 
     async def test_readlines(
-        self, stdin: PyodideStdin, pipe: Mock, input_queue: asyncio.Queue[str]
+        self,
+        pyodide_stdin: PyodideStdin,
+        pyodide_pipe: Mock,
+        pyodide_input_queue: asyncio.Queue[str],
     ) -> None:
-        stdin._get_response = Mock(return_value="line1\nline2\nline3\n")
+        pyodide_stdin._get_response = Mock(
+            return_value="line1\nline2\nline3\n"
+        )
 
         # Queue up a response
-        await input_queue.put("line1\nline2\nline3\n")
+        await pyodide_input_queue.put("line1\nline2\nline3\n")
         # Read the lines
-        result = stdin.readlines()
+        result = pyodide_stdin.readlines()
         assert result == ["line1", "line2", "line3", ""]
         # Verify prompt was sent
-        assert pipe.call_count == 1
-        op, msg = pipe.call_args[0][0]
+        assert pyodide_pipe.call_count == 1
+        op, msg = pyodide_pipe.call_args[0][0]
         assert op == "cell-op"
-        assert msg["cell_id"] == stdin.stream.cell_id
+        assert msg["cell_id"] == pyodide_stdin.stream.cell_id
         assert msg["console"]["mimetype"] == "text/plain"
         assert msg["console"]["data"] == ""

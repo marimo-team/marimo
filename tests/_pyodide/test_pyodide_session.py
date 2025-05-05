@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import DEFAULT_CONFIG, MarimoConfig
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import AsyncQueueManager, PyodideSession
 from marimo._runtime.requests import (
@@ -103,11 +103,6 @@ def app_metadata(app_file: Path) -> AppMetadata:
 
 
 @pytest.fixture
-def user_config() -> MarimoConfig:
-    return DEFAULT_CONFIG
-
-
-@pytest.fixture
 def app_file_manager(app_file: Path) -> AppFileManager:
     return AppFileManager(filename=str(app_file))
 
@@ -122,14 +117,13 @@ def pyodide_session(
     app_file_manager: AppFileManager,
     mock_on_write: Callable[[KernelMessage], None],
     app_metadata: AppMetadata,
-    user_config: MarimoConfig,
 ) -> PyodideSession:
     return PyodideSession(
         app=app_file_manager,
         mode=SessionMode.EDIT,
         on_write=mock_on_write,
         app_metadata=app_metadata,
-        user_config=user_config,
+        user_config=DEFAULT_CONFIG,
     )
 
 
