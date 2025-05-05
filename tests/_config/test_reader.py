@@ -16,7 +16,7 @@ from marimo._utils.toml import read_toml
 
 
 def test_read_toml():
-    toml_content = """
+    toml_content = b"""
     [section]
     key = "value"
     """
@@ -26,7 +26,7 @@ def test_read_toml():
 
 
 def test_read_marimo_config():
-    config_content = """
+    config_content = b"""
     [formatting]
     line_length = 79
 
@@ -132,12 +132,12 @@ def testfind_nearest_pyproject_toml_not_found():
 
 
 def test_read_toml_invalid_content():
-    invalid_toml = """
+    invalid_toml = b"""
     [invalid
     key = value
     """
-    import tomlkit.exceptions
+    import tomllib
 
     with patch("builtins.open", mock_open(read_data=invalid_toml)):
-        with pytest.raises(tomlkit.exceptions.UnexpectedCharError):
+        with pytest.raises(tomllib.TOMLDecodeError):
             read_toml("dummy.toml")

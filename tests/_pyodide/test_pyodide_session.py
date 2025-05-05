@@ -133,7 +133,6 @@ def pyodide_session(
     )
 
 
-@pytest.mark.asyncio
 async def test_async_queue_manager(
     async_queue_manager: AsyncQueueManager,
 ) -> None:
@@ -153,7 +152,6 @@ async def test_async_queue_manager(
     )
 
 
-@pytest.mark.asyncio
 async def test_pyodide_session_start(
     pyodide_session: PyodideSession,
     mock_pyodide_http: MagicMock,
@@ -171,7 +169,6 @@ async def test_pyodide_session_start(
         pass
 
 
-@pytest.mark.asyncio
 async def test_pyodide_session_put_control_request(
     pyodide_session: PyodideSession,
 ) -> None:
@@ -191,7 +188,6 @@ async def test_pyodide_session_put_control_request(
     assert not pyodide_session._queue_manager.set_ui_element_queue.empty()
 
 
-@pytest.mark.asyncio
 async def test_pyodide_session_find_packages(
     pyodide_session: PyodideSession,
     mock_pyodide: MagicMock,
@@ -211,7 +207,6 @@ async def test_pyodide_session_find_packages(
     mock_pyodide.code.find_imports.assert_called_once_with(code)
 
 
-@pytest.mark.asyncio
 async def test_pyodide_session_find_packages_with_script_metadata(
     pyodide_session: PyodideSession,
     mock_pyodide: MagicMock,
@@ -237,7 +232,6 @@ async def test_pyodide_session_find_packages_with_script_metadata(
     mock_pyodide.code.find_imports.assert_not_called()
 
 
-@pytest.mark.asyncio
 async def test_pyodide_session_put_input(
     pyodide_session: PyodideSession,
 ) -> None:
