@@ -72,13 +72,11 @@ def patch_micropip(glbls: dict[Any, Any]) -> None:
     definitions = textwrap.dedent(
         """\
 from importlib.abc import Loader, MetaPathFinder
+from importlib.util import spec_from_loader
 
 class _MicropipFinder(MetaPathFinder):
 
-
     def find_spec(self, fullname, path, target=None):
-        from importlib.util import spec_from_loader
-
         if fullname == 'micropip':
             return spec_from_loader(fullname, _MicropipLoader())
         return None

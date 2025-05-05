@@ -153,12 +153,7 @@ def register_formatters(theme: Theme = "light") -> None:
         ) -> Any:
             del self
 
-            try:
-                spec = original_find_spec(fullname, path, target)
-            except Exception as e:
-                LOGGER.warning(f"Error finding spec for {fullname}: {e}")
-                spec = None
-
+            spec = original_find_spec(fullname, path, target)
             if spec is None:
                 return spec
 
