@@ -494,6 +494,7 @@ def cache(
 def cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     *args: Any,
+    pin_modules: bool = False,
     loader: Optional[Union[LoaderPartial, Loader]] = None,
     _frame_offset: int = 1,
     _internal_interface_not_for_external_use: None = None,
@@ -578,6 +579,7 @@ def cache(  # type: ignore[misc]
         loader,
         *args,
         frame_offset=_frame_offset + 1,
+        pin_modules=pin_modules,
         **kwargs,
     )
 
@@ -684,6 +686,7 @@ def persistent_cache(  # type: ignore[misc]
     method: LoaderKey = "pickle",
     store: Optional[Store] = None,
     *args: Any,
+    pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
 ) -> Union[_cache_call, _cache_context]:
@@ -807,6 +810,7 @@ def persistent_cache(  # type: ignore[misc]
             *args,
             loader=loader,
             _frame_offset=2,
+            pin_modules=pin_modules,
             **kwargs,
         ),
     )
