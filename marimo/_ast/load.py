@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from typing import Optional
+from typing import Literal, Optional
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -71,6 +71,33 @@ def _static_load(filename: str) -> Optional[App]:
             continue
         app._cell_manager.register_ir_cell(cell, InternalApp(app))
     return app
+
+
+def notebook_is_openable(filename: str) -> Literal[True]:
+    """Attempts to parse an app- should raise SyntaxError on failure.
+
+    Args:
+        filename: Path to a marimo notebook file (.py or .md)
+
+    Returns:
+        True if a falid code path.
+
+    Raises:
+        SyntaxError: If the file contains a syntax error
+    """
+
+    if filename.endswith(".md") or filename.endswith(".qmd"):
+        contents = _maybe_contents(filename)
+        if not contents:
+            # We can still "open" it
+            return True
+        from marimo._cli.convert.markdown import convert_from_md
+
+        _ = convert_from_md(contents)
+        return True
+    _ = parse_notebook(filename)
+    # NB. A invalid notebook can still be opened.
+    return True
 
 
 def load_app(filename: Optional[str]) -> Optional[App]:

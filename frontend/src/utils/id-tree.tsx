@@ -284,6 +284,64 @@ export class CollapsibleTree<T> {
   }
 
   /**
+   * Collapse all nodes in the tree, including nested ones
+   *
+   * Only works for the top-level nodes
+   * Does not collapse the children of already collapsed nodes
+   */
+  collapseAll(
+    collapseRanges: ({ id: T; until: T | undefined } | null)[],
+  ): CollapsibleTree<T> {
+    const nodes = [...this.nodes];
+    if (collapseRanges.length === 0) {
+      throw new Error("No collapse ranges provided");
+    }
+
+    if (collapseRanges.length !== nodes.length) {
+      throw new Error(
+        `Collapse ranges length ${collapseRanges.length} does not match tree length ${nodes.length}`,
+      );
+    }
+
+    // Start from the end of the list and collapse nodes children first
+    let nodeIndex = nodes.length - 1;
+    while (nodeIndex >= 0) {
+      const node = nodes[nodeIndex];
+      const range = collapseRanges[nodeIndex];
+
+      if (!node.isCollapsed && range) {
+        const { id, until } = range;
+        if (id !== node.value) {
+          throw new Error(
+            `Node ${node.value} does not match collapse range id ${id}`,
+          );
+        }
+        const untilIndex =
+          until === undefined
+            ? nodes.length
+            : nodes.findIndex((n) => n.value === until);
+
+        if (untilIndex === -1) {
+          throw new Error(`Node ${until} not found in tree`);
+        }
+        if (untilIndex < nodeIndex) {
+          throw new Error(`Node ${until} is before node ${id}`);
+        }
+
+        // Fold the next nodes into the current node
+        const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
+        nodes[nodeIndex] = new TreeNode(node.value, true, children);
+        nodeIndex--;
+      } else {
+        // Move to the next node
+        nodeIndex--;
+      }
+    }
+
+    return this.withNodes(nodes);
+  }
+
+  /**
    * Expand a node and all of its children
    */
   expand(id: T): CollapsibleTree<T> {

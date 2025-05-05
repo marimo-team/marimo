@@ -345,12 +345,12 @@
       background: #e2f2ff;
     }
 
-    .cm-activeLine {
+    .cm-activeLine:not(.cm-error-line) {
       background: hsl(210deg 100% 50% / 3%);
     }
   }
 
-  .cm-activeLine {
+  .cm-activeLine:not(.cm-error-line) {
     background: transparent;
 
     /* Soften the corners of the active-line highlight. */

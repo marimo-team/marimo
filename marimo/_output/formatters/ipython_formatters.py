@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import functools
-import weakref
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -23,9 +22,7 @@ class IPythonFormatter(FormatterFactory):
         from marimo._runtime.output import _output
 
         # Dictionary to store display objects by ID
-        display_objects: weakref.WeakValueDictionary[str, Any] = (
-            weakref.WeakValueDictionary()
-        )
+        display_objects: dict[str, Any] = {}
 
         def clear_display_objects() -> None:
             """Clear all stored display objects."""
@@ -91,9 +88,6 @@ class IPythonFormatter(FormatterFactory):
             """
             if display_id not in display_objects:
                 return
-
-            # Clear the output before updating
-            # _output.clear()
 
             # Update the stored object
             raw = kwargs.pop("raw", False)

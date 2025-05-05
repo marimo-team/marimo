@@ -48,6 +48,7 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
 });
 
 const FIRST_COLUMN = 0;
+const SECOND_COLUMN = 1;
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -1446,6 +1447,128 @@ describe("cell reducer", () => {
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(false);
   });
 
+  it("can collapse and expand all cells in multiple columns", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# First Column Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## First Column Subheader",
+    });
+
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "# Second Column Header",
+    });
+    actions.createNewCell({
+      cellId: "4" as CellId,
+      before: false,
+      code: "## Second Column Subheader",
+    });
+
+    const firstColumnHeaderId = state.cellIds
+      .atOrThrow(FIRST_COLUMN)
+      .atOrThrow(1);
+    state.cellRuntime[firstColumnHeaderId] = {
+      ...state.cellRuntime[firstColumnHeaderId],
+      outline: {
+        items: [
+          { name: "First Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    const secondColumnHeaderId = state.cellIds
+      .atOrThrow(SECOND_COLUMN)
+      .atOrThrow(0);
+    state.cellRuntime[secondColumnHeaderId] = {
+      ...state.cellRuntime[secondColumnHeaderId],
+      outline: {
+        items: [
+          { name: "Second Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    actions.collapseAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(true);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(true);
+
+    actions.expandAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(false);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(false);
+  });
+
+  it("can collapse and expand nested cells in one call", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## Subheader",
+    });
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "### Subsubheader",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const subheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[subheaderId] = {
+      ...state.cellRuntime[subheaderId],
+      outline: {
+        items: [{ name: "Subheader", level: 2, by: { id: "subheader" } }],
+      },
+    };
+
+    // Check if both the parent and child are collapsed
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      true,
+    );
+    actions.collapseCell({ cellId: headerId });
+
+    // Check if both the parent and child are expanded
+    actions.expandAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      false,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      false,
+    );
+  });
+
   it("can show hidden cells", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({ cellId: "1" as CellId, before: false });
@@ -1824,6 +1947,57 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.output).toBeNull();
     expect(cell.consoleOutputs).toEqual([]);
+  });
+
+  it("can clear console output of a single cell", () => {
+    // Set up initial state with output
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "test output",
+        timestamp: 0,
+      },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "console output",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
+    });
+
+    // Add a stdin console output that should be preserved
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      console: {
+        channel: "stdin",
+        mimetype: "text/plain",
+        data: "stdin prompt",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(34).getTime() as Seconds,
+    });
+
+    // Verify initial state has output and console outputs
+    let cell = cells[0];
+    expect(cell.output).not.toBeNull();
+    expect(cell.consoleOutputs.length).toBe(2);
+
+    // Clear console output
+    actions.clearCellConsoleOutput({ cellId: firstCellId });
+
+    // Verify only console output is cleared, but stdin is preserved
+    cell = cells[0];
+    expect(cell.output).not.toBeNull(); // Output should remain
+    expect(cell.consoleOutputs.length).toBe(1);
+    expect(cell.consoleOutputs[0].channel).toBe("stdin");
+    expect(cell.consoleOutputs[0].data).toBe("stdin prompt");
   });
 
   it("can clear output of all cells", () => {

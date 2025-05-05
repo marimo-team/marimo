@@ -2,6 +2,7 @@
 import type { CellId } from "@/core/cells/ids";
 import type { CellRun } from "@/core/cells/runs";
 import type { ResolvedTheme } from "@/theme/useTheme";
+import type { TimeUnit } from "vega";
 import type { TopLevelSpec } from "vega-lite";
 
 export const REACT_HOVERED_CELLID = "hoveredCellId";
@@ -51,12 +52,12 @@ export function createGanttBaseSpec(
         },
       },
     ],
-    height: { step: 23 },
+    height: { step: chartPosition === "above" ? 21 : 26 },
     encoding: {
       y: {
         field: cellNumField,
         scale: { paddingInner: 0.2 },
-        sort: { field: cellNumField },
+        sort: { field: startTimestampField },
         title: "cell",
         axis: chartPosition === "sideBySide" ? null : undefined,
       },
@@ -73,13 +74,13 @@ export function createGanttBaseSpec(
         {
           field: startTimestampField,
           type: "temporal",
-          timeUnit: "dayhoursminutesseconds",
+          timeUnit: "hoursminutessecondsmilliseconds" as TimeUnit,
           title: "Start",
         },
         {
           field: endTimestampField,
           type: "temporal",
-          timeUnit: "dayhoursminutesseconds",
+          timeUnit: "hoursminutessecondsmilliseconds" as TimeUnit,
           title: "End",
         },
       ],

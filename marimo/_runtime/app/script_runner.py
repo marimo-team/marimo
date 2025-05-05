@@ -20,8 +20,8 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
 )
 from marimo._runtime.executor import (
-    execute_cell,
-    execute_cell_async,
+    ExecutionConfig,
+    get_executor,
 )
 from marimo._runtime.patches import (
     create_main_module,
@@ -52,6 +52,7 @@ class AppScriptRunner:
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
         ]
+        self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
         self.cells_cancelled[cell_id] = set(
@@ -87,7 +88,9 @@ class AppScriptRunner:
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = execute_cell(cell, glbls, self.app.graph)
+                        output = self._executor.execute_cell(
+                            cell, glbls, self.app.graph
+                        )
                         outputs[cid] = output
                     except MarimoRuntimeException as e:
                         unwrapped_exception: BaseException | None = e.__cause__
@@ -124,7 +127,7 @@ class AppScriptRunner:
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = await execute_cell_async(
+                        output = await self._executor.execute_cell_async(
                             cell, glbls, self.app.graph
                         )
                         outputs[cid] = output
