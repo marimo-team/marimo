@@ -15,6 +15,9 @@ from typing import (
     Union,
 )
 
+from marimo._server.registry import LIFESPAN_REGISTRY
+from marimo._utils.lifespans import Lifespans
+
 if TYPE_CHECKING:
     import sys
 
@@ -465,11 +468,12 @@ def create_asgi_app(
             )
             app = create_starlette_app(
                 base_url="",
-                lifespan=lifespans.Lifespans(
+                lifespan=Lifespans(
                     [
                         # Not all lifespans are needed for run mode
                         lifespans.etc,
                         lifespans.signal_handler,
+                        *LIFESPAN_REGISTRY.get_all(),
                     ]
                 ),
                 enable_auth=not AuthToken.is_empty(auth_token),
