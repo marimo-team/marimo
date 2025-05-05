@@ -61,7 +61,7 @@ def mock_app_file_with_script_config(tmp_path: Path) -> Path:
     return filename
 
 
-def test_create_session_with_default_config(
+async def test_create_session_with_default_config(
     mock_message_callback: Callable[[str], None],
     mock_app_file: Path,
 ) -> None:
@@ -76,7 +76,7 @@ def test_create_session_with_default_config(
     assert session.mode == SessionMode.EDIT
 
 
-def test_create_session_with_script_config(
+async def test_create_session_with_script_config(
     mock_message_callback: Callable[[str], None],
     mock_app_file_with_script_config: Path,
 ) -> None:
@@ -91,7 +91,7 @@ def test_create_session_with_script_config(
     assert session._initial_user_config["display"]["theme"] == "dark"
 
 
-def test_create_session_with_invalid_script_config(
+async def test_create_session_with_invalid_script_config(
     mock_message_callback: Callable[[str], None],
     tmp_path: Path,
 ) -> None:
@@ -120,7 +120,7 @@ def test_create_session_with_invalid_script_config(
     )
 
 
-def test_instantiate(
+async def test_instantiate(
     mock_message_callback: Callable[[str], None],
     mock_app_file: Path,
 ) -> None:
