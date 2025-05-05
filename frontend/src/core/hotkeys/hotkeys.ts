@@ -338,6 +338,16 @@ const DEFAULT_HOT_KEY = {
     group: "Other",
     key: "Ctrl-`",
   },
+  "global.collapseAllSections": {
+    name: "Collapse all sections",
+    group: "Editing",
+    key: "Mod-Shift-\\",
+  },
+  "global.expandAllSections": {
+    name: "Expand all sections",
+    group: "Editing",
+    key: "Mod-Shift-/",
+  },
 
   // Global Navigation
   "global.focusTop": {
