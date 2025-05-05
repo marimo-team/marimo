@@ -126,10 +126,10 @@ export const EditApp: React.FC<AppProps> = ({
   useHotkey("global.runAll", () => {
     runAllCells();
   });
-  useHotkey("global.collapseAll", () => {
+  useHotkey("global.collapseAllSections", () => {
     collapseAllCells();
   });
-  useHotkey("global.expandAll", () => {
+  useHotkey("global.expandAllSections", () => {
     expandAllCells();
   });
 
