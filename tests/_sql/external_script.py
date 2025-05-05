@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.13.1"
+__generated_with = "0.13.4"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -22,31 +22,36 @@ with app.setup:
     not_used = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
 
 
-@app.function
-def f(x):
-    return 1 / x
+@app.cell
+def script_hook_args(df1):
+    _df = mo.sql(
+        f"""
+        SELECT * FROM df1
+        """,
+        tables={
+            "df1": df1
+        }
+    )
+    return
 
 
 @app.cell
-def _():
+def script_hook_no_args():
     _df = mo.sql(
-        """
+        f"""
         SELECT * FROM df
-        """
+        """,
+        tables={
+            "df": df
+        }
     )
     return
 
 
 @app.cell
 def _():
-    f(1)
-    f(0)
-    return
-
-
-@app.cell
-def _():
-    return
+    df1 = df
+    return (df1,)
 
 
 if __name__ == "__main__":
