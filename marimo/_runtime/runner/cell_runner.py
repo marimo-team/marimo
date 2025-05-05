@@ -326,7 +326,9 @@ class Runner:
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         if self.debugger is not None:
-            self.debugger._last_tracebacks.pop(cell_id, None)
+            last_tb = self.debugger._last_tracebacks.pop(cell_id, None)
+            if last_tb == self.debugger._last_traceback:
+                self.debugger._last_traceback = None
 
         cell = self.graph.cells[cell_id]
         try:
@@ -523,6 +525,7 @@ class Runner:
                     ):
                         tb = run_result.exception.__traceback__
                         assert isinstance(tb, TracebackType)
+                        self.debugger._last_traceback = tb
                         self.debugger._last_tracebacks[cell_id] = tb
             except Exception as debugger_error:
                 # This has never been hit, but just in case -- don't want
