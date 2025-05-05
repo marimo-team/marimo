@@ -15,6 +15,7 @@ from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
+from marimo._server.registry import LIFESPAN_REGISTRY
 from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import (
@@ -24,6 +25,7 @@ from marimo._server.utils import (
 )
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._tracer import LOGGER
+from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
@@ -161,13 +163,14 @@ def start(
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
-        lifespan=lifespans.Lifespans(
+        lifespan=Lifespans(
             [
                 lifespans.lsp,
                 lifespans.etc,
                 lifespans.signal_handler,
                 lifespans.logging,
                 lifespans.open_browser,
+                *LIFESPAN_REGISTRY.get_all(),
             ]
         ),
         allow_origins=allow_origins,

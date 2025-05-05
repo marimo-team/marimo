@@ -28,6 +28,7 @@ from marimo._server.api.status import (
 )
 from marimo._server.errors import handle_error
 from marimo._server.lsp import LspServer
+from marimo._server.registry import MIDDLEWARE_REGISTRY
 
 if TYPE_CHECKING:
     from starlette.types import Lifespan
@@ -88,6 +89,8 @@ def create_starlette_app(
             _create_mpl_proxy_middleware(),
         ]
     )
+
+    final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
 
     if lsp_servers is not None:
         final_middlewares.extend(

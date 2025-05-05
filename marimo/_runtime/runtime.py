@@ -17,7 +17,13 @@ from copy import copy, deepcopy
 from functools import cached_property
 from multiprocessing import connection
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    cast,
+)
 from uuid import uuid4
 
 from marimo import _loggers
@@ -35,6 +41,7 @@ from marimo._data.preview_column import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
+from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
@@ -158,7 +165,9 @@ from marimo._sql.engines.types import SQLEngine
 from marimo._sql.get_engines import get_engines_from_variables
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
+from marimo._types.lifespan import Lifespan
 from marimo._utils.assert_never import assert_never
+from marimo._utils.lifespans import Lifespans
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
@@ -171,6 +180,10 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
+
+_KERNEL_LIFESPAN_REGISTRY = EntryPointRegistry[Lifespan[None]](
+    "marimo.kernel.lifespan",
+)
 
 
 @mddoc
@@ -602,6 +615,14 @@ class Kernel:
 
         exec("import marimo as __marimo__", self.globals)
 
+        # Lifespans
+        lifespan = Lifespans(_KERNEL_LIFESPAN_REGISTRY.get_all())
+        self._lifespan: Optional[
+            contextlib.AbstractAsyncContextManager[None]
+        ] = None
+        if lifespan.has_lifespans():
+            self._lifespan = lifespan(None)
+
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
         if self.stdout is not None:
@@ -620,6 +641,10 @@ class Kernel:
         # globals appear to leak, even though the thread exits. As a hack we
         # manually clear kernel memory.
         self._module.__dict__.clear()
+
+        # Teardown lifespans
+        if self._lifespan is not None:
+            asyncio.run(self._lifespan.__aexit__(None, None, None))
 
     def lazy(self) -> bool:
         return self.reactive_execution_mode == "lazy"
@@ -1925,6 +1950,11 @@ class Kernel:
                 initial_value,
             ) in request.set_ui_element_value_request.ids_and_values:
                 self.ui_initializers[object_id] = initial_value
+
+            # Initialize lifespans
+            self._lifespan_context = self._lifespan(self)
+            await self._lifespan_context.__aenter__()
+
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
         else:
