@@ -416,9 +416,9 @@ def recover(filename: str) -> str:
         )
     )
     return generate_filecontents(
-        cast(list[str], codes),
-        cast(list[str], names),
-        cast(list[CellConfig], configs),
+        cast(list[str], list(codes)),
+        cast(list[str], list(names)),
+        cast(list[CellConfig], list(configs)),
     )
 
 
