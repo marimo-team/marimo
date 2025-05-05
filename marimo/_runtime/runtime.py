@@ -1951,10 +1951,6 @@ class Kernel:
             ) in request.set_ui_element_value_request.ids_and_values:
                 self.ui_initializers[object_id] = initial_value
 
-            # Initialize lifespans
-            self._lifespan_context = self._lifespan(self)
-            await self._lifespan_context.__aenter__()
-
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
         else:
