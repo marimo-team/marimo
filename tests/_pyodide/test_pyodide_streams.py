@@ -37,7 +37,7 @@ def pyodide_stdout(pyodide_: PyodideStream) -> PyodideStdout:
     return PyodideStdout(pyodide_)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def pyodide_stderr(pyodide_: PyodideStream) -> PyodideStderr:
     return PyodideStderr(pyodide_)
 

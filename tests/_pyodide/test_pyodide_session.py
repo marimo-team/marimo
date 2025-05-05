@@ -36,7 +36,7 @@ def mock_on_write() -> Callable[[KernelMessage], None]:
 
 
 @pytest.fixture
-def app_file(tmp_path: Path) -> Path:
+def pyodide_app_file(tmp_path: Path) -> Path:
     filename = tmp_path / "test.py"
     filename.write_text(
         """
@@ -93,43 +93,26 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def app_metadata(app_file: Path) -> AppMetadata:
-    return AppMetadata(
-        query_params={},
-        cli_args={},
-        app_config=_AppConfig(),
-        filename=str(app_file),
-    )
-
-
-@pytest.fixture
-def app_file_manager(app_file: Path) -> AppFileManager:
-    return AppFileManager(filename=str(app_file))
-
-
-@pytest.fixture
-def async_queue_manager() -> AsyncQueueManager:
-    return AsyncQueueManager()
-
-
-@pytest.fixture
 def pyodide_session(
-    app_file_manager: AppFileManager,
     mock_on_write: Callable[[KernelMessage], None],
-    app_metadata: AppMetadata,
+    pyodide_app_file: Path,
 ) -> PyodideSession:
     return PyodideSession(
-        app=app_file_manager,
+        app=AppFileManager(filename=str(pyodide_app_file)),
         mode=SessionMode.EDIT,
         on_write=mock_on_write,
-        app_metadata=app_metadata,
+        app_metadata=AppMetadata(
+            query_params={},
+            cli_args={},
+            app_config=_AppConfig(),
+            filename=str(pyodide_app_file),
+        ),
         user_config=DEFAULT_CONFIG,
     )
 
 
-async def test_async_queue_manager(
-    async_queue_manager: AsyncQueueManager,
-) -> None:
+async def test_async_queue_manager() -> None:
+    async_queue_manager = AsyncQueueManager()
     # Test putting and getting from queues
     stop_request = StopRequest()
     set_ui_element_request = SetUIElementValueRequest(
