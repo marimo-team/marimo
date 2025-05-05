@@ -6,13 +6,9 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
 
-from marimo._config.config import (
-    DEFAULT_CONFIG,
-    MarimoConfig,
-)
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._pyodide.bootstrap import create_session, save_file
 from marimo._pyodide.pyodide_session import PyodideSession
-from marimo._runtime.requests import SerializedQueryParams
 from marimo._server.model import SessionMode
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._types.ids import CellId_t
@@ -27,16 +23,6 @@ def mock_message_callback() -> Callable[[str], None]:
         pass
 
     return callback
-
-
-@pytest.fixture
-def mock_query_params() -> SerializedQueryParams:
-    return {}
-
-
-@pytest.fixture
-def mock_user_config() -> MarimoConfig:
-    return DEFAULT_CONFIG
 
 
 FILE_CONTENTS = """
@@ -77,15 +63,13 @@ def mock_app_file_with_script_config(tmp_path: Path) -> Path:
 
 def test_create_session_with_default_config(
     mock_message_callback: Callable[[str], None],
-    mock_query_params: SerializedQueryParams,
-    mock_user_config: MarimoConfig,
     mock_app_file: Path,
 ) -> None:
     session, _ = create_session(
         filename=str(mock_app_file),
-        query_params=mock_query_params,
+        query_params={},
         message_callback=mock_message_callback,
-        user_config=mock_user_config,
+        user_config=DEFAULT_CONFIG,
     )
 
     assert isinstance(session, PyodideSession)
@@ -94,15 +78,13 @@ def test_create_session_with_default_config(
 
 def test_create_session_with_script_config(
     mock_message_callback: Callable[[str], None],
-    mock_query_params: SerializedQueryParams,
-    mock_user_config: MarimoConfig,
     mock_app_file_with_script_config: Path,
 ) -> None:
     session, _ = create_session(
         filename=str(mock_app_file_with_script_config),
-        query_params=mock_query_params,
+        query_params={},
         message_callback=mock_message_callback,
-        user_config=mock_user_config,
+        user_config=DEFAULT_CONFIG,
     )
 
     # Script config should override default theme
@@ -111,8 +93,6 @@ def test_create_session_with_script_config(
 
 def test_create_session_with_invalid_script_config(
     mock_message_callback: Callable[[str], None],
-    mock_query_params: SerializedQueryParams,
-    mock_user_config: MarimoConfig,
     tmp_path: Path,
 ) -> None:
     # Create a file with invalid config
@@ -128,9 +108,9 @@ def test_create_session_with_invalid_script_config(
 
     session, _ = create_session(
         filename=str(filename),
-        query_params=mock_query_params,
+        query_params={},
         message_callback=mock_message_callback,
-        user_config=mock_user_config,
+        user_config=DEFAULT_CONFIG,
     )
 
     # Invalid config should be ignored and default config should be used
@@ -142,15 +122,13 @@ def test_create_session_with_invalid_script_config(
 
 def test_instantiate(
     mock_message_callback: Callable[[str], None],
-    mock_query_params: SerializedQueryParams,
-    mock_user_config: MarimoConfig,
     mock_app_file: Path,
 ) -> None:
     session, _ = create_session(
         filename=str(mock_app_file),
-        query_params=mock_query_params,
+        query_params={},
         message_callback=mock_message_callback,
-        user_config=mock_user_config,
+        user_config=DEFAULT_CONFIG,
     )
 
     # Mock the put_control_request method to capture the request

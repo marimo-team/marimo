@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from textwrap import dedent
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +12,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import AsyncQueueManager, PyodideSession
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.requests import (
     AppMetadata,
     ExecuteMultipleRequest,
@@ -25,14 +26,6 @@ from marimo._types.ids import CellId_t, UIElementId
 if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
-
-
-@pytest.fixture
-def mock_on_write() -> Callable[[KernelMessage], None]:
-    def _on_write(msg: KernelMessage) -> None:
-        pass
-
-    return _on_write
 
 
 @pytest.fixture
@@ -94,13 +87,15 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def pyodide_session(
-    mock_on_write: Callable[[KernelMessage], None],
     pyodide_app_file: Path,
-) -> PyodideSession:
-    return PyodideSession(
+) -> Generator[PyodideSession, None, None]:
+    def _on_write(msg: KernelMessage) -> None:
+        pass
+
+    session = PyodideSession(
         app=AppFileManager(filename=str(pyodide_app_file)),
         mode=SessionMode.EDIT,
-        on_write=mock_on_write,
+        on_write=_on_write,
         app_metadata=AppMetadata(
             query_params={},
             cli_args={},
@@ -109,6 +104,8 @@ def pyodide_session(
         ),
         user_config=DEFAULT_CONFIG,
     )
+    yield session
+    teardown_context()
 
 
 async def test_async_queue_manager() -> None:
