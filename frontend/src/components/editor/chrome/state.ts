@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import type { PanelType } from "./types";
 import { ZodLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
@@ -99,3 +99,10 @@ export const exportedForTesting = {
   createActions,
   initialState,
 };
+
+// Context-aware panel
+
+// unique ID of the owner rendering the context-aware panel
+// if null, the panel is not open
+export const isContextAwarePanelOpenAtom = atom<string | null>(null);
+export const isContextAwarePanelPinnedAtom = atom<boolean>(true);

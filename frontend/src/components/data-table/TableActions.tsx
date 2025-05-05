@@ -26,7 +26,7 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
-  toggleSelectionPanel: () => void;
+  toggleSelectionPanel?: () => void;
 }
 
 export const TableActions = <TData,>({
@@ -115,11 +115,13 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      <Tooltip content="Toggle selection panel">
-        <Button variant="text" size="xs" onClick={toggleSelectionPanel}>
-          <PanelRightIcon className="w-4 h-4 text-muted-foreground" />
-        </Button>
-      </Tooltip>
+      {toggleSelectionPanel && (
+        <Tooltip content="Toggle selection panel">
+          <Button variant="text" size="xs" onClick={toggleSelectionPanel}>
+            <PanelRightIcon className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </Tooltip>
+      )}
       {pagination && (
         <DataTablePagination
           totalColumns={totalColumns}

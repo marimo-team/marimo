@@ -37,11 +37,6 @@ import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
 import { CopyColumnFeature } from "./copy-column/feature";
-import type { CellId } from "@/core/cells/ids";
-import { DataSelectionItem } from "../editor/chrome/panels/selection-panel";
-import { DataSelectionPanel } from "./selection-panel/data-selection";
-import { useAtom } from "jotai";
-import { isCurrentlyFocusedCellAtom } from "./selection-panel/panel-atoms";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -81,7 +76,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   toggleDisplayHeader?: () => void;
   // Others
   chartsFeatureEnabled?: boolean;
-  cellId?: CellId | null;
+  toggleSelectionPanel?: () => void;
 }
 
 const DataTableInternal = <TData,>({
@@ -117,7 +112,7 @@ const DataTableInternal = <TData,>({
   freezeColumnsRight,
   toggleDisplayHeader,
   chartsFeatureEnabled,
-  cellId,
+  toggleSelectionPanel,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -199,35 +194,6 @@ const DataTableInternal = <TData,>({
     },
   });
 
-  const [isSelectionPanelOpen, setIsSelectionPanelOpen] = React.useState(false);
-  const [currentlyFocusedCell, setCurrentlyFocusedCell] = useAtom(
-    isCurrentlyFocusedCellAtom,
-  );
-  const isCurrentlyFocusedCell = currentlyFocusedCell === cellId;
-
-  function getSelectionPanelRows() {
-    let rows = table.getFilteredSelectedRowModel().rows;
-    if (rows.length === 0) {
-      rows = table.getRowModel().rows;
-    }
-    return rows;
-  }
-
-  function toggleSelectionPanel() {
-    if (isSelectionPanelOpen && isCurrentlyFocusedCell) {
-      // Close existing selection panel
-      setIsSelectionPanelOpen(false);
-      setCurrentlyFocusedCell(null);
-    } else if (isSelectionPanelOpen && !isCurrentlyFocusedCell && cellId) {
-      // Focus on a different cell
-      setCurrentlyFocusedCell(cellId);
-    } else if (!isSelectionPanelOpen && cellId) {
-      // Open selection panel and focus on the cell
-      setIsSelectionPanelOpen(true);
-      setCurrentlyFocusedCell(cellId);
-    }
-  }
-
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
@@ -262,14 +228,6 @@ const DataTableInternal = <TData,>({
         chartsFeatureEnabled={chartsFeatureEnabled}
         toggleSelectionPanel={toggleSelectionPanel}
       />
-      {isSelectionPanelOpen && isCurrentlyFocusedCell && (
-        <DataSelectionItem>
-          <DataSelectionPanel
-            rows={getSelectionPanelRows()}
-            closePanel={() => setIsSelectionPanelOpen(false)}
-          />
-        </DataSelectionItem>
-      )}
     </div>
   );
 };

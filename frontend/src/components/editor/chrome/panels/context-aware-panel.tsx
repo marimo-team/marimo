@@ -1,0 +1,111 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
+import { SlotNames } from "@/core/slots/slots";
+import { Fill, Slot, useSlot } from "@marimo-team/react-slotz";
+import { useAtom } from "jotai";
+import type { PropsWithChildren } from "react";
+import { PanelResizeHandle, Panel } from "react-resizable-panels";
+import {
+  isContextAwarePanelOpenAtom,
+  isContextAwarePanelPinnedAtom,
+} from "../state";
+import { handleDragging } from "../wrapper/utils";
+import { useResizeHandle } from "@/hooks/useResizeHandle";
+
+import { PinIcon, PinOffIcon, XIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
+
+export const ContextAwarePanel: React.FC = () => {
+  const [isOpen, setIsOpen] = useAtom(isContextAwarePanelOpenAtom);
+  const [isPinned, setIsPinned] = useAtom(isContextAwarePanelPinnedAtom);
+  const closePanel = () => setIsOpen(null);
+
+  const slots = useSlot(SlotNames.DATA_SELECTION);
+
+  if (slots.length === 0 || !isOpen) {
+    return null;
+  }
+
+  const renderModeToggle = () => {
+    return (
+      <div className="flex flex-row items-center gap-1">
+        <Tooltip content={isPinned ? "Unpin panel" : "Pin panel"}>
+          <Toggle
+            size="xs"
+            onPressedChange={() => setIsPinned(!isPinned)}
+            pressed={isPinned}
+            aria-label={isPinned ? "Unpin panel" : "Pin panel"}
+          >
+            {isPinned ? (
+              <PinIcon className="w-3 h-3" />
+            ) : (
+              <PinOffIcon className="w-3 h-3" />
+            )}
+          </Toggle>
+        </Tooltip>
+      </div>
+    );
+  };
+
+  const renderBody = () => {
+    return (
+      <div className="mt-2 pb-7 mb-4 h-full overflow-auto">
+        <div className="flex flex-row justify-between items-center mx-2">
+          {renderModeToggle()}
+          <Button
+            variant="linkDestructive"
+            size="icon"
+            onClick={closePanel}
+            aria-label="Close selection panel"
+          >
+            <XIcon className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <Slot name={SlotNames.DATA_SELECTION} />
+      </div>
+    );
+  };
+
+  if (!isPinned) {
+    return <ResizableComponent>{renderBody()}</ResizableComponent>;
+  }
+
+  return (
+    <>
+      <PanelResizeHandle
+        onDragging={handleDragging}
+        className="resize-handle border-border z-20 no-print border-l"
+      />
+      <Panel defaultSize={25}>{renderBody()}</Panel>
+    </>
+  );
+};
+
+export const DataSelectionItem: React.FC<PropsWithChildren> = ({
+  children,
+}) => {
+  return <Fill name={SlotNames.DATA_SELECTION}>{children}</Fill>;
+};
+
+interface ResizableComponentProps {
+  children: React.ReactNode;
+}
+
+const ResizableComponent = ({ children }: ResizableComponentProps) => {
+  const { resizableDivRef, handleRef, style } = useResizeHandle({
+    startingWidth: 400,
+    direction: "left",
+  });
+
+  return (
+    <div className="absolute z-40 right-0 h-full bg-background flex flex-row">
+      <div ref={handleRef} className="w-1 h-full cursor-col-resize border-l" />
+      <div ref={resizableDivRef} style={style}>
+        {children}
+      </div>
+    </div>
+  );
+};

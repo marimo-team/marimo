@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -56,7 +56,11 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { type CellId, findCellId } from "@/core/cells/ids";
 import { slotsController } from "@/core/slots/slots";
-
+import { DataSelectionItem } from "@/components/editor/chrome/panels/context-aware-panel";
+import { DataSelectionPanel } from "@/components/data-table/selection-panel/data-selection";
+import { Provider, useAtom } from "jotai";
+import { isContextAwarePanelOpenAtom } from "@/components/editor/chrome/state";
+import { store } from "@/core/state/jotai";
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
@@ -248,25 +252,27 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <SlotzProvider controller={slotsController}>
-        <TooltipProvider>
-          <LazyDataTableComponent
-            isLazy={props.data.lazy}
-            preload={props.data.preload}
-          >
-            <LoadingDataTableComponent
-              {...props.data}
-              {...props.functions}
-              host={props.host}
-              enableSearch={true}
-              data={props.data.data}
-              value={props.value}
-              setValue={props.setValue}
-              experimentalChartsEnabled={true}
-            />
-          </LazyDataTableComponent>
-        </TooltipProvider>
-      </SlotzProvider>
+      <Provider store={store}>
+        <SlotzProvider controller={slotsController}>
+          <TooltipProvider>
+            <LazyDataTableComponent
+              isLazy={props.data.lazy}
+              preload={props.data.preload}
+            >
+              <LoadingDataTableComponent
+                {...props.data}
+                {...props.functions}
+                host={props.host}
+                enableSearch={true}
+                data={props.data.data}
+                value={props.value}
+                setValue={props.setValue}
+                experimentalChartsEnabled={true}
+              />
+            </LazyDataTableComponent>
+          </TooltipProvider>
+        </SlotzProvider>
+      </Provider>
     );
   });
 
@@ -473,6 +479,30 @@ export const LoadingDataTableComponent = memo(
       paginationState.pageIndex,
     ]);
 
+    const getRow = useCallback(
+      (rowId: number) => {
+        return search<T>({
+          page_number: rowId,
+          page_size: 1,
+          sort:
+            sorting.length > 0
+              ? {
+                  by: sorting[0].id,
+                  descending: sorting[0].desc,
+                }
+              : undefined,
+          query: searchQuery,
+          filters: filters.flatMap((filter) => {
+            return filterToFilterCondition(
+              filter.id,
+              filter.value as ColumnFilterValue,
+            );
+          }),
+        });
+      },
+      [search, sorting, filters, searchQuery],
+    );
+
     // If total rows change, reset pageIndex
     useEffect(() => {
       setPaginationState((state) =>
@@ -556,6 +586,7 @@ export const LoadingDataTableComponent = memo(
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
         cellId={cellId}
+        getRow={getRow}
       />
     );
 
@@ -615,11 +646,15 @@ const DataTableComponent = ({
   chartsFeatureEnabled,
   calculate_top_k_rows,
   cellId,
+  getRow,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
     columnSummaries?: ColumnSummaries;
+    getRow: (rowIdx: number) => Promise<Record<string, unknown>>;
   }): JSX.Element => {
+  const id = useId();
+  const [focusedRowIdx, setFocusedRowIdx] = useState(0);
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
@@ -677,6 +712,21 @@ const DataTableComponent = ({
     [value],
   );
 
+  const [isSelectionPanelOpen, setIsSelectionPanelOpen] = useAtom(
+    isContextAwarePanelOpenAtom,
+  );
+  const isOwnerOfPanel = isSelectionPanelOpen === id;
+
+  function toggleSelectionPanel() {
+    if (isOwnerOfPanel) {
+      // Close if we are already open
+      setIsSelectionPanelOpen(null);
+    } else {
+      // Open if we are not already open
+      setIsSelectionPanelOpen(id);
+    }
+  }
+
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
       if (selection === "single") {
@@ -733,6 +783,16 @@ const DataTableComponent = ({
           1,000,000 rows.
         </Banner>
       )}
+      {isOwnerOfPanel && (
+        <DataSelectionItem>
+          <DataSelectionPanel
+            getRow={getRow}
+            fieldTypes={fieldTypes}
+            totalRows={totalRows === "too_many" ? 100 : totalRows}
+            rowIdx={focusedRowIdx}
+          />
+        </DataSelectionItem>
+      )}
       <ColumnChartContext.Provider value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
@@ -767,7 +827,7 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
-            cellId={cellId}
+            toggleSelectionPanel={toggleSelectionPanel}
           />
         </Labeled>
       </ColumnChartContext.Provider>
