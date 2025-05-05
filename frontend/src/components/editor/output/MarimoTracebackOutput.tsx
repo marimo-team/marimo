@@ -23,6 +23,7 @@ import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
 import { Element, Text, type DOMNode } from "html-react-parser";
+import { isWasm } from "@/core/wasm/utils";
 
 import { CellLinkTraceback } from "../links/cell-link";
 import {
@@ -71,7 +72,7 @@ export const MarimoTracebackOutput = ({
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   // Get last traceback info
-  const lastTracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
+  const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
 
   const handleRefactorWithAI = () => {
     onRefactorWithAI?.({
@@ -112,12 +113,12 @@ export const MarimoTracebackOutput = ({
             Fix with AI
           </Button>
         )}
-        {lastTracebackInfo && (
+        {tracebackInfo && !isWasm() && (
           <Button
             size="xs"
             variant="outline"
             onClick={() => {
-              sendPdb({ cellId: lastTracebackInfo.cellId });
+              sendPdb({ cellId: tracebackInfo.cellId });
             }}
           >
             <BugPlayIcon className="h-3 w-3 mr-2" />
@@ -187,22 +188,24 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
             cellId={info.cellId}
             lineNumber={info.lineNumber}
           />
-          <Tooltip content={tooltipContent}>
-            <button
-              type="button"
-              className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
-            >
-              <BugPlayIcon
-                onClick={() => {
-                  const view = getCellEditorView(info.cellId);
-                  if (view) {
-                    insertDebuggerAtLine(view, info.lineNumber);
-                  }
-                }}
-                className="h-3 w-3"
-              />
-            </button>
-          </Tooltip>
+          {!isWasm() && (
+            <Tooltip content={tooltipContent}>
+              <button
+                type="button"
+                className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
+              >
+                <BugPlayIcon
+                  onClick={() => {
+                    const view = getCellEditorView(info.cellId);
+                    if (view) {
+                      insertDebuggerAtLine(view, info.lineNumber);
+                    }
+                  }}
+                  className="h-3 w-3"
+                />
+              </button>
+            </Tooltip>
+          )}
         </span>
       </span>
     );
