@@ -344,7 +344,7 @@ const DEFAULT_HOT_KEY = {
     key: "Mod-Shift-\\",
   },
   "global.expandAll": {
-    name: "Expand all cells",
+    name: "Expand all sections",
     group: "Editing",
     key: "Mod-Shift-/",
   },
