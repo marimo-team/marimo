@@ -124,7 +124,6 @@ class PdbRequest:
     cell_id: CellId_t
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
-    timestamp: float = field(default_factory=time.time)
 
     def __repr__(self) -> str:
         return f"PdbRequest(cell={self.cell_id})"

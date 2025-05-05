@@ -1845,11 +1845,8 @@ components:
         request:
           $ref: '#/components/schemas/HTTPRequest'
           nullable: true
-        timestamp:
-          type: number
       required:
       - cellId
-      - timestamp
       type: object
     PreviewDatasetColumnRequest:
       properties:

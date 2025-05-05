@@ -3166,7 +3166,6 @@ export interface components {
     PdbRequest: {
       cellId: string;
       request?: components["schemas"]["HTTPRequest"];
-      timestamp: number;
     };
     PreviewDatasetColumnRequest: {
       columnName: string;

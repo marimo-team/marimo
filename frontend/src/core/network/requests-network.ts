@@ -189,7 +189,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/pdb/pm", {
           body: request,
         })
-        .then(handleResponse);
+        .then(handleResponseReturnNull);
     },
     sendListFiles: (request) => {
       return marimoClient

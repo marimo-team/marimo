@@ -234,7 +234,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendPdb: EditRequests["sendPdb"] = async (request) => {
+  sendPdb: EditRequests["sendPdb"] = async () => {
     throwNotImplemented();
   };
 

@@ -129,7 +129,7 @@ export interface EditRequests {
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // Debugger
-  sendPdbRequest: (request: PdbRequest) => Promise<null>;
+  sendPdb: (request: PdbRequest) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendCreateFileOrFolder: (
