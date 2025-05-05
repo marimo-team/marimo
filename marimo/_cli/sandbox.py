@@ -215,7 +215,7 @@ def construct_uv_command(
 
     uv_cmd = ["uv", "run"]
     with tempfile.NamedTemporaryFile(
-        mode="w", delete=False, suffix=".txt"
+        mode="w", delete=False, suffix=".txt", encoding="utf-8"
     ) as temp_file:
         temp_file_path = temp_file.name
         uv_cmd.extend(

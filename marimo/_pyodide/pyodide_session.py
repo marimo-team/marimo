@@ -319,7 +319,7 @@ class PyodideBridge:
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         try:
-            Path(body.path, encoding="utf-8").write_text(body.contents)
+            Path(body.path).write_text(body.contents, encoding="utf-8")
             response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))

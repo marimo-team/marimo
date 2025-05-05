@@ -210,7 +210,7 @@ class UvPackageManager(PypiPackageManager):
         )
 
         # Get script metadata
-        with open(filepath) as f:
+        with open(filepath, encoding="utf-8") as f:
             frontmatter, body = extract_frontmatter(f.read())
         headers = get_headers_from_frontmatter(frontmatter)
         pyproject = bool(headers.get("pyproject", ""))
@@ -223,7 +223,7 @@ class UvPackageManager(PypiPackageManager):
 
         # Write out and process the header
         with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".py"
+            mode="w", delete=False, suffix=".py", encoding="utf-8"
         ) as temp_file:
             temp_file.write(header)
             temp_file.flush()
@@ -233,7 +233,7 @@ class UvPackageManager(PypiPackageManager):
             packages_to_add,
             packages_to_remove,
         )
-        with open(temp_file.name) as f:
+        with open(temp_file.name, encoding="utf-8") as f:
             header = f.read()
         # Clean up the temporary file
         os.unlink(temp_file.name)
@@ -254,7 +254,7 @@ class UvPackageManager(PypiPackageManager):
             sort_keys=False,
         )
         document = ["---", header.strip(), "---", body]
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write("\n".join(document))
 
     def _process_changes(
