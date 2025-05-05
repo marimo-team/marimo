@@ -78,14 +78,14 @@ export const HTMLCellId = {
 /**
  * Find the cellId of an element
  */
-export const useFindCellId = (element: HTMLElement) => {
+export function findCellId(element: HTMLElement): CellId | null {
   let cellId: CellId | null = null;
   const cellContainer = HTMLCellId.findElement(element);
   if (cellContainer) {
     cellId = HTMLCellId.parse(cellContainer.id);
   }
   return cellId;
-};
+}
 
 /**
  * A typed UIElementId

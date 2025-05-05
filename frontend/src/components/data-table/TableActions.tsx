@@ -11,12 +11,6 @@ import type { Table, RowSelectionState } from "@tanstack/react-table";
 import type { DataTableSelection } from "./types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { toast } from "../ui/use-toast";
-import {
-  selectionPanelOpenAtom,
-  currentlyFocusedCellAtom,
-} from "@/components/data-table/selection-panel/panel-atoms";
-import { useAtom, useSetAtom } from "jotai";
-import type { CellId } from "@/core/cells/ids";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -32,7 +26,7 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
-  cellId?: CellId | null;
+  toggleSelectionPanel: () => void;
 }
 
 export const TableActions = <TData,>({
@@ -49,7 +43,7 @@ export const TableActions = <TData,>({
   getRowIds,
   toggleDisplayHeader,
   chartsFeatureEnabled,
-  cellId,
+  toggleSelectionPanel,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -93,20 +87,6 @@ export const TableActions = <TData,>({
         );
       }
     });
-  };
-
-  const setSelectionPanelOpen = useSetAtom(selectionPanelOpenAtom);
-  const [currentlyFocusedCell, setCurrentlyFocusedCell] = useAtom(
-    currentlyFocusedCellAtom,
-  );
-  const toggleSelectionPanel = () => {
-    if (currentlyFocusedCell === cellId) {
-      // toggle panel
-      setSelectionPanelOpen((prev) => !prev);
-    } else if (cellId) {
-      setSelectionPanelOpen(true);
-      setCurrentlyFocusedCell(cellId);
-    }
   };
 
   return (

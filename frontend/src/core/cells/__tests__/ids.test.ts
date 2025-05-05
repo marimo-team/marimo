@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, test } from "vitest";
-import { CellId, CellOutputId, HTMLCellId, useFindCellId } from "../ids";
+import { CellId, CellOutputId, HTMLCellId, findCellId } from "../ids";
 import { renderHook } from "@testing-library/react";
 
 describe("CellId", () => {
@@ -63,7 +63,7 @@ describe("useFindCellId", () => {
     div.append(childDiv);
     const ref = { current: childDiv };
 
-    const { result } = renderHook(() => useFindCellId(ref));
+    const { result } = renderHook(() => findCellId(ref));
 
     // Hook should find the cell ID
     expect(result.current).toBe(cellId);
@@ -91,7 +91,7 @@ describe("useFindCellId", () => {
     shadowChild.append(nestedDiv);
     const ref = { current: nestedDiv };
 
-    const { result } = renderHook(() => useFindCellId(ref));
+    const { result } = renderHook(() => findCellId(ref));
 
     // Hook should find the cell ID through shadow DOM
     expect(result.current).toBe(cellId);
@@ -106,7 +106,7 @@ describe("useFindCellId", () => {
     document.body.append(div);
     const ref = { current: div };
 
-    const { result } = renderHook(() => useFindCellId(ref));
+    const { result } = renderHook(() => findCellId(ref));
 
     // Hook should return null when no cell ID is found
     expect(result.current).toBeNull();

@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useResizeHandle } from "@/hooks/useResizeHandle";
-import { useAtom, useAtomValue } from "jotai";
 import {
   XIcon,
   ChevronLeft,
@@ -11,15 +10,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { PanelResizeHandle, Panel } from "react-resizable-panels";
-import {
-  currentlyFocusedCellAtom,
-  selectionPanelOpenAtom,
-  tableDataAtom,
-} from "./panel-atoms";
 import { Button } from "@/components/ui/button";
-import { atom } from "jotai";
 import { SELECT_COLUMN_ID } from "../types";
 import {
   Table,
@@ -34,35 +27,24 @@ import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import { renderCellValue } from "../columns";
+import { handleDragging } from "@/components/editor/chrome/wrapper/utils";
+import type { Row } from "@tanstack/react-table";
+import { isOverlayAtom } from "./panel-atoms";
+import { useAtom } from "jotai";
 
-export const DataSelectionPanel: React.FC<{
-  handleDragging: (isDragging: boolean) => void;
-}> = ({ handleDragging }) => {
-  // If pinned, the right panel
-  const [isPinned, setIsPinned] = useState(true);
-  const [isOpen, setIsOpen] = useAtom(selectionPanelOpenAtom);
-  const currentlyFocusedCell = useAtomValue(currentlyFocusedCellAtom);
+export interface DataSelectionPanelProps {
+  rows: Array<Row<unknown>>;
+  setIsOpen: (isOpen: boolean) => void;
+}
 
+export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
+  rows,
+  setIsOpen,
+}) => {
+  const [isOverlay, setIsOverlay] = useAtom(isOverlayAtom);
   const [selectedRowIdx, setSelectedRowIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Only get atom value if panel is open
-  const tableValues = useAtomValue(
-    useMemo(
-      () => atom((get) => (isOpen ? get(tableDataAtom) : null)),
-      [isOpen],
-    ),
-  );
-
-  if (!isOpen || !tableValues || !currentlyFocusedCell) {
-    return null;
-  }
-
-  const tableData = tableValues[currentlyFocusedCell];
-  if (!tableData) {
-    return null;
-  }
-  const { rows } = tableData;
   const currentRow = rows.at(selectedRowIdx);
 
   const rowValues: Record<string, Cell<unknown, unknown>> = {};
@@ -94,11 +76,11 @@ export const DataSelectionPanel: React.FC<{
   const renderModeToggle = () => {
     return (
       <div className="flex flex-row items-center gap-1">
-        <Tooltip content={isPinned ? "Turn off overlay" : "Overlay content"}>
+        <Tooltip content={isOverlay ? "Turn off overlay" : "Overlay content"}>
           <Button
-            variant={isPinned ? "link" : "ghost"}
+            variant={isOverlay ? "link" : "ghost"}
             size="icon"
-            onClick={() => setIsPinned(!isPinned)}
+            onClick={() => setIsOverlay(!isOverlay)}
           >
             <PinIcon className="w-4 h-4" />
           </Button>
@@ -131,7 +113,7 @@ export const DataSelectionPanel: React.FC<{
   };
 
   const children = (
-    <div className="mt-2">
+    <div className="mt-2 h-full overflow-auto">
       <div className="flex flex-row justify-between items-center my-1 mx-2">
         {renderModeToggle()}
         <Button
@@ -203,7 +185,7 @@ export const DataSelectionPanel: React.FC<{
     </div>
   );
 
-  if (isPinned) {
+  if (isOverlay) {
     return <ResizableComponent>{children}</ResizableComponent>;
   }
 

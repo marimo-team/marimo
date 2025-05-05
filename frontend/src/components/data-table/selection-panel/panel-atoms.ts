@@ -1,17 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom } from "jotai";
-import type { Row } from "@tanstack/react-table";
 import type { CellId } from "@/core/cells/ids";
+import { atom } from "jotai";
 
-export const selectionPanelOpenAtom = atom(false);
+// Only one cell can be focused at a time
+// So that we can close the selection panel when the focused cell changes
+export const isCurrentlyFocusedCellAtom = atom<CellId | null>(null);
 
-// Keeps track of the currently focused or selected cell
-export const currentlyFocusedCellAtom = atom<CellId>();
-
-// TODO: We can only get rows from current table page
-export interface TableData {
-  rows: Array<Row<unknown>>;
-}
-
-// TODO: We should probably delete old or deleted cells from this atom. Or limit to most recent cells
-export const tableDataAtom = atom<Partial<Record<CellId, TableData>>>({});
+// Whether the selection panel is overlaid on top of the editor
+export const isOverlayAtom = atom<boolean>(true);

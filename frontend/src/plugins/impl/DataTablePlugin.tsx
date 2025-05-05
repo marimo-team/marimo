@@ -53,9 +53,9 @@ import {
 import { isStaticNotebook } from "@/core/static/static-state";
 import { vegaLoadData } from "./vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-import { store } from "@/core/state/jotai";
-import { Provider } from "jotai";
-import { type CellId, useFindCellId } from "@/core/cells/ids";
+import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
+import { type CellId, findCellId } from "@/core/cells/ids";
+import { slotsController } from "@/core/slots/slots";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -248,7 +248,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <Provider store={store}>
+      <SlotzProvider controller={slotsController}>
         <TooltipProvider>
           <LazyDataTableComponent
             isLazy={props.data.lazy}
@@ -266,7 +266,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             />
           </LazyDataTableComponent>
         </TooltipProvider>
-      </Provider>
+      </SlotzProvider>
     );
   });
 
@@ -367,7 +367,7 @@ export const LoadingDataTableComponent = memo(
     }, [props.pageSize, paginationState.pageSize]);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const cellId = useFindCellId(props.host);
+    const cellId = findCellId(props.host);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{

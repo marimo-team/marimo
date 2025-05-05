@@ -5,4 +5,5 @@ export const slotsController = new SlotzController();
 
 export const SlotNames = {
   SIDEBAR: "sidebar",
+  DATA_SELECTION: "data-selection",
 };
