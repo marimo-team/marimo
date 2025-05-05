@@ -6,9 +6,9 @@ import {
   ChevronLeft,
   ChevronRight,
   SearchIcon,
-  PinIcon,
   ChevronsLeft,
   ChevronsRight,
+  Layers2Icon,
 } from "lucide-react";
 import { useState } from "react";
 import { PanelResizeHandle, Panel } from "react-resizable-panels";
@@ -31,6 +31,8 @@ import { handleDragging } from "@/components/editor/chrome/wrapper/utils";
 import type { Row } from "@tanstack/react-table";
 import { isOverlayAtom } from "./panel-atoms";
 import { useAtom } from "jotai";
+import { Functions } from "@/utils/functions";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 
 export interface DataSelectionPanelProps {
   rows: Array<Row<unknown>>;
@@ -115,7 +117,7 @@ const DataSelection = ({
             size="icon"
             onClick={() => setIsOverlay(!isOverlay)}
           >
-            <PinIcon className="w-4 h-4" />
+            <Layers2Icon className="w-4 h-4" />
           </Button>
         </Tooltip>
       </div>
@@ -148,8 +150,8 @@ const DataSelection = ({
   };
 
   return (
-    <div className="mt-2 pb-14 h-full overflow-auto">
-      <div className="flex flex-row justify-between items-center my-1 mx-2">
+    <div className="mt-2 pb-7 mb-4 h-full overflow-auto">
+      <div className="flex flex-row justify-between items-center mx-2">
         {renderModeToggle()}
         <Button
           variant="linkDestructive"
@@ -161,7 +163,7 @@ const DataSelection = ({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-2 mt-4">
+      <div className="flex flex-col gap-3 mt-4">
         <div className="flex flex-row gap-2 justify-end items-center mr-2">
           {renderButton(
             <ChevronsLeft />,
@@ -188,12 +190,13 @@ const DataSelection = ({
           )}
         </div>
 
-        <div className="mx-2 my-2">
+        <div className="mx-2 -mb-1">
           <Input
             type="text"
             placeholder="Search"
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<SearchIcon className="w-4 h-4" />}
+            className="rounded-lg"
           />
         </div>
 
@@ -214,14 +217,31 @@ const DataSelection = ({
                 cell.column,
                 cell.renderValue,
                 cell.getValue,
+                Functions.NOOP,
+                "text-left break-all",
               );
+
+              const cellValue = cell.getValue();
+              const cellValueString =
+                typeof cellValue === "object"
+                  ? JSON.stringify(cellValue)
+                  : String(cellValue);
+
               return (
-                <TableRow key={columnName}>
+                <TableRow key={columnName} className="group">
                   <TableCell className="flex flex-row items-center gap-1.5">
                     <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />
                     {columnName}
                   </TableCell>
-                  <TableCell>{cellContent}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-row items-center justify-between gap-1">
+                      {cellContent}
+                      <CopyClipboardIcon
+                        value={cellValueString}
+                        className="w-3 h-3 mr-1 text-muted-foreground cursor-pointer opacity-0 group-hover:opacity-100"
+                      />
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
