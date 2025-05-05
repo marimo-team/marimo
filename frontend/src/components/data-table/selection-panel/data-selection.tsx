@@ -13,7 +13,7 @@ import {
 import { useState } from "react";
 import { PanelResizeHandle, Panel } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
-import { SELECT_COLUMN_ID } from "../types";
+import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "../types";
 import {
   Table,
   TableBody,
@@ -26,7 +26,7 @@ import type { Cell } from "@tanstack/react-table";
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
-import { renderCellValue } from "../columns";
+import { NAMELESS_COLUMN_PREFIX, renderCellValue } from "../columns";
 import { handleDragging } from "@/components/editor/chrome/wrapper/utils";
 import type { Row } from "@tanstack/react-table";
 import { isOverlayAtom } from "./panel-atoms";
@@ -86,8 +86,15 @@ const DataSelection = ({
   const rowValues: Record<string, Cell<unknown, unknown>> = {};
   const cells = currentRow?.getAllCells() ?? [];
   for (const cell of cells) {
-    if (cell.column.id === SELECT_COLUMN_ID) {
+    if (
+      cell.column.id === SELECT_COLUMN_ID ||
+      cell.column.id === INDEX_COLUMN_NAME
+    ) {
       continue;
+    }
+    if (cell.column.id.startsWith(NAMELESS_COLUMN_PREFIX)) {
+      // Leave the column name empty
+      cell.column.id = "";
     }
     rowValues[cell.column.id] = cell;
   }
@@ -97,17 +104,7 @@ const DataSelection = ({
     setSelectedRowIdx(rows.length - 1);
   }
 
-  const searchedRows = Object.entries(rowValues).filter(
-    ([columnName, cell]) => {
-      const colName = columnName.toLowerCase();
-      const cellValue = String(cell.getValue()).toLowerCase();
-      const searchQueryLower = searchQuery.toLowerCase();
-      return (
-        colName.includes(searchQueryLower) ||
-        cellValue.includes(searchQueryLower)
-      );
-    },
-  );
+  const searchedRows = filterRows(rowValues, searchQuery);
 
   const renderModeToggle = () => {
     return (
@@ -221,6 +218,28 @@ const DataSelection = ({
     </div>
   );
 };
+
+export function filterRows(
+  rowValues: Record<string, Cell<unknown, unknown>>,
+  searchQuery: string,
+) {
+  return Object.entries(rowValues).filter(([columnName, cell]) => {
+    const colName = columnName.toLowerCase();
+    const cellValue = cell.getValue();
+
+    let cellValueString =
+      typeof cellValue === "object"
+        ? JSON.stringify(cellValue)
+        : String(cellValue);
+    cellValueString = cellValueString.toLowerCase();
+    const searchQueryLower = searchQuery.toLowerCase();
+
+    return (
+      colName.includes(searchQueryLower) ||
+      cellValueString.includes(searchQueryLower)
+    );
+  });
+}
 
 interface ResizableComponentProps {
   children: React.ReactNode;
