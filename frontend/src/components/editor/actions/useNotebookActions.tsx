@@ -83,7 +83,6 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
-import { useSectionCollapse } from "./useSectionCollapse";
 import { Constants } from "@/core/constants";
 
 const NOOP_HANDLER = (event?: Event) => {
@@ -99,13 +98,14 @@ export function useNotebookActions() {
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
-  const { collapseAllSections, expandAllSections } = useSectionCollapse();
 
   const {
     updateCellConfig,
     undoDeleteCell,
     clearAllCellOutputs,
     upsertSetupCell,
+    collapseAllCells,
+    expandAllCells,
   } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
@@ -381,12 +381,12 @@ export function useNotebookActions() {
     {
       icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
       label: "Collapse all sections",
-      handle: collapseAllSections,
+      handle: collapseAllCells,
     },
     {
       icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
       label: "Expand all sections",
-      handle: expandAllSections,
+      handle: expandAllCells,
     },
     {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
