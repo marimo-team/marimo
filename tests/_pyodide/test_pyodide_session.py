@@ -24,7 +24,7 @@ from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t, UIElementId
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncGenerator, Generator
     from pathlib import Path
 
 
@@ -86,9 +86,9 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def pyodide_session(
+async def pyodide_session(
     pyodide_app_file: Path,
-) -> Generator[PyodideSession, None, None]:
+) -> AsyncGenerator[PyodideSession, None]:
     def _on_write(msg: KernelMessage) -> None:
         pass
 

@@ -20,7 +20,7 @@ def pyodide_pipe() -> Mock:
 
 
 @pytest.fixture
-def pyodide_input_queue() -> asyncio.Queue[str]:
+async def pyodide_input_queue() -> asyncio.Queue[str]:
     return asyncio.Queue()
 
 
