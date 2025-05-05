@@ -339,7 +339,7 @@ const DEFAULT_HOT_KEY = {
     key: "Ctrl-`",
   },
   "global.collapseAll": {
-    name: "Collapse all cells",
+    name: "Collapse all sections",
     group: "Editing",
     key: "Mod-Shift-\\",
   },
