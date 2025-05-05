@@ -34,14 +34,50 @@ import { useAtom } from "jotai";
 
 export interface DataSelectionPanelProps {
   rows: Array<Row<unknown>>;
-  setIsOpen: (isOpen: boolean) => void;
+  closePanel: () => void;
 }
 
 export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   rows,
-  setIsOpen,
+  closePanel,
 }) => {
   const [isOverlay, setIsOverlay] = useAtom(isOverlayAtom);
+
+  const dataSelection = (
+    <DataSelection
+      rows={rows}
+      closePanel={closePanel}
+      isOverlay={isOverlay}
+      setIsOverlay={setIsOverlay}
+    />
+  );
+
+  if (isOverlay) {
+    return <ResizableComponent>{dataSelection}</ResizableComponent>;
+  }
+
+  return (
+    <>
+      <PanelResizeHandle
+        onDragging={handleDragging}
+        className="resize-handle border-border z-20 no-print border-l"
+      />
+      <Panel defaultSize={25}>{dataSelection}</Panel>
+    </>
+  );
+};
+
+const DataSelection = ({
+  rows,
+  closePanel,
+  isOverlay,
+  setIsOverlay,
+}: {
+  rows: Array<Row<unknown>>;
+  closePanel: () => void;
+  isOverlay: boolean;
+  setIsOverlay: (isOverlay: boolean) => void;
+}) => {
   const [selectedRowIdx, setSelectedRowIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -112,14 +148,14 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     );
   };
 
-  const children = (
+  return (
     <div className="mt-2 h-full overflow-auto">
       <div className="flex flex-row justify-between items-center my-1 mx-2">
         {renderModeToggle()}
         <Button
           variant="linkDestructive"
           size="icon"
-          onClick={() => setIsOpen(false)}
+          onClick={closePanel}
           aria-label="Close selection panel"
         >
           <XIcon className="w-4 h-4" />
@@ -183,20 +219,6 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
         </Table>
       </div>
     </div>
-  );
-
-  if (isOverlay) {
-    return <ResizableComponent>{children}</ResizableComponent>;
-  }
-
-  return (
-    <>
-      <PanelResizeHandle
-        onDragging={handleDragging}
-        className="resize-handle border-border z-20 no-print border-l"
-      />
-      <Panel>{children}</Panel>
-    </>
   );
 };
 

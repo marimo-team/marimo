@@ -266,7 +266,7 @@ const DataTableInternal = <TData,>({
         <DataSelectionItem>
           <DataSelectionPanel
             rows={getSelectionPanelRows()}
-            setIsOpen={setIsSelectionPanelOpen}
+            closePanel={() => setIsSelectionPanelOpen(false)}
           />
         </DataSelectionItem>
       )}
