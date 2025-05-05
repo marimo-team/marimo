@@ -381,11 +381,13 @@ export function useNotebookActions() {
     {
       icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
       label: "Collapse all sections",
+      hotkey: "global.collapseAll",
       handle: collapseAllCells,
     },
     {
       icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
       label: "Expand all sections",
+      hotkey: "global.expandAll",
       handle: expandAllCells,
     },
     {
