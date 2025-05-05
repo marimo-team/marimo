@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, test } from "vitest";
-import { CellId, CellOutputId, HTMLCellId, findCellId } from "../ids";
-import { renderHook } from "@testing-library/react";
+import { expect, describe, it } from "vitest";
+import { CellId, HTMLCellId, findCellId } from "../ids";
 
 describe("CellId", () => {
-  test("create", () => {
+  it("create", () => {
     const cellId = CellId.create();
     expect(typeof cellId).toBe("string");
     expect(cellId.length).toBeGreaterThan(0);
@@ -12,20 +11,20 @@ describe("CellId", () => {
 });
 
 describe("HTMLCellId", () => {
-  test("create", () => {
+  it("create", () => {
     const cellId = CellId.create();
     const htmlCellId = HTMLCellId.create(cellId);
     expect(htmlCellId).toBe(`cell-${cellId}`);
   });
 
-  test("parse", () => {
+  it("parse", () => {
     const cellId = CellId.create();
     const htmlCellId = HTMLCellId.create(cellId);
     const parsedCellId = HTMLCellId.parse(htmlCellId);
     expect(parsedCellId).toBe(cellId);
   });
 
-  test("findElement", () => {
+  it("findElement", () => {
     document.body.innerHTML = `
       <div id="not-a-cell"></div>
       <div id="cell-${CellId.create()}">
@@ -40,78 +39,34 @@ describe("HTMLCellId", () => {
   });
 });
 
-describe("CellOutputId", () => {
-  test("create", () => {
+describe("findCellId", () => {
+  it("should find cell ID when element is inside a cell container", () => {
+    // Create a cell container with a known ID
     const cellId = CellId.create();
-    const cellOutputId = CellOutputId.create(cellId);
-    expect(cellOutputId).toBe(`output-${cellId}`);
-  });
-});
+    const container = document.createElement("div");
+    container.id = HTMLCellId.create(cellId);
 
-describe("useFindCellId", () => {
-  test("finds cell ID in normal DOM", () => {
-    const cellId = CellId.create();
-    const htmlCellId = HTMLCellId.create(cellId);
+    // Create a child element inside the container
+    const child = document.createElement("div");
+    container.append(child);
 
-    // Create a div with the cell ID
-    const div = document.createElement("div");
-    div.id = htmlCellId;
-    document.body.append(div);
-
-    // Create a ref to a child element
-    const childDiv = document.createElement("div");
-    div.append(childDiv);
-    const ref = { current: childDiv };
-
-    const { result } = renderHook(() => findCellId(ref));
-
-    // Hook should find the cell ID
-    expect(result.current).toBe(cellId);
-
-    // Cleanup
-    div.remove();
+    // Test finding the cell ID from the child element
+    expect(findCellId(child)).toBe(cellId);
   });
 
-  test("finds cell ID through shadow DOM", () => {
+  it("should find cell ID when element is the cell container itself", () => {
+    // Create a cell container with a known ID
     const cellId = CellId.create();
-    const htmlCellId = HTMLCellId.create(cellId);
+    const container = document.createElement("div");
+    container.id = HTMLCellId.create(cellId);
 
-    // Create a div with the cell ID
-    const div = document.createElement("div");
-    div.id = htmlCellId;
-    document.body.append(div);
-
-    // Create a shadow DOM with a child element
-    const shadow = div.attachShadow({ mode: "open" });
-    const shadowChild = document.createElement("div");
-    shadow.append(shadowChild);
-
-    // Create a ref to a deeply nested element
-    const nestedDiv = document.createElement("div");
-    shadowChild.append(nestedDiv);
-    const ref = { current: nestedDiv };
-
-    const { result } = renderHook(() => findCellId(ref));
-
-    // Hook should find the cell ID through shadow DOM
-    expect(result.current).toBe(cellId);
-
-    // Cleanup
-    div.remove();
+    // Test finding the cell ID from the container itself
+    expect(findCellId(container)).toBe(cellId);
   });
 
-  test("returns null when no cell ID is found", () => {
-    // Create a div without a cell ID
-    const div = document.createElement("div");
-    document.body.append(div);
-    const ref = { current: div };
-
-    const { result } = renderHook(() => findCellId(ref));
-
-    // Hook should return null when no cell ID is found
-    expect(result.current).toBeNull();
-
-    // Cleanup
-    div.remove();
+  it("should return null when element is not inside a cell container", () => {
+    // Create an element that's not inside any cell container
+    const element = document.createElement("div");
+    expect(findCellId(element)).toBeNull();
   });
 });

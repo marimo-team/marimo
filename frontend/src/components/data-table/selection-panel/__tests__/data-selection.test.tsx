@@ -125,7 +125,6 @@ describe("DataSelection", () => {
   ] as Array<Row<unknown>>;
 
   const mockClosePanel = vi.fn();
-  const mockSetIsOverlay = vi.fn();
 
   it("navigates between rows using navigation buttons", () => {
     renderWithProviders(
