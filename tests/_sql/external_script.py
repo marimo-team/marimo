@@ -25,12 +25,10 @@ with app.setup:
 @app.cell
 def script_hook_args(df1):
     _df = mo.sql(
-        f"""
+        """
         SELECT * FROM df1
         """,
-        tables={
-            "df1": df1
-        }
+        tables={"df1": df1},
     )
     return
 
@@ -38,12 +36,10 @@ def script_hook_args(df1):
 @app.cell
 def script_hook_no_args():
     _df = mo.sql(
-        f"""
+        """
         SELECT * FROM df
         """,
-        tables={
-            "df": df
-        }
+        tables={"df": df},
     )
     return
 

@@ -368,7 +368,10 @@ def test_sql_with_ibis_expression_result():
 def test_as_script():
     import pandas as pd
 
-    from tests._sql.external_script import script_hook_args, script_hook_no_args
+    from tests._sql.external_script import (
+        script_hook_args,
+        script_hook_no_args,
+    )
 
     # Should fail with type error since an argument expected
     with pytest.raises(TypeError):
