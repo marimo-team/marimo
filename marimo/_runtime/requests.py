@@ -120,10 +120,20 @@ class HTTPRequest(Mapping[str, Any]):
 
 
 @dataclass
+class PDBRequest:
+    cell_id: CellId_t
+    # incoming request, e.g. from Starlette or FastAPI
+    request: Optional[HTTPRequest] = None
+    timestamp: float = field(default_factory=time.time)
+
+    def __repr__(self) -> str:
+        return f"PDBRequest(cell={self.cell_id})"
+
+
+@dataclass
 class ExecutionRequest:
     cell_id: CellId_t
     code: str
-    debug: bool = False
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
     timestamp: float = field(default_factory=time.time)
@@ -343,21 +353,22 @@ class RefreshSecretsRequest:
 
 
 ControlRequest = Union[
+    CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
     ExecuteStaleRequest,
-    CreationRequest,
-    DeleteCellRequest,
     FunctionCallRequest,
+    InstallMissingPackagesRequest,
+    ListSecretKeysRequest,
+    PDBRequest,
+    PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
+    PreviewSQLTableRequest,
+    RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
-    SetUserConfigRequest,
     SetUIElementValueRequest,
+    SetUserConfigRequest,
     StopRequest,
-    InstallMissingPackagesRequest,
-    PreviewDatasetColumnRequest,
-    PreviewSQLTableRequest,
-    PreviewSQLTableListRequest,
-    ListSecretKeysRequest,
-    RefreshSecretsRequest,
 ]

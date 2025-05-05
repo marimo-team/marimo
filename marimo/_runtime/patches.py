@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
 
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -26,6 +27,9 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
     # Patch Pdb so manually instantiated debuggers create our debugger
     pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
     pdb.set_trace = functools.partial(marimo_pdb.set_trace, debugger=debugger)
+
+    # Used on failure for step through
+    pdb.post_mortem = marimo_pdb.post_mortem
 
 
 def patch_webbrowser() -> None:
@@ -72,13 +76,12 @@ def patch_micropip(glbls: dict[Any, Any]) -> None:
     definitions = textwrap.dedent(
         """\
 from importlib.abc import Loader, MetaPathFinder
+from importlib.util import spec_from_loader
 
 class _MicropipFinder(MetaPathFinder):
 
 
     def find_spec(self, fullname, path, target=None):
-        from importlib.util import spec_from_loader
-
         if fullname == 'micropip':
             return spec_from_loader(fullname, _MicropipLoader())
         return None

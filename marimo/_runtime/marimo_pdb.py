@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import sys
+import pdb
 from pdb import Pdb
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +12,7 @@ from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
     from types import FrameType
+    from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
@@ -38,12 +40,25 @@ class MarimoPdb(Pdb):
         # it anyway -- stdin is fine too ...
         self.use_rawinput = stdin is None
 
+        # Some custom attributes to hold on to exception data from cell
+        # evaluation.
+        self._last_tracebacks: dict[CellId_t, "Traceback"] = {}
+        self._last_traceback: Optional["Traceback"] = None
+
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
+
+    def post_mortem_by_cell_id(self, cell_id: CellId_t):
+        return self.post_mortem(t=self._last_tracebacks.get(cell_id))
+
+    def post_mortem(self, t: "Traceback" = None):
+        if t is None:
+            t = self._last_traceback
+        return pdb._post_mortem(t, self)
 
 
 def set_trace(

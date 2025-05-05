@@ -117,6 +117,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     ListSecretKeysRequest,
+    PDBRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
@@ -1512,6 +1513,20 @@ class Kernel:
 
         await _run_with_uninstantiated_requests(filtered_requests)
 
+    @kernel_tracer.start_as_current_span("pdb_request")
+    def pdb_request(self, cell_id: CellId_t) -> None:
+        if (
+            self.debugger is None
+            or cell_id not in self.debugger._last_tracebacks
+            or cell_id not in self.graph.cells
+        ):
+            return
+
+        with self._install_execution_context(cell_id):
+            self.debugger.post_mortem_by_cell_id(cell_id)
+            # entry = compile('__import__("pbd").pm()', filename, 'single')
+            # eval(entry, self.globals)
+
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
@@ -1984,6 +1999,9 @@ class Kernel:
                 await self.set_ui_element_value(request)
             CompletedRun().broadcast()
 
+        async def handle_pdb_request(request: PDBRequest) -> None:
+            await self.pdb_request(request.cell_id)
+
         async def handle_rename(request: RenameRequest) -> None:
             await self.rename_file(request.filename)
 
@@ -2012,18 +2030,19 @@ class Kernel:
             return None
 
         handler.register(CreationRequest, handle_instantiate)
+        handler.register(DeleteCellRequest, self.delete_cell)
         handler.register(ExecuteMultipleRequest, handle_execute_multiple)
         handler.register(ExecuteScratchpadRequest, handle_execute_scratchpad)
         handler.register(ExecuteStaleRequest, handle_execute_stale)
-        handler.register(RenameRequest, handle_rename)
-        handler.register(SetCellConfigRequest, self.set_cell_config)
-        handler.register(SetUserConfigRequest, handle_set_user_config)
-        handler.register(SetUIElementValueRequest, handle_set_ui_element_value)
         handler.register(FunctionCallRequest, handle_function_call)
-        handler.register(DeleteCellRequest, self.delete_cell)
         handler.register(
             InstallMissingPackagesRequest, handle_install_missing_packages
         )
+        handler.register(PDBRequest, handle_rename)
+        handler.register(RenameRequest, handle_rename)
+        handler.register(SetCellConfigRequest, self.set_cell_config)
+        handler.register(SetUIElementValueRequest, handle_set_ui_element_value)
+        handler.register(SetUserConfigRequest, handle_set_user_config)
         handler.register(StopRequest, handle_stop)
         # Datasets
         handler.register(
