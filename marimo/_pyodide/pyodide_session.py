@@ -5,6 +5,7 @@ import asyncio
 import base64
 import dataclasses
 import json
+import re
 import signal
 from pathlib import Path
 from typing import Callable
@@ -168,12 +169,7 @@ class PyodideSession:
 
             def strip_version(dep: str) -> str:
                 try:
-                    return (
-                        dep.split("==")[0]
-                        .split(">=")[0]
-                        .split("<=")[0]
-                        .split("~=")[0]
-                    )
+                    return re.split(r"==|>=|<=|~=", dep)[0]
                 except Exception:
                     return dep
 
