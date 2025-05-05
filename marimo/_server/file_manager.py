@@ -151,7 +151,9 @@ class AppFileManager:
             # reparsing it. Also would allow for md equivalent in a field like
             # `description`.
             if type_changed:
-                from marimo._cli.sandbox import get_headers_from_markdown
+                from marimo._utils.inline_script_metadata import (
+                    get_headers_from_markdown,
+                )
 
                 with open(filename, encoding="utf-8") as f:
                     markdown = f.read()

@@ -200,8 +200,9 @@ class DependencyManager:
     vl_convert_python = Dependency("vl_convert")
     dotenv = Dependency("dotenv")
     docstring_to_markdown = Dependency(
-        "docstring_to_markdown", min_version="0.16.0"
+        "docstring_to_markdown", min_version="0.17.0"
     )
+    tomlkit = Dependency("tomlkit")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
