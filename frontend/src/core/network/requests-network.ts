@@ -184,6 +184,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     getUsageStats: () => {
       return marimoClient.GET("/api/usage").then(handleResponse);
     },
+    sendPdb: (request) => {
+      return marimoClient
+        .POST("/api/kernel/pdb/pm", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     sendListFiles: (request) => {
       return marimoClient
         .POST("/api/files/list_files", {

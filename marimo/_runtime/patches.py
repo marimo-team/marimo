@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Callable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
 
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -29,7 +28,7 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
     pdb.set_trace = functools.partial(marimo_pdb.set_trace, debugger=debugger)
 
     # Used on failure for step through
-    pdb.post_mortem = marimo_pdb.post_mortem
+    pdb.post_mortem = debugger.post_mortem
 
 
 def patch_webbrowser() -> None:

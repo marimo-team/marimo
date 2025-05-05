@@ -53,6 +53,7 @@ export const {
   previewSQLTableList,
   openFile,
   getUsageStats,
+  sendPdb,
   sendListFiles,
   sendCreateFileOrFolder,
   sendDeleteFileOrFolder,

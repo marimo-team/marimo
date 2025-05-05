@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 import asyncio
 from typing import Any, Callable, Optional
 

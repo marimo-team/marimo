@@ -43,6 +43,8 @@ import { Kbd } from "@/components/ui/kbd";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { getCellEditorView } from "@/core/cells/cells";
 
+import { sendPdb } from "@/core/network/requests";
+
 interface Props {
   cellId: CellId | undefined;
   traceback: string;
@@ -69,7 +71,7 @@ export const MarimoTracebackOutput = ({
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   // Get last traceback info
-  const lastTracebackInfo = extractAllTracebackInfo(traceback)?.at(-1);
+  const lastTracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
 
   const handleRefactorWithAI = () => {
     onRefactorWithAI?.({
@@ -115,14 +117,11 @@ export const MarimoTracebackOutput = ({
             size="xs"
             variant="outline"
             onClick={() => {
-              const view = getCellEditorView(lastTracebackInfo.cellId);
-              if (view) {
-                insertDebuggerAtLine(view, lastTracebackInfo.lineNumber);
-              }
+              sendPdb({ cellId: lastTracebackInfo.cellId });
             }}
           >
             <BugPlayIcon className="h-3 w-3 mr-2" />
-            Insert breakpoint
+            Hook debugger
           </Button>
         )}
         <DropdownMenu>

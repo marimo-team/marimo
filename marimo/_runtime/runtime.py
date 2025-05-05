@@ -117,7 +117,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     ListSecretKeysRequest,
-    PDBRequest,
+    PdbRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
@@ -1514,7 +1514,7 @@ class Kernel:
         await _run_with_uninstantiated_requests(filtered_requests)
 
     @kernel_tracer.start_as_current_span("pdb_request")
-    def pdb_request(self, cell_id: CellId_t) -> None:
+    async def pdb_request(self, cell_id: CellId_t) -> None:
         if (
             self.debugger is None
             or cell_id not in self.debugger._last_tracebacks
@@ -1999,7 +1999,7 @@ class Kernel:
                 await self.set_ui_element_value(request)
             CompletedRun().broadcast()
 
-        async def handle_pdb_request(request: PDBRequest) -> None:
+        async def handle_pdb_request(request: PdbRequest) -> None:
             await self.pdb_request(request.cell_id)
 
         async def handle_rename(request: RenameRequest) -> None:
@@ -2038,7 +2038,7 @@ class Kernel:
         handler.register(
             InstallMissingPackagesRequest, handle_install_missing_packages
         )
-        handler.register(PDBRequest, handle_rename)
+        handler.register(PdbRequest, handle_pdb_request)
         handler.register(RenameRequest, handle_rename)
         handler.register(SetCellConfigRequest, self.set_cell_config)
         handler.register(SetUIElementValueRequest, handle_set_ui_element_value)
