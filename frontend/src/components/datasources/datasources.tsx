@@ -8,6 +8,7 @@ import {
   XIcon,
   Table2Icon,
   EyeIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
@@ -248,6 +249,15 @@ const Engine: React.FC<{
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>
+        <Tooltip content="Refresh connection">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto hover:bg-slate-100"
+          >
+            <RefreshCwIcon className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </Tooltip>
       </DatasourceLabel>
       {hasChildren ? (
         children
