@@ -200,7 +200,7 @@ const DataSelection = ({
             placeholder="Search"
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<SearchIcon className="w-4 h-4" />}
-            className="rounded-lg"
+            className="mb-0 border-border"
             data-testid="selection-panel-search-input"
           />
         </div>

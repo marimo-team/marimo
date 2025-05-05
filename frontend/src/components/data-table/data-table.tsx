@@ -38,7 +38,7 @@ import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
 import { CopyColumnFeature } from "./copy-column/feature";
 import type { CellId } from "@/core/cells/ids";
-import { DataSelectionItem } from "../editor/chrome/panels/data-selection";
+import { DataSelectionItem } from "../editor/chrome/panels/selection-panel";
 import { DataSelectionPanel } from "./selection-panel/data-selection";
 import { useAtom } from "jotai";
 import { isCurrentlyFocusedCellAtom } from "./selection-panel/panel-atoms";

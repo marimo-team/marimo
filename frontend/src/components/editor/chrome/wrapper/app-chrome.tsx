@@ -32,7 +32,7 @@ import { ChatPanel } from "@/components/chat/chat-panel";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { TracingPanel } from "../panels/tracing-panel";
 import { SecretsPanel } from "../panels/secrets-panel";
-import { DataSelectionPanelSlot } from "../panels/data-selection";
+import { DataSelectionPanelSlot } from "../panels/selection-panel";
 import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
