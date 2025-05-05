@@ -14,11 +14,13 @@ import {
   CheckCircle2Icon,
   CpuIcon,
   MemoryStickIcon,
+  MicrochipIcon,
   PowerOffIcon,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { AIStatusIcon, CopilotStatusIcon } from "./copilot-status";
+import { cn } from "@/utils/cn";
 
 export const MachineStats: React.FC = (props) => {
   const [nonce, setNonce] = useState(0);
@@ -41,6 +43,7 @@ export const MachineStats: React.FC = (props) => {
 
   return (
     <div className="flex gap-2 items-center">
+      {data?.gpu && data.gpu.length > 0 && <GPUBar gpus={data.gpu} />}
       {data && (
         <MemoryUsageBar
           memory={data.memory}
@@ -110,7 +113,7 @@ const MemoryUsageBar: React.FC<{
     >
       <div className="flex items-center gap-1">
         <MemoryStickIcon className="w-4 h-4" />
-        <Bar percent={roundedPercent} />
+        <Bar percent={roundedPercent} colorClassName="bg-primary" />
       </div>
     </Tooltip>
   );
@@ -130,16 +133,63 @@ const CPUBar: React.FC<{ cpu: UsageResponse["cpu"] }> = ({ cpu }) => {
     >
       <div className="flex items-center gap-1">
         <CpuIcon className="w-4 h-4" />
-        <Bar percent={roundedPercent} />
+        <Bar percent={roundedPercent} colorClassName="bg-primary" />
       </div>
     </Tooltip>
   );
 };
 
-const Bar: React.FC<{ percent: number }> = ({ percent }) => {
+interface GPU {
+  index: number;
+  name: string;
+  memory: {
+    used: number;
+    total: number;
+    percent: number;
+  };
+}
+
+const GPUBar: React.FC<{ gpus: GPU[] }> = ({ gpus }) => {
+  const avgPercent = Math.round(
+    gpus.reduce((sum: number, gpu: GPU) => sum + gpu.memory.percent, 0) /
+      gpus.length,
+  );
+
+  return (
+    <Tooltip
+      delayDuration={200}
+      content={
+        <div className="flex flex-col gap-1">
+          {gpus.map((gpu) => (
+            <span key={gpu.index}>
+              <b>
+                GPU {gpu.index} ({gpu.name}):
+              </b>{" "}
+              {asGBorMB(gpu.memory.used)} / {asGBorMB(gpu.memory.total)} GB (
+              {Math.round(gpu.memory.percent)}%)
+            </span>
+          ))}
+        </div>
+      }
+    >
+      <div className="flex items-center gap-1">
+        <MicrochipIcon className="w-4 h-4" />
+        <Bar percent={avgPercent} colorClassName="bg-[var(--grass-9)]" />
+      </div>
+    </Tooltip>
+  );
+};
+
+const Bar: React.FC<{ percent: number; colorClassName?: string }> = ({
+  percent,
+  colorClassName,
+}) => {
   return (
     <div className="h-3 w-20 bg-[var(--slate-4)] rounded-lg overflow-hidden border">
-      <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+      <div
+        className={cn("h-full bg-primary", colorClassName)}
+        style={{ width: `${percent}%` }}
+      />
     </div>
   );
 };

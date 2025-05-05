@@ -7,26 +7,24 @@ import { getResolvedMarimoConfig } from "./config";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
-  lsp: boolean;
   markdown: boolean;
   inline_ai_tooltip: boolean;
   wasm_layouts: boolean;
   scratchpad: boolean;
   rtc_v2: boolean;
   reactive_tests: boolean;
-  setup_cell: boolean;
+  table_charts: boolean;
   // Add new feature flags here
 }
 
 const defaultValues: ExperimentalFeatures = {
-  lsp: import.meta.env.DEV,
   markdown: true,
   inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   scratchpad: true,
   rtc_v2: false,
   reactive_tests: false,
-  setup_cell: false,
+  table_charts: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

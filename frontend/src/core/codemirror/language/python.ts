@@ -31,9 +31,8 @@ import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
 import { once } from "@/utils/once";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { autocompletion } from "@codemirror/autocomplete";
-import { completer } from "../completion/completer";
+import { pythonCompletionSource } from "../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { Paths } from "@/utils/paths";
 import type { CellId } from "@/core/cells/ids";
@@ -41,6 +40,7 @@ import { cellActionsState } from "../cells/state";
 import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { CellDocumentUri } from "../lsp/types";
+import { hasCapability } from "@/core/config/capabilities";
 
 const pylspTransport = once(() => {
   const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
@@ -78,7 +78,18 @@ const lspClient = once((lspConfig: LSPConfig) => {
           enabled: true,
         },
         jedi: {
-          auto_import_modules: ["marimo", "numpy"],
+          // Modules which should be imported and use compile-time, rather
+          // than static analysis; this is a trade-off between being able
+          // to access more information set on runtime (e.g. via setattr)
+          // vs being able to read the information from the source code
+          // (e.g. comments with documentation for attributes).
+          auto_import_modules: ["numpy"],
+        },
+        jedi_completion: {
+          // Ensure that parameters are included for completion snippets.
+          include_params: true,
+          // Include snippets and signatures it at most 50 suggestions.
+          resolve_at_most: 50,
         },
         flake8: {
           enabled: config?.enable_flake8,
@@ -144,12 +155,15 @@ export class PythonLanguageAdapter implements LanguageAdapter {
   getExtension(
     cellId: CellId,
     completionConfig: CompletionConfig,
-    _hotkeys: HotkeyProvider,
+    hotkeys: HotkeyProvider,
     placeholderType: PlaceholderType,
     lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
     const getCompletionsExtension = () => {
       const autocompleteOptions = {
+        // We remove the default keymap because we use our own which
+        // handles the Escape key correctly in Vim
+        defaultKeymap: false,
         // Whether or not to require keypress to activate autocompletion (default
         // keymap is Ctrl+Space)
         activateOnTyping: completionConfig.activate_on_typing,
@@ -165,7 +179,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
         hideOnChange: true,
       };
 
-      if (getFeatureFlag("lsp") && lspConfig?.pylsp?.enabled) {
+      if (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) {
         const client = lspClient(lspConfig);
         return [
           languageServerWithClient({
@@ -176,9 +190,17 @@ export class PythonLanguageAdapter implements LanguageAdapter {
             completionConfig: autocompleteOptions,
             // Default to false
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
+            sendIncrementalChanges: false,
+            signatureHelpEnabled: true,
+            signatureActivateOnTyping: false,
+            keyboardShortcuts: {
+              signatureHelp: hotkeys.getHotkey("cell.signatureHelp").key,
+              goToDefinition: hotkeys.getHotkey("cell.goToDefinition").key,
+              rename: hotkeys.getHotkey("cell.renameSymbol").key,
+            },
             // Match completions before the cursor is at the end of a word,
             // after a dot, after a slash, after a comma.
-            completionMatchBefore: /(\w+|\w+\.|\/|,)$/,
+            completionMatchBefore: /(\w+|\w+\.|\(|\/|,)$/,
             onGoToDefinition: (result) => {
               Logger.debug("onGoToDefinition", result);
               if (client.documentUri === result.uri) {
@@ -197,7 +219,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
 
       return autocompletion({
         ...autocompleteOptions,
-        override: [completer],
+        override: [pythonCompletionSource],
       });
     };
 

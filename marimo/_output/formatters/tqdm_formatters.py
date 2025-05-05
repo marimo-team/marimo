@@ -26,9 +26,50 @@ class ProgressBarTqdmPatch(progress_bar):
 
         super().__init__(
             collection=iterable,
-            title=desc or "Loading...",
+            title=desc or "",
             total=total,
         )
+
+    def update(self, n: int = 1) -> None:
+        """Update the progress bar by incrementing it by n.
+
+        Args:
+            n (int, optional): Number of iterations to increment by. Defaults to 1.
+        """
+        if hasattr(self, "progress") and self.progress is not None:
+            self.progress.update(increment=n)
+
+    def close(self) -> None:
+        """Close the progress bar and clean up.
+
+        This method is called when the progress bar is no longer needed.
+        In tqdm, this method also handles styling based on completion status.
+        """
+        if hasattr(self, "progress") and self.progress is not None:
+            self.progress.clear()
+            self.progress.close()
+
+    @classmethod
+    def write(cls, s: str, file: Any = None, end: str = "\n") -> None:
+        """Print a message via tqdm (without overlap with bars).
+
+        Args:
+            s (str): The message to print
+            file: The file to write to (defaults to sys.stdout)
+            end (str): The end character to use (defaults to newline)
+        """
+        import sys
+
+        fp: Any = file if file is not None else sys.stdout
+        # In marimo, we don't need special handling to avoid overlapping with bars
+        # as the output is handled differently than in terminal environments
+        fp.write(s)
+        fp.write(end)
+
+
+class ProgressBarTrangePatch(ProgressBarTqdmPatch):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(range(*args), **kwargs)
 
 
 class TqdmFormatter(FormatterFactory):
@@ -38,6 +79,8 @@ class TqdmFormatter(FormatterFactory):
 
     def register(self) -> None:
         if running_in_notebook():
+            # Import tqdm.notebook for notebook-specific progress bar implementation
             import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
 
             tqdm.notebook.tqdm = ProgressBarTqdmPatch
+            tqdm.notebook.trange = ProgressBarTrangePatch

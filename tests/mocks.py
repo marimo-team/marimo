@@ -76,7 +76,7 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
                 )
             )
 
-            if text_diff:
+            if text_diff != "":
                 write_result()
                 print("Snapshot updated")
 

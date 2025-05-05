@@ -81,7 +81,6 @@ export const TableColumnSummary = <TData, TValue>({
               <span>min: {renderDate(summary.min, type)}</span>
               <span>max: {renderDate(summary.max, type)}</span>
               <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
           );
         }
@@ -103,41 +102,22 @@ export const TableColumnSummary = <TData, TValue>({
               <span>
                 min:{" "}
                 {typeof summary.min === "number"
-                  ? prettyScientificNumber(summary.min)
+                  ? prettyScientificNumber(summary.min, { shouldRound: true })
                   : summary.min}
               </span>
               <span>
                 max:{" "}
                 {typeof summary.max === "number"
-                  ? prettyScientificNumber(summary.max)
+                  ? prettyScientificNumber(summary.max, { shouldRound: true })
                   : summary.max}
               </span>
               <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
             </div>
           );
         }
 
-        if (
-          typeof summary.min === "number" &&
-          typeof summary.max === "number"
-        ) {
-          return (
-            <div className="flex justify-between w-full px-2 whitespace-pre">
-              <span>{prettyScientificNumber(summary.min)}</span>
-              {summary.min === summary.max ? null : (
-                <span>{prettyScientificNumber(summary.max)}</span>
-              )}
-            </div>
-          );
-        }
-
-        return (
-          <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{summary.min}</span>
-            <span>{summary.max}</span>
-          </div>
-        );
+        // Numerical bar charts use built-in vega axis and ticks
+        return null;
       case "boolean":
         // Without a chart
         if (!spec) {
@@ -149,22 +129,13 @@ export const TableColumnSummary = <TData, TValue>({
           );
         }
 
-        if (summary.nulls == null || summary.nulls === 0) {
-          return null;
-        }
-
-        return (
-          <div className="flex flex-col whitespace-pre">
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
-          </div>
-        );
+        return null;
       case "time":
         return null;
       case "string":
         return (
           <div className="flex flex-col whitespace-pre">
             <span>unique: {prettyNumber(summary.unique)}</span>
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
       case "unknown":

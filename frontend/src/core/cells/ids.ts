@@ -47,6 +47,32 @@ export const HTMLCellId = {
   findElement(element: Element): (Element & { id: HTMLCellId }) | null {
     return element.closest('div[id^="cell-"]');
   },
+
+  /**
+   * Find the cell element through shadow DOMs.
+   */
+  findElementThroughShadowDOMs(
+    element: Element,
+  ): (Element & { id: HTMLCellId }) | null {
+    let currentElement: Element | null = element;
+
+    while (currentElement) {
+      const cellElement = HTMLCellId.findElement(currentElement);
+      if (cellElement) {
+        return cellElement;
+      }
+
+      const root = currentElement.getRootNode();
+      currentElement =
+        root instanceof ShadowRoot ? root.host : currentElement.parentElement;
+
+      if (currentElement === root) {
+        break;
+      }
+    }
+
+    return null;
+  },
 };
 
 /**

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { EditorState } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
+import type { EditorState, Transaction } from "@codemirror/state";
+import type { EditorView, ViewUpdate } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 
 export function isAtStartOfEditor(ev: { state: EditorState }) {
@@ -59,4 +59,41 @@ export function selectAllText(ev: EditorView | undefined) {
       head: ev.state.doc.length,
     },
   });
+}
+
+/**
+ * Checks if a transaction contains changes that add or remove line breaks.
+ *
+ * @param tr The CodeMirror transaction to check
+ * @returns True if the transaction adds or removes line breaks, false otherwise
+ */
+export function hasNewLines(tr: Transaction | ViewUpdate): boolean {
+  // If there are no changes in the transaction, return false
+  if (!tr.docChanged) {
+    return false;
+  }
+
+  let hasNewLines = false;
+  // Iterate through all changes in the transaction
+  tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+    // Check if the inserted text contains line breaks
+    if (inserted.toString().includes("\n")) {
+      hasNewLines = true;
+    }
+
+    // Count the number of line breaks in the deleted range
+    const deletedText = tr.startState.doc.sliceString(fromA, toA);
+    if (deletedText.includes("\n")) {
+      hasNewLines = true;
+    }
+
+    // Another approach: check if the change spans multiple lines
+    const fromLine = tr.startState.doc.lineAt(fromA).number;
+    const toLine = tr.startState.doc.lineAt(toA).number;
+    if (fromLine !== toLine) {
+      hasNewLines = true;
+    }
+  });
+
+  return hasNewLines;
 }

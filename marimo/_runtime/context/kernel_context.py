@@ -81,6 +81,11 @@ class KernelRuntimeContext(RuntimeContext):
         return self._kernel.cli_args
 
     @property
+    def argv(self) -> list[str]:
+        """The original argv the kernel was created with."""
+        return self._kernel.argv
+
+    @property
     def query_params(self) -> QueryParams:
         """Get the query params."""
         return self._kernel.query_params
@@ -166,6 +171,7 @@ def create_kernel_context(
         children=[],
         parent=parent,
         filename=kernel.app_metadata.filename,
+        app_config=kernel.app_metadata.app_config,
     )
 
 

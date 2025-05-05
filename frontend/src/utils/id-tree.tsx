@@ -3,6 +3,7 @@
 import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
 import { Memoize } from "typescript-memoize";
 import { Logger } from "./Logger";
+import { reorderColumnSizes } from "@/components/editor/columns/storage";
 
 /**
  * Branded number to help with type safety
@@ -283,6 +284,64 @@ export class CollapsibleTree<T> {
   }
 
   /**
+   * Collapse all nodes in the tree, including nested ones
+   *
+   * Only works for the top-level nodes
+   * Does not collapse the children of already collapsed nodes
+   */
+  collapseAll(
+    collapseRanges: ({ id: T; until: T | undefined } | null)[],
+  ): CollapsibleTree<T> {
+    const nodes = [...this.nodes];
+    if (collapseRanges.length === 0) {
+      throw new Error("No collapse ranges provided");
+    }
+
+    if (collapseRanges.length !== nodes.length) {
+      throw new Error(
+        `Collapse ranges length ${collapseRanges.length} does not match tree length ${nodes.length}`,
+      );
+    }
+
+    // Start from the end of the list and collapse nodes children first
+    let nodeIndex = nodes.length - 1;
+    while (nodeIndex >= 0) {
+      const node = nodes[nodeIndex];
+      const range = collapseRanges[nodeIndex];
+
+      if (!node.isCollapsed && range) {
+        const { id, until } = range;
+        if (id !== node.value) {
+          throw new Error(
+            `Node ${node.value} does not match collapse range id ${id}`,
+          );
+        }
+        const untilIndex =
+          until === undefined
+            ? nodes.length
+            : nodes.findIndex((n) => n.value === until);
+
+        if (untilIndex === -1) {
+          throw new Error(`Node ${until} not found in tree`);
+        }
+        if (untilIndex < nodeIndex) {
+          throw new Error(`Node ${until} is before node ${id}`);
+        }
+
+        // Fold the next nodes into the current node
+        const children = nodes.splice(nodeIndex + 1, untilIndex - nodeIndex);
+        nodes[nodeIndex] = new TreeNode(node.value, true, children);
+        nodeIndex--;
+      } else {
+        // Move to the next node
+        nodeIndex--;
+      }
+    }
+
+    return this.withNodes(nodes);
+  }
+
+  /**
    * Expand a node and all of its children
    */
   expand(id: T): CollapsibleTree<T> {
@@ -301,6 +360,30 @@ export class CollapsibleTree<T> {
 
     nodes[nodeIndex] = new TreeNode(node.value, false, []);
     nodes = arrayInsertMany(nodes, nodeIndex + 1, node.children);
+
+    return this.withNodes(nodes);
+  }
+
+  /**
+   * Expand all collapsed nodes in the tree, including nested ones
+   */
+  expandAll(): CollapsibleTree<T> {
+    let nodes = [...this.nodes];
+    let nodeIndex = 0;
+
+    while (nodeIndex < nodes.length) {
+      const node = nodes[nodeIndex];
+      if (node.isCollapsed) {
+        // Replace the collapsed node with an expanded one
+        nodes[nodeIndex] = new TreeNode(node.value, false, []);
+        // Add the children of the collapsed node to the list
+        nodes = arrayInsertMany(nodes, nodeIndex + 1, node.children);
+        nodeIndex++;
+      } else {
+        // Move to the next node
+        nodeIndex++;
+      }
+    }
 
     return this.withNodes(nodes);
   }
@@ -760,17 +843,14 @@ export class MultiColumn<T> {
       return this;
     }
     const fromIdx = this.indexOfOrThrow(fromCol);
-    if (toCol === "_left_") {
-      return new MultiColumn(
-        arrayMove([...this.columns], fromIdx, fromIdx - 1),
-      );
-    }
-    if (toCol === "_right_") {
-      return new MultiColumn(
-        arrayMove([...this.columns], fromIdx, fromIdx + 1),
-      );
-    }
-    const toIdx = this.indexOfOrThrow(toCol);
+    const toIdx =
+      toCol === "_left_"
+        ? fromIdx - 1
+        : toCol === "_right_"
+          ? fromIdx + 1
+          : this.indexOfOrThrow(toCol);
+
+    reorderColumnSizes(fromIdx, toIdx);
     return new MultiColumn(arrayMove([...this.columns], fromIdx, toIdx));
   }
 
@@ -883,6 +963,33 @@ export class MultiColumn<T> {
       }
       return c;
     });
+
+    return new MultiColumn(newColumns);
+  }
+
+  /**
+   * Apply a transformation function to all columns
+   * @param fn The function to transform each column
+   * @returns A new MultiColumn if any changes were made, otherwise this
+   */
+  transformAll(
+    fn: (tree: CollapsibleTree<T>) => CollapsibleTree<T>,
+  ): MultiColumn<T> {
+    let didChange = false;
+
+    // Apply the transformation to all columns
+    const newColumns = this.columns.map((column) => {
+      const newColumn = fn(column);
+      if (!column.equals(newColumn)) {
+        didChange = true;
+      }
+      return newColumn;
+    });
+
+    // Avoid unnecessary re-renders if nothing changed
+    if (!didChange) {
+      return this;
+    }
 
     return new MultiColumn(newColumns);
   }

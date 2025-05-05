@@ -65,6 +65,10 @@ export class ColumnChartSpecModel<T> {
     this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
   }
 
+  public getColumnSummary(column: string) {
+    return this.columnSummaries.get(column);
+  }
+
   public getHeaderSummary(column: string) {
     return {
       summary: this.columnSummaries.get(column),
@@ -77,7 +81,7 @@ export class ColumnChartSpecModel<T> {
     if (!this.data) {
       return null;
     }
-    const base: Omit<TopLevelFacetedUnitSpec, "mark"> = {
+    const base = {
       data: this.dataSpec as TopLevelFacetedUnitSpec["data"],
       background: "transparent",
       config: {
@@ -105,100 +109,169 @@ export class ColumnChartSpecModel<T> {
     switch (type) {
       case "date":
       case "datetime":
-      case "time":
+      case "time": {
+        const format =
+          type === "date"
+            ? "%Y-%m-%d"
+            : type === "time"
+              ? "%H:%M:%S"
+              : "%Y-%m-%dT%H:%M:%S";
+
         return {
           ...base,
-          mark: {
-            type: "bar",
-            color: mint.mint11,
-          },
-          encoding: {
-            x: {
-              field: column,
-              type: "temporal",
-              axis: null,
-              bin: true,
-              scale: scale,
+          // Two layers: one with the visible bars, and one with invisible bars
+          // that provide a larger tooltip area.
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+          layer: [
+            {
+              mark: {
+                type: "bar",
+                color: mint.mint11,
+              },
+              encoding: {
+                x: {
+                  field: column,
+                  type: "temporal",
+                  axis: null,
+                  bin: true,
+                  scale: scale,
+                },
+                y: { aggregate: "count", type: "quantitative", axis: null },
+                // Color nulls
+                color: {
+                  condition: {
+                    test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
+                    value: orange.orange11,
+                  },
+                  value: mint.mint11,
+                },
+              },
             },
-            y: { aggregate: "count", type: "quantitative", axis: null },
-            tooltip: [
-              {
-                field: column,
-                type: "temporal",
-                format:
-                  type === "date"
-                    ? "%Y-%m-%d"
-                    : type === "time"
-                      ? "%H:%M:%S"
-                      : "%Y-%m-%dT%H:%M:%S",
-                bin: true,
-                title: column,
+
+            // 0 opacity full-height bars with tooltips, since it is too hard to trigger
+            // the tooltip for very small bars.
+            {
+              mark: {
+                type: "bar",
+                opacity: 0,
               },
-              {
-                aggregate: "count",
-                type: "quantitative",
-                title: "Count",
-                format: ",d",
+              encoding: {
+                x: {
+                  field: column,
+                  type: "temporal",
+                  axis: null,
+                  bin: true,
+                  scale: scale,
+                },
+                y: { aggregate: "max", type: "quantitative", axis: null },
+                tooltip: [
+                  {
+                    // Can also use column, but this is more explicit
+                    field: `bin_maxbins_10_${column}`,
+                    type: "temporal",
+                    format: format,
+                    bin: { binned: true },
+                    title: `${column} (start)`,
+                  },
+                  {
+                    field: `bin_maxbins_10_${column}_end`,
+                    type: "temporal",
+                    format: format,
+                    bin: { binned: true },
+                    title: `${column} (end)`,
+                  },
+                  {
+                    aggregate: "count",
+                    type: "quantitative",
+                    title: "Count",
+                    format: ",d",
+                  },
+                ],
+                // Color nulls
+                color: {
+                  condition: {
+                    test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
+                    value: orange.orange11,
+                  },
+                  value: mint.mint11,
+                },
               },
-            ],
-            // Color nulls
-            color: {
-              condition: {
-                test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
-                value: orange.orange11,
-              },
-              value: mint.mint11,
             },
-          },
+          ],
         };
+      }
       case "integer":
       case "number": {
+        // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
+
         return {
-          ...base,
-          mark: {
-            type: "bar",
-            color: mint.mint11,
-            align: "right",
-          },
-          encoding: {
-            x: {
-              field: column,
-              // nominal to support a null bin
-              type: "nominal",
-              axis: null,
-              bin: true,
-            },
-            y: {
-              aggregate: "count",
-              type: "quantitative",
-              axis: null,
-              scale: { type: "linear" },
-            },
-            tooltip: [
-              {
-                field: column,
-                type: "nominal",
-                format: format,
-                bin: true,
-                title: column,
+          ...base, // Assuming base contains shared configurations
+          // Two layers: one with the visible bars, and one with invisible bars
+          // that provide a larger tooltip area.
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+          layer: [
+            {
+              mark: {
+                type: "bar",
+                color: mint.mint11,
               },
-              {
-                aggregate: "count",
-                type: "quantitative",
-                title: "Count",
-                format: ",d",
+              encoding: {
+                x: {
+                  field: column,
+                  type: "quantitative",
+                  bin: true,
+                },
+                y: {
+                  aggregate: "count",
+                  type: "quantitative",
+                  axis: null,
+                },
               },
-            ],
-            // Color nulls
-            color: {
-              condition: {
-                test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
-                value: orange.orange11,
-              },
-              value: mint.mint11,
             },
-          },
+
+            // Tooltip layer
+            {
+              mark: {
+                type: "bar",
+                opacity: 0,
+              },
+              encoding: {
+                x: {
+                  field: column,
+                  type: "quantitative",
+                  bin: true,
+                  axis: {
+                    title: null,
+                    labelFontSize: 8.5,
+                    labelOpacity: 0.5,
+                    labelExpr:
+                      "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+                  },
+                },
+                y: {
+                  aggregate: "max",
+                  type: "quantitative",
+                  axis: null,
+                },
+                tooltip: [
+                  {
+                    field: column,
+                    type: "quantitative",
+                    bin: true,
+                    title: column,
+                    format: format,
+                  },
+                  {
+                    aggregate: "count",
+                    type: "quantitative",
+                    title: "Count",
+                    format: ",d",
+                  },
+                ],
+              },
+            },
+          ],
         };
       }
       case "boolean":

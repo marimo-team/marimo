@@ -90,6 +90,30 @@ class OpenAIFormatter(FormatterFactory):
             return plain_text.plain_text(repr(response))._mime_()
 
 
+class TransformersFormatter(FormatterFactory):
+    @staticmethod
+    def package_name() -> str:
+        return "transformers"
+
+    def register(self) -> None:
+        from transformers import TextIteratorStreamer  # type: ignore
+
+        from marimo._output import formatting
+
+        @formatting.formatter(TextIteratorStreamer)
+        def _show_text_iterator_streamer(
+            streamer: TextIteratorStreamer,
+        ) -> tuple[KnownMimeType, str]:
+            total_text: str = ""
+            for text in streamer:
+                if isinstance(text, str):
+                    total_text += text
+                    output.replace(
+                        md.md(_ensure_closing_code_fence(total_text))
+                    )
+            return md.md(total_text)._mime_()
+
+
 def _ensure_closing_code_fence(text: str) -> str:
     """Ensure text has an even number of code fences
 

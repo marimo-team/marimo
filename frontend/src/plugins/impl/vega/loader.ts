@@ -5,8 +5,7 @@ import { typeParsers, read, type DataType } from "./vega-loader";
 import { Objects } from "@/utils/objects";
 import { Logger } from "@/utils/Logger";
 import { tableFromIPC } from "@uwdata/flechette";
-import { batch } from "@/utils/batch-requests";
-import { createBatchedLoader } from "./batched";
+import { batchedArrowLoader, createBatchedLoader } from "./batched";
 
 type Unsubscribe = () => void;
 type Middleware = () => Unsubscribe;
@@ -125,14 +124,6 @@ const customBooleanParser = (v: string) => {
 typeParsers.boolean = customBooleanParser;
 
 export const vegaLoader = createBatchedLoader();
-
-/**
- * Batch requests to the same URL returning the same promise for all calls with the same key.
- */
-export const batchedArrowLoader = batch(
-  (url: string) => fetch(url).then((r) => r.arrayBuffer()),
-  (url: string) => url,
-);
 
 /**
  * Load data from a URL and parse it according to the given format.

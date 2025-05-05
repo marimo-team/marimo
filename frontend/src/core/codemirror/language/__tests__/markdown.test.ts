@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { MarkdownLanguageAdapter } from "../markdown";
+import { getQuotePrefix } from "../panel";
 
 const adapter = new MarkdownLanguageAdapter();
 
@@ -169,6 +170,36 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(8);
       expect(adapter.lastQuotePrefix).toBe("r");
     });
+
+    it("should preserve indentation in f-strings", () => {
+      const pythonCode =
+        'mo.md(\n    f"""\n```python\n{some_variable}\n```\n"""\n)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("```python\n{some_variable}\n```");
+      expect(offset).toBe(15);
+      expect(adapter.lastQuotePrefix).toBe("f");
+
+      // Transform out
+      const [outerCode, outerOffset] = adapter.transformOut(innerCode);
+      expect(outerCode).toMatch(pythonCode);
+      expect(outerOffset).toBe(17);
+    });
+
+    it("should handle f-strings", () => {
+      const pythonCode = 'mo.md(f"""# Title\n{some_variable}""")';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("# Title\n{some_variable}");
+      expect(offset).toBe(10);
+      expect(adapter.lastQuotePrefix).toBe("f");
+    });
+
+    it("should handle rf-strings", () => {
+      const pythonCode = 'mo.md(rf"""# Title\n{some_variable}""")';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("# Title\n{some_variable}");
+      expect(offset).toBe(11);
+      expect(adapter.lastQuotePrefix).toBe("rf");
+    });
   });
 
   describe("transformOut", () => {
@@ -178,6 +209,14 @@ describe("MarkdownLanguageAdapter", () => {
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe(`mo.md(""" """)`);
       expect(offset).toBe(9);
+    });
+
+    it("defaults to r-string when there is no last quote prefix", () => {
+      const adapter = new MarkdownLanguageAdapter();
+      const code = "Hello world";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toBe(`mo.md(r"""Hello world""")`);
+      expect(offset).toBe(10);
     });
 
     it("single line", () => {
@@ -195,8 +234,8 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
             """
-            "Hello" world
-            """
+        "Hello" world
+        """
         )"
       `);
       expect(offset).toBe(16);
@@ -209,8 +248,8 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
             """
-            Hello "world"
-            """
+        Hello "world"
+        """
         )"
       `);
       expect(offset).toBe(16);
@@ -223,10 +262,10 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
             """
-            # Markdown Title
+        # Markdown Title
 
-            Some content here.
-            """
+        Some content here.
+        """
         )"
       `);
       expect(offset).toBe(16);
@@ -265,20 +304,78 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toBe(pythonCode);
       expect(offset).toBe(10);
     });
+
+    it("should handle f-strings in transformOut", () => {
+      const code = "# Title\n{some_variable}";
+      adapter.lastQuotePrefix = "f";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "mo.md(
+            f"""
+        # Title
+        {some_variable}
+        """
+        )"
+      `);
+      expect(offset).toBe(17);
+    });
+
+    it("should handle rf-strings in transformOut", () => {
+      const code = "# Title\n{some_variable}";
+      adapter.lastQuotePrefix = "rf";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "mo.md(
+            rf"""
+        # Title
+        {some_variable}
+        """
+        )"
+      `);
+      expect(offset).toBe(18);
+    });
   });
 
   describe("isSupported", () => {
     it("should return true for supported markdown string formats", () => {
       const pythonCode = 'mo.md("""# Markdown Title\n\nSome content here.""")';
-      expect(adapter.isSupported(pythonCode)).toBe(true);
-      expect(adapter.isSupported("mo.md()")).toBe(true);
-      expect(adapter.isSupported("mo.md('')")).toBe(true);
-      expect(adapter.isSupported('mo.md("")')).toBe(true);
+      const VALID_FORMATS = [
+        pythonCode,
+        "mo.md()",
+        "mo.md('')",
+        'mo.md("")',
+        'mo.md(""" hi """)',
+        "mo.md(''' hi ''')",
+        "mo.md(f'hello world')",
+        'mo.md(f"hello world")',
+        "mo.md(r'hello world')",
+        'mo.md(r"hello world")',
+        "mo.md(rf'hello world')",
+        'mo.md(rf"hello world")',
+        "mo.md(fr'hello world')",
+        'mo.md(fr"hello world")',
+        'mo.md(f"""\n```python\n{some_variable}\n```\n""")',
+        "mo.md(f'''\n```python\n{some_variable}\n```\n''')",
+        'mo.md(rf"""\n```python\n{some_variable}\n```\n""")',
+        "mo.md(rf'''\n```python\n{some_variable}\n```\n''')",
+        'mo.md(f"""{np.random.randint(0, 10)}""")',
+      ];
+      for (const format of VALID_FORMATS) {
+        expect(adapter.isSupported(format)).toBe(true);
+      }
     });
 
-    it("should return false for unsupported markdown string formats", () => {
-      expect(adapter.isSupported("mo.md(f'hello world')")).toBe(false);
-      expect(adapter.isSupported('mo.md(f"hello world")')).toBe(false);
+    it("should return true for complex nested markdown", () => {
+      const pythonCode = String.raw`
+      mo.md(
+        rf"""
+        \`\`\`python
+        {pathlib.Path(__file__).read_text(encoding="utf-8")}
+        \`\`\`
+        """
+      )
+      `;
+      expect(adapter.isSupported(pythonCode)).toBe(true);
     });
 
     it("should return false for unsupported string formats", () => {
@@ -325,5 +422,36 @@ describe("MarkdownLanguageAdapter", () => {
         expect(adapter.isSupported(pythonCode)).toBe(true);
       }
     });
+  });
+});
+
+describe("getQuotePrefix", () => {
+  it("should return the correct quote prefix when checked", () => {
+    expect(getQuotePrefix("", true, "r")).toBe("r");
+    expect(getQuotePrefix("", true, "f")).toBe("f");
+    expect(getQuotePrefix("r", true, "f")).toBe("rf");
+    expect(getQuotePrefix("f", true, "r")).toBe("rf");
+  });
+
+  it("should return the correct quote prefix when unchecked", () => {
+    expect(getQuotePrefix("r", false, "r")).toBe("");
+    expect(getQuotePrefix("f", false, "f")).toBe("");
+    expect(getQuotePrefix("rf", false, "r")).toBe("f");
+    expect(getQuotePrefix("rf", false, "f")).toBe("r");
+  });
+
+  it("should return the correct quote prefix even when not possible to toggle", () => {
+    expect(getQuotePrefix("", false, "r")).toBe("");
+    expect(getQuotePrefix("", false, "f")).toBe("");
+    expect(getQuotePrefix("r", false, "f")).toBe("r");
+    expect(getQuotePrefix("f", false, "r")).toBe("f");
+
+    expect(getQuotePrefix("rf", true, "r")).toBe("rf");
+    expect(getQuotePrefix("rf", true, "f")).toBe("rf");
+    expect(getQuotePrefix("f", true, "f")).toBe("f");
+    expect(getQuotePrefix("r", true, "r")).toBe("r");
+
+    expect(getQuotePrefix("", false, "")).toBe("");
+    expect(getQuotePrefix("", true, "")).toBe("");
   });
 });

@@ -4,7 +4,6 @@ from __future__ import annotations
 import base64
 import io
 import mimetypes
-import os
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -46,12 +45,12 @@ from marimo._server.templates.templates import (
 from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
-root: str = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+ROOT = (marimo_package_path() / "_static").resolve()
 
 if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
@@ -85,10 +84,7 @@ class Exporter:
                     e,
                 )
                 continue
-            mime_type, _ = mimetypes.guess_type(basename) or (
-                "text/plain",
-                None,
-            )
+            mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
             files[filename_and_length] = build_data_url(
                 cast(KnownMimeType, mime_type),
                 base64.b64encode(buffer_contents),
@@ -227,45 +223,71 @@ class Exporter:
         download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
 
-    def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
-        import yaml
-
-        from marimo._ast.app import _AppConfig
+    def export_as_md(
+        self, file_manager: AppFileManager, previous: Path | None = None
+    ) -> tuple[str, str]:
+        from marimo._ast import codegen
+        from marimo._ast.app_config import _AppConfig
         from marimo._ast.cell import Cell
         from marimo._ast.compiler import compile_cell
         from marimo._cli.convert.markdown import (
+            extract_frontmatter,
             formatted_code_block,
             is_sanitized_markdown,
         )
+        from marimo._utils import yaml
 
-        # TODO: Provide filter or kernel in yaml header such that markdown
-        # documents are executable.
+        filename = get_filename(file_manager)
+        metadata: dict[str, str | list[str]] = {}
+        metadata.update(
+            {
+                "title": get_app_title(file_manager),
+                "marimo-version": __version__,
+            }
+        )
 
-        #  Put data from AppFileManager into the yaml header.
+        # Put data from AppFileManager into the yaml header.
         ignored_keys = {"app_title"}
-        metadata: dict[str, str | list[str]] = {
-            "title": get_app_title(file_manager),
-            "marimo-version": __version__,
-        }
-
-        def _format_value(v: Optional[str | list[str]]) -> str | list[str]:
-            if isinstance(v, list):
-                return v
-            return str(v)
-
         default_config = _AppConfig().asdict()
 
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
         metadata.update(
             {
-                k: _format_value(v)
+                k: v
                 for k, v in file_manager.app.config.asdict().items()
                 if k not in ignored_keys and v != default_config.get(k)
             }
         )
+        # If previously a markdown file, extract frontmatter.
+        # otherwise if it was a python file, extract header.
+        if previous and previous.suffix == ".py":
+            header = codegen.get_header_comments(previous)
+            if header:
+                metadata["header"] = header.strip()
+        else:
+            header_file = previous if previous else file_manager.filename
+            if header_file:
+                with open(header_file, encoding="utf-8") as f:
+                    _metadata, _ = extract_frontmatter(f.read())
+                metadata.update(_metadata)
 
-        header = yaml.dump(
+        # Add the expected qmd filter to the metadata.
+        if filename.endswith(".qmd"):
+            if "filters" not in metadata:
+                metadata["filters"] = []
+            if "marimo" not in str(metadata["filters"]):
+                if isinstance(metadata["filters"], str):
+                    metadata["filters"] = metadata["filters"].split(",")
+                if isinstance(metadata["filters"], list):
+                    metadata["filters"].append("marimo-team/marimo")
+                else:
+                    LOGGER.warning(
+                        "Unexpected type for filters: %s",
+                        type(metadata["filters"]),
+                    )
+
+        header = yaml.marimo_compat_dump(
             {
                 k: v
                 for k, v in metadata.items()
@@ -396,7 +418,7 @@ class Exporter:
         import shutil
 
         shutil.copytree(
-            root,
+            ROOT,
             dirpath,
             dirs_exist_ok=True,
             ignore=(
@@ -527,7 +549,7 @@ def get_html_contents() -> str:
         with urllib.request.urlopen(url) as response:
             return cast(str, response.read().decode("utf-8"))
 
-    index_html = Path(root) / "index.html"
+    index_html = Path(ROOT) / "index.html"
     return index_html.read_text(encoding="utf-8")
 
 

@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
+import functools
+import io
 from functools import cached_property
 from typing import Any, Optional, Union, cast
 
@@ -10,6 +11,9 @@ from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
 from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.data.data import sanitize_json_bigint
+from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -58,28 +62,33 @@ class NarwhalsTableManager(
         # of the subclass with the native data.
         return self.__class__(data.to_native())
 
-    def to_csv(
+    def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
-    ) -> bytes:
+    ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data).encode("utf-8")
+        return dataframe_to_csv(_data)
 
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
         try:
-            csv_str = self.to_csv(format_mapping=format_mapping).decode(
-                "utf-8"
-            )
+            csv_str = self.to_csv_str(format_mapping=format_mapping)
         except Exception as e:
             LOGGER.debug(
                 f"Failed to use format mapping: {str(e)}, falling back to default"
             )
-            csv_str = self.to_csv().decode("utf-8")
+            csv_str = self.to_csv_str()
 
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
-        return json.dumps([row for row in csv_reader]).encode("utf-8")
+        return sanitize_json_bigint([row for row in csv_reader])
+
+    def to_parquet(self) -> bytes:
+        stream = io.BytesIO()
+        self.as_frame().write_parquet(stream)
+        return stream.getvalue()
 
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
@@ -103,6 +112,9 @@ class NarwhalsTableManager(
         return True
 
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
+        if not indices:
+            return self.with_new_data(self.data.head(0))
+
         df = self.as_frame()
         # Prefer the index column for selections
         if INDEX_COLUMN_NAME in df.columns:
@@ -116,6 +128,9 @@ class NarwhalsTableManager(
         return self.with_new_data(self.data.select(columns))
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        if not cells:
+            return []
+
         df = self.as_frame()
         if INDEX_COLUMN_NAME in df.columns:
             selection: list[TableCell] = []
@@ -145,13 +160,56 @@ class NarwhalsTableManager(
     ) -> list[str]:
         return []
 
+    @functools.lru_cache(maxsize=5)  # noqa: B019
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
+        if isinstance(self.data, nw.LazyFrame):
+            raise ValueError(
+                "Cannot calculate top k rows for lazy frames, please collect the data first"
+            )
+
+        columns = self.get_column_names()
+
+        if column not in columns:
+            raise ValueError(f"Column {column} not found in table.")
+
+        # Find a column name for the count that doesn't conflict with existing columns
+        chosen_column_name: str | None = None
+        for col in ["count", f"count of {column}", "num_rows"]:
+            if col not in columns:
+                chosen_column_name = col
+                break
+        if chosen_column_name is None:
+            raise ValueError(
+                "Cannot specify a count column name, please rename your column"
+            )
+
+        # column is also sorted to ensure nulls are last
+        result = (
+            self.data.group_by(column)
+            .agg(nw.len().alias(chosen_column_name))
+            .sort(
+                [chosen_column_name, column], descending=True, nulls_last=True
+            )
+            .head(k)
+        )
+
+        return [
+            (
+                unwrap_py_scalar(row[column]),
+                int(unwrap_py_scalar(row[chosen_column_name])),
+            )
+            for row in result.iter_rows(named=True)
+        ]
+
     @staticmethod
     def is_type(value: Any) -> bool:
         return can_narwhalify(value)
 
     @cached_property
     def nw_schema(self) -> nw.Schema:
-        return cast(nw.Schema, self.data.schema)
+        return cast(nw.Schema, self.data.collect_schema())
 
     def get_field_type(
         self, column_name: str
@@ -184,7 +242,11 @@ class NarwhalsTableManager(
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
-        return self.with_new_data(self.data[offset : offset + count])
+
+        if offset == 0:
+            return self.with_new_data(self.data.head(count))
+        else:
+            return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
@@ -222,16 +284,29 @@ class NarwhalsTableManager(
 
     def get_summary(self, column: str) -> ColumnSummary:
         summary = self._get_summary_internal(column)
-        for key, value in summary.__dict__.items():
-            if value is not None:
-                summary.__dict__[key] = unwrap_py_scalar(value)
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Discarding nonzero nanoseconds in conversion",
+                category=UserWarning,
+            )
+
+            for key, value in summary.__dict__.items():
+                if value is not None:
+                    summary.__dict__[key] = unwrap_py_scalar(value)
         return summary
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
         # If column is not in the dataframe, return an empty summary
         if column not in self.nw_schema:
             return ColumnSummary()
-        col = self.data[column]
+        data = self.data.select(column)
+        if isinstance(data, nw.LazyFrame):
+            data = data.collect()
+
+        col = data[column]
         total = len(col)
         if is_narwhals_string_type(col.dtype):
             return ColumnSummary(
@@ -352,6 +427,10 @@ class NarwhalsTableManager(
             return self.data[column].cast(nw.String).unique().to_list()
 
     def get_sample_values(self, column: str) -> list[str | int | float]:
+        # Skip lazy frames
+        if isinstance(self.data, nw.LazyFrame):
+            return []
+
         # Sample 3 values from the column
         SAMPLE_SIZE = 3
         try:
@@ -393,11 +472,11 @@ class NarwhalsTableManager(
     ) -> TableManager[Any]:
         if isinstance(self.data, nw.LazyFrame):
             return self.with_new_data(
-                self.data.sort(by, descending=descending)
+                self.data.sort(by, descending=descending, nulls_last=True)
             )
         else:
             return self.with_new_data(
-                self.data.sort(by, descending=descending)
+                self.data.sort(by, descending=descending, nulls_last=True)
             )
 
     def __repr__(self) -> str:
@@ -407,3 +486,21 @@ class NarwhalsTableManager(
         if rows is None:
             return f"{df_type}: {columns:,} columns"
         return f"{df_type}: {rows:,} rows x {columns:,} columns"
+
+    def _sanitize_table_value(self, value: Any) -> Any:
+        """
+        Sanitize a value for display in a table cell.
+
+        Most values are unchanged, but some values are for better
+        display such as Images.
+        """
+        if value is None:
+            return None
+
+        # Handle Pillow images
+        if DependencyManager.pillow.imported():
+            from PIL import Image
+
+            if isinstance(value, Image.Image):
+                return io_to_data_url(value, "image/png")
+        return value

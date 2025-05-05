@@ -43,6 +43,26 @@ describe("getProtocolAndParentDirectories", () => {
     ]);
   });
 
+  it("should handle S3 paths", () => {
+    const path = "s3://bucket/folder/subfolder/";
+    const delimiter = "/";
+    const initialPath = "s3://bucket/folder";
+    const restrictNavigation = true;
+
+    const { protocol, parentDirectories } = getProtocolAndParentDirectories(
+      path,
+      delimiter,
+      initialPath,
+      restrictNavigation,
+    );
+
+    expect(protocol).toBe("s3://");
+    expect(parentDirectories).toEqual([
+      "s3://bucket/folder/subfolder",
+      "s3://bucket/folder",
+    ]);
+  });
+
   it("should handle paths without protocol", () => {
     const path = "/folder/subfolder/";
     const delimiter = "/";

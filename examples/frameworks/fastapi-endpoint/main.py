@@ -8,6 +8,9 @@
 #     "pillow==11.1.0",
 # ]
 # ///
+import marimo
+import fastapi
+
 from fastapi import FastAPI, Request
 import logging
 
@@ -27,8 +30,7 @@ async def add_endpoint(request: Request, a: int, b: int) -> int:
 
     # We grab the function from the definition
     # and call it with the a and b arguments
-    output, defs = add.run()
-    return defs["add"](a, b)
+    return add(a, b)
 
 
 @app.get("/greet")
@@ -39,8 +41,7 @@ async def greet(request: Request):
 
     # We grab the function from the definition
     # and call it with the name argument
-    output, defs = greet.run()
-    return defs["greet"](name)
+    return greet(name)
 
 
 @app.get("/plot")
@@ -66,7 +67,7 @@ async def plot(request: Request):
     output: Image.Image
     # We override the plot_data argument
     # to use the data passed in the query string
-    output, defs = plot.run(plot_data=data)
+    output, _ = plot.run(plot_data=data)
 
     # Save the image to a BytesIO object
     buf = io.BytesIO()
@@ -83,8 +84,11 @@ async def plot(request: Request):
 @app.get("/")
 async def home(request: Request):
     return HTMLResponse(
-        """
+        f"""
         This example shows how to use marimo notebooks as API endpoints in a FastAPI app.
+        <br/>
+        using marimo {marimo.__version__} and fastapi {fastapi.__version__}
+        <br/>
 
         Try these endpoints:
         <ul>

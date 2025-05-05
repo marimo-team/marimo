@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   type SQLTableContext,
 } from "@/core/datasets/data-source-connections";
 import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
@@ -28,7 +28,7 @@ describe("sqlCode", () => {
 
   it("should generate SQL with default schema", () => {
     const sqlTableContext: SQLTableContext = {
-      engine: DEFAULT_ENGINE,
+      engine: DUCKDB_ENGINE,
       schema: "public",
       defaultSchema: "public",
       defaultDatabase: "mydb",
@@ -41,7 +41,7 @@ describe("sqlCode", () => {
 
   it("should generate SQL with non-default schema", () => {
     const sqlTableContext: SQLTableContext = {
-      engine: DEFAULT_ENGINE,
+      engine: DUCKDB_ENGINE,
       schema: "analytics",
       defaultSchema: "public",
       defaultDatabase: "mydb",
@@ -86,7 +86,7 @@ describe("sqlCode", () => {
 
   it("should generate SQL with non-default database", () => {
     const sqlTableContext: SQLTableContext = {
-      engine: DEFAULT_ENGINE,
+      engine: DUCKDB_ENGINE,
       schema: "public",
       defaultSchema: "public",
       defaultDatabase: "memory",
@@ -111,6 +111,30 @@ describe("sqlCode", () => {
     const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
     expect(result).toBe(
       '_df = mo.sql(f"SELECT email FROM remote.sales.users LIMIT 100", engine=bigquery)',
+    );
+  });
+
+  it("should generate SQL for schemaless tables", () => {
+    const sqlTableContext: SQLTableContext = {
+      engine: DUCKDB_ENGINE,
+      schema: "",
+      defaultDatabase: "mydb",
+      database: "mydb",
+    };
+
+    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    expect(result).toBe('_df = mo.sql(f"SELECT email FROM users LIMIT 100")');
+
+    const sqlTableContext2: SQLTableContext = {
+      engine: DUCKDB_ENGINE,
+      schema: "",
+      defaultDatabase: "remote",
+      database: "another_db",
+    };
+
+    const result2 = sqlCode(mockTable, mockColumn.name, sqlTableContext2);
+    expect(result2).toBe(
+      '_df = mo.sql(f"SELECT email FROM another_db.users LIMIT 100")',
     );
   });
 });

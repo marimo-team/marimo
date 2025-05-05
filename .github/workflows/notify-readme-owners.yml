@@ -1,5 +1,4 @@
 name: README Translation Notification
-
 on:
   pull_request:
     types: [closed]
@@ -11,6 +10,7 @@ jobs:
     # Only run this job when the PR is merged, not when it's closed without merging
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,27 +26,25 @@ jobs:
               { file: 'README_Japanese.md', language: 'Japanese', maintainers: ['@kiwamizamurai'] },
               { file: 'README_Spanish.md', language: 'Spanish', maintainers: ['@Francisco-G-P'] }
             ];
-            
+
             // Create a notification comment tagging all translation maintainers
-            const maintainersList = translations.map(t => 
+            const maintainersList = translations.map(t =>
               `- ${t.language} (${t.file}): ${t.maintainers.join(', ')}`
             ).join('\n');
-            
-            const comment = `
-            ## README Translation Update Needed
-            
+
+            const comment = `## README Translation Update Needed
+
             This PR includes changes to the main README.md. The following translation files may need to be updated:
-            
+
             ${maintainersList}
-            
+
             Translation maintainers, please review the changes in this PR and update your respective README translations accordingly.
-            
-            CC: ${translations.flatMap(t => t.maintainers).join(' ')}
-            `;
+
+            CC: ${translations.flatMap(t => t.maintainers).join(' ')}`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: github.event.number,
+              issue_number: context.issue.number,
               body: comment
             });

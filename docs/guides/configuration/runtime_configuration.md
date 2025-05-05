@@ -97,3 +97,18 @@ find and import modules from these directories.
 [tool.marimo.runtime]
 pythonpath = ["project/src"]
 ```
+
+## Environment variables
+
+### .env files
+
+marimo supports loading environment variables from `.env` files. This is useful for managing configuration that should not be committed to version control, such as API keys or database credentials.
+
+The `.env` next to your `pyproject.toml` is loaded by default. To configure multiple or a different location, you can specify them in your configuration:
+
+```toml title="pyproject.toml"
+[tool.marimo.runtime]
+dotenv = [".env", ".env.testing"]
+```
+
+Environment variables from your `dotenv` will be surfaced in the UI when creating databases.

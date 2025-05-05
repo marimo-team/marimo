@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Callable
 
+from marimo._config.config import merge_config
 from marimo._messaging.ops import KernelCapabilities, KernelReady, serialize
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._runtime.requests import (
@@ -83,8 +84,16 @@ def create_session(
 
     # Lazy import to decrease startup time
     from marimo._config.config import merge_default_config
+    from marimo._config.manager import ScriptConfigManager
 
+    # Add default config
     user_config = merge_default_config(user_config)
+    script_config = ScriptConfigManager(filename).get_config(
+        hide_secrets=False
+    )
+    # Merge with inline script-metadata config
+    user_config = merge_config(user_config, script_config)
+
     app_file_manager = AppFileManager(
         filename=filename,
         default_width=user_config["display"]["default_width"],
@@ -121,7 +130,13 @@ def create_session(
         app_file_manager,
         SessionMode.EDIT,
         write_kernel_message,
-        AppMetadata(query_params=query_params, filename=filename, cli_args={}),
+        AppMetadata(
+            query_params=query_params,
+            filename=filename,
+            cli_args={},
+            argv=[""],
+            app_config=app.config,
+        ),
         user_config,
     )
 

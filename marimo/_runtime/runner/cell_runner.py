@@ -33,8 +33,8 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
 )
 from marimo._runtime.executor import (
-    execute_cell,
-    execute_cell_async,
+    ExecutionConfig,
+    get_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._types.ids import CellId_t
@@ -100,7 +100,9 @@ class Runner:
         self.graph = graph
         self.debugger = debugger
         self.excluded_cells = excluded_cells or set()
-
+        self._executor = get_executor(
+            ExecutionConfig(is_strict=execution_type == "strict")
+        )
         # injected context and hooks
         self.execution_context = execution_context
         self.preparation_hooks: Sequence[Callable[[Runner], Any]] = (
@@ -327,11 +329,10 @@ class Runner:
         try:
             if cell.is_coroutine():
                 return_value_future = asyncio.ensure_future(
-                    execute_cell_async(
+                    self._executor.execute_cell_async(
                         cell,
                         self.glbls,
                         self.graph,
-                        execution_type=self.execution_type,
                     )
                 )
                 if threading.current_thread() == threading.main_thread():
@@ -343,11 +344,10 @@ class Runner:
                     # by user anyway.
                     return_value = await return_value_future
             else:
-                return_value = execute_cell(
+                return_value = self._executor.execute_cell(
                     cell,
                     self.glbls,
                     self.graph,
-                    execution_type=self.execution_type,
                 )
             run_result = RunResult(output=return_value, exception=None)
         except asyncio.exceptions.CancelledError:
@@ -586,11 +586,14 @@ class Runner:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
+                    LOGGER.debug("Running post_execution hooks in context")
+                    for post_hook in self.post_execution_hooks:
+                        post_hook(cell, self, run_result)
             else:
                 run_result = await self.run(cell_id)
-            LOGGER.debug("Running post_execution hooks")
-            for post_hook in self.post_execution_hooks:
-                post_hook(cell, self, run_result)
+                LOGGER.debug("Running post_execution hooks out of context")
+                for post_hook in self.post_execution_hooks:
+                    post_hook(cell, self, run_result)
 
         LOGGER.debug("Running on_finish hooks")
         for finish_hook in self.on_finish_hooks:

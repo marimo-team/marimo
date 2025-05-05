@@ -6,6 +6,7 @@ import types
 from collections.abc import Awaitable
 
 from marimo._ast.app import App
+from marimo._ast.cell import Cell
 
 
 def test_decorator_called() -> None:
@@ -100,8 +101,9 @@ def test_function_decorator_called() -> None:
 
     (cell,) = app._cell_manager.cells()
     assert not isinstance(cell, types.FunctionType)
+    assert isinstance(cell, Cell)
 
-    assert cell.name == "mock_func"
+    assert cell.name == "*mock_func"
     assert (
         cell.run()[1]["mock_func"].__code__.co_code
         == mock_func.__code__.co_code
@@ -119,8 +121,9 @@ def test_function_decorator_uncalled() -> None:
 
     (cell,) = app._cell_manager.cells()
     assert not isinstance(cell, types.FunctionType)
+    assert isinstance(cell, Cell)
 
-    assert cell.name == "mock_func"
+    assert cell.name == "*mock_func"
     assert (
         cell.run()[1]["mock_func"].__code__.co_code
         == mock_func.__code__.co_code
@@ -139,6 +142,7 @@ def test_function_decorator_with_args() -> None:
 
     (cell,) = app._cell_manager.cells()
     assert cell is not None
+    assert isinstance(cell, Cell)
 
     assert (
         cell._cell.code
@@ -149,7 +153,7 @@ def test_function_decorator_with_args() -> None:
     """).strip()
     )
     assert cell._cell.config.disabled is True
-    assert cell.name == "mock_func"
+    assert cell.name == "*mock_func"
     assert (
         cell.run()[1]["mock_func"].__code__.co_code
         == mock_func.__code__.co_code

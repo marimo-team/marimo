@@ -46,7 +46,7 @@ def _():
 @app.cell
 def _():
     x = 5
-    return (x,)
+    return
 
 
 if __name__ == "__main__":
@@ -79,7 +79,7 @@ def _():
 @app.cell
 def _():
     x = 5
-    return (x,)
+    return
 
 
 if __name__ == "__main__":

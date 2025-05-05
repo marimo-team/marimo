@@ -8,11 +8,11 @@ from typing import Any
 from unittest.mock import mock_open, patch
 
 from marimo._cli.upgrade import (
-    MarimoCLIState,
     _update_with_latest_version,
     check_for_updates,
     print_latest_version,
 )
+from marimo._config.cli_state import MarimoCLIState
 
 
 @patch("marimo._cli.upgrade.current_version", "0.1.0")

@@ -31,6 +31,7 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.9.0/katex.min.js
   - _static/js/analytics.js
   - _static/js/math.js
+  - _static/js/init_kapa_widget.js
 markdown_extensions:
   - blocks:MarimoBlocksExtension
   - admonition
@@ -86,22 +87,34 @@ nav:
       - Visualize outputs: guides/outputs.md
       - Migrate from Jupyter: guides/coming_from/jupyter.md
       - Expensive notebooks: guides/expensive_notebooks.md
+      - Understanding errors:
+          - Understanding errors: guides/understanding_errors/index.md
+          - Multiple definitions: guides/understanding_errors/multiple_definitions.md
+          - Import star: guides/understanding_errors/import_star.md
+          - Cycles: guides/understanding_errors/cycles.md
+          - Setup References: guides/understanding_errors/setup.md
       - SQL, dataframes, and plots:
           - SQL, dataframes, and plots: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
       - Package reproducibility: guides/package_reproducibility.md
+      - Generate with AI:
+          - Generate with AI: guides/generate_with_ai/index.md
+          - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
+          - AI-assisted coding: guides/editor_features/ai_completion.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
           - AI completion: guides/editor_features/ai_completion.md
+          - Language Server: guides/editor_features/language_server.md
           - Package management: guides/editor_features/package_management.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
           - Hotkeys: guides/editor_features/hotkeys.md
       - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
+      - Reuse functions and classes: guides/reusing_functions.md
       - Test notebooks:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md
@@ -110,9 +123,10 @@ nav:
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - Embedding: guides/publishing/embedding.md
+          - From code snippets: guides/publishing/from_code_snippets.md
           - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
-          - Cloudflare Pages: guides/publishing/cloudflare_pages.md
+          - Cloudflare: guides/publishing/cloudflare.md
           - Online playground: guides/publishing/playground.md
           - Community Cloud: guides/publishing/community_cloud/index.md
           - Self-host WASM: guides/publishing/self_host_wasm.md
@@ -148,6 +162,9 @@ nav:
       - Best practices: guides/best_practices.md
       - Troubleshooting: guides/troubleshooting.md
       - Dangerously set state: guides/state.md
+  - Examples:
+      - Examples: examples/index.md
+      - Recipes: recipes.md
   - API Reference:
       - API Reference: api/index.md
       - Markdown: api/markdown.md
@@ -188,11 +205,13 @@ nav:
           - Accordion: api/layouts/accordion.md
           - Callout: api/layouts/callout.md
           - Carousel: api/layouts/carousel.md
+          - Json: api/layouts/json.md
           - Justify: api/layouts/justify.md
           - Lazy: api/layouts/lazy.md
           - Plain: api/layouts/plain.md
           - Routes: api/layouts/routes.md
           - Sidebar: api/layouts/sidebar.md
+          - Stat: api/layouts/stat.md
           - Stacks: api/layouts/stacks.md
           - Tree: api/layouts/tree.md
       - Plotting: api/plotting.md
@@ -216,15 +235,12 @@ nav:
       - Cell: api/cell.md
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
-  - Examples:
-      - Notebooks: examples.md
-      - Recipes: recipes.md
-      - Islands: guides/island_example.md
   - FAQ: faq.md
   - Community:
       - Community: community.md
       - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md
       - Code of Conduct: https://github.com/marimo-team/marimo/blob/main/CODE_OF_CONDUCT.md
+  - Changelog: https://github.com/marimo-team/marimo/releases
   - Integrations:
       - Integrations: integrations/index.md
       - BigQuery: integrations/google_cloud_bigquery.md

@@ -6,6 +6,7 @@ from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
+from marimo._ast.toplevel import TopLevelExtraction
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
@@ -32,7 +33,10 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
-from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
+from marimo._sql.engines.duckdb import (
+    INTERNAL_DUCKDB_ENGINE,
+    DuckDBEngine,
+)
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -242,7 +246,7 @@ def _store_state_reference(
 @kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    _runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
     # TODO: clean this logic up ...
@@ -261,25 +265,14 @@ def _broadcast_outputs(
         run_result.success()
         or isinstance(run_result.exception, MarimoStopError)
     ) and should_send_output:
-
-        def format_output() -> formatting.FormattedOutput:
-            formatted_output = formatting.try_format(run_result.output)
-
-            if formatted_output.exception is not None:
-                # Try a plain formatter; maybe an opinionated one failed.
-                formatted_output = formatting.try_format(
-                    run_result.output, include_opinionated=False
-                )
-
-            if formatted_output.traceback is not None:
-                write_traceback(formatted_output.traceback)
-            return formatted_output
-
-        if runner.execution_context is not None:
-            with runner.execution_context(cell.cell_id):
-                formatted_output = format_output()
-        else:
-            formatted_output = format_output()
+        formatted_output = formatting.try_format(run_result.output)
+        if formatted_output.exception is not None:
+            # Try a plain formatter; maybe an opinionated one failed.
+            formatted_output = formatting.try_format(
+                run_result.output, include_opinionated=False
+            )
+        if formatted_output.traceback is not None:
+            write_traceback(formatted_output.traceback)
 
         CellOp.broadcast_output(
             channel=CellChannel.OUTPUT,
@@ -320,17 +313,13 @@ def _broadcast_outputs(
         # don't clear console because this cell was running and
         # its console outputs are not stale
         exception_type = type(run_result.exception).__name__
+        msg = str(run_result.exception)
+        if not msg:
+            msg = f"This cell raised an exception: {exception_type}"
         CellOp.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
-                    msg="This cell raised an exception: {}{}".format(
-                        exception_type,
-                        (
-                            f"('{str(run_result.exception)}')"
-                            if str(run_result.exception)
-                            else ""
-                        ),
-                    ),
+                    msg=msg,
                     exception_type=exception_type,
                     raising_cell=None,
                 )
@@ -340,8 +329,25 @@ def _broadcast_outputs(
         )
 
 
+@kernel_tracer.start_as_current_span("render_toplevel_defs")
+def render_toplevel_defs(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    variable = cell.toplevel_variable
+    if variable is not None:
+        extractor = TopLevelExtraction.from_graph(cell, runner.graph)
+        serialization = list(iter(extractor))[-1]
+        CellOp.broadcast_serialization(
+            serialization=serialization,
+            cell_id=cell.cell_id,
+        )
+
+
 @kernel_tracer.start_as_current_span("run_pytest")
-def _attempt_pytest(
+def attempt_pytest(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -396,4 +402,6 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     # other hooks take a long time (broadcast outputs can take a long time
     # if a formatter is slow).
     _set_status_idle,
+    # NB. Other hooks are added ad-hoc or manually due to priority.
+    # Consider implementing priority sort to keep everything more centralized.
 ]

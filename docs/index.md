@@ -36,7 +36,7 @@ pip install marimo && marimo tutorial intro
 /// tab | install with uv
 
 ```bash
-uv pip install marimo && marimo tutorial intro
+uv add marimo && marimo tutorial intro
 ```
 
 ///
@@ -214,10 +214,8 @@ For example, here's an embedding visualizer made in marimo
   <source src="/_static/embedding.webm" type="video/webm">
 </video>
 
-Check out our [guides](guides/index.md), our [example
-gallery](https://marimo.io/gallery), and our
-[`examples/`](https://github.com/marimo-team/marimo/tree/main/examples) on
-GitHub to learn more.
+Check out our [guides](guides/index.md), [usage examples](examples/index.md),
+and our [gallery](https://marimo.io/gallery) to learn more.
 
 <table border="0">
   <tr>

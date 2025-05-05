@@ -7,7 +7,7 @@ app = marimo.App()
 @app.cell
 def one():
     import numpy as np
-    return (np,)
+    return
 
 
 app._unparsable_cell(

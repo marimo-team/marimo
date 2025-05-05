@@ -14,6 +14,7 @@ import pytest
 from _pytest import runner
 
 from marimo._ast.app import App, CellManager
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
@@ -163,7 +164,11 @@ class MockedKernel:
             cell_configs={},
             user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(
-                query_params={}, filename=None, cli_args={}
+                query_params={},
+                filename=None,
+                cli_args={},
+                argv=None,
+                app_config=_AppConfig(),
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,
@@ -629,6 +634,12 @@ def app() -> Generator[App, None, None]:
 
 
 # A pytest hook to fail when raw marimo cells are not collected.
+# Meta testing gets a little messy, and may leave you a little testy. This is
+# increasingly coupled with the following specific tests that test testing:
+# _ast/
+#    ./test_pytest
+#    ./test_pytest_toplevel
+#    ./test_pytest_scoped
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
     report = runner.pytest_make_collect_report(collector)
@@ -652,11 +663,13 @@ def pytest_make_collect_report(collector):
             if isinstance(cls, pytest.Class)
         }
         from tests._ast.test_pytest import app as app_pytest
+        from tests._ast.test_pytest_scoped import app as app_scoped
         from tests._ast.test_pytest_toplevel import app as app_toplevel
 
         app = {
             "test_pytest": app_pytest,
             "test_pytest_toplevel": app_toplevel,
+            "test_pytest_scoped": app_scoped,
         }[collector.path.stem]
 
         # Just a quick check to make sure the class is actually exported.
@@ -664,13 +677,20 @@ def pytest_make_collect_report(collector):
             if len(classes) == 0:
                 report.outcome = "failed"
                 report.longrepr = (
-                    f"Expected class in {collector.path}, found none."
+                    f"Expected class in {collector.path}, found none "
+                    " (tests/conftest.py)."
                 )
                 return report
         for cls in classes:
-            if not cls.startswith("MarimoTestBlock"):
+            if not (
+                cls.startswith("MarimoTestBlock") or cls == "TestClassWorks"
+            ):
                 report.outcome = "failed"
-                report.longrepr = f"Unknown class '{cls}' in {collector.path}"
+                report.longrepr = (
+                    f"Unknown class '{cls}' in {collector.path}"
+                    " (tests/conftest.py)."
+                )
+
                 return report
 
         # Check the functions match cells in the app.
@@ -683,5 +703,6 @@ def pytest_make_collect_report(collector):
             report.outcome = "failed"
             report.longrepr = (
                 f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+                " (tests/conftest.py)."
             )
     return report

@@ -23,7 +23,7 @@ from marimo._server.models.home import (
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
-from marimo._tutorials import create_temp_tutorial_file
+from marimo._tutorials import create_temp_tutorial_file  # type: ignore
 from marimo._utils.paths import pretty_path
 
 if TYPE_CHECKING:

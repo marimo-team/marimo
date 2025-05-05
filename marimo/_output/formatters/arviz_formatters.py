@@ -18,17 +18,10 @@ class ArviZFormatter(FormatterFactory):
         return "arviz"
 
     def register(self) -> None:
-        import arviz as az  # type: ignore
         import matplotlib.pyplot as plt  # type: ignore
         import numpy as np  # type: ignore
 
         from marimo._output import formatting
-
-        @formatting.formatter(az.InferenceData)  # type: ignore
-        def _format_inference_data(
-            data: az.InferenceData,  # type: ignore
-        ) -> tuple[KnownMimeType, str]:
-            return ("text/plain", str(data))
 
         @formatting.formatter(np.ndarray)  # type: ignore
         def _format_ndarray(

@@ -11,6 +11,7 @@ from typing import (
     Literal,
     Optional,
     Union,
+    cast,
 )
 
 from narwhals.typing import IntoDataFrame
@@ -18,10 +19,12 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import NonNestedLiteral
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.charts.altair_transformer import _to_marimo_arrow
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     get_handler_for_dataframe,
 )
@@ -36,6 +39,8 @@ from marimo._plugins.ui._impl.tables.selection import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
+    FieldTypes,
+    RowId,
     TableCell,
     TableCoordinate,
     TableManager,
@@ -46,18 +51,27 @@ from marimo._plugins.validators import (
     validate_no_integer_columns,
     validate_page_size,
 )
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.functions import EmptyArgs, Function
-from marimo._utils.narwhals_utils import unwrap_narwhals_dataframe
+from marimo._utils.narwhals_utils import (
+    can_narwhalify_lazyframe,
+    unwrap_narwhals_dataframe,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from narwhals.typing import IntoLazyFrame
 
 LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
 class DownloadAsArgs:
-    format: Literal["csv", "json"]
+    format: Literal["csv", "json", "parquet"]
 
 
 @dataclass
@@ -93,10 +107,14 @@ class SearchTableArgs:
     limit: Optional[int] = None
 
 
+CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
+
+
 @dataclass(frozen=True)
 class SearchTableResponse:
-    data: Union[JSONType, str]
-    total_rows: int
+    data: str
+    total_rows: Union[int, Literal["too_many"]]
+    cell_styles: Optional[CellStyles] = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +128,33 @@ class GetRowIdsResponse:
     row_ids: list[int]
     all_rows: bool
     error: Optional[str] = None
+
+
+@dataclass
+class GetDataUrlResponse:
+    data_url: Union[str, object]
+    format: Literal["csv", "json", "arrow"]
+
+
+@dataclass
+class CalculateTopKRowsArgs:
+    column: ColumnName
+    k: int
+
+
+@dataclass
+class CalculateTopKRowsResponse:
+    data: list[tuple[str, int]]
+
+
+def get_default_table_page_size() -> int:
+    """Get the default number of rows to display in a table."""
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return 10
+    else:
+        return ctx.marimo_config["display"]["default_table_page_size"]
 
 
 @mddoc
@@ -189,6 +234,31 @@ class table(
         )
         ```
 
+        Create a table with conditional cell formatting:
+
+        ```python
+        import random
+
+
+        # rowId and columnName are strings.
+        def style_cell(_rowId, _columnName, value):
+            # Apply inline styling to the visible individual cells.
+            return {
+                "backgroundColor": "lightcoral"
+                if value < 4
+                else "cornflowerblue",
+                "color": "white",
+                "fontStyle": "italic",
+            }
+
+
+        table = mo.ui.table(
+            data=[random.randint(0, 10) for x in range(200)],
+            style_cell=style_cell,
+        )
+        table
+        ```
+
         In each case, access the table data with `table.value`.
 
     Attributes:
@@ -209,7 +279,7 @@ class table(
         selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
             'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
-        initial_selection (Union[List[int], List[tuple[str, str]), optional): Indices of the rows you want selected by default.
+        initial_selection (Union[List[int], List[tuple[str, str]], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns and at least 10 rows, False otherwise.
@@ -226,11 +296,68 @@ class table(
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
+        style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
         max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
             Set to None to show all columns.
+        label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
     _name: Final[str] = "marimo-table"
+
+    @staticmethod
+    def lazy(
+        data: IntoLazyFrame,
+        *,
+        page_size: Optional[int] = None,
+        preload: bool = False,
+    ) -> table:
+        """
+        Create a table from a Polars LazyFrame.
+
+        This won't load the data into memory until requested by the user.
+        Once requested, only the first 10 rows will be loaded.
+
+        Pagination and selection are not supported for lazy tables.
+
+        Args:
+            data (IntoLazyFrame): The data to display.
+            page_size (int, optional): The number of rows to show per page.
+            preload (bool, optional): Whether to load the first page of data
+                without user confirmation. Defaults to False.
+        """
+
+        if not can_narwhalify_lazyframe(data):
+            raise ValueError(
+                "data must be a Polars LazyFrame or DuckDBRelation. Got: "
+                + type(data).__name__
+            )
+
+        if page_size is None:
+            page_size = get_default_table_page_size()
+
+        return table(
+            data=data,
+            pagination=False,
+            selection=None,
+            initial_selection=None,
+            page_size=page_size,
+            show_column_summaries=False,
+            show_download=False,
+            format_mapping=None,
+            freeze_columns_left=None,
+            freeze_columns_right=None,
+            text_justify_columns=None,
+            wrapped_columns=None,
+            label="",
+            on_change=None,
+            style_cell=None,
+            max_columns=50,
+            _internal_column_charts_row_limit=None,
+            _internal_summary_row_limit=None,
+            _internal_total_rows="too_many",
+            _internal_lazy=True,
+            _internal_preload=preload,
+        )
 
     def __init__(
         self,
@@ -247,7 +374,7 @@ class table(
         initial_selection: Optional[
             Union[list[int], list[tuple[str, str]]]
         ] = None,
-        page_size: int = 10,
+        page_size: Optional[int] = None,
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
         ] = None,
@@ -277,14 +404,22 @@ class table(
                 None,
             ]
         ] = None,
+        style_cell: Optional[Callable[[str, str, Any], dict[str, Any]]] = None,
         # The _internal_* arguments are for overriding and unit tests
         # table should take the value unconditionally
         _internal_column_charts_row_limit: Optional[int] = None,
         _internal_summary_row_limit: Optional[int] = None,
         _internal_total_rows: Optional[Union[int, Literal["too_many"]]] = None,
+        _internal_lazy: bool = False,
+        _internal_preload: bool = False,
     ) -> None:
+        if page_size is None:
+            page_size = self.default_page_size
+
         validate_no_integer_columns(data)
         validate_page_size(page_size)
+        self._lazy = _internal_lazy
+        self._page_size = page_size
 
         has_stable_row_id = False
         if selection is not None:
@@ -356,31 +491,27 @@ class table(
                 )
             try:
                 if selection in ["single-cell", "multi-cell"]:
-                    coordinates = []
+                    coordinates: list[TableCoordinate] = []
                     for v in initial_selection:
                         if not isinstance(v, tuple) or len(v) != 2:
                             raise TypeError(
                                 "initial_selection must be a list of tuples for cell selection"
                             )
-                        else:
-                            coordinates.append(
-                                TableCoordinate(
-                                    row_id=v[0],
-                                    column_name=v[1],
-                                )
-                            )
-                    self._selected_manager = (
-                        self._searched_manager.select_cells(coordinates)
-                    )
+                        coordinates.append(
+                            TableCoordinate(row_id=v[0], column_name=v[1])
+                        )
+                    if coordinates:
+                        self._selected_manager = (
+                            self._searched_manager.select_cells(coordinates)
+                        )
                 else:
-                    indexes = []
+                    indexes: list[int] = []
                     for v in initial_selection:
                         if not isinstance(v, int):
                             raise TypeError(
                                 "initial_selection must be a list of integers for row selection"
                             )
-                        else:
-                            indexes.append(v)
+                        indexes.append(v)
                     self._selected_manager = (
                         self._searched_manager.select_rows(indexes)
                     )
@@ -400,10 +531,8 @@ class table(
             )
             self._has_any_selection = True
 
-        # We will need this when calling table manager's to_data()
+        # We will need this when calling table manager's to_json_str()
         self._format_mapping = format_mapping
-
-        field_types = self._manager.get_field_types()
 
         if pagination is False and total_rows != "too_many":
             page_size = total_rows
@@ -416,38 +545,51 @@ class table(
             else:
                 pagination = False
 
-        # Search first page
-        search_result = self._search(
-            SearchTableArgs(
-                page_size=page_size,
-                page_number=0,
-                query=None,
-                sort=None,
-                filters=None,
+        self._style_cell = style_cell
+
+        search_result_styles: Optional[CellStyles] = None
+        search_result_data: JSONType = []
+        field_types: Optional[FieldTypes] = None
+        num_columns = 0
+
+        if not _internal_lazy:
+            # Search first page
+            search_result = self._search(
+                SearchTableArgs(
+                    page_size=page_size,
+                    page_number=0,
+                    query=None,
+                    sort=None,
+                    filters=None,
+                )
             )
-        )
+            search_result_styles = search_result.cell_styles
+            search_result_data = search_result.data
 
-        column_names_set = set(self._manager.get_column_names())
+            # Validate column configurations
+            column_names_set = set(self._manager.get_column_names())
+            num_columns = len(column_names_set)
+            _validate_frozen_columns(
+                freeze_columns_left, freeze_columns_right, column_names_set
+            )
+            _validate_column_formatting(
+                text_justify_columns, wrapped_columns, column_names_set
+            )
 
-        # Validate column configurations
-        _validate_frozen_columns(
-            freeze_columns_left, freeze_columns_right, column_names_set
-        )
-        _validate_column_formatting(
-            text_justify_columns, wrapped_columns, column_names_set
-        )
-
-        # Clamp field types to max columns
-        field_types = _get_clamped_field_types(field_types, self._max_columns)
+            # Clamp field types to max columns
+            field_types = self._manager.get_field_types()
+            field_types = _get_clamped_field_types(
+                field_types, self._max_columns
+            )
 
         super().__init__(
             component_name=table._name,
             label=label,
             initial_value=initial_value,
             args={
-                "data": search_result.data,
+                "data": search_result_data,
                 "total-rows": total_rows,
-                "total-columns": self._manager.get_num_columns(),
+                "total-columns": num_columns,
                 "banner-text": self._get_banner_text(),
                 "pagination": pagination,
                 "page-size": page_size,
@@ -465,6 +607,9 @@ class table(
                 "text-justify-columns": text_justify_columns,
                 "wrapped-columns": wrapped_columns,
                 "has-stable-row-id": self._has_stable_row_id,
+                "cell-styles": search_result_styles,
+                "lazy": _internal_lazy,
+                "preload": _internal_preload,
             },
             on_change=on_change,
             functions=(
@@ -488,6 +633,16 @@ class table(
                     arg_cls=EmptyArgs,
                     function=self._get_row_ids,
                 ),
+                Function(
+                    name="get_data_url",
+                    arg_cls=EmptyArgs,
+                    function=self._get_data_url,
+                ),
+                Function(
+                    name="calculate_top_k_rows",
+                    arg_cls=CalculateTopKRowsArgs,
+                    function=self._calculate_top_k_rows,
+                ),
             ),
         )
 
@@ -504,6 +659,9 @@ class table(
         return self._data
 
     def _get_banner_text(self) -> str:
+        if self._lazy:
+            return f"Previewing only the first {self._page_size} rows."
+
         total_columns = self._manager.get_num_columns()
         if self._max_columns is not None and total_columns > self._max_columns:
             return (
@@ -514,6 +672,9 @@ class table(
     def _convert_value(
         self, value: Union[list[int], list[str], list[dict[str, Any]]]
     ) -> Union[list[JSONType], IntoDataFrame, list[TableCell]]:
+        if self._selection is None:
+            return cast(list[JSONType], None)
+
         if self._selection in ["single-cell", "multi-cell"]:
             coordinates = [
                 TableCoordinate(row_id=v["rowId"], column_name=v["columnName"])
@@ -553,7 +714,13 @@ class table(
 
         Raises:
             ValueError: If format is not 'csv' or 'json'.
+            NotImplementedError: If download is not supported for cell selection.
         """
+        if self._selection in ["single-cell", "multi-cell"]:
+            raise NotImplementedError(
+                "Download is not supported for cell selection."
+            )
+
         manager = (
             self._selected_manager
             if self._selected_manager and self._has_any_selection
@@ -561,10 +728,7 @@ class table(
         )
 
         # Remove the selection column before downloading
-        if isinstance(manager, TableManager) and self._selection in [
-            "single",
-            "multi",
-        ]:
+        if isinstance(manager, TableManager):
             manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
             ext = args.format
@@ -572,11 +736,13 @@ class table(
                 return mo_data.csv(manager.to_csv()).url
             elif ext == "json":
                 return mo_data.json(manager.to_json()).url
+            elif ext == "parquet":
+                return mo_data.parquet(manager.to_parquet()).url
             else:
                 raise ValueError("format must be one of 'csv' or 'json'.")
         else:
             raise NotImplementedError(
-                "Download is not supported for cell selection."
+                "Download is not supported for this table format."
             )
 
     def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
@@ -647,12 +813,53 @@ class table(
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         ):
-            chart_data = self._searched_manager.to_data({})
+            chart_data, _ = self._to_chart_data_url(self._searched_manager)
 
         return ColumnSummaries(
             data=chart_data,
             summaries=summaries,
             is_disabled=False,
+        )
+
+    @classmethod
+    def _to_chart_data_url(
+        cls, table_manager: TableManager[Any]
+    ) -> tuple[str, Literal["csv", "json", "arrow"]]:
+        """
+        Get the data for the column summaries.
+
+        Arrow is preferred (less memory and faster)
+        fallback to CSV (more compact than JSON)
+
+        We return a URL instead of the data directly
+        so the browser can cache requests
+        """
+        try:
+            data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
+            return data_url, "arrow"
+        except NotImplementedError:
+            try:
+                data_url = mo_data.csv(table_manager.to_csv({})).url
+                return data_url, "csv"
+            except ValueError:
+                data_url = mo_data.json(table_manager.to_json({})).url
+                return data_url, "json"
+
+    def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
+        """Get the data URL for the entire table. Used for charting."""
+        del args
+
+        if DependencyManager.altair.has():
+            result = _to_marimo_arrow(self._searched_manager.data)
+            return GetDataUrlResponse(
+                data_url=result["url"],
+                format=result["format"]["type"],
+            )
+
+        url, data_format = self._to_chart_data_url(self._searched_manager)
+        return GetDataUrlResponse(
+            data_url=url,
+            format=data_format,
         )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
@@ -685,6 +892,53 @@ class table(
 
         return result
 
+    def _calculate_top_k_rows(
+        self, args: CalculateTopKRowsArgs
+    ) -> CalculateTopKRowsResponse:
+        """Calculate the top k rows in the table, grouped by column.
+        Returns a table of the top k rows, grouped by column with the count.
+        """
+        column, k = args.column, args.k
+        try:
+            data = self._searched_manager.calculate_top_k_rows(column, k)
+            return CalculateTopKRowsResponse(data=data)
+        # Some libs will panic like Polars, which are only caught with BaseException
+        except BaseException as e:
+            LOGGER.error("Failed to calculate top k rows: %s", e)
+            return CalculateTopKRowsResponse(data=[])
+
+    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
+        """Calculate the styling of the cells in the table."""
+        if self._style_cell is None:
+            return None
+        else:
+
+            def do_style_cell(row: str, col: str) -> dict[str, Any]:
+                selected_cells = self._searched_manager.select_cells(
+                    [TableCoordinate(row_id=row, column_name=col)]
+                )
+                if len(selected_cells) == 0 or self._style_cell is None:
+                    return dict()
+                else:
+                    return self._style_cell(row, col, selected_cells[0].value)
+
+            columns = self._searched_manager.get_column_names()
+            response = self._get_row_ids(EmptyArgs())
+
+            row_ids: list[int] | range
+            if response.all_rows is True or response.error is not None:
+                # TODO: Handle sorted rows, they have reverse order of row_ids
+                row_ids = range(skip, skip + take)
+            else:
+                row_ids = response.row_ids[skip : skip + take]
+
+            return {
+                str(row): {
+                    col: do_style_cell(str(row), col) for col in columns
+                }
+                for row in row_ids
+            }
+
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
@@ -704,10 +958,11 @@ class table(
             SearchTableResponse: Response containing:
                 - data: Filtered and formatted table data for the requested page
                 - total_rows: Total number of rows after applying filters
+                - cell_styles: User defined styling information for each cell in the page
         """
         offset = args.page_number * args.page_size
 
-        def clamp_rows_and_columns(manager: TableManager[Any]) -> JSONType:
+        def clamp_rows_and_columns(manager: TableManager[Any]) -> str:
             # Limit to page and column clamping for the frontend
             data = manager.take(args.page_size, offset)
             column_names = data.get_column_names()
@@ -716,15 +971,29 @@ class table(
                 and len(column_names) > self._max_columns
             ):
                 data = data.select_columns(column_names[: self._max_columns])
-            return data.to_data(self._format_mapping)
+            return data.to_json_str(self._format_mapping)
 
         # If no query or sort, return nothing
         # The frontend will just show the original data
+        total_rows: Union[int, Literal["too_many"]]
         if not args.query and not args.sort and not args.filters:
             self._searched_manager = self._manager
+            if self._lazy:
+                total_rows = "too_many"
+            else:
+                total_rows = self._manager.get_num_rows(force=True) or 0
+
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
-                total_rows=self._manager.get_num_rows(force=True) or 0,
+                total_rows=total_rows,
+                # The __init__ will just call this with an arbitrary offset,
+                # we need to check this is not larger than our actual number of rows.
+                cell_styles=self._style_cells(
+                    offset,
+                    min(total_rows, args.page_size)
+                    if total_rows != "too_many"
+                    else args.page_size,
+                ),
             )
 
         # Apply filters, query, and functools.sort using the cached method
@@ -737,13 +1006,28 @@ class table(
         # Save the manager to be used for selection
         self._searched_manager = result
 
+        if self._lazy:
+            total_rows = "too_many"
+        else:
+            total_rows = result.get_num_rows(force=True) or 0
+
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
-            total_rows=result.get_num_rows(force=True) or 0,
+            total_rows=total_rows,
+            cell_styles=self._style_cells(offset, args.page_size),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
-        """Get row IDs of a table. If searched, return searched rows else all rows."""
+        """Get row IDs of a table. If searched, return searched rows else all_rows flag is True.
+
+        Args:
+            args (EmptyArgs): Empty arguments
+
+        Returns:
+            GetRowIdsResponse: Response containing:
+                - row_ids: List of row IDs
+                - all_rows: Whether all rows are selected
+        """
         del args
 
         total_rows = self._manager.get_num_rows()
@@ -767,8 +1051,8 @@ class table(
                 error="Select all with search is not supported for large datasets. Please filter to less than 1,000,000 rows",
             )
 
-        # For dictionary data, return sequential indices
-        if isinstance(self.data, dict):
+        # For dictionary or list data, return sequential indices
+        if isinstance(self.data, dict) or isinstance(self.data, list):
             return GetRowIdsResponse(
                 row_ids=list(range(num_rows_searched)),
                 all_rows=False,
@@ -799,6 +1083,10 @@ class table(
         if hasattr(df, "_repr_html_"):
             return df._repr_html_()  # type: ignore[attr-defined,no-any-return]
         return str(df)
+
+    @functools.cached_property
+    def default_page_size(self) -> int:
+        return get_default_table_page_size()
 
     def __hash__(self) -> int:
         return id(self)

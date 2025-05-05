@@ -2,6 +2,7 @@
 import type {
   CompletionContext,
   CompletionResult,
+  CompletionSource,
 } from "@codemirror/autocomplete";
 
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
@@ -10,9 +11,12 @@ import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { documentationAtom } from "@/core/documentation/state";
 
-export async function completer(
+/**
+ * Completion source for Python, using Jedi.
+ */
+export const pythonCompletionSource: CompletionSource = async (
   context: CompletionContext,
-): Promise<CompletionResult | null> {
+): Promise<CompletionResult | null> => {
   const query = context.state.doc.sliceString(0, context.pos);
   const element = document.activeElement;
   let cellId: CellId | null = null;
@@ -52,4 +56,4 @@ export async function completer(
   }
 
   return Autocompleter.asCompletionResult(context.pos, result);
-}
+};

@@ -30,7 +30,7 @@ export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
     setPackagesToInstall(packagesString);
 
     // Open the packages panel
-    chromeActions.openApplication("packages");
+    chromeActions.toggleApplication("packages");
   };
 
   return (

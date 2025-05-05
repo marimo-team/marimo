@@ -135,6 +135,7 @@ export const OutputRenderer: React.FC<{
         <MarimoTracebackOutput
           onRefactorWithAI={onRefactorWithAI}
           traceback={data}
+          cellId={cellId}
         />
       );
 

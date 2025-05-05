@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any, cast
 from unittest.mock import Mock
 
@@ -80,9 +81,9 @@ def assert_frame_not_equal(df1: DataFrameType, df2: DataFrameType) -> None:
 
 def df_size(df: DataFrameType) -> int:
     if isinstance(df, pd.DataFrame):
-        return df.size
+        return len(df)
     if isinstance(df, pl.DataFrame):
-        return df.shape[0]
+        return len(df)
     if isinstance(df, ibis.Table):
         return df.count().execute()
     raise ValueError("Unsupported dataframe type")
@@ -439,6 +440,157 @@ class TestTransformHandler:
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
             where=[Condition(column_id="B", operator="<", value=6)],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pd.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                pd.DataFrame({"date": [date(2001, 1, 1)]}),
+            ),
+            (
+                pl.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                pl.DataFrame({"date": [date(2001, 1, 1)]}),
+            ),
+            (
+                ibis.memtable({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                ibis.memtable({"date": [date(2001, 1, 1)]}),
+            ),
+        ],
+    )
+    def test_handle_filter_rows_date(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="date", operator="==", value=date(2001, 1, 1)
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                pd.DataFrame({"A": [1, 2], "B": [4, 5]}),
+            ),
+            (
+                pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                pl.DataFrame({"A": [1, 2], "B": [4, 5]}),
+            ),
+            (
+                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                ibis.memtable({"A": [1, 2], "B": [4, 5]}),
+            ),
+        ],
+    )
+    def test_filter_rows_in_operator(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="in", value=[1, 2])],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected", "column"),
+        [
+            # TODO: Pandas treats date objects as strings
+            # (
+            #     pd.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+            #     pd.DataFrame({"date": [date(2001, 1, 1)]}),
+            # ),
+            (
+                pl.DataFrame({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                pl.DataFrame({"date": [date(2001, 1, 1)]}),
+                "date",
+            ),
+            (
+                pl.DataFrame(
+                    {"datetime": [datetime(2001, 1, 1), datetime(2001, 1, 2)]}
+                ),
+                pl.DataFrame({"datetime": [datetime(2001, 1, 1)]}),
+                "datetime",
+            ),
+            (
+                ibis.memtable({"date": [date(2001, 1, 1), date(2001, 1, 2)]}),
+                ibis.memtable({"date": [date(2001, 1, 1)]}),
+                "date",
+            ),
+            (
+                ibis.memtable(
+                    {"datetime": [datetime(2001, 1, 1), datetime(2001, 1, 2)]}
+                ),
+                ibis.memtable({"datetime": [datetime(2001, 1, 1)]}),
+                "datetime",
+            ),
+        ],
+    )
+    def test_filter_rows_in_dates(
+        df: DataFrameType, expected: DataFrameType, column: str
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id=column,
+                    operator="in",
+                    value=["2001-01-01"],  # Backend will receive as string
+                ),
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pd.DataFrame({"A": [1, 2, None], "B": [4, 5, 6]}),
+                pd.DataFrame({"A": [np.nan], "B": [6]}),
+            ),
+            (
+                pl.DataFrame({"A": [1, 2, None], "B": [4, 5, 6]}),
+                pl.DataFrame({"A": [None], "B": [6]}).with_columns(
+                    pl.col("A").cast(pl.Int64)
+                ),
+            ),
+            (
+                ibis.memtable(
+                    {"A": [1, 2, None], "B": [4, 5, 6]},
+                    schema={"A": "int64", "B": "int64"},
+                ),
+                ibis.memtable(
+                    {"A": [None], "B": [6]},
+                    schema={"A": "int64", "B": "int64"},
+                ),
+            ),
+        ],
+    )
+    def test_filter_rows_in_operator_null_rows(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="in", value=[None])],
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -915,28 +1067,18 @@ class TestTransformHandler:
 
     @staticmethod
     @pytest.mark.parametrize(
-        ("df", "expected"),
+        "df",
         [
-            (
-                pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
-                pd.DataFrame({"A": [1, 3], "B": [4, 6]}),
-            ),
-            (
-                pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
-                pl.DataFrame({"A": [1, 3], "B": [4, 6]}),
-            ),
-            (
-                ibis.memtable({"A": [1, 2, 3], "B": [4, 5, 6]}),
-                ibis.memtable({"A": [1, 3], "B": [4, 6]}),
-            ),
+            pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
+            pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}),
         ],
     )
-    def test_sample_rows(df: DataFrameType, expected: DataFrameType) -> None:
+    def test_sample_rows(df: DataFrameType) -> None:
         transform = SampleRowsTransform(
             type=TransformType.SAMPLE_ROWS, n=2, seed=42, replace=False
         )
         result = apply(df, transform)
-        assert df_size(result) == df_size(expected)
+        assert len(result) == 2
         assert "A" in result.columns
         assert "B" in result.columns
 

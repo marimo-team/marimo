@@ -12,6 +12,7 @@ import React, { useMemo } from "react";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 import type { ResolvedTheme } from "@/theme/useTheme";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 
 /**
  * A code editor that supports any language.
@@ -23,8 +24,9 @@ const AnyLanguageCodeMirror: React.FC<
   ReactCodeMirrorProps & {
     language: string | undefined;
     theme: ResolvedTheme;
+    showCopyButton?: boolean;
   }
-> = ({ language, extensions = [], ...props }) => {
+> = ({ language, showCopyButton, extensions = [], ...props }) => {
   const isNotSupported = language && !(language in langs);
   if (isNotSupported) {
     Logger.warn(`Language ${language} not found in CodeMirror.`);
@@ -40,7 +42,7 @@ const AnyLanguageCodeMirror: React.FC<
   }, [language, extensions]);
 
   return (
-    <>
+    <div className="relative w-full group hover-actions-parent">
       {isNotSupported && (
         <ErrorBanner
           className="mb-1 rounded-sm"
@@ -49,8 +51,16 @@ const AnyLanguageCodeMirror: React.FC<
           ).join(", ")}`}
         />
       )}
+      {showCopyButton && !isNotSupported && (
+        <CopyClipboardIcon
+          tooltip={false}
+          className="absolute top-2 right-2 p-1 hover-action z-10 text-muted-foreground"
+          value={props.value || ""}
+          toastTitle="Copied to clipboard"
+        />
+      )}
       <ReactCodeMirror {...props} extensions={finalExtensions} />
-    </>
+    </div>
   );
 };
 

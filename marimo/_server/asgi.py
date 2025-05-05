@@ -458,6 +458,7 @@ def create_asgi_app(
                 # since we don't want to read arbitrary args and apply them
                 # to each application
                 cli_args={},
+                argv=None,
                 auth_token=auth_token,
                 redirect_console_to_browser=False,
                 ttl_seconds=None,

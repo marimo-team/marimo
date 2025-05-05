@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Union
+from typing import Any, Union
 
 from marimo._plugins.core.media import is_data_empty
 from marimo._runtime.virtual_file import (
@@ -80,6 +80,18 @@ def arrow(data: bytes) -> VirtualFile:
         A `VirtualFile` object.
     """
     return any_data(data, ext="arrow")  # type: ignore
+
+
+def parquet(data: bytes) -> VirtualFile:
+    """Create a virtual file for Parquet data.
+
+    Args:
+        data: Parquet data in bytes
+
+    Returns:
+        A `VirtualFile` object.
+    """
+    return any_data(data, ext="parquet")  # type: ignore
 
 
 def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
@@ -171,3 +183,37 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
         return item.virtual_file
 
     raise ValueError(f"Unsupported data type: {type(data)}")
+
+
+def sanitize_json_bigint(
+    data: Union[str, dict[str, Any], list[dict[str, Any]]],
+) -> str:
+    """Sanitize JSON bigint to a string.
+
+    This is necessary because the frontend will round ints larger than
+    Number.MAX_SAFE_INTEGER to Number.MAX_SAFE_INTEGER.
+    """
+    from json import dumps, loads
+
+    # JavaScript's safe integer limits
+    MAX_SAFE_INTEGER = 9007199254740991
+    MIN_SAFE_INTEGER = -9007199254740991
+
+    def convert_bigint(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return {k: convert_bigint(v) for k, v in obj.items()}  # type: ignore
+        elif isinstance(obj, list):
+            return [convert_bigint(item) for item in obj]  # type: ignore
+        elif isinstance(obj, int) and (
+            obj > MAX_SAFE_INTEGER or obj < MIN_SAFE_INTEGER
+        ):
+            return str(obj)
+        else:
+            return obj
+
+    if isinstance(data, str):
+        as_json = loads(data)
+    else:
+        as_json = data
+
+    return dumps(convert_bigint(as_json), indent=None, separators=(",", ":"))

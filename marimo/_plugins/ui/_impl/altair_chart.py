@@ -34,7 +34,7 @@ from marimo._utils.narwhals_utils import (
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import altair
 
 # Selection is a dictionary of the form:
 # {
@@ -77,6 +77,13 @@ def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
         return mark == "geoshape" or mark.type == "geoshape"  # type: ignore
     except Exception:
         return False
+
+
+def _using_vegafusion() -> bool:
+    """Return True if the current data transformer is vegafusion."""
+    import altair
+
+    return altair.data_transformers.active.startswith("vegafusion")  # type: ignore
 
 
 def _filter_dataframe(
@@ -369,7 +376,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             )
             chart_selection = False
             legend_selection = False
-        if _has_geoshape(vega_spec) and (has_chart_selection):
+        if _has_geoshape(chart) and (has_chart_selection):
             sys.stderr.write(
                 "Geoshapes + chart selection is not yet supported in "
                 "marimo.ui.chart.\n"
@@ -377,6 +384,17 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 "https://github.com/marimo-team/marimo/issues\n"
             )
             chart_selection = False
+
+        if _using_vegafusion() and (
+            has_chart_selection or has_legend_selection
+        ):
+            chart_selection = False
+            legend_selection = False
+            sys.stderr.write(
+                "Selection is not yet supported while using vegafusion with mo.ui.altair_chart.\n"
+                "You can follow the progress here: "
+                "https://github.com/marimo-team/marimo/issues/4601"
+            )
 
         self.dataframe: Optional[ChartDataType] = (
             self._get_dataframe_from_chart(chart)
@@ -431,7 +449,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         import altair
 
-        if chart.data is altair.Undefined:
+        if chart.data is altair.Undefined:  # type: ignore[comparison-overlap]
             return None
 
         return cast(ChartDataType, chart.data)
@@ -545,7 +563,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         from altair import Undefined
 
         value = super().value
-        if value is Undefined:
+        if value is Undefined:  # type: ignore
             sys.stderr.write(
                 "The underlying chart data is not available in layered"
                 " or stacked charts. "

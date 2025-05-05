@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { getFeatureFlag } from "@/core/config/feature-flag";
+import { isWasm } from "@/core/wasm/utils";
 import {
   XCircleIcon,
   FolderTreeIcon,
@@ -15,6 +15,7 @@ import {
   BoxIcon,
   BotMessageSquareIcon,
   ActivityIcon,
+  KeyRoundIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -30,6 +31,7 @@ export type PanelType =
   | "datasources"
   | "scratchpad"
   | "chat"
+  | "secrets"
   | "logs";
 
 export interface PanelDescriptor {
@@ -108,9 +110,16 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
+    // Not supported in WebAssembly yet
+    type: "secrets",
+    Icon: KeyRoundIcon,
+    tooltip: "Secrets",
+    hidden: isWasm(),
+    position: "sidebar",
+  },
+  {
     type: "scratchpad",
     Icon: NotebookPenIcon,
-    hidden: !getFeatureFlag("scratchpad"),
     tooltip: "Scratchpad",
     position: "sidebar",
   },

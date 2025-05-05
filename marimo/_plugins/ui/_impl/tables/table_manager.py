@@ -5,14 +5,13 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
-import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
-from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
 
 ColumnName = str
+RowId = str
 FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
@@ -55,18 +54,6 @@ class TableManager(abc.ABC, Generic[T]):
     def __init__(self, data: T) -> None:
         self.data = data
 
-    def to_data(
-        self,
-        format_mapping: Optional[FormatMapping] = None,
-    ) -> JSONType:
-        """
-        The best way to represent the data in a table as JSON.
-
-        By default, this method calls `to_json` and returns the result as
-        a string. `to_json` supports most data types (e.g. nested lists)
-        """
-        return mo_data.json(self.to_json(format_mapping)).url
-
     def supports_download(self) -> bool:
         return True
 
@@ -93,18 +80,33 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
+    def to_csv_str(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> str:
+        pass
+
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
-        pass
+        return self.to_csv_str(format_mapping).encode("utf-8")
 
     def to_arrow_ipc(self) -> bytes:
         raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
         pass
+
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self.to_json_str(format_mapping).encode("utf-8")
+
+    @abc.abstractmethod
+    def to_parquet(self) -> bytes:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
@@ -175,6 +177,12 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_sample_values(self, column: str) -> list[Any]:
+        pass
+
+    @abc.abstractmethod
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
         pass
 
     def __repr__(self) -> str:

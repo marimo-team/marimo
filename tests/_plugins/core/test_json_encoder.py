@@ -207,6 +207,13 @@ def test_bytes_encoding() -> None:
     assert encoded == '"hello"'
 
 
+def test_memoryview_encoding() -> None:
+    bytes_obj = b"hello"
+    memview = memoryview(bytes_obj)
+    encoded = json.dumps(memview, cls=WebComponentEncoder)
+    assert encoded == '"hello"'
+
+
 def test_set_encoding() -> None:
     set_obj = set(["a", "b"])
     encoded = json.dumps(set_obj, cls=WebComponentEncoder)
@@ -414,3 +421,42 @@ def test_range_encoding() -> None:
     r = range(10)
     encoded = json.dumps(r, cls=WebComponentEncoder)
     assert encoded == "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"
+
+
+def test_error_encoding() -> None:
+    from marimo._messaging.errors import MultipleDefinitionError
+    from marimo._types.ids import CellId_t
+
+    error_obj = MultipleDefinitionError(
+        "This is a custom error", (CellId_t("test"), CellId_t("test2"))
+    )
+    encoded = json.dumps(error_obj, cls=WebComponentEncoder)
+    assert (
+        encoded
+        == '{"name": "This is a custom error", "cells": ["test", "test2"], "type": "multiple-defs"}'
+    )
+
+
+def test_invalid_class() -> None:
+    class InvalidClass: ...
+
+    invalid_obj = InvalidClass()
+    invalid_obj.__slots__ = None
+
+    encoded = json.dumps(invalid_obj, cls=WebComponentEncoder)
+    assert encoded == '{"__slots__": null}'
+
+
+def test_empty_slots() -> None:
+    class ExClass:
+        __slots__ = []
+
+        # With a property (as sanity check)
+        @property
+        def one(self):
+            return 1
+
+    obj = ExClass()
+
+    encoded = json.dumps(obj, cls=WebComponentEncoder)
+    assert encoded == "{}"

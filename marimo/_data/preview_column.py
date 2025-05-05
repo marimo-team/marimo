@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import narwhals.stable.v1 as nw
+
 from marimo import _loggers
 from marimo._data.charts import get_chart_builder
 from marimo._data.models import ColumnSummary
@@ -143,7 +145,7 @@ def get_column_preview_for_duckdb(
     should_limit_to_10_items = True
 
     if DependencyManager.altair.has():
-        from altair import MaxRowsError  # type: ignore[import-not-found]
+        from altair import MaxRowsError
 
         try:
             total_rows: int = wrapped_sql(
@@ -191,7 +193,7 @@ def _get_altair_chart(
     if not DependencyManager.altair.has() or not table.supports_altair():
         return None, None, False
 
-    from altair import MaxRowsError  # type: ignore[import-not-found]
+    from altair import MaxRowsError
 
     (column_type, _external_type) = table.get_field_type(request.column_name)
 
@@ -219,6 +221,9 @@ def _get_altair_chart(
     try:
         # Filter the data to the column we want
         column_data = table.select_columns([request.column_name]).data
+        if isinstance(column_data, nw.LazyFrame):
+            column_data = column_data.collect()
+
         chart_spec = _get_chart_spec(
             column_data=column_data,
             column_type=column_type,
@@ -239,7 +244,7 @@ def _get_chart_spec(
     column_name: str,
     should_limit_to_10_items: bool,
 ) -> str:
-    import altair as alt  # type: ignore[import-not-found]
+    import altair as alt
 
     chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
 

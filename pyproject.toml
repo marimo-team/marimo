@@ -46,9 +46,6 @@ dependencies = [
     "itsdangerous>=2.0.0",
     # for dataframe support
     "narwhals>=1.12.0",
-    # for cell formatting; if user version is not compatible, no-op
-    # so no lower bound needed
-    "ruff",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
 ]
@@ -68,6 +65,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -77,8 +75,8 @@ marimo = "marimo._cli.cli:main"
 [project.urls]
 homepage = "https://github.com/marimo-team/marimo"
 
-[project.entry-points."pylsp"]
-marimo_plugin = "marimo._server.lsp"
+[project.entry-points."docstring_to_markdown"]
+marimo_converter = "marimo._utils.docs:MarimoConverter"
 
 [project.optional-dependencies]
 sql = [
@@ -185,15 +183,16 @@ installer = "uv"
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
+    "altair>=5.4.0",
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",
     "narwhals>=1.12.0",
     "matplotlib>=3.8.0",
-    "pyarrow-stubs>=17.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.40",
     "pandas-stubs>=1.5.3.230321",
+    "pyiceberg>=0.9.0",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
@@ -203,7 +202,11 @@ dependencies = [
 ]
 
 [tool.hatch.envs.typecheck.scripts]
-check = "mypy marimo/"
+# tutorials shouldn't be type-checked (should be excluded), but they get
+# included due to import following; so ensure tutorial imports are type
+# ignored.
+check = "mypy marimo --exclude=marimo/_tutorials/"
+tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
@@ -218,7 +221,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -247,26 +250,30 @@ extra-dependencies = [
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
     "vegafusion",
-    "pyarrow",
+    "pyarrow>=19.0.1",
     "pyarrow_hotfix",
     "altair>=5.4.0",
     "polars~=1.24.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.38",
+    "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
+    # For testing clickhouse
+    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
+    "clickhouse-connect>=0.8.17",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
-    "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
+    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
-    "anywidget~=0.9.14",
+    "anywidget~=0.9.18",
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
     "anthropic==0.34.1",
-    "google-generativeai==0.8.4",
+    "google-generativeai==0.8.5",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.3",
@@ -277,7 +284,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["dev", "docs"]
@@ -457,23 +464,17 @@ exclude = [
     'tests/_cli/cli_data',
     'tests/_cli/ipynb_data',
     'tests/_runtime/runtime_data',
-    'marimo/_tutorials/',
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
 ]
 warn_unused_ignores = false
-
-# tutorials shouldn't be type-checked (should be excluded), but they
-# get included anyway, maybe due to import following; this is coarse but works
-[[tool.mypy.overrides]]
-module = "marimo._tutorials.*"
-ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 
 [tool.coverage.run]
@@ -512,8 +513,6 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 chat_sidebar = true
-# Very experimental!
-lsp = true
 
 [tool.marimo.display]
 dataframes = "rich"
@@ -522,3 +521,24 @@ dataframes = "rich"
 watcher_on_save = "autorun"
 output_max_bytes = 10_000_000
 std_stream_max_bytes = 2_000_000
+dotenv = [".env"]
+
+[tool.marimo.package_management]
+manager = "uv"
+
+[tool.marimo.keymap]
+vimrc = "configs/.vimrc"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.dependencies]
+nodejs = "20.*"
+pnpm = "9.*"
+hatch = ">=1.14.0,<2"
+make = ">=4.4.1,<5"
+pre_commit = ">=4.2.0,<5"
+uv = ">=0.6.12,<0.7"
+python = "3.12.*"
+pip = ">=25.0.1,<26"

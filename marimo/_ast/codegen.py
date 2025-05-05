@@ -2,22 +2,32 @@
 from __future__ import annotations
 
 import ast
-import builtins
-import importlib.util
 import json
 import os
 import re
+import sys
 import textwrap
-from typing import Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import __version__
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
-from marimo._ast.visitor import Name
+from marimo._ast.variables import BUILTINS
+from marimo._ast.visitor import Name, VariableData
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
+
+Cls: TypeAlias = type
 
 INDENT = "    "
 MAX_LINE_LENGTH = 80
@@ -29,23 +39,33 @@ NOTICE = "\n".join(
     ]
 )
 
+BRACES: dict[Literal["(", "["], tuple[str, str]] = {
+    "(": ("(", ")"),
+    "[": ("[", "]"),
+}
 
-def get_setup_cell(
+Decorators = Literal["cell", "function", "class_definition"]
+
+
+def pop_setup_cell(
     code: list[str],
     names: list[str],
     configs: list[CellConfig],
-    toplevel_fn: bool,
 ) -> Optional[CellImpl]:
     # Find the cell named setup, compile, and remove the index from all lists.
-    if SETUP_CELL_NAME not in names or not toplevel_fn:
+    if SETUP_CELL_NAME not in names:
         return None
     setup_index = names.index(SETUP_CELL_NAME)
-    setup_code = code.pop(setup_index)
+    try:
+        cell = compile_cell(
+            code[setup_index], cell_id=CellId_t(SETUP_CELL_NAME)
+        ).configure(configs[setup_index])
+    except SyntaxError:
+        return None
+    code.pop(setup_index)
     names.pop(setup_index)
-    setup_config = configs.pop(setup_index)
-    return compile_cell(
-        setup_code, cell_id=CellId_t(SETUP_CELL_NAME)
-    ).configure(setup_config)
+    configs.pop(setup_index)
+    return cell
 
 
 def indent_text(text: str) -> str:
@@ -66,16 +86,18 @@ def format_tuple_elements(
     elems: tuple[str, ...],
     indent: bool = False,
     allowed_naked: bool = False,
+    brace: Literal["(", "["] = "(",
 ) -> str:
     """
     Replaces (...) with the elements in elems, formatted as a tuple.
     Adjusts for multiple lines as needed.
     """
+    left, right = BRACES[brace]
     maybe_indent = indent_text if indent else (lambda x: x)
     if not elems:
         if allowed_naked:
             return maybe_indent(code.replace("(...)", "").rstrip())
-        return maybe_indent(code.replace("(...)", "()"))
+        return maybe_indent(code.replace("(...)", left + right))
 
     if allowed_naked and len(elems) == 1:
         allowed_naked = False
@@ -85,7 +107,7 @@ def format_tuple_elements(
     if allowed_naked:
         attempt = code.replace("(...)", tuple_str).rstrip()
     else:
-        attempt = code.replace("(...)", f"({tuple_str})")
+        attempt = code.replace("(...)", f"{left}{tuple_str}{right}")
 
     attempt = maybe_indent(attempt)
     if len(attempt) < MAX_LINE_LENGTH:
@@ -96,13 +118,14 @@ def format_tuple_elements(
         elems = (elems[0].strip(","),)
 
     multiline_tuple = "\n".join(
-        ["(", indent_text(",\n".join(elems)) + ",", ")"]
+        [left, indent_text(",\n".join(elems)) + ",", right]
     )
     return maybe_indent(code.replace("(...)", multiline_tuple))
 
 
 def to_decorator(
-    config: Optional[CellConfig], fn: Literal["cell", "function"] = "cell"
+    config: Optional[CellConfig],
+    fn: Decorators = "cell",
 ) -> str:
     if config is None:
         return f"@app.{fn}"
@@ -131,12 +154,45 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
     block = setup_cell.code
     if not block.strip():
         return ""
+    prefix = "" if not setup_cell.is_coroutine() else "async "
+
+    has_only_comments = all(
+        not line.strip() or line.strip().startswith("#")
+        for line in setup_cell.code.splitlines()
+    )
+    # Fails otherwise
+    if has_only_comments:
+        block += "\npass"
+
     return "\n".join(
         [
-            "with app.setup:",
+            f"{prefix}with app.setup:",
             indent_text(block),
+            "\n",
         ]
     )
+
+
+def to_annotated_string(
+    variable_data: dict[Name, VariableData],
+    names: tuple[Name, ...],
+    allowed_refs: set[Name],
+) -> dict[str, str]:
+    """Checks relevant variables for annotation data, and if found either
+    represents the type directly or as a string (as a safety measure)"""
+    response: dict[str, str] = {}
+    if not variable_data:
+        return response
+    for name in names:
+        if name in variable_data and variable_data[name]:
+            variable = variable_data[name]
+            annotation = variable.annotation_data
+            if annotation:
+                if annotation.refs - allowed_refs:
+                    response[name] = f'"{annotation.repr}"'
+                else:
+                    response[name] = annotation.repr
+    return response
 
 
 def to_functiondef(
@@ -145,6 +201,7 @@ def to_functiondef(
     allowed_refs: Optional[set[Name]] = None,
     used_refs: Optional[set[Name]] = None,
     fn: Literal["cell"] = "cell",
+    variable_data: Optional[dict[str, VariableData]] = None,
 ) -> str:
     # allowed refs are a combination of top level imports and unshadowed
     # builtins.
@@ -153,17 +210,19 @@ def to_functiondef(
     # should not be taken as args by a cell's functiondef (since they are
     # already in globals)
     if allowed_refs is None:
-        allowed_refs = set(builtins.__dict__.keys())
+        allowed_refs = BUILTINS
     refs = tuple(ref for ref in sorted(cell.refs) if ref not in allowed_refs)
 
-    decorator = to_decorator(cell.config, fn=fn)
-
-    prefix = "" if not cell.is_coroutine() else "async "
-    signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
-
-    definition_body = [decorator, signature]
-    if body := indent_text(cell.code):
-        definition_body.append(body)
+    # Check to see if any of the refs have an explicit type assigned to them.
+    annotation_lookups = to_annotated_string(
+        variable_data or {}, refs, allowed_refs
+    )
+    refs = tuple(
+        f"{ref}: {annotation_lookups[ref]}"
+        if ref in annotation_lookups
+        else ref
+        for ref in refs
+    )
 
     # Used refs are a collection of all the references that cells make to some
     # external call. We collect them such that we can determine if a variable
@@ -171,6 +230,9 @@ def to_functiondef(
     # other static analysis tools can capture unused variables across cells.
     defs: tuple[str, ...] = tuple()
     if cell.defs:
+        # There are possible name error cases where a cell defines, and also
+        # requires a variable. We remove defs from the signature such that
+        # this causes a lint error in pyright.
         if used_refs is None:
             defs = tuple(name for name in sorted(cell.defs))
         else:
@@ -178,8 +240,21 @@ def to_functiondef(
                 name for name in sorted(cell.defs) if name in used_refs
             )
 
+    decorator = to_decorator(cell.config, fn=fn)
+    prefix = "" if not cell.is_coroutine() else "async "
+    signature = format_tuple_elements(f"{prefix}def {name}(...):", refs)
+
+    definition_body = [decorator, signature]
+    if body := indent_text(cell.code):
+        definition_body.append(body)
+
     returns = format_tuple_elements(
-        "return (...)", defs, indent=True, allowed_naked=True
+        "return (...)",
+        defs,
+        indent=True,
+        allowed_naked=True,
+        # maybe consider "return Edges(...)"
+        # Such that the return type can simply be 'Edges'
     )
     definition_body.append(returns)
     return "\n".join(definition_body)
@@ -191,10 +266,18 @@ def to_top_functiondef(
     # For the top-level function criteria to be satisfied,
     # the cell, it must pass basic checks in the cell impl.
     if allowed_refs is None:
-        allowed_refs = set(builtins.__dict__.keys())
-    assert cell.toplevel_variable, "Cell is not a top-level function"
+        allowed_refs = BUILTINS
+    toplevel_var = cell.toplevel_variable
+
+    assert toplevel_var, "Cell is not a top-level function"
     if cell.code:
-        decorator = to_decorator(cell.config, fn="function")
+        assert toplevel_var.kind in ("function", "class"), (
+            "Unexpected cell kind, please report an issue to github.com/marimo-team/marimo"
+        )
+        if toplevel_var.kind == "class":
+            decorator = to_decorator(cell.config, fn="class_definition")
+        else:
+            decorator = to_decorator(cell.config, fn="function")
         return "\n".join([decorator, cell.code.strip()])
     return ""
 
@@ -229,27 +312,26 @@ def generate_unparsable_cell(
     return "\n".join(text)
 
 
-def serialize(
-    extraction: TopLevelExtraction, status: TopLevelStatus, toplevel_fn: bool
+def serialize_cell(
+    extraction: TopLevelExtraction, status: TopLevelStatus
 ) -> str:
     if status.is_unparsable:
         return generate_unparsable_cell(
             code=status.code, config=status.cell_config, name=status.name
         )
-
     cell = status._cell
     assert cell is not None
-    if not toplevel_fn:
-        return to_functiondef(
-            cell, status.name, extraction.unshadowed, None, fn="cell"
-        )
-    elif status.is_cell:
+    if status.is_cell:
         return to_functiondef(
             cell,
             status.name,
-            extraction.allowed_refs,
+            # There are possible NameError cases where a cell defines and also
+            # requires a variable. We remove defs from the signature such that
+            # this causes a lint error in programs like pyright.
+            extraction.allowed_refs | cell.defs,
             extraction.used_refs,
             fn="cell",
+            variable_data=extraction.variables,
         )
     elif status.is_toplevel:
         return to_top_functiondef(cell, extraction.allowed_refs)
@@ -267,37 +349,11 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
         for key in default_config:
             if updates[key] == default_config[key]:
                 updates.pop(key)
-        if config._toplevel_fn:
-            updates["_toplevel_fn"] = True
 
     kwargs = tuple(
         f"{key}={_format_arg(value)}" for key, value in updates.items()
     )
     return format_tuple_elements("app = marimo.App(...)", kwargs)
-
-
-def _classic_export(
-    fndefs: list[str],
-    header_comments: Optional[str],
-    config: Optional[_AppConfig],
-) -> str:
-    filecontents = "".join(
-        "import marimo"
-        + "\n\n"
-        + f'__generated_with = "{__version__}"'
-        + "\n"
-        + generate_app_constructor(config)
-        + "\n\n\n"
-        + "\n\n\n".join(fndefs)
-        + "\n\n\n"
-        + 'if __name__ == "__main__":'
-        + "\n"
-        + indent_text("app.run()")
-    )
-
-    if header_comments:
-        filecontents = header_comments.rstrip() + "\n\n" + filecontents
-    return filecontents + "\n"
 
 
 def generate_filecontents(
@@ -308,27 +364,17 @@ def generate_filecontents(
     header_comments: Optional[str] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
-    # Until an appropriate means of controlling top-level functions exists,
-    # Let's keep it disabled by default.
-    toplevel_fn = config is not None and config._toplevel_fn
-
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):
         if name == "__":
             names[idx] = DEFAULT_CELL_NAME
 
-    # TODO: replace with dedicated cell
-    setup_cell = get_setup_cell(codes, names, cell_configs, toplevel_fn)
+    setup_cell = pop_setup_cell(codes, names, cell_configs)
     toplevel_defs: set[Name] = set()
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
     extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
-    cell_blocks = [
-        serialize(extraction, status, toplevel_fn) for status in extraction
-    ]
-
-    if not toplevel_fn:
-        return _classic_export(cell_blocks, header_comments, config)
+    cell_blocks = [serialize_cell(extraction, status) for status in extraction]
 
     filecontents = []
     if header_comments is not None:
@@ -342,7 +388,6 @@ def generate_filecontents(
             generate_app_constructor(config),
             "",
             build_setup_section(setup_cell),
-            "\n",
             "\n\n\n".join(cell_blocks),
             "\n",
             'if __name__ == "__main__":',
@@ -350,68 +395,7 @@ def generate_filecontents(
             "",
         ]
     )
-    return "\n".join(filecontents)
-
-
-class MarimoFileError(Exception):
-    pass
-
-
-def get_app(filename: Optional[str]) -> Optional[App]:
-    """Load and return app from a marimo-generated module.
-
-    Args:
-        filename: Path to a marimo notebook file (.py or .md)
-
-    Returns:
-        The marimo App instance if the file exists and contains valid code,
-        None if the file is empty or contains only comments.
-
-    Raises:
-        MarimoFileError: If the file exists but doesn't define a valid marimo app
-        RuntimeError: If there are issues loading the module
-        SyntaxError: If the file contains a syntax error
-        FileNotFoundError: If the file doesn't exist
-    """
-    if filename is None:
-        return None
-
-    with open(filename, encoding="utf-8") as f:
-        contents = f.read().strip()
-
-    if not contents:
-        return None
-
-    if filename.endswith(".md"):
-        from marimo._cli.convert.markdown import convert_from_md_to_app
-
-        return convert_from_md_to_app(contents)
-
-    # Below assumes it's a Python file
-
-    # This means it could have only the package dependencies
-    # but no actual code yet.
-    has_only_comments = all(
-        not line.strip() or line.strip().startswith("#")
-        for line in contents.splitlines()
-    )
-    if has_only_comments:
-        return None
-
-    spec = importlib.util.spec_from_file_location("marimo_app", filename)
-    if spec is None:
-        raise RuntimeError("Failed to load module spec")
-    marimo_app = importlib.util.module_from_spec(spec)
-    if spec.loader is None:
-        raise RuntimeError("Failed to load module spec's loader")
-    spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
-    if not hasattr(marimo_app, "app"):
-        raise MarimoFileError(f"{filename} missing attribute `app`.")
-    if not isinstance(marimo_app.app, App):
-        raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
-
-    app = marimo_app.app
-    return app
+    return "\n".join(filecontents).lstrip()
 
 
 def recover(filename: str) -> str:
@@ -432,9 +416,9 @@ def recover(filename: str) -> str:
         )
     )
     return generate_filecontents(
-        cast(list[str], codes),
-        cast(list[str], names),
-        cast(list[CellConfig], configs),
+        cast(list[str], list(codes)),
+        cast(list[str], list(names)),
+        cast(list[CellConfig], list(configs)),
     )
 
 
@@ -445,7 +429,7 @@ def is_multiline_comment(node: ast.stmt) -> bool:
     return False
 
 
-def get_header_comments(filename: str) -> Optional[str]:
+def get_header_comments(filename: str | Path) -> Optional[str]:
     """Gets the header comments from a file. Returns
     None if the file does not exist or the header is
     invalid, which is determined by:

@@ -39,6 +39,50 @@ describe("dates", () => {
     it("handles errors gracefully", () => {
       expect(prettyDate("invalid-date", "date")).toBe("Invalid Date");
     });
+
+    it("handles numeric timestamp input", () => {
+      const timestamp = 1_684_152_000_000; // 2023-05-15T12:00:00Z in milliseconds
+      expect(prettyDate(timestamp, "date")).toMatch(/May 15, 2023/);
+    });
+
+    it("preserves timezone for datetime type", () => {
+      // This date is in winter time to avoid daylight saving time issues
+      const date = new Date("2023-01-15T15:30:00Z");
+      expect(prettyDate(date.toISOString(), "datetime")).toMatch(
+        /Jan 15, 2023/,
+      );
+    });
+
+    it("drops timezone for date type by using UTC", () => {
+      // Create a date that would be different days in different timezones
+      const date = new Date("2023-05-15T23:30:00Z"); // Late in the day UTC
+      expect(prettyDate(date.toISOString(), "date")).toMatch(/May 15, 2023/);
+    });
+
+    describe("with different locales", () => {
+      // Save original implementation
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const originalToLocaleDateString = Date.prototype.toLocaleDateString;
+
+      afterAll(() => {
+        // Restore original implementation
+        Date.prototype.toLocaleDateString = originalToLocaleDateString;
+      });
+
+      it("formats date in fr-FR locale", () => {
+        // Mock toLocaleDateString to simulate fr-FR locale
+        // @ts-expect-error - we are mocking the method
+        Date.prototype.toLocaleDateString = (locale, options) => {
+          if (options?.timeZone === "UTC") {
+            return "15 mai 2023";
+          }
+          return "15 mai 2023";
+        };
+
+        const date = new Date("2023-05-15T12:00:00Z");
+        expect(prettyDate(date.toISOString(), "date")).toBe("15 mai 2023");
+      });
+    });
   });
 
   describe("exactDateTime", () => {

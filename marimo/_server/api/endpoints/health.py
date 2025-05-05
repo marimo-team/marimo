@@ -1,13 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import lru_cache
 from multiprocessing import Process
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
 
 from marimo import __version__, _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.health import (
@@ -153,11 +155,42 @@ async def usage(request: Request) -> JSONResponse:
                                         type: number
                                 required:
                                     - percent
+                            gpu:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        index:
+                                            type: integer
+                                        name:
+                                            type: string
+                                        memory:
+                                            type: object
+                                            properties:
+                                                total:
+                                                    type: integer
+                                                used:
+                                                    type: integer
+                                                free:
+                                                    type: integer
+                                                percent:
+                                                    type: number
+                                            required:
+                                                - total
+                                                - used
+                                                - free
+                                                - percent
+                                    required:
+                                        - index
+                                        - memory
+                                        - name
                         required:
                             - memory
                             - cpu
 
     """  # noqa: E501
+    import subprocess
+
     import psutil
 
     memory = psutil.virtual_memory()
@@ -188,6 +221,44 @@ async def usage(request: Request) -> JSONResponse:
             except psutil.NoSuchProcess:
                 pass
 
+    # GPU stats
+    gpu_stats: list[dict[str, Any]] = []
+    if _is_gpu_available():
+        try:
+            result = subprocess.run(  # noqa: ASYNC221
+                [
+                    "nvidia-smi",
+                    "--query-gpu=index,name,memory.total,memory.used,memory.free",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            for line in result.stdout.strip().split("\n"):
+                index_str, name, total_str, used_str, free_str = line.split(
+                    ", "
+                )
+                total = int(total_str) * 1024 * 1024  # Convert MB to bytes
+                used = int(used_str) * 1024 * 1024
+                free = int(free_str) * 1024 * 1024
+                gpu_stats.append(
+                    {
+                        "index": int(index_str),
+                        "name": name.strip(),
+                        "memory": {
+                            "total": total,
+                            "used": used,
+                            "free": free,
+                            "percent": (used / total) * 100
+                            if total > 0
+                            else 0,
+                        },
+                    }
+                )
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            LOGGER.warning("Failed to extract GPU stats: %s", e)
+
     return JSONResponse(
         {
             # computer memory
@@ -209,6 +280,7 @@ async def usage(request: Request) -> JSONResponse:
             "cpu": {
                 "percent": cpu,
             },
+            "gpu": gpu_stats,
         }
     )
 
@@ -231,3 +303,8 @@ async def connections(request: Request) -> JSONResponse:
     return JSONResponse(
         {"active": app_state.session_manager.get_active_connection_count()}
     )
+
+
+@lru_cache(maxsize=1)
+def _is_gpu_available() -> bool:
+    return DependencyManager.which("nvidia-smi")

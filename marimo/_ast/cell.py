@@ -8,11 +8,14 @@ import os
 from collections.abc import Awaitable, Mapping
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
+from marimo import _loggers
 from marimo._ast.sql_visitor import SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._types.ids import CellId_t
 from marimo._utils.deep_merge import deep_merge
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -35,8 +38,15 @@ class CellConfig:
     hide_code: bool = False
 
     @classmethod
-    def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
-        return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
+    def from_dict(
+        cls, kwargs: dict[str, Any], warn: bool = True
+    ) -> CellConfig:
+        config = cls(
+            **{k: v for k, v in kwargs.items() if k in CellConfigKeys}
+        )
+        if warn and (invalid := set(kwargs.keys()) - CellConfigKeys):
+            LOGGER.warning(f"Invalid config keys: {invalid}")
+        return config
 
     def asdict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -304,7 +314,8 @@ class CellImpl:
         if not (
             len(tree.body) == 1
             and isinstance(
-                tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)
+                tree.body[0],
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
             )
         ):
             return None
@@ -318,6 +329,10 @@ class CellImpl:
             return None
 
         return list(variable_data)[0]
+
+    @property
+    def init_variable_data(self) -> dict[Name, VariableData]:
+        return {key: vs[0] for key, vs in self.variable_data.items()}
 
     def set_runtime_state(
         self, status: RuntimeStateType, stream: Stream | None = None
@@ -407,6 +422,8 @@ class Cell:
 
     # Whether to expose this cell as a test cell.
     _test_allowed: bool = False
+
+    _expected_signature: Optional[tuple[str, ...]] = None
 
     @property
     def name(self) -> str:
@@ -594,6 +611,17 @@ class Cell:
         """
         assert self._app is not None
 
+        # Inject setup cell definitions so that we do not rerun the setup cell.
+        # With an exception for tests that should act as if it's in runtime.
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            if self._app._app._setup is not None:
+                from_setup = {
+                    k: v
+                    for k, v in self._app._app._setup._glbls.items()
+                    if k in self._cell.refs
+                }
+                refs = {**from_setup, **refs}
+
         try:
             if self._is_coroutine:
                 return self._app.run_cell_async(cell=self, kwargs=refs)
@@ -603,23 +631,51 @@ class Cell:
             raise e.__cause__ from None  # type: ignore
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        # TODO: Expand for toplevel modules when the time comes.
-        arg_names = sorted(
-            self._cell.refs - set(globals()["__builtins__"].keys())
-        )
+        from marimo._ast.toplevel import TopLevelExtraction
+
+        assert self._app is not None
+        # Definitions on a module level are not part of the signature, and as
+        # such, should not be provided with the call.
+
+        # NB. TopLevelExtraction assumes that all cells that can be exposed will
+        # be, but signature provides context for what is actually scoped.
+        allowed_refs = TopLevelExtraction.from_app(self._app).allowed_refs
+        allowed_refs -= set(self._expected_signature or ())
+
+        arg_names = sorted((self._cell.refs - allowed_refs) - self._cell.defs)
         argc = len(arg_names)
 
         call_args = {name: arg for name, arg in zip(arg_names, args)}
         call_args.update(kwargs)
         call_argc = len(call_args.keys()) + len(self._pytest_reserved)
 
-        is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+        if unexpected := call_args.keys() - arg_names:
+            raise TypeError(
+                f"{self.name}() got an unexpected argument(s) '{unexpected}'"
+            )
+
+        is_pytest = (
+            "PYTEST_CURRENT_TEST" in os.environ
+            or "MARIMO_PYTEST_WASM" in os.environ
+        )
         # Capture pytest case, where arguments don't match the references.
         if self._pytest_reserved - set(arg_names):
             raise TypeError(
                 "A mismatch in expected argument names likely means you should "
                 "resave the notebook in the marimo editor."
             )
+
+        actual_count = len(args) + len(kwargs)
+
+        mismatch_context = ""
+        if self._expected_signature is not None:
+            if tuple(arg_names) != self._expected_signature:
+                mismatch_context = (
+                    f"The signature of function ``{self._name}'': {self._expected_signature} "
+                    f"does not match the expected signature: {tuple(arg_names)}. "
+                    "A mismatch in arguments likely means you should "
+                    "resave the notebook in the marimo editor."
+                )
 
         # If all the arguments are provided, then run as if it were a normal
         # function call. An incorrect number of arguments will raise a
@@ -628,8 +684,16 @@ class Cell:
         # pytest is an exception here, since it enables testing directly on
         # notebooks, and the graph will be executed if needed.
         if argc == call_argc and (
-            is_pytest or all(name in call_args for name in arg_names)
+            is_pytest
+            or (
+                all(name in call_args for name in arg_names)
+                and argc == actual_count
+            )
         ):
+            # Function invoked successfully, but let the user know there is a
+            # mismatch in the signature.
+            if mismatch_context:
+                LOGGER.warning(mismatch_context)
             # Note, run returns a tuple of (output, defs)-
             # so stripped defs is required.
             ret = self.run(**call_args)
@@ -645,20 +709,19 @@ class Cell:
             return output
 
         if is_pytest:
-            call_str = (
-                "A mismatch in arguments likely means you should "
-                "resave the notebook in the marimo editor."
-            )
+            call_str = mismatch_context
         else:
             await_str = "await " if self._is_coroutine else ""
+            mismatch_context += " Alternatively; " if mismatch_context else ""
             call_str = (
-                "Consider calling with `outputs, defs = "
-                f"{await_str}{self.name}.run()`"
+                f"{mismatch_context}Consider calling with `outputs, defs = "
+                f"{await_str}{self.name}.run()`."
             )
 
+        were = "were" if actual_count != 1 else "was"
         raise TypeError(
             f"{self.name}() takes {argc} positional arguments but "
-            f"{call_argc} were given. {call_str}"
+            f"{actual_count} {were} given. {call_str}"
         )
 
 

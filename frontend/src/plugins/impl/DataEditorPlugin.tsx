@@ -14,6 +14,8 @@ import gridCss from "./data-editor/grid.css?inline";
 import agGridCss from "ag-grid-community/styles/ag-grid.css?inline";
 import agThemeCss from "ag-grid-community/styles/ag-theme-quartz.css?inline";
 import { DATA_TYPES } from "@/core/kernel/messages";
+import { toFieldTypes } from "@/components/data-table/types";
+import { getVegaFieldTypes } from "./vega/utils";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -90,10 +92,12 @@ const LoadingDataEditor = (props: Props) => {
       return props.data;
     }
 
+    const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
+
     // Otherwise, load the data from the URL
     return await vegaLoadData(
       props.data,
-      { type: "json" },
+      { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
       { handleBigIntAndNumberLike: true },
     );
   }, [props.fieldTypes, props.data]);

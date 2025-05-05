@@ -4,18 +4,20 @@ import { SQLCompletionStore, SQLLanguageAdapter } from "../sql";
 import { store } from "@/core/state/jotai";
 import {
   dataSourceConnectionsAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
   type ConnectionName,
 } from "@/core/datasets/data-source-connections";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { PostgreSQL } from "@codemirror/lang-sql";
+import { datasetsAtom } from "@/core/datasets/state";
+import type { DatasetsState } from "@/core/datasets/types";
 
 const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
   describe("transformIn", () => {
     afterAll(() => {
-      adapter.engine = DEFAULT_ENGINE;
+      adapter.engine = DUCKDB_ENGINE;
       adapter.showOutput = true;
     });
 
@@ -239,7 +241,7 @@ _df = mo.sql(
 
   describe("transformOut", () => {
     afterEach(() => {
-      adapter.engine = DEFAULT_ENGINE;
+      adapter.engine = DUCKDB_ENGINE;
       adapter.showOutput = true;
       adapter.dataframeName = "_df";
     });
@@ -473,8 +475,8 @@ _df = mo.sql(
           dialect: "mysql",
           databases: [],
         })
-        .set(DEFAULT_ENGINE, {
-          name: DEFAULT_ENGINE,
+        .set(DUCKDB_ENGINE, {
+          name: DUCKDB_ENGINE,
           source: "duckdb",
           display_name: "DuckDB",
           dialect: "duckdb",
@@ -487,7 +489,7 @@ _df = mo.sql(
     });
 
     it("should use default engine initially", () => {
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
     });
 
     it("should persist the selected engine", () => {
@@ -525,7 +527,7 @@ _df = mo.sql(
       // Don't update for unspecified engine
       const pythonCode2 = '_df = mo.sql("""SELECT 1""")';
       adapter.transformIn(pythonCode2);
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
         "postgres_engine",
       );
@@ -566,11 +568,11 @@ _df = mo.sql(
     it("should restore previous engine when selecting default", () => {
       const engine = "postgres_engine" as ConnectionName;
       adapter.selectEngine(engine);
-      adapter.selectEngine(DEFAULT_ENGINE);
+      adapter.selectEngine(DUCKDB_ENGINE);
 
-      expect(adapter.engine).toBe(DEFAULT_ENGINE);
+      expect(adapter.engine).toBe(DUCKDB_ENGINE);
       expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        DEFAULT_ENGINE,
+        DUCKDB_ENGINE,
       );
     });
   });
@@ -585,7 +587,7 @@ _df = mo.sql(
     });
 
     it("should not include engine in getDefaultCode when using default engine", () => {
-      adapter.selectEngine(DEFAULT_ENGINE);
+      adapter.selectEngine(DUCKDB_ENGINE);
       expect(adapter.getDefaultCode()).toBe(
         `_df = mo.sql(f"""SELECT * FROM """)`,
       );
@@ -599,13 +601,23 @@ describe("tablesCompletionSource", () => {
 
   beforeEach(() => {
     // Reset the adapter engine
-    adapter.engine = DEFAULT_ENGINE;
+    adapter.engine = DUCKDB_ENGINE;
+    // reset the datasets state
+    mockStore.set(datasetsAtom, {
+      tables: [],
+    } as unknown as DatasetsState);
+
+    // reset the dataSourceConnectionsAtom
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map(),
+      latestEngineSelected: DUCKDB_ENGINE,
+    });
   });
 
   it("should return null if connection not found", () => {
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map(),
-      latestEngineSelected: DEFAULT_ENGINE,
+      latestEngineSelected: DUCKDB_ENGINE,
     });
 
     const completionSource = completionStore.getCompletionSource(
@@ -1083,4 +1095,311 @@ describe("tablesCompletionSource", () => {
     expect(completionSource?.defaultTable).toBe("users");
     expect(completionSource?.dialect).toBe(PostgreSQL);
   });
+
+  it("should handle schemaless databases", () => {
+    const mockConnection: DataSourceConnection = {
+      name: "test_engine",
+      dialect: "postgres",
+      display_name: "postgres",
+      default_database: "test_db",
+      source: "postgres",
+      databases: [
+        {
+          name: "test_db",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "", // lack of name indicates schemaless
+              tables: [
+                {
+                  name: "users",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "test_db2",
+          dialect: "postgres",
+          schemas: [
+            {
+              name: "",
+              tables: [
+                {
+                  name: "orders",
+                  source: "postgres",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "order_id",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [mockConnection.name as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: mockConnection.name as ConnectionName,
+    });
+
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.defaultTable).toBe(undefined);
+    expect(completionSource?.dialect).toBe(PostgreSQL);
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "test_db2": {
+          "orders": [
+            "order_id",
+          ],
+        },
+        "users": [
+          "id",
+        ],
+      }
+      `);
+  });
+
+  it("should return local tables", () => {
+    const testDatasets = [
+      {
+        name: "dataset1",
+        columns: [
+          { name: "col1", type: "number" },
+          { name: "col2", type: "string" },
+        ],
+      },
+    ];
+    mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+
+    const mockConnection: DataSourceConnection = {
+      name: "test_engine",
+      dialect: "duckdb",
+      display_name: "duckdb",
+      default_database: "test_db",
+      default_schema: "test_schema",
+      source: "duckdb",
+      databases: [
+        {
+          dialect: "duckdb",
+          name: "test_db",
+          schemas: [
+            {
+              name: "test_schema",
+              tables: [
+                {
+                  name: "dataset2",
+                  source: "duckdb",
+                  source_type: "local",
+                  type: "table",
+                  columns: [
+                    {
+                      name: "col1",
+                      external_type: "string",
+                      type: "string",
+                      sample_values: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+      {
+        "dataset1": [
+          "col1",
+          "col2",
+        ],
+        "test_schema": {
+          "dataset2": [
+            "col1",
+          ],
+        },
+      }
+    `);
+  });
+
+  it("should return new connection tables when connection is updated", () => {
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+    {
+      "test_schema": {
+        "dataset2": [
+          "col1",
+        ],
+      },
+    }
+    `);
+
+    const newConnection: DataSourceConnection = {
+      ...mockConnection,
+      default_schema: "new_schema",
+    };
+
+    mockStore.set(dataSourceConnectionsAtom, {
+      ...mockStore.get(dataSourceConnectionsAtom),
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, newConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+
+    const completionSource2 = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource2?.defaultSchema).toBe("new_schema");
+  });
+
+  it("should return new local tables when local tables are updated", () => {
+    mockStore.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        ["test_engine" as ConnectionName, mockConnection],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]) as any,
+      latestEngineSelected: "test_engine" as ConnectionName,
+    });
+    mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+    adapter.engine = "test_engine" as ConnectionName;
+    const completionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(completionSource?.schema).toMatchInlineSnapshot(`
+    {
+      "dataset1": [
+        "col1",
+        "col2",
+      ],
+      "test_schema": {
+        "dataset2": [
+          "col1",
+        ],
+      },
+    }
+    `);
+
+    const newTestDatasets = [
+      {
+        name: "dataset3",
+        columns: [
+          { name: "col1", type: "number" },
+          { name: "col2", type: "string" },
+        ],
+      },
+    ];
+    mockStore.set(datasetsAtom, { tables: newTestDatasets } as DatasetsState);
+
+    const newCompletionSource = completionStore.getCompletionSource(
+      "test_engine" as ConnectionName,
+    );
+    expect(newCompletionSource?.schema).toMatchInlineSnapshot(`
+    {
+      "dataset3": [
+        "col1",
+        "col2",
+      ],
+      "test_schema": {
+        "dataset2": [
+          "col1",
+        ],
+      },
+    }
+    `);
+  });
 });
+
+const mockConnection: DataSourceConnection = {
+  name: "test_engine",
+  dialect: "duckdb",
+  display_name: "duckdb",
+  default_database: "test_db",
+  default_schema: "test_schema",
+  source: "duckdb",
+  databases: [
+    {
+      dialect: "duckdb",
+      name: "test_db",
+      schemas: [
+        {
+          name: "test_schema",
+          tables: [
+            {
+              name: "dataset2",
+              source: "duckdb",
+              source_type: "local",
+              type: "table",
+              columns: [
+                {
+                  name: "col1",
+                  external_type: "string",
+                  type: "string",
+                  sample_values: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const testDatasets = [
+  {
+    name: "dataset1",
+    columns: [
+      { name: "col1", type: "number" },
+      { name: "col2", type: "string" },
+    ],
+  },
+];

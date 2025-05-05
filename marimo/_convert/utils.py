@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Optional
 
 from marimo._ast import codegen
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME
 

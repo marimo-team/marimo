@@ -14,11 +14,11 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
-  FUNCTIONS_REGISTRY,
   PreviewSQLTable,
   PreviewSQLTableList,
-} from "../functions/FunctionRegistry";
+} from "../datasets/request-registry";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
@@ -49,6 +49,7 @@ import {
   type ConnectionName,
   useDataSourceActions,
 } from "../datasets/data-source-connections";
+import { SECRETS_REGISTRY } from "../secrets/request-registry";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -207,6 +208,9 @@ export function useMarimoWebSocket(opts: {
         return;
       case "sql-table-list-preview":
         PreviewSQLTableList.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "secret-keys-result":
+        SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "data-source-connections":
         addDataSourceConnection({

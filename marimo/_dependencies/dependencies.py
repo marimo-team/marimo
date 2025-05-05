@@ -165,14 +165,18 @@ class DependencyManager:
     pandas = Dependency("pandas")
     polars = Dependency("polars")
     ibis = Dependency("ibis")
+    dotenv = Dependency("dotenv")
     numpy = Dependency("numpy")
     altair = Dependency("altair", min_version="5.3.0", max_version="6.0.0")
     duckdb = Dependency("duckdb")
+    chdb = Dependency("chdb")
+    clickhouse_connect = Dependency("clickhouse_connect")
     sqlglot = Dependency("sqlglot")
     pillow = Dependency("PIL")
     plotly = Dependency("plotly")
     bokeh = Dependency("bokeh")
     pyarrow = Dependency("pyarrow")
+    pyiceberg = Dependency("pyiceberg")
     openai = Dependency("openai")
     matplotlib = Dependency("matplotlib")
     anywidget = Dependency("anywidget")
@@ -191,8 +195,14 @@ class DependencyManager:
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
+    pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
+    dotenv = Dependency("dotenv")
+    docstring_to_markdown = Dependency(
+        "docstring_to_markdown", min_version="0.17.0"
+    )
+    tomlkit = Dependency("tomlkit")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

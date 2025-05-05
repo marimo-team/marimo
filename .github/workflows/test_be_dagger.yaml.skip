@@ -18,9 +18,11 @@ jobs:
           filters: |
             backend:
               - 'marimo/**'
+              - '!marimo/_smoke_tests/**'
               - 'tests/**'
               - 'pyproject.toml'
               - 'dagger/**'
+              - '!frontend/**'
 
   test_python:
     needs: changes

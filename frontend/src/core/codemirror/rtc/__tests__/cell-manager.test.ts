@@ -102,7 +102,7 @@ describe("CellProviderManager", () => {
     window.location = {
       ...originalLocation,
       search: "?file=/path/to/file.py",
-    };
+    } as never;
 
     manager.getOrCreateProvider(CELL_ID, "initial code");
 

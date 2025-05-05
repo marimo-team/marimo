@@ -14,6 +14,7 @@ from typing import (
 )
 from uuid import uuid4
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._types.ids import CellId_t, RequestId, UIElementId
@@ -21,6 +22,7 @@ from marimo._types.ids import CellId_t, RequestId, UIElementId
 if TYPE_CHECKING:
     from starlette.datastructures import URL
     from starlette.requests import HTTPConnection
+
 
 CompletionRequestId = str
 
@@ -131,7 +133,8 @@ class ExecutionRequest:
 
 
 @dataclass
-class ExecuteStaleRequest: ...
+class ExecuteStaleRequest:
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -170,7 +173,7 @@ class ExecuteMultipleRequest:
 class ExecuteScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -233,6 +236,8 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    app_config: _AppConfig
+    argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
 
@@ -326,6 +331,16 @@ class PreviewSQLTableListRequest:
     schema: str
 
 
+@dataclass
+class ListSecretKeysRequest:
+    request_id: RequestId
+
+
+@dataclass
+class RefreshSecretsRequest:
+    pass
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
@@ -342,4 +357,6 @@ ControlRequest = Union[
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
     PreviewSQLTableListRequest,
+    ListSecretKeysRequest,
+    RefreshSecretsRequest,
 ]

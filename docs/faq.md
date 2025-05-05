@@ -294,7 +294,7 @@ marimo tutorial layout
 
 <a name="faq-show-code"></a>
 
-### How do I show cell code in the app view?(#faq-show-code)
+### How do I show cell code in the app view?
 
 Use [`mo.show_code`][marimo.show_code].
 

@@ -34,6 +34,9 @@ import { INDEX_COLUMN_NAME } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { CellStylingFeature } from "./cell-styling/feature";
+import type { CellStyleState } from "./cell-styling/types";
+import { CopyColumnFeature } from "./copy-column/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -55,6 +58,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   cellSelection?: CellSelectionState;
+  cellStyling?: CellStyleState | null;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -69,6 +73,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -84,6 +90,7 @@ const DataTableInternal = <TData,>({
   setSorting,
   rowSelection,
   cellSelection,
+  cellStyling,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -101,6 +108,8 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -115,6 +124,8 @@ const DataTableInternal = <TData,>({
       ColumnWrappingFeature,
       ColumnFormattingFeature,
       CellSelectionFeature,
+      CellStylingFeature,
+      CopyColumnFeature,
     ],
     data,
     columns,
@@ -159,6 +170,9 @@ const DataTableInternal = <TData,>({
     enableCellSelection:
       selection === "single-cell" || selection === "multi-cell",
     enableMultiCellSelection: selection === "multi-cell",
+    // pinning
+    onColumnPinningChange: setColumnPinning,
+    // state
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
@@ -172,9 +186,9 @@ const DataTableInternal = <TData,>({
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection,
       cellSelection,
+      cellStyling,
       columnPinning: columnPinning,
     },
-    onColumnPinningChange: setColumnPinning,
   });
 
   return (
@@ -207,6 +221,8 @@ const DataTableInternal = <TData,>({
         table={table}
         downloadAs={downloadAs}
         getRowIds={getRowIds}
+        toggleDisplayHeader={toggleDisplayHeader}
+        chartsFeatureEnabled={chartsFeatureEnabled}
       />
     </div>
   );

@@ -1,26 +1,36 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
-import { markdown } from "@codemirror/lang-markdown";
-import { languages } from "@codemirror/language-data";
-import { parseMixed } from "@lezer/common";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { python, pythonLanguage } from "@codemirror/lang-python";
+import { languages } from "@codemirror/language-data";
+import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import {
-  type Completion,
-  type CompletionSource,
   autocompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+  type CompletionSource,
 } from "@codemirror/autocomplete";
 import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { indentOneTab } from "./utils/indentOneTab";
-import { type QuotePrefixKind, splitQuotePrefix } from "./utils/quotes";
+import {
+  QUOTE_PREFIX_KINDS,
+  type QuotePrefixKind,
+  splitQuotePrefix,
+} from "./utils/quotes";
 import { markdownAutoRunExtension } from "../cells/extensions";
 import type { PlaceholderType } from "../config/extension";
 import type { CellId } from "@/core/cells/ids";
+import { parseLatex } from "./latex";
+import { StreamLanguage } from "@codemirror/language";
+import { parsePython } from "./embedded-python";
+import { conditionalCompletion } from "../completion/utils";
+import { pythonCompletionSource } from "../completion/completer";
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -30,12 +40,7 @@ const quoteKinds = [
 ];
 
 // explode into all combinations
-//
-// A note on f-strings:
-//
-// f-strings are not yet supported due to bad interactions with
-// string escaping, LaTeX, and loss of Python syntax highlighting
-const pairs = ["", "r"].flatMap((prefix) =>
+const pairs = QUOTE_PREFIX_KINDS.flatMap((prefix) =>
   quoteKinds.map(([start, end]) => [prefix + start, end]),
 );
 
@@ -59,7 +64,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     return `mo.md(r"""\n${markdown}\n""")`;
   }
 
-  lastQuotePrefix: QuotePrefixKind = "";
+  lastQuotePrefix: QuotePrefixKind = "r";
 
   transformIn(pythonCode: string): [string, number] {
     pythonCode = pythonCode.trim();
@@ -116,44 +121,76 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
-    const end = `\n    """\n)`;
-    return [start + indentOneTab(escapedCode) + end, start.length + 1];
+    const end = `\n"""\n)`;
+    return [start + escapedCode + end, start.length + 1];
   }
 
   isSupported(pythonCode: string): boolean {
-    if (pythonCode.trim() === "") {
+    pythonCode = pythonCode.trim();
+
+    // Empty strings are supported
+    if (pythonCode === "") {
       return true;
     }
 
-    if (pythonCode.trim() === "mo.md()") {
+    // Must start with mo.md(
+    if (!pythonCode.startsWith("mo.md(")) {
+      return false;
+    }
+
+    // Empty function calls are supported
+    if (pythonCode === "mo.md()") {
       return true;
     }
 
-    // Handle mo.md("foo"), mo.plain_text("bar") in the same line
-    // If it starts with mo.md, but we have more than one function call, return false
-    if (pythonCode.trim().startsWith("mo.md(")) {
-      const tree = pythonLanguage.parser.parse(pythonCode);
-      let functionCallCount = 0;
+    // Parse the code using Lezer and check for the exact match of mo.md() signature
+    const tree = pythonLanguage.parser.parse(pythonCode);
 
-      // Parse the code using Lezer to check for multiple function calls
-      tree.iterate({
-        enter: (node) => {
-          if (node.name === "CallExpression") {
-            functionCallCount++;
-            if (functionCallCount > 1) {
-              return false; // Stop iterating if we've found more than one function call
-            }
-          }
-        },
-      });
+    // This is the exact match of mo.md() signature
+    const enterOrder: Array<{ match: string | RegExp; stop?: boolean }> = [
+      { match: "Script" },
+      { match: "ExpressionStatement" },
+      { match: "CallExpression" },
+      { match: "MemberExpression" },
+      { match: "VariableName" },
+      { match: "." },
+      { match: "PropertyName" },
+      { match: "ArgList" },
+      { match: "(" },
+      { match: /String|FormatString/, stop: true },
+      { match: ")" },
+    ];
 
-      // If the function call count is greater than 1, we don't want to show "view as markdown"
-      if (functionCallCount > 1) {
-        return false;
-      }
-    }
+    let isValid = true;
 
-    return regexes.some(([, regex]) => regex.test(pythonCode));
+    // Parse the code using Lezer to check for multiple function calls and string content
+    tree.iterate({
+      enter: (node) => {
+        const current = enterOrder.shift();
+        if (current === undefined) {
+          // If our list is empty, but we are still going
+          // then this is not a valid call
+          isValid = false;
+          return false;
+        }
+
+        const match = current.match;
+
+        if (typeof match === "string") {
+          isValid = isValid && match === node.name;
+          return isValid && !current.stop;
+        }
+
+        if (!match.test(node.name)) {
+          isValid = false;
+          return isValid && !current.stop;
+        }
+
+        return isValid && !current.stop;
+      },
+    });
+
+    return isValid;
   }
 
   getExtension(
@@ -162,47 +199,47 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     hotkeys: HotkeyProvider,
     _: PlaceholderType,
   ): Extension[] {
+    const markdownLanguageData = markdown().language.data;
+    // Only activate completions for f-strings
+    const isFStringActive = () => this.lastQuotePrefix.includes("f");
+
     return [
       markdown({
+        base: markdownLanguage,
         codeLanguages: languages,
         extensions: [
-          // Wrapper extension to handle f-string substitutions
-          {
-            wrap: parseMixed((node, input) => {
-              const text = input.read(node.from, node.to);
-              const overlays: Array<{ from: number; to: number }> = [];
-
-              // Find all { } groupings
-              const pattern = /{(.*?)}/g;
-              let match: RegExpExecArray | null;
-
-              while ((match = pattern.exec(text)) !== null) {
-                const start = match.index + 1;
-                const end = pattern.lastIndex - 1;
-                overlays.push({ from: start, to: end });
-              }
-
-              if (overlays.length === 0) {
-                return null;
-              }
-
-              return {
-                parser: pythonLanguage.parser,
-                overlays,
-              };
-            }),
-          },
+          // Embedded LateX in Markdown
+          parseLatex(StreamLanguage.define(stexMath).parser),
+          // Embedded Python in Markdown
+          parsePython(pythonLanguage.parser, isFStringActive),
         ],
       }),
       enhancedMarkdownExtension(hotkeys),
+      // Completions for markdown
+      markdownLanguageData.of({ autocomplete: emojiCompletionSource }),
+      markdownLanguageData.of({ autocomplete: lucideIconCompletionSource }),
+      markdownLanguageData.of({ autocomplete: latexSymbolCompletionSource }),
+      // Completions for embedded Python
+      python().language.data.of({
+        autocomplete: conditionalCompletion({
+          completion: pythonCompletionSource,
+          predicate: isFStringActive,
+        }),
+      }),
+
       autocompletion({
+        // We remove the default keymap because we use our own which
+        // handles the Escape key correctly in Vim
+        defaultKeymap: false,
         activateOnTyping: true,
-        override: [emojiCompletionSource, lucideIconCompletionSource],
       }),
       // Markdown autorun
-      markdownAutoRunExtension(),
-      python().support,
+      markdownAutoRunExtension({ predicate: () => !isFStringActive() }),
     ];
+  }
+
+  setQuotePrefix(prefix: QuotePrefixKind) {
+    this.lastQuotePrefix = prefix;
   }
 }
 
@@ -303,4 +340,155 @@ const getLucideIconList = once(async (): Promise<Completion[]> => {
       },
     }),
   );
+});
+
+// Completion provider for LaTeX-style UTF-8 symbols
+export const latexSymbolCompletionSource = (
+  context: CompletionContext,
+): CompletionResult | null => {
+  const filter = context.matchBefore(/\\\w*$/)?.text.slice(1) ?? "";
+  if (!filter && !context.explicit) {
+    return null;
+  }
+
+  return {
+    from: context.pos - filter.length - 1,
+    options: getLatexSymbolList(),
+    validFor: /^[\w\\]*$/,
+  };
+};
+
+// Common LaTeX symbols with their UTF-8 equivalents
+const getLatexSymbolList = once((): Completion[] => {
+  const symbols: Array<[string, string, string]> = [
+    // Greek letters
+    ["alpha", "α", "Greek small letter alpha"],
+    ["beta", "β", "Greek small letter beta"],
+    ["gamma", "γ", "Greek small letter gamma"],
+    ["delta", "δ", "Greek small letter delta"],
+    ["epsilon", "ε", "Greek small letter epsilon"],
+    ["zeta", "ζ", "Greek small letter zeta"],
+    ["eta", "η", "Greek small letter eta"],
+    ["theta", "θ", "Greek small letter theta"],
+    ["iota", "ι", "Greek small letter iota"],
+    ["kappa", "κ", "Greek small letter kappa"],
+    ["lambda", "λ", "Greek small letter lambda"],
+    ["mu", "μ", "Greek small letter mu"],
+    ["nu", "ν", "Greek small letter nu"],
+    ["xi", "ξ", "Greek small letter xi"],
+    ["omicron", "ο", "Greek small letter omicron"],
+    ["pi", "π", "Greek small letter pi"],
+    ["rho", "ρ", "Greek small letter rho"],
+    ["sigma", "σ", "Greek small letter sigma"],
+    ["tau", "τ", "Greek small letter tau"],
+    ["upsilon", "υ", "Greek small letter upsilon"],
+    ["phi", "φ", "Greek small letter phi"],
+    ["chi", "χ", "Greek small letter chi"],
+    ["psi", "ψ", "Greek small letter psi"],
+    ["omega", "ω", "Greek small letter omega"],
+
+    // Capital Greek letters
+    ["Gamma", "Γ", "Greek capital letter gamma"],
+    ["Delta", "Δ", "Greek capital letter delta"],
+    ["Theta", "Θ", "Greek capital letter theta"],
+    ["Lambda", "Λ", "Greek capital letter lambda"],
+    ["Xi", "Ξ", "Greek capital letter xi"],
+    ["Pi", "Π", "Greek capital letter pi"],
+    ["Sigma", "Σ", "Greek capital letter sigma"],
+    ["Phi", "Φ", "Greek capital letter phi"],
+    ["Psi", "Ψ", "Greek capital letter psi"],
+    ["Omega", "Ω", "Greek capital letter omega"],
+
+    // Math symbols
+    ["pm", "±", "Plus-minus sign"],
+    ["mp", "∓", "Minus-plus sign"],
+    ["times", "×", "Multiplication sign"],
+    ["div", "÷", "Division sign"],
+    ["cdot", "⋅", "Dot operator"],
+    ["ast", "∗", "Asterisk operator"],
+    ["star", "⋆", "Star operator"],
+    ["circ", "∘", "Ring operator"],
+    ["bullet", "•", "Bullet"],
+    ["cap", "∩", "Intersection"],
+    ["cup", "∪", "Union"],
+    ["uplus", "⊎", "Multiset union"],
+    ["sqcap", "⊓", "Square cap"],
+    ["sqcup", "⊔", "Square cup"],
+    ["vee", "∨", "Logical or"],
+    ["wedge", "∧", "Logical and"],
+    ["setminus", "∖", "Set minus"],
+    ["oplus", "⊕", "Circled plus"],
+    ["ominus", "⊖", "Circled minus"],
+    ["otimes", "⊗", "Circled times"],
+    ["oslash", "⊘", "Circled division slash"],
+    ["odot", "⊙", "Circled dot operator"],
+
+    // Relation symbols
+    ["leq", "≤", "Less than or equal to"],
+    ["geq", "≥", "Greater than or equal to"],
+    ["equiv", "≡", "Identical to"],
+    ["prec", "≺", "Precedes"],
+    ["succ", "≻", "Succeeds"],
+    ["sim", "∼", "Tilde operator"],
+    ["perp", "⊥", "Up tack"],
+    ["mid", "∣", "Divides"],
+    ["parallel", "∥", "Parallel to"],
+    ["subset", "⊂", "Subset of"],
+    ["supset", "⊃", "Superset of"],
+    ["subseteq", "⊆", "Subset of or equal to"],
+    ["supseteq", "⊇", "Superset of or equal to"],
+    ["cong", "≅", "Approximately equal to"],
+    ["approx", "≈", "Almost equal to"],
+    ["neq", "≠", "Not equal to"],
+    ["ne", "≠", "Not equal to"],
+    ["propto", "∝", "Proportional to"],
+
+    // Arrows
+    ["leftarrow", "←", "Leftward arrow"],
+    ["rightarrow", "→", "Rightward arrow"],
+    ["Leftarrow", "⇐", "Leftward double arrow"],
+    ["Rightarrow", "⇒", "Rightward double arrow"],
+    ["leftrightarrow", "↔", "Left right arrow"],
+    ["Leftrightarrow", "⇔", "Left right double arrow"],
+    ["uparrow", "↑", "Upward arrow"],
+    ["downarrow", "↓", "Downward arrow"],
+    ["Uparrow", "⇑", "Upward double arrow"],
+    ["Downarrow", "⇓", "Downward double arrow"],
+
+    // Miscellaneous
+    ["infty", "∞", "Infinity"],
+    ["nabla", "∇", "Nabla"],
+    ["partial", "∂", "Partial differential"],
+    ["forall", "∀", "For all"],
+    ["exists", "∃", "There exists"],
+    ["nexists", "∄", "There does not exist"],
+    ["emptyset", "∅", "Empty set"],
+    ["in", "∈", "Element of"],
+    ["notin", "∉", "Not an element of"],
+    ["sum", "∑", "N-ary summation"],
+    ["prod", "∏", "N-ary product"],
+    ["int", "∫", "Integral"],
+    ["oint", "∮", "Contour integral"],
+    ["sqrt", "√", "Square root"],
+    ["hbar", "ℏ", "Planck constant over 2pi"],
+    ["ldots", "…", "Horizontal ellipsis"],
+    ["cdots", "⋯", "Midline horizontal ellipsis"],
+    ["vdots", "⋮", "Vertical ellipsis"],
+    ["ddots", "⋱", "Down right diagonal ellipsis"],
+  ];
+  return symbols.map(([command, symbol, description]) => ({
+    label: `\\${command} ${description}`, // Include the description so it's searchable
+    displayLabel: command,
+    type: "latex-symbol",
+    boost: 10,
+    // We complete the command, instead of the symbol since
+    // some commands take arguments.
+    apply: `\\${command}`,
+    info: () => {
+      const div = document.createElement("div");
+      div.textContent = `${symbol} ${description}`;
+      return div;
+    },
+    detail: symbol,
+  }));
 });

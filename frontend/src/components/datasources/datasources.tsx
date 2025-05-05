@@ -56,15 +56,11 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
   dataConnectionsMapAtom,
-  DEFAULT_ENGINE,
+  INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import {
-  PreviewSQLTable,
-  PreviewSQLTableList,
-} from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   DatasourceLabel,
@@ -74,8 +70,12 @@ import {
   RotatingChevron,
 } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { sqlCode } from "./utils";
+import { isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
+import {
+  PreviewSQLTableList,
+  PreviewSQLTable,
+} from "@/core/datasets/request-registry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -105,16 +105,18 @@ const sortedTablesAtom = atom((get) => {
 
 const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
-  const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
 
-  // Filter out the internal duckdb engine if it has no databases
-  if (defaultEngine && defaultEngine.databases.length === 0) {
-    dataConnections.delete(DEFAULT_ENGINE);
+  // Filter out the internal engines if it has no databases
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (connection && connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
   }
 
-  // Sort by name, but put the default engine at the top
+  // Put internal engines last to prioritize user-defined connections
   return sortBy([...dataConnections.values()], (connection) =>
-    connection.name === DEFAULT_ENGINE ? "" : connection.name,
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
   );
 });
 
@@ -133,7 +135,7 @@ export const DataSources: React.FC = () => {
         action={
           <AddDatabaseDialog>
             <Button variant="outline" size="sm">
-              Add database
+              Add database or catalog
               <PlusIcon className="h-4 w-4 ml-2" />
             </Button>
           </AddDatabaseDialog>
@@ -367,6 +369,10 @@ const SchemaItem: React.FC<{
     setIsExpanded(hasSearch);
   }, [hasSearch]);
 
+  if (isSchemaless(schema.name)) {
+    return children;
+  }
+
   return (
     <>
       <CommandItem
@@ -508,26 +514,32 @@ const DatasetTableItem: React.FC<{
 
   const handleAddTable = () => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    let code = "";
-    if (sqlTableContext) {
-      code = sqlCode(table, "*", sqlTableContext);
-    } else {
+    const getCode = () => {
+      if (table.source_type === "catalog") {
+        const identifier = sqlTableContext?.database
+          ? `${sqlTableContext.database}.${table.name}`
+          : table.name;
+        return `${table.engine}.load_table("${identifier}")`;
+      }
+
+      if (sqlTableContext) {
+        return sqlCode(table, "*", sqlTableContext);
+      }
+
       switch (table.source_type) {
         case "local":
-          code = `mo.ui.table(${table.name})`;
-          break;
+          return `mo.ui.table(${table.name})`;
         case "duckdb":
         case "connection":
-          code = sqlCode(table, "*", sqlTableContext);
-          break;
+          return sqlCode(table, "*", sqlTableContext);
         default:
           logNever(table.source_type);
-          break;
+          return "";
       }
-    }
+    };
 
     createNewCell({
-      code,
+      code: getCode(),
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
     });
@@ -598,7 +610,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          sqlTableContext && "pl-12",
+          sqlTableContext &&
+            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
@@ -792,6 +805,14 @@ const DatasetColumnPreview: React.FC<{
         >
           <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
         </Button>
+      </span>
+    );
+  }
+
+  if (table.source_type === "catalog") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+        {column.name} ({column.external_type})
       </span>
     );
   }

@@ -72,4 +72,6 @@ export const {
   addPackage,
   removePackage,
   getPackageList,
+  listSecretKeys,
+  writeSecret,
 } = getRequest();

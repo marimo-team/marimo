@@ -7,6 +7,7 @@ import { useEffect } from "react";
  * Global store allows getting and setting global state outside of React components.
  */
 export const store = createStore();
+export type JotaiStore = typeof store;
 
 /**
  * Wait for an atom to satisfy a predicate.

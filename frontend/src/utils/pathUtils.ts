@@ -9,8 +9,8 @@ export function getProtocolAndParentDirectories(
   initialPath: string,
   restrictNavigation: boolean,
 ) {
-  // Determine protocol (http://, gs://, C:\, or /)
-  const protocolMatch = path.match(/^[A-Za-z]+:\/\//);
+  // Determine protocol (http://, gs://, C:\, s3://, or /)
+  const protocolMatch = path.match(/^[\dA-Za-z]+:\/\//);
   const isWindowsPath = /^[A-Za-z]:\\/.test(path);
   const protocol = protocolMatch
     ? protocolMatch[0]

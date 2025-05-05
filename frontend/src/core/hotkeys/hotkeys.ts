@@ -142,6 +142,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Ctrl-Space",
   },
+  "cell.signatureHelp": {
+    name: "Signature help",
+    group: "Editing",
+    key: "Mod-Shift-Space",
+  },
   "cell.undo": {
     name: "Undo",
     group: "Editing",
@@ -216,11 +221,22 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-'",
   },
-  "cell.toggleLineComment": {
-    name: "Toggle line comment",
+  "cell.toggleComment": {
+    name: "Toggle comment",
     group: "Editing",
+    // https://github.com/codemirror/commands/blob/6.8.1/src/commands.ts#L1067
     key: "Mod-/",
-    editable: false,
+  },
+  "cell.toggleBlockComment": {
+    name: "Toggle block comment",
+    group: "Editing",
+    // https://github.com/codemirror/commands/blob/6.8.1/src/commands.ts#L1068
+    key: "Alt-A",
+  },
+  "cell.renameSymbol": {
+    name: "Rename symbol",
+    group: "Editing",
+    key: "F2",
   },
 
   // Markdown

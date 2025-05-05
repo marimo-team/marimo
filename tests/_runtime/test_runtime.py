@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -880,6 +881,53 @@ class TestExecution:
         assert set(k.errors.keys()) == {"0", "1"}
         assert not k.graph.cells["1"].stale
 
+    async def test_setup_runs(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        await k.run(
+            [
+                ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=0"),
+                # NB. no explicit tie from setup to er.
+                er := ExecutionRequest(cell_id="1", code="y=1"),
+            ]
+        )
+        assert not k.graph.get_stale()
+        assert k.globals["x"] == 0
+        assert k.globals["y"] == 1
+        assert not k.errors
+
+        await k.run([ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=")])
+        assert SETUP_CELL_NAME not in k.graph.cells
+        assert "1" in k.graph.cells
+        assert "x" not in k.globals
+        if k.lazy():
+            # Opinionated - but because setup is not a true root, it should not
+            # invalidate other cells unless there is explicitly a tie.
+            assert k.graph.get_stale() == set()
+            await k.run([er])
+        assert not k.graph.get_stale()
+        assert "y" in k.globals
+
+        # fix syntax error
+        await k.run([ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=0")])
+        assert k.globals["x"] == 0
+        assert SETUP_CELL_NAME in k.graph.cells
+        assert "1" in k.graph.cells
+        assert not k.errors
+        if k.lazy():
+            # Wasn't stale previously
+            assert k.graph.get_stale() == set()
+            await k.run([er])
+        assert not k.graph.get_stale()
+        assert k.globals["y"] == 1
+
+        # set setup to stale
+        k.graph.cells[SETUP_CELL_NAME].set_stale(True)
+        await k.run([er])
+        # Should have run!
+        assert not k.graph.get_stale()
+
     async def test_syntax_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.run(
@@ -1155,7 +1203,11 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1216,7 +1268,11 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1224,6 +1280,67 @@ class TestExecution:
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
         finally:
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+
+    def test_sys_argv_updated(self, tmp_path: pathlib.Path) -> None:
+        old_argv = sys.argv
+        try:
+            filename = str(tmp_path / "notebook.py")
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=["foo", "bar"],
+                    app_config=_AppConfig(),
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+
+            assert len(sys.argv) == 3
+            assert filename == sys.argv[0]
+            assert sys.argv[1] == "foo"
+            assert sys.argv[2] == "bar"
+        finally:
+            sys.argv = old_argv
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+
+    def test_sys_argv_not_updated_when_none(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        argv = sys.argv
+        try:
+            filename = str(tmp_path / "notebook.py")
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+            assert argv == sys.argv
+        finally:
+            # restore argv in case test failed or accidentally mutated it
+            sys.argv = argv
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
 
@@ -1248,7 +1365,11 @@ class TestExecution:
                     },
                 },
                 app_metadata=AppMetadata(
-                    query_params={}, filename=str(filename), cli_args={}
+                    query_params={},
+                    filename=str(filename),
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1645,6 +1766,10 @@ class TestStrictExecution:
         assert k.globals["V1"] == 11
 
     @staticmethod
+    @pytest.mark.xfail(
+        sys.version_info >= (3, 13),
+        reason="Namespace handling changes in Python 3.13",
+    )
     async def test_cell_zero_copy_works(
         strict_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -2885,10 +3010,8 @@ class TestErrorHandling:
 
         assert len(errors) == 1
         assert errors[0].type == "exception"
-        assert (
-            errors[0].msg
-            == "This cell raised an exception: ValueError('some secret error')"
-        )
+        assert errors[0].msg == "some secret error"
+        assert errors[0].exception_type == "ValueError"
 
     async def test_error_handling_in_run_mode(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider

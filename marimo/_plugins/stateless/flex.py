@@ -59,10 +59,15 @@ def _flex(
             return ""
         return create_style({"flex": f"{child_flex}"})
 
-    grid_items = [
-        h.div(as_html(item).text, style=create_style_for_item(i))
-        for i, item in enumerate(items)
-    ]
+    # If there are no child flexes, don't wrap them in an additional <div>
+    if child_flexes is None:
+        grid_items = [as_html(item).text for item in items]
+    else:
+        grid_items = [
+            h.div(as_html(item).text, style=create_style_for_item(i))
+            for i, item in enumerate(items)
+        ]
+
     return Html(h.div(grid_items, style=style))
 
 
@@ -150,6 +155,20 @@ def hstack(
         ```python
         # Build a row of items
         mo.hstack([mo.md("..."), mo.ui.text_area()])
+        ```
+
+        Build a row of items with equal width:
+        ```python
+        mo.hstack([mo.md("..."), mo.ui.text_area()], widths="equal")
+        ```
+
+        Have one item stretch to fill the available space,
+        while another fits its content:
+        ```python
+        mo.hstack(
+            [mo.plain_text("..."), mo.ui.text_area(full_width=True)],
+            widths=[0, 1],
+        )
         ```
 
         Build a grid:

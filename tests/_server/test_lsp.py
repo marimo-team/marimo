@@ -1,19 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal, Union, cast
 from unittest import mock
 
 import pytest
 
-from marimo._config.config import CompletionConfig, LanguageServersConfig
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._config.config import (
+    CompletionConfig,
+    LanguageServersConfig,
+    MarimoConfig,
+    merge_default_config,
+)
+from marimo._config.manager import (
+    MarimoConfigReader,
+    MarimoConfigReaderWithOverrides,
+)
 from marimo._messaging.ops import Alert
 from marimo._server.lsp import (
     BaseLspServer,
     CompositeLspServer,
     CopilotLspServer,
     PyLspServer,
+    any_lsp_server_running,
 )
 
 if TYPE_CHECKING:
@@ -121,51 +130,86 @@ def test_copilot_server():
 
 
 def test_composite_server():
-    config = LanguageServersConfig({"pylsp": {"enabled": True}})
-    completion_config = CompletionConfig(
-        {"copilot": True, "activate_on_typing": True}
-    )
+    def as_reader(
+        completion_config: CompletionConfig, config: LanguageServersConfig
+    ) -> MarimoConfigReader:
+        return cast(
+            MarimoConfigReader,
+            MarimoConfigReaderWithOverrides(
+                {
+                    "completion": completion_config,
+                    "language_servers": config,
+                    "experimental": {"lsp": True},
+                },
+            ),
+        )
 
     with mock.patch("marimo._server.lsp.DependencyManager") as mock_dm:
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
-        server = CompositeLspServer(config, completion_config, min_port=8000)
+        config = LanguageServersConfig({"pylsp": {"enabled": True}})
+        completion_config = CompletionConfig(
+            {"copilot": True, "activate_on_typing": True}
+        )
+        config_reader = as_reader(completion_config, config)
+        server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == 2  # Both pylsp and copilot enabled
+        assert server._is_enabled("pylsp") is True
+        assert server._is_enabled("copilot") is True
 
         # Test with only pylsp
         config = LanguageServersConfig({"pylsp": {"enabled": True}})
         completion_config = CompletionConfig(
             {"copilot": False, "activate_on_typing": True}
         )
-        server = CompositeLspServer(config, completion_config, min_port=8000)
-        assert len(server.servers) == 1
+        config_reader = as_reader(completion_config, config)
+        server = CompositeLspServer(config_reader, min_port=8000)
+        assert len(server.servers) == 2
+        assert server._is_enabled("pylsp") is True
+        assert server._is_enabled("copilot") is False
 
         # Test with nothing enabled
         config = LanguageServersConfig({"pylsp": {"enabled": False}})
         completion_config = CompletionConfig(
             {"copilot": False, "activate_on_typing": True}
         )
-        server = CompositeLspServer(config, completion_config, min_port=8000)
-        assert len(server.servers) == 0
+        config_reader = as_reader(completion_config, config)
+        server = CompositeLspServer(config_reader, min_port=8000)
+        assert len(server.servers) == 2
+        assert server._is_enabled("pylsp") is False
+        assert server._is_enabled("copilot") is False
 
 
-@pytest.mark.skipif(
-    not DependencyManager.pylsp.has(),
-    reason="pylsp is not installed",
-)
-def test_pylsp_hooks():
-    from marimo._server.lsp import pylsp_completions, pylsp_hover
+def test_any_lsp_server_running():
+    # Test any_lsp_server_running function
+    config: MarimoConfig = merge_default_config(
+        {
+            "completion": {"copilot": True, "activate_on_typing": True},
+            "language_servers": {"pylsp": {"enabled": False}},
+        }
+    )
+    assert any_lsp_server_running(config) is True
 
-    # Mock document and position
-    mock_doc = mock.MagicMock()
-    mock_doc.source = "def test(): pass"
-    mock_doc.path = "test.py"
-    position = {"line": 0, "character": 4}
+    config: MarimoConfig = merge_default_config(
+        {
+            "completion": {"copilot": False, "activate_on_typing": True},
+            "language_servers": {"pylsp": {"enabled": True}},
+        }
+    )
+    assert any_lsp_server_running(config) is True
 
-    # Test hover
-    hover_result = pylsp_hover({}, mock_doc, position)
-    assert hover_result is None or isinstance(hover_result, dict)
+    config: MarimoConfig = merge_default_config(
+        {
+            "completion": {"copilot": False, "activate_on_typing": True},
+            "language_servers": {"pylsp": {"enabled": False}},
+        }
+    )
+    assert any_lsp_server_running(config) is False
 
-    # Test completions
-    completion_result = pylsp_completions(mock_doc, position)
-    assert completion_result is None
+    config: MarimoConfig = merge_default_config(
+        {
+            "completion": {"copilot": False, "activate_on_typing": True},
+            "language_servers": {},  # default is true
+        }
+    )
+    assert any_lsp_server_running(config) is True

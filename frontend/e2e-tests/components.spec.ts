@@ -145,6 +145,18 @@ test("file area", async ({ page }) => {
   await takeScreenshot(page, _filename);
 });
 
+test("file area single", async ({ page }) => {
+  const helper = pageHelper(page);
+  await helper.selectBasicComponent("file area single");
+  const element = page.getByText("Drag and drop a file here");
+  // Verify is visible
+  await expect(element).toBeVisible();
+  // Verify output
+  await helper.verifyOutput("None");
+
+  await takeScreenshot(page, _filename);
+});
+
 test("multiselect", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("multiselect");

@@ -162,9 +162,11 @@ class PyodideStdin(Stdin):
             console=CellOutput.stdin(prompt),
         ).broadcast(self.stream)
 
+        return self._get_response()
+
+    def _get_response(self) -> str:
         loop = asyncio.get_event_loop()
-        response = loop.run_until_complete(self.stream.input_queue.get())
-        return response
+        return loop.run_until_complete(self.stream.input_queue.get())
 
     def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
         # size only included for compatibility with sys.stdin.readline API;

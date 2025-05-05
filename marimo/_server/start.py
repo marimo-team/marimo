@@ -12,7 +12,7 @@ from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
-from marimo._server.lsp import CompositeLspServer
+from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
@@ -24,7 +24,7 @@ from marimo._server.utils import (
 )
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._tracer import LOGGER
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
@@ -81,6 +81,7 @@ def start(
     proxy: Optional[str],
     watch: bool,
     cli_args: SerializedCLIArgs,
+    argv: list[str],
     base_url: str = "",
     allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
@@ -105,11 +106,12 @@ def start(
 
     config_reader = get_default_config_manager(current_path=start_path)
 
-    lsp_composite_server = CompositeLspServer(
-        lsp_config=config_reader.language_servers,
-        completion_config=config_reader.completion,
-        min_port=DEFAULT_PORT + 400,
-    )
+    lsp_composite_server: Optional[CompositeLspServer] = None
+    if mode == SessionMode.EDIT:
+        lsp_composite_server = CompositeLspServer(
+            config_reader=config_reader,
+            min_port=DEFAULT_PORT + 400,
+        )
 
     # If watch is true, disable auto-save and format-on-save,
     # watch is enabled when they are editing in another editor
@@ -144,9 +146,10 @@ def start(
         quiet=quiet,
         include_code=include_code,
         ttl_seconds=ttl_seconds,
-        lsp_server=lsp_composite_server,
+        lsp_server=lsp_composite_server or NoopLspServer(),
         config_manager=config_reader,
         cli_args=cli_args,
+        argv=argv,
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
@@ -169,7 +172,9 @@ def start(
         ),
         allow_origins=allow_origins,
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
-        lsp_servers=lsp_composite_server.servers,
+        lsp_servers=list(lsp_composite_server.servers.values())
+        if lsp_composite_server is not None
+        else None,
     )
 
     app.state.port = external_port
@@ -198,9 +203,7 @@ def start(
             # reload=development_mode,
             reload_dirs=(
                 [
-                    os.path.realpath(
-                        str(import_files("marimo").joinpath("_static"))
-                    )
+                    str((marimo_package_path() / "_static").resolve()),
                 ]
                 if development_mode
                 else None

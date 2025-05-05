@@ -17,18 +17,11 @@ class tabs(UIElement[str, str]):
     Examples:
         Show content in tabs:
         ```python
-        tab1 = mo.vstack([
-            "slider": mo.ui.slider(1, 10),
-            "text": mo.ui.text(),
-            "date": mo.ui.date()
-        ])
+        tab1 = mo.vstack([mo.ui.slider(1, 10), mo.ui.text(), mo.ui.date()])
 
         tab2 = mo.md("You can show arbitrary content in a tab.")
 
-        tabs = mo.ui.tabs({
-            "Heading 1": tab1,
-            "Heading 2": tab2
-        })
+        tabs = mo.ui.tabs({"Heading 1": tab1, "Heading 2": tab2})
         ```
 
         Control which tab is selected:
@@ -55,6 +48,9 @@ class tabs(UIElement[str, str]):
         lazy (bool, optional): Whether to lazily load the tab content.
             This is a convenience that wraps each tab in a `mo.lazy`
             component. Defaults to False.
+        label (str, optional): A descriptive name for the tab. Defaults to "".
+        on_change (Callable[[dict[str, object]], None], optional): Optional callback
+            to run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-tabs"

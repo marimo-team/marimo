@@ -129,4 +129,109 @@ describe("resolveVegaSpecData", () => {
     await expect(resolveVegaSpecData(spec)).resolves.toEqual(expected);
     expect(vegaLoader.load).toHaveBeenCalledTimes(4);
   });
+
+  it("correctly resolves nested URL data in spec property", async () => {
+    const spec = asSpec({
+      mark: "point",
+      spec: { data: { url: "http://example.com/data", format: "json" } },
+    });
+    const resolvedData = { some: "data" };
+    vi.spyOn(vegaLoader, "load").mockResolvedValueOnce(resolvedData);
+
+    const expected = {
+      mark: "point",
+      spec: { data: { name: "/data" } },
+      datasets: {
+        "/data": resolvedData,
+      },
+    };
+
+    await expect(resolveVegaSpecData(spec)).resolves.toEqual(expected);
+    expect(vegaLoader.load).toHaveBeenCalledWith("http://example.com/data");
+  });
+
+  it("preserves existing datasets in the spec", async () => {
+    const spec = asSpec({
+      data: { url: "http://example.com/data", format: "json" },
+      datasets: { existing: "dataset" },
+    });
+    const resolvedData = { some: "data" };
+    vi.spyOn(vegaLoader, "load").mockResolvedValueOnce(resolvedData);
+
+    const expected = {
+      ...spec,
+      data: { name: "/data" },
+      datasets: {
+        existing: "dataset",
+        "/data": resolvedData,
+      },
+    };
+
+    await expect(resolveVegaSpecData(spec)).resolves.toEqual(expected);
+  });
+
+  it("handles multiple data URLs with the same pathname", async () => {
+    const spec = asSpec({
+      layer: [
+        { data: { url: "http://example.com/data", format: "json" } },
+        { data: { url: "http://example.com/data", format: "json" } },
+      ],
+    });
+    const resolvedData = { some: "data" };
+    vi.spyOn(vegaLoader, "load").mockResolvedValue(resolvedData);
+
+    const expected = {
+      layer: [{ data: { name: "/data" } }, { data: { name: "/data" } }],
+      datasets: {
+        "/data": resolvedData,
+      },
+    };
+
+    await expect(resolveVegaSpecData(spec)).resolves.toEqual(expected);
+    // Loaded twice, but batching should lower-level
+    expect(vegaLoader.load).toHaveBeenCalledTimes(2);
+  });
+
+  it("handles errors from vegaLoadData", async () => {
+    const spec = asSpec({
+      data: { url: "http://example.com/data", format: "json" },
+    });
+    vi.spyOn(vegaLoader, "load").mockRejectedValue(
+      new Error("Failed to load data"),
+    );
+
+    await expect(resolveVegaSpecData(spec)).rejects.toThrow(
+      "Failed to load data",
+    );
+  });
+
+  it("handles different data formats", async () => {
+    const spec = asSpec({
+      data: { url: "http://example.com/data", format: "csv" },
+    });
+    const resolvedData = { some: "data" };
+    vi.spyOn(vegaLoader, "load").mockResolvedValueOnce(resolvedData);
+
+    const expected = {
+      ...spec,
+      data: { name: "/data" },
+      datasets: {
+        "/data": resolvedData,
+      },
+    };
+
+    await expect(resolveVegaSpecData(spec)).resolves.toEqual(expected);
+    expect(vegaLoader.load).toHaveBeenCalledWith("http://example.com/data");
+  });
+
+  it("returns the input spec if no datasets are resolved", async () => {
+    const spec = asSpec({
+      mark: "point",
+      data: { name: "dataset" },
+    });
+
+    const result = await resolveVegaSpecData(spec);
+    expect(result).toEqual(spec);
+    expect(result).not.toHaveProperty("datasets");
+  });
 });

@@ -68,11 +68,22 @@ class ChatMessage:
 
 @dataclass
 class ChatModelConfig:
+    # Maximum number of tokens.
     max_tokens: Optional[int] = None
+
+    # Temperature for the model (randomness).
     temperature: Optional[float] = None
+
+    # Restriction on the cumulative probability of prediction candidates.
     top_p: Optional[float] = None
+
+    # Number of top prediction candidates to consider.
     top_k: Optional[int] = None
+
+    # Penalty for tokens which appear frequently.
     frequency_penalty: Optional[float] = None
+
+    # Penalty for tokens which already appeared at least once.
     presence_penalty: Optional[float] = None
 
 

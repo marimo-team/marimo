@@ -45,43 +45,42 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     """
     A number picker over an interval.
 
-    **Example.**
+    Example:
+        ```python
+        number = mo.ui.number(start=1, stop=10, step=2)
+        ```
 
-    ```python
-    number = mo.ui.number(start=1, stop=10, step=2)
-    ```
+        Or for integer-only values:
 
-    Or for integer-only values:
+        ```python
+        number = mo.ui.number(step=1)
+        ```
 
-    ```python
-    number = mo.ui.number(step=1)
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        number = mo.ui.number.from_series(df["column_name"])
+        ```
 
-    ```python
-    number = mo.ui.number.from_series(df["column_name"])
-    ```
+    Attributes:
+        value (Optional[Numeric]): The value of the number, possibly `None`.
+        start (Optional[float]): The minimum value of the interval.
+        stop (Optional[float]): The maximum value of the interval.
+        step (Optional[float]): The number increment.
 
-    **Attributes.**
+    Args:
+        start (Optional[float]): The minimum value of the interval. Defaults to None.
+        stop (Optional[float]): The maximum value of the interval. Defaults to None.
+        step (Optional[float]): The number increment. Defaults to None.
+        value (Optional[float]): The default value. Defaults to None.
+        debounce (bool): Whether to debounce (rate-limit) value updates from the frontend. Defaults to False.
+        label (str): Markdown label for the element. Defaults to an empty string.
+        on_change (Optional[Callable[[Optional[Numeric]], None]]): Optional callback to run when this element's value changes. Defaults to None.
+        full_width (bool): Whether the input should take up the full width of its container. Defaults to False.
 
-    - `value`: the value of the number, possibly `None`
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the number increment
-
-    **Initialization Args.**
-
-    - `start`: optional, the minimum value of the interval
-    - `stop`: optional, the maximum value of the interval
-    - `step`: the number increment
-    - `value`: default value
-    - `debounce`: whether to debounce (rate-limit) value
-        updates from the frontend
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> number:
+            Create a number picker from a dataframe series.
     """
 
     _name: Final[str] = "marimo-number"
@@ -145,60 +144,70 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
 @mddoc
 class slider(UIElement[Numeric, Numeric]):
-    """
-    A numeric slider over an interval.
+    """A numeric slider over an interval.
 
-    **Example.**
+    Example:
+        ```python
+        slider = mo.ui.slider(start=1, stop=10, step=2)
+        ```
 
-    ```python
-    slider = mo.ui.slider(start=1, stop=10, step=2)
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        slider = mo.ui.slider.from_series(df["column_name"])
+        ```
 
-    ```python
-    slider = mo.ui.slider.from_series(df["column_name"])
-    ```
+        Or using numpy arrays:
 
-    Or using numpy arrays:
+        ```python
+        import numpy as np
 
-    ```python
-    import numpy as np
+        # linear steps
+        steps = np.array([1, 2, 3, 4, 5])
+        slider = mo.ui.slider(steps=steps)
+        # log steps
+        log_slider = mo.ui.slider(steps=np.logspace(0, 3, 4))
+        # power steps
+        power_slider = mo.ui.slider(steps=np.power([1, 2, 3], 2))
+        ```
 
-    # linear steps
-    steps = np.array([1, 2, 3, 4, 5])
-    slider = mo.ui.slider(steps=steps)
-    # log steps
-    log_slider = mo.ui.slider(steps=np.logspace(0, 3, 4))
-    # power steps
-    power_slider = mo.ui.slider(steps=np.power([1, 2, 3], 2))
-    ```
+    Attributes:
+        value (Numeric): The current numeric value of the slider.
+        start (Numeric): The minimum value of the interval.
+        stop (Numeric): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        steps (Optional[Sequence[Numeric]]): List of steps.
 
-    **Attributes.**
+    Args:
+        start (Optional[Numeric]): The minimum value of the interval.
+        stop (Optional[Numeric]): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        value (Optional[Numeric]): Default value.
+        debounce (bool): Whether to debounce the slider to only send the value
+            on mouse-up or drag-end. Defaults to False.
+        orientation (Literal["horizontal", "vertical"]): The orientation of the
+            slider, either "horizontal" or "vertical". Defaults to "horizontal".
+        show_value (bool): Whether to display the current value of the slider.
+            Defaults to False.
+        steps (Optional[Sequence[Numeric]]): List of steps to customize the
+            slider, mutually exclusive with `start`, `stop`, and `step`.
+        label (str): Markdown label for the element. Defaults to an empty string.
+        on_change (Optional[Callable[[Optional[Numeric]], None]]): Optional
+            callback to run when this element's value changes.
+        full_width (bool): Whether the input should take up the full width of
+            its container. Defaults to False.
 
-    - `value`: the current numeric value of the slider
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `steps`: list of steps
+    Raises:
+        ValueError: If `steps` is provided along with `start`, `stop`, or `step`.
+        ValueError: If neither `steps` nor both `start` and `stop` are provided.
+        ValueError: If `stop` is less than `start`.
+        ValueError: If `value` is out of bounds.
+        TypeError: If `steps` is not a sequence of numbers.
 
-    **Initialization Args.**
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
+            Create a slider from a dataframe series.
 
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `value`: default value
-    - `debounce`: whether to debounce the slider to only send
-        the value on mouse-up or drag-end
-    - `orientation`: the orientation of the slider,
-        either "horizontal" or "vertical"
-    - `show_value`: whether to display the current value of the slider
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
     """
 
     _name: Final[str] = "marimo-slider"
@@ -349,57 +358,56 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     """
     A numeric slider for specifying a range over an interval.
 
-    **Example.**
+    Example:
+        ```python
+        range_slider = mo.ui.range_slider(
+            start=1, stop=10, step=2, value=[2, 6]
+        )
+        ```
 
-    ```python
-    range_slider = mo.ui.range_slider(start=1, stop=10, step=2, value=[2, 6])
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        range_slider = mo.ui.range_slider.from_series(df["column_name"])
+        ```
 
-    ```python
-    range_slider = mo.ui.range_slider.from_series(df["column_name"])
-    ```
+        Or using numpy arrays:
 
-    Or using numpy arrays:
+        ```python
+        import numpy as np
 
-    ```python
-    import numpy as np
+        steps = np.array([1, 2, 3, 4, 5])
+        # linear steps
+        range_slider = mo.ui.range_slider(steps=steps)
+        # log steps
+        log_range_slider = mo.ui.range_slider(steps=np.logspace(0, 3, 4))
+        # power steps
+        power_range_slider = mo.ui.range_slider(steps=np.power([1, 2, 3], 2))
+        ```
 
-    steps = np.array([1, 2, 3, 4, 5])
-    # linear steps
-    range_slider = mo.ui.range_slider(steps=steps)
-    # log steps
-    log_range_slider = mo.ui.range_slider(steps=np.logspace(0, 3, 4))
-    # power steps
-    power_range_slider = mo.ui.range_slider(steps=np.power([1, 2, 3], 2))
-    ```
+    Attributes:
+        value (list[Numeric]): The current range value of the slider.
+        start (Numeric): The minimum value of the interval.
+        stop (Numeric): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        steps (Optional[Sequence[Numeric]]): List of steps.
 
-    **Attributes.**
+    Args:
+        start (Optional[Numeric]): The minimum value of the interval.
+        stop (Optional[Numeric]): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        value (Optional[Sequence[Numeric]]): Default value.
+        debounce (bool): Whether to debounce the slider to only send the value on mouse-up or drag-end.
+        orientation (Literal["horizontal", "vertical"]): The orientation of the slider, either "horizontal" or "vertical".
+        show_value (bool): Whether to display the current value of the slider.
+        steps (Optional[Sequence[Numeric]]): List of steps to customize the slider, mutually exclusive with `start`, `stop`, and `step`.
+        label (str): Markdown label for the element.
+        on_change (Optional[Callable[[Sequence[Numeric]], None]]): Optional callback to run when this element's value changes.
+        full_width (bool): Whether the input should take up the full width of its container.
 
-    - `value`: the current range value of the slider
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `steps`: list of steps
-
-    **Initialization Args.**
-
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `value`: default value
-    - `debounce`: whether to debounce the slider to only send
-        the value on mouse-up or drag-end
-    - `orientation`: the orientation of the slider,
-        either "horizontal" or "vertical"
-    - `show_value`: whether to display the current value of the slider
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
+            Create a range slider from a dataframe series.
     """
 
     _name: Final[str] = "marimo-range-slider"
@@ -834,6 +842,11 @@ class code_editor(UIElement[str, str]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[str], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        show_copy_button (bool): Whether to show a button to copy the code
+            to the clipboard. Defaults to True.
+        debounce (bool | int, optional): Whether the input is debounced. If number,
+            debounce by that many milliseconds. If True, then value is only emitted
+            when the input loses focus. Defaults to False.
     """
 
     _name: Final[str] = "marimo-code-editor"
@@ -847,6 +860,8 @@ class code_editor(UIElement[str, str]):
         disabled: bool = False,
         min_height: Optional[int] = None,
         max_height: Optional[int] = None,
+        show_copy_button: bool = True,
+        debounce: bool | int = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -871,6 +886,8 @@ class code_editor(UIElement[str, str]):
                 "disabled": disabled,
                 "min-height": min_height,
                 "max-height": max_height,
+                "show-copy-button": show_copy_button,
+                "debounce": debounce,
             },
             on_change=on_change,
         )
@@ -1307,6 +1324,8 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         on_change (Callable[[Sequence[FileUploadResults]], None], optional):
             Optional callback to run when this element's value changes.
             Defaults to None.
+        max_size (int, optional): The maximum size of the file to upload
+            (in bytes). Defaults to 100MB.
     """
 
     _name: Final[str] = "marimo-file"
@@ -1317,6 +1336,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
         *,
+        max_size: int = 100_000_000,  # 100MB default
         label: str = "",
         on_change: Optional[
             Callable[[Sequence[FileUploadResults]], None]
@@ -1334,6 +1354,9 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
                     f"Invalid types: {', '.join(invalid_types)}"
                 )
 
+        if max_size <= 0:
+            raise ValueError("max_size must be greater than 0")
+
         super().__init__(
             component_name=file._name,
             initial_value=[],
@@ -1342,6 +1365,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "kind": kind,
+                "max_size": max_size,
             },
             on_change=on_change,
         )

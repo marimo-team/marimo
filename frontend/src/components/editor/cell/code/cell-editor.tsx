@@ -37,6 +37,7 @@ import { WebSocketState } from "@/core/websocket/types";
 import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
 import { store } from "@/core/state/jotai";
 import { useDeleteCellCallback } from "../useDeleteCell";
+import { useSaveNotebook } from "@/core/saving/save-component";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -66,7 +67,7 @@ export interface CellEditorProps
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
-  temporarilyShowCode: () => void;
+  temporarilyShowCode: (opts?: { focus?: boolean }) => void;
 }
 
 const CellEditorInternal = ({
@@ -93,6 +94,7 @@ const CellEditorInternal = ({
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const setLastFocusedCellId = useSetLastFocusedCellId();
   const deleteCell = useDeleteCellCallback();
+  const { saveOrNameNotebook } = useSaveNotebook();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -107,6 +109,14 @@ const CellEditorInternal = ({
     }
 
     deleteCell({ cellId });
+    return true;
+  });
+
+  const handleRunCell = useEvent(() => {
+    if (loading) {
+      return false;
+    }
+    runCell();
     return true;
   });
 
@@ -134,8 +144,9 @@ const CellEditorInternal = ({
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
-        onRun: runCell,
+        onRun: handleRunCell,
         deleteCell: handleDelete,
+        saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
           for (const code of [...cells].reverse()) {
             cellActions.createNewCell({
@@ -186,6 +197,19 @@ const CellEditorInternal = ({
           },
         };
       }),
+      // Listen to selection changes, and show the code if it is hidden
+      EditorView.updateListener.of((update) => {
+        if (update.selectionSet) {
+          const selection = update.state.selection;
+          const hasSelection = selection.ranges.some(
+            (range) => range.from !== range.to,
+          );
+
+          if (hasSelection) {
+            temporarilyShowCode({ focus: false });
+          }
+        }
+      }),
     );
 
     return extensions;
@@ -202,10 +226,12 @@ const CellEditorInternal = ({
     splitCell,
     toggleHideCode,
     handleDelete,
-    runCell,
+    handleRunCell,
     setAiCompletionCell,
     afterToggleMarkdown,
     setLanguageAdapter,
+    temporarilyShowCode,
+    saveOrNameNotebook,
   ]);
 
   const handleInitializeEditor = useEvent(() => {
@@ -458,7 +484,7 @@ const CellCodeMirrorEditor = React.forwardRef(
 
     return (
       <div
-        className={cn("cm", className)}
+        className={cn("cm mathjax_ignore", className)}
         ref={(r) => {
           if (ref) {
             mergeRefs(ref, internalRef)(r);

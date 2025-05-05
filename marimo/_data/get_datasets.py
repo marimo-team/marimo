@@ -112,10 +112,10 @@ def _get_databases_from_duckdb_internal(
     if connection is None:
         import duckdb
 
-        databases = duckdb.execute("SHOW ALL TABLES").fetchall()
+        databases_result = duckdb.execute("SHOW ALL TABLES").fetchall()
     else:
-        databases = connection.execute("SHOW ALL TABLES").fetchall()
-    if not len(databases):
+        databases_result = connection.execute("SHOW ALL TABLES").fetchall()
+    if not len(databases_result):
         # No tables
         return []
 
@@ -130,7 +130,7 @@ def _get_databases_from_duckdb_internal(
         column_names,
         column_types,
         *_rest,
-    ) in databases:
+    ) in databases_result:
         assert len(column_names) == len(column_types)
         assert isinstance(column_names, list)
         assert isinstance(column_types, list)
@@ -167,9 +167,9 @@ def _get_databases_from_duckdb_internal(
         databases_dict[database][schema].append(table)
 
     # Convert grouped data into Database objects
-    databases = []
+    databases: list[Database] = []
     for database, schemas_dict in databases_dict.items():
-        schema_list = []
+        schema_list: list[Schema] = []
         for schema_name, tables in schemas_dict.items():
             schema_list.append(Schema(name=schema_name, tables=tables))
         databases.append(
@@ -233,6 +233,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "time"
     if db_type in [
         "timestamp",
+        "timestamp_ns",
         "timestamp with time zone",
         "timestamptz",
         "datetime",
@@ -240,12 +241,20 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     ]:
         return "datetime"
     # Nested types
-    if db_type in ["array", "list", "struct", "map", "union"]:
+    if "[]" in db_type:
+        return "unknown"
+    if (
+        db_type.startswith("union")
+        or db_type.startswith("map")
+        or db_type.startswith("struct")
+        or db_type.startswith("list")
+        or db_type.startswith("array")
+    ):
         return "unknown"
     # Special types
     if db_type == "bit":
         return "string"  # Representing bit as string
-    if db_type == "enum":
+    if db_type == "enum" or db_type.startswith("enum"):
         return "string"  # Representing enum as string
 
     LOGGER.warning("Unknown DuckDB type: %s", db_type)

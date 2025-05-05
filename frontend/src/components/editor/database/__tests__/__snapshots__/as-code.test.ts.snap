@@ -1,303 +1,630 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`generateDatabaseCode > basic connections > bigquery 1`] = `
-"from sqlmodel import create_engine
-import os
-import json
+"import json
+import sqlmodel
+
 credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
-engine = create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+`;
+
+exports[`generateDatabaseCode > basic connections > chdb 1`] = `
+"import chdb
+
+engine = chdb.connect("file:///path/to/db.chdb", read_only=False)"
+`;
+
+exports[`generateDatabaseCode > basic connections > clickhouse 1`] = `
+"import clickhouse_connect
+import os
+
+_password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+engine = clickhouse_connect.get_client(
+  host="localhost",
+  user="user",
+  secure=False,
+  port=8123,
+  password=_password,
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > datafusion 1`] = `
+"from datafusion import SessionContext
+import ibis
+
+con = ibis.datafusion.connect()"
+`;
+
+exports[`generateDatabaseCode > basic connections > datafusion with session 1`] = `
+"from datafusion import SessionContext
+import ibis
+
+ctx = SessionContext()
+# Sample table
+_ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
+
+con = ibis.datafusion.connect(ctx)"
 `;
 
 exports[`generateDatabaseCode > basic connections > duckdb 1`] = `
-"from sqlmodel import create_engine
+"import duckdb
+
+DATABASE_URL = "data.duckdb"
+engine = duckdb.connect(DATABASE_URL, read_only=True)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg dynamodb 1`] = `
+"from pyiceberg.catalog.dynamodb import DynamoDBCatalog
+
+catalog = DynamoDBCatalog(
+  "my_catalog",
+  **{
+    "dynamodb.profile-name": "my_profile",
+    "dynamodb.region": "us-east-1",
+    "dynamodb.access-key-id": "my_access_key_id",
+    "dynamodb.secret-access-key": "my_secret_access_key",
+    "dynamodb.session-token": "my_session_token"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg glue 1`] = `
+"from pyiceberg.catalog.glue import GlueCatalog
+
+catalog = GlueCatalog(
+  "my_catalog",
+  **{
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg hive 1`] = `
+"from pyiceberg.catalog.hive import HiveCatalog
+
+catalog = HiveCatalog(
+  "my_catalog",
+  **{
+    "uri": "thrift://localhost:9083",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg rest 1`] = `
+"from pyiceberg.catalog.rest import RestCatalog
+
+catalog = RestCatalog(
+  "my_catalog",
+  **{
+    "uri": "http://localhost:8181",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg sql 1`] = `
+"from pyiceberg.catalog.sql import SqlCatalog
+
+catalog = SqlCatalog(
+  "my_catalog",
+  **{
+    "uri": "postgresql://localhost:5432/iceberg",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > motherduck 1`] = `
+"import duckdb
 import os
-engine = create_engine("duckdb:data.duckdb", read_only=True)"
+
+_password = os.environ.get("MOTHERDUCK_TOKEN", "my_token")
+conn = duckdb.connect("md:my_db", config={"motherduck_token": _password})"
 `;
 
 exports[`generateDatabaseCode > basic connections > mysql with SQLAlchemy 1`] = `
-"from sqlalchemy import create_engine
-import os
-password = os.environ.get("MYSQL_PASSWORD", "pass")
-DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
-engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+"import os
+import sqlalchemy
+
+_password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{_password}@localhost:3306/test"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
 `;
 
 exports[`generateDatabaseCode > basic connections > mysql with SQLModel 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("MYSQL_PASSWORD", "pass")
-DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
-engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{_password}@localhost:3306/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
 `;
 
 exports[`generateDatabaseCode > basic connections > postgres with SQLAlchemy 1`] = `
-"from sqlalchemy import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlalchemy
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/test"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > basic connections > postgres with SQLModel 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+`;
+
+exports[`generateDatabaseCode > basic connections > pyspark 1`] = `
+"from pyspark.sql import SparkSession
+import ibis
+
+con = ibis.pyspark.connect()"
+`;
+
+exports[`generateDatabaseCode > basic connections > pyspark with session 1`] = `
+"from pyspark.sql import SparkSession
+import ibis
+
+session = SparkSession.builder.remote(f"sc://localhost:15002").getOrCreate()
+con = ibis.pyspark.connect(session)"
 `;
 
 exports[`generateDatabaseCode > basic connections > snowflake 1`] = `
-"from sqlmodel import create_engine
+"from snowflake.sqlalchemy import URL
 import os
-from snowflake.sqlalchemy import URL
-import sqlalchemy as sa
-password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
-engine = sa.create_engine(
-    URL(
-        account=account,
-        user=user,
-        password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-        database=db,
-        warehouse=warehouse,
-        schema=schema,
-        role=role
-    )
+import sqlmodel
+
+_password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+engine = sqlmodel.create_engine(
+  URL(
+    account="account",
+    user="user",
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    password=_password,
+  )
 )"
 `;
 
 exports[`generateDatabaseCode > basic connections > sqlite 1`] = `
-"from sqlmodel import create_engine
-import os
+"import sqlmodel
+
 DATABASE_URL = "sqlite:////path/to/db.sqlite"
-engine = create_engine(DATABASE_URL)"
+engine = sqlmodel.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > basic connections > timeplus 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("TIMEPLUS_PASSWORD", "")
+DATABASE_URL = f"timeplus://default:{_password}@localhost:8123"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > basic connections > trino 1`] = `
+"import os
+import sqlmodel
+import trino.sqlalchemy
+
+_password = os.environ.get("TRINO_PASSWORD", "pass")
+engine = sqlmodel.create_engine(f"trino://user:{_password}@localhost:8080/test")"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > bigquery with credentials as secret 1`] = `
+"import json
+import os
+import sqlmodel
+
+_project = os.environ.get("ENV_PROJECT")
+_dataset = os.environ.get("ENV_DATASET")
+credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+engine = sqlmodel.create_engine(f"bigquery://{_project}/{_dataset}", credentials_info=credentials)"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > clickhouse with all connection details as secrets 1`] = `
+"import clickhouse_connect
+import os
+
+_password = os.environ.get("ENV_PASSWORD")
+_host = os.environ.get("ENV_HOST")
+_user = os.environ.get("ENV_USER")
+engine = clickhouse_connect.get_client(
+  host=_host,
+  user=_user,
+  secure=False,
+  port=8123,
+  password=_password,
+)"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > motherduck with token as secret 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("ENV_TOKEN")
+conn = duckdb.connect("md:my_db", config={"motherduck_token": _password})"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > mysql with username and password as secrets 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("ENV_PASSWORD")
+_username = os.environ.get("ENV_USER")
+DATABASE_URL = f"mysql+pymysql://{_username}:{_password}@localhost:3306/test"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > postgres with password as secret 1`] = `
+"import os
+import sqlmodel
+
+_password = os.environ.get("ENV_PASSWORD")
+_host = os.environ.get("ENV_HOST")
+DATABASE_URL = f"postgresql://user:{_password}@{_host}:5432/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > snowflake with multiple secrets 1`] = `
+"from snowflake.sqlalchemy import URL
+import os
+import sqlmodel
+
+_password = os.environ.get("ENV_PASSWORD")
+_account = os.environ.get("ENV_ACCOUNT")
+_user = os.environ.get("ENV_USER")
+engine = sqlmodel.create_engine(
+  URL(
+    account=_account,
+    user=_user,
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    password=_password,
+  )
+)"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > timeplus with all connection details as secrets 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("ENV_PASSWORD")
+_username = os.environ.get("ENV_USER")
+_host = os.environ.get("ENV_HOST")
+DATABASE_URL = f"timeplus://{_username}:{_password}@{_host}:8123"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > ENV with special chars SQLModel 1`] = `
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
+DATABASE_URL = f"postgresql://user-name.special:{_password}@localhost:5432/test-db.special"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > bigquery with long credentials 1`] = `
-"from sqlmodel import create_engine
-import os
-import json
+"import json
+import sqlmodel
+
 credentials = json.loads("""xxxxxxxxxx""")
-engine = create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+`;
+
+exports[`generateDatabaseCode > edge cases > chdb with no database 1`] = `
+"import chdb
+
+engine = chdb.connect("", read_only=False)"
+`;
+
+exports[`generateDatabaseCode > edge cases > clickhouse connect with minimal config 1`] = `
+"import clickhouse_connect
+
+engine = clickhouse_connect.get_client(
+  host="localhost",
+  user="user",
+  secure=False,
+)"
+`;
+
+exports[`generateDatabaseCode > edge cases > clickhouse with https 1`] = `
+"import clickhouse_connect
+import os
+
+_password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+engine = clickhouse_connect.get_client(
+  host="localhost",
+  user="user",
+  secure=True,
+  port=8123,
+  password=_password,
+)"
+`;
+
+exports[`generateDatabaseCode > edge cases > clickhouse with no port 1`] = `
+"import clickhouse_connect
+import os
+
+_password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+engine = clickhouse_connect.get_client(
+  host="localhost",
+  user="user",
+  secure=False,
+  password=_password,
+)"
 `;
 
 exports[`generateDatabaseCode > edge cases > duckdb with relative path 1`] = `
-"from sqlmodel import create_engine
+"import sqlmodel
+
+DATABASE_URL = "./relative/path/db.duckdb"
+engine = sqlmodel.connect(DATABASE_URL, read_only=False)"
+`;
+
+exports[`generateDatabaseCode > edge cases > motherduck with special chars in database name 1`] = `
+"import duckdb
 import os
-engine = create_engine("duckdb:./relative/path/db.duckdb")"
+
+_password = os.environ.get("MOTHERDUCK_TOKEN", "my_token")
+conn = duckdb.connect("md:test-db.special", config={"motherduck_token": _password})"
 `;
 
 exports[`generateDatabaseCode > edge cases > mysql with extremely long database name 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("MYSQL_PASSWORD", "pass")
-DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{_password}@localhost:3306/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
 `;
 
 exports[`generateDatabaseCode > edge cases > mysql with max port 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("MYSQL_PASSWORD", "pass")
-DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:65535/test"
-engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("MYSQL_PASSWORD", "pass")
+DATABASE_URL = f"mysql+pymysql://user:{_password}@localhost:65535/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with IPv6 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@2001:0db8:85a3:0000:0000:8a2e:0370:7334:5432/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@2001:0db8:85a3:0000:0000:8a2e:0370:7334:5432/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with URL-encoded characters 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass%20word")
-DATABASE_URL = f"postgresql://user%20name:{password}@localhost:5432/test%20db"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass%20word")
+DATABASE_URL = f"postgresql://user%20name:{_password}@localhost:5432/test%20db"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with domain socket 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@/var/run/postgresql:undefined/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@/var/run/postgresql:/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with non-standard port 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@localhost:54321/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:54321/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with special chars SQLAlchemy 1`] = `
-"from sqlalchemy import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
-DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-db.special"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
-`;
+"import os
+import sqlalchemy
 
-exports[`generateDatabaseCode > edge cases > postgres with special chars SQLModel 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
-DATABASE_URL = f"postgresql://user-name.special:{password}@localhost:5432/test-db.special"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+_password = os.environ.get("POSTGRES_PASSWORD", "pass@#$%^&*")
+DATABASE_URL = f"postgresql://user-name.special:{_password}@localhost:5432/test-db.special"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > postgres with unicode 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "密码")
-DATABASE_URL = f"postgresql://用户:{password}@localhost:5432/测试数据库"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "密码")
+DATABASE_URL = f"postgresql://用户:{_password}@localhost:5432/测试数据库"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > edge cases > snowflake with all optional fields filled 1`] = `
-"from sqlmodel import create_engine
+"from snowflake.sqlalchemy import URL
 import os
-from snowflake.sqlalchemy import URL
-import sqlalchemy as sa
-password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
-engine = sa.create_engine(
-    URL(
-        account=org-account,
-        user=user,
-        password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-        database=db,
-        warehouse=compute_wh,
-        schema=public,
-        role=accountadmin
-    )
+import sqlmodel
+
+_password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+engine = sqlmodel.create_engine(
+  URL(
+    account="org-account",
+    user="user",
+    database="db",
+    warehouse="compute_wh",
+    schema="public",
+    role="accountadmin",
+    password=_password,
+  )
 )"
 `;
 
 exports[`generateDatabaseCode > edge cases > snowflake with minimal config SQLModel 1`] = `
-"from sqlmodel import create_engine
+"from snowflake.sqlalchemy import URL
 import os
-from snowflake.sqlalchemy import URL
-import sqlalchemy as sa
-password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
-engine = sa.create_engine(
-    URL(
-        account=account,
-        user=user,
-        password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-        database=db
-    )
+import sqlmodel
+
+_password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+engine = sqlmodel.create_engine(
+  URL(
+    account="account",
+    user="user",
+    database="db",
+    password=_password,
+  )
 )"
 `;
 
 exports[`generateDatabaseCode > edge cases > sqlite with empty path 1`] = `
-"from sqlmodel import create_engine
-import os
+"import sqlmodel
+
 DATABASE_URL = "sqlite:///"
-engine = create_engine(DATABASE_URL)"
+engine = sqlmodel.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > timeplus connect with minimal config 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("TIMEPLUS_PASSWORD", "")
+DATABASE_URL = f"timeplus://default:{_password}@localhost:"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > timeplus with no port 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("TIMEPLUS_PASSWORD", "")
+DATABASE_URL = f"timeplus://default:{_password}@localhost:"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > edge cases > trino with async support 1`] = `
+"import aiotrino
+import os
+import sqlalchemy
+
+_password = os.environ.get("TRINO_PASSWORD", "pass")
+engine = sqlalchemy.create_engine(f"aiotrino://user:{_password}@localhost:8080/test")"
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 1`] = `
-"from sqlmodel import create_engine
-import os
-import json
+"import json
+import sqlmodel
+
 credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
-engine = create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
 exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 2`] = `
-"from sqlalchemy import create_engine
-import os
-import json
+"import json
+import sqlalchemy
+
 credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
-engine = create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+engine = sqlalchemy.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
 exports[`generateDatabaseCode > security cases > mysql with very long password 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("MYSQL_PASSWORD", "xxxxxxxxxx")
-DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
-engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("MYSQL_PASSWORD", "xxxxxxxxxx")
+DATABASE_URL = f"mysql+pymysql://user:{_password}@localhost:3306/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
 `;
 
 exports[`generateDatabaseCode > security cases > mysql with very long password 2`] = `
-"from sqlalchemy import create_engine
-import os
-password = os.environ.get("MYSQL_PASSWORD", "xxxxxxxxxx")
-DATABASE_URL = f"mysql+pymysql://user:{password}@localhost:3306/test"
-engine = create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
+"import os
+import sqlalchemy
+
+_password = os.environ.get("MYSQL_PASSWORD", "xxxxxxxxxx")
+DATABASE_URL = f"mysql+pymysql://user:{_password}@localhost:3306/test"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'ssl': {'ssl-mode': 'preferred'}})"
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with SQL injection attempt in database name 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@localhost:5432/db'; DROP TABLE users;--"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/db'; DROP TABLE users;--"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with SQL injection attempt in database name 2`] = `
-"from sqlalchemy import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "pass")
-DATABASE_URL = f"postgresql://user:{password}@localhost:5432/db'; DROP TABLE users;--"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlalchemy
+
+_password = os.environ.get("POSTGRES_PASSWORD", "pass")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/db'; DROP TABLE users;--"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with empty password 1`] = `
-"from sqlmodel import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "")
-DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlmodel
+
+_password = os.environ.get("POSTGRES_PASSWORD", "")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/test"
+engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > security cases > postgres with empty password 2`] = `
-"from sqlalchemy import create_engine
-import os
-password = os.environ.get("POSTGRES_PASSWORD", "")
-DATABASE_URL = f"postgresql://user:{password}@localhost:5432/test"
-engine = create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+"import os
+import sqlalchemy
+
+_password = os.environ.get("POSTGRES_PASSWORD", "")
+DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/test"
+engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
 `;
 
 exports[`generateDatabaseCode > security cases > snowflake with sensitive info in account 1`] = `
-"from sqlmodel import create_engine
+"from snowflake.sqlalchemy import URL
 import os
-from snowflake.sqlalchemy import URL
-import sqlalchemy as sa
-password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
-engine = sa.create_engine(
-    URL(
-        account=account-with-password123,
-        user=user,
-        password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-        database=db,
-        warehouse=warehouse,
-        schema=schema,
-        role=role
-    )
+import sqlmodel
+
+_password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+engine = sqlmodel.create_engine(
+  URL(
+    account="account-with-password123",
+    user="user",
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    password=_password,
+  )
 )"
 `;
 
 exports[`generateDatabaseCode > security cases > snowflake with sensitive info in account 2`] = `
-"from sqlalchemy import create_engine
+"from snowflake.sqlalchemy import URL
 import os
-from snowflake.sqlalchemy import URL
-import sqlalchemy as sa
-password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
-engine = sa.create_engine(
-    URL(
-        account=account-with-password123,
-        user=user,
-        password=os.environ.get("SNOWFLAKE_PASSWORD", "pass"),
-        database=db,
-        warehouse=warehouse,
-        schema=schema,
-        role=role
-    )
+import sqlalchemy
+
+_password = os.environ.get("SNOWFLAKE_PASSWORD", "pass")
+engine = sqlalchemy.create_engine(
+  URL(
+    account="account-with-password123",
+    user="user",
+    database="db",
+    warehouse="warehouse",
+    schema="schema",
+    role="role",
+    password=_password,
+  )
 )"
 `;

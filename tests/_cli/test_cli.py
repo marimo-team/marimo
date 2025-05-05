@@ -104,7 +104,7 @@ def _try_fetch(
                 url = f"{url}?access_token={token}"
             return urllib.request.urlopen(url).read()
         except Exception:
-            time.sleep(0.5)
+            time.sleep(0.6)
     print("Failed to fetch contents")
     return None
 
@@ -128,8 +128,8 @@ def _check_contents(
     contents: Optional[bytes],
 ) -> None:
     try:
-        assert contents is not None
-        assert phrase in contents
+        assert contents is not None, contents
+        assert phrase in contents, contents
     finally:
         p.kill()
 

@@ -10,7 +10,6 @@ import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
-import { vegaLoadData } from "./vega/loader";
 import { Banner } from "./common/error-banner";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
@@ -32,10 +31,6 @@ import type {
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
 import { ConditionSchema, type ConditionType } from "./data-frames/schema";
-import {
-  type ColumnFilterValue,
-  filterToFilterCondition,
-} from "@/components/data-table/filters";
 import React from "react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { Arrays } from "@/utils/arrays";
@@ -46,6 +41,18 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
+import type { CellStyleState } from "@/components/data-table/cell-styling/types";
+import { Button } from "@/components/ui/button";
+import { Table2Icon } from "lucide-react";
+import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import {
+  filterToFilterCondition,
+  type ColumnFilterValue,
+} from "@/components/data-table/filters";
+import { isStaticNotebook } from "@/core/static/static-state";
+import { vegaLoadData } from "./vega/loader";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -59,6 +66,18 @@ export type GetRowIds = (opts: {}) => Promise<{
   row_ids: number[];
   all_rows: boolean;
   error: string | null;
+}>;
+
+export type GetDataUrl = (opts: {}) => Promise<{
+  data_url: string | object[];
+  format: "csv" | "json" | "arrow";
+}>;
+
+export type CalculateTopKRows = <T>(req: {
+  column: string;
+  k: number;
+}) => Promise<{
+  data: Array<[unknown, number]>;
 }>;
 
 /**
@@ -85,11 +104,12 @@ interface Data<T> {
   wrappedColumns?: string[];
   totalColumns: number;
   hasStableRowId: boolean;
+  lazy: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
-  download_as: (req: { format: "csv" | "json" }) => Promise<string>;
+  download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
@@ -102,9 +122,12 @@ type DataTableFunctions = {
     page_size: number;
   }) => Promise<{
     data: TableData<T>;
-    total_rows: number;
+    total_rows: number | "too_many";
+    cell_styles?: CellStyleState | null;
   }>;
+  get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
+  calculate_top_k_rows?: CalculateTopKRows;
 };
 
 type S = Array<number | string | { rowId: string; columnName?: string }>;
@@ -147,11 +170,17 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .nullish(),
       totalColumns: z.number(),
       hasStableRowId: z.boolean().default(false),
+      cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
+      // Whether to load the data lazily.
+      lazy: z.boolean(),
+      // If lazy, this will preload the first page of data
+      // without user confirmation.
+      preload: z.boolean(),
     }),
   )
   .withFunctions<DataTableFunctions>({
     download_as: rpc
-      .input(z.object({ format: z.enum(["csv", "json"]) }))
+      .input(z.object({ format: z.enum(["csv", "json", "parquet"]) }))
       .output(z.string()),
     get_column_summaries: rpc.input(z.object({}).passthrough()).output(
       z.object({
@@ -161,8 +190,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         summaries: z.array(
           z.object({
             column: z.union([z.number(), z.string()]),
-            min: z.union([z.number(), z.string()]).nullish(),
-            max: z.union([z.number(), z.string()]).nullish(),
+            min: z.union([z.number(), z.nan(), z.string()]).nullish(),
+            max: z.union([z.number(), z.nan(), z.string()]).nullish(),
             unique: z.union([z.number(), z.array(z.any())]).nullish(),
             nulls: z.number().nullish(),
             true: z.number().nullish(),
@@ -187,7 +216,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .output(
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-          total_rows: z.number(),
+          total_rows: z.union([z.number(), z.literal("too_many")]),
+          cell_styles: z
+            .record(z.record(z.object({}).passthrough()))
+            .nullable(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -197,21 +229,64 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         error: z.string().nullable(),
       }),
     ),
+    get_data_url: rpc.input(z.object({}).passthrough()).output(
+      z.object({
+        data_url: z.union([z.string(), z.array(z.object({}).passthrough())]),
+        format: z.enum(["csv", "json", "arrow"]),
+      }),
+    ),
+    calculate_top_k_rows: rpc
+      .input(z.object({ column: z.string(), k: z.number() }))
+      .output(
+        z.object({
+          data: z.array(z.tuple([z.any(), z.number()])),
+        }),
+      ),
   })
   .renderer((props) => {
     return (
       <TooltipProvider>
-        <LoadingDataTableComponent
-          {...props.data}
-          {...props.functions}
-          enableSearch={true}
-          data={props.data.data}
-          value={props.value}
-          setValue={props.setValue}
-        />
+        <LazyDataTableComponent
+          isLazy={props.data.lazy}
+          preload={props.data.preload}
+        >
+          <LoadingDataTableComponent
+            {...props.data}
+            {...props.functions}
+            enableSearch={true}
+            data={props.data.data}
+            value={props.value}
+            setValue={props.setValue}
+            experimentalChartsEnabled={true}
+          />
+        </LazyDataTableComponent>
       </TooltipProvider>
     );
   });
+
+const LazyDataTableComponent = ({
+  isLazy: initialIsLazy,
+  children,
+  preload,
+}: {
+  isLazy: boolean;
+  children: React.ReactNode;
+  preload: boolean;
+}) => {
+  const [isLazy, setIsLazy] = useState(initialIsLazy && !preload);
+
+  if (isLazy) {
+    return (
+      <div className="flex h-20 items-center justify-center">
+        <Button variant="outline" size="xs" onClick={() => setIsLazy(false)}>
+          <Table2Icon className="mr-2 h-4 w-4" />
+          Preview data
+        </Button>
+      </div>
+    );
+  }
+  return children;
+};
 
 interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   className?: string;
@@ -222,7 +297,13 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   enableSearch: boolean;
   // Filters
   enableFilters?: boolean;
+  cellStyles?: CellStyleState | null;
+  experimentalChartsEnabled?: boolean;
+  toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
 }
+
+export type SetFilters = OnChangeFn<ColumnFiltersState>;
 
 interface DataTableSearchProps {
   // Pagination
@@ -237,7 +318,7 @@ interface DataTableSearchProps {
   reloading: boolean;
   // Filters
   filters?: ColumnFiltersState;
-  setFilters?: OnChangeFn<ColumnFiltersState>;
+  setFilters?: SetFilters;
   hasStableRowId: boolean;
 }
 
@@ -256,6 +337,7 @@ export const LoadingDataTableComponent = memo(
       });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
+    const [displayHeader, setDisplayHeader] = useState(false);
 
     // We need to clear the selection when sort, query, or filters change
     // if we don't have a stable ID for each row, which is determined by
@@ -280,15 +362,17 @@ export const LoadingDataTableComponent = memo(
     const { data, loading, error } = useAsyncData<{
       rows: T[];
       totalRows: number | "too_many";
+      cellStyles: CellStyleState | undefined | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
-        return { rows: Arrays.EMPTY, totalRows: 0 };
+        return { rows: Arrays.EMPTY, totalRows: 0, cellStyles: {} };
       }
 
       // Table data is a url string or an array of objects
       let tableData = props.data;
       let totalRows = props.totalRows;
+      let cellStyles = props.cellStyles;
 
       // If it is just the first page and no search query,
       // we can show the initial page.
@@ -296,7 +380,8 @@ export const LoadingDataTableComponent = memo(
         searchQuery === "" &&
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
-        sorting.length === 0;
+        sorting.length === 0 &&
+        !props.lazy;
 
       if (sorting.length > 1) {
         Logger.warn("Multiple sort columns are not supported");
@@ -326,18 +411,31 @@ export const LoadingDataTableComponent = memo(
         // We still want to run the search,
         // so the backend knows the current state for selection
         // see https://github.com/marimo-team/marimo/issues/2756
-        void searchResultsPromise;
+        // But we should catch errors; this may happen for static exports.
+        void searchResultsPromise.catch((error) => {
+          Logger.error(error);
+        });
       } else {
         const searchResults = await searchResultsPromise;
         tableData = searchResults.data;
         totalRows = searchResults.total_rows;
+        cellStyles = searchResults.cell_styles || {};
       }
-
       // If we already have the data, return it
       if (Array.isArray(tableData)) {
         return {
           rows: tableData,
           totalRows: totalRows,
+          cellStyles,
+        };
+      }
+
+      // If it looks like json, parse it
+      if (tableData.startsWith("{") || tableData.startsWith("[")) {
+        return {
+          rows: jsonParseWithSpecialChar(tableData),
+          totalRows: totalRows,
+          cellStyles,
         };
       }
 
@@ -351,6 +449,7 @@ export const LoadingDataTableComponent = memo(
       return {
         rows: tableData,
         totalRows: totalRows,
+        cellStyles,
       };
     }, [
       sorting,
@@ -359,6 +458,7 @@ export const LoadingDataTableComponent = memo(
       searchQuery,
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
+      props.lazy,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
@@ -373,9 +473,9 @@ export const LoadingDataTableComponent = memo(
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
-    >(() => {
+    >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return Promise.resolve({ data: null, summaries: [] });
+        return { data: null, summaries: [] };
       }
       return props.get_column_summaries({});
     }, [
@@ -410,7 +510,7 @@ export const LoadingDataTableComponent = memo(
     let errorComponent: React.ReactNode = null;
     if (error) {
       Logger.error(error);
-      errorComponent = (
+      errorComponent = !isStaticNotebook() && (
         <Alert variant="destructive" className="mb-2">
           <AlertTitle>Error</AlertTitle>
           <div className="text-md">
@@ -420,24 +520,47 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
+    const toggleDisplayHeader = () => {
+      setDisplayHeader(!displayHeader);
+    };
+
+    const chartsFeatureEnabled =
+      getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
+
+    const dataTable = (
+      <DataTableComponent
+        {...props}
+        data={data?.rows ?? Arrays.EMPTY}
+        columnSummaries={columnSummaries}
+        sorting={sorting}
+        setSorting={setSorting}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        filters={filters}
+        setFilters={setFilters}
+        reloading={loading}
+        totalRows={data?.totalRows ?? props.totalRows}
+        paginationState={paginationState}
+        setPaginationState={setPaginationState}
+        cellStyles={data?.cellStyles ?? props.cellStyles}
+        toggleDisplayHeader={toggleDisplayHeader}
+        chartsFeatureEnabled={chartsFeatureEnabled}
+      />
+    );
+
     return (
       <>
         {errorComponent}
-        <DataTableComponent
-          {...props}
-          data={data?.rows ?? Arrays.EMPTY}
-          columnSummaries={columnSummaries}
-          sorting={sorting}
-          setSorting={setSorting}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filters={filters}
-          setFilters={setFilters}
-          reloading={loading}
-          totalRows={data?.totalRows ?? props.totalRows}
-          paginationState={paginationState}
-          setPaginationState={setPaginationState}
-        />
+        {chartsFeatureEnabled ? (
+          <TablePanel
+            displayHeader={displayHeader}
+            dataTable={dataTable}
+            getDataUrl={props.get_data_url}
+            fieldTypes={props.fieldTypes}
+          />
+        ) : (
+          dataTable
+        )}
       </>
     );
   },
@@ -475,6 +598,10 @@ const DataTableComponent = ({
   wrappedColumns,
   totalColumns,
   get_row_ids,
+  cellStyles,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
+  calculate_top_k_rows,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -505,25 +632,30 @@ const DataTableComponent = ({
   const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
+  const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const showDataTypes = Boolean(fieldTypes);
   const columns = useMemo(
     () =>
       generateColumns({
         rowHeaders: memoizedRowHeaders,
         selection: selection,
+        chartSpecModel: memoizedChartSpecModel,
         fieldTypes: memoizedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
+        calculateTopKRows: calculate_top_k_rows,
       }),
     [
       selection,
       showDataTypes,
+      memoizedChartSpecModel,
       memoizedRowHeaders,
       memoizedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
+      calculate_top_k_rows,
     ],
   );
 
@@ -567,14 +699,15 @@ const DataTableComponent = ({
 
   return (
     <>
-      {/* // HACK: We assume "too_many" is coming from a SQL table */}
-      {totalRows === "too_many" && (
-        <Banner className="mb-2 rounded">
-          Result clipped. If no LIMIT is given, we only show the first 300 rows.
+      {/* When the totalRows is "too_many" and the pageSize is the same as the
+       * number of rows, we are likely displaying all the data (could be more, but we don't know the total). */}
+      {totalRows === "too_many" && paginationState.pageSize === data.length && (
+        <Banner className="mb-1 rounded">
+          Previewing the first {paginationState.pageSize} rows.
         </Banner>
       )}
-      {shownColumns < totalColumns && (
-        <Banner className="mb-2 rounded">
+      {shownColumns < totalColumns && shownColumns > 0 && (
+        <Banner className="mb-1 rounded">
           Result clipped. Showing {shownColumns} of {totalColumns} columns.
         </Banner>
       )}
@@ -582,7 +715,7 @@ const DataTableComponent = ({
         // Note: Keep the text in sync with the constant defined in table_manager.py
         //       This hard-code can be removed when Functions can pass structural
         //       error information from the backend
-        <Banner className="mb-2 rounded">
+        <Banner className="mb-1 rounded">
           Column summaries are unavailable. Filter your data to fewer than
           1,000,000 rows.
         </Banner>
@@ -605,6 +738,7 @@ const DataTableComponent = ({
             setPaginationState={setPaginationState}
             rowSelection={rowSelection}
             cellSelection={cellSelection}
+            cellStyling={cellStyles}
             downloadAs={showDownload ? downloadAs : undefined}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
@@ -618,6 +752,8 @@ const DataTableComponent = ({
             freezeColumnsRight={freezeColumnsRight}
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
+            toggleDisplayHeader={toggleDisplayHeader}
+            chartsFeatureEnabled={chartsFeatureEnabled}
           />
         </Labeled>
       </ColumnChartContext.Provider>

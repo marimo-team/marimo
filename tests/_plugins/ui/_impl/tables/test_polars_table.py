@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 
 import narwhals.stable.v1 as nw
@@ -177,6 +178,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         )
         manager = self.factory.create()(df)
         assert isinstance(manager.to_csv(), bytes)
+
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
 
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
@@ -814,7 +818,23 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         df = pl.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list() == [None, 3, 2, 1]
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            3.0,
+            2.0,
+            1.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
+
+        # ascending
+        sorted_manager = manager.sort_values("A", descending=False)
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
 
     def test_get_field_types_with_datetime(self):
         import polars as pl
@@ -843,3 +863,84 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "datetime[μs]",
         )
         assert manager.get_field_type("time_col") == ("time", "Time")
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(), reason="pillow not installed"
+    )
+    def test_get_field_types_with_pil_images(self):
+        import numpy as np
+        import polars as pl
+        from PIL import Image
+
+        # Create a simple image
+        img_array = np.zeros((10, 10, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+
+        # Create a dataframe with an image column
+        data = pl.DataFrame(
+            {"image_col": [img, img, img], "text_col": ["a", "b", "c"]}
+        )
+
+        manager = self.factory.create()(data)
+
+        # PIL images should be treated as objects
+        assert manager.get_field_type("image_col") == ("unknown", "object")
+        assert manager.get_field_type("text_col") == ("string", "str")
+
+        as_json = manager.to_json_str()
+        assert "data:image/png" in as_json
+
+    def test_lazy_frame(self):
+        import warnings
+
+        import polars as pl
+
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            df = pl.LazyFrame(
+                {
+                    "A": range(100000),
+                    "B": range(100000),
+                }
+            )
+            manager = self.factory.create()(df)
+            assert manager.get_num_columns() == 2
+            assert manager.get_num_rows(force=False) is None
+            assert manager.get_num_rows(force=True) == 100000
+            assert manager.get_field_types() == [
+                ("A", ("integer", "i64")),
+                ("B", ("integer", "i64")),
+            ]
+            assert manager.take(count=10, offset=0).get_num_rows() == 10
+
+            # This is ok and expected, since we don't support pagination for lazy frames
+            with pytest.raises(TypeError):
+                manager.take(count=10, offset=10)
+
+        # TODO: Fix this, it should be 1
+        assert len(recorded_warnings) == 1
+
+    def test_to_json_bigint(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json())
+
+        # Regular integers should remain as numbers
+        assert json_data[0]["A"] == 20
+        assert json_data[0]["B"] == -20
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"

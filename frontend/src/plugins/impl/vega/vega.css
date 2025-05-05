@@ -11,16 +11,6 @@
   overflow-x: auto;
 }
 
-/* This may have bad performance, but it's the only way I can get the vega chart to fill the space. */
-div:has(> marimo-ui-element > marimo-vega) {
-  display: block !important;
-  flex: 1;
-
-  @media (min-width: 500px) {
-    min-width: 350px;
-  }
-}
-
 .vega-embed canvas {
   @apply rounded-md;
 }

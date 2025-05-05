@@ -35,3 +35,33 @@ export function isMimeValue(value: unknown): value is MimeValue {
     "data" in value
   );
 }
+
+export function getMimeValues(value: unknown): MimeValue[] | undefined {
+  if (isMimeValue(value)) {
+    return [value];
+  }
+
+  const hasSerializedMimeBundle =
+    typeof value === "object" &&
+    value !== null &&
+    ("_serialized_mime_bundle" in value || "serialized_mime_bundle" in value);
+
+  if (hasSerializedMimeBundle) {
+    const obj = value as Record<string, unknown>;
+    const serializedMimeBundle =
+      obj._serialized_mime_bundle || obj.serialized_mime_bundle;
+    if (isMimeValue(serializedMimeBundle)) {
+      return [serializedMimeBundle];
+    }
+  }
+
+  // can also be a list of mime values
+  // only return if all values are mime values
+  // TODO: Maybe support mixed mime values and non-mime values
+  if (Array.isArray(value)) {
+    const allMimeType = value.every(isMimeValue);
+    if (allMimeType) {
+      return value.map((v) => v);
+    }
+  }
+}

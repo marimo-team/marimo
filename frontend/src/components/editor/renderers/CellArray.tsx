@@ -197,6 +197,7 @@ const CellColumn: React.FC<{
   return (
     <Column
       columnId={column.id}
+      index={index}
       canMoveLeft={index > 0}
       canMoveRight={index < columnsLength - 1}
       width={appConfig.width}
@@ -258,30 +259,17 @@ const CellColumn: React.FC<{
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
               allowFocus={!invisible}
-              id={cellData.id}
-              code={cellData.code}
-              outline={cellRuntime.outline}
-              output={cellRuntime.output}
-              consoleOutputs={cellRuntime.consoleOutputs}
-              status={cellRuntime.status}
-              edited={cellData.edited}
-              interrupted={cellRuntime.interrupted}
-              errored={cellRuntime.errored}
-              stopped={cellRuntime.stopped}
-              staleInputs={cellRuntime.staleInputs}
-              runStartTimestamp={cellRuntime.runStartTimestamp}
-              lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+              {...cellData}
+              {...cellRuntime}
               runElapsedTimeMs={
                 cellRuntime.runElapsedTimeMs ??
                 (cellData.lastExecutionTime as Milliseconds)
               }
-              serializedEditorState={cellData.serializedEditorState}
               canDelete={!hasOnlyOneCell}
               mode={mode}
               appClosed={appClosed}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
-              debuggerActive={cellRuntime.debuggerActive}
               config={cellData.config}
               name={cellData.name}
               isCollapsed={column.isCollapsed(cellId)}

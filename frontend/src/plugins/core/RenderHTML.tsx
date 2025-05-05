@@ -80,7 +80,7 @@ const addCopyButtonToCodehilite: TransformFn = (
 const CopyableCode = ({ children }: { children: ReactNode }) => {
   const id = useId();
   return (
-    <div className="relative group" id={id}>
+    <div className="relative group codehilite" id={id}>
       {children}
 
       <CopyClipboardIcon

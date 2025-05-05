@@ -11,7 +11,7 @@ import {
   copilotServer,
   getCopilotClient,
 } from "./client";
-import { inlineSuggestion } from "codemirror-extension-inline-suggestion";
+import { inlineCompletion } from "@marimo-team/codemirror-ai";
 import {
   copilotPlugin as codeiumCopilotPlugin,
   Language,
@@ -28,8 +28,19 @@ import { Logger } from "@/utils/Logger";
 import { languageAdapterState } from "../language/extension";
 import { API } from "@/core/network/api";
 import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
+import type { EditorView } from "@codemirror/view";
 
 const copilotCompartment = new Compartment();
+
+const commonInlineCompletionConfig = {
+  delay: 500, // default is 500ms
+  includeKeymap: true,
+  events: {
+    // Only show suggestions when the editor is focused
+    shouldShowSuggestion: (view: EditorView) => view.hasFocus,
+    beforeSuggestionFetch: (view: EditorView) => view.hasFocus,
+  },
+};
 
 export const copilotBundle = (config: CompletionConfig): Extension => {
   if (process.env.NODE_ENV === "test") {
@@ -60,8 +71,8 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   if (config.copilot === "github") {
     extensions.push(
-      inlineSuggestion({
-        delay: 500, // default is 500ms
+      inlineCompletion({
+        ...commonInlineCompletionConfig,
         fetchFn: async (state) => {
           if (!isCopilotEnabled()) {
             return "";
@@ -96,8 +107,8 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   if (config.copilot === "custom") {
     extensions.push(
-      inlineSuggestion({
-        delay: 500,
+      inlineCompletion({
+        ...commonInlineCompletionConfig,
         fetchFn: async (state) => {
           if (state.doc.length === 0) {
             return "";

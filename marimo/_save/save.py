@@ -46,6 +46,7 @@ from marimo._save.loaders import (
     LoaderType,
     MemoryLoader,
 )
+from marimo._save.stores.file import FileStore
 from marimo._types.ids import CellId_t
 from marimo._utils.with_skip import SkipContext
 
@@ -190,9 +191,14 @@ class _cache_call:
 
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
-        kwargs = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
-        scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
+        scope = {
+            **self.scope,
+            **get_context().globals,
+            **arg_dict,
+            **kwargs_copy,
+        }
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         attempt = content_cache_attempt_from_base(
             self.base_block,
@@ -498,8 +504,7 @@ def cache(  # type: ignore[misc]
     Decorating a function with `@mo.cache` will cache its value based on
     the function's arguments, closed-over values, and the notebook code.
 
-    **Usage.**
-
+    Examples:
     ```python
     import marimo as mo
 
@@ -535,10 +540,9 @@ def cache(  # type: ignore[misc]
     Note, `mo.cache` can also be used as a drop in replacement for context block
     caching like `mo.persistent_cache`.
 
-    **Args**:
-
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
+    Args:
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
 
     ## Context manager to cache the return value of a block of code.
 
@@ -548,20 +552,20 @@ def cache(  # type: ignore[misc]
     By default, the cache is stored in memory and is not persisted across kernel
     runs, for that functionality, refer to `mo.persistent_cache`.
 
-    **Usage.**
-
+    Examples:
     ```python
     with mo.cache("my_cache") as cache:
         variable = expensive_function()
     ```
 
-    **Args**:
-
-    - `name`: the name of the cache, used to set saving path- to manually
-      invalidate the cache, change the name.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
+    Args:
+        name: the name of the cache, used to set saving path- to manually
+            invalidate the cache, change the name.
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
+        loader: the loader to use for the cache, defaults to `MemoryLoader`.
+        **kwargs: keyword arguments
+        *args: positional arguments
     """
     arg = name
     del name
@@ -608,8 +612,7 @@ def lru_cache(  # type: ignore[misc]
     retained, with the oldest values being discarded. For more information,
     see the documentation of `mo.cache`.
 
-    **Usage.**
-
+    Examples:
     ```python
     import marimo as mo
 
@@ -619,22 +622,22 @@ def lru_cache(  # type: ignore[misc]
         return n * factorial(n - 1) if n else 1
     ```
 
-    **Args**:
-
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
+    Args:
+        maxsize: the maximum number of entries in the cache; defaults to 128.
+            Setting to -1 disables cache limits.
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
 
     ## Context manager for LRU caching the return value of a block of code.
 
-    **Args**:
-
-    - `name`: Namespace key for the cache.
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
+    Args:
+        name: Namespace key for the cache.
+        maxsize: the maximum number of entries in the cache; defaults to 128.
+            Setting to -1 disables cache limits.
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
+        **kwargs: keyword arguments passed to `cache()`
+        *args: positional arguments passed to `cache()`
     """
     arg = name
     del name
@@ -698,8 +701,7 @@ def persistent_cache(  # type: ignore[misc]
     that would otherwise be expensive to compute already materialized in
     memory.
 
-    **Usage.**
-
+    Examples:
     ```python
     with persistent_cache(name="my_cache"):
         variable = expensive_function()  # This will be cached to disk.
@@ -718,16 +720,18 @@ def persistent_cache(  # type: ignore[misc]
     **Warning.** Since context abuses sys frame trace, this may conflict with
     debugging tools or libraries that also use `sys.settrace`.
 
-    **Args**:
-
-    - `name`: the name of the cache, used to set saving path- to manually
-      invalidate the cache, change the name.
-    - `save_path`: the folder in which to save the cache, defaults to
-      `__marimo__/cache` in the directory of the notebook file
-    - `method`: the serialization method to use, current options are "json",
-      and "pickle" (default).
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ between runs, defaults to False.
+    Args:
+        name: the name of the cache, used to set saving path- to manually
+            invalidate the cache, change the name.
+        save_path: the folder in which to save the cache, defaults to
+            `__marimo__/cache` in the directory of the notebook file
+        method: the serialization method to use, current options are "json",
+            and "pickle" (default).
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ between runs, defaults to False.
+        store: optional store.
+        **kwargs: keyword arguments passed to `cache()`
+        *args: positional arguments passed to `cache()`
 
 
     ## Decorator for persistently caching the return value of a function.
@@ -754,15 +758,14 @@ def persistent_cache(  # type: ignore[misc]
         # Do expensive things
     ```
 
-    **Args**:
-
-    - `fn`: the wrapped function if no settings are passed.
-    - `save_path`: the folder in which to save the cache, defaults to
-      `__marimo__/cache` in the directory of the notebook file
-    - `method`: the serialization method to use, current options are "json",
-      and "pickle" (default).
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ between runs, defaults to False.
+    Args:
+        fn: the wrapped function if no settings are passed.
+        save_path: the folder in which to save the cache, defaults to
+            `__marimo__/cache` in the directory of the notebook file
+        method: the serialization method to use, current options are "json",
+            and "pickle" (default).
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ between runs, defaults to False.
     """
 
     arg = name
@@ -778,8 +781,17 @@ def persistent_cache(  # type: ignore[misc]
             f"Invalid method {method}, expected one of "
             f"{PERSISTENT_LOADERS.keys()}"
         )
+    if save_path is not None and store is not None:
+        raise ValueError(
+            "save_path and store cannot both be provided, "
+            "provide one or the other."
+        )
 
-    partial_args: dict[str, Any] = {"save_path": save_path}
+    # Providing a save_path forces the store to be a FileStore
+    if save_path is not None:
+        store = FileStore(save_path)
+
+    partial_args: dict[str, Any] = {}
     if store is not None:
         partial_args["store"] = store
 

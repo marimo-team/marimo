@@ -23,14 +23,16 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers as loggers
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (
     ColumnSummary,
     DataSourceConnection,
     DataTable,
     DataTableSource,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
@@ -51,6 +53,7 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._secrets.models import SecretKeysWithProvider
 from marimo._types.ids import CellId_t, RequestId
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -110,12 +113,13 @@ class CellOp(Op):
 
     A CellOp's data has some optional fields:
 
-    output       - a CellOutput
-    console      - a CellOutput (console msg to append), or a list of
-                   CellOutputs
-    status       - execution status
-    stale_inputs - whether the cell has stale inputs (variables, modules, ...)
-    run_id       - the run associated with this cell.
+    output        - a CellOutput
+    console       - a CellOutput (console msg to append), or a list of
+                    CellOutputs
+    status        - execution status
+    stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
+    run_id        - the run associated with this cell.
+    serialization - the serialization status of the cell
 
     Omitting a field means that its value should be unchanged!
 
@@ -131,6 +135,7 @@ class CellOp(Op):
     status: Optional[RuntimeStateType] = None
     stale_inputs: Optional[bool] = None
     run_id: Optional[RunId_t] = None
+    serialization: Optional[str] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -312,6 +317,15 @@ class CellOp(Op):
     ) -> None:
         CellOp(cell_id=cell_id, stale_inputs=stale).broadcast(stream)
 
+    @staticmethod
+    def broadcast_serialization(
+        cell_id: CellId_t,
+        serialization: TopLevelStatus,
+        stream: Stream | None = None,
+    ) -> None:
+        status: Optional[TopLevelHints] = serialization.hint
+        CellOp(cell_id=cell_id, serialization=str(status)).broadcast(stream)
+
 
 @dataclass
 class HumanReadableStatus:
@@ -402,10 +416,12 @@ class CompletedRun(Op):
 @dataclass
 class KernelCapabilities:
     terminal: bool = False
+    pylsp: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
+        self.pylsp = DependencyManager.pylsp.has()
 
 
 @dataclass
@@ -670,6 +686,15 @@ class UpdateCellCodes(Op):
 
 
 @dataclass
+class SecretKeysResult(Op):
+    """Result of listing secret keys."""
+
+    request_id: RequestId
+    name: ClassVar[str] = "secret-keys-result"
+    secrets: list[SecretKeysWithProvider]
+
+
+@dataclass
 class UpdateCellIdsRequest(Op):
     """
     Update the cell ID ordering of the cells in the notebook.
@@ -715,6 +740,8 @@ MessageOperation = Union[
     SQLTablePreview,
     SQLTableListPreview,
     DataSourceConnections,
+    # Secrets
+    SecretKeysResult,
     # Kiosk specific
     FocusCell,
     UpdateCellCodes,

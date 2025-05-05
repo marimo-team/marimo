@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue } from "jotai";
+import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { type ReducerWithoutAction, createRef } from "react";
 import type { CellMessage } from "../kernel/messages";
 import {
@@ -49,6 +49,7 @@ import {
 } from "@/utils/id-tree";
 import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -973,15 +974,18 @@ const {
       };
     }
 
-    const nextCellId = column.atOrThrow(nextCellIndex);
-    // Just focus, no state change
-    focusAndScrollCellIntoView({
-      cellId: nextCellId,
-      cell: state.cellHandles[nextCellId],
-      config: state.cellData[nextCellId].config,
-      codeFocus: before ? "bottom" : "top",
-      variableName: undefined,
-    });
+    if (nextCellIndex !== -1) {
+      // Don't wrap around from top to bottom
+      const nextCellId = column.atOrThrow(nextCellIndex);
+      // Just focus, no state change
+      focusAndScrollCellIntoView({
+        cellId: nextCellId,
+        cell: state.cellHandles[nextCellId],
+        config: state.cellData[nextCellId].config,
+        codeFocus: before ? "bottom" : "top",
+        variableName: undefined,
+      });
+    }
     return state;
   },
   scrollToTarget: (state) => {
@@ -1070,6 +1074,66 @@ const {
         column.expand(cellId),
       ),
       scrollKey: cellId,
+    };
+  },
+  collapseAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => {
+        // Get all the top-level outlines
+        const outlines = column.topLevelIds.map((id) => {
+          const cell = state.cellRuntime[id];
+          return cell.outline;
+        });
+
+        // Find the start/end of the collapsed ranges
+        const nodes = [...column.nodes];
+        const rangeIndexes: {
+          start: CellIndex;
+          end: CellIndex;
+        }[] = [];
+        const reversedCollapseRanges = [];
+
+        // Iterate in reverse order (bottom-up) to process children first
+        let i = nodes.length - 1;
+        while (i >= 0) {
+          const range = findCollapseRange(i, outlines);
+          if (range) {
+            const startIndex = i;
+            let endIndex = range[1];
+
+            // Check if the parent's end point is inside any already-collapsed child range
+            const parentEndInChild = rangeIndexes.find(
+              (child) => child.start <= endIndex && child.end === endIndex,
+            );
+
+            if (parentEndInChild) {
+              // Adjust the new endIndex to the child's start
+              endIndex = parentEndInChild.start;
+            }
+
+            // Store this range for future child checks
+            rangeIndexes.push({ start: startIndex, end: endIndex });
+
+            // Add the range to the list of ranges
+            const cellId = column.atOrThrow(startIndex);
+            const until = column.atOrThrow(endIndex);
+            reversedCollapseRanges.push({ id: cellId, until });
+          } else {
+            reversedCollapseRanges.push(null);
+          }
+          i--;
+        }
+
+        const collapseRanges = reversedCollapseRanges.reverse();
+        return column.collapseAll(collapseRanges);
+      }),
+    };
+  },
+  expandAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => column.expandAll()),
     };
   },
   showCellIfHidden: (state, action: { cellId: CellId }) => {
@@ -1186,6 +1250,16 @@ const {
       ...cell,
       output: null,
       consoleOutputs: [],
+    }));
+  },
+  clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => ({
+      ...cell,
+      // Remove everything except unresponsed stdin
+      consoleOutputs: cell.consoleOutputs.filter(
+        (output) => output.channel === "stdin" && output.response == null,
+      ),
     }));
   },
   clearAllCellOutputs: (state) => {
@@ -1490,6 +1564,46 @@ export function flattenTopLevelNotebookCells(
       ...cellRuntime[cellId],
     })),
   );
+}
+
+export function createTracebackInfoAtom(
+  cellId: CellId,
+): Atom<TracebackInfo[] | undefined> {
+  // We create an intermediate atom that just computes the string
+  // so it prevents downstream recomputations.
+  const tracebackStringAtom = atom<string | undefined>((get) => {
+    const notebook = get(notebookAtom);
+    const data = notebook.cellRuntime[cellId];
+    if (!data) {
+      return undefined;
+    }
+    // Must be errored and idle
+    if (data.status !== "idle") {
+      return undefined;
+    }
+    const outputs = data.consoleOutputs;
+    // console.warn(notebook);
+    if (!outputs || outputs.length === 0) {
+      return undefined;
+    }
+
+    const firstTraceback = outputs.find(
+      (output) => output.mimetype === "application/vnd.marimo+traceback",
+    );
+    if (!firstTraceback) {
+      return undefined;
+    }
+    const traceback = firstTraceback.data;
+    return traceback as string;
+  });
+
+  return atom((get) => {
+    const traceback = get(tracebackStringAtom);
+    if (!traceback) {
+      return undefined;
+    }
+    return extractAllTracebackInfo(traceback);
+  });
 }
 
 /**

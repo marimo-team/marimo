@@ -18,7 +18,12 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 import { asURL } from "@/utils/url";
 import { useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import type { Completion } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionSource,
+} from "@codemirror/autocomplete";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,9 +34,17 @@ import { sql } from "@codemirror/lang-sql";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import { getAICompletionBody, mentions } from "./completion-utils";
+import {
+  getAICompletionBody,
+  mentionsCompletionSource,
+} from "./completion-utils";
 import { allTablesAtom } from "@/core/datasets/data-source-connections";
-import type { DataTable } from "@/core/kernel/messages";
+import { variablesAtom } from "@/core/variables/state";
+import {
+  getTableMentionCompletions,
+  getVariableMentionCompletions,
+} from "./completions";
+import useEvent from "react-use-event-hook";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -81,6 +94,10 @@ export const AddCellWithAI: React.FC<{
         description: prettyError(error),
       });
     },
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
+    },
   });
 
   const inputComponent = (
@@ -116,7 +133,7 @@ export const AddCellWithAI: React.FC<{
         value={input}
         onChange={(newValue) => {
           setInput(newValue);
-          setCompletionBody(getAICompletionBody(newValue));
+          setCompletionBody(getAICompletionBody({ input: newValue }));
         }}
         onSubmit={() => {
           if (!isLoading) {
@@ -231,82 +248,35 @@ export const PromptInput = ({
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
   const tablesMap = useAtomValue(allTablesAtom);
+  const variables = useAtomValue(variablesAtom);
 
+  // TablesMap and variable change a lot,
+  // so we use useEvent to memoize the completion source
+  const completionSource: CompletionSource = useEvent(
+    (context: CompletionContext) => {
+      const completions = [
+        ...getTableMentionCompletions(tablesMap),
+        ...getVariableMentionCompletions(variables, tablesMap),
+      ];
+
+      // Trigger autocompletion for text that begins with @, can contain dots
+      const matchBeforeRegexes = [/@([\w.]+)?/];
+      if (additionalCompletions) {
+        matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
+        completions.push(...additionalCompletions.completions);
+      }
+
+      return mentionsCompletionSource(matchBeforeRegexes, completions)(context);
+    },
+  );
+
+  // Changing extensions can be expensive, so
+  // it is worth making sure this is memoized well.
   const extensions = useMemo(() => {
-    const completions = [...tablesMap.entries()].map(
-      ([tableName, table]): Completion => ({
-        label: `@${tableName}`,
-        detail: table.source,
-        boost: table.source_type === "local" ? 5 : 0,
-        info: () => {
-          const shape = [
-            table.num_rows == null ? undefined : `${table.num_rows} rows`,
-            table.num_columns == null
-              ? undefined
-              : `${table.num_columns} columns`,
-          ]
-            .filter(Boolean)
-            .join(", ");
-
-          const infoContainer = document.createElement("div");
-          infoContainer.classList.add("prose", "prose-sm", "dark:prose-invert");
-
-          if (shape) {
-            const shapeElement = document.createElement("div");
-            shapeElement.textContent = shape;
-            shapeElement.style.fontWeight = "bold";
-            infoContainer.append(shapeElement);
-          }
-
-          if (table.source) {
-            const sourceElement = document.createElement("figcaption");
-            sourceElement.textContent = `Source: ${table.source}`;
-            infoContainer.append(sourceElement);
-          }
-
-          if (table.columns) {
-            const columnsTable = document.createElement("table");
-            const headerRow = columnsTable.insertRow();
-            const nameHeader = headerRow.insertCell();
-            nameHeader.textContent = "Column";
-            nameHeader.style.fontWeight = "bold";
-            const typeHeader = headerRow.insertCell();
-            typeHeader.textContent = "Type";
-            typeHeader.style.fontWeight = "bold";
-
-            table.columns.forEach((column) => {
-              const row = columnsTable.insertRow();
-              const nameCell = row.insertCell();
-
-              nameCell.textContent = column.name;
-              const itemMetadata = getItemMetadata(table, column);
-              if (itemMetadata) {
-                nameCell.append(itemMetadata);
-              }
-
-              const typeCell = row.insertCell();
-              typeCell.textContent = column.type;
-            });
-
-            infoContainer.append(columnsTable);
-          }
-
-          return infoContainer;
-        },
-      }),
-    );
-
-    // Trigger autocompletion for text that begins with @, can contain dots
-    const matchBeforeRegexes = [/@([\w.]+)?/];
-    if (additionalCompletions) {
-      matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
-    }
-    const allCompletions = additionalCompletions
-      ? [...completions, ...additionalCompletions.completions]
-      : completions;
-
     return [
-      mentions(matchBeforeRegexes, allCompletions),
+      autocompletion({
+        override: [completionSource],
+      }),
       EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
@@ -377,7 +347,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [tablesMap, additionalCompletions, handleSubmit, handleEscape]);
+  }, [completionSource, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror
@@ -395,25 +365,3 @@ export const PromptInput = ({
     />
   );
 };
-
-function getItemMetadata(
-  table: DataTable,
-  column: DataTable["columns"][0],
-): HTMLSpanElement | undefined {
-  const isPrimaryKey = table.primary_keys?.includes(column.name);
-  const isIndexed = table.indexes?.includes(column.name);
-  if (isPrimaryKey || isIndexed) {
-    const subtext = document.createElement("span");
-    subtext.textContent = isPrimaryKey ? "PK" : "IDX";
-    subtext.classList.add(
-      "text-xs",
-      "text-black",
-      "bg-gray-100",
-      "dark:invert",
-      "rounded",
-      "px-1",
-      "ml-1",
-    );
-    return subtext;
-  }
-}

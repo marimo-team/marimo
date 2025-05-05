@@ -12,11 +12,11 @@ from marimo._config.reader import (
     read_marimo_config,
     read_pyproject_marimo_config,
 )
-from marimo._utils.toml import read_toml
+from marimo._utils.toml import is_toml_error, read_toml
 
 
 def test_read_toml():
-    toml_content = """
+    toml_content = b"""
     [section]
     key = "value"
     """
@@ -26,7 +26,7 @@ def test_read_toml():
 
 
 def test_read_marimo_config():
-    config_content = """
+    config_content = b"""
     [formatting]
     line_length = 79
 
@@ -51,7 +51,7 @@ def test_read_marimo_config():
         }
 
 
-def test_read_pyproject_config_with_marimo_section():
+def test_read_pyproject_config_with_marimo_section(tmp_path: Path):
     pyproject_content = """
     [tool.marimo]
     formatting = {line_length = 79}
@@ -64,55 +64,51 @@ def test_read_pyproject_config_with_marimo_section():
     [tool.marimo.novalidate]
     old_keys_are_ok = true
     """
-    with patch("builtins.open", mock_open(read_data=pyproject_content)):
-        with patch(
-            "marimo._config.reader.find_nearest_pyproject_toml"
-        ) as mock_find:
-            mock_find.return_value = Path("/some/path/pyproject.toml")
-            result = read_pyproject_marimo_config("/some/path")
-            assert result == {
-                "formatting": {"line_length": 79},
-                "save": {
-                    "autosave_delay": 1000,
-                    "format_on_save": True,
-                    "autosave": "after_delay",
-                },
-                "novalidate": {"old_keys_are_ok": True},
-            }
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(pyproject_content)
+    nearest_pyproject_toml = find_nearest_pyproject_toml(tmp_path)
+    assert nearest_pyproject_toml is not None
+    result = read_pyproject_marimo_config(nearest_pyproject_toml)
+    assert result == {
+        "formatting": {"line_length": 79},
+        "save": {
+            "autosave_delay": 1000,
+            "format_on_save": True,
+            "autosave": "after_delay",
+        },
+        "novalidate": {"old_keys_are_ok": True},
+    }
 
 
-def test_read_pyproject_config_without_marimo_section():
+def test_read_pyproject_config_without_marimo_section(tmp_path: Path):
     pyproject_content = """
     [tool.idk]
     name = "foo"
     """
-    with patch("builtins.open", mock_open(read_data=pyproject_content)):
-        with patch(
-            "marimo._config.reader.find_nearest_pyproject_toml"
-        ) as mock_find:
-            mock_find.return_value = Path("/some/path/pyproject.toml")
-            result = read_pyproject_marimo_config("/some/path")
-            assert result is None
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(pyproject_content)
+    nearest_pyproject_toml = find_nearest_pyproject_toml(tmp_path)
+    assert nearest_pyproject_toml is not None
+    result = read_pyproject_marimo_config(nearest_pyproject_toml)
+    assert result is None
 
 
-def test_read_pyproject_config_invalid_marimo_section():
+def test_read_pyproject_config_invalid_marimo_section(tmp_path: Path):
     pyproject_content = """
     [tool]
     marimo = "invalid"
     """
-    with patch("builtins.open", mock_open(read_data=pyproject_content)):
-        with patch(
-            "marimo._config.reader.find_nearest_pyproject_toml"
-        ) as mock_find:
-            mock_find.return_value = Path("/some/path/pyproject.toml")
-            result = read_pyproject_marimo_config("/some/path")
-            assert result is None
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(pyproject_content)
+    nearest_pyproject_toml = find_nearest_pyproject_toml(tmp_path)
+    assert nearest_pyproject_toml is not None
+    result = read_pyproject_marimo_config(nearest_pyproject_toml)
+    assert result is None
 
 
-def test_read_pyproject_config_no_file():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        result = read_pyproject_marimo_config(temp_dir)
-        assert result is None
+def test_read_pyproject_config_no_file(tmp_path: Path):
+    nearest_pyproject_toml = find_nearest_pyproject_toml(tmp_path)
+    assert nearest_pyproject_toml is None
 
 
 def testfind_nearest_pyproject_toml():
@@ -136,12 +132,12 @@ def testfind_nearest_pyproject_toml_not_found():
 
 
 def test_read_toml_invalid_content():
-    invalid_toml = """
+    invalid_toml = b"""
     [invalid
     key = value
     """
-    import tomlkit.exceptions
 
     with patch("builtins.open", mock_open(read_data=invalid_toml)):
-        with pytest.raises(tomlkit.exceptions.UnexpectedCharError):
+        with pytest.raises(Exception) as e:
             read_toml("dummy.toml")
+        assert is_toml_error(e.value)

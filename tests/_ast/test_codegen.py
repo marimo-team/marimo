@@ -13,8 +13,9 @@ import codegen_data.test_main as mod
 import pytest
 
 from marimo import __version__
-from marimo._ast import codegen, compiler
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast import codegen, compiler, load
+from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
 
@@ -61,20 +62,19 @@ def wrap_generate_filecontents(
         resolved_configs = [CellConfig() for _ in range(len(codes))]
     else:
         resolved_configs = cell_configs
-    return codegen.generate_filecontents(
+    filecontents = codegen.generate_filecontents(
         codes, names, cell_configs=resolved_configs, **kwargs
     )
-
-
-def strip_blank_lines(text: str) -> str:
-    return "\n".join([line for line in text.splitlines() if line.strip()])
+    # leading spaces should be removed too
+    assert filecontents.lstrip() == filecontents
+    return filecontents
 
 
 def get_idempotent_marimo_source(name: str) -> str:
     from marimo._utils.formatter import Formatter
 
     path = get_filepath(name)
-    app = codegen.get_app(path)
+    app = load.load_app(path)
     header_comments = codegen.get_header_comments(path)
     generated_contents = codegen.generate_filecontents(
         list(app._cell_manager.codes()),
@@ -88,15 +88,11 @@ def get_idempotent_marimo_source(name: str) -> str:
     with open(path) as f:
         python_source = sanitized_version(f.read())
 
-    # TODO(dmadisetti): not totally idempotent for now. Revise; seems to strip
-    # on imports (possibly during compile?).
     formatted = Formatter(codegen.MAX_LINE_LENGTH).format(
         {"source": python_source, "generated": generated_contents}
     )
 
-    assert strip_blank_lines(formatted["source"]) == strip_blank_lines(
-        formatted["generated"]
-    )
+    assert formatted["source"] == formatted["generated"]
     return formatted["generated"]
 
 
@@ -271,6 +267,111 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
+    def test_with_second_type_noop(self) -> None:
+        referring = "x = 1; x: int = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_types(self) -> None:
+        referring = "x: int = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: int):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_toplevel_types(self) -> None:
+        referring = "x: T = 1"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z: T = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"T"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: T):",
+                "    z: T = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_string_types(self) -> None:
+        referring = 'x: "int" = 0'
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "int"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_nested_string_types(self) -> None:
+        referring = '''x: "TT[\\"i\\"]" = 0; A:"""
+        a new line type"""'''
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: 'TT[\"i\"]'):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_unknown_types(self) -> None:
+        referring = "x: something = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "something"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
         config = _AppConfig(
@@ -329,158 +430,6 @@ class TestGeneration:
             "test_generate_filecontents_toplevel_pytest"
         )
         assert "import marimo" in source
-
-
-class TestGetCodes:
-    @staticmethod
-    def test_get_codes() -> None:
-        app = codegen.get_app(get_filepath("test_generate_filecontents"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == [
-            "one",
-            "two",
-            "three",
-            "four",
-            "five",
-        ]
-        assert list(cell_manager.codes()) == [
-            "import numpy as np",
-            "x = 0\nxx = 1",
-            "y = x + 1",
-            "# comment\nz = np.array(x + y)",
-            "# just a comment",
-        ]
-
-    @staticmethod
-    def test_get_codes_async() -> None:
-        app = codegen.get_app(get_filepath("test_generate_filecontents_async"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == [
-            "one",
-            "two",
-            "three",
-        ]
-        assert list(cell_manager.codes()) == [
-            "import numpy as np\nimport asyncio",
-            "x = 0\nxx = 1\nawait asyncio.sleep(1)",
-            "async def _():\n    await asyncio.sleep(x)",
-        ]
-
-    @staticmethod
-    def test_get_codes_with_incorrect_args_rets() -> None:
-        app = codegen.get_app(
-            get_filepath("test_get_codes_with_incorrect_args_rets")
-        )
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == [
-            "one",
-            "two",
-            "three",
-            "four",
-            "five",
-        ]
-        assert list(cell_manager.codes()) == [
-            "import numpy as np",
-            "x = 0\nxx = 1",
-            "y = x + 1",
-            "# comment\nz = np.array(x + y)",
-            "# just a comment\n...",
-        ]
-
-    @staticmethod
-    def test_get_codes_with_name_error() -> None:
-        # name mo is not defined --- make sure this file is still parseable
-        app = codegen.get_app(get_filepath("test_get_codes_with_name_error"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == [
-            "mo",
-        ]
-
-    @staticmethod
-    def test_get_codes_multiline_fndef() -> None:
-        app = codegen.get_app(get_filepath("test_get_codes_multiline_fndef"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == [
-            "# comment\nx = 0 + a + b + c + d",
-        ]
-
-    @staticmethod
-    def test_get_codes_messy() -> None:
-        app = codegen.get_app(get_filepath("test_get_codes_messy"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["__"]
-        assert list(cell_manager.codes()) == [
-            "# comment\n# another comment\n\n# yet another comment\n"
-            + "x = 0 + a + b + c + d",
-        ]
-
-    @staticmethod
-    def test_get_codes_single_line_fn() -> None:
-        app = codegen.get_app(get_filepath("test_get_codes_single_line_fn"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == ["c = a + b; print(c); "]
-
-    @staticmethod
-    def test_get_codes_multiline_string() -> None:
-        app = codegen.get_app(get_filepath("test_get_codes_multiline_string"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == ['c = """\n  a, b"""; ']
-
-    @staticmethod
-    def test_get_codes_comment_after_sig() -> None:
-        app = codegen.get_app(get_filepath("test_get_codes_comment_after_sig"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == ['print("hi")']
-
-    @staticmethod
-    def test_get_codes_empty() -> None:
-        app = codegen.get_app(get_filepath("test_get_codes_empty"))
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one", "two"]
-        assert [c.strip() for c in cell_manager.codes()] == ["", ""]
-
-    @staticmethod
-    def test_get_codes_syntax_error() -> None:
-        app = codegen.get_app(
-            get_filepath("test_generate_filecontents_with_syntax_error")
-        )
-        assert app is not None
-        cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one", "two", "_", "_"]
-        assert list(cell_manager.codes()) == [
-            "import numpy as np",
-            "_ error",
-            "'all good'",
-            '_ another_error\n_ and """another"""\n\n    \\t',
-        ]
-
-    @staticmethod
-    def test_get_codes_app_with_only_comments() -> None:
-        app = codegen.get_app(get_filepath("test_app_with_only_comments"))
-        assert app is None
-
-    @staticmethod
-    def test_get_codes_app_with_no_cells() -> None:
-        app = codegen.get_app(get_filepath("test_app_with_no_cells"))
-        assert app is not None
-        app._cell_manager.ensure_one_cell()
-        assert list(app._cell_manager.names()) == ["_"]
-        assert list(app._cell_manager.codes()) == [""]
 
 
 @pytest.fixture

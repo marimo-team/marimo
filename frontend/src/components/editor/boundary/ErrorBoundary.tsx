@@ -24,12 +24,7 @@ const FallbackComponent: React.FC<FallbackProps> = (props) => {
       </pre>
       <div>
         If this is an issue with marimo, please report it on{" "}
-        <a
-          href={Constants.issuesPage}
-          target="_blank"
-          rel="noreferrer"
-          className="underline"
-        >
+        <a href={Constants.issuesPage} target="_blank" className="underline">
           GitHub
         </a>
         .
