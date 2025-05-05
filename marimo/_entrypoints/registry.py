@@ -1,5 +1,5 @@
 from importlib.metadata import entry_points
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar, cast
 
 from marimo._entrypoints.ids import KnownEntryPoint
 
@@ -80,7 +80,7 @@ class EntryPointRegistry(Generic[T]):
             if ep.name == name:
                 value = ep.load()
                 self.register(name, value)
-                return value
+                return cast(T, value)
 
         raise KeyError(
             f"No entry point named '{name}' found in group '{self.entry_point_group}'"
