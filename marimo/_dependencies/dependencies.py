@@ -202,6 +202,7 @@ class DependencyManager:
     docstring_to_markdown = Dependency(
         "docstring_to_markdown", min_version="0.16.0"
     )
+    tomllib = Dependency("tomllib")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

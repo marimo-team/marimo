@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Optional, TypeVar
 
 from marimo._utils.parse_dataclass import parse_raw
-from marimo._utils.toml import read_toml
+from marimo._utils.toml import is_toml_error, read_toml
 
 ROOT_DIR = ".marimo"
 
@@ -31,13 +31,13 @@ class ConfigReader:
         return ConfigReader(filepath)
 
     def read_toml(self, cls: type[T], *, fallback: T) -> T:
-        import tomllib
-
         try:
             data = read_toml(self.filepath)
             return parse_raw(data, cls, allow_unknown_keys=True)
-        except (FileNotFoundError, tomllib.TOMLDecodeError):
-            return fallback
+        except Exception as e:
+            if is_toml_error(e) or isinstance(e, FileNotFoundError):
+                return fallback
+            raise e
 
     def write_toml(self, data: Any) -> None:
         import tomlkit
