@@ -123,22 +123,24 @@ const DataSelection = ({
   };
 
   const handleSelectRow = (rowIdx: number) => {
-    // wrap around if out of bounds
-    if (rowIdx < 0) {
-      rowIdx = rows.length - 1;
-    } else if (rowIdx >= rows.length) {
-      rowIdx = 0;
+    if (rowIdx < 0 || rowIdx >= rows.length) {
+      return;
     }
     setSelectedRowIdx(rowIdx);
   };
 
-  const renderButton = (icon: React.ReactNode, onClick: () => void) => {
+  const renderButton = (
+    icon: React.ReactNode,
+    onClick: () => void,
+    disabled?: boolean,
+  ) => {
     return (
       <Button
         variant="outline"
         size="xs"
-        className="px-1 h-5 w-5"
+        className="h-6 w-6 p-0.5"
         onClick={onClick}
+        disabled={disabled}
       >
         {icon}
       </Button>
@@ -146,7 +148,7 @@ const DataSelection = ({
   };
 
   return (
-    <div className="mt-2 h-full overflow-auto">
+    <div className="mt-2 pb-14 h-full overflow-auto">
       <div className="flex flex-row justify-between items-center my-1 mx-2">
         {renderModeToggle()}
         <Button
@@ -160,24 +162,35 @@ const DataSelection = ({
       </div>
 
       <div className="flex flex-col gap-2 mt-4">
-        <div className="flex flex-row gap-2 justify-end mr-2">
-          {renderButton(<ChevronsLeft />, () => handleSelectRow(0))}
-          {renderButton(<ChevronLeft />, () =>
-            handleSelectRow(selectedRowIdx - 1),
+        <div className="flex flex-row gap-2 justify-end items-center mr-2">
+          {renderButton(
+            <ChevronsLeft />,
+            () => handleSelectRow(0),
+            selectedRowIdx === 0,
           )}
-          <span className="text-sm">
+          {renderButton(
+            <ChevronLeft />,
+            () => handleSelectRow(selectedRowIdx - 1),
+            selectedRowIdx === 0,
+          )}
+          <span className="text-xs">
             {selectedRowIdx + 1} of {rows.length}
           </span>
-          {renderButton(<ChevronRight />, () =>
-            handleSelectRow(selectedRowIdx + 1),
+          {renderButton(
+            <ChevronRight />,
+            () => handleSelectRow(selectedRowIdx + 1),
+            selectedRowIdx === rows.length - 1,
           )}
-          {renderButton(<ChevronsRight />, () =>
-            handleSelectRow(rows.length - 1),
+          {renderButton(
+            <ChevronsRight />,
+            () => handleSelectRow(rows.length - 1),
+            selectedRowIdx === rows.length - 1,
           )}
         </div>
 
         <div className="mx-2 my-2">
           <Input
+            type="text"
             placeholder="Search"
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<SearchIcon className="w-4 h-4" />}
