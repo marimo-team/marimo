@@ -22,6 +22,8 @@ class TestStore:
                 a = 1
                 b = 2
 
-            key = f"mock/P_{cache._cache.key.hash}.pickle"
+            from pathlib import Path
+
+            key = str(Path(f"mock/P_{cache._cache.key.hash}.pickle"))
             assert key in store._cache.keys()
             assert store._cache[key]
