@@ -31,14 +31,14 @@ import { prettifyRowCount } from "../pagination";
 import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
 import { NAMELESS_COLUMN_PREFIX } from "../columns";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
+import { renderCellValue } from "../columns";
 
 export interface DataSelectionPanelProps {
   rowIdx: number;
   totalRows: number;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
   getRow: (rowIdx: number) => Promise<GetRowResult>;
-  columns: Array<ColumnDef<unknown>>;
 }
 
 export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
@@ -46,7 +46,6 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   totalRows,
   fieldTypes,
   getRow,
-  columns,
 }: DataSelectionPanelProps) => {
   const [selectedRowIdx, setSelectedRowIdx] = useState(rowIdx);
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,48 +55,8 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     return data.rows;
   }, [getRow, selectedRowIdx]);
 
-  console.log("columns", columns);
-
   if (error) {
     return <ErrorBanner error={error} className="p-4 mx-3 mt-5" />;
-  }
-
-  const renderWarnBanner = (message: string) => (
-    <Banner
-      kind="warn"
-      className="p-4 mx-3 mt-5 flex flex-row items-center gap-2"
-    >
-      <AlertTriangle className="w-5 h-5" />
-      <span>{message}</span>
-    </Banner>
-  );
-
-  if (!rows) {
-    return renderWarnBanner("No data available. Please report the issue.");
-  }
-
-  if (rows.length !== 1) {
-    return renderWarnBanner(
-      `Expected 1 row, got ${rows.length} rows. Please report the issue.`,
-    );
-  }
-
-  const currentRow = rows[0];
-  if (typeof currentRow !== "object" || currentRow === null) {
-    return renderWarnBanner("Row is not an object. Please report the issue.");
-  }
-
-  const rowValues: Record<string, unknown> = {};
-  for (const [columnName, columnValue] of Object.entries(currentRow)) {
-    if (columnName === SELECT_COLUMN_ID || columnName === INDEX_COLUMN_NAME) {
-      continue;
-    }
-    if (columnName.startsWith(NAMELESS_COLUMN_PREFIX)) {
-      // Remove the prefix
-      rowValues[columnName.slice(NAMELESS_COLUMN_PREFIX.length)] = columnValue;
-    } else {
-      rowValues[columnName] = columnValue;
-    }
   }
 
   const handleSelectRow = (rowIdx: number) => {
@@ -107,20 +66,108 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     setSelectedRowIdx(rowIdx);
   };
 
-  const getDataTypeIcon = (columnName: string) => {
-    if (!fieldTypes) {
-      return null;
+  const buttonStyles = "h-6 w-6 p-0.5";
+
+  const renderTable = () => {
+    if (!rows) {
+      return (
+        <WarnBanner message="No data available. Please report the issue." />
+      );
     }
 
-    const dataType = fieldTypes.find(
-      (field) => field[0] === columnName,
-    )?.[1][0];
-    return DATA_TYPE_ICON[dataType || "unknown"];
+    if (rows.length !== 1) {
+      return (
+        <WarnBanner
+          message={`Expected 1 row, got ${rows.length} rows. Please report the issue.`}
+        />
+      );
+    }
+
+    const currentRow = rows[0];
+    if (typeof currentRow !== "object" || currentRow === null) {
+      return (
+        <WarnBanner message="Row is not an object. Please report the issue." />
+      );
+    }
+
+    const rowValues: Record<string, unknown> = {};
+    for (const [columnName, columnValue] of Object.entries(currentRow)) {
+      if (columnName === SELECT_COLUMN_ID || columnName === INDEX_COLUMN_NAME) {
+        continue;
+      }
+      if (columnName.startsWith(NAMELESS_COLUMN_PREFIX)) {
+        // Remove the prefix
+        rowValues[columnName.slice(NAMELESS_COLUMN_PREFIX.length)] =
+          columnValue;
+      } else {
+        rowValues[columnName] = columnValue;
+      }
+    }
+
+    const searchedRows = filterRows(rowValues, searchQuery);
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-1/4">Column</TableHead>
+            <TableHead className="w-3/4">Value</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {searchedRows.map(([columnName, columnValue]) => {
+            const dataType = fieldTypes?.find(
+              ([name]) => name === columnName,
+            )?.[1][0];
+            const Icon = dataType ? DATA_TYPE_ICON[dataType] : null;
+            const cellValue = columnValue;
+            const mockColumn = {
+              id: columnName,
+              columnDef: {
+                meta: {
+                  dataType,
+                },
+              },
+              getColumnFormatting: () => undefined,
+              applyColumnFormatting: (value) => value,
+            } as Column<unknown>;
+
+            const cellContent = renderCellValue(
+              mockColumn,
+              () => cellValue,
+              () => cellValue,
+              undefined,
+              "text-left break-all",
+            );
+            const copyValue =
+              typeof cellValue === "object"
+                ? JSON.stringify(cellValue)
+                : String(cellValue);
+
+            return (
+              <TableRow key={columnName} className="group">
+                <TableCell className="flex flex-row items-center gap-1.5">
+                  {Icon && (
+                    <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />
+                  )}
+                  {columnName}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-row items-center justify-between gap-1">
+                    {cellContent}
+                    <CopyClipboardIcon
+                      value={copyValue}
+                      className="w-3 h-3 mr-1 text-muted-foreground cursor-pointer opacity-0 group-hover:opacity-100"
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    );
   };
-
-  const searchedRows = filterRows(rowValues, searchQuery);
-
-  const buttonStyles = "h-6 w-6 p-0.5";
 
   return (
     <div className="flex flex-col gap-3 mt-4">
@@ -179,54 +226,7 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
           data-testid="selection-panel-search-input"
         />
       </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-1/4">Column</TableHead>
-            <TableHead className="w-3/4">Value</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {searchedRows.map(([columnName, columnValue]) => {
-            const Icon = getDataTypeIcon(columnName);
-            // TODO: Add cell content rendering
-            // const cellContent = renderCellValue(
-            //   cell.column,
-            //   cell.renderValue,
-            //   cell.getValue,
-            //   Functions.NOOP,
-            //   "text-left break-all",
-            // );
-
-            const cellValue = columnValue;
-            const cellValueString =
-              typeof cellValue === "object"
-                ? JSON.stringify(cellValue)
-                : String(cellValue);
-
-            return (
-              <TableRow key={columnName} className="group">
-                <TableCell className="flex flex-row items-center gap-1.5">
-                  {Icon && (
-                    <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />
-                  )}
-                  {columnName}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-row items-center justify-between gap-1">
-                    {cellValueString}
-                    <CopyClipboardIcon
-                      value={cellValueString}
-                      className="w-3 h-3 mr-1 text-muted-foreground cursor-pointer opacity-0 group-hover:opacity-100"
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      {renderTable()}
     </div>
   );
 };
@@ -248,3 +248,15 @@ export function filterRows(rowValues: object, searchQuery: string) {
     );
   });
 }
+
+const WarnBanner: React.FC<{ message: string }> = ({ message }) => {
+  return (
+    <Banner
+      kind="warn"
+      className="p-4 mx-3 mt-3 flex flex-row items-center gap-2"
+    >
+      <AlertTriangle className="w-5 h-5" />
+      <span>{message}</span>
+    </Banner>
+  );
+};

@@ -770,7 +770,6 @@ const DataTableComponent = ({
             fieldTypes={memoizedFieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
             rowIdx={focusedRowIdx}
-            columns={columns}
           />
         </ContextAwarePanelItem>
       )}
