@@ -148,7 +148,6 @@ class IPythonFormatter(FormatterFactory):
                 # Hardcoded progress bar styling
                 # Add global styling for progress elements if needed
                 if "<progress" in data:
-                    import re
                     
                     # Add a style block with global CSS for progress elements
                     # This matches the marimo styling from ProgressPlugin.tsx
