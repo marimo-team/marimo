@@ -145,6 +145,7 @@ class IPythonFormatter(FormatterFactory):
             else:
                 data = str(html._repr_html_())  # type: ignore
 
+                # Hardcoded progress bar styling
                 # Add global styling for progress elements if needed
                 if "<progress" in data:
                     import re
