@@ -51,8 +51,6 @@ import {
   type ColumnFilterValue,
 } from "@/components/data-table/filters";
 import { isStaticNotebook } from "@/core/static/static-state";
-import { vegaLoadData } from "./vega/loader";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { findCellId } from "@/core/cells/ids";
 import { slotsController } from "@/core/slots/slots";
@@ -61,8 +59,9 @@ import { DataSelectionPanel } from "@/components/data-table/selection-panel/data
 import { Provider, useAtom } from "jotai";
 import { isContextAwarePanelOpenAtom } from "@/components/editor/chrome/state";
 import { store } from "@/core/state/jotai";
+import { loadTableData } from "@/components/data-table/table-loader";
 type CsvURL = string;
-type TableData<T> = T[] | CsvURL;
+export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   summaries: ColumnHeaderSummary[];
@@ -86,6 +85,10 @@ export type CalculateTopKRows = <T>(req: {
 }) => Promise<{
   data: Array<[unknown, number]>;
 }>;
+
+export interface GetRowResult {
+  rows: unknown[];
+}
 
 /**
  * Arguments for a data table
@@ -436,31 +439,7 @@ export const LoadingDataTableComponent = memo(
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
       }
-      // If we already have the data, return it
-      if (Array.isArray(tableData)) {
-        return {
-          rows: tableData,
-          totalRows: totalRows,
-          cellStyles,
-        };
-      }
-
-      // If it looks like json, parse it
-      if (tableData.startsWith("{") || tableData.startsWith("[")) {
-        return {
-          rows: jsonParseWithSpecialChar(tableData),
-          totalRows: totalRows,
-          cellStyles,
-        };
-      }
-
-      // Otherwise, load the data from the URL
-      tableData = await vegaLoadData(
-        tableData,
-        { type: "json" },
-        { handleBigIntAndNumberLike: true },
-      );
-
+      tableData = await loadTableData(tableData);
       return {
         rows: tableData,
         totalRows: totalRows,
@@ -479,8 +458,8 @@ export const LoadingDataTableComponent = memo(
     ]);
 
     const getRow = useCallback(
-      (rowId: number) => {
-        return search<T>({
+      async (rowId: number) => {
+        const result = await search<T>({
           page_number: rowId,
           page_size: 1,
           sort:
@@ -498,6 +477,10 @@ export const LoadingDataTableComponent = memo(
             );
           }),
         });
+        const loadedData = await loadTableData(result.data);
+        return {
+          rows: loadedData,
+        };
       },
       [search, sorting, filters, searchQuery],
     );
@@ -648,7 +631,7 @@ const DataTableComponent = ({
   DataTableSearchProps & {
     data: unknown[];
     columnSummaries?: ColumnSummaries;
-    getRow: (rowIdx: number) => Promise<Record<string, unknown>>;
+    getRow: (rowIdx: number) => Promise<GetRowResult>;
   }): JSX.Element => {
   const id = useId();
   const [focusedRowIdx, setFocusedRowIdx] = useState(0);
@@ -784,9 +767,10 @@ const DataTableComponent = ({
         <ContextAwarePanelItem>
           <DataSelectionPanel
             getRow={getRow}
-            fieldTypes={fieldTypes}
+            fieldTypes={memoizedFieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
             rowIdx={focusedRowIdx}
+            columns={columns}
           />
         </ContextAwarePanelItem>
       )}

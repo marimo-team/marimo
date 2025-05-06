@@ -92,7 +92,7 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    const rowsLabel = `${prettyNumber(numRows)} ${new PluralWord("row").pluralize(numRows)}`;
+    const rowsLabel = prettifyRowCount(numRows);
     const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
 
     return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
@@ -245,3 +245,7 @@ export const PageSelector = ({
     </select>
   );
 };
+
+export function prettifyRowCount(rowCount: number): string {
+  return `${prettyNumber(rowCount)} ${new PluralWord("row").pluralize(rowCount)}`;
+}

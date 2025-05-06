@@ -6,6 +6,7 @@ import {
   SearchIcon,
   ChevronsLeft,
   ChevronsRight,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,12 +22,23 @@ import { Input } from "@/components/ui/input";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import type { FieldTypesWithExternalType } from "../types";
+import {
+  INDEX_COLUMN_NAME,
+  SELECT_COLUMN_ID,
+  type FieldTypesWithExternalType,
+} from "../types";
+import { prettifyRowCount } from "../pagination";
+import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
+import { NAMELESS_COLUMN_PREFIX } from "../columns";
+import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
+import type { ColumnDef } from "@tanstack/react-table";
+
 export interface DataSelectionPanelProps {
   rowIdx: number;
   totalRows: number;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
-  getRow: (rowIdx: number) => Promise<Record<string, unknown>>;
+  getRow: (rowIdx: number) => Promise<GetRowResult>;
+  columns: Array<ColumnDef<unknown>>;
 }
 
 export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
@@ -34,55 +46,59 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   totalRows,
   fieldTypes,
   getRow,
-}) => {
-  return (
-    <DataSelection
-      rowIdx={rowIdx}
-      totalRows={totalRows}
-      fieldTypes={fieldTypes}
-      getRow={getRow}
-    />
-  );
-};
-
-const DataSelection = ({
-  rowIdx,
-  totalRows,
-  fieldTypes,
-  getRow,
-}: {
-  rowIdx: number;
-  totalRows: number;
-  fieldTypes: FieldTypesWithExternalType | undefined | null;
-  getRow: (rowIdx: number) => Promise<Record<string, unknown>>;
-}) => {
+  columns,
+}: DataSelectionPanelProps) => {
   const [selectedRowIdx, setSelectedRowIdx] = useState(rowIdx);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: currentRow } = useAsyncData(async () => {
-    return getRow(selectedRowIdx);
+  const { data: rows, error } = useAsyncData(async () => {
+    const data = await getRow(selectedRowIdx);
+    return data.rows;
   }, [getRow, selectedRowIdx]);
 
-  const rowValues: Record<string, unknown> = currentRow ?? {};
-  // const cells = currentRow?.getAllCells() ?? [];
-  // for (const cell of cells) {
-  //   if (
-  //     cell.column.id === SELECT_COLUMN_ID ||
-  //     cell.column.id === INDEX_COLUMN_NAME
-  //   ) {
-  //     continue;
-  //   }
-  //   if (cell.column.id.startsWith(NAMELESS_COLUMN_PREFIX)) {
-  //     // Leave the column name empty
-  //     cell.column.id = "";
-  //   }
-  //   rowValues[cell.column.id] = cell;
-  // }
+  console.log("columns", columns);
 
-  // Selects the last row if selected row is out of bounds
-  // if (selectedRowIdx >= totalRows) {
-  //   setSelectedRowIdx(rows.length - 1);
-  // }
+  if (error) {
+    return <ErrorBanner error={error} className="p-4 mx-3 mt-5" />;
+  }
+
+  const renderWarnBanner = (message: string) => (
+    <Banner
+      kind="warn"
+      className="p-4 mx-3 mt-5 flex flex-row items-center gap-2"
+    >
+      <AlertTriangle className="w-5 h-5" />
+      <span>{message}</span>
+    </Banner>
+  );
+
+  if (!rows) {
+    return renderWarnBanner("No data available. Please report the issue.");
+  }
+
+  if (rows.length !== 1) {
+    return renderWarnBanner(
+      `Expected 1 row, got ${rows.length} rows. Please report the issue.`,
+    );
+  }
+
+  const currentRow = rows[0];
+  if (typeof currentRow !== "object" || currentRow === null) {
+    return renderWarnBanner("Row is not an object. Please report the issue.");
+  }
+
+  const rowValues: Record<string, unknown> = {};
+  for (const [columnName, columnValue] of Object.entries(currentRow)) {
+    if (columnName === SELECT_COLUMN_ID || columnName === INDEX_COLUMN_NAME) {
+      continue;
+    }
+    if (columnName.startsWith(NAMELESS_COLUMN_PREFIX)) {
+      // Remove the prefix
+      rowValues[columnName.slice(NAMELESS_COLUMN_PREFIX.length)] = columnValue;
+    } else {
+      rowValues[columnName] = columnValue;
+    }
+  }
 
   const handleSelectRow = (rowIdx: number) => {
     if (rowIdx < 0 || rowIdx >= totalRows) {
@@ -130,7 +146,7 @@ const DataSelection = ({
           <ChevronLeft />
         </Button>
         <span className="text-xs">
-          Row {selectedRowIdx + 1} of {totalRows}
+          Row {selectedRowIdx + 1} of {prettifyRowCount(totalRows)}
         </span>
         <Button
           variant="outline"
@@ -215,10 +231,7 @@ const DataSelection = ({
   );
 };
 
-export function filterRows(
-  rowValues: Record<string, unknown>,
-  searchQuery: string,
-) {
+export function filterRows(rowValues: object, searchQuery: string) {
   return Object.entries(rowValues).filter(([columnName, columnValue]) => {
     const colName = columnName.toLowerCase();
 

@@ -31,12 +31,12 @@ export const ContextAwarePanel: React.FC = () => {
   const renderModeToggle = () => {
     return (
       <div className="flex flex-row items-center gap-1">
-        <Tooltip content={isPinned ? "Pinned" : "Unpinned"}>
+        <Tooltip content={isPinned ? "Unpin" : "Pin panel"}>
           <Toggle
             size="xs"
             onPressedChange={() => setIsPinned(!isPinned)}
             pressed={isPinned}
-            aria-label={isPinned ? "Pinned" : "Unpinned"}
+            aria-label={isPinned ? "Unpin" : "Pin panel"}
           >
             {isPinned ? (
               <PinIcon className="w-4 h-4" />
