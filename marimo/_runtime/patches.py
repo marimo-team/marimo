@@ -27,6 +27,9 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
     pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
     pdb.set_trace = functools.partial(marimo_pdb.set_trace, debugger=debugger)
 
+    # Used on failure for step through
+    pdb.post_mortem = debugger.post_mortem
+
 
 def patch_webbrowser() -> None:
     import webbrowser

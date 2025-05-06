@@ -23,6 +23,7 @@ import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
 import { Element, Text, type DOMNode } from "html-react-parser";
+import { isWasm } from "@/core/wasm/utils";
 
 import { CellLinkTraceback } from "../links/cell-link";
 import {
@@ -42,6 +43,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { getCellEditorView } from "@/core/cells/cells";
+
+import { sendPdb } from "@/core/network/requests";
 
 interface Props {
   cellId: CellId | undefined;
@@ -69,7 +72,7 @@ export const MarimoTracebackOutput = ({
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   // Get last traceback info
-  const lastTracebackInfo = extractAllTracebackInfo(traceback)?.at(-1);
+  const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
 
   const handleRefactorWithAI = () => {
     onRefactorWithAI?.({
@@ -110,20 +113,19 @@ export const MarimoTracebackOutput = ({
             Fix with AI
           </Button>
         )}
-        {lastTracebackInfo && (
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => {
-              const view = getCellEditorView(lastTracebackInfo.cellId);
-              if (view) {
-                insertDebuggerAtLine(view, lastTracebackInfo.lineNumber);
-              }
-            }}
-          >
-            <BugPlayIcon className="h-3 w-3 mr-2" />
-            Insert breakpoint
-          </Button>
+        {tracebackInfo && !isWasm() && (
+          <Tooltip content={"Attach pdb to the exception point."}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                sendPdb({ cellId: tracebackInfo.cellId });
+              }}
+            >
+              <BugPlayIcon className="h-3 w-3 mr-2" />
+              Launch debugger
+            </Button>
+          </Tooltip>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild={true}>
@@ -188,22 +190,24 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
             cellId={info.cellId}
             lineNumber={info.lineNumber}
           />
-          <Tooltip content={tooltipContent}>
-            <button
-              type="button"
-              className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
-            >
-              <BugPlayIcon
-                onClick={() => {
-                  const view = getCellEditorView(info.cellId);
-                  if (view) {
-                    insertDebuggerAtLine(view, info.lineNumber);
-                  }
-                }}
-                className="h-3 w-3"
-              />
-            </button>
-          </Tooltip>
+          {!isWasm() && (
+            <Tooltip content={tooltipContent}>
+              <button
+                type="button"
+                className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
+              >
+                <BugPlayIcon
+                  onClick={() => {
+                    const view = getCellEditorView(info.cellId);
+                    if (view) {
+                      insertDebuggerAtLine(view, info.lineNumber);
+                    }
+                  }}
+                  className="h-3 w-3"
+                />
+              </button>
+            </Tooltip>
+          )}
         </span>
       </span>
     );

@@ -14,6 +14,7 @@ from marimo._runtime.requests import (
     ExecuteScratchpadRequest,
     FunctionCallRequest,
     HTTPRequest,
+    PdbRequest,
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
@@ -206,6 +207,36 @@ async def run_scratchpad(
     """  # noqa: E501
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+
+    return SuccessResponse()
+
+
+@router.post("/pdb/pm")
+@requires("edit")
+async def run_post_mortem(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PdbRequest"
+    responses:
+        200:
+            description: Run a post mortem on the most recent failed cell.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
+    app_state = AppState(request)
+    body = await parse_request(request, cls=PdbRequest)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

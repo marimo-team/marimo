@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { CompletionSource } from "@codemirror/autocomplete";
 
 /**

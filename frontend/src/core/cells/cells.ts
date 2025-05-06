@@ -1088,10 +1088,10 @@ const {
 
         // Find the start/end of the collapsed ranges
         const nodes = [...column.nodes];
-        const rangeIndexes: {
+        const rangeIndexes: Array<{
           start: CellIndex;
           end: CellIndex;
-        }[] = [];
+        }> = [];
         const reversedCollapseRanges = [];
 
         // Iterate in reverse order (bottom-up) to process children first

@@ -10,6 +10,7 @@ import threading
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from marimo._ast.cell import CellImpl
@@ -324,6 +325,10 @@ class Runner:
 
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
+        if self.debugger is not None:
+            last_tb = self.debugger._last_tracebacks.pop(cell_id, None)
+            if last_tb == self.debugger._last_traceback:
+                self.debugger._last_traceback = None
 
         cell = self.graph.cells[cell_id]
         try:
@@ -508,12 +513,20 @@ class Runner:
             try:
                 # Bdb defines the botframe attribute and sets it to non-None
                 # when it starts up
-                if (
-                    self.debugger is not None
-                    and hasattr(self.debugger, "botframe")
-                    and self.debugger.botframe is not None
-                ):
-                    self.debugger.set_continue()
+                if self.debugger is not None:
+                    if (
+                        hasattr(self.debugger, "botframe")
+                        and self.debugger.botframe is not None
+                    ):
+                        self.debugger.set_continue()
+                    # Hold on to this information for debugging postmortem etc.
+                    if run_result.exception is not None and hasattr(
+                        run_result.exception, "__traceback__"
+                    ):
+                        tb = run_result.exception.__traceback__
+                        assert isinstance(tb, TracebackType)
+                        self.debugger._last_traceback = tb
+                        self.debugger._last_tracebacks[cell_id] = tb
             except Exception as debugger_error:
                 # This has never been hit, but just in case -- don't want
                 # to crash the kernel.

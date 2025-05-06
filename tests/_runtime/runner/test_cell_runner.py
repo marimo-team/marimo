@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+import traceback
+
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runner.cell_runner import Runner
 from marimo._runtime.runtime import Kernel
@@ -21,6 +23,7 @@ async def test_cell_output(
     run_result = await runner.run(er.cell_id)
     # last expression of cell is output
     assert run_result.output == 123
+    assert k.debugger._last_traceback is None
 
 
 async def test_traceback_includes_lineno(
@@ -33,11 +36,12 @@ async def test_traceback_includes_lineno(
     # first run the cell to populate the graph
     await k.run(
         [
-            er := exec_req.get(
+            er := exec_req.get_with_id(
+                "1",
                 """
                 x = 0
                 raise ValueError
-                """
+                """,
             )
         ]
     )
@@ -51,6 +55,11 @@ async def test_traceback_includes_lineno(
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
     assert "line 3" in buffer.getvalue()
+    assert k.debugger._last_traceback == k.debugger._last_tracebacks["1"]
+    assert k.debugger._last_traceback is not None
+    assert "line 3" in "\n".join(
+        traceback.format_tb(k.debugger._last_traceback)
+    )
 
 
 async def test_base_exception_caught(
@@ -65,11 +74,12 @@ async def test_base_exception_caught(
     # first run the cell to populate the graph
     await k.run(
         [
-            er := exec_req.get(
+            er := exec_req.get_with_id(
+                "1",
                 """
                 x = 0
                 raise BaseException
-                """
+                """,
             )
         ]
     )
@@ -83,3 +93,8 @@ async def test_base_exception_caught(
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
     assert "line 3" in buffer.getvalue()
+    assert k.debugger._last_traceback == k.debugger._last_tracebacks["1"]
+    assert k.debugger._last_traceback is not None
+    assert "line 3" in "\n".join(
+        traceback.format_tb(k.debugger._last_traceback)
+    )

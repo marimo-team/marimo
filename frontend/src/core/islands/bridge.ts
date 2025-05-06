@@ -148,6 +148,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   previewSQLTableList = throwNotImplemented;
   openFile = throwNotImplemented;
   sendListFiles = throwNotImplemented;
+  sendPdb = throwNotImplemented;
   sendCreateFileOrFolder = throwNotImplemented;
   sendDeleteFileOrFolder = throwNotImplemented;
   sendRenameFileOrFolder = throwNotImplemented;

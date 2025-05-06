@@ -1357,6 +1357,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/pdb/pm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PdbRequest"];
+        };
+      };
+      responses: {
+        /** @description Run a post mortem on the most recent failed cell. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/read_code": {
     parameters: {
       query?: never;
@@ -3123,6 +3162,10 @@ export interface components {
     PackageOperationResponse: {
       error?: string | null;
       success: boolean;
+    };
+    PdbRequest: {
+      cellId: string;
+      request?: components["schemas"]["HTTPRequest"];
     };
     PreviewDatasetColumnRequest: {
       columnName: string;

@@ -55,6 +55,7 @@ export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
 export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
+export type PdbRequest = schemas["PdbRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
@@ -127,6 +128,8 @@ export interface EditRequests {
   previewSQLTableList: (request: PreviewSQLTableListRequest) => Promise<null>;
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
+  // Debugger
+  sendPdb: (request: PdbRequest) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendCreateFileOrFolder: (

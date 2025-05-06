@@ -4,13 +4,15 @@ from __future__ import annotations
 import inspect
 import sys
 from pdb import Pdb
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
-    from types import FrameType
+    from types import FrameType, TracebackType
+
+    from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
@@ -38,12 +40,36 @@ class MarimoPdb(Pdb):
         # it anyway -- stdin is fine too ...
         self.use_rawinput = stdin is None
 
+        # Some custom attributes to hold on to exception data from cell
+        # evaluation.
+        self._last_tracebacks: dict[CellId_t, TracebackType] = {}
+        self._last_traceback: Optional[TracebackType] = None
+
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
+
+    def post_mortem_by_cell_id(self, cell_id: CellId_t) -> None:
+        return self.post_mortem(t=self._last_tracebacks.get(cell_id))
+
+    def post_mortem(self, t: Optional[TracebackType] = None) -> None:
+        if t is None:
+            t = self._last_traceback
+
+        # Language and behavior copied from cpython.
+        if t is None or (
+            isinstance(t, BaseException) and t.__traceback__ is None
+        ):
+            raise ValueError(
+                "A valid traceback must be passed if no "
+                "exception is being handled"
+            )
+
+        self.reset()
+        self.interaction(None, t)
 
 
 def set_trace(

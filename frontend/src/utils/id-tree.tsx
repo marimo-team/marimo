@@ -290,7 +290,7 @@ export class CollapsibleTree<T> {
    * Does not collapse the children of already collapsed nodes
    */
   collapseAll(
-    collapseRanges: ({ id: T; until: T | undefined } | null)[],
+    collapseRanges: Array<{ id: T; until: T | undefined } | null>,
   ): CollapsibleTree<T> {
     const nodes = [...this.nodes];
     if (collapseRanges.length === 0) {
