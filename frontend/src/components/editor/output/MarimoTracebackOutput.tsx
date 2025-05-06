@@ -114,16 +114,18 @@ export const MarimoTracebackOutput = ({
           </Button>
         )}
         {tracebackInfo && !isWasm() && (
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => {
-              sendPdb({ cellId: tracebackInfo.cellId });
-            }}
-          >
-            <BugPlayIcon className="h-3 w-3 mr-2" />
-            Hook debugger
-          </Button>
+          <Tooltip content={"Attach pdb to the exception point."}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                sendPdb({ cellId: tracebackInfo.cellId });
+              }}
+            >
+              <BugPlayIcon className="h-3 w-3 mr-2" />
+              Launch debugger
+            </Button>
+          </Tooltip>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild={true}>

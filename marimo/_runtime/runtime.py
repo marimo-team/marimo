@@ -1524,8 +1524,6 @@ class Kernel:
 
         with self._install_execution_context(cell_id):
             self.debugger.post_mortem_by_cell_id(cell_id)
-            # entry = compile('__import__("pbd").pm()', filename, 'single')
-            # eval(entry, self.globals)
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
