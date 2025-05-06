@@ -6,7 +6,7 @@ import { useAtom } from "jotai";
 import type { PropsWithChildren } from "react";
 import { PanelResizeHandle, Panel } from "react-resizable-panels";
 import {
-  isContextAwarePanelOpenAtom,
+  contextAwarePanelOwner,
   isContextAwarePanelPinnedAtom,
 } from "../state";
 import { handleDragging } from "../wrapper/utils";
@@ -18,13 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 
 export const ContextAwarePanel: React.FC = () => {
-  const [isOpen, setIsOpen] = useAtom(isContextAwarePanelOpenAtom);
+  const [owner, setOwner] = useAtom(contextAwarePanelOwner);
   const [isPinned, setIsPinned] = useAtom(isContextAwarePanelPinnedAtom);
-  const closePanel = () => setIsOpen(null);
+  const closePanel = () => setOwner(null);
 
   const slots = useSlot(SlotNames.CONTEXT_AWARE_PANEL);
 
-  if (slots.length === 0 || !isOpen) {
+  if (slots.length === 0 || !owner) {
     return null;
   }
 

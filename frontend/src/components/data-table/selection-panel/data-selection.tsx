@@ -36,6 +36,7 @@ import { renderCellValue } from "../columns";
 
 export interface DataSelectionPanelProps {
   rowIdx: number;
+  setRowIdx: (rowIdx: number) => void;
   totalRows: number;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
   getRow: (rowIdx: number) => Promise<GetRowResult>;
@@ -43,17 +44,18 @@ export interface DataSelectionPanelProps {
 
 export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   rowIdx,
+  setRowIdx,
   totalRows,
   fieldTypes,
   getRow,
 }: DataSelectionPanelProps) => {
-  const [selectedRowIdx, setSelectedRowIdx] = useState(rowIdx);
+  // const [selectedRowIdx, setSelectedRowIdx] = useState(rowIdx);
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: rows, error } = useAsyncData(async () => {
-    const data = await getRow(selectedRowIdx);
+    const data = await getRow(rowIdx);
     return data.rows;
-  }, [getRow, selectedRowIdx]);
+  }, [getRow, rowIdx]);
 
   if (error) {
     return <ErrorBanner error={error} className="p-4 mx-3 mt-5" />;
@@ -63,7 +65,7 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     if (rowIdx < 0 || rowIdx >= totalRows) {
       return;
     }
-    setSelectedRowIdx(rowIdx);
+    setRowIdx(rowIdx);
   };
 
   const buttonStyles = "h-6 w-6 p-0.5";
@@ -177,7 +179,7 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
           size="xs"
           className={buttonStyles}
           onClick={() => handleSelectRow(0)}
-          disabled={selectedRowIdx === 0}
+          disabled={rowIdx === 0}
           aria-label="Go to first row"
         >
           <ChevronsLeft />
@@ -186,21 +188,21 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
           variant="outline"
           size="xs"
           className={buttonStyles}
-          onClick={() => handleSelectRow(selectedRowIdx - 1)}
-          disabled={selectedRowIdx === 0}
+          onClick={() => handleSelectRow(rowIdx - 1)}
+          disabled={rowIdx === 0}
           aria-label="Previous row"
         >
           <ChevronLeft />
         </Button>
         <span className="text-xs">
-          Row {selectedRowIdx + 1} of {prettifyRowCount(totalRows)}
+          Row {rowIdx + 1} of {prettifyRowCount(totalRows)}
         </span>
         <Button
           variant="outline"
           size="xs"
           className={buttonStyles}
-          onClick={() => handleSelectRow(selectedRowIdx + 1)}
-          disabled={selectedRowIdx === totalRows - 1}
+          onClick={() => handleSelectRow(rowIdx + 1)}
+          disabled={rowIdx === totalRows - 1}
           aria-label="Next row"
         >
           <ChevronRight />

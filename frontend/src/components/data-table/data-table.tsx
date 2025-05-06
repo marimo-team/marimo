@@ -37,6 +37,7 @@ import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
 import { CopyColumnFeature } from "./copy-column/feature";
+import { FocusRowFeature } from "./focus-row/feature";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -74,10 +75,12 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
   toggleDisplayHeader?: () => void;
+  // Focus row
+  onFocusRowChange?: OnChangeFn<number>;
   // Others
   chartsFeatureEnabled?: boolean;
   toggleSelectionPanel?: () => void;
-  isOwnerOfContextAwarePanel?: boolean;
+  isSelectionPanelOpen?: boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -114,7 +117,8 @@ const DataTableInternal = <TData,>({
   toggleDisplayHeader,
   chartsFeatureEnabled,
   toggleSelectionPanel,
-  isOwnerOfContextAwarePanel = false,
+  isSelectionPanelOpen,
+  onFocusRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -131,6 +135,7 @@ const DataTableInternal = <TData,>({
       CellSelectionFeature,
       CellStylingFeature,
       CopyColumnFeature,
+      FocusRowFeature,
     ],
     data,
     columns,
@@ -177,6 +182,9 @@ const DataTableInternal = <TData,>({
     enableMultiCellSelection: selection === "multi-cell",
     // pinning
     onColumnPinningChange: setColumnPinning,
+    // focus row
+    enableFocusRow: true,
+    onFocusRowChange: onFocusRowChange,
     // state
     state: {
       ...(sorting ? { sorting } : {}),
@@ -211,7 +219,7 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          {renderTableBody(table, columns)}
+          {renderTableBody(table, columns, isSelectionPanelOpen)}
         </Table>
       </div>
       <TableActions
@@ -229,7 +237,7 @@ const DataTableInternal = <TData,>({
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
         toggleSelectionPanel={toggleSelectionPanel}
-        isOwnerOfContextAwarePanel={isOwnerOfContextAwarePanel}
+        isSelectionPanelOpen={isSelectionPanelOpen}
       />
     </div>
   );

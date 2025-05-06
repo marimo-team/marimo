@@ -62,6 +62,7 @@ export function renderTableHeader<TData>(
 export function renderTableBody<TData>(
   table: Table<TData>,
   columns: Array<ColumnDef<TData>>,
+  isSelectionPanelOpen?: boolean,
 ): JSX.Element {
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
@@ -99,7 +100,13 @@ export function renderTableBody<TData>(
             key={row.id}
             data-state={row.getIsSelected() && "selected"}
             // These classes ensure that empty rows (nulls) still render
-            className="border-t h-6"
+            className={cn(
+              "border-t h-6",
+              isSelectionPanelOpen && "cursor-pointer",
+            )}
+            onClick={() => {
+              row.focusRow(row.index);
+            }}
           >
             {renderCells(row, row.getLeftVisibleCells())}
             {renderCells(row, row.getCenterVisibleCells())}

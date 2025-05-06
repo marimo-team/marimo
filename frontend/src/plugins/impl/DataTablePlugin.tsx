@@ -57,7 +57,7 @@ import { slotsController } from "@/core/slots/slots";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel";
 import { DataSelectionPanel } from "@/components/data-table/selection-panel/data-selection";
 import { Provider, useAtom } from "jotai";
-import { isContextAwarePanelOpenAtom } from "@/components/editor/chrome/state";
+import { contextAwarePanelOwner } from "@/components/editor/chrome/state";
 import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/table-loader";
 type CsvURL = string;
@@ -692,20 +692,24 @@ const DataTableComponent = ({
     [value],
   );
 
-  const [isSelectionPanelOpen, setIsSelectionPanelOpen] = useAtom(
-    isContextAwarePanelOpenAtom,
+  const [selectionPanelOwner, setSelectionPanelOwner] = useAtom(
+    contextAwarePanelOwner,
   );
-  const isOwnerOfPanel = isSelectionPanelOpen === id;
+  const isSelectionPanelOpen = selectionPanelOwner === id;
 
   function toggleSelectionPanel() {
-    if (isOwnerOfPanel) {
-      // Close if we are already open
-      setIsSelectionPanelOpen(null);
+    if (isSelectionPanelOpen) {
+      // Close if panel is open
+      setSelectionPanelOwner(null);
     } else {
-      // Open if we are not already open
-      setIsSelectionPanelOpen(id);
+      // Set the owner to current id, which will cause the panel to open
+      setSelectionPanelOwner(id);
     }
   }
+
+  const handleFocusRowChange: OnChangeFn<number> = useEvent((updater) => {
+    setFocusedRowIdx(updater);
+  });
 
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
@@ -763,13 +767,14 @@ const DataTableComponent = ({
           1,000,000 rows.
         </Banner>
       )}
-      {isOwnerOfPanel && (
+      {isSelectionPanelOpen && (
         <ContextAwarePanelItem>
           <DataSelectionPanel
             getRow={getRow}
             fieldTypes={memoizedFieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
             rowIdx={focusedRowIdx}
+            setRowIdx={setFocusedRowIdx}
           />
         </ContextAwarePanelItem>
       )}
@@ -808,7 +813,8 @@ const DataTableComponent = ({
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
             toggleSelectionPanel={toggleSelectionPanel}
-            isOwnerOfContextAwarePanel={isOwnerOfPanel}
+            isSelectionPanelOpen={isSelectionPanelOpen}
+            onFocusRowChange={handleFocusRowChange}
           />
         </Labeled>
       </ColumnChartContext.Provider>

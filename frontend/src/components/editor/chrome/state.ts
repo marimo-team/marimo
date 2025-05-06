@@ -102,9 +102,14 @@ export const exportedForTesting = {
 
 // Context-aware panel
 
-// unique ID of the owner rendering the context-aware panel
-// if null, the panel is not open
-export const isContextAwarePanelOpenAtom = atom<string | null>(null);
-// If true, the panel is treated as part of the editor.
-// When false, the panel overlays the editor content.
+/**
+ * Unique ID of the owner rendering the context-aware panel.
+ * If null, the panel is not open.
+ */
+export const contextAwarePanelOwner = atom<string | null>(null);
+
+/**
+ * If true, the panel is treated as part of the editor.
+ * When false, the panel overlays the editor content.
+ */
 export const isContextAwarePanelPinnedAtom = atom<boolean>(false);
