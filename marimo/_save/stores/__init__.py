@@ -1,5 +1,5 @@
 # Copyright 2025 Marimo. All rights reserved.
-from typing import Literal
+from typing import Literal, Optional
 
 from marimo import _loggers
 from marimo._save.stores.file import FileStore
@@ -20,11 +20,11 @@ DEFAULT_STORE_KEY: StoreKey = "file"
 DEFAULT_STORE: StoreType = CACHE_STORES[DEFAULT_STORE_KEY]
 
 
-def get_store() -> Store:
+def get_store(current_path: Optional[str] = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
     cache_config = (
-        get_default_config_manager(current_path=None)
+        get_default_config_manager(current_path=current_path)
         .get_config()
         .get("experimental", {})
         .get("cache", {})
