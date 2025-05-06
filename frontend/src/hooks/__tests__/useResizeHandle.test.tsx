@@ -32,7 +32,7 @@ describe("useResizeHandle", () => {
     });
   });
 
-  it.skip("should call onResize when resizing with right handle", () => {
+  it("should call onResize when resizing", () => {
     const onResize = vi.fn();
 
     // Create a test component that uses the hook
@@ -57,12 +57,12 @@ describe("useResizeHandle", () => {
 
     const { getByTestId } = render(<TestComponent />);
     const resizableDiv = getByTestId("resizable-div") as HTMLDivElement;
-    const handle = getByTestId("right-handle") as HTMLDivElement;
+    const rightHandle = getByTestId("right-handle") as HTMLDivElement;
 
     // Simulate resize
     act(() => {
       const mousedownEvent = new MouseEvent("mousedown", { clientX: 0 });
-      handle.dispatchEvent(mousedownEvent);
+      rightHandle.dispatchEvent(mousedownEvent);
 
       const mousemoveEvent = new MouseEvent("mousemove", { clientX: 100 });
       document.dispatchEvent(mousemoveEvent);
@@ -73,9 +73,27 @@ describe("useResizeHandle", () => {
 
     expect(resizableDiv.style.width).toBe("600px"); // 500px + 100px movement
     expect(onResize).toHaveBeenCalledWith(600);
+
+    // Resize left handle
+    const leftHandle = getByTestId("left-handle") as HTMLDivElement;
+
+    // Simulate resize
+    act(() => {
+      const mousedownEvent = new MouseEvent("mousedown", { clientX: 0 });
+      leftHandle.dispatchEvent(mousedownEvent);
+
+      const mousemoveEvent = new MouseEvent("mousemove", { clientX: -100 });
+      document.dispatchEvent(mousemoveEvent);
+
+      const mouseupEvent = new MouseEvent("mouseup");
+      document.dispatchEvent(mouseupEvent);
+    });
+
+    expect(resizableDiv.style.width).toBe("700px"); // 600px - (-100px) movement
+    expect(onResize).toHaveBeenCalledWith(700);
   });
 
-  it.skip("should handle left handle resizing", () => {
+  it("should handle resizing with only left handle", () => {
     const onResize = vi.fn();
 
     // Create a test component that uses the hook
@@ -93,7 +111,6 @@ describe("useResizeHandle", () => {
             data-testid="resizable-div"
           />
           <div ref={handleRefs.left} data-testid="left-handle" />
-          <div ref={handleRefs.right} data-testid="right-handle" />
         </div>
       );
     };
@@ -101,12 +118,12 @@ describe("useResizeHandle", () => {
     const { getByTestId } = render(<TestComponent />);
 
     const resizableDiv = getByTestId("resizable-div") as HTMLDivElement;
-    const handle = getByTestId("left-handle") as HTMLDivElement;
+    const leftHandle = getByTestId("left-handle") as HTMLDivElement;
 
     // Simulate resize
     act(() => {
       const mousedownEvent = new MouseEvent("mousedown", { clientX: 0 });
-      handle.dispatchEvent(mousedownEvent);
+      leftHandle.dispatchEvent(mousedownEvent);
 
       const mousemoveEvent = new MouseEvent("mousemove", { clientX: -100 });
       document.dispatchEvent(mousemoveEvent);
@@ -116,6 +133,49 @@ describe("useResizeHandle", () => {
     });
 
     expect(resizableDiv.style.width).toBe("600px"); // 500px - (-100px) movement
+    expect(onResize).toHaveBeenCalledWith(600);
+  });
+
+  it("should handle resizing with only right handle", () => {
+    const onResize = vi.fn();
+
+    // Create a test component that uses the hook
+    const TestComponent = () => {
+      const { resizableDivRef, handleRefs } = useResizeHandle({
+        startingWidth: 500,
+        onResize,
+      });
+
+      return (
+        <div>
+          <div
+            ref={resizableDivRef}
+            style={{ width: "500px" }}
+            data-testid="resizable-div"
+          />
+          <div ref={handleRefs.right} data-testid="right-handle" />
+        </div>
+      );
+    };
+
+    const { getByTestId } = render(<TestComponent />);
+
+    const resizableDiv = getByTestId("resizable-div") as HTMLDivElement;
+    const rightHandle = getByTestId("right-handle") as HTMLDivElement;
+
+    // Simulate resize
+    act(() => {
+      const mousedownEvent = new MouseEvent("mousedown", { clientX: 0 });
+      rightHandle.dispatchEvent(mousedownEvent);
+
+      const mousemoveEvent = new MouseEvent("mousemove", { clientX: 100 });
+      document.dispatchEvent(mousemoveEvent);
+
+      const mouseupEvent = new MouseEvent("mouseup");
+      document.dispatchEvent(mouseupEvent);
+    });
+
+    expect(resizableDiv.style.width).toBe("600px"); // 500px + 100px movement
     expect(onResize).toHaveBeenCalledWith(600);
   });
 });

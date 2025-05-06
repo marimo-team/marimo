@@ -12,16 +12,13 @@ export const useResizeHandle = ({
   startingWidth,
 }: UseResizeHandleProps) => {
   const resizableDivRef = useRef<HTMLDivElement>(null);
-  const handleRefs = {
-    left: useRef<HTMLDivElement>(null),
-    right: useRef<HTMLDivElement>(null),
-  };
-
-  const leftHandle = handleRefs.left.current;
-  const rightHandle = handleRefs.right.current;
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const resizableDiv = resizableDivRef.current;
+    const leftHandle = leftRef.current;
+    const rightHandle = rightRef.current;
 
     // If both handles are missing, it is not resizable
     if (!resizableDiv || (!leftHandle && !rightHandle)) {
@@ -83,11 +80,14 @@ export const useResizeHandle = ({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [leftHandle, rightHandle, onResize, resizableDivRef]);
+  }, [onResize]);
 
   return {
     resizableDivRef,
-    handleRefs,
+    handleRefs: {
+      left: leftRef,
+      right: rightRef,
+    },
     style: {
       // Default to medium width
       width:
