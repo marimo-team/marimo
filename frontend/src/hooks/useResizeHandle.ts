@@ -23,6 +23,7 @@ export const useResizeHandle = ({
   useEffect(() => {
     const resizableDiv = resizableDivRef.current;
 
+    // If both handles are missing, it is not resizable
     if (!resizableDiv || (!leftHandle && !rightHandle)) {
       return;
     }
@@ -30,75 +31,57 @@ export const useResizeHandle = ({
     let width = Number.parseInt(window.getComputedStyle(resizableDiv).width);
     let lastX = 0;
     let isResizing = false;
+    let activeDirection: "left" | "right" | null = null;
 
-    const mouseMoveHandlers = {
-      left: (e: MouseEvent) => onMouseMove(e, "left"),
-      right: (e: MouseEvent) => onMouseMove(e, "right"),
-    };
-
-    const mouseUpHandlers = {
-      left: () => onMouseUp("left"),
-      right: () => onMouseUp("right"),
-    };
-
-    const mouseDownHandlers = {
-      left: (e: MouseEvent) => onMouseDown(e, "left"),
-      right: (e: MouseEvent) => onMouseDown(e, "right"),
-    };
-
-    const onMouseMove = (e: MouseEvent, resizeDirection: "left" | "right") => {
-      if (!resizableDiv || !isResizing) {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizableDiv || !isResizing || !activeDirection) {
         return;
       }
 
       const dx = e.clientX - lastX;
       lastX = e.clientX;
-      // dx is negative when moving left
-      width = resizeDirection === "left" ? width - dx : width + dx;
+      width = activeDirection === "left" ? width - dx : width + dx;
       resizableDiv.style.width = `${width}px`;
     };
 
-    const onMouseUp = (resizeDirection: "left" | "right") => {
+    const handleMouseUp = () => {
       if (isResizing) {
         onResize?.(width);
         isResizing = false;
+        activeDirection = null;
       }
-      document.removeEventListener(
-        "mousemove",
-        mouseMoveHandlers[resizeDirection],
-      );
-      document.removeEventListener("mouseup", mouseUpHandlers[resizeDirection]);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
 
-    const onMouseDown = (e: MouseEvent, resizeDirection: "left" | "right") => {
-      e.preventDefault(); // Prevent selection of elements underneath
+    const handleMouseDown = (e: MouseEvent, direction: "left" | "right") => {
+      e.preventDefault();
       isResizing = true;
+      activeDirection = direction;
       lastX = e.clientX;
-      document.addEventListener(
-        "mousemove",
-        mouseMoveHandlers[resizeDirection],
-      );
-      document.addEventListener("mouseup", mouseUpHandlers[resizeDirection]);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     };
+
+    const leftMouseDown = (e: MouseEvent) => handleMouseDown(e, "left");
+    const rightMouseDown = (e: MouseEvent) => handleMouseDown(e, "right");
 
     if (leftHandle) {
-      leftHandle.addEventListener("mousedown", mouseDownHandlers.left);
+      leftHandle.addEventListener("mousedown", leftMouseDown);
     }
     if (rightHandle) {
-      rightHandle.addEventListener("mousedown", mouseDownHandlers.right);
+      rightHandle.addEventListener("mousedown", rightMouseDown);
     }
 
     return () => {
       if (leftHandle) {
-        leftHandle.removeEventListener("mousedown", mouseDownHandlers.left);
-        document.removeEventListener("mousemove", mouseMoveHandlers.left);
-        document.removeEventListener("mouseup", mouseUpHandlers.left);
+        leftHandle.removeEventListener("mousedown", leftMouseDown);
       }
       if (rightHandle) {
-        rightHandle.removeEventListener("mousedown", mouseDownHandlers.right);
-        document.removeEventListener("mousemove", mouseMoveHandlers.right);
-        document.removeEventListener("mouseup", mouseUpHandlers.right);
+        rightHandle.removeEventListener("mousedown", rightMouseDown);
       }
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [leftHandle, rightHandle, onResize, resizableDivRef]);
 
