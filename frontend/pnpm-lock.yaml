@@ -108,9 +108,6 @@ importers:
       '@marimo-team/codemirror-languageserver':
         specifier: ^1.15.14
         version: 1.15.14(@codemirror/state@6.5.2)(@codemirror/view@6.36.6)
-      '@marimo-team/frontend':
-        specifier: 'link:'
-        version: 'link:'
       '@marimo-team/marimo-api':
         specifier: file:../openapi
         version: file:../openapi
