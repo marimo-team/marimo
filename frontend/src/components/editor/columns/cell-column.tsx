@@ -75,14 +75,25 @@ const ResizableComponent = ({
   onResize,
   children,
 }: ResizableComponentProps) => {
-  const { resizableDivRef, handleRef, style } = useResizeHandle({
+  const { resizableDivRef, handleRefs, style } = useResizeHandle({
     startingWidth,
     onResize,
-    direction: "right",
   });
 
+  const renderResizeHandler = (ref: React.RefObject<HTMLDivElement>) => {
+    return (
+      <div
+        ref={ref}
+        className="w-[3px] cursor-col-resize transition-colors duration-200 z-10
+      group-hover/column:bg-[var(--slate-3)] dark:group-hover/column:bg-[var(--slate-5)]
+      group-hover/column:hover:bg-primary/60 dark:group-hover/column:hover:bg-primary/60"
+      />
+    );
+  };
+
   return (
-    <div className="flex flex-row gap-2">
+    <div className="flex flex-row">
+      {renderResizeHandler(handleRefs.left)}
       <div
         ref={resizableDivRef}
         className="flex flex-col gap-5 box-content min-h-[100px] px-11 py-6 min-w-[500px] z-1"
@@ -90,12 +101,7 @@ const ResizableComponent = ({
       >
         {children}
       </div>
-      <div
-        ref={handleRef}
-        className="w-[3px] cursor-col-resize transition-colors duration-200 z-10
-        group-hover/column:bg-[var(--slate-3)] dark:group-hover/column:bg-[var(--slate-5)]
-        group-hover/column:hover:bg-primary/60 dark:group-hover/column:hover:bg-primary/60"
-      />
+      {renderResizeHandler(handleRefs.right)}
     </div>
   );
 };
