@@ -104,7 +104,7 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
       }
     }
 
-    const searchedRows = filterRows(rowValues, searchQuery);
+    const filteredRows = filterRows(rowValues, searchQuery);
 
     return (
       <Table>
@@ -115,12 +115,12 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {searchedRows.map(([columnName, columnValue]) => {
+          {filteredRows.map(([columnName, columnValue]) => {
             const dataType = fieldTypes?.find(
               ([name]) => name === columnName,
             )?.[1][0];
+
             const Icon = dataType ? DATA_TYPE_ICON[dataType] : null;
-            const cellValue = columnValue;
             const mockColumn = {
               id: columnName,
               columnDef: {
@@ -134,15 +134,15 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
 
             const cellContent = renderCellValue(
               mockColumn,
-              () => cellValue,
-              () => cellValue,
+              () => columnValue,
+              () => columnValue,
               undefined,
               "text-left break-all",
             );
             const copyValue =
-              typeof cellValue === "object"
-                ? JSON.stringify(cellValue)
-                : String(cellValue);
+              typeof columnValue === "object"
+                ? JSON.stringify(columnValue)
+                : String(columnValue);
 
             return (
               <TableRow key={columnName} className="group">
