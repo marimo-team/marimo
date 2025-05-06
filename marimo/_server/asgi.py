@@ -15,9 +15,6 @@ from typing import (
     Union,
 )
 
-from marimo._server.registry import LIFESPAN_REGISTRY
-from marimo._utils.lifespans import Lifespans
-
 if TYPE_CHECKING:
     import sys
 
@@ -389,9 +386,11 @@ def create_asgi_app(
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
+    from marimo._server.registry import LIFESPAN_REGISTRY
     from marimo._server.sessions import SessionManager
     from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
+    from marimo._utils.lifespans import Lifespans
     from marimo._utils.marimo_path import MarimoPath
 
     config_reader = get_default_config_manager(current_path=None)
