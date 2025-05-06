@@ -65,7 +65,7 @@ def get_optional_modules_list() -> dict[str, str]:
         "pandas",
         "polars",
         "pyarrow",
-        "pycrdt",
+        "loro",
         "pylsp-mypy",
         "pytest",
         "python-lsp-ruff",

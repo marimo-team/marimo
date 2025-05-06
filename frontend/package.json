@@ -113,6 +113,8 @@
     "js-cookie": "^3.0.5",
     "katex": "^0.16.22",
     "lodash-es": "^4.17.21",
+    "loro-codemirror": "^0.1.6",
+    "loro-crdt": "^1.5.4",
     "lucide-react": "^0.503.0",
     "lz-string": "^1.5.0",
     "marked": "^15.0.11",
@@ -150,9 +152,6 @@
     "vega-loader": "^4.5.3",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.4",
-    "y-codemirror.next": "^0.3.5",
-    "y-websocket": "^2.1.0",
-    "yjs": "^13.6.26",
     "zod": "^3.24.3"
   },
   "scripts": {
@@ -238,6 +237,8 @@
     "turbo": "^2.5.2",
     "typescript": "^5.8.3",
     "vite": "^6.3.2",
+    "vite-plugin-top-level-await": "^1.5.0",
+    "vite-plugin-wasm": "^3.4.1",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.1.1"
   },

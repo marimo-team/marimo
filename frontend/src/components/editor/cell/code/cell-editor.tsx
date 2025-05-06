@@ -247,7 +247,6 @@ const CellEditorInternal = ({
         code,
       );
       extensions.push(rtc.extension);
-      code = rtc.code;
     }
 
     // Create a new editor
