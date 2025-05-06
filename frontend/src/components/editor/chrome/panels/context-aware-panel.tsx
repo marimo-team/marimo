@@ -22,7 +22,7 @@ export const ContextAwarePanel: React.FC = () => {
   const [isPinned, setIsPinned] = useAtom(isContextAwarePanelPinnedAtom);
   const closePanel = () => setIsOpen(null);
 
-  const slots = useSlot(SlotNames.DATA_SELECTION);
+  const slots = useSlot(SlotNames.CONTEXT_AWARE_PANEL);
 
   if (slots.length === 0 || !isOpen) {
     return null;
@@ -31,17 +31,17 @@ export const ContextAwarePanel: React.FC = () => {
   const renderModeToggle = () => {
     return (
       <div className="flex flex-row items-center gap-1">
-        <Tooltip content={isPinned ? "Unpin panel" : "Pin panel"}>
+        <Tooltip content={isPinned ? "Pinned" : "Unpinned"}>
           <Toggle
             size="xs"
             onPressedChange={() => setIsPinned(!isPinned)}
             pressed={isPinned}
-            aria-label={isPinned ? "Unpin panel" : "Pin panel"}
+            aria-label={isPinned ? "Pinned" : "Unpinned"}
           >
             {isPinned ? (
-              <PinIcon className="w-3 h-3" />
+              <PinIcon className="w-4 h-4" />
             ) : (
-              <PinOffIcon className="w-3 h-3" />
+              <PinOffIcon className="w-4 h-4" />
             )}
           </Toggle>
         </Tooltip>
@@ -64,7 +64,7 @@ export const ContextAwarePanel: React.FC = () => {
           </Button>
         </div>
 
-        <Slot name={SlotNames.DATA_SELECTION} />
+        <Slot name={SlotNames.CONTEXT_AWARE_PANEL} />
       </div>
     );
   };
@@ -79,15 +79,17 @@ export const ContextAwarePanel: React.FC = () => {
         onDragging={handleDragging}
         className="resize-handle border-border z-20 no-print border-l"
       />
-      <Panel defaultSize={25}>{renderBody()}</Panel>
+      <Panel defaultSize={25} minSize={15}>
+        {renderBody()}
+      </Panel>
     </>
   );
 };
 
-export const DataSelectionItem: React.FC<PropsWithChildren> = ({
+export const ContextAwarePanelItem: React.FC<PropsWithChildren> = ({
   children,
 }) => {
-  return <Fill name={SlotNames.DATA_SELECTION}>{children}</Fill>;
+  return <Fill name={SlotNames.CONTEXT_AWARE_PANEL}>{children}</Fill>;
 };
 
 interface ResizableComponentProps {
@@ -98,6 +100,7 @@ const ResizableComponent = ({ children }: ResizableComponentProps) => {
   const { resizableDivRef, handleRef, style } = useResizeHandle({
     startingWidth: 400,
     direction: "left",
+    minWidth: 300,
   });
 
   return (

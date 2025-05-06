@@ -54,9 +54,9 @@ import { isStaticNotebook } from "@/core/static/static-state";
 import { vegaLoadData } from "./vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { type CellId, findCellId } from "@/core/cells/ids";
+import { findCellId } from "@/core/cells/ids";
 import { slotsController } from "@/core/slots/slots";
-import { DataSelectionItem } from "@/components/editor/chrome/panels/context-aware-panel";
+import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel";
 import { DataSelectionPanel } from "@/components/data-table/selection-panel/data-selection";
 import { Provider, useAtom } from "jotai";
 import { isContextAwarePanelOpenAtom } from "@/components/editor/chrome/state";
@@ -313,7 +313,6 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   experimentalChartsEnabled?: boolean;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
-  cellId?: CellId | null;
   host: HTMLElement;
 }
 
@@ -585,7 +584,6 @@ export const LoadingDataTableComponent = memo(
         cellStyles={data?.cellStyles ?? props.cellStyles}
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
-        cellId={cellId}
         getRow={getRow}
       />
     );
@@ -645,7 +643,6 @@ const DataTableComponent = ({
   toggleDisplayHeader,
   chartsFeatureEnabled,
   calculate_top_k_rows,
-  cellId,
   getRow,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
@@ -784,14 +781,14 @@ const DataTableComponent = ({
         </Banner>
       )}
       {isOwnerOfPanel && (
-        <DataSelectionItem>
+        <ContextAwarePanelItem>
           <DataSelectionPanel
             getRow={getRow}
             fieldTypes={fieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
             rowIdx={focusedRowIdx}
           />
-        </DataSelectionItem>
+        </ContextAwarePanelItem>
       )}
       <ColumnChartContext.Provider value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
@@ -828,6 +825,7 @@ const DataTableComponent = ({
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
             toggleSelectionPanel={toggleSelectionPanel}
+            isOwnerOfContextAwarePanel={isOwnerOfPanel}
           />
         </Labeled>
       </ColumnChartContext.Provider>

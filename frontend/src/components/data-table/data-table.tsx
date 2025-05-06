@@ -77,6 +77,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Others
   chartsFeatureEnabled?: boolean;
   toggleSelectionPanel?: () => void;
+  isOwnerOfContextAwarePanel?: boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -113,6 +114,7 @@ const DataTableInternal = <TData,>({
   toggleDisplayHeader,
   chartsFeatureEnabled,
   toggleSelectionPanel,
+  isOwnerOfContextAwarePanel = false,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -227,6 +229,7 @@ const DataTableInternal = <TData,>({
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
         toggleSelectionPanel={toggleSelectionPanel}
+        isOwnerOfContextAwarePanel={isOwnerOfContextAwarePanel}
       />
     </div>
   );
