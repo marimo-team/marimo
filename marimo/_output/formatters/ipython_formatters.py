@@ -160,6 +160,7 @@ class IPythonFormatter(FormatterFactory):
                             appearance: none;
                             position: relative;
                             height: 8px;
+                            max-height: 8px;
                             width: 100%;
                             overflow: hidden;
                             border-radius: 9999px;
