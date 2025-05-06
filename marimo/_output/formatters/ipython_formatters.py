@@ -145,6 +145,46 @@ class IPythonFormatter(FormatterFactory):
             else:
                 data = str(html._repr_html_())  # type: ignore
 
+                # Add global styling for progress elements if needed
+                if "<progress" in data:
+                    import re
+                    
+                    # Add a style block with global CSS for progress elements
+                    # This matches the marimo styling from ProgressPlugin.tsx
+                    style_block = '''
+                    <style>
+                        /* Base progress element styling */
+                        progress {
+                            -webkit-appearance: none;
+                            appearance: none;
+                            position: relative;
+                            height: 8px;
+                            width: 100%;
+                            overflow: hidden;
+                            border-radius: 9999px;
+                            background-color: rgba(59, 130, 246, 0.2);
+                            border: none;
+                        }
+                        
+                        /* Progress bar fill styling */
+                        progress::-webkit-progress-bar {
+                            background-color: rgba(59, 130, 246, 0.2);
+                            border-radius: 9999px;
+                        }
+                        
+                        progress::-webkit-progress-value {
+                            background-color: rgb(59, 130, 246);
+                            transition: width 0.2s ease;
+                        }
+                        
+                        progress::-moz-progress-bar {
+                            background-color: rgb(59, 130, 246);
+                            transition: width 0.2s ease;
+                        }
+                    </style>
+                    '''
+                    data = style_block + data
+
             return ("text/html", data)
 
         return unpatch
