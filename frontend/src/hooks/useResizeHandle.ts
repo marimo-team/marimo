@@ -68,9 +68,10 @@ export const useResizeHandle = ({
     resizableDivRef,
     handleRef,
     style: {
+      // Default to medium width
       width:
-        typeof startingWidth === "string"
-          ? startingWidth
+        startingWidth === "contentWidth"
+          ? "var(--content-width-medium)"
           : `${startingWidth}px`,
     },
   };
