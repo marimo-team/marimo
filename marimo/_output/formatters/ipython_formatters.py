@@ -165,18 +165,18 @@ class IPythonFormatter(FormatterFactory):
                             background-color: rgba(59, 130, 246, 0.2);
                             border: none;
                         }
-                        
+
                         /* Progress bar fill styling */
                         progress::-webkit-progress-bar {
                             background-color: rgba(59, 130, 246, 0.2);
                             border-radius: 9999px;
                         }
-                        
+
                         progress::-webkit-progress-value {
                             background-color: rgb(59, 130, 246);
                             transition: width 0.2s ease;
                         }
-                        
+
                         progress::-moz-progress-bar {
                             background-color: rgb(59, 130, 246);
                             transition: width 0.2s ease;
