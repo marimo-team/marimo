@@ -23,7 +23,7 @@ export const useResizeHandle = ({
   useEffect(() => {
     const resizableDiv = resizableDivRef.current;
 
-    if (!resizableDiv) {
+    if (!resizableDiv || (!leftHandle && !rightHandle)) {
       return;
     }
 
