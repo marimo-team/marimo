@@ -84,9 +84,10 @@ const ResizableComponent = ({
     return (
       <div
         ref={ref}
-        className="w-[3px] cursor-col-resize transition-colors duration-200 z-10
-      group-hover/column:bg-[var(--slate-3)] dark:group-hover/column:bg-[var(--slate-5)]
-      group-hover/column:hover:bg-primary/60 dark:group-hover/column:hover:bg-primary/60"
+        className="w-1 cursor-col-resize transition-colors duration-200 z-10
+        relative before:content-[''] before:absolute before:inset-y-0 before:-left-[4px] before:right-[-4px] before:w-[11px] before:z-[-1]
+        hover/column:bg-[var(--slate-3)] dark:hover/column:bg-[var(--slate-5)]
+        hover/column:hover:bg-primary/60 dark:hover/column:hover:bg-primary/60"
       />
     );
   };
