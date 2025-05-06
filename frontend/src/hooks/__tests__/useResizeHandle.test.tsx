@@ -27,7 +27,9 @@ describe("useResizeHandle", () => {
       }),
     );
 
-    expect(result.current.style).toEqual({ width: "contentWidth" });
+    expect(result.current.style).toEqual({
+      width: "var(--content-width-medium)",
+    });
   });
 
   it("should call onResize when resizing ends", () => {
