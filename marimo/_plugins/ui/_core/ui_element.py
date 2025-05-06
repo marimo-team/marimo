@@ -406,8 +406,7 @@ class UIElement(Html, Generic[S, T]):
             clear_button_tooltip: The tooltip of the clear button.
             validate: A function that takes the form's value and returns an error message if invalid,
                 or `None` if valid.
-            on_change: A callback that takes the form's value and returns an error message if invalid,
-                or `None` if valid.
+            on_change: Optional callback to run when this element's value changes. Defaults to None.
         """
         from marimo._plugins.ui._impl.input import form as form_plugin
 
