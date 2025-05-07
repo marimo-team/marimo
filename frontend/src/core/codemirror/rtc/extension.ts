@@ -17,26 +17,42 @@ import {
 } from "../language/extension";
 import { LanguageAdapters } from "../language/LanguageAdapters";
 import type { LanguageAdapterType } from "../language/types";
-import { rtcLogger } from "./utils";
-import { cellIdState } from "../config/extension";
-import { invariant } from "@/utils/invariant";
+import { atom } from "jotai";
+import { waitForConnectionOpen } from "@/core/network/connection";
+import { store } from "@/core/state/jotai";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { initialMode } from "@/core/mode";
+import { Logger } from "@/utils/Logger";
+
+export const connectedDocAtom = atom<LoroDoc | undefined>(undefined);
 
 // Create a Loro document
 const doc = new LoroDoc();
 const awareness: Awareness = new Awareness(doc.peerIdStr);
 // const undoManager = new UndoManager(doc, {});
 
-const log = rtcLogger;
-
 // Create a websocket connection to the server
 const getWs = once(() => {
-  log("creating websocket");
+  Logger.debug("[rtc] creating websocket");
+
   const url = createWsUrl(getSessionId()).replace("/ws", "/ws_sync");
+
+  // Create the websocket, but don't connect it yet
   const ws = new ReconnectingWebSocket(url, undefined, {
     // We don't want Infinity retries
     maxRetries: 10,
     debug: false,
+    startClosed: true,
     connectionTimeout: 10_000,
+  });
+
+  // Start the connection
+  Promise.resolve().then(async () => {
+    // First wait until the connection is open
+    await waitForConnectionOpen();
+
+    // Now open the websocket
+    ws.reconnect();
   });
 
   // Receive updates from the server
@@ -44,25 +60,38 @@ const getWs = once(() => {
     const blob: Blob = event.data;
     const bytes = await blob.arrayBuffer();
     doc.import(new Uint8Array(bytes));
-    log("imported doc change. new doc:", doc.toJSON());
+    Logger.debug("[rtc] imported doc change. new doc:", doc.toJSON());
+
+    // Set the active doc
+    if (store.get(connectedDocAtom) !== doc) {
+      store.set(connectedDocAtom, doc);
+    }
   });
 
   // Handle open event
   ws.addEventListener("open", () => {
-    log("websocket open");
+    Logger.debug("[rtc] websocket open");
   });
 
   // Handle close event
   ws.addEventListener("close", () => {
-    log("websocket close");
+    Logger.debug("[rtc] websocket close");
+
+    // Remove the active doc
+    store.set(connectedDocAtom, undefined);
   });
 
   return ws;
 });
 
+// Kick off the connection for edit mode
+if (getFeatureFlag("rtc_v2") && initialMode === "edit") {
+  getWs();
+}
+
 // Send local updates to the server
 doc.subscribeLocalUpdates((update) => {
-  log("local update", update);
+  Logger.debug("[rtc] local update, sending to server");
   const ws = getWs();
   ws.send(update);
 });
@@ -71,7 +100,7 @@ doc.subscribeLocalUpdates((update) => {
 awareness.addListener((updates, origin) => {
   const changes = [...updates.added, ...updates.removed, ...updates.updated];
   if (origin === "local") {
-    log("awareness changes", changes);
+    Logger.debug("[rtc] awareness changes", changes);
     const ws = getWs();
     ws.send(awareness.encode(changes));
   }
@@ -81,7 +110,7 @@ export function realTimeCollaboration(
   cellId: CellId,
   _updateCellCode: (code: string) => void,
   initialCode = "",
-): { extension: Extension; code?: string } {
+): { extension: Extension; code: string } {
   if (isWasm()) {
     return {
       extension: [],
@@ -89,20 +118,23 @@ export function realTimeCollaboration(
     };
   }
 
-  // Connect if not already connected
-  const ws = getWs();
-  if (ws.shouldReconnect) {
-    log("connecting to websocket");
-    ws.reconnect();
+  const loroText = doc
+    .getMap("codes")
+    .getOrCreateContainer(cellId, new LoroText());
+  const hasPath = doc.getByPath(`codes/${cellId}`) !== undefined;
+  if (!hasPath) {
+    Logger.warn("[rtc] initializing code for new cell", initialCode);
+    loroText.insert(0, initialCode);
   }
 
   return {
+    code: initialCode.toString(),
     extension: [
-      languageObserverExtension(),
-      languageListenerExtension(),
-      LoroSyncPlugin(doc, ["codes", cellId], () =>
-        doc.getMap("codes").getOrCreateContainer(cellId, new LoroText()),
-      ),
+      languageObserverExtension(cellId),
+      languageListenerExtension(cellId),
+      LoroSyncPlugin(doc, ["codes", cellId], () => {
+        return loroText;
+      }),
     ],
   };
 }
@@ -114,24 +146,32 @@ export function realTimeCollaboration(
  * @param cellId - The cell id
  * @returns Extension
  */
-export function languageObserverExtension() {
+export function languageObserverExtension(cellId: CellId) {
+  const updateLanguage = (view: EditorView) => {
+    const language = doc.getByPath(`languages/${cellId}`) as
+      | LoroText
+      | undefined;
+    if (!language) {
+      return;
+    }
+    const currentLang = view.state.field(languageAdapterState).type;
+    const newLang = language.toString() as LanguageAdapterType;
+
+    if (newLang !== currentLang) {
+      Logger.debug(
+        `[rtc] Received language change: ${currentLang} -> ${newLang}`,
+      );
+      const adapter = LanguageAdapters[newLang]();
+      switchLanguage(view, adapter.type, { keepCodeAsIs: true });
+    }
+  };
+
   return ViewPlugin.define((view) => {
-    const cellId = view.state.facet(cellIdState);
-    invariant(cellId !== undefined, "cellId is undefined");
+    // Initialize the language
+    Promise.resolve().then(() => updateLanguage(view));
 
     const unsubscribeLanguage = doc.subscribe(() => {
-      const language = doc.getByPath(`languages/${cellId}`) as LoroText;
-      if (!language) {
-        return;
-      }
-      const newLang = language.toString() as LanguageAdapterType;
-      const currentLang = view.state.field(languageAdapterState).type;
-
-      if (newLang !== currentLang) {
-        log(`[debug] Received language change: ${currentLang} -> ${newLang}`);
-        const adapter = LanguageAdapters[newLang]();
-        switchLanguage(view, adapter.type);
-      }
+      updateLanguage(view);
     });
 
     return {
@@ -148,19 +188,17 @@ export function languageObserverExtension() {
  * Local -> Server
  * @returns Extension
  */
-function languageListenerExtension() {
+function languageListenerExtension(cellId: CellId) {
   return EditorView.updateListener.of((update) => {
-    const cellId = update.state.facet(cellIdState);
-    invariant(cellId !== undefined, "cellId is undefined");
-
     const currentLang = doc
       .getMap("languages")
       .getOrCreateContainer(cellId, new LoroText());
 
     if (!currentLang.toString()) {
       // If the language is not set, set it to the current language
-      log("no language", update);
       const lang = update.state.field(languageAdapterState).type;
+      Logger.warn("[rtc] no language, setting default to", lang);
+      currentLang.delete(0, currentLang.length);
       currentLang.insert(0, lang);
       doc.commit();
       return;
@@ -172,7 +210,9 @@ function languageListenerExtension() {
           e.is(setLanguageAdapter) &&
           currentLang.toString() !== e.value.type
         ) {
-          log(`[debug] Setting language: ${currentLang} -> ${e.value.type}`);
+          Logger.debug(
+            `[rtc] Setting language: ${currentLang} -> ${e.value.type}`,
+          );
           currentLang.delete(0, currentLang.length);
           currentLang.insert(0, e.value.type);
           doc.commit();

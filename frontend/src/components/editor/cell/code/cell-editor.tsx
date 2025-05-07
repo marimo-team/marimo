@@ -34,10 +34,14 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { invariant } from "@/utils/invariant";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
-import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
+import {
+  connectedDocAtom,
+  realTimeCollaboration,
+} from "@/core/codemirror/rtc/extension";
 import { store } from "@/core/state/jotai";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSaveNotebook } from "@/core/saving/save-component";
+import { DelayMount } from "@/components/utils/delay-mount";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -247,6 +251,7 @@ const CellEditorInternal = ({
         code,
       );
       extensions.push(rtc.extension);
+      code = rtc.code;
     }
 
     // Create a new editor
@@ -302,6 +307,7 @@ const CellEditorInternal = ({
         code,
       );
       extensions.push(rtc.extension);
+      code = rtc.code;
     }
 
     const ev = new EditorView({
@@ -506,9 +512,17 @@ function WithWaitUntilConnected<T extends {}>(
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
+    const rtcDoc = useAtomValue(connectedDocAtom);
 
-    if (connection.state === WebSocketState.CONNECTING) {
-      return null;
+    if (
+      connection.state === WebSocketState.CONNECTING ||
+      rtcDoc === undefined
+    ) {
+      return (
+        <DelayMount milliseconds={2000} fallback={null}>
+          Waiting for real-time collaboration connection...
+        </DelayMount>
+      );
     }
 
     return <Component {...props} />;

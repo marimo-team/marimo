@@ -15,7 +15,7 @@ import type {
   LoroText,
   Subscription,
 } from "loro-crdt";
-import { rtcLogger } from "../utils";
+import { Logger } from "@/utils/Logger";
 
 /**
  * It is used to sync the document with the remote users.
@@ -49,20 +49,12 @@ export class LoroSyncPluginValue implements PluginValue {
     Promise.resolve().then(() => {
       this.isInitDispatch = true;
       const currentText = this.view.state.doc.toString();
-      const text = this.doc.getByPath(this.docPath.join("/")) as
-        | LoroText
-        | undefined;
+      const text = this.getTextFromDoc(this.doc);
 
-      if (!text) {
-        return;
-      }
       if (currentText === text.toString()) {
         return;
       }
-      if (text.toString() === "") {
-        return;
-      }
-      rtcLogger("initializing text", text.toString());
+      Logger.debug("[rtc] initializing text", text.toString());
       view.dispatch({
         changes: [
           {
@@ -121,10 +113,13 @@ export class LoroSyncPluginValue implements PluginValue {
             pos += delta.retain;
           }
         }
-        this.view.dispatch({
-          changes,
-          annotations: [loroSyncAnnotation.of(this)],
-        });
+        if (changes.length > 0) {
+          Logger.debug("[rtc] Received text changes", changes);
+          this.view.dispatch({
+            changes,
+            annotations: [loroSyncAnnotation.of(this)],
+          });
+        }
       }
     }
   };
