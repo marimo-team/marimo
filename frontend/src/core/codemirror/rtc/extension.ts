@@ -118,10 +118,10 @@ export function realTimeCollaboration(
     };
   }
 
+  const hasPath = doc.getByPath(`codes/${cellId}`) !== undefined;
   const loroText = doc
     .getMap("codes")
     .getOrCreateContainer(cellId, new LoroText());
-  const hasPath = doc.getByPath(`codes/${cellId}`) !== undefined;
   if (!hasPath) {
     Logger.warn("[rtc] initializing code for new cell", initialCode);
     loroText.insert(0, initialCode);
@@ -146,7 +146,7 @@ export function realTimeCollaboration(
  * @param cellId - The cell id
  * @returns Extension
  */
-export function languageObserverExtension(cellId: CellId) {
+function languageObserverExtension(cellId: CellId) {
   const updateLanguage = (view: EditorView) => {
     const language = doc.getByPath(`languages/${cellId}`) as
       | LoroText
