@@ -27,7 +27,10 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { previewDatasetColumn } from "@/core/network/requests";
+import {
+  fetchDataSourceConnection,
+  previewDatasetColumn,
+} from "@/core/network/requests";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -232,11 +235,17 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  const hasEngine = connection.databases.length > 0;
-  // If the connection has no engine, it's the internal duckdb engine
-  const engineName = hasEngine
-    ? connection.databases[0]?.engine || "In-Memory"
-    : connection.name;
+  // The internal DuckDB engine may have no engine name, so we provide one.
+  // The connection is also updated automatically, so we do not need to refresh.
+  const internalEngine =
+    connection.databases.length === 0 || !connection.databases[0]?.engine;
+  const engineName = internalEngine ? "In-Memory" : connection.name;
+
+  const handleRefreshConnection = () => {
+    fetchDataSourceConnection({
+      engine: connection.name,
+    });
+  };
 
   return (
     <>
@@ -249,15 +258,18 @@ const Engine: React.FC<{
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>
-        <Tooltip content="Refresh connection">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto hover:bg-slate-100"
-          >
-            <RefreshCwIcon className="h-4 w-4 text-muted-foreground" />
-          </Button>
-        </Tooltip>
+        {!internalEngine && (
+          <Tooltip content="Refresh connection">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto"
+              onClick={handleRefreshConnection}
+            >
+              <RefreshCwIcon className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </Tooltip>
+        )}
       </DatasourceLabel>
       {hasChildren ? (
         children

@@ -173,6 +173,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    fetchDataSourceConnection: (request) => {
+      return marimoClient
+        .POST("/api/datasources/fetch_datasource_connection", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     openFile: async (request) => {
       await marimoClient
         .POST("/api/files/open", {

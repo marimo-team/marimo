@@ -759,6 +759,13 @@ components:
       required:
       - download
       type: object
+    FetchDataSourceConnectionRequest:
+      properties:
+        engine:
+          type: string
+      required:
+      - engine
+      type: object
     FileCreateRequest:
       properties:
         contents:
@@ -2575,6 +2582,20 @@ paths:
               schema:
                 type: string
           description: Get AI inline completion for code
+  /api/datasources/fetch_datasource_connection:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FetchDataSourceConnectionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Broadcasts a datasource connection
   /api/datasources/preview_column:
     post:
       requestBody:
