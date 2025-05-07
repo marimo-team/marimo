@@ -2,45 +2,28 @@
 
 import { describe, expect, it } from "vitest";
 import { filterRows } from "../data-selection";
-import type { Cell } from "@tanstack/react-table";
 
 describe("filterRows", () => {
-  const createMockCell = (value: unknown): Cell<unknown, unknown> =>
-    ({
-      getValue: () => value,
-      column: {
-        id: "test",
-        columnDef: {
-          meta: {},
-        },
-      },
-    }) as Cell<unknown, unknown>;
+  const defaultRowValues = {
+    name: "John",
+    age: 30,
+  };
 
   it("should filter rows based on column name", () => {
-    const rowValues = {
-      name: createMockCell("John"),
-      age: createMockCell(30),
-    };
-
-    const result = filterRows(rowValues, "name");
+    const result = filterRows(defaultRowValues, "name");
     expect(result).toHaveLength(1);
     expect(result[0][0]).toBe("name");
   });
 
   it("should filter rows based on cell value", () => {
-    const rowValues = {
-      name: createMockCell("John"),
-      age: createMockCell(30),
-    };
-
-    const result = filterRows(rowValues, "john");
+    const result = filterRows(defaultRowValues, "john");
     expect(result).toHaveLength(1);
     expect(result[0][0]).toBe("name");
   });
 
   it("should handle object values by converting them to strings", () => {
     const rowValues = {
-      data: createMockCell({ key: "value" }),
+      data: { key: "value" },
     };
 
     const result = filterRows(rowValues, "value");
@@ -50,8 +33,8 @@ describe("filterRows", () => {
 
   it("should be case insensitive", () => {
     const rowValues = {
-      Name: createMockCell("John"),
-      AGE: createMockCell(30),
+      Name: "John",
+      AGE: 30,
     };
 
     const result = filterRows(rowValues, "name");
@@ -61,8 +44,8 @@ describe("filterRows", () => {
 
   it("should handle partial matches", () => {
     const rowValues = {
-      firstName: createMockCell("John"),
-      lastName: createMockCell("Doe"),
+      firstName: "John",
+      lastName: "Doe",
     };
 
     const result = filterRows(rowValues, "name");
@@ -71,29 +54,19 @@ describe("filterRows", () => {
   });
 
   it("should return empty array when no matches found", () => {
-    const rowValues = {
-      name: createMockCell("John"),
-      age: createMockCell(30),
-    };
-
-    const result = filterRows(rowValues, "xyz");
+    const result = filterRows(defaultRowValues, "xyz");
     expect(result).toHaveLength(0);
   });
 
   it("should handle empty search query", () => {
-    const rowValues = {
-      name: createMockCell("John"),
-      age: createMockCell(30),
-    };
-
-    const result = filterRows(rowValues, "");
+    const result = filterRows(defaultRowValues, "");
     expect(result).toHaveLength(2);
   });
 
   it("should handle null values", () => {
     const rowValues = {
-      name: createMockCell(null),
-      age: createMockCell(30),
+      name: null,
+      age: 30,
     };
 
     const result = filterRows(rowValues, "null");
