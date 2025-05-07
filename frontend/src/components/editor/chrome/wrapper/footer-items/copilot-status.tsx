@@ -8,53 +8,15 @@ import {
   copilotSignedInState,
 } from "@/core/codemirror/copilot/state";
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import {
-  aiAtom,
-  aiEnabledAtom,
-  resolvedMarimoConfigAtom,
-} from "@/core/config/config";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { GitHubCopilotIcon } from "@/components/icons/github-copilot";
-import { SparklesIcon } from "lucide-react";
-import { FooterItem } from "./footer-item";
+import { FooterItem } from "../footer-item";
 import { toast } from "@/components/ui/use-toast";
 import { getCopilotClient } from "@/core/codemirror/copilot/client";
 import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
-
-export const AIStatusIcon: React.FC = () => {
-  const ai = useAtomValue(aiAtom);
-  const aiEnabled = useAtomValue(aiEnabledAtom);
-  const model = ai?.open_ai?.model || "gpt-4-turbo";
-  const { handleClick } = useOpenSettingsToTab();
-
-  if (!aiEnabled) {
-    return (
-      <FooterItem
-        tooltip="Assist is disabled"
-        selected={false}
-        onClick={() => handleClick("ai")}
-      >
-        <SparklesIcon className="h-4 w-4 opacity-60" />
-      </FooterItem>
-    );
-  }
-
-  return (
-    <FooterItem
-      tooltip={
-        <>
-          <b>Assist model:</b> {model}
-        </>
-      }
-      onClick={() => handleClick("ai")}
-      selected={false}
-    >
-      <SparklesIcon className="h-4 w-4" />
-    </FooterItem>
-  );
-};
 
 const copilotAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).completion.copilot;

@@ -21,9 +21,35 @@ import type { LanguageAdapterType } from "../language/types";
 import { atom } from "jotai";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
+import { Logger } from "@/utils/Logger";
+import { loroCursorTheme, RemoteAwarenessPlugin } from "./loro/awareness";
+import type { AwarenessState } from "./loro/awareness";
+import { AwarenessPlugin } from "./loro/awareness";
+import { createSelectionLayer } from "./loro/awareness";
+import { createCursorLayer } from "./loro/awareness";
+import { remoteAwarenessStateField } from "./loro/awareness";
+import type { UserState } from "./loro/awareness";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { initialMode } from "@/core/mode";
-import { Logger } from "@/utils/Logger";
+import { usernameAtom } from "@/core/rtc/state";
+
+const AWARENESS_PREFIX = "awareness:";
+
+// Utility functions for message handling
+function prefixMessage(token: string, message: Uint8Array): Uint8Array {
+  const tokenBytes = new TextEncoder().encode(token);
+  return new Uint8Array([...tokenBytes, ...message]);
+}
+
+function hasPrefix(data: Uint8Array, prefix: string): boolean {
+  const decoder = new TextDecoder();
+  const dataPrefix = decoder.decode(data.slice(0, prefix.length));
+  return dataPrefix === prefix;
+}
+
+function removePrefix(data: Uint8Array, prefix: string): Uint8Array {
+  return data.slice(prefix.length);
+}
 
 export const connectedDocAtom = atom<LoroDoc | "disabled" | undefined>(
   undefined,
@@ -31,7 +57,7 @@ export const connectedDocAtom = atom<LoroDoc | "disabled" | undefined>(
 
 // Create a Loro document
 const doc = new LoroDoc();
-const awareness: Awareness = new Awareness(doc.peerIdStr);
+const awareness = new Awareness<AwarenessState>(doc.peerIdStr);
 // const undoManager = new UndoManager(doc, {});
 
 // Create a websocket connection to the server
@@ -63,7 +89,18 @@ const getWs = once(() => {
   ws.addEventListener("message", async (event) => {
     const blob: Blob = event.data;
     const bytes = await blob.arrayBuffer();
-    doc.import(new Uint8Array(bytes));
+    const data = new Uint8Array(bytes);
+
+    // Handle awareness update
+    if (hasPrefix(data, AWARENESS_PREFIX)) {
+      const awarenessData = removePrefix(data, AWARENESS_PREFIX);
+      awareness.apply(awarenessData);
+      Logger.debug("[rtc] applied awareness update");
+      return;
+    }
+
+    // Handle doc update
+    doc.import(data);
     Logger.debug("[rtc] imported doc change. new doc:", doc.toJSON());
 
     // Set the active doc only once the first message is received
@@ -109,7 +146,7 @@ awareness.addListener((updates, origin) => {
   if (origin === "local") {
     Logger.debug("[rtc] awareness changes", changes);
     const ws = getWs();
-    ws.send(awareness.encode(changes));
+    ws.send(prefixMessage(AWARENESS_PREFIX, awareness.encode(changes)));
   }
 });
 
@@ -137,6 +174,17 @@ export function realTimeCollaboration(
   return {
     code: initialCode.toString(),
     extension: [
+      LoroAwarenessPlugin(
+        doc,
+        awareness,
+        {
+          name: store.get(usernameAtom),
+          colorClassName: "bg-[var(--sky-8)]",
+        },
+        () => loroText,
+        cellId,
+        // () => getSessionId() + Math.random().toString(36).slice(2, 15),
+      ),
       languageObserverExtension(cellId),
       languageListenerExtension(cellId),
       LoroSyncPlugin(doc, ["codes", cellId], () => {
@@ -229,3 +277,40 @@ function languageListenerExtension(cellId: CellId) {
     }
   });
 }
+
+export const LoroAwarenessPlugin = (
+  doc: LoroDoc,
+  awareness: Awareness,
+  user: UserState,
+  getTextFromDoc: (doc: LoroDoc) => LoroText,
+  cellId: string,
+  getUserId?: () => string,
+): Extension[] => {
+  return [
+    remoteAwarenessStateField,
+    createCursorLayer(),
+    createSelectionLayer(),
+    ViewPlugin.define(
+      (view) =>
+        new AwarenessPlugin(
+          view,
+          doc,
+          user,
+          awareness as Awareness<AwarenessState>,
+          getTextFromDoc,
+          cellId,
+          getUserId,
+        ),
+    ),
+    ViewPlugin.define(
+      (view) =>
+        new RemoteAwarenessPlugin(
+          view,
+          doc,
+          awareness as Awareness<AwarenessState>,
+          cellId,
+        ),
+    ),
+    loroCursorTheme,
+  ];
+};

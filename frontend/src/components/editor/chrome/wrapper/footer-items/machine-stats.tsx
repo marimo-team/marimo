@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Spinner } from "@/components/icons/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { getUsageStats } from "@/core/network/requests";
@@ -9,17 +8,9 @@ import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { useAtomValue } from "jotai";
-import { startCase } from "lodash-es";
-import {
-  CheckCircle2Icon,
-  CpuIcon,
-  MemoryStickIcon,
-  MicrochipIcon,
-  PowerOffIcon,
-} from "lucide-react";
+import { CpuIcon, MemoryStickIcon, MicrochipIcon } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { AIStatusIcon, CopilotStatusIcon } from "./copilot-status";
 import { cn } from "@/utils/cn";
 
 export const MachineStats: React.FC = (props) => {
@@ -42,7 +33,7 @@ export const MachineStats: React.FC = (props) => {
   }, [nonce, connection.state]);
 
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-2 items-center px-1">
       {data?.gpu && data.gpu.length > 0 && <GPUBar gpus={data.gpu} />}
       {data && (
         <MemoryUsageBar
@@ -52,33 +43,7 @@ export const MachineStats: React.FC = (props) => {
         />
       )}
       {data && <CPUBar cpu={data.cpu} />}
-      <div className="flex items-center">
-        <AIStatusIcon />
-        <CopilotStatusIcon />
-      </div>
-      <BackendConnection connection={connection.state} />
     </div>
-  );
-};
-
-const BackendConnection: React.FC<{ connection: WebSocketState }> = ({
-  connection,
-}) => {
-  return (
-    <Tooltip delayDuration={200} content={startCase(connection.toLowerCase())}>
-      <div>
-        {connection === WebSocketState.OPEN && (
-          <CheckCircle2Icon className="w-4 h-4" />
-        )}
-        {connection === WebSocketState.CLOSED && (
-          <PowerOffIcon className="w-4 h-4" />
-        )}
-        {connection === WebSocketState.CONNECTING && <Spinner size="small" />}
-        {connection === WebSocketState.CLOSING && (
-          <Spinner className="text-destructive" size="small" />
-        )}
-      </div>
-    </Tooltip>
   );
 };
 
