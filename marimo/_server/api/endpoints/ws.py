@@ -188,7 +188,7 @@ async def ws_sync(
                 loro_docs_cleaners[file_key] = None
         else:
             LOGGER.warning(f"RTC: Expected loro doc for file {file_key}")
-            doc = LoroDoc()
+            doc = LoroDoc()  # type: ignore[no-untyped-call]
             loro_docs[file_key] = doc
 
         if file_key not in loro_docs_clients:
@@ -350,7 +350,7 @@ class WebsocketHandler(SessionConsumer):
                             LOGGER.debug(
                                 f"RTC: Initializing loro doc for file {self.file_key}"
                             )
-                            doc = LoroDoc()
+                            doc = LoroDoc()  # type: ignore[no-untyped-call]
                             loro_docs[self.file_key] = doc
 
                             # Add all cell code to the doc
@@ -358,13 +358,15 @@ class WebsocketHandler(SessionConsumer):
                             doc_languages = doc.get_map("languages")
                             for cell_id, code in zip(cell_ids, codes):
                                 text = doc_codes.get_or_create_container(
-                                    cell_id, LoroText()
+                                    cell_id,
+                                    LoroText(),  # type: ignore[no-untyped-call]
                                 )
                                 cast(LoroText, text).insert(0, code)
 
                                 # Set language (default to python)
                                 lang = doc_languages.get_or_create_container(
-                                    cell_id, LoroText()
+                                    cell_id,
+                                    LoroText(),  # type: ignore[no-untyped-call]
                                 )
                                 cast(LoroText, lang).insert(0, "python")
 
