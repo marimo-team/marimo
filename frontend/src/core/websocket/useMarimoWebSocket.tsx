@@ -50,7 +50,6 @@ import {
   useDataSourceActions,
 } from "../datasets/data-source-connections";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
-import { getFeatureFlag } from "../config/feature-flag";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -229,11 +228,6 @@ export function useMarimoWebSocket(opts: {
         focusAndScrollCellOutputIntoView(msg.data.cell_id as CellId);
         return;
       case "update-cell-codes":
-        // If rtc_v2 is enabled, we don't need to update the cell codes
-        if (getFeatureFlag("rtc_v2")) {
-          return;
-        }
-
         setCellCodes({
           codes: msg.data.codes,
           ids: msg.data.cell_ids as CellId[],
