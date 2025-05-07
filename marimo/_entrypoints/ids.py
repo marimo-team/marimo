@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from typing import Literal
 
 # Internal entrypoints. Not user-facing as the API is not stable.
