@@ -131,7 +131,7 @@ def test_local_file_reader(tmp_path: Path) -> None:
 
 def test_static_notebook_reader() -> None:
     reader = StaticNotebookReader()
-    valid_url = "https://static.marimo.app/example"
+    valid_url = "https://static.marimo.app/static/example"
     invalid_url = "https://example.com/file.py"
 
     with patch.object(
@@ -274,9 +274,9 @@ def test_generic_url_reader_with_query_params():
 def test_static_notebook_reader_url_formats():
     reader = StaticNotebookReader()
     urls = [
-        "https://static.marimo.app/example",
-        "https://static.marimo.app/example/",
-        "https://static.marimo.app/example.html",
+        "https://static.marimo.app/static/example",
+        "https://static.marimo.app/static/example/",
+        "https://static.marimo.app/static/example.html",
     ]
     for url in urls:
         with patch.object(
