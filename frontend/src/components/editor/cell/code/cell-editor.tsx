@@ -238,9 +238,10 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
+  const rtcEnabled = getFeatureFlag("rtc_v2");
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -263,13 +264,15 @@ const CellEditorInternal = ({
     });
     setEditorView(ev);
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    }
   });
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(cellId, (code) => {
         // It's not really a formatting change,
         // but this means it won't be marked as stale
@@ -296,7 +299,7 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -321,7 +324,9 @@ const CellEditorInternal = ({
       ),
     });
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    }
     setEditorView(ev);
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });

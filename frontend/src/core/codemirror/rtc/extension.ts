@@ -11,6 +11,7 @@ import { once } from "@/utils/once";
 import { LoroSyncPlugin } from "./loro/sync";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import {
+  getInitialLanguageAdapter,
   languageAdapterState,
   setLanguageAdapter,
   switchLanguage,
@@ -196,7 +197,8 @@ function languageListenerExtension(cellId: CellId) {
 
     if (!currentLang.toString()) {
       // If the language is not set, set it to the current language
-      const lang = update.state.field(languageAdapterState).type;
+      const lang = getInitialLanguageAdapter(update.state).type;
+      switchLanguage(update.view, lang);
       Logger.warn("[rtc] no language, setting default to", lang);
       currentLang.delete(0, currentLang.length);
       currentLang.insert(0, lang);
