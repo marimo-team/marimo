@@ -4,69 +4,90 @@ import { useEffect, useRef } from "react";
 interface UseResizeHandleProps {
   onResize?: (width: number) => void;
   startingWidth: number | "contentWidth";
-  direction: "left" | "right";
 }
 
+// Currently supports left and right resizing
 export const useResizeHandle = ({
   onResize,
   startingWidth,
-  direction,
 }: UseResizeHandleProps) => {
   const resizableDivRef = useRef<HTMLDivElement>(null);
-  const handleRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handle = handleRef.current;
     const resizableDiv = resizableDivRef.current;
+    const leftHandle = leftRef.current;
+    const rightHandle = rightRef.current;
 
-    if (!handle || !resizableDiv) {
+    // If both handles are missing, it is not resizable
+    if (!resizableDiv || (!leftHandle && !rightHandle)) {
       return;
     }
 
     let width = Number.parseInt(window.getComputedStyle(resizableDiv).width);
     let lastX = 0;
     let isResizing = false;
+    let activeDirection: "left" | "right" | null = null;
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!resizableDiv || !isResizing) {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizableDiv || !isResizing || !activeDirection) {
         return;
       }
+
       const dx = e.clientX - lastX;
       lastX = e.clientX;
-      // dx is negative when moving left
-      width = direction === "left" ? width - dx : width + dx;
+      width = activeDirection === "left" ? width - dx : width + dx;
       resizableDiv.style.width = `${width}px`;
     };
 
-    const onMouseUp = () => {
+    const handleMouseUp = () => {
       if (isResizing) {
         onResize?.(width);
         isResizing = false;
+        activeDirection = null;
       }
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
 
-    const onMouseDown = (e: MouseEvent) => {
-      e.preventDefault(); // Prevent selection of elements underneath
+    const handleMouseDown = (e: MouseEvent, direction: "left" | "right") => {
+      e.preventDefault();
       isResizing = true;
+      activeDirection = direction;
       lastX = e.clientX;
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     };
 
-    handle.addEventListener("mousedown", onMouseDown);
+    const leftMouseDown = (e: MouseEvent) => handleMouseDown(e, "left");
+    const rightMouseDown = (e: MouseEvent) => handleMouseDown(e, "right");
+
+    if (leftHandle) {
+      leftHandle.addEventListener("mousedown", leftMouseDown);
+    }
+    if (rightHandle) {
+      rightHandle.addEventListener("mousedown", rightMouseDown);
+    }
 
     return () => {
-      handle.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+      if (leftHandle) {
+        leftHandle.removeEventListener("mousedown", leftMouseDown);
+      }
+      if (rightHandle) {
+        rightHandle.removeEventListener("mousedown", rightMouseDown);
+      }
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [direction, onResize]);
+  }, [onResize]);
 
   return {
     resizableDivRef,
-    handleRef,
+    handleRefs: {
+      left: leftRef,
+      right: rightRef,
+    },
     style: {
       // Default to medium width
       width:
