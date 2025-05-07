@@ -8,7 +8,7 @@ import ReconnectingWebSocket from "partysocket/ws";
 import { createWsUrl } from "@/core/websocket/createWsUrl";
 import { getSessionId } from "@/core/kernel/session";
 import { once } from "@/utils/once";
-import { LoroSyncPlugin } from "./loro/sync";
+import { loroSyncPlugin } from "./loro/sync";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import {
   getInitialLanguageAdapter,
@@ -23,7 +23,7 @@ import { waitForConnectionOpen } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { loroCursorTheme, RemoteAwarenessPlugin } from "./loro/awareness";
-import type { AwarenessState } from "./loro/awareness";
+import type { AwarenessState, ScopeId, Uid } from "./loro/awareness";
 import { AwarenessPlugin } from "./loro/awareness";
 import { createSelectionLayer } from "./loro/awareness";
 import { createCursorLayer } from "./loro/awareness";
@@ -32,6 +32,7 @@ import type { UserState } from "./loro/awareness";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { initialMode } from "@/core/mode";
 import { usernameAtom } from "@/core/rtc/state";
+import { getColor } from "./loro/colors";
 
 const AWARENESS_PREFIX = "awareness:";
 
@@ -162,6 +163,7 @@ export function realTimeCollaboration(
     };
   }
 
+  // Get or create the code container
   const hasPath = doc.getByPath(`codes/${cellId}`) !== undefined;
   const loroText = doc
     .getMap("codes")
@@ -171,23 +173,23 @@ export function realTimeCollaboration(
     loroText.insert(0, initialCode);
   }
 
+  const userName = store.get(usernameAtom) || "Anonymous";
   return {
     code: initialCode.toString(),
     extension: [
-      LoroAwarenessPlugin(
+      languageObserverExtension(cellId),
+      languageListenerExtension(cellId),
+      loroAwarenessPlugin(
         doc,
         awareness,
         {
-          name: store.get(usernameAtom),
-          colorClassName: "bg-[var(--sky-8)]",
+          name: userName,
+          colorClassName: getColor(userName),
         },
         () => loroText,
         cellId,
-        // () => getSessionId() + Math.random().toString(36).slice(2, 15),
       ),
-      languageObserverExtension(cellId),
-      languageListenerExtension(cellId),
-      LoroSyncPlugin(doc, ["codes", cellId], () => {
+      loroSyncPlugin(doc, ["codes", cellId], () => {
         return loroText;
       }),
     ],
@@ -278,14 +280,19 @@ function languageListenerExtension(cellId: CellId) {
   });
 }
 
-export const LoroAwarenessPlugin = (
+/**
+ * Create a plugin to observe awareness changes
+ */
+function loroAwarenessPlugin(
   doc: LoroDoc,
-  awareness: Awareness,
+  awareness: Awareness<AwarenessState>,
   user: UserState,
   getTextFromDoc: (doc: LoroDoc) => LoroText,
-  cellId: string,
-  getUserId?: () => string,
-): Extension[] => {
+  cellId: CellId,
+  getUserId?: () => Uid,
+): Extension[] {
+  const scopeId = `loro:cell:${cellId}` as ScopeId;
+
   return [
     remoteAwarenessStateField,
     createCursorLayer(),
@@ -296,21 +303,15 @@ export const LoroAwarenessPlugin = (
           view,
           doc,
           user,
-          awareness as Awareness<AwarenessState>,
+          awareness,
           getTextFromDoc,
-          cellId,
+          scopeId,
           getUserId,
         ),
     ),
     ViewPlugin.define(
-      (view) =>
-        new RemoteAwarenessPlugin(
-          view,
-          doc,
-          awareness as Awareness<AwarenessState>,
-          cellId,
-        ),
+      (view) => new RemoteAwarenessPlugin(view, doc, awareness, scopeId),
     ),
     loroCursorTheme,
   ];
-};
+}

@@ -26,6 +26,10 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
+import type { TypedString } from "@/utils/typed";
+
+export type ScopeId = TypedString<"loro:scope">;
+export type Uid = TypedString<"loro:uid"> | PeerID;
 
 export const loroCursorTheme = EditorView.baseTheme({
   ".loro-cursor": {
@@ -55,8 +59,8 @@ export const loroCursorTheme = EditorView.baseTheme({
 export type AwarenessState =
   | {
       type: "update";
-      uid: string;
-      scopeId: string;
+      uid: Uid;
+      scopeId: ScopeId;
       cursor: { anchor: Uint8Array; head?: Uint8Array };
       user?: {
         name: string;
@@ -65,8 +69,8 @@ export type AwarenessState =
     }
   | {
       type: "delete";
-      uid: string;
-      scopeId: string;
+      uid: Uid;
+      scopeId: ScopeId;
     };
 
 export interface UserState {
@@ -77,15 +81,15 @@ export interface UserState {
 type CursorEffect =
   | {
       type: "update";
-      peer: string;
-      scopeId: string;
+      peer: Uid;
+      scopeId: ScopeId;
       cursor: { anchor: number; head?: number };
       user?: UserState;
     }
   | {
       type: "delete";
-      peer: string;
-      scopeId: string;
+      peer: Uid;
+      scopeId: ScopeId;
     }
   | {
       type: "checkout";
@@ -284,7 +288,7 @@ const parseAwarenessUpdate = (
     added: PeerID[];
     removed: PeerID[];
   },
-  scopeId: string,
+  scopeId: ScopeId,
 ): Array<StateEffect<CursorEffect>> => {
   const effects = [];
   const { updated, added } = arg;
@@ -301,7 +305,7 @@ const getEffects = (
   doc: LoroDoc,
   awareness: Awareness<AwarenessState>,
   peer: PeerID,
-  scopeId: string,
+  scopeId: ScopeId,
 ): StateEffect<CursorEffect> | undefined => {
   const states = awareness.getAllStates();
   const state = states[peer];
@@ -355,8 +359,8 @@ export class AwarenessPlugin implements PluginValue {
     public user: UserState,
     public awareness: Awareness<AwarenessState>,
     private getTextFromDoc: (doc: LoroDoc) => LoroText,
-    private scopeId: string,
-    private getUserId?: () => string,
+    private scopeId: ScopeId,
+    private getUserId?: () => Uid,
   ) {
     this.sub = this.doc.subscribe((e) => {
       if (e.by === "local") {
@@ -434,7 +438,7 @@ export class RemoteAwarenessPlugin implements PluginValue {
     public view: EditorView,
     public doc: LoroDoc,
     public awareness: Awareness<AwarenessState>,
-    private scopeId: string,
+    private scopeId: ScopeId,
   ) {
     const listener: AwarenessListener = async (arg, origin) => {
       if (origin === "local") {
@@ -464,7 +468,7 @@ const getCursorState = (
   doc: LoroDoc,
   getTextFromDoc: (doc: LoroDoc) => LoroText,
   anchor: number,
-  head?: number,
+  head: number | undefined,
 ) => {
   if (anchor === head) {
     head = undefined;
