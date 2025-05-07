@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -36,11 +36,12 @@ from marimo._server.model import (
     SessionMode,
 )
 from marimo._server.router import APIRouter
+from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
 if TYPE_CHECKING:
-    from loro import DiffEvent, LoroDoc
+    from loro import DiffEvent
 
 LOGGER = _loggers.marimo_logger()
 
@@ -57,37 +58,7 @@ class WebSocketCodes(IntEnum):
     FORBIDDEN = 1008
 
 
-# Global map to store one loro doc per file
-loro_docs: dict[MarimoFileKey, LoroDoc] = {}
-loro_docs_lock = asyncio.Lock()
-loro_docs_clients: dict[MarimoFileKey, set[asyncio.Queue[bytes]]] = {}
-loro_docs_cleaners: dict[MarimoFileKey, Optional[asyncio.Task[None]]] = {}
-
-
-async def clean_loro_doc(file_key: MarimoFileKey, timeout: float = 60) -> None:
-    try:
-        await asyncio.sleep(timeout)
-        async with loro_docs_lock:
-            if (
-                file_key in loro_docs_clients
-                and len(loro_docs_clients[file_key]) == 0
-            ):
-                LOGGER.debug(
-                    f"RTC: Removing loro doc for file {file_key} as it has no clients"
-                )
-                # Clean up the document
-                if file_key in loro_docs:
-                    del loro_docs[file_key]
-                if file_key in loro_docs_clients:
-                    del loro_docs_clients[file_key]
-                if file_key in loro_docs_cleaners:
-                    del loro_docs_cleaners[file_key]
-    except asyncio.CancelledError:
-        # Task was cancelled due to client reconnection
-        LOGGER.debug(
-            f"RTC: clean_loro_doc task cancelled for file {file_key} - likely due to reconnection"
-        )
-        pass
+DOC_MANAGER = LoroDocManager()
 
 
 @router.websocket("/ws")
@@ -154,7 +125,7 @@ async def ws_sync(
         )
         return
 
-    from loro import ExportMode, LoroDoc
+    from loro import ExportMode
 
     app_state = AppState(websocket)
     file_key: Optional[MarimoFileKey] = (
@@ -178,35 +149,19 @@ async def ws_sync(
         await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
         return
 
-    update_queue = asyncio.Queue[bytes]()
-
     await websocket.accept()
 
-    # Get or create the loro doc
-    async with loro_docs_lock:
-        if file_key in loro_docs:
-            doc = loro_docs[file_key]
-            # Cancel existing cleaner task if it exists
-            cleaner = loro_docs_cleaners.get(file_key, None)
-            if cleaner is not None:
-                LOGGER.debug(
-                    f"RTC: Cancelling existing cleaner for file {file_key}"
-                )
-                cleaner.cancel()
-                loro_docs_cleaners[file_key] = None
-        else:
-            LOGGER.warning(f"RTC: Expected loro doc for file {file_key}")
-            doc = LoroDoc()  # type: ignore[no-untyped-call]
-            loro_docs[file_key] = doc
+    # Get or create the LoroDoc and add the client to it
+    update_queue = asyncio.Queue[bytes]()
+    doc = await DOC_MANAGER.get_or_create_doc(file_key)
+    DOC_MANAGER.add_client_to_doc(file_key, update_queue)
 
-        if file_key not in loro_docs_clients:
-            loro_docs_clients[file_key] = {update_queue}
-        else:
-            loro_docs_clients[file_key].add(update_queue)
-
-        # Send initial sync
-        init_sync_msg = doc.export(ExportMode.Snapshot())
-        await websocket.send_bytes(init_sync_msg)
+    # Send initial sync
+    # Use shallow snapshot for fewer bytes
+    init_sync_msg = doc.export(
+        ExportMode.ShallowSnapshot(frontiers=doc.state_frontiers)
+    )
+    await websocket.send_bytes(init_sync_msg)
 
     def handle_doc_update(event: DiffEvent) -> None:
         LOGGER.debug("RTC: doc updated", event)
@@ -222,7 +177,7 @@ async def ws_sync(
                 f"RTC: Could not send loro update to client for file {file_key}: {str(e)}",
             )
 
-    # Subscribe to loro doc updates
+    # Subscribe to LoroDoc updates
     subscription = doc.subscribe_root(handle_doc_update)
     send_task = asyncio.create_task(send_updates())
 
@@ -230,13 +185,8 @@ async def ws_sync(
         # Listen for updates from the client
         while True:
             message = await websocket.receive_bytes()
-            clients = loro_docs_clients[file_key]
-            for client in clients:
-                # Don't send the update to the queue that triggered the update
-                if client == update_queue:
-                    continue
-                client.put_nowait(message)
-            # Apply the update to the loro doc
+            await DOC_MANAGER.broadcast_update(file_key, message, update_queue)
+            # Apply the update to the LoroDoc
             doc.import_(message)
     except WebSocketDisconnect:
         LOGGER.warning("RTC: WebSocket disconnected")
@@ -251,20 +201,7 @@ async def ws_sync(
         # Cleanup resources
         send_task.cancel()
         subscription.unsubscribe()
-
-        async with loro_docs_lock:
-            loro_docs_clients[file_key].remove(update_queue)
-            # If no clients are connected, set up a cleaner task
-            if len(loro_docs_clients[file_key]) == 0:
-                # Remove any existing cleaner
-                cleaner = loro_docs_cleaners.get(file_key, None)
-                if cleaner is not None:
-                    cleaner.cancel()
-                    loro_docs_cleaners[file_key] = None
-                # Create a new cleaner with timeout of 60 seconds
-                loro_docs_cleaners[file_key] = asyncio.create_task(
-                    clean_loro_doc(file_key, 60.0)
-                )
+        await DOC_MANAGER.remove_client(file_key, update_queue)
 
 
 KIOSK_ONLY_OPERATIONS = {
@@ -348,7 +285,7 @@ class WebsocketHandler(SessionConsumer):
                 )
             )
 
-            # If RTC is enabled, initialize the loro doc with cell code
+            # If RTC is enabled, initialize the LoroDoc with cell code
             if self.rtc_enabled and self.mode == SessionMode.EDIT:
                 if not DependencyManager.loro.has():
                     LOGGER.warning(
@@ -357,33 +294,10 @@ class WebsocketHandler(SessionConsumer):
                     self.rtc_enabled = False
                     return
 
-                from loro import LoroDoc, LoroText
-
                 async def init_loro_doc() -> None:
-                    async with loro_docs_lock:
-                        if self.file_key not in loro_docs:
-                            LOGGER.debug(
-                                f"RTC: Initializing loro doc for file {self.file_key}"
-                            )
-                            doc = LoroDoc()  # type: ignore[no-untyped-call]
-                            loro_docs[self.file_key] = doc
-
-                            # Add all cell code to the doc
-                            doc_codes = doc.get_map("codes")
-                            doc_languages = doc.get_map("languages")
-                            for cell_id, code in zip(cell_ids, codes):
-                                text = doc_codes.get_or_create_container(
-                                    cell_id,
-                                    LoroText(),  # type: ignore[no-untyped-call]
-                                )
-                                cast(LoroText, text).insert(0, code)
-
-                                # Set language (default to python)
-                                lang = doc_languages.get_or_create_container(
-                                    cell_id,
-                                    LoroText(),  # type: ignore[no-untyped-call]
-                                )
-                                cast(LoroText, lang).insert(0, "python")
+                    await DOC_MANAGER.create_doc(
+                        self.file_key, cell_ids, codes
+                    )
 
                 asyncio.create_task(init_loro_doc())
 

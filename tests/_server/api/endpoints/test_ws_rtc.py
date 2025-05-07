@@ -10,12 +10,7 @@ from loro import LoroDoc, LoroText
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import (
-    clean_loro_doc,
-    loro_docs,
-    loro_docs_cleaners,
-    loro_docs_clients,
-)
+from marimo._server.api.endpoints.ws import DOC_MANAGER
 from marimo._server.file_router import MarimoFileKey
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
@@ -89,14 +84,14 @@ def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
 async def setup_loro_docs() -> AsyncGenerator[None, None]:
     """Setup and teardown for loro_docs tests"""
     # Clear any existing loro docs
-    loro_docs.clear()
-    loro_docs_clients.clear()
-    loro_docs_cleaners.clear()
+    DOC_MANAGER.loro_docs.clear()
+    DOC_MANAGER.loro_docs_clients.clear()
+    DOC_MANAGER.loro_docs_cleaners.clear()
     yield
     # Cleanup after test
-    loro_docs.clear()
-    loro_docs_clients.clear()
-    loro_docs_cleaners.clear()
+    DOC_MANAGER.loro_docs.clear()
+    DOC_MANAGER.loro_docs_clients.clear()
+    DOC_MANAGER.loro_docs_cleaners.clear()
 
 
 async def test_quick_reconnection(setup_loro_docs: None) -> None:
@@ -107,18 +102,18 @@ async def test_quick_reconnection(setup_loro_docs: None) -> None:
 
     # Create initial loro_doc
     doc = LoroDoc()
-    loro_docs[file_key] = doc
+    DOC_MANAGER.loro_docs[file_key] = doc
 
     # Setup client queue
     update_queue = asyncio.Queue[bytes]()
-    loro_docs_clients[file_key] = {update_queue}
+    DOC_MANAGER.loro_docs_clients[file_key] = {update_queue}
 
     # Start cleanup task
-    cleanup_task = asyncio.create_task(clean_loro_doc(file_key))
+    cleanup_task = asyncio.create_task(DOC_MANAGER._clean_loro_doc(file_key))
 
     # Simulate quick reconnection by creating a new client before cleanup finishes
     new_queue = asyncio.Queue[bytes]()
-    loro_docs_clients[file_key].add(new_queue)
+    DOC_MANAGER.loro_docs_clients[file_key].add(new_queue)
 
     # Cancel cleanup task
     cleanup_task.cancel()
@@ -128,9 +123,9 @@ async def test_quick_reconnection(setup_loro_docs: None) -> None:
         pass
 
     # Verify state
-    assert len(loro_docs) == 1
+    assert len(DOC_MANAGER.loro_docs) == 1
     assert (
-        len(loro_docs_clients[file_key]) == 2
+        len(DOC_MANAGER.loro_docs_clients[file_key]) == 2
     )  # Original client + reconnected client
 
 
@@ -142,12 +137,12 @@ async def test_two_users_sync(setup_loro_docs: None) -> None:
 
     # First user connects
     doc = LoroDoc()
-    loro_docs[file_key] = doc
+    DOC_MANAGER.loro_docs[file_key] = doc
 
     # Setup client queues for both users
     queue1 = asyncio.Queue[bytes]()
     queue2 = asyncio.Queue[bytes]()
-    loro_docs_clients[file_key] = {queue1, queue2}
+    DOC_MANAGER.loro_docs_clients[file_key] = {queue1, queue2}
 
     # Get maps from doc
     doc_codes = doc.get_map("codes")
@@ -163,8 +158,8 @@ async def test_two_users_sync(setup_loro_docs: None) -> None:
     lang_text_typed.insert(0, "python")
 
     # Verify state
-    assert len(loro_docs) == 1
-    assert len(loro_docs_clients[file_key]) == 2
+    assert len(DOC_MANAGER.loro_docs) == 1
+    assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 2
 
     # Make sure we can get the text content
     assert code_text_typed.to_string() == "print('hello')"
@@ -257,8 +252,8 @@ async def test_loro_cleanup_on_session_close(
             sync_msg = cell_ws.receive_bytes()
             assert len(sync_msg) > 0
 
-            assert file_key in loro_docs_clients
-            assert len(loro_docs_clients[file_key]) == 1
+            assert file_key in DOC_MANAGER.loro_docs_clients
+            assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 1
 
             # Close main websocket
             websocket.close()
@@ -271,7 +266,7 @@ async def test_loro_cleanup_on_session_close(
             except Exception:
                 pass
 
-    assert len(loro_docs_clients[file_key]) == 0
+    assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
