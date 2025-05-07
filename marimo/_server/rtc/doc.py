@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._server.file_router import MarimoFileKey
@@ -76,21 +76,14 @@ class LoroDocManager:
 
             # Add all cell code to the doc
             doc_codes = doc.get_map("codes")
-            doc_languages = doc.get_map("languages")
+            doc.get_map("languages")
             for cell_id, code in zip(cell_ids, codes):
-                text = doc_codes.get_or_create_container(
-                    cell_id,
-                    LoroText(),  # type: ignore[no-untyped-call]
-                )
-                cast(LoroText, text).insert(0, code)
+                cell_text = LoroText()
+                cell_text.insert(0, code)
+                doc_codes.insert_container(cell_id, cell_text)
 
-                # Set language (default to python)
-                lang = doc_languages.get_or_create_container(
-                    cell_id,
-                    LoroText(),  # type: ignore[no-untyped-call]
-                )
-                cast(LoroText, lang).insert(0, "python")
-
+                # We don't set the language here because it will be set
+                # when the client connects for the first time.
         return doc
 
     async def get_or_create_doc(self, file_key: MarimoFileKey) -> LoroDoc:

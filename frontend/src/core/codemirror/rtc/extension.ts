@@ -205,7 +205,7 @@ function languageListenerExtension(cellId: CellId) {
       // If the language is not set, set it to the current language
       const lang = getInitialLanguageAdapter(update.state).type;
       switchLanguage(update.view, lang);
-      Logger.warn("[rtc] no language, setting default to", lang);
+      Logger.debug("[rtc] no language, setting default to", lang);
       currentLang.delete(0, currentLang.length);
       currentLang.insert(0, lang);
       doc.commit();
