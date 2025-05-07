@@ -19,7 +19,7 @@ import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import type { CellId } from "@/core/cells/ids";
 import { capitalize } from "lodash-es";
-import { type TabName, tabsStorageAtom, tabNumberAtom } from "./storage";
+import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
 import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
@@ -60,7 +60,7 @@ import {
 } from "./chart-components";
 import { ChartType } from "./types";
 
-const NEW_TAB_NAME = "Chart" as TabName;
+const NEW_TAB_NAME = "Line Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 300;
@@ -83,7 +83,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   const [tabsMap, saveTabsMap] = useAtom(tabsStorageAtom);
   const tabs = cellId ? (tabsMap.get(cellId) ?? []) : [];
 
-  const [tabNum, setTabNum] = useAtom(tabNumberAtom);
+  const [tabNum, setTabNum] = useState(0);
   const [selectedTab, setSelectedTab] = useState(DEFAULT_TAB_NAME);
 
   if (!displayHeader || (tabs.length === 0 && !displayHeader)) {
@@ -94,10 +94,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     if (!cellId) {
       return;
     }
-    const tabName =
-      tabNum === 0
-        ? NEW_TAB_NAME
-        : (`${NEW_TAB_NAME} ${tabNum + 1}` as TabName);
+    const tabName = getChartTabName(tabNum, NEW_CHART_TYPE);
 
     const newTabs = new Map(tabsMap);
     newTabs.set(cellId, [
@@ -125,6 +122,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     );
     saveTabsMap(newTabs);
     setSelectedTab(DEFAULT_TAB_NAME);
+    setTabNum(tabNum - 1);
   };
 
   const saveTabChart = (
@@ -152,14 +150,26 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     if (!cellId) {
       return;
     }
-    const newTabs = new Map(tabsMap);
-    newTabs.set(
-      cellId,
-      tabs.map((tab) =>
-        tab.tabName === tabName ? { ...tab, chartType } : tab,
-      ),
+
+    const tabs = tabsMap.get(cellId) ?? [];
+    const tabIndex = tabs.findIndex((tab) => tab.tabName === tabName);
+    if (tabIndex === -1) {
+      return;
+    }
+
+    const newTabs = tabs.map((tab) =>
+      tab.tabName === tabName
+        ? {
+            ...tab,
+            chartType,
+            tabName: getChartTabName(tabIndex, chartType),
+          }
+        : tab,
     );
-    saveTabsMap(newTabs);
+
+    const newTabsMap = new Map(tabsMap).set(cellId, newTabs);
+    saveTabsMap(newTabsMap);
+    setSelectedTab(newTabs[tabIndex].tabName);
   };
 
   return (
