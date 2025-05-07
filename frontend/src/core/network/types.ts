@@ -55,8 +55,8 @@ export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
 export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
-export type FetchDataSourceConnectionRequest =
-  schemas["FetchDataSourceConnectionRequest"];
+export type PreviewDataSourceConnectionRequest =
+  schemas["PreviewDataSourceConnectionRequest"];
 export type PdbRequest = schemas["PdbRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
@@ -128,8 +128,8 @@ export interface EditRequests {
   previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   previewSQLTable: (request: PreviewSQLTableRequest) => Promise<null>;
   previewSQLTableList: (request: PreviewSQLTableListRequest) => Promise<null>;
-  fetchDataSourceConnection: (
-    request: FetchDataSourceConnectionRequest,
+  previewDataSourceConnection: (
+    request: PreviewDataSourceConnectionRequest,
   ) => Promise<null>;
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;

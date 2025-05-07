@@ -7,8 +7,8 @@ from starlette.authentication import requires
 
 from marimo import _loggers
 from marimo._runtime.requests import (
-    FetchDataSourceConnectionRequest,
     PreviewDatasetColumnRequest,
+    PreviewDataSourceConnectionRequest,
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
 )
@@ -107,15 +107,15 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
     return SuccessResponse()
 
 
-@router.post("/fetch_datasource_connection")
+@router.post("/preview_datasource_connection")
 @requires("edit")
-async def fetch_datasource_connection(request: Request) -> BaseResponse:
+async def preview_datasource_connection(request: Request) -> BaseResponse:
     """
     requestBody:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/FetchDataSourceConnectionRequest"
+                    $ref: "#/components/schemas/PreviewDataSourceConnectionRequest"
     responses:
         200:
             description: Broadcasts a datasource connection
@@ -125,7 +125,7 @@ async def fetch_datasource_connection(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, FetchDataSourceConnectionRequest)
+    body = await parse_request(request, PreviewDataSourceConnectionRequest)
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),

@@ -161,45 +161,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/datasources/fetch_datasource_connection": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["FetchDataSourceConnectionRequest"];
-        };
-      };
-      responses: {
-        /** @description Broadcasts a datasource connection */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
@@ -223,6 +184,45 @@ export interface paths {
       };
       responses: {
         /** @description Preview a column in a dataset */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/datasources/preview_datasource_connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewDataSourceConnectionRequest"];
+        };
+      };
+      responses: {
+        /** @description Broadcasts a datasource connection */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2716,9 +2716,6 @@ export interface components {
     ExportAsScriptRequest: {
       download: boolean;
     };
-    FetchDataSourceConnectionRequest: {
-      engine: string;
-    };
     FileCreateRequest: {
       contents?: string | null;
       name: string;
@@ -3208,6 +3205,9 @@ export interface components {
     PdbRequest: {
       cellId: string;
       request?: components["schemas"]["HTTPRequest"];
+    };
+    PreviewDataSourceConnectionRequest: {
+      engine: string;
     };
     PreviewDatasetColumnRequest: {
       columnName: string;

@@ -122,12 +122,12 @@ from marimo._runtime.requests import (
     ExecuteScratchpadRequest,
     ExecuteStaleRequest,
     ExecutionRequest,
-    FetchDataSourceConnectionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
     ListSecretKeysRequest,
     PdbRequest,
     PreviewDatasetColumnRequest,
+    PreviewDataSourceConnectionRequest,
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
     RefreshSecretsRequest,
@@ -2089,8 +2089,8 @@ class Kernel:
             self.datasets_callbacks.preview_sql_table_list,
         )
         handler.register(
-            FetchDataSourceConnectionRequest,
-            self.datasets_callbacks.fetch_datasource_connection,
+            PreviewDataSourceConnectionRequest,
+            self.datasets_callbacks.preview_datasource_connection,
         )
         # Secrets
         handler.register(
@@ -2298,9 +2298,9 @@ class DatasetCallbacks:
                 error="Failed to get table list: " + str(e),
             )
 
-    @kernel_tracer.start_as_current_span("fetch_datasource_connection")
-    async def fetch_datasource_connection(
-        self, request: FetchDataSourceConnectionRequest
+    @kernel_tracer.start_as_current_span("preview_datasource_connection")
+    async def preview_datasource_connection(
+        self, request: PreviewDataSourceConnectionRequest
     ) -> None:
         """Broadcasts a datasource connection for a given engine"""
         variable_name = cast(VariableName, request.engine)

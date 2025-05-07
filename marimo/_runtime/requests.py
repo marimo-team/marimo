@@ -342,7 +342,7 @@ class PreviewSQLTableListRequest:
 
 
 @dataclass
-class FetchDataSourceConnectionRequest:
+class PreviewDataSourceConnectionRequest:
     """Fetch a datasource connection"""
 
     engine: str
@@ -370,7 +370,7 @@ ControlRequest = Union[
     PdbRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableListRequest,
-    FetchDataSourceConnectionRequest,
+    PreviewDataSourceConnectionRequest,
     PreviewSQLTableRequest,
     RefreshSecretsRequest,
     RenameRequest,

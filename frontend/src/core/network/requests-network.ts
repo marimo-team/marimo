@@ -173,9 +173,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    fetchDataSourceConnection: (request) => {
+    previewDataSourceConnection: (request) => {
       return marimoClient
-        .POST("/api/datasources/fetch_datasource_connection", {
+        .POST("/api/datasources/preview_datasource_connection", {
           body: request,
         })
         .then(handleResponseReturnNull);

@@ -51,7 +51,7 @@ export const {
   previewDatasetColumn,
   previewSQLTable,
   previewSQLTableList,
-  fetchDataSourceConnection,
+  previewDataSourceConnection,
   openFile,
   getUsageStats,
   sendPdb,

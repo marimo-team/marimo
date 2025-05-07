@@ -759,13 +759,6 @@ components:
       required:
       - download
       type: object
-    FetchDataSourceConnectionRequest:
-      properties:
-        engine:
-          type: string
-      required:
-      - engine
-      type: object
     FileCreateRequest:
       properties:
         contents:
@@ -1855,6 +1848,13 @@ components:
       required:
       - cellId
       type: object
+    PreviewDataSourceConnectionRequest:
+      properties:
+        engine:
+          type: string
+      required:
+      - engine
+      type: object
     PreviewDatasetColumnRequest:
       properties:
         columnName:
@@ -2519,7 +2519,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.4
+  version: 0.13.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2582,20 +2582,6 @@ paths:
               schema:
                 type: string
           description: Get AI inline completion for code
-  /api/datasources/fetch_datasource_connection:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FetchDataSourceConnectionRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Broadcasts a datasource connection
   /api/datasources/preview_column:
     post:
       requestBody:
@@ -2610,6 +2596,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
+  /api/datasources/preview_datasource_connection:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewDataSourceConnectionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Broadcasts a datasource connection
   /api/datasources/preview_sql_table:
     post:
       requestBody:

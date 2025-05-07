@@ -28,7 +28,7 @@ import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import {
-  fetchDataSourceConnection,
+  previewDataSourceConnection,
   previewDatasetColumn,
 } from "@/core/network/requests";
 import { prettyNumber } from "@/utils/numbers";
@@ -245,7 +245,7 @@ const Engine: React.FC<{
 
   const handleRefreshConnection = async () => {
     setIsSpinning(true);
-    await fetchDataSourceConnection({
+    await previewDataSourceConnection({
       engine: connection.name,
     });
     // Artificially spin the icon if the request is really fast

@@ -52,6 +52,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     previewDatasetColumn: throwNotInEditMode,
     previewSQLTable: throwNotInEditMode,
     previewSQLTableList: throwNotInEditMode,
+    previewDataSourceConnection: throwNotInEditMode,
     openFile: throwNotInEditMode,
     getUsageStats: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,
