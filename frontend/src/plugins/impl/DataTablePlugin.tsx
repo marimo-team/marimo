@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -51,11 +51,17 @@ import {
   type ColumnFilterValue,
 } from "@/components/data-table/filters";
 import { isStaticNotebook } from "@/core/static/static-state";
-import { vegaLoadData } from "./vega/loader";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-
+import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
+import { findCellId } from "@/core/cells/ids";
+import { slotsController } from "@/core/slots/slots";
+import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel";
+import { DataSelectionPanel } from "@/components/data-table/selection-panel/data-selection";
+import { Provider, useAtom } from "jotai";
+import { contextAwarePanelOwner } from "@/components/editor/chrome/state";
+import { store } from "@/core/state/jotai";
+import { loadTableData } from "@/components/data-table/utils";
 type CsvURL = string;
-type TableData<T> = T[] | CsvURL;
+export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   summaries: ColumnHeaderSummary[];
@@ -79,6 +85,10 @@ export type CalculateTopKRows = <T>(req: {
 }) => Promise<{
   data: Array<[unknown, number]>;
 }>;
+
+export interface GetRowResult {
+  rows: unknown[];
+}
 
 /**
  * Arguments for a data table
@@ -245,22 +255,27 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <TooltipProvider>
-        <LazyDataTableComponent
-          isLazy={props.data.lazy}
-          preload={props.data.preload}
-        >
-          <LoadingDataTableComponent
-            {...props.data}
-            {...props.functions}
-            enableSearch={true}
-            data={props.data.data}
-            value={props.value}
-            setValue={props.setValue}
-            experimentalChartsEnabled={true}
-          />
-        </LazyDataTableComponent>
-      </TooltipProvider>
+      <Provider store={store}>
+        <SlotzProvider controller={slotsController}>
+          <TooltipProvider>
+            <LazyDataTableComponent
+              isLazy={props.data.lazy}
+              preload={props.data.preload}
+            >
+              <LoadingDataTableComponent
+                {...props.data}
+                {...props.functions}
+                host={props.host}
+                enableSearch={true}
+                data={props.data.data}
+                value={props.value}
+                setValue={props.setValue}
+                experimentalChartsEnabled={true}
+              />
+            </LazyDataTableComponent>
+          </TooltipProvider>
+        </SlotzProvider>
+      </Provider>
     );
   });
 
@@ -301,6 +316,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   experimentalChartsEnabled?: boolean;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
+  host: HTMLElement;
 }
 
 export type SetFilters = OnChangeFn<ColumnFiltersState>;
@@ -357,6 +373,8 @@ export const LoadingDataTableComponent = memo(
         });
       }
     }, [props.pageSize, paginationState.pageSize]);
+
+    const cellId = findCellId(props.host);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{
@@ -421,31 +439,7 @@ export const LoadingDataTableComponent = memo(
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
       }
-      // If we already have the data, return it
-      if (Array.isArray(tableData)) {
-        return {
-          rows: tableData,
-          totalRows: totalRows,
-          cellStyles,
-        };
-      }
-
-      // If it looks like json, parse it
-      if (tableData.startsWith("{") || tableData.startsWith("[")) {
-        return {
-          rows: jsonParseWithSpecialChar(tableData),
-          totalRows: totalRows,
-          cellStyles,
-        };
-      }
-
-      // Otherwise, load the data from the URL
-      tableData = await vegaLoadData(
-        tableData,
-        { type: "json" },
-        { handleBigIntAndNumberLike: true },
-      );
-
+      tableData = await loadTableData(tableData);
       return {
         rows: tableData,
         totalRows: totalRows,
@@ -462,6 +456,34 @@ export const LoadingDataTableComponent = memo(
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
+
+    const getRow = useCallback(
+      async (rowId: number) => {
+        const result = await search<T>({
+          page_number: rowId,
+          page_size: 1,
+          sort:
+            sorting.length > 0
+              ? {
+                  by: sorting[0].id,
+                  descending: sorting[0].desc,
+                }
+              : undefined,
+          query: searchQuery,
+          filters: filters.flatMap((filter) => {
+            return filterToFilterCondition(
+              filter.id,
+              filter.value as ColumnFilterValue,
+            );
+          }),
+        });
+        const loadedData = await loadTableData(result.data);
+        return {
+          rows: loadedData,
+        };
+      },
+      [search, sorting, filters, searchQuery],
+    );
 
     // If total rows change, reset pageIndex
     useEffect(() => {
@@ -545,6 +567,7 @@ export const LoadingDataTableComponent = memo(
         cellStyles={data?.cellStyles ?? props.cellStyles}
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
+        getRow={getRow}
       />
     );
 
@@ -557,6 +580,7 @@ export const LoadingDataTableComponent = memo(
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
+            cellId={cellId}
           />
         ) : (
           dataTable
@@ -602,11 +626,15 @@ const DataTableComponent = ({
   toggleDisplayHeader,
   chartsFeatureEnabled,
   calculate_top_k_rows,
+  getRow,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
     columnSummaries?: ColumnSummaries;
+    getRow: (rowIdx: number) => Promise<GetRowResult>;
   }): JSX.Element => {
+  const id = useId();
+  const [focusedRowIdx, setFocusedRowIdx] = useState(0);
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
@@ -664,6 +692,21 @@ const DataTableComponent = ({
     [value],
   );
 
+  const [selectionPanelOwner, setSelectionPanelOwner] = useAtom(
+    contextAwarePanelOwner,
+  );
+  const isSelectionPanelOpen = selectionPanelOwner === id;
+
+  function toggleSelectionPanel() {
+    if (isSelectionPanelOpen) {
+      // Close if panel is open
+      setSelectionPanelOwner(null);
+    } else {
+      // Set the owner to current id, which will cause the panel to open
+      setSelectionPanelOwner(id);
+    }
+  }
+
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
       if (selection === "single") {
@@ -720,6 +763,17 @@ const DataTableComponent = ({
           1,000,000 rows.
         </Banner>
       )}
+      {isSelectionPanelOpen && (
+        <ContextAwarePanelItem>
+          <DataSelectionPanel
+            getRow={getRow}
+            fieldTypes={memoizedFieldTypes}
+            totalRows={totalRows === "too_many" ? 100 : totalRows}
+            rowIdx={focusedRowIdx}
+            setRowIdx={setFocusedRowIdx}
+          />
+        </ContextAwarePanelItem>
+      )}
       <ColumnChartContext.Provider value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
@@ -754,6 +808,9 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
+            toggleSelectionPanel={toggleSelectionPanel}
+            isSelectionPanelOpen={isSelectionPanelOpen}
+            onFocusRowChange={(rowIdx) => setFocusedRowIdx(rowIdx)}
           />
         </Labeled>
       </ColumnChartContext.Provider>

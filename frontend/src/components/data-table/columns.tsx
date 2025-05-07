@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import type { Column, ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { getMimeValues, MimeCell } from "./mime-cell";
@@ -206,8 +206,6 @@ export function generateColumns<T>({
           return <b>{String(renderValue())}</b>;
         }
 
-        const value = getValue();
-
         function selectCell() {
           if (selection !== "single-cell" && selection !== "multi-cell") {
             return;
@@ -230,95 +228,12 @@ export function generateColumns<T>({
           isCellSelected,
         );
 
-        const format = column.getColumnFormatting?.();
-
-        if (typeof value === "string") {
-          const stringValue = format
-            ? String(column.applyColumnFormatting(value))
-            : String(renderValue());
-
-          const parts = parseContent(stringValue);
-          const hasMarkup = parts.some((part) => part.type !== "text");
-          if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
-            return (
-              <div onClick={selectCell} className={cellStyles}>
-                <UrlDetector parts={parts} />
-              </div>
-            );
-          }
-
-          return (
-            <PopoutColumn
-              cellStyles={cellStyles}
-              selectCell={selectCell}
-              rawStringValue={stringValue}
-              contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
-              buttonText="X"
-            >
-              <UrlDetector parts={parts} />
-            </PopoutColumn>
-          );
-        }
-
-        if (format) {
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              {column.applyColumnFormatting(value)}
-            </div>
-          );
-        }
-
-        if (isPrimitiveOrNullish(value)) {
-          const rendered = renderValue();
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              {rendered == null ? "" : String(rendered)}
-            </div>
-          );
-        }
-
-        if (value instanceof Date) {
-          // e.g. 2010-10-07 17:15:00
-          const type =
-            column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
-          const timezone = extractTimezone(column.columnDef.meta?.dtype);
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              <DatePopover date={value} type={type}>
-                {exactDateTime(value, timezone)}
-              </DatePopover>
-            </div>
-          );
-        }
-
-        const mimeValues = getMimeValues(value);
-        if (mimeValues) {
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              {mimeValues.map((mimeValue, idx) => (
-                <MimeCell key={idx} value={mimeValue} />
-              ))}
-            </div>
-          );
-        }
-
-        if (Array.isArray(value) || typeof value === "object") {
-          const rawStringValue = renderAny(value);
-          return (
-            <PopoutColumn
-              cellStyles={cellStyles}
-              selectCell={selectCell}
-              rawStringValue={rawStringValue}
-            >
-              <JsonOutput data={value} format="tree" className="max-h-64" />
-            </PopoutColumn>
-          );
-        }
-
-        return (
-          <div onClick={selectCell} className={cellStyles}>
-            {renderAny(getValue())}
-          </div>
+        return renderCellValue(
+          column,
+          renderValue,
+          getValue,
+          selectCell,
+          cellStyles,
         );
       },
       // Remove any default filtering
@@ -371,8 +286,8 @@ const PopoutColumn = ({
   buttonText,
   children,
 }: {
-  cellStyles: string;
-  selectCell: () => void;
+  cellStyles?: string;
+  selectCell?: () => void;
   rawStringValue: string;
   contentClassName?: string;
   buttonText?: string;
@@ -465,4 +380,104 @@ function renderAny(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+export function renderCellValue<TData, TValue>(
+  column: Column<TData, TValue>,
+  renderValue: () => TValue | null,
+  getValue: () => TValue,
+  selectCell?: () => void,
+  cellStyles?: string,
+) {
+  const value = getValue();
+  const format = column.getColumnFormatting?.();
+
+  if (typeof value === "string") {
+    const stringValue = format
+      ? String(column.applyColumnFormatting(value))
+      : String(renderValue());
+
+    const parts = parseContent(stringValue);
+    const hasMarkup = parts.some((part) => part.type !== "text");
+    if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          <UrlDetector parts={parts} />
+        </div>
+      );
+    }
+
+    return (
+      <PopoutColumn
+        cellStyles={cellStyles}
+        selectCell={selectCell}
+        rawStringValue={stringValue}
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+        buttonText="X"
+      >
+        <UrlDetector parts={parts} />
+      </PopoutColumn>
+    );
+  }
+
+  if (format) {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {column.applyColumnFormatting(value)}
+      </div>
+    );
+  }
+
+  if (isPrimitiveOrNullish(value)) {
+    const rendered = renderValue();
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {rendered == null ? "" : String(rendered)}
+      </div>
+    );
+  }
+
+  if (value instanceof Date) {
+    // e.g. 2010-10-07 17:15:00
+    const type =
+      column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
+    const timezone = extractTimezone(column.columnDef.meta?.dtype);
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        <DatePopover date={value} type={type}>
+          {exactDateTime(value, timezone)}
+        </DatePopover>
+      </div>
+    );
+  }
+
+  const mimeValues = getMimeValues(value);
+  if (mimeValues) {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {mimeValues.map((mimeValue, idx) => (
+          <MimeCell key={idx} value={mimeValue} />
+        ))}
+      </div>
+    );
+  }
+
+  if (Array.isArray(value) || typeof value === "object") {
+    const rawStringValue = renderAny(value);
+    return (
+      <PopoutColumn
+        cellStyles={cellStyles}
+        selectCell={selectCell}
+        rawStringValue={rawStringValue}
+      >
+        <JsonOutput data={value} format="tree" className="max-h-64" />
+      </PopoutColumn>
+    );
+  }
+
+  return (
+    <div onClick={selectCell} className={cellStyles}>
+      {renderAny(value)}
+    </div>
+  );
 }

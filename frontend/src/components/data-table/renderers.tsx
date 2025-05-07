@@ -62,6 +62,8 @@ export function renderTableHeader<TData>(
 export function renderTableBody<TData>(
   table: Table<TData>,
   columns: Array<ColumnDef<TData>>,
+  isSelectionPanelOpen?: boolean,
+  getRowIndex?: (row: TData, idx: number) => number,
 ): JSX.Element {
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
@@ -91,6 +93,11 @@ export function renderTableBody<TData>(
     });
   };
 
+  const handleRowClick = (row: Row<TData>) => {
+    const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
+    row.focusRow?.(rowIndex);
+  };
+
   return (
     <TableBody>
       {table.getRowModel().rows?.length ? (
@@ -99,7 +106,11 @@ export function renderTableBody<TData>(
             key={row.id}
             data-state={row.getIsSelected() && "selected"}
             // These classes ensure that empty rows (nulls) still render
-            className="border-t h-6"
+            className={cn(
+              "border-t h-6",
+              isSelectionPanelOpen && "cursor-pointer",
+            )}
+            onClick={() => handleRowClick(row)}
           >
             {renderCells(row, row.getLeftVisibleCells())}
             {renderCells(row, row.getCenterVisibleCells())}

@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 
 interface UseResizeHandleProps {
   onResize?: (width: number) => void;
+  minWidth?: number;
+  maxWidth?: number;
   startingWidth: number | "contentWidth";
 }
 
@@ -10,6 +12,8 @@ interface UseResizeHandleProps {
 export const useResizeHandle = ({
   onResize,
   startingWidth,
+  minWidth,
+  maxWidth,
 }: UseResizeHandleProps) => {
   const resizableDivRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
@@ -37,7 +41,14 @@ export const useResizeHandle = ({
 
       const dx = e.clientX - lastX;
       lastX = e.clientX;
+      // dx is negative when moving left
       width = activeDirection === "left" ? width - dx : width + dx;
+      if (minWidth) {
+        width = Math.max(minWidth, width);
+      }
+      if (maxWidth) {
+        width = Math.min(maxWidth, width);
+      }
       resizableDiv.style.width = `${width}px`;
     };
 
@@ -80,7 +91,7 @@ export const useResizeHandle = ({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [onResize]);
+  }, [minWidth, maxWidth, onResize]);
 
   return {
     resizableDivRef,
