@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { defineConfig, type Plugin } from "vite";
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { codecovVitePlugin } from "@codecov/vite-plugin";
@@ -213,6 +215,14 @@ export default defineConfig({
           origin: TARGET,
         },
       },
+      "/ws_sync": {
+        target: `ws://${HOST}:${SERVER_PORT}`,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
       "/lsp": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
@@ -278,5 +288,7 @@ export default defineConfig({
       bundleName: "marimo",
       uploadToken: process.env.CODECOV_TOKEN,
     }),
+    wasm(),
+    topLevelAwait(),
   ],
 });

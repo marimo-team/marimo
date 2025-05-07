@@ -34,10 +34,15 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { invariant } from "@/utils/invariant";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
-import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
+import {
+  connectedDocAtom,
+  realTimeCollaboration,
+} from "@/core/codemirror/rtc/extension";
 import { store } from "@/core/state/jotai";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSaveNotebook } from "@/core/saving/save-component";
+import { DelayMount } from "@/components/utils/delay-mount";
+import { Button } from "@/components/ui/button";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -234,9 +239,10 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
+  const rtcEnabled = getFeatureFlag("rtc_v2");
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -259,13 +265,15 @@ const CellEditorInternal = ({
     });
     setEditorView(ev);
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    }
   });
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(cellId, (code) => {
         // It's not really a formatting change,
         // but this means it won't be marked as stale
@@ -292,7 +300,7 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -303,6 +311,7 @@ const CellEditorInternal = ({
         code,
       );
       extensions.push(rtc.extension);
+      code = rtc.code;
     }
 
     const ev = new EditorView({
@@ -316,7 +325,9 @@ const CellEditorInternal = ({
       ),
     });
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    }
     setEditorView(ev);
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });
@@ -507,9 +518,27 @@ function WithWaitUntilConnected<T extends {}>(
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
+    const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (connection.state === WebSocketState.CONNECTING) {
-      return null;
+    if (
+      connection.state === WebSocketState.CONNECTING ||
+      rtcDoc === undefined
+    ) {
+      return (
+        <div className="flex h-full w-full items-baseline p-4">
+          <DelayMount milliseconds={1000} fallback={null}>
+            <span>Waiting for real-time collaboration connection...</span>
+            <Button
+              variant="link"
+              onClick={() => {
+                setRtcDoc("disabled");
+              }}
+            >
+              Turn off real-time collaboration
+            </Button>
+          </DelayMount>
+        </div>
+      );
     }
 
     return <Component {...props} />;
