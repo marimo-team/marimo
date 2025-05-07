@@ -15,7 +15,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 class LoroDocManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.loro_docs: dict[MarimoFileKey, LoroDoc] = {}
         self.loro_docs_lock = asyncio.Lock()
         self.loro_docs_clients: dict[
@@ -78,7 +78,7 @@ class LoroDocManager:
             doc_codes = doc.get_map("codes")
             doc.get_map("languages")
             for cell_id, code in zip(cell_ids, codes):
-                cell_text = LoroText()
+                cell_text = LoroText()  # type: ignore[no-untyped-call]
                 cell_text.insert(0, code)
                 doc_codes.insert_container(cell_id, cell_text)
 
