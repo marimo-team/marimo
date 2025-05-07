@@ -68,9 +68,9 @@ def test_preview_sql_table_list(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_fetch_connection(client: TestClient) -> None:
+def test_preview_datasource_connection(client: TestClient) -> None:
     response = client.post(
-        "/api/datasources/fetch_datasource_connection",
+        "/api/datasources/preview_datasource_connection",
         headers=HEADERS,
         json={
             "engine": "test_engine",
@@ -121,7 +121,7 @@ def test_fails_in_read_mode(client: TestClient) -> None:
     assert response.status_code == 401
 
     response = client.post(
-        "/api/datasources/fetch_datasource_connection",
+        "/api/datasources/preview_datasource_connection",
         headers=HEADERS,
         json={
             "engine": "test_engine",
