@@ -17,8 +17,8 @@ export interface FocusRowOptions {
 
 // Define types for feature's table APIs
 export interface FocusRowInstance {
-  focusRow: (rowIdx: FocusRowState) => void;
-  getFocusedRowIdx: () => FocusRowState;
+  focusRow?: (rowIdx: FocusRowState) => void;
+  getFocusedRowIdx?: () => FocusRowState;
 }
 
 // Use declaration merging to add feature APIs to TanStack Table's existing types

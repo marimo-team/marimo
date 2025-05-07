@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect, useRef } from "react";
+import useEvent from "react-use-event-hook";
 
 interface UseResizeHandleProps {
   onResize?: (width: number) => void;
@@ -18,6 +19,9 @@ export const useResizeHandle = ({
   const resizableDivRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
+
+  const minWidthStable = useEvent(() => minWidth);
+  const maxWidthStable = useEvent(() => maxWidth);
 
   useEffect(() => {
     const resizableDiv = resizableDivRef.current;
@@ -43,6 +47,9 @@ export const useResizeHandle = ({
       lastX = e.clientX;
       // dx is negative when moving left
       width = activeDirection === "left" ? width - dx : width + dx;
+      const minWidth = minWidthStable();
+      const maxWidth = maxWidthStable();
+
       if (minWidth) {
         width = Math.max(minWidth, width);
       }
@@ -91,7 +98,7 @@ export const useResizeHandle = ({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [maxWidth, minWidth, onResize]);
+  }, [maxWidthStable, minWidthStable, onResize]);
 
   return {
     resizableDivRef,
