@@ -22,7 +22,7 @@ const defaultValues: ExperimentalFeatures = {
   inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   scratchpad: true,
-  rtc_v2: false,
+  rtc_v2: import.meta.env.DEV,
   reactive_tests: false,
   table_charts: false,
 };

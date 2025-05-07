@@ -25,7 +25,9 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { initialMode } from "@/core/mode";
 import { Logger } from "@/utils/Logger";
 
-export const connectedDocAtom = atom<LoroDoc | undefined>(undefined);
+export const connectedDocAtom = atom<LoroDoc | "disabled" | undefined>(
+  undefined,
+);
 
 // Create a Loro document
 const doc = new LoroDoc();
@@ -49,7 +51,8 @@ const getWs = once(() => {
 
   // Start the connection
   Promise.resolve().then(async () => {
-    // First wait until the connection is open
+    // First wait the main /ws connection to be open
+    // This is to ensure the LoroDoc is created on the server
     await waitForConnectionOpen();
 
     // Now open the websocket
@@ -63,7 +66,8 @@ const getWs = once(() => {
     doc.import(new Uint8Array(bytes));
     Logger.debug("[rtc] imported doc change. new doc:", doc.toJSON());
 
-    // Set the active doc
+    // Set the active doc only once the first message is received
+    // This is to ensure the LoroDoc is created on the server, and not the client.
     if (store.get(connectedDocAtom) !== doc) {
       store.set(connectedDocAtom, doc);
     }
@@ -75,11 +79,13 @@ const getWs = once(() => {
   });
 
   // Handle close event
-  ws.addEventListener("close", () => {
-    Logger.debug("[rtc] websocket close");
+  ws.addEventListener("close", (e) => {
+    Logger.warn("[rtc] websocket close", e);
 
     // Remove the active doc
-    store.set(connectedDocAtom, undefined);
+    if (store.get(connectedDocAtom) === doc) {
+      store.set(connectedDocAtom, undefined);
+    }
   });
 
   return ws;

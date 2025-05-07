@@ -12,6 +12,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -146,6 +147,13 @@ async def ws_sync(
     """
     Websocket endpoint for LoroDoc synchronization
     """
+    if not DependencyManager.loro.has():
+        LOGGER.warning("RTC: Loro is not installed, closing websocket")
+        await websocket.close(
+            WebSocketCodes.NORMAL_CLOSE, "MARIMO_LORO_NOT_INSTALLED"
+        )
+        return
+
     from loro import ExportMode, LoroDoc
 
     app_state = AppState(websocket)
@@ -342,6 +350,13 @@ class WebsocketHandler(SessionConsumer):
 
             # If RTC is enabled, initialize the loro doc with cell code
             if self.rtc_enabled and self.mode == SessionMode.EDIT:
+                if not DependencyManager.loro.has():
+                    LOGGER.warning(
+                        "RTC: Loro is not installed, disabling real-time collaboration"
+                    )
+                    self.rtc_enabled = False
+                    return
+
                 from loro import LoroDoc, LoroText
 
                 async def init_loro_doc() -> None:

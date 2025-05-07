@@ -42,6 +42,7 @@ import { store } from "@/core/state/jotai";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { DelayMount } from "@/components/utils/delay-mount";
+import { Button } from "@/components/ui/button";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -517,16 +518,26 @@ function WithWaitUntilConnected<T extends {}>(
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
-    const rtcDoc = useAtomValue(connectedDocAtom);
+    const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
     if (
       connection.state === WebSocketState.CONNECTING ||
       rtcDoc === undefined
     ) {
       return (
-        <DelayMount milliseconds={2000} fallback={null}>
-          Waiting for real-time collaboration connection...
-        </DelayMount>
+        <div className="flex h-full w-full items-baseline p-4">
+          <DelayMount milliseconds={1000} fallback={null}>
+            <span>Waiting for real-time collaboration connection...</span>
+            <Button
+              variant="link"
+              onClick={() => {
+                setRtcDoc("disabled");
+              }}
+            >
+              Turn off real-time collaboration
+            </Button>
+          </DelayMount>
+        </div>
       );
     }
 
