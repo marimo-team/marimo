@@ -123,7 +123,7 @@ class StaticNotebookReader(FileReader):
             return download(url)
 
         # Starts with https://static.marimo.app/, append /download
-        if url.startswith("https://static.marimo.app/"):
+        if url.startswith("https://static.marimo.app/static"):
             return download(os.path.join(url, "download"))
 
         # Starts with https://marimo.app/
