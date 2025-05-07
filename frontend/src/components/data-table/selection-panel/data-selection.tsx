@@ -7,6 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,17 +50,12 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   fieldTypes,
   getRow,
 }: DataSelectionPanelProps) => {
-  // const [selectedRowIdx, setSelectedRowIdx] = useState(rowIdx);
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: rows, error } = useAsyncData(async () => {
     const data = await getRow(rowIdx);
     return data.rows;
-  }, [getRow, rowIdx]);
-
-  if (error) {
-    return <ErrorBanner error={error} className="p-4 mx-3 mt-5" />;
-  }
+  }, [getRow, rowIdx, totalRows]);
 
   const handleSelectRow = (rowIdx: number) => {
     if (rowIdx < 0 || rowIdx >= totalRows) {
@@ -71,15 +67,31 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   const buttonStyles = "h-6 w-6 p-0.5";
 
   const renderTable = () => {
+    if (error) {
+      return <ErrorBanner error={error} className="p-4 mx-3 mt-5" />;
+    }
+
+    if (totalRows === 0) {
+      return (
+        <SimpleBanner kind="info" Icon={Info} message="No rows selected" />
+      );
+    }
+
     if (!rows) {
       return (
-        <WarnBanner message="No data available. Please report the issue." />
+        <SimpleBanner
+          kind="warn"
+          Icon={AlertTriangle}
+          message="No data available. Please report the issue."
+        />
       );
     }
 
     if (rows.length !== 1) {
       return (
-        <WarnBanner
+        <SimpleBanner
+          kind="warn"
+          Icon={AlertTriangle}
           message={`Expected 1 row, got ${rows.length} rows. Please report the issue.`}
         />
       );
@@ -88,7 +100,11 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     const currentRow = rows[0];
     if (typeof currentRow !== "object" || currentRow === null) {
       return (
-        <WarnBanner message="Row is not an object. Please report the issue." />
+        <SimpleBanner
+          kind="warn"
+          Icon={AlertTriangle}
+          message="Row is not an object. Please report the issue."
+        />
       );
     }
 
@@ -251,13 +267,17 @@ export function filterRows(rowValues: object, searchQuery: string) {
   });
 }
 
-const WarnBanner: React.FC<{ message: string }> = ({ message }) => {
+const SimpleBanner: React.FC<{
+  kind: "info" | "warn" | "danger";
+  Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  message: string;
+}> = ({ kind, Icon, message }) => {
   return (
     <Banner
-      kind="warn"
+      kind={kind}
       className="p-4 mx-3 mt-3 flex flex-row items-center gap-2"
     >
-      <AlertTriangle className="w-5 h-5" />
+      <Icon className="w-5 h-5" />
       <span>{message}</span>
     </Banner>
   );

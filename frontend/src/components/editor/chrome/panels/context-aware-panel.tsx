@@ -16,6 +16,7 @@ import { PinIcon, PinOffIcon, XIcon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
+import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 
 export const ContextAwarePanel: React.FC = () => {
   const [owner, setOwner] = useAtom(contextAwarePanelOwner);
@@ -64,7 +65,10 @@ export const ContextAwarePanel: React.FC = () => {
           </Button>
         </div>
 
-        <Slot name={SlotNames.CONTEXT_AWARE_PANEL} />
+        {/* TODO: This usually doesn't trigger, and the whole panel closes */}
+        <ErrorBoundary>
+          <Slot name={SlotNames.CONTEXT_AWARE_PANEL} />
+        </ErrorBoundary>
       </div>
     );
   };
@@ -89,7 +93,11 @@ export const ContextAwarePanel: React.FC = () => {
 export const ContextAwarePanelItem: React.FC<PropsWithChildren> = ({
   children,
 }) => {
-  return <Fill name={SlotNames.CONTEXT_AWARE_PANEL}>{children}</Fill>;
+  return (
+    <ErrorBoundary>
+      <Fill name={SlotNames.CONTEXT_AWARE_PANEL}>{children}</Fill>
+    </ErrorBoundary>
+  );
 };
 
 interface ResizableComponentProps {
