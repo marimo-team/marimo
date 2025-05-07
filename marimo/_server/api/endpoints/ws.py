@@ -186,8 +186,12 @@ async def ws_sync(
         while True:
             message = await websocket.receive_bytes()
             await DOC_MANAGER.broadcast_update(file_key, message, update_queue)
-            # Apply the update to the LoroDoc
-            doc.import_(message)
+            # Check if the message is an awareness update
+            if message.startswith(b"awareness:"):
+                LOGGER.debug("RTC: received awareness update")
+            else:
+                # Apply the update to the LoroDoc
+                doc.import_(message)
     except WebSocketDisconnect:
         LOGGER.warning("RTC: WebSocket disconnected")
         # Normal disconnection
