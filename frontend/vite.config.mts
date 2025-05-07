@@ -215,6 +215,14 @@ export default defineConfig({
           origin: TARGET,
         },
       },
+      "/ws_sync": {
+        target: `ws://${HOST}:${SERVER_PORT}`,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
       "/lsp": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
