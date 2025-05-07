@@ -241,10 +241,15 @@ const Engine: React.FC<{
     connection.databases.length === 0 || !connection.databases[0]?.engine;
   const engineName = internalEngine ? "In-Memory" : connection.name;
 
+  // Artificially spin the icon on click
+  const [isSpinning, setIsSpinning] = React.useState(false);
+
   const handleRefreshConnection = () => {
+    setIsSpinning(true);
     fetchDataSourceConnection({
       engine: connection.name,
     });
+    setTimeout(() => setIsSpinning(false), 500);
   };
 
   return (
@@ -263,10 +268,15 @@ const Engine: React.FC<{
             <Button
               variant="ghost"
               size="icon"
-              className="ml-auto"
+              className="ml-auto hover:bg-transparent hover:shadow-none"
               onClick={handleRefreshConnection}
             >
-              <RefreshCwIcon className="h-4 w-4 text-muted-foreground" />
+              <RefreshCwIcon
+                className={cn(
+                  "h-4 w-4 text-muted-foreground hover:text-foreground",
+                  isSpinning && "animate-[spin_0.5s]",
+                )}
+              />
             </Button>
           </Tooltip>
         )}
