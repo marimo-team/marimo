@@ -30,7 +30,6 @@ import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import type { DataTableSelection } from "./types";
-import { INDEX_COLUMN_NAME } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
@@ -38,6 +37,7 @@ import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
 import { CopyColumnFeature } from "./copy-column/feature";
 import { FocusRowFeature } from "./focus-row/feature";
+import { getStableRowId } from "./utils";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -128,7 +128,7 @@ const DataTableInternal = <TData,>({
   );
 
   // Returns the row index, accounting for pagination
-  function getRowIndex(row: TData, idx: number): number {
+  function getPaginatedRowIndex(row: TData, idx: number): number {
     if (!paginationState) {
       return idx;
     }
@@ -160,12 +160,13 @@ const DataTableInternal = <TData,>({
           onPaginationChange: setPaginationState,
           getRowId: (row, idx) => {
             // Prefer stable row ID if it exists
-            if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
-              return String(row[INDEX_COLUMN_NAME]);
+            const stableRowId = getStableRowId(row);
+            if (stableRowId) {
+              return stableRowId;
             }
 
-            const rowIndex = getRowIndex(row, idx);
-            return String(rowIndex);
+            const paginatedRowIndex = getPaginatedRowIndex(row, idx);
+            return String(paginatedRowIndex);
           },
         }
       : {}),
@@ -225,7 +226,12 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          {renderTableBody(table, columns, isSelectionPanelOpen, getRowIndex)}
+          {renderTableBody(
+            table,
+            columns,
+            isSelectionPanelOpen,
+            getPaginatedRowIndex,
+          )}
         </Table>
       </div>
       <TableActions

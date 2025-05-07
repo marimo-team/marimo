@@ -12,13 +12,10 @@ import type {
 } from "@tanstack/react-table";
 
 import type { CellStyleState, CellStylingTableState } from "./types";
-import { INDEX_COLUMN_NAME } from "../types";
+import { getStableRowId } from "../utils";
 
 function getRowId<TData>(row: Row<TData>): string {
-  if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
-    return String(row[INDEX_COLUMN_NAME]);
-  }
-  return row.id;
+  return getStableRowId(row) ?? row.id;
 }
 
 export const CellStylingFeature: TableFeature = {

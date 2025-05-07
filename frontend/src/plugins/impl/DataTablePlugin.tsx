@@ -59,7 +59,7 @@ import { DataSelectionPanel } from "@/components/data-table/selection-panel/data
 import { Provider, useAtom } from "jotai";
 import { contextAwarePanelOwner } from "@/components/editor/chrome/state";
 import { store } from "@/core/state/jotai";
-import { loadTableData } from "@/components/data-table/table-loader";
+import { loadTableData } from "@/components/data-table/utils";
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {

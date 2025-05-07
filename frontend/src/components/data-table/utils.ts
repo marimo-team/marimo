@@ -3,6 +3,7 @@
 import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { INDEX_COLUMN_NAME } from "./types";
 
 /**
  * Convenience function to load table data.
@@ -29,4 +30,17 @@ export async function loadTableData<T = object>(
     { handleBigIntAndNumberLike: true },
   );
   return tableData;
+}
+
+/**
+ * Get the stable row ID for a row.
+ *
+ * This is the row ID that is used to identify a row in the table.
+ * It is stable across renders and pagination. It may not exist.
+ *
+ */
+export function getStableRowId<TData>(row: TData): string | undefined {
+  if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
+    return String(row[INDEX_COLUMN_NAME]);
+  }
 }
