@@ -59,7 +59,9 @@ class SQLAlchemyEngine(SQLEngine):
     def dialect(self) -> str:
         return str(self._engine.dialect.name)
 
-    def execute(self, query: str) -> Any:
+    def execute(
+        self, query: str, _tables: Optional[dict[str, Any]] = None
+    ) -> Any:
         sql_output_format = self.sql_output_format()
 
         from sqlalchemy import text

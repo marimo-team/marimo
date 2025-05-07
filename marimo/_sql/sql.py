@@ -39,6 +39,7 @@ def sql(
         | ChdbConnection
         | IbisEngine
     ] = None,
+    tables: Optional[dict[str, Any]] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -54,7 +55,10 @@ def sql(
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
         engine: Optional SQL engine to use. Can be a SQLAlchemy, Clickhouse, or DuckDB engine.
-               If None, uses DuckDB.
+                If None, uses DuckDB.
+        tables: Optional dictionary of tables to use in the query. This is only
+                used for dataframe queries in for DuckDB, with global variables
+                as a fallback.
 
     Returns:
         The result of the query.
@@ -81,7 +85,15 @@ def sql(
                 "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, or DuckDB engine."
             )
 
-    df = sql_engine.execute(query)
+    if isinstance(sql_engine, DuckDBEngine):
+        df = sql_engine.execute(query, tables=tables)
+    elif tables is not None:
+        raise ValueError(
+            "The tables argument is only supported for DuckDB engine."
+        )
+    else:
+        df = sql_engine.execute(query)
+
     if df is None:
         return None
 

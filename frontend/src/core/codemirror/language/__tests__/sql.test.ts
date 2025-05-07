@@ -294,6 +294,41 @@ _df = mo.sql(
       expect(offset).toBe(26);
     });
 
+    it("should format local tables", () => {
+      const testDatasets = [
+        {
+          name: "in_sql",
+          source_type: "local",
+        },
+        {
+          name: "not_in_sql",
+          source_type: "local",
+        },
+        {
+          name: "other",
+          source_type: "duckdb",
+        },
+      ];
+      const mockStore = store;
+      mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
+
+      const code = "SELECT * FROM in_sql join other";
+      adapter.showOutput = false;
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "_df = mo.sql(
+            f"""
+            SELECT * FROM in_sql join other
+            """,
+            output=False,
+            tables={
+                "in_sql": in_sql
+            }
+        )"
+      `);
+      expect(offset).toBe(24);
+    });
+
     it("should preserve Python comments", () => {
       const pythonCode = '# hello\n_df = mo.sql("""SELECT * FROM {df}""")';
       const [innerCode] = adapter.transformIn(pythonCode);

@@ -46,7 +46,9 @@ class PyIcebergEngine(SQLEngine):
     def dialect(self) -> str:
         return "iceberg"
 
-    def execute(self, query: str) -> Any:
+    def execute(
+        self, _query: str, _tables: Optional[dict[str, Any]] = None
+    ) -> Any:
         raise NotImplementedError(
             "PyIceberg does not support direct SQL execution"
         )

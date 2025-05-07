@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnSummary, DataType
-from marimo._sql.utils import wrapped_sql
+from marimo._sql.utils import fetch_one
 
 
 def get_sql_summary(
@@ -64,9 +64,9 @@ def get_sql_summary(
         FROM {table_name}
         """  # noqa: E501
 
-    stats_result: tuple[int, ...] | None = wrapped_sql(
+    stats_result: tuple[int, ...] | None = fetch_one(
         stats_query, connection=None
-    ).fetchone()
+    )
     if stats_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"
@@ -159,9 +159,9 @@ def get_column_type(
         AND column_name = '{column_name}'
         """
 
-    column_info_result: tuple[str] | None = wrapped_sql(
+    column_info_result: tuple[str] | None = fetch_one(
         column_info_query, connection=None
-    ).fetchone()
+    )
     if column_info_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"

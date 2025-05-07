@@ -44,8 +44,10 @@ class DuckDBEngine(SQLEngine):
     def dialect(self) -> str:
         return "duckdb"
 
-    def execute(self, query: str) -> Any:
-        relation = wrapped_sql(query, self._connection)
+    def execute(
+        self, query: str, tables: Optional[dict[str, Any]] = None
+    ) -> Any:
+        relation = wrapped_sql(query, self._connection, tables)
 
         # Invalid / empty query
         if relation is None:

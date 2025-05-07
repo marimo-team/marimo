@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 def wrapped_sql(
     query: str,
     connection: Optional[duckdb.DuckDBPyConnection],
-) -> duckdb.DuckDBPyRelation:
+    tables: Optional[dict[str, Any]] = None,
+) -> Optional[duckdb.DuckDBPyRelation]:
     DependencyManager.duckdb.require("to execute sql")
 
     # In Python globals() are scoped to modules; since this function
@@ -31,17 +32,44 @@ def wrapped_sql(
 
         connection = cast(duckdb.DuckDBPyConnection, duckdb)
 
+    if tables is None:
+        tables = {}
+
+    previous_globals = {}
     try:
         ctx = get_context()
+        previous_globals = ctx.globals.copy()
+        ctx.globals.update(tables)
+        tables = ctx.globals
     except ContextNotInitializedError:
-        relation = connection.sql(query=query)
-    else:
+        pass
+
+    relation = None
+    try:
         relation = eval(
             "connection.sql(query=query)",
-            ctx.globals,
+            tables,
             {"query": query, "connection": connection},
         )
+        import duckdb
+
+        assert isinstance(relation, (type(None), duckdb.DuckDBPyRelation))
+    finally:
+        if previous_globals:
+            ctx.globals.clear()
+            ctx.globals.update(previous_globals)
     return relation
+
+
+def fetch_one(
+    query: str,
+    connection: Optional[duckdb.DuckDBPyConnection] = None,
+    tables: Optional[dict[str, Any]] = None,
+) -> tuple[Any, ...] | None:
+    stats_table = wrapped_sql(query, connection=connection, tables=tables)
+    if stats_table is None:
+        return None
+    return stats_table.fetchone()
 
 
 def raise_df_import_error(pkg: str) -> None:

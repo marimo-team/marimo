@@ -79,7 +79,9 @@ class SQLEngine(ABC):
         pass
 
     @abstractmethod
-    def execute(self, query: str) -> Any:
+    def execute(
+        self, query: str, tables: Optional[dict[str, Any]] = None
+    ) -> Any:
         """Execute a SQL query and return a dataframe."""
         pass
 

@@ -20,7 +20,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 from marimo._runtime.requests import PreviewDatasetColumnRequest
-from marimo._sql.utils import wrapped_sql
+from marimo._sql.utils import fetch_one, wrapped_sql
 
 LOGGER = _loggers.marimo_logger()
 
@@ -148,10 +148,10 @@ def get_column_preview_for_duckdb(
         from altair import MaxRowsError
 
         try:
-            total_rows: int = wrapped_sql(
+            total_rows: int = fetch_one(
                 f"SELECT COUNT(*) FROM {fully_qualified_table_name}",
                 connection=None,
-            ).fetchone()[0]  # type: ignore[index]
+            )[0]  # type: ignore[index]
 
             if total_rows <= CHART_MAX_ROWS:
                 relation = wrapped_sql(
