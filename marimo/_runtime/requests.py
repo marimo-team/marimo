@@ -342,6 +342,13 @@ class PreviewSQLTableListRequest:
 
 
 @dataclass
+class PreviewDataSourceConnectionRequest:
+    """Fetch a datasource connection"""
+
+    engine: str
+
+
+@dataclass
 class ListSecretKeysRequest:
     request_id: RequestId
 
@@ -363,6 +370,7 @@ ControlRequest = Union[
     PdbRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableListRequest,
+    PreviewDataSourceConnectionRequest,
     PreviewSQLTableRequest,
     RefreshSecretsRequest,
     RenameRequest,

@@ -196,6 +196,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.PdbRequest,
         requests.PreviewDatasetColumnRequest,
         requests.PreviewSQLTableListRequest,
+        requests.PreviewDataSourceConnectionRequest,
         requests.PreviewSQLTableRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,

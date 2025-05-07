@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from typing import TYPE_CHECKING
 
 from marimo._entrypoints.registry import EntryPointRegistry

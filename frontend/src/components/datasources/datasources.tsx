@@ -8,6 +8,7 @@ import {
   XIcon,
   Table2Icon,
   EyeIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
@@ -26,7 +27,10 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { previewDatasetColumn } from "@/core/network/requests";
+import {
+  previewDataSourceConnection,
+  previewDatasetColumn,
+} from "@/core/network/requests";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -231,11 +235,22 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  const hasEngine = connection.databases.length > 0;
-  // If the connection has no engine, it's the internal duckdb engine
-  const engineName = hasEngine
-    ? connection.databases[0]?.engine || "In-Memory"
-    : connection.name;
+  // The internal DuckDB engine may have no engine name, so we provide one.
+  // The connection is also updated automatically, so we do not need to refresh.
+  const internalEngine =
+    connection.databases.length === 0 || !connection.databases[0]?.engine;
+  const engineName = internalEngine ? "In-Memory" : connection.name;
+
+  const [isSpinning, setIsSpinning] = React.useState(false);
+
+  const handleRefreshConnection = async () => {
+    setIsSpinning(true);
+    await previewDataSourceConnection({
+      engine: connection.name,
+    });
+    // Artificially spin the icon if the request is really fast
+    setTimeout(() => setIsSpinning(false), 500);
+  };
 
   return (
     <>
@@ -248,6 +263,23 @@ const Engine: React.FC<{
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>
+        {!internalEngine && (
+          <Tooltip content="Refresh connection">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto hover:bg-transparent hover:shadow-none"
+              onClick={handleRefreshConnection}
+            >
+              <RefreshCwIcon
+                className={cn(
+                  "h-4 w-4 text-muted-foreground hover:text-foreground",
+                  isSpinning && "animate-[spin_0.5s]",
+                )}
+              />
+            </Button>
+          </Tooltip>
+        )}
       </DatasourceLabel>
       {hasChildren ? (
         children
