@@ -105,15 +105,17 @@ interface ResizableComponentProps {
 }
 
 const ResizableComponent = ({ children }: ResizableComponentProps) => {
-  const { resizableDivRef, handleRef, style } = useResizeHandle({
+  const { resizableDivRef, handleRefs, style } = useResizeHandle({
     startingWidth: 400,
-    direction: "left",
     minWidth: 300,
   });
 
   return (
     <div className="absolute z-40 right-0 h-full bg-background flex flex-row">
-      <div ref={handleRef} className="w-1 h-full cursor-col-resize border-l" />
+      <div
+        ref={handleRefs.left}
+        className="w-1 h-full cursor-col-resize border-l"
+      />
       <div ref={resizableDivRef} style={style}>
         {children}
       </div>

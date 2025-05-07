@@ -12,7 +12,6 @@ interface UseResizeHandleProps {
 export const useResizeHandle = ({
   onResize,
   startingWidth,
-  direction,
   minWidth,
   maxWidth,
 }: UseResizeHandleProps) => {
@@ -43,7 +42,7 @@ export const useResizeHandle = ({
       const dx = e.clientX - lastX;
       lastX = e.clientX;
       // dx is negative when moving left
-      width = direction === "left" ? width - dx : width + dx;
+      width = activeDirection === "left" ? width - dx : width + dx;
       if (minWidth) {
         width = Math.max(minWidth, width);
       }
@@ -92,7 +91,7 @@ export const useResizeHandle = ({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [direction, maxWidth, minWidth, onResize]);
+  }, [maxWidth, minWidth, onResize]);
 
   return {
     resizableDivRef,
