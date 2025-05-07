@@ -28,7 +28,11 @@ export function useDelayVisibility(numCells: number, mode: AppMode) {
             focusCellByName(cellName);
           } else {
             // Otherwise focus on the first cell
-            focusFirstEditor();
+            try {
+              focusFirstEditor();
+            } catch (error) {
+              Logger.warn("Error focusing first editor", error);
+            }
           }
         });
       }
