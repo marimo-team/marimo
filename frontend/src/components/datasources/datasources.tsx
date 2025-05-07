@@ -241,14 +241,14 @@ const Engine: React.FC<{
     connection.databases.length === 0 || !connection.databases[0]?.engine;
   const engineName = internalEngine ? "In-Memory" : connection.name;
 
-  // Artificially spin the icon on click
   const [isSpinning, setIsSpinning] = React.useState(false);
 
-  const handleRefreshConnection = () => {
+  const handleRefreshConnection = async () => {
     setIsSpinning(true);
-    fetchDataSourceConnection({
+    await fetchDataSourceConnection({
       engine: connection.name,
     });
+    // Artificially spin the icon if the request is really fast
     setTimeout(() => setIsSpinning(false), 500);
   };
 
