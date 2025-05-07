@@ -707,10 +707,6 @@ const DataTableComponent = ({
     }
   }
 
-  const handleFocusRowChange: OnChangeFn<number> = useEvent((updater) => {
-    setFocusedRowIdx(updater);
-  });
-
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
       if (selection === "single") {
@@ -814,7 +810,7 @@ const DataTableComponent = ({
             chartsFeatureEnabled={chartsFeatureEnabled}
             toggleSelectionPanel={toggleSelectionPanel}
             isSelectionPanelOpen={isSelectionPanelOpen}
-            onFocusRowChange={handleFocusRowChange}
+            onFocusRowChange={(rowIdx) => setFocusedRowIdx(rowIdx)}
           />
         </Labeled>
       </ColumnChartContext.Provider>

@@ -95,7 +95,7 @@ export function renderTableBody<TData>(
 
   const handleRowClick = (row: Row<TData>) => {
     const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
-    row.focusRow(rowIndex);
+    row.focusRow?.(rowIndex);
   };
 
   return (
