@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 from urllib.error import HTTPError
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
@@ -105,7 +105,7 @@ class StaticNotebookReader(FileReader):
             request = urllib.request.Request(
                 url,
                 # User agent to avoid 403 Forbidden some bot protection
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent": f"marimo/{__version__}"},
             )
             file_contents = (
                 urllib.request.urlopen(request).read().decode("utf-8")
@@ -126,24 +126,35 @@ class StaticNotebookReader(FileReader):
         if url.startswith("https://static.marimo.app/"):
             return download(os.path.join(url, "download"))
 
+        # Starts with https://marimo.app/
+        if url.startswith("https://marimo.app/"):
+            return download(url)
+
         # Otherwise, not a static marimo notebook
         return False, ""
 
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
+        assert StaticNotebookReader.CODE_PREFIX in file_contents, (
+            "<marimo-code> not found in file contents"
+        )
         # normalize hidden attribute
         file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        return file_contents.split(StaticNotebookReader.CODE_PREFIX)[1].split(
-            StaticNotebookReader.CODE_SUFFIX
-        )[0]
+        prefix = StaticNotebookReader.CODE_PREFIX
+        suffix = StaticNotebookReader.CODE_SUFFIX
+        encoded_code = file_contents.split(prefix)[1].split(suffix)[0]
+        return urllib.parse.unquote(encoded_code)
 
     @staticmethod
     def _extract_filename_from_static_notebook(file_contents: str) -> str:
+        if StaticNotebookReader.FILENAME_PREFIX not in file_contents:
+            return "notebook.py"
         # normalize hidden attribute
         file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        return file_contents.split(StaticNotebookReader.FILENAME_PREFIX)[
-            1
-        ].split(StaticNotebookReader.FILENAME_SUFFIX)[0]
+        prefix = StaticNotebookReader.FILENAME_PREFIX
+        suffix = StaticNotebookReader.FILENAME_SUFFIX
+        encoded_filename = file_contents.split(prefix)[1].split(suffix)[0]
+        return urllib.parse.unquote(encoded_filename)
 
 
 class GitHubSourceReader(FileReader):
