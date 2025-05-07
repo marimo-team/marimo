@@ -63,6 +63,7 @@ export function renderTableBody<TData>(
   table: Table<TData>,
   columns: Array<ColumnDef<TData>>,
   isSelectionPanelOpen?: boolean,
+  getRowIndex?: (row: TData, idx: number) => number,
 ): JSX.Element {
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
@@ -92,6 +93,11 @@ export function renderTableBody<TData>(
     });
   };
 
+  const handleRowClick = (row: Row<TData>) => {
+    const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
+    row.focusRow(rowIndex);
+  };
+
   return (
     <TableBody>
       {table.getRowModel().rows?.length ? (
@@ -104,9 +110,7 @@ export function renderTableBody<TData>(
               "border-t h-6",
               isSelectionPanelOpen && "cursor-pointer",
             )}
-            onClick={() => {
-              row.focusRow(row.index);
-            }}
+            onClick={() => handleRowClick(row)}
           >
             {renderCells(row, row.getLeftVisibleCells())}
             {renderCells(row, row.getCenterVisibleCells())}

@@ -127,6 +127,19 @@ const DataTableInternal = <TData,>({
     freezeColumnsRight,
   );
 
+  // Returns the row index, accounting for pagination
+  function getRowIndex(row: TData, idx: number): number {
+    if (!paginationState) {
+      return idx;
+    }
+
+    // Add offset if manualPagination is enabled
+    const offset = manualPagination
+      ? paginationState.pageIndex * paginationState.pageSize
+      : 0;
+    return idx + offset;
+  }
+
   const table = useReactTable<TData>({
     _features: [
       ColumnPinning,
@@ -151,15 +164,8 @@ const DataTableInternal = <TData,>({
               return String(row[INDEX_COLUMN_NAME]);
             }
 
-            if (!paginationState) {
-              return String(idx);
-            }
-
-            // Add offset if manualPagination is enabled
-            const offset = manualPagination
-              ? paginationState.pageIndex * paginationState.pageSize
-              : 0;
-            return String(idx + offset);
+            const rowIndex = getRowIndex(row, idx);
+            return String(rowIndex);
           },
         }
       : {}),
@@ -219,7 +225,7 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          {renderTableBody(table, columns, isSelectionPanelOpen)}
+          {renderTableBody(table, columns, isSelectionPanelOpen, getRowIndex)}
         </Table>
       </div>
       <TableActions
