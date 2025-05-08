@@ -177,6 +177,8 @@ const StdInput = (props: {
       {renderText(props.output)}
       <Input
         data-testid="console-input"
+        // This is used in <StdinBlockingAlert> to find the input
+        data-stdin-blocking={true}
         type="text"
         autoComplete="off"
         autoFocus={true}
