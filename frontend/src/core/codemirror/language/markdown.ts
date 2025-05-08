@@ -17,7 +17,7 @@ import {
   splitQuotePrefix,
 } from "./utils/quotes";
 import { markdownAutoRunExtension } from "../cells/extensions";
-import type { PlaceholderType } from "../config/extension";
+import type { PlaceholderType } from "../config/types";
 import type { CellId } from "@/core/cells/ids";
 import { parseLatex } from "./latex";
 import { StreamLanguage } from "@codemirror/language";
@@ -25,6 +25,12 @@ import { parsePython } from "./embedded-python";
 import { conditionalCompletion } from "../completion/utils";
 import { pythonCompletionSource } from "../completion/completer";
 import { markdownCompletionSources } from "../markdown/completions";
+import { ViewPlugin } from "@codemirror/view";
+import { languageMetadataField } from "./metadata";
+
+export interface MarkdownLanguageAdapterMetadata {
+  quotePrefix: QuotePrefixKind;
+}
 
 const quoteKinds = [
   ['"""', '"""'],
@@ -50,7 +56,9 @@ const regexes = pairs.map(
 /**
  * Language adapter for Markdown.
  */
-export class MarkdownLanguageAdapter implements LanguageAdapter {
+export class MarkdownLanguageAdapter
+  implements LanguageAdapter<MarkdownLanguageAdapterMetadata>
+{
   readonly type = "markdown";
   readonly defaultCode = 'mo.md(r"""\n""")';
 
@@ -58,47 +66,49 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     return `mo.md(r"""\n${markdown}\n""")`;
   }
 
-  lastQuotePrefix: QuotePrefixKind = "r";
-
-  transformIn(pythonCode: string): [string, number] {
+  transformIn(
+    pythonCode: string,
+  ): [string, number, MarkdownLanguageAdapterMetadata] {
     pythonCode = pythonCode.trim();
+
+    const metadata: MarkdownLanguageAdapterMetadata = {
+      quotePrefix: "r",
+    };
 
     // empty string
     if (pythonCode === "") {
-      this.lastQuotePrefix = "r";
-      return ["", 0];
+      return ["", 0, metadata];
     }
 
     for (const [start, regex] of regexes) {
       const match = pythonCode.match(regex);
       if (match) {
         const innerCode = match[1];
-
         const [quotePrefix, quoteType] = splitQuotePrefix(start);
-        // store the quote prefix for later when we transform out
-        this.lastQuotePrefix = quotePrefix;
+        metadata.quotePrefix = quotePrefix;
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
         // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
-        return [dedent(`\n${unescapedCode}\n`).trim(), offset];
+        return [dedent(`\n${unescapedCode}\n`).trim(), offset, metadata];
       }
     }
 
     // no match
-    this.lastQuotePrefix = "r";
-    return [pythonCode, 0];
+    return [pythonCode, 0, metadata];
   }
 
-  transformOut(code: string): [string, number] {
-    // Get the quote type from the last transformIn
-    const prefix = this.lastQuotePrefix;
-
+  transformOut(
+    code: string,
+    metadata: MarkdownLanguageAdapterMetadata,
+  ): [string, number] {
     // Empty string
     if (code === "") {
       // Need at least a space, otherwise the output will be 6 quotes
       code = " ";
     }
+
+    const { quotePrefix } = metadata;
 
     // We always transform back with triple quotes, as to avoid needing to
     // escape single quotes.
@@ -108,13 +118,13 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     const isOneLine = !code.includes("\n");
     const boundedByQuote = code.startsWith('"') || code.endsWith('"');
     if (isOneLine && !boundedByQuote) {
-      const start = `mo.md(${prefix}"""`;
+      const start = `mo.md(${quotePrefix}"""`;
       const end = `""")`;
       return [start + escapedCode + end, start.length];
     }
 
     // Multiline code
-    const start = `mo.md(\n    ${prefix}"""\n`;
+    const start = `mo.md(\n    ${quotePrefix}"""\n`;
     const end = `\n"""\n)`;
     return [start + escapedCode + end, start.length + 1];
   }
@@ -194,10 +204,21 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     _: PlaceholderType,
   ): Extension[] {
     const markdownLanguageData = markdown().language.data;
+
     // Only activate completions for f-strings
-    const isFStringActive = () => this.lastQuotePrefix.includes("f");
+    let isFStringActive = () => false;
 
     return [
+      ViewPlugin.define((view) => {
+        isFStringActive = () => {
+          const metadata = view.state.field(languageMetadataField);
+          if (metadata === undefined) {
+            return false;
+          }
+          return metadata.quotePrefix?.includes("f") ?? false;
+        };
+        return {};
+      }),
       markdown({
         base: markdownLanguage,
         codeLanguages: languages,
@@ -230,9 +251,5 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       // Markdown autorun
       markdownAutoRunExtension({ predicate: () => !isFStringActive() }),
     ];
-  }
-
-  setQuotePrefix(prefix: QuotePrefixKind) {
-    this.lastQuotePrefix = prefix;
   }
 }

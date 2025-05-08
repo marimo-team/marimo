@@ -1,10 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, afterAll, afterEach, beforeEach } from "vitest";
-import { SQLCompletionStore, SQLLanguageAdapter } from "../sql";
+import { expect, describe, it, afterEach, beforeEach } from "vitest";
+import {
+  SQLCompletionStore,
+  SQLLanguageAdapter,
+  type SQLLanguageAdapterMetadata,
+} from "../sql";
 import { store } from "@/core/state/jotai";
 import {
   dataSourceConnectionsAtom,
   DUCKDB_ENGINE,
+  setLatestEngineSelected,
   type ConnectionName,
 } from "@/core/datasets/data-source-connections";
 import type { DataSourceConnection } from "@/core/kernel/messages";
@@ -16,16 +21,11 @@ const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
   describe("transformIn", () => {
-    afterAll(() => {
-      adapter.engine = DUCKDB_ENGINE;
-      adapter.showOutput = true;
-    });
-
     it("empty", () => {
-      const [innerCode, offset] = adapter.transformIn("");
+      const [innerCode, offset, metadata] = adapter.transformIn("");
       expect(innerCode).toBe("");
       expect(offset).toBe(0);
-      const out = adapter.transformOut(innerCode);
+      const out = adapter.transformOut(innerCode, metadata);
       expect(out).toMatchInlineSnapshot(`
         [
           "_df = mo.sql(
@@ -40,17 +40,17 @@ describe("SQLLanguageAdapter", () => {
 
     it("should extract inner SQL from triple double-quoted strings", () => {
       const pythonCode = '_df = mo.sql("""SELECT * FROM {df}""")';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM {df}");
-      expect(adapter.dataframeName).toBe("_df");
+      expect(metadata.dataframeName).toBe("_df");
       expect(offset).toBe(16);
     });
 
     it("should handle single double-quoted strings", () => {
       const pythonCode = 'next_df = mo.sql("SELECT * FROM {df}")';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM {df}");
-      expect(adapter.dataframeName).toBe("next_df");
+      expect(metadata.dataframeName).toBe("next_df");
       expect(offset).toBe(18);
     });
 
@@ -98,66 +98,72 @@ describe("SQLLanguageAdapter", () => {
 
     it("should handle output flag set to True", () => {
       const pythonCode = '_df = mo.sql("""SELECT * FROM table""", output=True)';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM table");
-      expect(adapter.showOutput).toBe(true);
+      expect(metadata.showOutput).toBe(true);
       expect(offset).toBe(16);
     });
 
     it("should handle output flag set to False", () => {
       const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", output=False)';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM table");
-      expect(adapter.showOutput).toBe(false);
+      expect(metadata.showOutput).toBe(false);
       expect(offset).toBe(16);
 
       // handle trailing comma
       const pythonCode2 =
         '_df = mo.sql("""SELECT * FROM table""", output=False,)';
-      const [innerCode2] = adapter.transformIn(pythonCode2);
+      const [innerCode2, offset2, metadata2] = adapter.transformIn(pythonCode2);
       expect(innerCode2).toBe("SELECT * FROM table");
+      expect(metadata2.showOutput).toBe(false);
+      expect(offset2).toBe(16);
     });
 
     it("should default to showing output when flag is not specified", () => {
       const pythonCode = '_df = mo.sql("""SELECT * FROM table""")';
-      adapter.transformIn(pythonCode);
-      expect(adapter.showOutput).toBe(true);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("SELECT * FROM table");
+      expect(metadata.showOutput).toBe(true);
+      expect(offset).toBe(16);
     });
 
     it("should handle engine param when provided", () => {
       const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine)';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM table");
       expect(offset).toBe(16);
-      expect(adapter.engine).toBe("postgres_engine");
+      expect(metadata.engine).toBe("postgres_engine");
 
       // handle trailing comma
       const pythonCode2 =
         '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine,)';
-      const [innerCode2] = adapter.transformIn(pythonCode2);
+      const [innerCode2, offset2, metadata2] = adapter.transformIn(pythonCode2);
       expect(innerCode2).toBe("SELECT * FROM table");
+      expect(offset2).toBe(16);
+      expect(metadata2.engine).toBe("postgres_engine");
     });
 
     it("should handle engine param with output flag", () => {
       const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", output=False, engine=postgres_engine)';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM table");
       expect(offset).toBe(16);
-      expect(adapter.showOutput).toBe(false);
-      expect(adapter.engine).toBe("postgres_engine");
+      expect(metadata.showOutput).toBe(false);
+      expect(metadata.engine).toBe("postgres_engine");
     });
 
     it("should handle reversed order of params", () => {
       const pythonCode =
         '_df = mo.sql("""SELECT * FROM table""", engine=postgres_engine, output=False)';
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM table");
       expect(offset).toBe(16);
-      expect(adapter.showOutput).toBe(false);
-      expect(adapter.engine).toBe("postgres_engine");
+      expect(metadata.showOutput).toBe(false);
+      expect(metadata.engine).toBe("postgres_engine");
     });
 
     it("should handle parametrized sql", () => {
@@ -172,7 +178,7 @@ _df = mo.sql(
     engine=sqlite,
 )
 `;
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(
         `
 SELECT name, price, category
@@ -182,8 +188,8 @@ ORDER BY price DESC
         `.trim(),
       );
       expect(offset).toBe(22);
-      expect(adapter.showOutput).toBe(true);
-      expect(adapter.engine).toBe("sqlite");
+      expect(metadata.showOutput).toBe(true);
+      expect(metadata.engine).toBe("sqlite");
     });
 
     it("should handle parametrized sql with triple single quotes f-string", () => {
@@ -198,7 +204,7 @@ _df = mo.sql(
     engine=sqlite,
 )
 `;
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(
         `
 SELECT name, price, category
@@ -208,6 +214,7 @@ ORDER BY price DESC
         `.trim(),
       );
       expect(offset).toBe(22);
+      expect(metadata.engine).toBe("sqlite");
     });
 
     it("should handle parametrized sql with inline double quotes f-string", () => {
@@ -217,11 +224,12 @@ _df = mo.sql(
     engine=sqlite,
 )
 `;
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(
         "FROM products WHERE price < {price_threshold.value}",
       );
       expect(offset).toBe(20);
+      expect(metadata.engine).toBe("sqlite");
     });
 
     it("should handle parametrized sql with inline single quotes f-string", () => {
@@ -231,26 +239,33 @@ _df = mo.sql(
     engine=sqlite,
 )
 `;
-      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(
         "FROM products WHERE price < {price_threshold.value}",
       );
       expect(offset).toBe(20);
+      expect(metadata.engine).toBe("sqlite");
     });
   });
 
   describe("transformOut", () => {
-    afterEach(() => {
-      adapter.engine = DUCKDB_ENGINE;
-      adapter.showOutput = true;
-      adapter.dataframeName = "_df";
+    let metadata: SQLLanguageAdapterMetadata;
+
+    beforeEach(() => {
+      metadata = {
+        engine: DUCKDB_ENGINE,
+        showOutput: true,
+        dataframeName: "_df",
+        quotePrefix: "f",
+        commentLines: [],
+      };
     });
 
     it("should wrap SQL code with triple double-quoted string format", () => {
       const code = "SELECT * FROM {df}";
-      adapter.lastQuotePrefix = "";
-      adapter.dataframeName = "my_df";
-      const [wrappedCode, offset] = adapter.transformOut(code);
+      metadata.quotePrefix = "f";
+      metadata.dataframeName = "my_df";
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "my_df = mo.sql(
             f"""
@@ -263,10 +278,10 @@ _df = mo.sql(
 
     it("should include output flag when set to False", () => {
       const code = "SELECT * FROM table";
-      adapter.lastQuotePrefix = "f";
-      adapter.dataframeName = "my_df";
-      adapter.showOutput = false;
-      const [wrappedCode, offset] = adapter.transformOut(code);
+      metadata.quotePrefix = "f";
+      metadata.dataframeName = "my_df";
+      metadata.showOutput = false;
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "my_df = mo.sql(
             f"""
@@ -280,10 +295,10 @@ _df = mo.sql(
 
     it("should not include output flag when set to True", () => {
       const code = "SELECT * FROM table";
-      adapter.lastQuotePrefix = "f";
-      adapter.dataframeName = "my_df";
-      adapter.showOutput = true;
-      const [wrappedCode, offset] = adapter.transformOut(code);
+      metadata.quotePrefix = "f";
+      metadata.dataframeName = "my_df";
+      metadata.showOutput = true;
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "my_df = mo.sql(
             f"""
@@ -295,12 +310,10 @@ _df = mo.sql(
     });
 
     it("should preserve Python comments", () => {
-      const pythonCode = '# hello\n_df = mo.sql("""SELECT * FROM {df}""")';
-      const [innerCode] = adapter.transformIn(pythonCode);
+      const pythonCode = '# hello\nmy_df = mo.sql("""SELECT * FROM {df}""")';
+      const [innerCode, , metadata] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("SELECT * FROM {df}");
-      adapter.lastQuotePrefix = "f";
-      adapter.dataframeName = "my_df";
-      const [wrappedCode, offset] = adapter.transformOut(innerCode);
+      const [wrappedCode, offset] = adapter.transformOut(innerCode, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "# hello
         my_df = mo.sql(
@@ -314,8 +327,9 @@ _df = mo.sql(
 
     it("should add engine connection when provided", () => {
       const code = "SELECT * FROM table";
-      adapter.engine = "postgres_engine" as ConnectionName;
-      const [wrappedCode, offset] = adapter.transformOut(code);
+      metadata.engine = "postgres_engine" as ConnectionName;
+      metadata.commentLines = ["# hello"];
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "# hello
         _df = mo.sql(
@@ -330,9 +344,10 @@ _df = mo.sql(
 
     it("should add engine connection and output flag when provided", () => {
       const code = "SELECT * FROM table";
-      adapter.showOutput = false;
-      adapter.engine = "postgres_engine" as ConnectionName;
-      const [wrappedCode, offset] = adapter.transformOut(code);
+      metadata.showOutput = false;
+      metadata.engine = "postgres_engine" as ConnectionName;
+      metadata.commentLines = ["# hello"];
+      const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "# hello
         _df = mo.sql(
@@ -488,109 +503,92 @@ _df = mo.sql(
       });
     });
 
+    const getLatestEngine = () =>
+      store.get(dataSourceConnectionsAtom).latestEngineSelected;
+
     it("should use default engine initially", () => {
-      expect(adapter.engine).toBe(DUCKDB_ENGINE);
+      expect(getLatestEngine()).toBe(DUCKDB_ENGINE);
     });
 
     it("should persist the selected engine", () => {
       const engine = "mysql_engine" as ConnectionName;
-      adapter.selectEngine(engine);
-      expect(adapter.engine).toBe(engine);
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        engine,
-      );
+      setLatestEngineSelected(engine);
+      expect(getLatestEngine()).toBe(engine);
 
-      adapter.selectEngine("postgres_engine" as ConnectionName);
-      expect(adapter.engine).toBe("postgres_engine");
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        "postgres_engine",
-      );
+      setLatestEngineSelected("postgres_engine" as ConnectionName);
+      expect(getLatestEngine()).toBe("postgres_engine");
     });
 
     it("should not change when engine is not in connectionsMap", () => {
       const engine = "unknown_engine" as ConnectionName;
-      adapter.selectEngine(engine);
-      expect(adapter.engine).toBe(engine);
-      expect(
-        store.get(dataSourceConnectionsAtom).latestEngineSelected,
-      ).not.toBe("unknown_engine");
+      setLatestEngineSelected(engine);
+      expect(getLatestEngine()).not.toBe("unknown_engine");
     });
 
     it("should update engine in transformIn when specified", () => {
       const pythonCode = '_df = mo.sql("""SELECT 1""", engine=postgres_engine)';
-      adapter.transformIn(pythonCode);
-      expect(adapter.engine).toBe("postgres_engine");
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        "postgres_engine",
-      );
+      const metadata = adapter.transformIn(pythonCode)[2];
+      expect(metadata.engine).toBe("postgres_engine");
+      expect(getLatestEngine()).toBe("postgres_engine");
 
       // Don't update for unspecified engine
       const pythonCode2 = '_df = mo.sql("""SELECT 1""")';
-      adapter.transformIn(pythonCode2);
-      expect(adapter.engine).toBe(DUCKDB_ENGINE);
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        "postgres_engine",
-      );
+      const metadata2 = adapter.transformIn(pythonCode2)[2];
+      expect(metadata2.engine).toBe(DUCKDB_ENGINE);
+      expect(getLatestEngine()).toBe("postgres_engine");
 
       // Don't update for unknown engine
       const pythonCode3 = '_df = mo.sql("""SELECT 1""", engine=unknown_engine)';
-      adapter.transformIn(pythonCode3);
-      expect(adapter.engine).toBe("unknown_engine");
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        "postgres_engine",
-      );
+      const metadata3 = adapter.transformIn(pythonCode3)[2];
+      expect(metadata3.engine).toBe("unknown_engine");
+      expect(getLatestEngine()).toBe("postgres_engine");
     });
 
     it("should maintain engine selection across transformIn/transformOut", () => {
       const engine = "postgres_engine" as ConnectionName;
-      adapter.selectEngine(engine);
+      setLatestEngineSelected(engine);
 
-      const [innerCode] = adapter.transformIn(
+      const [innerCode, , metadata] = adapter.transformIn(
         `_df = mo.sql("""SELECT 1""", engine=${engine})`,
       );
-      expect(adapter.engine).toBe(engine);
+      expect(metadata.engine).toBe(engine);
 
-      const [outCode] = adapter.transformOut(innerCode);
+      const [outCode] = adapter.transformOut(innerCode, metadata);
       expect(outCode).toContain(`engine=${engine}`);
     });
 
     it("should maintain engine when transforming empty string", () => {
       const engine = "postgres_engine" as ConnectionName;
-      adapter.selectEngine(engine);
+      setLatestEngineSelected(engine);
 
-      const [innerCode] = adapter.transformIn("");
-      expect(adapter.engine).toBe(engine);
+      const [innerCode, , metadata] = adapter.transformIn("");
+      expect(metadata.engine).toBe(engine);
 
-      const [outCode] = adapter.transformOut(innerCode);
+      const [outCode] = adapter.transformOut(innerCode, metadata);
       expect(outCode).toContain(`engine=${engine}`);
     });
 
     it("should restore previous engine when selecting default", () => {
       const engine = "postgres_engine" as ConnectionName;
-      adapter.selectEngine(engine);
-      adapter.selectEngine(DUCKDB_ENGINE);
+      setLatestEngineSelected(engine);
+      setLatestEngineSelected(DUCKDB_ENGINE);
 
-      expect(adapter.engine).toBe(DUCKDB_ENGINE);
-      expect(store.get(dataSourceConnectionsAtom).latestEngineSelected).toBe(
-        DUCKDB_ENGINE,
-      );
+      expect(getLatestEngine()).toBe(DUCKDB_ENGINE);
     });
   });
 
-  describe("getDefaultCode", () => {
-    it("should include engine in getDefaultCode when selected", () => {
+  describe("defaultCode", () => {
+    it("should include engine in defaultCode when selected", () => {
       const engine = "postgres_engine" as ConnectionName;
-      adapter.selectEngine(engine);
-      expect(adapter.getDefaultCode()).toBe(
+      setLatestEngineSelected(engine);
+      expect(adapter.defaultCode).toBe(
         `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`,
       );
     });
 
-    it("should not include engine in getDefaultCode when using default engine", () => {
-      adapter.selectEngine(DUCKDB_ENGINE);
-      expect(adapter.getDefaultCode()).toBe(
-        `_df = mo.sql(f"""SELECT * FROM """)`,
-      );
+    it("should not include engine in defaultCode when using default engine", () => {
+      setLatestEngineSelected(DUCKDB_ENGINE);
+      expect(adapter.defaultCode).toBe(`_df = mo.sql(f"""SELECT * FROM """)`);
     });
   });
 });
@@ -601,7 +599,7 @@ describe("tablesCompletionSource", () => {
 
   beforeEach(() => {
     // Reset the adapter engine
-    adapter.engine = DUCKDB_ENGINE;
+    setLatestEngineSelected(DUCKDB_ENGINE);
     // reset the datasets state
     mockStore.set(datasetsAtom, {
       tables: [],
@@ -707,7 +705,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: "test_engine" as ConnectionName,
     });
 
-    adapter.engine = "test_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "test_engine" as ConnectionName,
     );
@@ -799,7 +796,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
 
-    adapter.engine = "multi_db_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "multi_db_engine" as ConnectionName,
     );
@@ -940,7 +936,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
 
-    adapter.engine = "multi_db_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "multi_db_engine" as ConnectionName,
     );
@@ -1033,7 +1028,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
 
-    adapter.engine = "test_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "test_engine" as ConnectionName,
     );
@@ -1088,7 +1082,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
 
-    adapter.engine = "test_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "test_engine" as ConnectionName,
     );
@@ -1165,7 +1158,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: mockConnection.name as ConnectionName,
     });
 
-    adapter.engine = "test_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "test_engine" as ConnectionName,
     );
@@ -1267,7 +1259,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: "test_engine" as ConnectionName,
     });
 
-    adapter.engine = "test_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "test_engine" as ConnectionName,
     );
@@ -1310,7 +1301,6 @@ describe("tablesCompletionSource", () => {
       latestEngineSelected: "test_engine" as ConnectionName,
     });
     mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
-    adapter.engine = "test_engine" as ConnectionName;
     const completionSource = completionStore.getCompletionSource(
       "test_engine" as ConnectionName,
     );

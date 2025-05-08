@@ -218,7 +218,7 @@ function languageObserverExtension(cellId: CellId) {
       Logger.debug(
         `[rtc] Received language change: ${currentLang} -> ${newLang}`,
       );
-      const adapter = LanguageAdapters[newLang]();
+      const adapter = LanguageAdapters[newLang];
       switchLanguage(view, adapter.type, { keepCodeAsIs: true });
     }
   };

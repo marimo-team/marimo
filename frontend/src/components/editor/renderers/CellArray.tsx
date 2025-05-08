@@ -347,7 +347,7 @@ const AddCellButtons: React.FC<{
             createNewCell({
               cellId: { type: "__end__", columnId },
               before: false,
-              code: new SQLLanguageAdapter().getDefaultCode(),
+              code: new SQLLanguageAdapter().defaultCode,
             });
           }}
         >

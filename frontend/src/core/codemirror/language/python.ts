@@ -17,7 +17,7 @@ import type {
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { PlaceholderType } from "../config/extension";
+import type { PlaceholderType } from "../config/types";
 import {
   smartPlaceholderExtension,
   clickablePlaceholderExtension,
@@ -136,15 +136,15 @@ const lspClient = once((lspConfig: LSPConfig) => {
 /**
  * Language adapter for Python.
  */
-export class PythonLanguageAdapter implements LanguageAdapter {
+export class PythonLanguageAdapter implements LanguageAdapter<{}> {
   readonly type = "python";
   readonly defaultCode = "";
 
-  transformIn(code: string): [string, number] {
-    return [code, 0];
+  transformIn(code: string): [string, number, {}] {
+    return [code, 0, {}];
   }
 
-  transformOut(code: string): [string, number] {
+  transformOut(code: string, _metadata: {}): [string, number] {
     return [code, 0];
   }
 
@@ -226,21 +226,29 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     return [
       getCompletionsExtension(),
       customPythonLanguageSupport(),
-      placeholderType === "marimo-import"
-        ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
-        : placeholderType === "ai"
-          ? clickablePlaceholderExtension({
-              beforeText: "Start coding or ",
-              linkText: "generate",
-              afterText: " with AI.",
-              onClick: (ev) => {
-                const cellActions = ev.state.facet(cellActionsState);
-                cellActions.aiCellCompletion();
-              },
-            })
-          : [],
+      getPlaceholderExtension(placeholderType),
     ];
   }
+}
+
+function getPlaceholderExtension(placeholderType: PlaceholderType): Extension {
+  if (placeholderType === "marimo-import") {
+    return Prec.highest(smartPlaceholderExtension("import marimo as mo"));
+  }
+
+  if (placeholderType === "ai") {
+    return clickablePlaceholderExtension({
+      beforeText: "Start coding or ",
+      linkText: "generate",
+      afterText: " with AI.",
+      onClick: (ev) => {
+        const cellActions = ev.state.facet(cellActionsState);
+        cellActions.aiCellCompletion();
+      },
+    });
+  }
+
+  return [];
 }
 
 // Customize python to support folding some additional syntax nodes
