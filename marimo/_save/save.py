@@ -94,6 +94,7 @@ class _cache_call:
         self.hash_type = hash_type
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
+        self._last_hash: Optional[str] = None
         if _fn is None:
             self.fn = None
         else:
@@ -194,9 +195,10 @@ class _cache_call:
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
         kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
+        ctx = get_context()
         scope = {
             **self.scope,
-            **get_context().globals,
+            **ctx.globals,
             **arg_dict,
             **kwargs_copy,
         }
@@ -210,14 +212,26 @@ class _cache_call:
             as_fn=True,
         )
 
-        if attempt.hit:
-            attempt.restore(scope)
-            return attempt.meta["return"]
-        response = self.fn(*args, **kwargs)
-        # stateful variables may be global
-        scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
-        attempt.update(scope, meta={"return": response})
-        self.loader.save_cache(attempt)
+        failed = False
+        self._last_hash = attempt.hash
+        try:
+            if attempt.hit:
+                attempt.restore(scope)
+                return attempt.meta["return"]
+            response = self.fn(*args, **kwargs)
+            # stateful variables may be global
+            scope = {
+                k: v for k, v in scope.items() if k in attempt.stateful_refs
+            }
+            attempt.update(scope, meta={"return": response})
+            self.loader.save_cache(attempt)
+        except Exception as e:
+            failed = True
+            raise e
+        finally:
+            # NB. Exceptions raise their own side effects.
+            if not failed:
+                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
         return response
 
 
