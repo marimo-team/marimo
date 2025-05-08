@@ -94,6 +94,12 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
       typeof output.data === "string" && output.data.includes("(Pdb)"),
   );
 
+  // Find the index of the last stdin output since we only want to show
+  // the pdb prompt once
+  const lastStdInputIdx = reversedOutputs.findIndex(
+    (output) => output.channel === "stdin",
+  );
+
   return (
     <div
       title={stale ? "This console output is stale" : undefined}
@@ -119,7 +125,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
           const originalIdx = consoleOutputs.length - idx - 1;
 
-          if (output.response == null) {
+          if (output.response == null && lastStdInputIdx === idx) {
             return (
               <StdInput
                 key={idx}
@@ -177,13 +183,24 @@ const StdInput = (props: {
         icon={<ChevronRightIcon className="w-5 h-5" />}
         className="m-0 h-8 focus-visible:shadow-xsSolid"
         placeholder="stdin"
-        onKeyDown={(e) => {
+        // Capture the keydown event to prevent default behavior
+        onKeyDownCapture={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             props.onSubmit(e.currentTarget.value);
+            e.preventDefault();
+            e.stopPropagation();
+          }
+
+          // Prevent running the cell
+          if (e.key === "Enter" && e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
           }
         }}
       />
-      <DebuggerControls onSubmit={props.onSubmit} onClear={props.onClear} />
+      {props.isPdb && (
+        <DebuggerControls onSubmit={props.onSubmit} onClear={props.onClear} />
+      )}
     </div>
   );
 };
