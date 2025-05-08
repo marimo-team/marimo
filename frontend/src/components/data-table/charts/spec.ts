@@ -7,6 +7,8 @@ import {
   DEFAULT_BIN_VALUE,
   type ChartSchema,
   type AxisSchema,
+  type RowFacet,
+  type ColumnFacet,
 } from "./schemas";
 import {
   ChartType,
@@ -17,18 +19,21 @@ import {
 import type { z } from "zod";
 import type { Mark } from "@/plugins/impl/vega/types";
 import { logNever } from "@/utils/assertNever";
-import type { Type } from "vega-lite/build/src/type";
+import type { StandardType } from "vega-lite/build/src/type";
 import type {
   ColorDef,
+  Field,
   OffsetDef,
   PolarDef,
   PositionDef,
   StringFieldDef,
 } from "vega-lite/build/src/channeldef";
-import type { ColorScheme } from "vega";
+import type { ColorScheme, ExprRef, SignalRef } from "vega";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
-import type { Tooltip } from "./forms/form-components";
+import type { Tooltip } from "./forms/form-fields";
+import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
+import type { Aggregate } from "vega-lite/build/src/aggregate";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -45,8 +50,15 @@ export function createVegaSpec(
   height: number,
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 ): TopLevelSpec | ErrorMessage {
-  const { xColumn, yColumn, colorByColumn, horizontal, stacking, title } =
-    formValues.general;
+  const {
+    xColumn,
+    yColumn,
+    colorByColumn,
+    horizontal,
+    stacking,
+    title,
+    facet,
+  } = formValues.general;
 
   if (chartType === ChartType.PIE) {
     return getPieChartSpec(data, formValues, theme, width, height);
@@ -91,6 +103,11 @@ export function createVegaSpec(
     chartType,
   );
 
+  const rowFacet = facet?.row.field ? getFacetEncoding(facet.row) : undefined;
+  const columnFacet = facet?.column.field
+    ? getFacetEncoding(facet.column)
+    : undefined;
+
   // Create the final spec
   return {
     ...getBaseSpec(data, formValues, theme, width, height, title),
@@ -101,6 +118,8 @@ export function createVegaSpec(
       xOffset: EncodingUtils.getOffset(chartType, formValues),
       ...ColorUtils.getColor(chartType, formValues),
       tooltip: EncodingUtils.getTooltips(formValues),
+      row: rowFacet,
+      column: columnFacet,
     },
   };
 }
@@ -128,10 +147,21 @@ export function getAxisEncoding(
     bin: EncodingUtils.getBin(binValues, chartType),
     title: label,
     stack: stack,
-    aggregate:
-      column.aggregate === NONE_AGGREGATION ? undefined : column.aggregate,
+    aggregate: EncodingUtils.getAggregate(column.aggregate),
     timeUnit:
       column.selectedDataType === "temporal" ? column.timeUnit : undefined,
+  };
+}
+
+export function getFacetEncoding(
+  facet: z.infer<typeof RowFacet> | z.infer<typeof ColumnFacet>,
+): FacetFieldDef<Field, ExprRef | SignalRef> {
+  return {
+    field: facet.field,
+    // sort: facet.sort,
+    // timeUnit: facet.timeUnit,
+    // type: TypeConverters.toVegaType(facet.selectedDataType || "unknown"),
+    // aggregate: EncodingUtils.getAggregate(facet.aggregate),
   };
 }
 
@@ -213,7 +243,7 @@ function getBaseSpec(
 
 // Type conversion utilities
 export const TypeConverters = {
-  toVegaType(dataType: DataType | SelectableDataType): Type {
+  toVegaType(dataType: DataType | SelectableDataType): StandardType {
     switch (dataType) {
       case "number":
       case "integer":
@@ -326,6 +356,12 @@ const EncodingUtils = {
       return undefined;
     }
     return { field: formValues.general.colorByColumn?.field };
+  },
+
+  getAggregate(aggregate: string | undefined): Aggregate | undefined {
+    return aggregate === NONE_AGGREGATION
+      ? undefined
+      : (aggregate as Aggregate);
   },
 
   getTooltipAggregate(

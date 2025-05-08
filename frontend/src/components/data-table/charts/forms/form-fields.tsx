@@ -3,7 +3,7 @@
 import React from "react";
 import { capitalize } from "lodash-es";
 import { XIcon, PlusIcon, SquareFunctionIcon } from "lucide-react";
-import type { UseFormReturn, Path, PathValue } from "react-hook-form";
+import { type Path, type PathValue, useFormContext } from "react-hook-form";
 import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
@@ -51,8 +51,8 @@ import {
   TIME_UNIT_DESCRIPTIONS,
 } from "../constants";
 import { TypeConverters } from "../spec";
-import { IconWithText } from "./chart-components";
 import { Slider } from "@/components/ui/slider";
+import { IconWithText } from "../common/layouts";
 
 const CLEAR_VALUE = "__clear__";
 
@@ -67,36 +67,34 @@ export interface Tooltip {
 }
 
 interface BaseFormFieldProps<T extends object> {
-  form: UseFormReturn<T>;
-  name: Path<T>;
-  formFieldLabel: string;
+  fieldName: Path<T>;
+  label: string;
   className?: string;
 }
 
 export const ColumnSelector = <T extends object>({
-  form,
-  name,
+  fieldName,
   columns,
   onValueChange,
   includeCountField = true,
 }: {
-  form: UseFormReturn<T>;
-  name: Path<T>;
+  fieldName: Path<T>;
   columns: Array<{ name: string; type: DataType }>;
   onValueChange?: (fieldName: string, type: DataType | undefined) => void;
   includeCountField?: boolean;
 }) => {
+  const form = useFormContext<T>();
   type AnyPath = Path<T>;
   type AnyPathValue = PathValue<T, Path<T>>;
   const ANY_VALUE = EMPTY_VALUE as AnyPathValue;
-  const pathType = name.replace(".field", ".type") as AnyPath;
-  const pathSelectedDataType = name.replace(
+  const pathType = fieldName.replace(".field", ".type") as AnyPath;
+  const pathSelectedDataType = fieldName.replace(
     ".field",
     ".selectedDataType",
   ) as AnyPath;
 
   const clear = () => {
-    form.setValue(name, ANY_VALUE);
+    form.setValue(fieldName, ANY_VALUE);
     form.setValue(pathType, ANY_VALUE);
     form.setValue(pathSelectedDataType, ANY_VALUE);
     onValueChange?.(EMPTY_VALUE, undefined);
@@ -105,7 +103,7 @@ export const ColumnSelector = <T extends object>({
   return (
     <FormField
       control={form.control}
-      name={name}
+      name={fieldName}
       render={({ field }) => (
         <FormItem>
           <FormControl>
@@ -120,17 +118,17 @@ export const ColumnSelector = <T extends object>({
 
                 // Handle count
                 if (value === COUNT_FIELD) {
-                  form.setValue(name, value as AnyPathValue);
+                  form.setValue(fieldName, value as AnyPathValue);
                   form.setValue(pathType, ANY_VALUE);
                   form.setValue(pathSelectedDataType, ANY_VALUE);
-                  onValueChange?.(name, "number");
+                  onValueChange?.(fieldName, "number");
                   return;
                 }
 
                 // Handle column selection
                 const column = columns.find((column) => column.name === value);
                 if (column) {
-                  form.setValue(name, value as AnyPathValue);
+                  form.setValue(fieldName, value as AnyPathValue);
                   form.setValue(pathType, column.type as AnyPathValue);
                   form.setValue(
                     pathSelectedDataType,
@@ -138,7 +136,7 @@ export const ColumnSelector = <T extends object>({
                       column.type,
                     ) as AnyPathValue,
                   );
-                  onValueChange?.(name, column.type);
+                  onValueChange?.(fieldName, column.type);
                 }
               }}
               value={field.value ?? EMPTY_VALUE}
@@ -193,124 +191,132 @@ export const ColumnSelector = <T extends object>({
 };
 
 export const SelectField = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   options,
   defaultValue,
 }: BaseFormFieldProps<T> & {
   options: Array<{ display: React.ReactNode; value: string }>;
   defaultValue: string;
-}) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => (
-      <FormItem className="flex flex-row items-center justify-between">
-        <FormLabel>{formFieldLabel}</FormLabel>
-        <FormControl>
-          <Select
-            {...field}
-            onValueChange={field.onChange}
-            value={field.value ?? defaultValue}
-          >
-            <SelectTrigger className="truncate">
-              <SelectValue placeholder="Select an option" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {options
-                  .filter((option) => option.value !== EMPTY_VALUE)
-                  .map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.display}
-                    </SelectItem>
-                  ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FormControl>
-      </FormItem>
-    )}
-  />
-);
+}) => {
+  const form = useFormContext<T>();
+  return (
+    <FormField
+      control={form.control}
+      name={fieldName}
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center justify-between">
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Select
+              {...field}
+              onValueChange={field.onChange}
+              value={field.value ?? defaultValue}
+            >
+              <SelectTrigger className="truncate">
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {options
+                    .filter((option) => option.value !== EMPTY_VALUE)
+                    .map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.display}
+                      </SelectItem>
+                    ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
 
 export const InputField = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
-}: BaseFormFieldProps<T>) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => (
-      <FormItem className="flex flex-row gap-2 items-center">
-        <FormLabel>{formFieldLabel}</FormLabel>
-        <FormControl>
-          <DebouncedInput
-            {...field}
-            value={field.value ?? EMPTY_VALUE}
-            onValueChange={field.onChange}
-            className="text-xs h-5"
-          />
-        </FormControl>
-      </FormItem>
-    )}
-  />
-);
+  fieldName,
+  label,
+}: BaseFormFieldProps<T>) => {
+  const form = useFormContext<T>();
+  return (
+    <FormField
+      control={form.control}
+      name={fieldName}
+      render={({ field }) => (
+        <FormItem className="flex flex-row gap-2 items-center">
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <DebouncedInput
+              {...field}
+              value={field.value ?? EMPTY_VALUE}
+              onValueChange={field.onChange}
+              className="text-xs h-5"
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
 
 export const NumberField = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   className,
   ...props
 }: BaseFormFieldProps<T> &
-  Omit<NumberFieldProps, "value" | "onValueChange">) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => (
-      <FormItem className={cn("flex flex-row items-center gap-2", className)}>
-        <FormLabel className="whitespace-nowrap">{formFieldLabel}</FormLabel>
-        <FormControl>
-          <DebouncedNumberInput
-            {...field}
-            value={field.value ?? DEFAULT_BIN_VALUE}
-            onValueChange={field.onChange}
-            aria-label={formFieldLabel}
-            {...props}
-            className="w-16"
-          />
-        </FormControl>
-      </FormItem>
-    )}
-  />
-);
+  Omit<NumberFieldProps, "value" | "onValueChange">) => {
+  const form = useFormContext<T>();
+  return (
+    <FormField
+      control={form.control}
+      name={fieldName}
+      render={({ field }) => (
+        <FormItem className={cn("flex flex-row items-center gap-2", className)}>
+          <FormLabel className="whitespace-nowrap">{label}</FormLabel>
+          <FormControl>
+            <DebouncedNumberInput
+              {...field}
+              value={field.value ?? DEFAULT_BIN_VALUE}
+              onValueChange={field.onChange}
+              aria-label={label}
+              {...props}
+              className="w-16"
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
 
 export const BooleanField = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   className,
-}: BaseFormFieldProps<T>) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => (
-      <FormItem className={cn("flex flex-row items-center gap-2", className)}>
-        <FormLabel>{formFieldLabel}</FormLabel>
-        <FormControl>
-          <Checkbox
-            checked={field.value}
-            onCheckedChange={field.onChange}
-            className="w-4 h-4"
-          />
-        </FormControl>
-      </FormItem>
-    )}
-  />
-);
+}: BaseFormFieldProps<T>) => {
+  const form = useFormContext<T>();
+  return (
+    <FormField
+      control={form.control}
+      name={fieldName}
+      render={({ field }) => (
+        <FormItem className={cn("flex flex-row items-center gap-2", className)}>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Checkbox
+              checked={field.value}
+              onCheckedChange={field.onChange}
+              className="w-4 h-4"
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
 
 interface SliderFieldProps<T extends object> extends BaseFormFieldProps<T> {
   value: number;
@@ -320,9 +326,8 @@ interface SliderFieldProps<T extends object> extends BaseFormFieldProps<T> {
 }
 
 export const SliderField = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   value,
   start,
   stop,
@@ -331,6 +336,7 @@ export const SliderField = <T extends object>({
   ...props
 }: SliderFieldProps<T>) => {
   const [internalValue, setInternalValue] = React.useState(value);
+  const form = useFormContext<T>();
 
   // Update internal value on prop change
   React.useEffect(() => {
@@ -340,17 +346,17 @@ export const SliderField = <T extends object>({
   return (
     <FormField
       control={form.control}
-      name={name}
+      name={fieldName}
       render={({ field }) => (
         <FormItem
           className={cn("flex flex-row items-center gap-2 w-1/2", className)}
         >
-          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormLabel>{label}</FormLabel>
           <FormControl>
             <Slider
               {...field}
               {...props}
-              id={name}
+              id={fieldName}
               className="relative flex items-center select-none"
               value={[internalValue]}
               min={start}
@@ -364,7 +370,7 @@ export const SliderField = <T extends object>({
               // Triggered on mouse up
               onValueCommit={([nextValue]) => {
                 field.onChange(nextValue);
-                form.setValue(name, nextValue as PathValue<T, Path<T>>);
+                form.setValue(fieldName, nextValue as PathValue<T, Path<T>>);
               }}
               valueMap={(value) => value}
             />
@@ -376,40 +382,40 @@ export const SliderField = <T extends object>({
 };
 
 export const ColorArrayField = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   className,
 }: BaseFormFieldProps<T>) => {
-  const formValue = form.watch(name);
+  const form = useFormContext<T>();
+  const formValue = form.watch(fieldName);
   const [colors, setColors] = React.useState<string[]>(formValue ?? []);
 
   const addColor = () => {
     const newColors = [...colors, "#000000"];
     setColors(newColors);
-    form.setValue(name, newColors as PathValue<T, Path<T>>);
+    form.setValue(fieldName, newColors as PathValue<T, Path<T>>);
   };
 
   const removeColor = (index: number) => {
     const newColors = colors.filter((_, i) => i !== index);
     setColors(newColors);
-    form.setValue(name, newColors as PathValue<T, Path<T>>);
+    form.setValue(fieldName, newColors as PathValue<T, Path<T>>);
   };
 
   const updateColor = (index: number, value: string) => {
     const newColors = [...colors];
     newColors[index] = value;
     setColors(newColors);
-    form.setValue(name, newColors as PathValue<T, Path<T>>);
+    form.setValue(fieldName, newColors as PathValue<T, Path<T>>);
   };
 
   return (
     <FormField
       control={form.control}
-      name={name}
+      name={fieldName}
       render={() => (
         <FormItem className={cn("flex flex-col gap-2", className)}>
-          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormLabel>{label}</FormLabel>
           <div className="flex flex-col gap-2">
             {colors.map((color, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -449,12 +455,12 @@ export const ColorArrayField = <T extends object>({
 };
 
 export const TimeUnitSelect = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
 }: BaseFormFieldProps<T>) => {
+  const form = useFormContext<T>();
   const clear = () => {
-    form.setValue(name, EMPTY_VALUE as PathValue<T, Path<T>>);
+    form.setValue(fieldName, EMPTY_VALUE as PathValue<T, Path<T>>);
   };
 
   const renderTimeUnit = (unit: TimeUnit) => {
@@ -477,10 +483,10 @@ export const TimeUnitSelect = <T extends object>({
   return (
     <FormField
       control={form.control}
-      name={name}
+      name={fieldName}
       render={({ field }) => (
         <FormItem className="flex flex-row items-center justify-between w-full">
-          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormLabel>{label}</FormLabel>
           <FormControl>
             <Select
               {...field}
@@ -523,9 +529,8 @@ export const TimeUnitSelect = <T extends object>({
 };
 
 export const DataTypeSelect = <T extends object>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   defaultValue,
   onValueChange,
 }: BaseFormFieldProps<T> & {
@@ -533,14 +538,15 @@ export const DataTypeSelect = <T extends object>({
   onValueChange?: (value: string) => void;
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
+  const form = useFormContext<T>();
 
   return (
     <FormField
       control={form.control}
-      name={name}
+      name={fieldName}
       render={({ field }) => (
         <FormItem className="flex flex-row items-center justify-between w-full">
-          <FormLabel>{formFieldLabel}</FormLabel>
+          <FormLabel>{label}</FormLabel>
           <FormControl>
             <Select
               {...field}
@@ -587,104 +593,107 @@ export const DataTypeSelect = <T extends object>({
 };
 
 export const AggregationSelect = <T extends object>({
-  form,
-  name,
-}: { form: UseFormReturn<T>; name: Path<T> }) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => (
-      <FormItem>
-        <FormControl>
-          <Select
-            {...field}
-            value={field.value ?? NONE_AGGREGATION}
-            onValueChange={field.onChange}
-          >
-            <SelectTrigger variant="ghost">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Aggregation</SelectLabel>
-                {AGGREGATION_FNS.map((agg) => {
-                  const Icon = AGGREGATION_TYPE_ICON[agg];
-                  return (
-                    <SelectItem
-                      key={agg}
-                      value={agg}
-                      className="flex flex-col items-start justify-center"
-                      subtitle={
-                        <span className="text-xs text-muted-foreground pr-10">
-                          {AGGREGATION_TYPE_DESCRIPTIONS[agg]}
-                        </span>
-                      }
-                    >
-                      <div className="flex items-center">
-                        <Icon className="w-3 h-3 mr-2" />
-                        {capitalize(agg)}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FormControl>
-      </FormItem>
-    )}
-  />
-);
+  fieldName,
+}: { fieldName: Path<T> }) => {
+  const form = useFormContext<T>();
+  return (
+    <FormField
+      control={form.control}
+      name={fieldName}
+      render={({ field }) => (
+        <FormItem>
+          <FormControl>
+            <Select
+              {...field}
+              value={field.value ?? NONE_AGGREGATION}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger variant="ghost">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Aggregation</SelectLabel>
+                  {AGGREGATION_FNS.map((agg) => {
+                    const Icon = AGGREGATION_TYPE_ICON[agg];
+                    return (
+                      <SelectItem
+                        key={agg}
+                        value={agg}
+                        className="flex flex-col items-start justify-center"
+                        subtitle={
+                          <span className="text-xs text-muted-foreground pr-10">
+                            {AGGREGATION_TYPE_DESCRIPTIONS[agg]}
+                          </span>
+                        }
+                      >
+                        <div className="flex items-center">
+                          <Icon className="w-3 h-3 mr-2" />
+                          {capitalize(agg)}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+};
 
 export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
-  form,
-  name,
-  formFieldLabel,
+  fieldName,
+  label,
   fields,
   saveFunction,
 }: {
-  form: UseFormReturn<T>;
-  formFieldLabel?: string;
-  name: Path<T>;
+  fieldName: Path<T>;
+  label?: string;
   fields: Field[];
   saveFunction: () => void;
-}) => (
-  <FormField
-    control={form.control}
-    name={name}
-    render={({ field }) => {
-      const tooltips = field.value as Tooltip[] | undefined;
-      return (
-        <FormItem className="flex flex-row gap-2 items-center">
-          {formFieldLabel && <FormLabel>{formFieldLabel}</FormLabel>}
-          <FormControl>
-            <Multiselect
-              options={fields?.map((field) => field.name) ?? []}
-              value={tooltips?.map((t) => t.field) ?? []}
-              setValue={(values) => {
-                const selectedValues =
-                  typeof values === "function" ? values([]) : values;
+}) => {
+  const form = useFormContext<T>();
+  return (
+    <FormField
+      control={form.control}
+      name={fieldName}
+      render={({ field }) => {
+        const tooltips = field.value as Tooltip[] | undefined;
+        return (
+          <FormItem className="flex flex-row gap-2 items-center">
+            {label && <FormLabel>{label}</FormLabel>}
+            <FormControl>
+              <Multiselect
+                options={fields?.map((field) => field.name) ?? []}
+                value={tooltips?.map((t) => t.field) ?? []}
+                setValue={(values) => {
+                  const selectedValues =
+                    typeof values === "function" ? values([]) : values;
 
-                const tooltipObjects = selectedValues.map((fieldName) => {
-                  const fieldType = fields?.find(
-                    (f) => f.name === fieldName,
-                  )?.type;
+                  const tooltipObjects = selectedValues.map((fieldName) => {
+                    const fieldType = fields?.find(
+                      (f) => f.name === fieldName,
+                    )?.type;
 
-                  return {
-                    field: fieldName,
-                    type: fieldType ?? "string",
-                  };
-                });
+                    return {
+                      field: fieldName,
+                      type: fieldType ?? "string",
+                    };
+                  });
 
-                field.onChange(tooltipObjects);
-                saveFunction();
-              }}
-              label={null}
-              fullWidth={false}
-            />
-          </FormControl>
-        </FormItem>
-      );
-    }}
-  />
-);
+                  field.onChange(tooltipObjects);
+                  saveFunction();
+                }}
+                label={null}
+                fullWidth={false}
+              />
+            </FormControl>
+          </FormItem>
+        );
+      }}
+    />
+  );
+};
