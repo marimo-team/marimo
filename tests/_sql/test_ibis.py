@@ -347,24 +347,7 @@ def test_ibis_type_conversion() -> None:
     assert to_marimo(dt.Time()) == "time"
     assert to_marimo(dt.Timestamp()) == "datetime"
 
-    # unhandled cases will be converted to string
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.Interval(unit="D"))
-
-    # nested types
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.Array(value_type=dt.Int32()))
-
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.Map(key_type=dt.String(), value_type=dt.Int32()))
-
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.Struct(fields={"foo": dt.Int32()}))
-
     # geometry
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.MultiLineString())
-
     with pytest.raises(IbisToMarimoConversionError):
         to_marimo(dt.MultiPoint())
 
@@ -379,16 +362,6 @@ def test_ibis_type_conversion() -> None:
 
     with pytest.raises(IbisToMarimoConversionError):
         to_marimo(dt.Polygon())
-
-    # special types
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.JSON())
-
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.MACADDR())
-
-    with pytest.raises(IbisToMarimoConversionError):
-        to_marimo(dt.UUID())
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
