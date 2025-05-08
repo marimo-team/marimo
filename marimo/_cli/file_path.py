@@ -87,7 +87,9 @@ class GitHubIssueReader(FileReader):
 class StaticNotebookReader(FileReader):
     CODE_TAG = r"marimo-code"
     CODE_REGEX = re.compile(r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
-    FILENAME_REGEX = re.compile(r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
+    FILENAME_REGEX = re.compile(
+        r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>(.*?)<"
+    )
 
     def can_read(self, name: str) -> bool:
         return self._is_static_marimo_notebook_url(name)[0]
@@ -136,14 +138,14 @@ class StaticNotebookReader(FileReader):
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
         search = re.search(StaticNotebookReader.CODE_REGEX, file_contents)
-        assert search is not None, (
-            "<marimo-code> not found in file contents"
-        )
+        assert search is not None, "<marimo-code> not found in file contents"
         return urllib.parse.unquote(search.group(1))
 
     @staticmethod
     def _extract_filename_from_static_notebook(file_contents: str) -> str:
-        if search := re.search(StaticNotebookReader.FILENAME_REGEX, file_contents):
+        if search := re.search(
+            StaticNotebookReader.FILENAME_REGEX, file_contents
+        ):
             return urllib.parse.unquote(search.group(1))
         return "notebook.py"
 
