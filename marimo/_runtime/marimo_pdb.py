@@ -76,7 +76,6 @@ class MarimoPdb(Pdb):
         # evaluation.
         self._last_tracebacks: dict[CellId_t, TracebackType] = {}
         self._last_traceback: Optional[TracebackType] = None
-        self._active: Optional[CellId_t] = None
 
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
