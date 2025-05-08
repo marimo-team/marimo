@@ -345,17 +345,17 @@ class _cache_context(SkipContext):
                 f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
 
+        # Cache hit is acceptable, because SkipWithBlock is raised.
+        # NB: exception is a type.
+        if exception and (self._cache is None or not self._cache.hit):
+            if isinstance(instance, BaseException):
+                raise instance from CacheException("Failure during save.")
+            raise exception
+
         if self._cache is None or self._frame is None:
             raise CacheException(
                 f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
-
-        # Cache hit is acceptable, because SkipWithBlock is raised.
-        # NB: exception is a type.
-        if exception and not self._cache.hit:
-            if isinstance(instance, BaseException):
-                raise instance from CacheException("Failure during save.")
-            raise exception
 
         failed = False
         try:

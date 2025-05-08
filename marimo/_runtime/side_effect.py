@@ -4,13 +4,10 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING
 
-from marimo import _loggers
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 
 if TYPE_CHECKING:
     from marimo._runtime.context.types import RuntimeContext
-
-LOGGER = _loggers.marimo_logger()
 
 
 class SideEffect(CellLifecycleItem):

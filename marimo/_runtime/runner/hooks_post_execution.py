@@ -256,16 +256,17 @@ def _issue_exception_side_effect(
         key = type(exception).__name__
         traceback = getattr(exception, "__traceback__", None)
         if traceback:
-            # Side effect hash id the exception name
+            # Side effect hash is the exception name
             # AND the instruction pointer.
             # Side effect has to be relatively robust to code changes
-            #  - Barring line number since comments should not effect
-            #  - Barring stacktrace since file path should be agnostic
+            #  - Bars line number since comments should not effect
+            #  - Bars stacktrace since file path should be agnostic
             # Code content is already utilized in hash, and tb_lasti is the
             # bytecode instruction pointer. So if the code is the same, then the
             # difference can be captured by where in the evaluation the exception
             # was raised.
             key += f":{traceback.tb_lasti}"
+        # NB. This is on a cell level.
         ctx.cell_lifecycle_registry.add(SideEffect(key))
 
 
