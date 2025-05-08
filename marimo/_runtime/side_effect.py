@@ -20,10 +20,9 @@ class SideEffect(CellLifecycleItem):
         return self._key
 
     @property
-    def hash(self) -> str:
-        """Hash the object to a string"""
-        # Hash for a consistent key size
-        return hashlib.sha256(self._key.encode()).hexdigest()
+    def hash(self) -> bytes:
+        """Hash the lookup to a consistent size."""
+        return hashlib.sha256(self._key.encode()).digest()
 
     def create(self, context: RuntimeContext | None) -> None:
         """NoOp for side effect.

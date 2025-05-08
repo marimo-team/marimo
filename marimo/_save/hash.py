@@ -904,12 +904,11 @@ class BlockHasher:
         side_effects = []
         for cell_id in cell_ids:
             if cell_id in ctx.cell_lifecycle_registry.registry:
+                registry = ctx.cell_lifecycle_registry.registry[cell_id]
                 side_effects.extend(
                     [
-                        bytes(obj.hash, "utf-8")
-                        for obj in ctx.cell_lifecycle_registry.registry[
-                            cell_id
-                        ]
+                        obj.hash
+                        for obj in registry
                         if isinstance(obj, SideEffect)
                     ]
                 )
