@@ -124,15 +124,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const { theme } = useTheme();
 
   return (
-    <div
-      className={cn(
-        "flex flex-col w-full rounded-[inherit] overflow-hidden",
-        className,
-      )}
-    >
+    <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
+          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
           enabled && "max-h-[400px] min-h-11 visible",
           !enabled && "max-h-0 min-h-0 invisible",
         )}

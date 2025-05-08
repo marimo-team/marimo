@@ -27,8 +27,9 @@
   background-color: transparent;
 }
 
-.cm-scroller {
-  overflow: auto;
+.marimo-cell .cm-scroller {
+  /* this needs to be visible to show RTC cursors and inline AI edit buttons */
+  overflow: visible;
 }
 
 /* -- Tooltips: code completion and type hints -- */

@@ -23,7 +23,7 @@ import { Logger } from "@/utils/Logger";
  * @param doc - LoroDoc instance
  * @returns Extension
  */
-export const LoroSyncPlugin = (
+export const loroSyncPlugin = (
   doc: LoroDoc,
   docPath: string[],
   getTextFromDoc: (doc: LoroDoc) => LoroText,
