@@ -36,7 +36,7 @@ pip install marimo && marimo tutorial intro
 /// tab | install with uv
 
 ```bash
-uv add marimo && marimo tutorial intro
+uv add marimo && uv run marimo tutorial intro
 ```
 
 ///
