@@ -9,11 +9,11 @@ import Markdown, { type Components } from "react-markdown";
 import { useEffect, useState, memo, useMemo } from "react";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { copyToClipboard } from "@/utils/copy";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useAtomValue } from "jotai";
 import { autoInstantiateAtom } from "@/core/config/config";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { marked } from "marked";
 
 const extensions = [EditorView.lineWrapping];

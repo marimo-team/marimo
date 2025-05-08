@@ -3,7 +3,7 @@ import { expect, describe, it, beforeEach } from "vitest";
 import {
   MarkdownLanguageAdapter,
   type MarkdownLanguageAdapterMetadata,
-} from "../markdown";
+} from "../languages/markdown";
 import { getQuotePrefix } from "../panel/markdown";
 
 const adapter = new MarkdownLanguageAdapter();

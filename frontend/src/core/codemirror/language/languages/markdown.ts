@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
-import type { LanguageAdapter } from "./types";
+import type { LanguageAdapter } from "../types";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { python, pythonLanguage } from "@codemirror/lang-python";
 import { languages } from "@codemirror/language-data";
@@ -8,25 +8,25 @@ import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import { autocompletion } from "@codemirror/autocomplete";
-import { enhancedMarkdownExtension } from "../markdown/extension";
+import { enhancedMarkdownExtension } from "../../markdown/extension";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
   QUOTE_PREFIX_KINDS,
   type QuotePrefixKind,
   splitQuotePrefix,
-} from "./utils/quotes";
-import { markdownAutoRunExtension } from "../cells/extensions";
-import type { PlaceholderType } from "../config/types";
+} from "../utils/quotes";
+import { markdownAutoRunExtension } from "../../cells/extensions";
+import type { PlaceholderType } from "../../config/types";
 import type { CellId } from "@/core/cells/ids";
-import { parseLatex } from "./latex";
+import { parseLatex } from "../embedded/latex";
 import { StreamLanguage } from "@codemirror/language";
-import { parsePython } from "./embedded-python";
-import { conditionalCompletion } from "../completion/utils";
-import { pythonCompletionSource } from "../completion/completer";
-import { markdownCompletionSources } from "../markdown/completions";
+import { parsePython } from "../embedded/embedded-python";
+import { conditionalCompletion } from "../../completion/utils";
+import { pythonCompletionSource } from "../../completion/completer";
+import { markdownCompletionSources } from "../../markdown/completions";
 import { ViewPlugin } from "@codemirror/view";
-import { languageMetadataField } from "./metadata";
+import { languageMetadataField } from "../metadata";
 
 export interface MarkdownLanguageAdapterMetadata {
   quotePrefix: QuotePrefixKind;

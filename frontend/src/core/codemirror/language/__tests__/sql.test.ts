@@ -4,7 +4,7 @@ import {
   SQLCompletionStore,
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
-} from "../sql";
+} from "../languages/sql";
 import { store } from "@/core/state/jotai";
 import {
   dataSourceConnectionsAtom,

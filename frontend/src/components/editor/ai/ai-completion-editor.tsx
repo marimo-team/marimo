@@ -4,7 +4,7 @@ import CodeMirrorMerge from "react-codemirror-merge";
 import { useCompletion } from "ai/react";
 import { API } from "@/core/network/api";
 import { EditorView } from "@codemirror/view";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 

@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { LanguageAdapter, LanguageAdapterType } from "./types";
-import { PythonLanguageAdapter } from "./python";
-import { MarkdownLanguageAdapter } from "./markdown";
-import { SQLLanguageAdapter } from "./sql";
+import { PythonLanguageAdapter } from "./languages/python";
+import { MarkdownLanguageAdapter } from "./languages/markdown";
+import { SQLLanguageAdapter } from "./languages/sql";
 
 export const LanguageAdapters: Record<LanguageAdapterType, LanguageAdapter> = {
   // Getters to prevent circular dependencies
