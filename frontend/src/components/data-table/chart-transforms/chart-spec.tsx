@@ -28,7 +28,7 @@ import type {
 import type { ColorScheme } from "vega";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
-import type { Tooltip } from "./form-components";
+import type { Tooltip } from "./forms/form-components";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -43,6 +43,7 @@ export function createVegaSpec(
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 ): TopLevelSpec | ErrorMessage {
   const { xColumn, yColumn, colorByColumn, horizontal, stacking, title } =
     formValues.general;
@@ -212,7 +213,7 @@ function getBaseSpec(
 
 // Type conversion utilities
 export const TypeConverters = {
-  toVegaType(dataType: DataType | SelectableDataType): Type | undefined {
+  toVegaType(dataType: DataType | SelectableDataType): Type {
     switch (dataType) {
       case "number":
       case "integer":
@@ -228,7 +229,7 @@ export const TypeConverters = {
         return "temporal";
       default:
         logNever(dataType);
-        return undefined;
+        return "nominal";
     }
   },
 
@@ -314,6 +315,7 @@ const EncodingUtils = {
   getOffset(
     chartType: ChartType,
     formValues: z.infer<typeof ChartSchema>,
+    // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   ): OffsetDef<string> | undefined {
     // Offset only applies to bar charts, to unstack them
     if (

@@ -2,65 +2,36 @@
 
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  TableIcon,
-  XIcon,
-  InfoIcon,
-  DatabaseIcon,
-  PaintRollerIcon,
-} from "lucide-react";
+import { TableIcon, XIcon, DatabaseIcon, PaintRollerIcon } from "lucide-react";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import type { z } from "zod";
-import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChartSchema } from "./chart-schemas";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
 import type { CellId } from "@/core/cells/ids";
-import { capitalize } from "lodash-es";
 import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
 import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import {
-  AggregationSelect,
-  BooleanField,
-  ColorArrayField,
-  ColumnSelector,
-  type Field,
-  InputField,
-  NumberField,
-  DataTypeSelect,
-  SelectField,
-  SliderField,
-  TooltipSelect,
-} from "./form-components";
-import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "./constants";
+import type { Field } from "./forms/form-components";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
-import { FieldValidators, TypeConverters } from "./chart-spec";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   TabContainer,
-  Title,
   ChartLoadingState,
   ChartErrorState,
   ChartTypeSelect,
-  YAxis,
-  ColorByAxis,
-  XAxis,
-} from "./chart-components";
+} from "./forms/chart-components";
 import { ChartType } from "./types";
+import { HeatmapForm } from "./forms/heatmap";
+import { PieForm } from "./forms/pie";
+import { CommonChartForm, StyleForm } from "./forms/common";
 
-const NEW_TAB_NAME = "Line Chart" as TabName;
 const NEW_CHART_TYPE = "line" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 300;
@@ -359,9 +330,9 @@ const ChartFormContainer = ({
   let ChartForm = CommonChartForm;
 
   if (chartType === ChartType.PIE) {
-    ChartForm = PieChartForm;
+    ChartForm = PieForm;
   } else if (chartType === ChartType.HEATMAP) {
-    ChartForm = HeatmapChartForm;
+    ChartForm = HeatmapForm;
   }
 
   return (
@@ -404,254 +375,5 @@ const ChartFormContainer = ({
         </Tabs>
       </form>
     </Form>
-  );
-};
-
-const CommonChartForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-  chartType: ChartType;
-}> = ({ form, fields, saveForm, chartType }) => {
-  const formValues = useWatch({ control: form.control });
-  const yColumn = formValues.general?.yColumn;
-  const groupByColumn = formValues.general?.colorByColumn;
-
-  const yColumnExists = FieldValidators.exists(yColumn?.field);
-  const showStacking = FieldValidators.exists(groupByColumn?.field);
-
-  return (
-    <>
-      <XAxis form={form} fields={fields} />
-      <YAxis form={form} fields={fields} />
-
-      {yColumnExists && (
-        <>
-          <ColorByAxis form={form} fields={fields} />
-          {showStacking && (
-            <div className="flex flex-row gap-2">
-              <BooleanField
-                form={form}
-                name="general.stacking"
-                formFieldLabel="Stacked"
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      <hr className="my-2" />
-      <TooltipSelect
-        form={form}
-        name="general.tooltips"
-        fields={fields}
-        saveFunction={saveForm}
-        formFieldLabel="Tooltips"
-      />
-    </>
-  );
-};
-
-const HeatmapChartForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-  chartType: ChartType;
-}> = ({ form, fields, saveForm, chartType }) => {
-  const formValues = useWatch({ control: form.control });
-  const xColumnExists = FieldValidators.exists(
-    formValues.general?.xColumn?.field,
-  );
-  const yColumnExists = FieldValidators.exists(
-    formValues.general?.yColumn?.field,
-  );
-
-  return (
-    <>
-      <XAxis form={form} fields={fields} />
-      {xColumnExists && (
-        <NumberField
-          form={form}
-          name="xAxis.bin.maxbins"
-          formFieldLabel="Number of boxes (max)"
-          className="justify-between"
-        />
-      )}
-      <YAxis form={form} fields={fields} />
-      {yColumnExists && (
-        <NumberField
-          form={form}
-          name="yAxis.bin.maxbins"
-          formFieldLabel="Number of boxes (max)"
-          className="justify-between"
-        />
-      )}
-      <ColorByAxis form={form} fields={fields} />
-    </>
-  );
-};
-
-const PieChartForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-  chartType: ChartType;
-}> = ({ form, fields, saveForm, chartType }) => {
-  const formValues = useWatch({ control: form.control });
-  const colorByColumn = formValues.general?.colorByColumn;
-
-  const inferredColorByDataType = colorByColumn?.type
-    ? TypeConverters.toSelectableDataType(colorByColumn.type)
-    : "string";
-
-  return (
-    <>
-      <Title text="Color by" />
-      <ColumnSelector
-        form={form}
-        name="general.colorByColumn.field"
-        columns={fields}
-        includeCountField={false}
-      />
-      {FieldValidators.exists(colorByColumn?.field) && (
-        <DataTypeSelect
-          form={form}
-          name="general.colorByColumn.selectedDataType"
-          formFieldLabel="Data Type"
-          defaultValue={inferredColorByDataType}
-        />
-      )}
-
-      <Title text="Size by" />
-      <div className="flex flex-row justify-between">
-        <ColumnSelector
-          form={form}
-          name="general.yColumn.field"
-          columns={fields}
-        />
-        <AggregationSelect form={form} name="general.yColumn.aggregate" />
-      </div>
-
-      <hr />
-      <Title text="General" />
-      <TooltipSelect
-        form={form}
-        name="general.tooltips"
-        fields={fields}
-        saveFunction={saveForm}
-        formFieldLabel="Tooltips"
-      />
-      <NumberField
-        form={form}
-        name="style.innerRadius"
-        formFieldLabel="Donut size"
-        className="w-32"
-      />
-    </>
-  );
-};
-
-const StyleForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-}> = ({ form }) => {
-  const renderBinFields = (axis: "x" | "y") => {
-    return (
-      <div className="flex flex-row gap-2 w-full">
-        <BooleanField
-          form={form}
-          name={`${axis}Axis.bin.binned`}
-          formFieldLabel="Binned"
-        />
-        <NumberField
-          form={form}
-          name={`${axis}Axis.bin.step`}
-          formFieldLabel="Bin step"
-          step={0.05}
-          className="w-32"
-        />
-      </div>
-    );
-  };
-
-  return (
-    <Accordion type="multiple">
-      <AccordionItem value="general" className="border-none">
-        <AccordionTrigger className="pt-0 pb-2">
-          <Title text="General" />
-        </AccordionTrigger>
-        <AccordionContent wrapperClassName="pb-2">
-          <InputField
-            form={form}
-            formFieldLabel="Plot title"
-            name="general.title"
-          />
-        </AccordionContent>
-      </AccordionItem>
-
-      <AccordionItem value="xAxis" className="border-none">
-        <AccordionTrigger className="py-2">
-          <Title text="X-Axis" />
-        </AccordionTrigger>
-        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
-          <InputField form={form} formFieldLabel="Label" name="xAxis.label" />
-          <SliderField
-            form={form}
-            name="xAxis.width"
-            formFieldLabel="Width"
-            value={400}
-            start={200}
-            stop={800}
-          />
-          {renderBinFields("x")}
-        </AccordionContent>
-      </AccordionItem>
-
-      <AccordionItem value="yAxis" className="border-none">
-        <AccordionTrigger className="py-2">
-          <Title text="Y-Axis" />
-        </AccordionTrigger>
-        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
-          <InputField form={form} formFieldLabel="Label" name="yAxis.label" />
-          <SliderField
-            form={form}
-            name="yAxis.height"
-            formFieldLabel="Height"
-            value={300}
-            start={150}
-            stop={600}
-          />
-          {renderBinFields("y")}
-        </AccordionContent>
-      </AccordionItem>
-
-      <AccordionItem value="color" className="border-none">
-        <AccordionTrigger className="py-2">
-          <Title text="Color" />
-        </AccordionTrigger>
-        <AccordionContent wrapperClassName="pb-2 flex flex-col gap-2">
-          <SelectField
-            form={form}
-            name="color.scheme"
-            formFieldLabel="Color scheme"
-            defaultValue={DEFAULT_COLOR_SCHEME}
-            options={COLOR_SCHEMES.map((scheme) => ({
-              display: capitalize(scheme),
-              value: scheme,
-            }))}
-          />
-          <ColorArrayField
-            form={form}
-            name="color.range"
-            formFieldLabel="Color range"
-          />
-          <p className="text-xs">
-            <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
-            If you are using color range, color scheme will be ignored.
-          </p>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
   );
 };
