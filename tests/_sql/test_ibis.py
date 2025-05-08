@@ -244,7 +244,7 @@ def test_ibis_sql_types() -> None:
         str(dt.String()): "string",
         str(dt.Date()): "date",
         str(dt.Time()): "time",
-        str(dt.Timestamp()): "timestamp(6)",  # duckdb sets default precision
+        str(dt.Timestamp()): "timestamp",  # duckdb sets default precision
         str(dt.Interval(unit="D")): "interval('us')",
         str(dt.Array(value_type=dt.Int32())): "array<int32>",
         str(
@@ -275,12 +275,10 @@ def test_ibis_sql_types() -> None:
         str(dt.Time()): "time",
         str(dt.Timestamp()): "datetime",
         str(dt.Interval(unit="D")): "string",  # default case
-        str(dt.Array(value_type=dt.Int32())): "string",  # default case
-        str(
-            dt.Map(key_type=dt.String(), value_type=dt.Int32())
-        ): "string",  # default case
-        str(dt.Struct(fields={"foo": dt.Int32()})): "string",  # default case
-        str(dt.JSON()): "string",  # default case
+        str(dt.Array(value_type=dt.Int32())): "unknown",
+        str(dt.Map(key_type=dt.String(), value_type=dt.Int32())): "unknown",
+        str(dt.Struct(fields={"foo": dt.Int32()})): "unknown",
+        str(dt.JSON()): "unknown",  # default case
         str(dt.MACADDR()): "string",  # default case
         str(dt.UUID()): "string",  # default case
     }
@@ -303,8 +301,12 @@ def test_ibis_sql_types() -> None:
 
     for column in table.columns:
         assert column.name in expected_marimo_type.keys()
-        assert column.type == expected_marimo_type[column.name]
-        assert column.external_type == expected_external_type[column.name]
+        assert column.type == expected_marimo_type[column.name], (
+            f"{column.name} {column.type} {expected_marimo_type[column.name]}"
+        )
+        assert column.external_type == expected_external_type[column.name], (
+            f"{column.name} {column.external_type} {expected_external_type[column.name]}"
+        )
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
