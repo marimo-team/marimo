@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from pdb import Pdb
+from pdb import Pdb, Restart as pdbRestart
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
@@ -15,6 +15,38 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+
+def try_restart() -> bool:
+    from marimo._runtime.context import (
+        ContextNotInitializedError,
+        get_context,
+    )
+    from marimo._runtime.context.kernel_context import (
+        KernelRuntimeContext,
+    )
+    from marimo._runtime.requests import ExecuteMultipleRequest
+
+    try:
+        ctx = get_context()
+        if ctx is None or not isinstance(ctx, KernelRuntimeContext):
+            return False
+
+        graph = ctx.graph
+        if ctx.cell_id is None or ctx.cell_id not in graph.cells:
+            return False
+
+        # This runs the request and also runs UpdateCellCodes
+        ctx._kernel.enqueue_control_request(
+            ExecuteMultipleRequest(
+                cell_ids=[ctx.cell_id],
+                codes=[graph.cells[ctx.cell_id].code],
+            )
+        )
+    except ContextNotInitializedError:
+        return False
+
+    return True
 
 
 class MarimoPdb(Pdb):
@@ -44,6 +76,7 @@ class MarimoPdb(Pdb):
         # evaluation.
         self._last_tracebacks: dict[CellId_t, TracebackType] = {}
         self._last_traceback: Optional[TracebackType] = None
+        self._active: Optional[CellId_t] = None
 
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
@@ -51,6 +84,21 @@ class MarimoPdb(Pdb):
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
+
+    def cmdloop(self, intro: Optional[str] = None) -> None:
+        """Override to gracefully handle restarts."""
+        try:
+            super().cmdloop(intro)
+        except pdbRestart:
+            if not try_restart():
+                LOGGER.warning("Unable to restart cell.")
+
+    def do_run(self, arg: str) -> bool | None:
+        """super.do_run raises an error AND manipulates sys.argv"""
+        del arg  # unused
+        raise pdbRestart
+
+    do_restart = do_run
 
     def post_mortem_by_cell_id(self, cell_id: CellId_t) -> None:
         return self.post_mortem(t=self._last_tracebacks.get(cell_id))
