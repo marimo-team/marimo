@@ -2,11 +2,9 @@
 
 import { XAxis, YAxis, ColorByAxis } from "./chart-components";
 import { useWatch } from "react-hook-form";
-import type { ChartType } from "../types";
 import { FieldValidators } from "../spec";
 import type { UseFormReturn } from "react-hook-form";
 import type { ChartSchema } from "../schemas";
-import type { Field } from "./form-fields";
 import type { z } from "zod";
 import {
   NumberField,
@@ -34,10 +32,8 @@ import {
 
 export const CommonChartForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
   saveForm: () => void;
-  chartType: ChartType;
-}> = ({ form, fields, saveForm, chartType }) => {
+}> = ({ form }) => {
   const formValues = useWatch({ control: form.control });
   const yColumn = formValues.general?.yColumn;
   const groupByColumn = formValues.general?.colorByColumn;
@@ -47,12 +43,12 @@ export const CommonChartForm: React.FC<{
 
   return (
     <>
-      <XAxis form={form} fields={fields} />
-      <YAxis form={form} fields={fields} />
+      <XAxis />
+      <YAxis />
 
       {yColumnExists && (
         <>
-          <ColorByAxis form={form} fields={fields} />
+          <ColorByAxis />
           {showStacking && (
             <div className="flex flex-row gap-2">
               <BooleanField fieldName="general.stacking" label="Stacked" />
@@ -92,11 +88,7 @@ export const CommonChartForm: React.FC<{
   );
 };
 
-export const StyleForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-  saveForm: () => void;
-}> = ({ form }) => {
+export const StyleForm: React.FC = () => {
   const renderBinFields = (axis: "x" | "y") => {
     return (
       <div className="flex flex-row gap-2 w-full">

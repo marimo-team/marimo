@@ -4,15 +4,14 @@ import { useWatch } from "react-hook-form";
 import { FieldValidators } from "../spec";
 import type { UseFormReturn } from "react-hook-form";
 import type { ChartSchema } from "../schemas";
-import type { Field } from "./form-fields";
 import type { z } from "zod";
 import { NumberField } from "./form-fields";
 import { ColorByAxis, XAxis, YAxis } from "./chart-components";
 
 export const HeatmapForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-}> = ({ form, fields }) => {
+  saveForm: () => void;
+}> = ({ form }) => {
   const formValues = useWatch({ control: form.control });
   const xColumnExists = FieldValidators.exists(
     formValues.general?.xColumn?.field,
@@ -23,7 +22,7 @@ export const HeatmapForm: React.FC<{
 
   return (
     <>
-      <XAxis form={form} fields={fields} />
+      <XAxis />
       {xColumnExists && (
         <NumberField
           fieldName="xAxis.bin.maxbins"
@@ -31,7 +30,7 @@ export const HeatmapForm: React.FC<{
           className="justify-between"
         />
       )}
-      <YAxis form={form} fields={fields} />
+      <YAxis />
       {yColumnExists && (
         <NumberField
           fieldName="yAxis.bin.maxbins"
@@ -39,7 +38,7 @@ export const HeatmapForm: React.FC<{
           className="justify-between"
         />
       )}
-      <ColorByAxis form={form} fields={fields} />
+      <ColorByAxis />
     </>
   );
 };
