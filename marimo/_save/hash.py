@@ -28,6 +28,7 @@ from marimo._runtime.primitives import (
     is_primitive,
     is_pure_function,
 )
+from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import SetFunctor, State
 from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
@@ -422,6 +423,10 @@ class BlockHasher:
         # execution hashing.
         if refs:
             cache_type = "ExecutionPath"
+            if ctx:
+                self.collect_and_hash_side_effects(
+                    self.cells_from_refs(refs), ctx
+                )
             refs = self.hash_and_dequeue_execution_refs(refs)
         self.execution_refs -= refs | self.content_refs
 
@@ -432,6 +437,8 @@ class BlockHasher:
         # provided context.
         if refs:
             cache_type = "ContextExecutionPath"
+            if ctx:
+                self.collect_and_hash_side_effects({self.cell_id}, ctx)
             self.hash_and_verify_context_refs(refs, context)
         self.context_refs -= refs | self.content_refs | self.execution_refs
 
@@ -817,15 +824,7 @@ class BlockHasher:
         provided, as those references should be accounted for in that context.
         """
         self._hash = None
-
-        refs = set(refs)
-        # Execution path works by just analyzing the input cells to hash.
-        ancestors = self.graph.ancestors(self.cell_id)
-        # Prune to only the ancestors that are tied to the references.
-        ref_cells = set().union(
-            *[self.graph.definitions.get(ref, set()) for ref in refs]
-        )
-        to_hash = ancestors & ref_cells
+        to_hash = self.cells_from_refs(refs)
         for ancestor_id in to_hash:
             cell_impl = self.graph.cells[ancestor_id]
             for ref in cell_impl.defs:
@@ -892,6 +891,40 @@ class BlockHasher:
         )
         self.hash_alg.update(hash_raw_module(context, self.hash_alg.name))
         # refs have been accounted for at this point. Nothing to return
+
+    def collect_and_hash_side_effects(
+        self, cell_ids: set[CellId_t], ctx: RuntimeContext
+    ) -> None:
+        """Collect side effects from the context.
+
+        Args:
+            cell_ids: A set of cell ids to collect side effects from.
+            ctx: The runtime context to use for collection.
+        """
+        side_effects = []
+        for cell_id in cell_ids:
+            if cell_id in ctx.cell_lifecycle_registry.registry:
+                registry = ctx.cell_lifecycle_registry.registry[cell_id]
+                side_effects.extend(
+                    [
+                        obj.hash
+                        for obj in registry
+                        if isinstance(obj, SideEffect)
+                    ]
+                )
+
+        # Hash the side effects
+        self.hash_alg.update(b"".join(sorted(side_effects)))
+
+    def cells_from_refs(self, refs: set[Name]) -> set[CellId_t]:
+        refs = set(refs)
+        # Execution path works by just analyzing the input cells to hash.
+        ancestors = self.graph.ancestors(self.cell_id)
+        # Prune to only the ancestors that are tied to the references.
+        ref_cells = set().union(
+            *[self.graph.definitions.get(ref, set()) for ref in refs]
+        )
+        return ancestors & ref_cells
 
 
 def cache_attempt_from_hash(

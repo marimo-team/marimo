@@ -30,6 +30,7 @@ from marimo._ast.transformers import (
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
+from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
@@ -93,6 +94,7 @@ class _cache_call:
         self.hash_type = hash_type
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
+        self._last_hash: Optional[str] = None
         if _fn is None:
             self.fn = None
         else:
@@ -193,9 +195,10 @@ class _cache_call:
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
         kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
+        ctx = get_context()
         scope = {
             **self.scope,
-            **get_context().globals,
+            **ctx.globals,
             **arg_dict,
             **kwargs_copy,
         }
@@ -209,14 +212,26 @@ class _cache_call:
             as_fn=True,
         )
 
-        if attempt.hit:
-            attempt.restore(scope)
-            return attempt.meta["return"]
-        response = self.fn(*args, **kwargs)
-        # stateful variables may be global
-        scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
-        attempt.update(scope, meta={"return": response})
-        self.loader.save_cache(attempt)
+        failed = False
+        self._last_hash = attempt.hash
+        try:
+            if attempt.hit:
+                attempt.restore(scope)
+                return attempt.meta["return"]
+            response = self.fn(*args, **kwargs)
+            # stateful variables may be global
+            scope = {
+                k: v for k, v in scope.items() if k in attempt.stateful_refs
+            }
+            attempt.update(scope, meta={"return": response})
+            self.loader.save_cache(attempt)
+        except Exception as e:
+            failed = True
+            raise e
+        finally:
+            # NB. Exceptions raise their own side effects.
+            if not failed:
+                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
         return response
 
 
@@ -302,6 +317,7 @@ class _cache_context(SkipContext):
                 # Raising on the first valid line, prevents a discrepancy where
                 # whitespace in `With`, changes behavior.
                 self._body_start = save_module.body[0].lineno
+
                 if self._cache and self._cache.hit:
                     if lineno >= self._body_start:
                         self.skip()
@@ -329,39 +345,53 @@ class _cache_context(SkipContext):
                 f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
 
-        # Backfill the loaded values into global scope.
-        if self._cache and self._cache.hit:
-            assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
-            self._cache.restore(self._frame.f_locals)
-            # Return true to suppress the SkipWithBlock exception.
-            return True
-
+        # Cache hit is acceptable, because SkipWithBlock is raised.
         # NB: exception is a type.
-        if exception:
+        if exception and (self._cache is None or not self._cache.hit):
             if isinstance(instance, BaseException):
                 raise instance from CacheException("Failure during save.")
             raise exception
 
-        # Fill the cache object and save.
         if self._cache is None or self._frame is None:
             raise CacheException(
                 f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
-        self._cache.update(self._frame.f_locals)
 
+        failed = False
         try:
-            self._loader.save_cache(self._cache)
+            # Backfill the loaded values into global scope.
+            if self._cache.hit:
+                assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
+                self._cache.restore(self._frame.f_locals)
+                # Return true to suppress the SkipWithBlock exception.
+                return True
+
+            # Fill the cache object and save.
+            self._cache.update(self._frame.f_locals)
+
+            try:
+                self._loader.save_cache(self._cache)
+            except Exception as e:
+                sys.stderr.write(
+                    "An exception was raised when attempting to cache this code "
+                    "block with the following message:\n"
+                    f"{str(e)}\n"
+                    "NOTE: The cell has run, but cache has not been saved.\n"
+                )
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         except Exception as e:
-            sys.stderr.write(
-                "An exception was raised when attempting to cache this code "
-                "block with the following message:\n"
-                f"{str(e)}\n"
-                "NOTE: The cell has run, but cache has not been saved.\n"
-            )
-            tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
-            tmpio.seek(0)
-            write_traceback(tmpio.read())
+            failed = True
+            raise e
+        finally:
+            if not failed:
+                # Conditional because pendantically, the side effect is on restore /
+                # save respectively, and exceptions should raise their own.
+                ctx = get_context()
+                ctx.cell_lifecycle_registry.add(SideEffect(self._cache.hash))
+
         return False
 
 
