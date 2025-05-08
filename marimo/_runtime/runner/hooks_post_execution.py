@@ -32,6 +32,7 @@ from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
+from marimo._runtime.side_effect import SideEffect
 from marimo._server.model import SessionMode
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
@@ -243,6 +244,31 @@ def _store_state_reference(
     )
 
 
+@kernel_tracer.start_as_current_span("issue_exception_side_effect")
+def _issue_exception_side_effect(
+    _cell: CellImpl,
+    _runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    ctx = get_context()
+    if run_result.exception is not None:
+        exception = run_result.exception
+        key = type(exception).__name__
+        traceback = getattr(exception, "__traceback__", None)
+        if traceback:
+            # Side effect hash id the exception name
+            # AND the instruction pointer.
+            # Side effect has to be relatively robust to code changes
+            #  - Barring line number since comments should not effect
+            #  - Barring stacktrace since file path should be agnostic
+            # Code content is already utilized in hash, and tb_lasti is the
+            # bytecode instruction pointer. So if the code is the same, then the
+            # difference can be captured by where in the evaluation the exception
+            # was raised.
+            key += f":{traceback.tb_lasti}"
+        ctx.cell_lifecycle_registry.add(SideEffect(key))
+
+
 @kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
@@ -392,6 +418,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
     _set_run_result_status,
     _store_reference_to_output,
     _store_state_reference,
+    _issue_exception_side_effect,
     _broadcast_variables,
     _broadcast_datasets,
     _broadcast_data_source_connection,

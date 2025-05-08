@@ -7,6 +7,8 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 class TestHash:
@@ -834,3 +836,156 @@ class TestDataHash:
             )
             assert _A == 28
             return (two,)
+
+
+class TestSideEffects:
+    @staticmethod
+    async def test_side_effect_cache_different(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(0)
+                hashes = []
+                """),
+                exec_req.get("""
+                with mo.cache("prim") as prim_cache:
+                    non_primitive = [object(), len(hashes)]
+                state
+                """),
+                exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                """),
+            ]
+        )
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    set_state(1)
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                hashes.append((prim_cache.cache_type, prim_cache._cache.hash))
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v
+
+    @staticmethod
+    async def test_side_effect_cache_context(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(0)
+                hashes = []
+                """),
+                exec_req.get("""
+                with mo.cache("prim") as prim_cache:
+                    non_primitive = [object(), len(hashes)]
+
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                state
+                """),
+            ]
+        )
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    set_state(1)
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                hashes.append((prim_cache.cache_type, prim_cache._cache.hash))
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v
+
+    @staticmethod
+    async def test_side_effect_exception(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(1)
+                hashes = []
+                """),
+                exec_req.get("""
+                non_primitive = [object(), 0]
+                ref = 1
+                1 / state() # Throw an exception when 0
+                non_primitive = [object(), 1]
+                """),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                req := exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1] + ref
+                """),
+                exec_req.get("""
+                if len(hashes) < 1:
+                    set_state(0)
+                hashes.append((v_cache.cache_type, v_cache._cache.hash, v))
+                """),
+            ]
+        )
+        await k.run([req])
+
+        assert not k.stdout.messages, k.stdout
+        assert "ZeroDivisionError" in str(k.stderr), k.stderr
+
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+
+        v = k.globals["v"]
+
+        assert len(hashes) == 2
+        assert non_primitive[1] == 0
+        assert v == 1
+        assert hashes[0] != hashes[1]

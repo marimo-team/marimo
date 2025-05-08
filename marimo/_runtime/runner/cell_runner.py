@@ -468,6 +468,7 @@ class Runner:
                 print_traceback = False
 
             run_result = RunResult(output=output, exception=exception)
+
             if print_traceback:
                 tmpio = io.StringIO()
                 # The executors explicitly raise cell exceptions from base
