@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -84,10 +85,9 @@ class GitHubIssueReader(FileReader):
 
 
 class StaticNotebookReader(FileReader):
-    CODE_PREFIX = '<marimo-code hidden="">'
-    CODE_SUFFIX = "</marimo-code>"
-    FILENAME_PREFIX = '<marimo-filename hidden="">'
-    FILENAME_SUFFIX = "</marimo-filename>"
+    CODE_TAG = r"marimo-code"
+    CODE_REGEX = re.compile(r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
+    FILENAME_REGEX = re.compile(r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
 
     def can_read(self, name: str) -> bool:
         return self._is_static_marimo_notebook_url(name)[0]
@@ -110,7 +110,7 @@ class StaticNotebookReader(FileReader):
             file_contents = (
                 urllib.request.urlopen(request).read().decode("utf-8")
             )
-            return StaticNotebookReader.CODE_PREFIX in file_contents, str(
+            return StaticNotebookReader.CODE_TAG in file_contents, str(
                 file_contents
             )
 
@@ -135,26 +135,17 @@ class StaticNotebookReader(FileReader):
 
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
-        assert StaticNotebookReader.CODE_SUFFIX in file_contents, (
+        search = re.search(StaticNotebookReader.CODE_REGEX, file_contents)
+        assert search is not None, (
             "<marimo-code> not found in file contents"
         )
-        # normalize hidden attribute
-        file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        prefix = StaticNotebookReader.CODE_PREFIX
-        suffix = StaticNotebookReader.CODE_SUFFIX
-        encoded_code = file_contents.split(prefix)[1].split(suffix)[0]
-        return urllib.parse.unquote(encoded_code)
+        return urllib.parse.unquote(search.group(1))
 
     @staticmethod
     def _extract_filename_from_static_notebook(file_contents: str) -> str:
-        if StaticNotebookReader.FILENAME_SUFFIX not in file_contents:
-            return "notebook.py"
-        # normalize hidden attribute
-        file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        prefix = StaticNotebookReader.FILENAME_PREFIX
-        suffix = StaticNotebookReader.FILENAME_SUFFIX
-        encoded_filename = file_contents.split(prefix)[1].split(suffix)[0]
-        return urllib.parse.unquote(encoded_filename)
+        if search := re.search(StaticNotebookReader.FILENAME_REGEX, file_contents):
+            return urllib.parse.unquote(search.group(1))
+        return "notebook.py"
 
 
 class GitHubSourceReader(FileReader):
