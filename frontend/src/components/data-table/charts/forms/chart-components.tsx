@@ -17,7 +17,7 @@ import {
 import { CHART_TYPE_ICON, COUNT_FIELD } from "../constants";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { buttonVariants } from "@/components/ui/button";
-import { type UseFormReturn, useWatch } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import type { z } from "zod";
 import type { ChartSchema } from "../schemas";
 import { FieldValidators, TypeConverters } from "../spec";
@@ -28,11 +28,11 @@ import {
   TimeUnitSelect,
   SelectField,
   BooleanField,
-  type Field,
 } from "./form-fields";
 import { CHART_TYPES, type ChartType, SORT_TYPES } from "../types";
 import React from "react";
 import { IconWithText, Title } from "../common/layouts";
+import { useChartFormContext } from "../context";
 
 export const ChartLoadingState: React.FC = () => (
   <div className="flex items-center gap-2 justify-center h-full w-full">
@@ -87,11 +87,11 @@ const ChartSelectItem: React.FC<{ chartType: ChartType }> = ({ chartType }) => {
   );
 };
 
-export const XAxis: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-}> = ({ form, fields }) => {
+export const XAxis: React.FC = () => {
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
   const formValues = useWatch({ control: form.control });
+  const context = useChartFormContext();
+
   const xColumn = formValues.general?.xColumn;
   const xColumnExists = FieldValidators.exists(xColumn?.field);
 
@@ -112,7 +112,10 @@ export const XAxis: React.FC<{
     <div className="flex flex-col gap-1">
       <Title text="X-Axis" />
       <div className="flex flex-row gap-2 justify-between">
-        <ColumnSelector fieldName="general.xColumn.field" columns={fields} />
+        <ColumnSelector
+          fieldName="general.xColumn.field"
+          columns={context.fields}
+        />
         {shouldShowXAggregation && (
           <AggregationSelect fieldName="general.xColumn.aggregate" />
         )}
@@ -154,11 +157,11 @@ export const XAxis: React.FC<{
   );
 };
 
-export const YAxis: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-}> = ({ form, fields }) => {
+export const YAxis: React.FC = () => {
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
   const formValues = useWatch({ control: form.control });
+  const context = useChartFormContext();
+
   const yColumn = formValues.general?.yColumn;
   const yColumnExists = FieldValidators.exists(yColumn?.field);
 
@@ -179,7 +182,10 @@ export const YAxis: React.FC<{
     <div className="flex flex-col gap-1">
       <Title text="Y-Axis" />
       <div className="flex flex-row gap-2 justify-between">
-        <ColumnSelector fieldName="general.yColumn.field" columns={fields} />
+        <ColumnSelector
+          fieldName="general.yColumn.field"
+          columns={context.fields}
+        />
         {shouldShowYAggregation && (
           <AggregationSelect fieldName="general.yColumn.aggregate" />
         )}
@@ -202,10 +208,9 @@ export const YAxis: React.FC<{
   );
 };
 
-export const ColorByAxis: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
-}> = ({ fields }) => {
+export const ColorByAxis: React.FC = () => {
+  const context = useChartFormContext();
+
   return (
     <div className="flex flex-col gap-1">
       <BooleanField fieldName="general.horizontal" label="Horizontal chart" />
@@ -213,7 +218,7 @@ export const ColorByAxis: React.FC<{
       <div className="flex flex-row justify-between">
         <ColumnSelector
           fieldName="general.colorByColumn.field"
-          columns={fields}
+          columns={context.fields}
         />
         <AggregationSelect fieldName="general.colorByColumn.aggregate" />
       </div>
@@ -221,9 +226,10 @@ export const ColorByAxis: React.FC<{
   );
 };
 
-export const Facet: React.FC<{
-  fields: Field[];
-}> = ({ fields }) => {
+export const Facet: React.FC = () => {
+  const context = useChartFormContext();
+  const fields = context.fields;
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-row gap-2 justify-between">

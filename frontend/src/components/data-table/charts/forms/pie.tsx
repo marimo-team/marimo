@@ -3,12 +3,10 @@
 import { ColumnSelector } from "./form-fields";
 import { Title } from "../common/layouts";
 import { useWatch } from "react-hook-form";
-import type { ChartType } from "../types";
 import { FieldValidators } from "../spec";
 import type { UseFormReturn } from "react-hook-form";
 import { TypeConverters } from "../spec";
 import type { ChartSchema } from "../schemas";
-import type { Field } from "./form-fields";
 import type { z } from "zod";
 import {
   DataTypeSelect,
@@ -16,15 +14,17 @@ import {
   TooltipSelect,
   NumberField,
 } from "./form-fields";
+import { useChartFormContext } from "../context";
 
 export const PieForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
-  fields: Field[];
   saveForm: () => void;
-  chartType: ChartType;
-}> = ({ form, fields, saveForm, chartType }) => {
+}> = ({ form, saveForm }) => {
+  const context = useChartFormContext();
   const formValues = useWatch({ control: form.control });
   const colorByColumn = formValues.general?.colorByColumn;
+
+  const fields = context.fields;
 
   const inferredColorByDataType = colorByColumn?.type
     ? TypeConverters.toSelectableDataType(colorByColumn.type)

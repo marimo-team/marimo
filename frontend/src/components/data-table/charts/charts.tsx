@@ -31,6 +31,7 @@ import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { CommonChartForm, StyleForm } from "./forms/common-chart";
 import { TabContainer } from "./common/layouts";
+import { ChartFormContext } from "./context";
 
 const NEW_CHART_TYPE = "line" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -315,12 +316,15 @@ const ChartFormContainer = ({
   saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
   fieldTypes?: FieldTypesWithExternalType | null;
 }) => {
-  const fields: Field[] | undefined = fieldTypes?.map((field) => {
-    return {
-      name: field[0],
-      type: field[1][0],
-    };
-  });
+  let fields: Field[] = [];
+  if (fieldTypes) {
+    fields = fieldTypes.map((field) => {
+      return {
+        name: field[0],
+        type: field[1][0],
+      };
+    });
+  }
 
   const debouncedSave = useDebouncedCallback(() => {
     const values = form.getValues();
@@ -336,44 +340,37 @@ const ChartFormContainer = ({
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
-        <Tabs defaultValue="data">
-          <TabsList className="w-full">
-            <TabsTrigger value="data" className="w-1/2 h-6">
-              <DatabaseIcon className="w-4 h-4 mr-2" />
-              Data
-            </TabsTrigger>
-            <TabsTrigger value="style" className="w-1/2 h-6">
-              <PaintRollerIcon className="w-4 h-4 mr-2" />
-              Style
-            </TabsTrigger>
-          </TabsList>
+    <ChartFormContext.Provider value={{ fields }}>
+      <Form {...form}>
+        <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
+          <Tabs defaultValue="data">
+            <TabsList className="w-full">
+              <TabsTrigger value="data" className="w-1/2 h-6">
+                <DatabaseIcon className="w-4 h-4 mr-2" />
+                Data
+              </TabsTrigger>
+              <TabsTrigger value="style" className="w-1/2 h-6">
+                <PaintRollerIcon className="w-4 h-4 mr-2" />
+                Style
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="data">
-            <hr className="my-2" />
-            <TabContainer>
-              <ChartForm
-                form={form}
-                fields={fields ?? []}
-                saveForm={debouncedSave}
-                chartType={chartType}
-              />
-            </TabContainer>
-          </TabsContent>
+            <TabsContent value="data">
+              <hr className="my-2" />
+              <TabContainer>
+                <ChartForm form={form} saveForm={debouncedSave} />
+              </TabContainer>
+            </TabsContent>
 
-          <TabsContent value="style">
-            <hr className="my-2" />
-            <TabContainer>
-              <StyleForm
-                form={form}
-                fields={fields ?? []}
-                saveForm={debouncedSave}
-              />
-            </TabContainer>
-          </TabsContent>
-        </Tabs>
-      </form>
-    </Form>
+            <TabsContent value="style">
+              <hr className="my-2" />
+              <TabContainer>
+                <StyleForm />
+              </TabContainer>
+            </TabsContent>
+          </Tabs>
+        </form>
+      </Form>
+    </ChartFormContext.Provider>
   );
 };
