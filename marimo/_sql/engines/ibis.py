@@ -356,25 +356,40 @@ class IbisEngine(SQLEngine):
         # numeric is a superset of integer, so we evaluate after is_integer
         elif ibis_dtype.is_numeric():
             return "number"
-
         elif ibis_dtype.is_date():
             return "date"
-
         elif ibis_dtype.is_timestamp():
             return "datetime"
-
         elif ibis_dtype.is_time():
             return "time"
-
+        elif ibis_dtype.is_temporal():
+            return "datetime"
+        elif ibis_dtype.is_interval():
+            return "string"
         elif ibis_dtype.is_boolean():
             return "boolean"
-
         elif ibis_dtype.is_string():
             return "string"
-
         elif ibis_dtype.is_binary():
             return "string"
-
+        elif ibis_dtype.is_array():
+            return "unknown"
+        elif ibis_dtype.is_map():
+            return "unknown"
+        elif ibis_dtype.is_struct():
+            return "unknown"
+        elif ibis_dtype.is_json():
+            return "unknown"
+        elif ibis_dtype.is_uuid():
+            return "string"
+        elif ibis_dtype.is_macaddr():
+            return "string"
+        elif ibis_dtype.is_inet():
+            return "string"
+        elif ibis_dtype.is_linestring():
+            return "string"
+        elif ibis_dtype.is_multilinestring():
+            return "string"
         else:
             raise IbisToMarimoConversionError
 
