@@ -71,6 +71,16 @@ class MarimoPdb(Pdb):
         self.reset()
         self.interaction(None, t)
 
+    def do_interact(self, arg: Any) -> None:
+        """Interact
+
+        Catch interact to avoid SystemExit exceptions from hanging the kernel.
+        """
+        try:
+            super().do_interact(arg)
+        except SystemExit:
+            pass
+
 
 def set_trace(
     debugger: MarimoPdb,
