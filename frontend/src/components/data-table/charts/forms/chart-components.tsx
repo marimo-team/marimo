@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { LucideProps } from "lucide-react";
-import { cn } from "@/utils/cn";
 import {
   ArrowDownWideNarrowIcon,
   ArrowUpWideNarrowIcon,
@@ -31,33 +29,10 @@ import {
   SelectField,
   BooleanField,
   type Field,
-} from "./form-components";
+} from "./form-fields";
 import { CHART_TYPES, type ChartType, SORT_TYPES } from "../types";
-
-export const IconWithText: React.FC<{
-  Icon: React.ForwardRefExoticComponent<
-    Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>
-  >;
-  text: string;
-}> = ({ Icon, text }) => {
-  return (
-    <div className="flex items-center">
-      <Icon className="w-3 h-3 mr-2" />
-      <span>{text}</span>
-    </div>
-  );
-};
-
-export const Title: React.FC<{ text: string }> = ({ text }) => {
-  return <span className="font-semibold my-0">{text}</span>;
-};
-
-export const TabContainer: React.FC<{
-  className?: string;
-  children: React.ReactNode;
-}> = ({ children, className }) => {
-  return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
-};
+import React from "react";
+import { IconWithText, Title } from "../common/layouts";
 
 export const ChartLoadingState: React.FC = () => (
   <div className="flex items-center gap-2 justify-center h-full w-full">
@@ -134,38 +109,31 @@ export const XAxis: React.FC<{
     xColumnExists && selectedXDataType === "temporal" && !isXCountField;
 
   return (
-    <>
+    <div className="flex flex-col gap-1">
       <Title text="X-Axis" />
       <div className="flex flex-row gap-2 justify-between">
-        <ColumnSelector
-          form={form}
-          name="general.xColumn.field"
-          columns={fields}
-        />
+        <ColumnSelector fieldName="general.xColumn.field" columns={fields} />
         {shouldShowXAggregation && (
-          <AggregationSelect form={form} name="general.xColumn.aggregate" />
+          <AggregationSelect fieldName="general.xColumn.aggregate" />
         )}
       </div>
       {xColumnExists && !isXCountField && (
         <DataTypeSelect
-          form={form}
-          formFieldLabel="Data Type"
-          name="general.xColumn.selectedDataType"
+          label="Data Type"
+          fieldName="general.xColumn.selectedDataType"
           defaultValue={inferredXDataType}
         />
       )}
       {shouldShowXTimeUnit && (
         <TimeUnitSelect
-          form={form}
-          name="general.xColumn.timeUnit"
-          formFieldLabel="Time Resolution"
+          fieldName="general.xColumn.timeUnit"
+          label="Time Resolution"
         />
       )}
       {xColumnExists && !isXCountField && (
         <SelectField
-          form={form}
-          name="general.xColumn.sort"
-          formFieldLabel="Sort"
+          fieldName="general.xColumn.sort"
+          label="Sort"
           options={SORT_TYPES.map((type) => ({
             display: (
               <IconWithText
@@ -182,7 +150,7 @@ export const XAxis: React.FC<{
           defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
         />
       )}
-    </>
+    </div>
   );
 };
 
@@ -208,58 +176,67 @@ export const YAxis: React.FC<{
     yColumnExists && selectedYDataType === "temporal" && !isYCountField;
 
   return (
-    <>
+    <div className="flex flex-col gap-1">
       <Title text="Y-Axis" />
       <div className="flex flex-row gap-2 justify-between">
-        <ColumnSelector
-          form={form}
-          name="general.yColumn.field"
-          columns={fields}
-        />
+        <ColumnSelector fieldName="general.yColumn.field" columns={fields} />
         {shouldShowYAggregation && (
-          <AggregationSelect form={form} name="general.yColumn.aggregate" />
+          <AggregationSelect fieldName="general.yColumn.aggregate" />
         )}
       </div>
 
       {yColumnExists && !isYCountField && (
         <DataTypeSelect
-          form={form}
-          formFieldLabel="Data Type"
-          name="general.yColumn.selectedDataType"
+          label="Data Type"
+          fieldName="general.yColumn.selectedDataType"
           defaultValue={inferredYDataType}
         />
       )}
       {shouldShowYTimeUnit && (
         <TimeUnitSelect
-          form={form}
-          name="general.yColumn.timeUnit"
-          formFieldLabel="Time Resolution"
+          fieldName="general.yColumn.timeUnit"
+          label="Time Resolution"
         />
       )}
-    </>
+    </div>
   );
 };
 
 export const ColorByAxis: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
   fields: Field[];
-}> = ({ form, fields }) => {
+}> = ({ fields }) => {
   return (
-    <>
-      <BooleanField
-        form={form}
-        name="general.horizontal"
-        formFieldLabel="Horizontal chart"
-      />
+    <div className="flex flex-col gap-1">
+      <BooleanField fieldName="general.horizontal" label="Horizontal chart" />
       <Title text="Color by" />
       <div className="flex flex-row justify-between">
         <ColumnSelector
-          form={form}
-          name="general.colorByColumn.field"
+          fieldName="general.colorByColumn.field"
           columns={fields}
         />
-        <AggregationSelect form={form} name="general.colorByColumn.aggregate" />
+        <AggregationSelect fieldName="general.colorByColumn.aggregate" />
       </div>
-    </>
+    </div>
+  );
+};
+
+export const Facet: React.FC<{
+  fields: Field[];
+}> = ({ fields }) => {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-row gap-2 justify-between">
+        <p>Row</p>
+        <ColumnSelector fieldName="general.facet.row.field" columns={fields} />
+      </div>
+      <div className="flex flex-row gap-2 justify-between">
+        <p>Column</p>
+        <ColumnSelector
+          fieldName="general.facet.column.field"
+          columns={fields}
+        />
+      </div>
+    </div>
   );
 };

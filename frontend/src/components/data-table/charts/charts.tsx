@@ -17,12 +17,11 @@ import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import type { Field } from "./forms/form-components";
+import type { Field } from "./forms/form-fields";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
 import {
-  TabContainer,
   ChartLoadingState,
   ChartErrorState,
   ChartTypeSelect,
@@ -30,7 +29,8 @@ import {
 import { ChartType } from "./types";
 import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
-import { CommonChartForm, StyleForm } from "./forms/common";
+import { CommonChartForm, StyleForm } from "./forms/common-chart";
+import { TabContainer } from "./common/layouts";
 
 const NEW_CHART_TYPE = "line" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -299,7 +299,7 @@ export const ChartPanel: React.FC<{
           chartType={selectedChartType}
         />
       </div>
-      <div className="flex-1">{memoizedChart}</div>
+      <div className="flex-1 overflow-auto h-full w-full">{memoizedChart}</div>
     </div>
   );
 };

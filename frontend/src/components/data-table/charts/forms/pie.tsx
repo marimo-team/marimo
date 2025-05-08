@@ -1,21 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ColumnSelector } from "./form-components";
-import { Title } from "./chart-components";
+import { ColumnSelector } from "./form-fields";
+import { Title } from "../common/layouts";
 import { useWatch } from "react-hook-form";
 import type { ChartType } from "../types";
 import { FieldValidators } from "../spec";
 import type { UseFormReturn } from "react-hook-form";
 import { TypeConverters } from "../spec";
 import type { ChartSchema } from "../schemas";
-import type { Field } from "./form-components";
+import type { Field } from "./form-fields";
 import type { z } from "zod";
 import {
   DataTypeSelect,
   AggregationSelect,
   TooltipSelect,
   NumberField,
-} from "./form-components";
+} from "./form-fields";
 
 export const PieForm: React.FC<{
   form: UseFormReturn<z.infer<typeof ChartSchema>>;
@@ -34,43 +34,35 @@ export const PieForm: React.FC<{
     <>
       <Title text="Color by" />
       <ColumnSelector
-        form={form}
-        name="general.colorByColumn.field"
+        fieldName="general.colorByColumn.field"
         columns={fields}
         includeCountField={false}
       />
       {FieldValidators.exists(colorByColumn?.field) && (
         <DataTypeSelect
-          form={form}
-          name="general.colorByColumn.selectedDataType"
-          formFieldLabel="Data Type"
+          fieldName="general.colorByColumn.selectedDataType"
+          label="Data Type"
           defaultValue={inferredColorByDataType}
         />
       )}
 
       <Title text="Size by" />
       <div className="flex flex-row justify-between">
-        <ColumnSelector
-          form={form}
-          name="general.yColumn.field"
-          columns={fields}
-        />
-        <AggregationSelect form={form} name="general.yColumn.aggregate" />
+        <ColumnSelector fieldName="general.yColumn.field" columns={fields} />
+        <AggregationSelect fieldName="general.yColumn.aggregate" />
       </div>
 
-      <hr />
+      <hr className="my-1" />
       <Title text="General" />
       <TooltipSelect
-        form={form}
-        name="general.tooltips"
+        fieldName="general.tooltips"
         fields={fields}
         saveFunction={saveForm}
-        formFieldLabel="Tooltips"
+        label="Tooltips"
       />
       <NumberField
-        form={form}
-        name="style.innerRadius"
-        formFieldLabel="Donut size"
+        fieldName="style.innerRadius"
+        label="Donut size"
         className="w-32"
       />
     </>
