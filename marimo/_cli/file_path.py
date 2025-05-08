@@ -135,7 +135,7 @@ class StaticNotebookReader(FileReader):
 
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
-        assert StaticNotebookReader.CODE_PREFIX in file_contents, (
+        assert StaticNotebookReader.CODE_SUFFIX in file_contents, (
             "<marimo-code> not found in file contents"
         )
         # normalize hidden attribute
@@ -147,7 +147,7 @@ class StaticNotebookReader(FileReader):
 
     @staticmethod
     def _extract_filename_from_static_notebook(file_contents: str) -> str:
-        if StaticNotebookReader.FILENAME_PREFIX not in file_contents:
+        if StaticNotebookReader.FILENAME_SUFFIX not in file_contents:
             return "notebook.py"
         # normalize hidden attribute
         file_contents = file_contents.replace("hidden=''", 'hidden=""')
