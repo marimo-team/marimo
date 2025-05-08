@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { getAxisEncoding } from "../chart-spec";
+import { getAxisEncoding } from "../spec";
 import { ChartType } from "../types";
 import { COUNT_FIELD } from "../constants";
 import { NONE_AGGREGATION } from "../types";

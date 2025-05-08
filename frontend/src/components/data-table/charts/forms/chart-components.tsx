@@ -21,8 +21,8 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { buttonVariants } from "@/components/ui/button";
 import { type UseFormReturn, useWatch } from "react-hook-form";
 import type { z } from "zod";
-import type { ChartSchema } from "../chart-schemas";
-import { FieldValidators, TypeConverters } from "../chart-spec";
+import type { ChartSchema } from "../schemas";
+import { FieldValidators, TypeConverters } from "../spec";
 import {
   ColumnSelector,
   AggregationSelect,

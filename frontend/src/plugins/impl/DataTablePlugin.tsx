@@ -44,7 +44,7 @@ import type { CellSelectionState } from "@/components/data-table/cell-selection/
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
 import { Button } from "@/components/ui/button";
 import { Table2Icon } from "lucide-react";
-import { TablePanel } from "@/components/data-table/chart-transforms/chart-transforms";
+import { TablePanel } from "@/components/data-table/charts/charts";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   filterToFilterCondition,

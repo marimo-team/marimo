@@ -7,7 +7,7 @@ import {
   DEFAULT_BIN_VALUE,
   type ChartSchema,
   type AxisSchema,
-} from "./chart-schemas";
+} from "./schemas";
 import {
   ChartType,
   NONE_AGGREGATION,

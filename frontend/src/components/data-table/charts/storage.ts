@@ -4,7 +4,7 @@ import type { CellId } from "@/core/cells/ids";
 import type { TypedString } from "@/utils/typed";
 import { atomWithStorage } from "jotai/utils";
 import { z } from "zod";
-import { ChartSchema } from "./chart-schemas";
+import { ChartSchema } from "./schemas";
 import { Logger } from "@/utils/Logger";
 import type { ChartType } from "./types";
 import { NotebookScopedLocalStorage } from "@/utils/localStorage";

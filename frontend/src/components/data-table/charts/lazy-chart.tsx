@@ -5,11 +5,11 @@ import type { ChartType } from "./types";
 import { useTheme } from "@/theme/useTheme";
 
 import type { z } from "zod";
-import type { ChartSchema } from "./chart-schemas";
+import type { ChartSchema } from "./schemas";
 import type { TopLevelSpec } from "vega-lite";
-import type { ErrorMessage } from "./chart-spec";
+import type { ErrorMessage } from "./spec";
 import { ChartPieIcon } from "lucide-react";
-import { createVegaSpec } from "./chart-spec";
+import { createVegaSpec } from "./spec";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
