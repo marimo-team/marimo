@@ -2,9 +2,9 @@
 
 import { useWatch } from "react-hook-form";
 import type { ChartType } from "../types";
-import { FieldValidators } from "../chart-spec";
+import { FieldValidators } from "../spec";
 import type { UseFormReturn } from "react-hook-form";
-import type { ChartSchema } from "../chart-schemas";
+import type { ChartSchema } from "../schemas";
 import type { Field } from "./form-components";
 import type { z } from "zod";
 import { NumberField } from "./form-components";

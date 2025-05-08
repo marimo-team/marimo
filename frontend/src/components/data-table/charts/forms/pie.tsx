@@ -4,10 +4,10 @@ import { ColumnSelector } from "./form-components";
 import { Title } from "./chart-components";
 import { useWatch } from "react-hook-form";
 import type { ChartType } from "../types";
-import { FieldValidators } from "../chart-spec";
+import { FieldValidators } from "../spec";
 import type { UseFormReturn } from "react-hook-form";
-import { TypeConverters } from "../chart-spec";
-import type { ChartSchema } from "../chart-schemas";
+import { TypeConverters } from "../spec";
+import type { ChartSchema } from "../schemas";
 import type { Field } from "./form-components";
 import type { z } from "zod";
 import {

@@ -11,7 +11,7 @@ import {
   ClockIcon,
   CurlyBracesIcon,
 } from "lucide-react";
-import type { SelectableDataType } from "../data-table/chart-transforms/types";
+import type { SelectableDataType } from "../data-table/charts/types";
 
 /**
  * Maps a data type to an icon.

@@ -8,7 +8,7 @@ import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
 import type { NumberFieldProps } from "@/components/ui/number-field";
-import type { ChartSchema } from "../chart-schemas";
+import type { ChartSchema } from "../schemas";
 
 import {
   FormField,
@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
-import { DEFAULT_BIN_VALUE } from "../chart-schemas";
+import { DEFAULT_BIN_VALUE } from "../schemas";
 import {
   AGGREGATION_FNS,
   COMBINED_TIME_UNITS,
@@ -50,7 +50,7 @@ import {
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
 } from "../constants";
-import { TypeConverters } from "../chart-spec";
+import { TypeConverters } from "../spec";
 import { IconWithText } from "./chart-components";
 import { Slider } from "@/components/ui/slider";
 
