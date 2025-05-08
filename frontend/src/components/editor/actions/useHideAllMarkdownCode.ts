@@ -3,7 +3,7 @@ import { useCellActions } from "@/core/cells/cells";
 import { getNotebook } from "@/core/cells/cells";
 import { saveCellConfig } from "@/core/network/requests";
 import { useCallback } from "react";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import type { CellId } from "@/core/cells/ids";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";

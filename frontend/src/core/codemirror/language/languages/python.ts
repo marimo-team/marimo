@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { type Extension, Prec } from "@codemirror/state";
-import type { LanguageAdapter } from "./types";
+import type { LanguageAdapter } from "../types";
 import {
   pythonLanguage,
   localCompletionSource,
@@ -17,11 +17,11 @@ import type {
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { PlaceholderType } from "../config/types";
+import type { PlaceholderType } from "../../config/types";
 import {
   smartPlaceholderExtension,
   clickablePlaceholderExtension,
-} from "../placeholder/extensions";
+} from "../../placeholder/extensions";
 import {
   LanguageServerClient,
   languageServerWithClient,
@@ -29,17 +29,17 @@ import {
 } from "@marimo-team/codemirror-languageserver";
 import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
-import { NotebookLanguageServerClient } from "../lsp/notebook-lsp";
+import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
 import { once } from "@/utils/once";
 import { autocompletion } from "@codemirror/autocomplete";
-import { pythonCompletionSource } from "../completion/completer";
+import { pythonCompletionSource } from "../../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { Paths } from "@/utils/paths";
 import type { CellId } from "@/core/cells/ids";
-import { cellActionsState } from "../cells/state";
+import { cellActionsState } from "../../cells/state";
 import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
-import { CellDocumentUri } from "../lsp/types";
+import { CellDocumentUri } from "../../lsp/types";
 import { hasCapability } from "@/core/config/capabilities";
 
 const pylspTransport = once(() => {

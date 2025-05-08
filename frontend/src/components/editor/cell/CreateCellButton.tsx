@@ -8,9 +8,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 

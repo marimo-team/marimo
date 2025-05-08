@@ -39,8 +39,8 @@ import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import type { Milliseconds } from "@/utils/time";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import {

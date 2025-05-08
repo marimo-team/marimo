@@ -28,7 +28,7 @@ import { getEditorCodeAsPython } from "./utils";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
-import { LanguagePanelComponent } from "./panel";
+import { LanguagePanelComponent } from "./panel/panel";
 import type { CellId } from "@/core/cells/ids";
 import type { LanguageMetadata } from "./metadata";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";

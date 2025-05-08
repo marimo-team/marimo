@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
-import type { LanguageAdapter } from "./types";
+import type { LanguageAdapter } from "../types";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
-import { indentOneTab } from "./utils/indentOneTab";
+import { indentOneTab } from "../utils/indentOneTab";
 import {
   autocompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
-import type { QuotePrefixKind } from "./utils/quotes";
+import type { QuotePrefixKind } from "../utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
   dataConnectionsMapAtom,
@@ -20,7 +20,7 @@ import {
 } from "@/core/datasets/data-source-connections";
 import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
-import { parseArgsKwargs } from "./utils/ast";
+import { parseArgsKwargs } from "../utils/ast";
 import { Logger } from "@/utils/Logger";
 import {
   sql,
@@ -38,8 +38,8 @@ import { LRUCache } from "@/utils/lru";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { isSchemaless } from "@/components/datasources/utils";
 import { datasetTablesAtom } from "@/core/datasets/state";
-import { variableCompletionSource } from "./embedded-python";
-import { languageMetadataField } from "./metadata";
+import { variableCompletionSource } from "../embedded/embedded-python";
+import { languageMetadataField } from "../metadata";
 
 export interface SQLLanguageAdapterMetadata {
   dataframeName: string;

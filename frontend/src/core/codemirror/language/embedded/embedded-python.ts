@@ -11,7 +11,7 @@ import type {
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { variablesAtom } from "@/core/variables/state";
-import { getVariableCompletions } from "../completion/variable-completions";
+import { getVariableCompletions } from "../../completion/variable-completions";
 
 // Python code block delimiters
 const PYTHON = "Python";

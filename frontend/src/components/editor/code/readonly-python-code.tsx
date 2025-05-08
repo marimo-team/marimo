@@ -10,7 +10,7 @@ import { Events } from "@/utils/events";
 import { toast } from "@/components/ui/use-toast";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { sql } from "@codemirror/lang-sql";
 import { copyToClipboard } from "@/utils/copy";
 import { Tooltip } from "@/components/ui/tooltip";

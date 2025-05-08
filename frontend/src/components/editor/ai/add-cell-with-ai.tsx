@@ -14,7 +14,7 @@ import ReactCodeMirror, {
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
 import { Prec } from "@codemirror/state";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { asURL } from "@/utils/url";
 import { useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { sql } from "@codemirror/lang-sql";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { atomWithStorage } from "jotai/utils";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import {

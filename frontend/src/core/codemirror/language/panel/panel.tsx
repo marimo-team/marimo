@@ -1,25 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
-import { SQLLanguageAdapter } from "./sql";
+import { SQLLanguageAdapter } from "../languages/sql";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { InfoIcon, PaintRollerIcon } from "lucide-react";
 
-import { formatSQL } from "../format";
+import { formatSQL } from "../../format";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { MarkdownLanguageAdapter } from "./markdown";
-import type { QuotePrefixKind } from "./utils/quotes";
+import { MarkdownLanguageAdapter } from "../languages/markdown";
+import type { QuotePrefixKind } from "../utils/quotes";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   type LanguageMetadata,
   languageMetadataField,
   updateLanguageMetadata,
-} from "./metadata";
-import type { LanguageMetadataOf } from "./types";
-import { languageAdapterState } from "./extension";
-import { getQuotePrefix, MarkdownQuotePrefixTooltip } from "./panel/markdown";
-import { SQLEngineSelect } from "./panel/sql";
+} from "../metadata";
+import type { LanguageMetadataOf } from "../types";
+import { languageAdapterState } from "../extension";
+import { getQuotePrefix, MarkdownQuotePrefixTooltip } from "./markdown";
+import { SQLEngineSelect } from "./sql";
 
 const Divider = () => <div className="h-4 border-r border-border" />;
 

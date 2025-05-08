@@ -6,7 +6,7 @@ import { keymap } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { PythonLanguageAdapter } from "../language/python";
+import { PythonLanguageAdapter } from "../language/languages/python";
 import type { CodemirrorCellActions } from "../cells/state";
 
 vi.mock("@/core/config/config", async (importOriginal) => {
