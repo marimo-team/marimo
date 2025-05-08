@@ -191,7 +191,7 @@ export class SQLLanguageAdapter
         defaultKeymap: false,
         activateOnTyping: true,
         override: [
-          tablesCompletionSource(this),
+          tablesCompletionSource(),
           // Complete for variables in SQL {} blocks
           variableCompletionSource,
           (ctx) => {
@@ -340,7 +340,7 @@ export class SQLCompletionStore {
 
 const SCHEMA_CACHE = new SQLCompletionStore();
 
-function tablesCompletionSource(adapter: SQLLanguageAdapter): CompletionSource {
+function tablesCompletionSource(): CompletionSource {
   return (ctx) => {
     const metadata = ctx.state.field(
       languageMetadataField,
