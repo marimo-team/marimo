@@ -4,15 +4,19 @@ import { PythonLanguageAdapter } from "./python";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { SQLLanguageAdapter } from "./sql";
 
-export const LanguageAdapters: Record<
-  LanguageAdapterType,
-  () => LanguageAdapter
-> = {
-  python: () => new PythonLanguageAdapter(),
-  markdown: () => new MarkdownLanguageAdapter(),
-  sql: () => new SQLLanguageAdapter(),
+export const LanguageAdapters: Record<LanguageAdapterType, LanguageAdapter> = {
+  // Getters to prevent circular dependencies
+  get python() {
+    return new PythonLanguageAdapter();
+  },
+  get markdown() {
+    return new MarkdownLanguageAdapter();
+  },
+  get sql() {
+    return new SQLLanguageAdapter();
+  },
 };
 
-export function getLanguageAdapters() {
-  return Object.values(LanguageAdapters).map((la) => la());
+export function getLanguageAdapters(): LanguageAdapter[] {
+  return Object.values(LanguageAdapters);
 }

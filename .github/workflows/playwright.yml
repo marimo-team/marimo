@@ -23,10 +23,7 @@ jobs:
           filters: |
             playwright:
               - '**'
-              - '!docs/**'
-              - '!examples/**'
-              - '!README.md'
-              - '!tests/**'
+              - '!{docs/**,examples/**,README.md,tests/**}'
 
   test:
     needs: changes

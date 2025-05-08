@@ -22,9 +22,7 @@ jobs:
           filters: |
             cli:
               - '**'
-              - '!docs/**'
-              - '!examples/**'
-              - '!README.md'
+              - '!{docs/**,examples/**,README.md,tests/**}'
 
   build_wheel:
     needs: changes

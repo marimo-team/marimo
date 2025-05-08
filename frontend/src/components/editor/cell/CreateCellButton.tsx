@@ -88,7 +88,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
-            onClick({ code: new SQLLanguageAdapter().getDefaultCode() });
+            onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >
           <div className="mr-3 text-muted-foreground">

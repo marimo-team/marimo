@@ -7,6 +7,7 @@ import type {
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { CellId } from "@/core/cells/ids";
 import { singleFacet } from "../facet";
+import type { PlaceholderType } from "./types";
 
 /**
  * State for completion config
@@ -18,7 +19,6 @@ export const completionConfigState = singleFacet<CompletionConfig>();
  */
 export const hotkeysProviderState = singleFacet<HotkeyProvider>();
 
-export type PlaceholderType = "marimo-import" | "ai" | "none";
 /**
  * State for placeholder type
  */

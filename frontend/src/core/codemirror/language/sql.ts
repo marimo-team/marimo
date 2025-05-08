@@ -3,15 +3,13 @@ import type { Extension } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
-import type { CompletionConfig } from "@/core/config/config-schema";
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { indentOneTab } from "./utils/indentOneTab";
 import {
   autocompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import { store } from "@/core/state/jotai";
-import { type QuotePrefixKind, upgradePrefixKind } from "./utils/quotes";
+import type { QuotePrefixKind } from "./utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
 import {
   dataConnectionsMapAtom,
@@ -24,7 +22,6 @@ import { parser } from "@lezer/python";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parseArgsKwargs } from "./utils/ast";
 import { Logger } from "@/utils/Logger";
-import type { CellId } from "@/core/cells/ids";
 import {
   sql,
   StandardSQL,
@@ -42,95 +39,107 @@ import type { DataSourceConnection } from "@/core/kernel/messages";
 import { isSchemaless } from "@/components/datasources/utils";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { variableCompletionSource } from "./embedded-python";
+import { languageMetadataField } from "./metadata";
+
+export interface SQLLanguageAdapterMetadata {
+  dataframeName: string;
+  quotePrefix: QuotePrefixKind;
+  commentLines: string[];
+  showOutput: boolean;
+  engine: ConnectionName;
+}
+
+function getLatestEngine(): ConnectionName {
+  return store.get(dataSourceConnectionsAtom).latestEngineSelected;
+}
 
 /**
  * Language adapter for SQL.
  */
-export class SQLLanguageAdapter implements LanguageAdapter {
+export class SQLLanguageAdapter
+  implements LanguageAdapter<SQLLanguageAdapterMetadata>
+{
   readonly type = "sql";
-  readonly defaultCode = `_df = mo.sql(f"""SELECT * FROM """)`;
-  readonly defaultEngine = DUCKDB_ENGINE;
+
+  get defaultCode(): string {
+    const latestEngine = getLatestEngine();
+    if (latestEngine === this.defaultEngine) {
+      return `_df = mo.sql(f"""SELECT * FROM """)`;
+    }
+    return `_df = mo.sql(f"""SELECT * FROM """, engine=${latestEngine})`;
+  }
+
   static fromQuery = (query: string) => `_df = mo.sql(f"""${query.trim()}""")`;
 
-  dataframeName = "_df";
-  lastQuotePrefix: QuotePrefixKind = "f";
-  lastPythonCode = "";
-  showOutput = true;
-  engine = store.get(dataSourceConnectionsAtom).latestEngineSelected;
-
-  getDefaultCode(): string {
-    if (this.engine === this.defaultEngine) {
-      return this.defaultCode;
-    }
-    return `_df = mo.sql(f"""SELECT * FROM """, engine=${this.engine})`;
-  }
+  private readonly defaultEngine = DUCKDB_ENGINE;
 
   transformIn(
     pythonCode: string,
-  ): [sqlQuery: string, queryStartOffset: number] {
+  ): [
+    sqlQuery: string,
+    queryStartOffset: number,
+    metadata: SQLLanguageAdapterMetadata,
+  ] {
+    pythonCode = pythonCode.trim();
+
+    // Default metadata
+    const metadata: SQLLanguageAdapterMetadata = {
+      dataframeName: "_df",
+      commentLines: this.extractCommentLines(pythonCode),
+      quotePrefix: "f",
+      showOutput: true,
+      engine: getLatestEngine() || this.defaultEngine,
+    };
+
     if (!this.isSupported(pythonCode)) {
       // Attempt to remove any markdown wrappers
       const [transformedCode, offset] =
         new MarkdownLanguageAdapter().transformIn(pythonCode);
       // Just return the original code
-      return [transformedCode, offset];
+      return [transformedCode, offset, metadata];
     }
-
-    this.lastPythonCode = pythonCode;
-    pythonCode = pythonCode.trim();
 
     // Handle empty strings
     if (pythonCode === "") {
-      this.lastQuotePrefix = "f";
-      this.showOutput = true;
-      return ["", 0];
+      return ["", 0, metadata];
     }
 
     const sqlStatement = parseSQLStatement(pythonCode);
     if (sqlStatement) {
-      this.dataframeName = sqlStatement.dfName;
-      this.showOutput = sqlStatement.output ?? true;
-      this.engine =
+      metadata.dataframeName = sqlStatement.dfName;
+      metadata.showOutput = sqlStatement.output ?? true;
+      metadata.engine =
         (sqlStatement.engine as ConnectionName) ?? this.defaultEngine;
 
-      if (this.engine !== this.defaultEngine) {
+      if (metadata.engine !== this.defaultEngine) {
         // User selected a new engine, set it as latest.
         // This makes new SQL statements use the new engine by default.
-        setLatestEngineSelected(this.engine);
+        setLatestEngineSelected(metadata.engine);
       }
 
       return [
         dedent(`\n${sqlStatement.sqlString}\n`).trim(),
         sqlStatement.startPosition,
+        metadata,
       ];
     }
 
-    return [pythonCode, 0];
+    return [pythonCode, 0, metadata];
   }
 
-  transformOut(code: string): [string, number] {
-    // Get the quote type from the last transformIn
-    const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
+  transformOut(
+    code: string,
+    metadata: SQLLanguageAdapterMetadata,
+  ): [string, number] {
+    const { quotePrefix, commentLines, showOutput, engine, dataframeName } =
+      metadata;
 
-    // Multiline code
-    // Retrieve any comments that the Python code may have started with
-    const lines = this.lastPythonCode.split("\n");
-    const commentLines = [];
-
-    for (const line of lines) {
-      if (line.startsWith("#")) {
-        commentLines.push(line);
-      } else {
-        break;
-      }
-    }
-
-    const start = `${this.dataframeName} = mo.sql(\n    ${prefix}"""\n`;
+    const start = `${dataframeName} = mo.sql(\n    ${quotePrefix}"""\n`;
     const escapedCode = code.replaceAll('"""', String.raw`\"""`);
 
-    const showOutputParam = this.showOutput ? "" : ",\n    output=False";
+    const showOutputParam = showOutput ? "" : ",\n    output=False";
     const engineParam =
-      this.engine === this.defaultEngine ? "" : `,\n    engine=${this.engine}`;
+      engine === this.defaultEngine ? "" : `,\n    engine=${engine}`;
     const end = `\n    """${showOutputParam}${engineParam}\n)`;
 
     return [
@@ -144,37 +153,33 @@ export class SQLLanguageAdapter implements LanguageAdapter {
       return true;
     }
 
-    // Does not have 2 `mo.sql` calls
-    if (pythonCode.split("mo.sql").length > 2) {
+    // Has at least one `mo.sql` call
+    if (!pythonCode.includes("mo.sql")) {
       return false;
     }
 
-    // Has at least one `mo.sql` call
-    if (!pythonCode.includes("mo.sql")) {
+    // Does not have 2 `mo.sql` calls
+    if (pythonCode.split("mo.sql").length > 2) {
       return false;
     }
 
     return parseSQLStatement(pythonCode) !== null;
   }
 
-  selectEngine(connectionName: ConnectionName): void {
-    this.engine = connectionName;
-    setLatestEngineSelected(this.engine);
+  private extractCommentLines(pythonCode: string): string[] {
+    const lines = pythonCode.split("\n");
+    const commentLines = [];
+    for (const line of lines) {
+      if (line.startsWith("#")) {
+        commentLines.push(line);
+      } else {
+        break;
+      }
+    }
+    return commentLines;
   }
 
-  setShowOutput(showOutput: boolean): void {
-    this.showOutput = showOutput;
-  }
-
-  setDataframeName(dataframeName: string): void {
-    this.dataframeName = dataframeName;
-  }
-
-  getExtension(
-    _cellId: CellId,
-    _completionConfig: CompletionConfig,
-    _hotkeys: HotkeyProvider,
-  ): Extension[] {
+  getExtension(): Extension[] {
     const keywordCompletion = keywordCompletionSource(StandardSQL);
     return [
       sql({
@@ -186,7 +191,7 @@ export class SQLLanguageAdapter implements LanguageAdapter {
         defaultKeymap: false,
         activateOnTyping: true,
         override: [
-          tablesCompletionSource(this),
+          tablesCompletionSource(),
           // Complete for variables in SQL {} blocks
           variableCompletionSource,
           (ctx) => {
@@ -335,9 +340,12 @@ export class SQLCompletionStore {
 
 const SCHEMA_CACHE = new SQLCompletionStore();
 
-function tablesCompletionSource(adapter: SQLLanguageAdapter): CompletionSource {
+function tablesCompletionSource(): CompletionSource {
   return (ctx) => {
-    const connectionName = adapter.engine;
+    const metadata = ctx.state.field(
+      languageMetadataField,
+    ) as SQLLanguageAdapterMetadata;
+    const connectionName = metadata.engine;
     const config = SCHEMA_CACHE.getCompletionSource(connectionName);
 
     if (!config) {
@@ -432,7 +440,7 @@ function getStringContent(node: SyntaxNode, code: string): string | null {
  * @param code - The Python code string to parse.
  * @returns The parsed SQL statement or null if parsing fails.
  */
-export function parseSQLStatement(code: string): SQLParseInfo | null {
+function parseSQLStatement(code: string): SQLParseInfo | null {
   try {
     const tree = parser.parse(code);
     const cursor = tree.cursor();
