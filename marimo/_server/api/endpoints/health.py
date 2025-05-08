@@ -211,15 +211,20 @@ async def usage(request: Request) -> JSONResponse:
     # Kernel memory
     kernel_memory: Optional[int] = None
     session = AppState(request).get_current_session()
-    if session and isinstance(session.kernel_manager.kernel_task, Process):
-        kernel_process = psutil.Process(session.kernel_manager.kernel_task.pid)
-        kernel_memory = kernel_process.memory_info().rss
-        kernel_children = kernel_process.children(recursive=True)
-        for child in kernel_children:
-            try:
-                kernel_memory += child.memory_info().rss
-            except psutil.NoSuchProcess:
-                pass
+    try:
+        if session and isinstance(session.kernel_manager.kernel_task, Process):
+            kernel_process = psutil.Process(
+                session.kernel_manager.kernel_task.pid
+            )
+            kernel_memory = kernel_process.memory_info().rss
+            kernel_children = kernel_process.children(recursive=True)
+            for child in kernel_children:
+                try:
+                    kernel_memory += child.memory_info().rss
+                except psutil.NoSuchProcess:
+                    pass
+    except psutil.ZombieProcess:
+        LOGGER.warning("Kernel process is a zombie")
 
     # GPU stats
     gpu_stats: list[dict[str, Any]] = []

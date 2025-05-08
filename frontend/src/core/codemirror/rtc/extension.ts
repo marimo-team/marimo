@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { Awareness, LoroDoc, LoroText } from "loro-crdt";
+import { Awareness, LoroDoc, LoroMap, LoroText } from "loro-crdt";
 import type { CellId } from "@/core/cells/ids";
 import { isWasm } from "@/core/wasm/utils";
 import type { Extension } from "@codemirror/state";
@@ -8,7 +8,7 @@ import ReconnectingWebSocket from "partysocket/ws";
 import { createWsUrl } from "@/core/websocket/createWsUrl";
 import { getSessionId } from "@/core/kernel/session";
 import { once } from "@/utils/once";
-import { loroSyncPlugin } from "./loro/sync";
+import { loroSyncAnnotation, loroSyncPlugin } from "./loro/sync";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import {
   getInitialLanguageAdapter,
@@ -16,7 +16,6 @@ import {
   setLanguageAdapter,
   switchLanguage,
 } from "../language/extension";
-import { LanguageAdapters } from "../language/LanguageAdapters";
 import type { LanguageAdapterType } from "../language/types";
 import { atom } from "jotai";
 import { waitForConnectionOpen } from "@/core/network/connection";
@@ -33,6 +32,16 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { initialMode } from "@/core/mode";
 import { usernameAtom } from "@/core/rtc/state";
 import { getColor } from "./loro/colors";
+import {
+  languageMetadataField,
+  setLanguageMetadata,
+  updateLanguageMetadata,
+} from "../language/metadata";
+import { invariant } from "@/utils/invariant";
+import { isEqual } from "lodash-es";
+
+const logger = Logger.get("rtc");
+const awarenessLogger = logger.get("awareness").disabled();
 
 const AWARENESS_PREFIX = "awareness:";
 
@@ -63,7 +72,7 @@ const awareness = new Awareness<AwarenessState>(doc.peerIdStr);
 
 // Create a websocket connection to the server
 const getWs = once(() => {
-  Logger.debug("[rtc] creating websocket");
+  logger.debug("creating websocket");
 
   const url = createWsUrl(getSessionId()).replace("/ws", "/ws_sync");
 
@@ -96,13 +105,13 @@ const getWs = once(() => {
     if (hasPrefix(data, AWARENESS_PREFIX)) {
       const awarenessData = removePrefix(data, AWARENESS_PREFIX);
       awareness.apply(awarenessData);
-      Logger.debug("[rtc] applied awareness update");
+      awarenessLogger.debug("applied awareness update");
       return;
     }
 
     // Handle doc update
     doc.import(data);
-    Logger.debug("[rtc] imported doc change. new doc:", doc.toJSON());
+    logger.debug("imported doc change. new doc:", doc.toJSON());
 
     // Set the active doc only once the first message is received
     // This is to ensure the LoroDoc is created on the server, and not the client.
@@ -113,12 +122,12 @@ const getWs = once(() => {
 
   // Handle open event
   ws.addEventListener("open", () => {
-    Logger.debug("[rtc] websocket open");
+    logger.debug("websocket open");
   });
 
   // Handle close event
   ws.addEventListener("close", (e) => {
-    Logger.warn("[rtc] websocket close", e);
+    logger.warn("websocket close", e);
 
     // Remove the active doc
     if (store.get(connectedDocAtom) === doc) {
@@ -136,7 +145,7 @@ if (getFeatureFlag("rtc_v2") && initialMode === "edit") {
 
 // Send local updates to the server
 doc.subscribeLocalUpdates((update) => {
-  Logger.debug("[rtc] local update, sending to server");
+  logger.debug("local update, sending to server");
   const ws = getWs();
   ws.send(update);
 });
@@ -145,7 +154,7 @@ doc.subscribeLocalUpdates((update) => {
 awareness.addListener((updates, origin) => {
   const changes = [...updates.added, ...updates.removed, ...updates.updated];
   if (origin === "local") {
-    Logger.debug("[rtc] awareness changes", changes);
+    awarenessLogger.debug("awareness changes", changes);
     const ws = getWs();
     ws.send(prefixMessage(AWARENESS_PREFIX, awareness.encode(changes)));
   }
@@ -169,7 +178,7 @@ export function realTimeCollaboration(
     .getMap("codes")
     .getOrCreateContainer(cellId, new LoroText());
   if (!hasPath) {
-    Logger.warn("[rtc] initializing code for new cell", initialCode);
+    logger.log("initializing code for new cell", initialCode);
     loroText.insert(0, initialCode);
   }
 
@@ -204,36 +213,94 @@ export function realTimeCollaboration(
  * @returns Extension
  */
 function languageObserverExtension(cellId: CellId) {
-  const updateLanguage = (view: EditorView) => {
-    const language = doc.getByPath(`languages/${cellId}`) as
-      | LoroText
-      | undefined;
-    if (!language) {
-      return;
-    }
+  const syncLanguage = (view: EditorView, language: LoroText) => {
     const currentLang = view.state.field(languageAdapterState).type;
     const newLang = language.toString() as LanguageAdapterType;
+    if (!newLang) {
+      return;
+    }
 
     if (newLang !== currentLang) {
-      Logger.debug(
-        `[rtc] Received language change: ${currentLang} -> ${newLang}`,
+      logger.debug(
+        `[incoming] setting language type: ${currentLang} -> ${newLang}`,
       );
-      const adapter = LanguageAdapters[newLang];
-      switchLanguage(view, adapter.type, { keepCodeAsIs: true });
+      switchLanguage(view, newLang, { keepCodeAsIs: true });
     }
   };
 
-  return ViewPlugin.define((view) => {
-    // Initialize the language
-    Promise.resolve().then(() => updateLanguage(view));
+  const syncLanguageMetadata = (
+    view: EditorView,
+    languageMetadata: LoroMap,
+  ) => {
+    const previousLanguageMetadata = view.state.field(languageMetadataField);
+    const newLanguageMetadata = languageMetadata.toJSON();
+    if (isEqual(previousLanguageMetadata, newLanguageMetadata)) {
+      return;
+    }
 
-    const unsubscribeLanguage = doc.subscribe(() => {
-      updateLanguage(view);
+    view.dispatch({
+      effects: [updateLanguageMetadata.of(newLanguageMetadata)],
+      annotations: [loroSyncAnnotation.of(true)],
+    });
+  };
+
+  return ViewPlugin.define((view) => {
+    let unsubscribeDoc: () => void;
+
+    // Initialize after a single tick
+    Promise.resolve().then(() => {
+      // Language type
+      const langType = doc.getByPath(`languages/${cellId}`);
+      if (!langType) {
+        logger.error("no language container found for cell", cellId);
+        return;
+      }
+      invariant(
+        langType instanceof LoroText,
+        "language type is not a LoroText",
+      );
+
+      // Language metadata
+      const langMeta = doc.getByPath(`language_metadata/${cellId}`);
+      if (!langMeta) {
+        logger.error("no language metadata container found for cell", cellId);
+        return;
+      }
+      invariant(
+        langMeta instanceof LoroMap,
+        "language metadata is not a LoroMap",
+      );
+
+      // Run once
+      syncLanguage(view, langType);
+      syncLanguageMetadata(view, langMeta);
+
+      // Subscribe to language and metadata changes
+      unsubscribeDoc = doc.subscribe((event) => {
+        if (event.origin === "local") {
+          // Skip if the change is local
+          return;
+        }
+
+        const hasAnyLanguageTypeChanges = event.events.some(
+          (e) => e.target === langType.id,
+        );
+        const hasAnyLanguageMetadataChanges = event.events.some(
+          (e) => e.target === langMeta.id,
+        );
+
+        if (hasAnyLanguageTypeChanges) {
+          syncLanguage(view, langType);
+        }
+        if (hasAnyLanguageMetadataChanges) {
+          syncLanguageMetadata(view, langMeta);
+        }
+      });
     });
 
     return {
       destroy() {
-        unsubscribeLanguage();
+        unsubscribeDoc();
       },
     };
   });
@@ -246,36 +313,95 @@ function languageObserverExtension(cellId: CellId) {
  * @returns Extension
  */
 function languageListenerExtension(cellId: CellId) {
-  return EditorView.updateListener.of((update) => {
-    const currentLang = doc
-      .getMap("languages")
-      .getOrCreateContainer(cellId, new LoroText());
+  // Get or create the language type container
+  const currentLang = doc
+    .getMap("languages")
+    .getOrCreateContainer(cellId, new LoroText());
 
-    if (!currentLang.toString()) {
-      // If the language is not set, set it to the current language
-      const lang = getInitialLanguageAdapter(update.state).type;
-      switchLanguage(update.view, lang);
-      Logger.debug("[rtc] no language, setting default to", lang);
-      currentLang.delete(0, currentLang.length);
-      currentLang.insert(0, lang);
-      doc.commit();
+  // Get or create the language metadata container
+  const currentLanguageMetadata = doc
+    .getMap("language_metadata")
+    .getOrCreateContainer(cellId, new LoroMap());
+
+  return EditorView.updateListener.of((update) => {
+    const isInitialized = currentLang.toString() !== "";
+
+    // Skip if the doc hasn't changed and the language is already set
+    if (!update.docChanged && isInitialized) {
       return;
     }
 
+    // If the language is not set, set it to the current language
+    // and update the LoroDoc
+    if (!isInitialized) {
+      const lang = getInitialLanguageAdapter(update.state).type;
+      switchLanguage(update.view, lang);
+      logger.debug("no initial language, setting default to", lang);
+
+      // Sync the language to the LoroDoc
+      currentLang.delete(0, currentLang.length);
+      currentLang.insert(0, lang);
+
+      // Sync the language metadata to the LoroDoc
+      logger.debug(
+        "no initial language metadata, setting default to",
+        update.state.field(languageMetadataField),
+      );
+      const metadata = update.state.field(languageMetadataField);
+      for (const key of Object.keys(metadata)) {
+        currentLanguageMetadata.set(key, metadata[key]);
+      }
+
+      // Commit the changes
+      doc.commit();
+
+      return;
+    }
+
+    let hasChanges = false;
+
     for (const tr of update.transactions) {
+      const isSyncOperation = tr.annotation(loroSyncAnnotation);
+      if (isSyncOperation) {
+        continue;
+      }
+
       for (const e of tr.effects) {
+        // Language type
         if (
           e.is(setLanguageAdapter) &&
           currentLang.toString() !== e.value.type
         ) {
-          Logger.debug(
-            `[rtc] Setting language: ${currentLang} -> ${e.value.type}`,
+          logger.debug(
+            `[outgoing] language change: ${currentLang} -> ${e.value.type}`,
           );
           currentLang.delete(0, currentLang.length);
           currentLang.insert(0, e.value.type);
-          doc.commit();
+          hasChanges = true;
+        }
+
+        // Language metadata
+        if (e.is(updateLanguageMetadata) || e.is(setLanguageMetadata)) {
+          const metadata = e.value;
+
+          // If it is set, we should clear the metadata first
+          if (e.is(setLanguageMetadata)) {
+            logger.debug("[outgoing] setting language metadata: ", metadata);
+            currentLanguageMetadata.clear();
+          } else {
+            logger.debug("[outgoing] updating language metadata: ", metadata);
+          }
+
+          for (const key of Object.keys(metadata)) {
+            currentLanguageMetadata.set(key, metadata[key]);
+          }
+          hasChanges = true;
         }
       }
+    }
+
+    if (hasChanges) {
+      doc.commit();
     }
   });
 }
