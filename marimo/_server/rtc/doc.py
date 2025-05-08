@@ -40,12 +40,7 @@ class LoroDocManager:
                         f"RTC: Removing loro doc for file {file_key} as it has no clients"
                     )
                     # Clean up the document
-                    if file_key in self.loro_docs:
-                        del self.loro_docs[file_key]
-                    if file_key in self.loro_docs_clients:
-                        del self.loro_docs_clients[file_key]
-                    if file_key in self.loro_docs_cleaners:
-                        del self.loro_docs_cleaners[file_key]
+                    await self.remove_doc(file_key)
         except asyncio.CancelledError:
             # Task was cancelled due to client reconnection
             LOGGER.debug(
@@ -136,6 +131,9 @@ class LoroDocManager:
     ) -> None:
         """Clean up a loro client and potentially the doc if no clients remain."""
         async with self.loro_docs_lock:
+            if file_key not in self.loro_docs_clients:
+                return
+
             self.loro_docs_clients[file_key].remove(update_queue)
             # If no clients are connected, set up a cleaner task
             if len(self.loro_docs_clients[file_key]) == 0:
@@ -148,3 +146,13 @@ class LoroDocManager:
                 self.loro_docs_cleaners[file_key] = asyncio.create_task(
                     self._clean_loro_doc(file_key, 60.0)
                 )
+
+    async def remove_doc(self, file_key: MarimoFileKey) -> None:
+        """Remove a loro doc and all associated clients, without waiting."""
+        async with self.loro_docs_lock:
+            if file_key in self.loro_docs:
+                del self.loro_docs[file_key]
+            if file_key in self.loro_docs_clients:
+                del self.loro_docs_clients[file_key]
+            if file_key in self.loro_docs_cleaners:
+                del self.loro_docs_cleaners[file_key]

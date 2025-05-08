@@ -18,7 +18,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.ws import FILE_QUERY_PARAM_KEY
+from marimo._server.api.endpoints.ws import DOC_MANAGER, FILE_QUERY_PARAM_KEY
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.models.models import (
@@ -261,10 +261,22 @@ async def restart_session(
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
     app_state = AppState(request)
+    session_manager = app_state.session_manager
+
     # This just closes the session, and the frontend will
     # do a full reload, which will restart the session.
     session_id = app_state.require_current_session_id()
-    app_state.session_manager.close_session(session_id)
+    session_manager.close_session(session_id)
+
+    # Close RTC doc if it exists
+    file_key: Optional[MarimoFileKey] = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or session_manager.file_router.get_unique_file_key()
+    )
+    if file_key is not None:
+        await DOC_MANAGER.remove_doc(file_key)
+    else:
+        LOGGER.warning("Unable to close RTC doc as no file key was provided")
 
     return SuccessResponse()
 

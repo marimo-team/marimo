@@ -15,7 +15,6 @@ import type {
   LoroText,
   Subscription,
 } from "loro-crdt";
-import { Logger } from "@/utils/Logger";
 
 /**
  * It is used to sync the document with the remote users.
@@ -33,6 +32,9 @@ export const loroSyncPlugin = (
   );
 };
 
+/**
+ * Annotation to identify loro sync changes (syncing from remote to local)
+ */
 export const loroSyncAnnotation = Annotation.define();
 
 export class LoroSyncPluginValue implements PluginValue {
@@ -54,7 +56,6 @@ export class LoroSyncPluginValue implements PluginValue {
       if (currentText === text.toString()) {
         return;
       }
-      Logger.debug("[rtc] initializing text", text.toString());
       view.dispatch({
         changes: [
           {
@@ -114,7 +115,6 @@ export class LoroSyncPluginValue implements PluginValue {
           }
         }
         if (changes.length > 0) {
-          Logger.debug("[rtc] Received text changes", changes);
           this.view.dispatch({
             changes,
             annotations: [loroSyncAnnotation.of(this)],
