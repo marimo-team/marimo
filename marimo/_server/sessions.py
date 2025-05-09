@@ -920,7 +920,7 @@ class SessionManager:
                     UpdateCellCodes(
                         cell_ids=cell_ids,
                         codes=codes,
-                        code_is_stale=not should_autorun,
+                        code_is_stale=True,
                     ),
                     from_consumer_id=None,
                 )
