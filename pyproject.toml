@@ -511,6 +511,12 @@ autosave_delay = 1000
 autosave = "after_delay"
 format_on_save = true
 
+[tool.marimo.server]
+# Instead of building the frontend locally, we could use a CDN to serve the web assets.
+# This runs the risk of the frontend and backend getting out of sync,
+# so should be used with caution.
+# static_assets_root = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@latest/dist/"
+
 [tool.marimo.experimental]
 multi_column = true
 

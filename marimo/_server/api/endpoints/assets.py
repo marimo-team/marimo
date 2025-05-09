@@ -15,6 +15,7 @@ from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
+from marimo._server.api.assets import StaticAssetsHandler
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._server.templates.templates import (
@@ -32,8 +33,11 @@ LOGGER = _loggers.marimo_logger()
 # Router for serving static assets
 router = APIRouter()
 
-# Root directory for static assets
-root = (marimo_package_path() / "_static").resolve()
+
+# Get server config
+def _local_static_assets_dir() -> Path:
+    return (marimo_package_path() / "_static").resolve()
+
 
 server_config = (
     get_default_config_manager(current_path=None)
@@ -41,10 +45,14 @@ server_config = (
     .get("server", {})
 )
 
-assets_dir = root / "assets"
-follow_symlinks = server_config.get("follow_symlink", False)
+# Initialize static assets handler
+static_assets = StaticAssetsHandler(
+    server_config.get("static_assets_root", None) or _local_static_assets_dir()
+)
 
-if not follow_symlinks and assets_dir.is_symlink():
+# Helpful error message if the assets directory is a symlink
+follow_symlinks = server_config.get("follow_symlink", False)
+if not follow_symlinks and static_assets.is_symlink():
     LOGGER.error(
         "Assets directory is a symlink but follow_symlink=false.\n"
         "To fix this:\n"
@@ -57,14 +65,26 @@ if not follow_symlinks and assets_dir.is_symlink():
     )
 
 try:
-    router.mount(
-        "/assets",
-        app=StaticFiles(
-            directory=assets_dir,
-            follow_symlink=follow_symlinks,
-        ),
-        name="assets",
-    )
+    if static_assets.is_file:
+        router.mount(
+            "/assets",
+            app=StaticFiles(
+                directory=static_assets.path / "assets",
+                follow_symlink=follow_symlinks,
+            ),
+            name="assets",
+        )
+    else:
+
+        @router.get("/assets/{path:path}")
+        async def serve_assets(request: Request) -> Response:
+            return await static_assets.get(
+                f"assets/{request.path_params['path']}"
+            )
+
+        LOGGER.info(
+            f"Static assets are served from a CDN: {static_assets.root}"
+        )
 except RuntimeError:
     LOGGER.error("Static files not found, skipping mount")
 
@@ -75,14 +95,12 @@ FILE_QUERY_PARAM_KEY = "file"
 @requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
-    index_html = root / "index.html"
+    html = static_assets.read("index.html")
 
     file_key = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
         or app_state.session_manager.file_router.get_unique_file_key()
     )
-
-    html = index_html.read_text()
 
     if not file_key:
         # We don't know which file to use, so we need to render a homepage
@@ -277,9 +295,9 @@ async def serve_public_file(request: Request) -> Response:
 
 # Catch all for serving static files
 @router.get("/{path:path}")
-async def serve_static(request: Request) -> FileResponse:
+async def serve_static(request: Request) -> Response:
     path = str(request.path_params["path"])
     if any(re.match(pattern, path) for pattern in STATIC_FILES):
-        return FileResponse(root / path)
+        return await static_assets.get(path)
 
     raise HTTPException(status_code=404, detail="Not Found")
