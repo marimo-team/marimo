@@ -123,7 +123,13 @@ export const LanguagePanelComponent: React.FC<{
 
     type Metadata = LanguageMetadataOf<MarkdownLanguageAdapter>;
     const metadata = view.state.field(languageMetadataField) as Metadata;
-    const { quotePrefix } = metadata;
+    let { quotePrefix } = metadata;
+
+    // Handle the case where the quote prefix is not set
+    if (!quotePrefix) {
+      quotePrefix = "r";
+      triggerUpdate<Metadata>({ quotePrefix });
+    }
 
     const togglePrefix = (
       prefix: QuotePrefixKind,

@@ -77,7 +77,9 @@ def _get_network_url(url: str) -> str:
             # Filter for IPv4 addresses that aren't loopback
             for ip_info in all_ips:
                 family, _, _, _, addr = ip_info
-                if family == socket.AF_INET and not addr[0].startswith("127."):
+                if family == socket.AF_INET and not str(addr[0]).startswith(
+                    "127."
+                ):
                     local_ip = addr[0]
                     break
             else:
