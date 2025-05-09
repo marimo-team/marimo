@@ -14,6 +14,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
+from marimo._utils.formatter import FormatError, ruff
 from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
@@ -295,3 +296,22 @@ def any_lsp_server_running(config: MarimoConfig) -> bool:
         for server in language_servers.values()
     )
     return (copilot_enabled is not False) or language_servers_enabled
+
+
+if DependencyManager.pylsp.has():
+    from pylsp import hookimpl
+
+    def format_signature(signature: str) -> str:
+        try:
+            signature_as_func = f"def {signature.strip()}:\n    pass"
+            reformatted = ruff({"": signature_as_func}, "format")[""]
+            signature = reformatted.removeprefix("def ").removesuffix(
+                ":\n    pass"
+            )
+        except (ModuleNotFoundError, FormatError):
+            pass
+        return "```python\n" + signature + "\n```\n"
+
+    @hookimpl
+    def pylsp_signatures_to_markdown(signatures: list[str]) -> str:
+        return format_signature("\n".join(signatures))
