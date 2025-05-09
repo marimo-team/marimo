@@ -2,7 +2,13 @@
 
 import React from "react";
 import { capitalize } from "lodash-es";
-import { XIcon, PlusIcon, SquareFunctionIcon } from "lucide-react";
+import {
+  XIcon,
+  PlusIcon,
+  SquareFunctionIcon,
+  ArrowUpWideNarrowIcon,
+  ArrowDownWideNarrowIcon,
+} from "lucide-react";
 import { type Path, type PathValue, useFormContext } from "react-hook-form";
 import type { z } from "zod";
 
@@ -40,6 +46,7 @@ import {
   NONE_AGGREGATION,
   SELECTABLE_DATA_TYPES,
   SINGLE_TIME_UNITS,
+  SORT_TYPES,
   type TimeUnit,
 } from "../types";
 import {
@@ -691,6 +698,35 @@ export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
           </FormItem>
         );
       }}
+    />
+  );
+};
+
+export const SortField = <T extends object>({
+  fieldName,
+  label,
+  defaultValue,
+}: BaseFormFieldProps<T> & {
+  defaultValue?: string;
+}) => {
+  return (
+    <SelectField
+      fieldName={fieldName}
+      label={label}
+      options={SORT_TYPES.map((type) => ({
+        display: (
+          <IconWithText
+            Icon={
+              type === "ascending"
+                ? ArrowUpWideNarrowIcon
+                : ArrowDownWideNarrowIcon
+            }
+            text={capitalize(type)}
+          />
+        ),
+        value: type,
+      }))}
+      defaultValue={defaultValue ?? "ascending"}
     />
   );
 };

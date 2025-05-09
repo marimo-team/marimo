@@ -121,6 +121,12 @@ export function createVegaSpec(
       row: rowFacet,
       column: columnFacet,
     },
+    resolve: {
+      axis: {
+        x: facet?.column.linkXAxis ? "shared" : "independent",
+        y: facet?.row.linkYAxis ? "shared" : "independent",
+      },
+    },
   };
 }
 
@@ -148,20 +154,27 @@ export function getAxisEncoding(
     title: label,
     stack: stack,
     aggregate: EncodingUtils.getAggregate(column.aggregate),
-    timeUnit:
-      column.selectedDataType === "temporal" ? column.timeUnit : undefined,
+    timeUnit: EncodingUtils.getTimeUnit(column),
   };
 }
 
 export function getFacetEncoding(
   facet: z.infer<typeof RowFacet> | z.infer<typeof ColumnFacet>,
 ): FacetFieldDef<Field, ExprRef | SignalRef> {
+  let binValues = undefined;
+  // Only allow binning for number data types
+  if (facet.binned && facet.selectedDataType === "number") {
+    binValues = {
+      maxbins: facet.maxbins,
+    };
+  }
+
   return {
     field: facet.field,
-    // sort: facet.sort,
-    // timeUnit: facet.timeUnit,
-    // type: TypeConverters.toVegaType(facet.selectedDataType || "unknown"),
-    // aggregate: EncodingUtils.getAggregate(facet.aggregate),
+    sort: facet.sort,
+    timeUnit: EncodingUtils.getTimeUnit(facet),
+    type: TypeConverters.toVegaType(facet.selectedDataType || "unknown"),
+    bin: binValues,
   };
 }
 
@@ -446,6 +459,13 @@ const EncodingUtils = {
         };
       },
     );
+  },
+
+  getTimeUnit(column: z.infer<typeof AxisSchema>) {
+    if (column.selectedDataType === "temporal") {
+      return column.timeUnit;
+    }
+    return undefined;
   },
 };
 
