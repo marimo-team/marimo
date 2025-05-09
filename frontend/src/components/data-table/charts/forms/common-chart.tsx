@@ -1,9 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { XAxis, YAxis, ColorByAxis } from "./chart-components";
-import { useWatch } from "react-hook-form";
+import { XAxis, YAxis, ColorByAxis, Facet } from "../components/chart-items";
+import { useFormContext, useWatch } from "react-hook-form";
 import { FieldValidators } from "../spec";
-import type { UseFormReturn } from "react-hook-form";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
 import {
@@ -13,7 +12,8 @@ import {
   SliderField,
   SelectField,
   ColorArrayField,
-} from "./form-fields";
+  TooltipSelect,
+} from "../components/form-fields";
 import { Accordion } from "@/components/ui/accordion";
 import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "../constants";
 import { capitalize } from "lodash-es";
@@ -23,17 +23,13 @@ import {
   AccordionFormTrigger,
   AccordionFormContent,
   Title,
-} from "../common/layouts";
-
-// NOTESSS
-// - create file for container logics, another one for just for forms (no styling).
-// - divide-y / map with hr
-// - React Context, to pass columns. Another file
+  FormSectionHorizontalRule,
+} from "../components/layouts";
 
 export const CommonChartForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
   saveForm: () => void;
-}> = ({ form }) => {
+}> = ({ saveForm }) => {
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
   const formValues = useWatch({ control: form.control });
   const yColumn = formValues.general?.yColumn;
   const groupByColumn = formValues.general?.colorByColumn;
@@ -57,33 +53,8 @@ export const CommonChartForm: React.FC<{
         </>
       )}
 
-      <hr className="my-1" />
-      {/* <Accordion type="multiple">
-        <AccordionForm />
-        <AccordionFormItem value="facet">
-          <AccordionFormTrigger className="pt-0">
-            <Title text="Faceting" />
-          </AccordionFormTrigger>
-          <AccordionFormContent wrapperClassName="pb-2 flex flex-col gap-2">
-            <Facet  />
-          </AccordionFormContent>
-        </AccordionFormItem>
-
-        <AccordionFormItem value="tooltips">
-          <AccordionFormTrigger>
-            <Title text="Tooltips" />
-          </AccordionFormTrigger>
-          <AccordionFormContent wrapperClassName="pb-2 flex flex-col gap-2">
-            <TooltipSelect
-              form={form}
-              name="general.tooltips"
-              fields={fields}
-              saveFunction={saveForm}
-              formFieldLabel="Tooltips"
-            />
-          </AccordionFormContent>
-        </AccordionFormItem>
-      </Accordion> */}
+      <FormSectionHorizontalRule />
+      <OtherOptions saveForm={saveForm} />
     </>
   );
 };
@@ -167,6 +138,32 @@ export const StyleForm: React.FC = () => {
             <InfoIcon className="w-2.5 h-2.5 inline mb-1 mr-1" />
             If you are using color range, color scheme will be ignored.
           </p>
+        </AccordionFormContent>
+      </AccordionFormItem>
+    </Accordion>
+  );
+};
+
+export const OtherOptions: React.FC<{ saveForm: () => void }> = ({
+  saveForm,
+}) => {
+  return (
+    <Accordion type="multiple">
+      <AccordionFormItem value="facet">
+        <AccordionFormTrigger className="pt-0">
+          <Title text="Faceting" />
+        </AccordionFormTrigger>
+        <AccordionFormContent>
+          <Facet />
+        </AccordionFormContent>
+      </AccordionFormItem>
+
+      <AccordionFormItem value="tooltips">
+        <AccordionFormTrigger>
+          <Title text="Tooltips" />
+        </AccordionFormTrigger>
+        <AccordionFormContent>
+          <TooltipSelect fieldName="general.tooltips" saveFunction={saveForm} />
         </AccordionFormContent>
       </AccordionFormItem>
     </Accordion>

@@ -31,7 +31,7 @@ import {
 } from "./form-fields";
 import { CHART_TYPES, type ChartType, SORT_TYPES } from "../types";
 import React from "react";
-import { IconWithText, Title } from "../common/layouts";
+import { FieldSection, IconWithText, Title } from "./layouts";
 import { useChartFormContext } from "../context";
 
 export const ChartLoadingState: React.FC = () => (
@@ -109,7 +109,7 @@ export const XAxis: React.FC = () => {
     xColumnExists && selectedXDataType === "temporal" && !isXCountField;
 
   return (
-    <div className="flex flex-col gap-1">
+    <FieldSection>
       <Title text="X-Axis" />
       <div className="flex flex-row gap-2 justify-between">
         <ColumnSelector
@@ -153,7 +153,7 @@ export const XAxis: React.FC = () => {
           defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
         />
       )}
-    </div>
+    </FieldSection>
   );
 };
 
@@ -164,6 +164,8 @@ export const YAxis: React.FC = () => {
 
   const yColumn = formValues.general?.yColumn;
   const yColumnExists = FieldValidators.exists(yColumn?.field);
+  const xColumn = formValues.general?.xColumn;
+  const xColumnExists = FieldValidators.exists(xColumn?.field);
 
   const inferredYDataType = yColumn?.type
     ? TypeConverters.toSelectableDataType(yColumn.type)
@@ -179,7 +181,7 @@ export const YAxis: React.FC = () => {
     yColumnExists && selectedYDataType === "temporal" && !isYCountField;
 
   return (
-    <div className="flex flex-col gap-1">
+    <FieldSection>
       <Title text="Y-Axis" />
       <div className="flex flex-row gap-2 justify-between">
         <ColumnSelector
@@ -204,7 +206,10 @@ export const YAxis: React.FC = () => {
           label="Time Resolution"
         />
       )}
-    </div>
+      {yColumnExists && xColumnExists && (
+        <BooleanField fieldName="general.horizontal" label="Horizontal chart" />
+      )}
+    </FieldSection>
   );
 };
 
@@ -212,8 +217,7 @@ export const ColorByAxis: React.FC = () => {
   const context = useChartFormContext();
 
   return (
-    <div className="flex flex-col gap-1">
-      <BooleanField fieldName="general.horizontal" label="Horizontal chart" />
+    <FieldSection>
       <Title text="Color by" />
       <div className="flex flex-row justify-between">
         <ColumnSelector
@@ -222,7 +226,7 @@ export const ColorByAxis: React.FC = () => {
         />
         <AggregationSelect fieldName="general.colorByColumn.aggregate" />
       </div>
-    </div>
+    </FieldSection>
   );
 };
 
@@ -231,7 +235,7 @@ export const Facet: React.FC = () => {
   const fields = context.fields;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <FieldSection>
       <div className="flex flex-row gap-2 justify-between">
         <p>Row</p>
         <ColumnSelector fieldName="general.facet.row.field" columns={fields} />
@@ -243,6 +247,6 @@ export const Facet: React.FC = () => {
           columns={fields}
         />
       </div>
-    </div>
+    </FieldSection>
   );
 };

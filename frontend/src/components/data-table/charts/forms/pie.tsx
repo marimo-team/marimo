@@ -1,30 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ColumnSelector } from "./form-fields";
-import { Title } from "../common/layouts";
-import { useWatch } from "react-hook-form";
+import { ColumnSelector } from "../components/form-fields";
+import { FormSectionHorizontalRule, Title } from "../components/layouts";
+import { useFormContext, useWatch } from "react-hook-form";
 import { FieldValidators } from "../spec";
-import type { UseFormReturn } from "react-hook-form";
 import { TypeConverters } from "../spec";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
 import {
   DataTypeSelect,
   AggregationSelect,
-  TooltipSelect,
   NumberField,
-} from "./form-fields";
+} from "../components/form-fields";
 import { useChartFormContext } from "../context";
+import { OtherOptions } from "./common-chart";
 
 export const PieForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
   saveForm: () => void;
-}> = ({ form, saveForm }) => {
-  const context = useChartFormContext();
+}> = ({ saveForm }) => {
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const { fields } = useChartFormContext();
   const formValues = useWatch({ control: form.control });
   const colorByColumn = formValues.general?.colorByColumn;
-
-  const fields = context.fields;
 
   const inferredColorByDataType = colorByColumn?.type
     ? TypeConverters.toSelectableDataType(colorByColumn.type)
@@ -52,19 +49,14 @@ export const PieForm: React.FC<{
         <AggregationSelect fieldName="general.yColumn.aggregate" />
       </div>
 
-      <hr className="my-1" />
-      <Title text="General" />
-      <TooltipSelect
-        fieldName="general.tooltips"
-        fields={fields}
-        saveFunction={saveForm}
-        label="Tooltips"
-      />
       <NumberField
         fieldName="style.innerRadius"
         label="Donut size"
         className="w-32"
       />
+
+      <FormSectionHorizontalRule />
+      <OtherOptions saveForm={saveForm} />
     </>
   );
 };

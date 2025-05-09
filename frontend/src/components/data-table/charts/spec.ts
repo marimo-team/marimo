@@ -31,7 +31,7 @@ import type {
 import type { ColorScheme, ExprRef, SignalRef } from "vega";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
-import type { Tooltip } from "./forms/form-fields";
+import type { Tooltip } from "./components/form-fields";
 import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
 import type { Aggregate } from "vega-lite/build/src/aggregate";
 

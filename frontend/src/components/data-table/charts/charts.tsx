@@ -17,7 +17,7 @@ import type { FieldTypesWithExternalType } from "../types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import type { Field } from "./forms/form-fields";
+import type { Field } from "./components/form-fields";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { inferFieldTypes } from "../columns";
 import { LazyChart } from "./lazy-chart";
@@ -25,12 +25,12 @@ import {
   ChartLoadingState,
   ChartErrorState,
   ChartTypeSelect,
-} from "./forms/chart-components";
+} from "./components/chart-items";
 import { ChartType } from "./types";
 import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { CommonChartForm, StyleForm } from "./forms/common-chart";
-import { TabContainer } from "./common/layouts";
+import { TabContainer } from "./components/layouts";
 import { ChartFormContext } from "./context";
 
 const NEW_CHART_TYPE = "line" as ChartType;
@@ -358,7 +358,7 @@ const ChartFormContainer = ({
             <TabsContent value="data">
               <hr className="my-2" />
               <TabContainer>
-                <ChartForm form={form} saveForm={debouncedSave} />
+                <ChartForm saveForm={debouncedSave} />
               </TabContainer>
             </TabsContent>
 

@@ -1,17 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useWatch } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { FieldValidators } from "../spec";
-import type { UseFormReturn } from "react-hook-form";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
-import { NumberField } from "./form-fields";
-import { ColorByAxis, XAxis, YAxis } from "./chart-components";
+import { NumberField } from "../components/form-fields";
+import { ColorByAxis, XAxis, YAxis } from "../components/chart-items";
+import { OtherOptions } from "./common-chart";
+import { FormSectionHorizontalRule } from "../components/layouts";
 
 export const HeatmapForm: React.FC<{
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
   saveForm: () => void;
-}> = ({ form }) => {
+}> = ({ saveForm }) => {
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
   const formValues = useWatch({ control: form.control });
   const xColumnExists = FieldValidators.exists(
     formValues.general?.xColumn?.field,
@@ -32,13 +33,18 @@ export const HeatmapForm: React.FC<{
       )}
       <YAxis />
       {yColumnExists && (
-        <NumberField
-          fieldName="yAxis.bin.maxbins"
-          label="Number of boxes (max)"
-          className="justify-between"
-        />
+        <>
+          <NumberField
+            fieldName="yAxis.bin.maxbins"
+            label="Number of boxes (max)"
+            className="justify-between"
+          />
+          <ColorByAxis />
+        </>
       )}
-      <ColorByAxis />
+
+      <FormSectionHorizontalRule />
+      <OtherOptions saveForm={saveForm} />
     </>
   );
 };
