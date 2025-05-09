@@ -634,6 +634,7 @@ def lru_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     maxsize: int = 128,
     *args: Any,
+    pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
 ) -> Union[_cache_call, _cache_context]:
@@ -685,6 +686,7 @@ def lru_cache(  # type: ignore[misc]
         cache(  # type: ignore[call-overload]
             arg,
             *args,
+            pin_modules=pin_modules,
             loader=MemoryLoader.partial(max_size=maxsize),
             _frame_offset=2,
             **kwargs,
@@ -715,6 +717,7 @@ def persistent_cache(  # type: ignore[misc]
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     store: Optional[Store] = None,
+    fn: Optional[Callable[..., Any]] = None,
     *args: Any,
     pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
@@ -832,6 +835,9 @@ def persistent_cache(  # type: ignore[misc]
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")
+
+    if fn is not None:
+        raise TypeError("Do not use fn directly, use positional arguments.")
 
     return cast(
         Union[_cache_call, _cache_context],

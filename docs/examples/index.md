@@ -147,7 +147,7 @@ overview.
 
 <div class="grid cards examples-grid" markdown>
 
--   📊 [**Selecting data with Altair**](../api/plotting#reactive-charts-with-altair)
+-   📊 [**Selecting data with Altair**](../api/plotting.md#reactive-charts-with-altair)
 
     ---
 

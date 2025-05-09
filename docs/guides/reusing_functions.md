@@ -13,7 +13,7 @@ meet the following **criteria**:
 
 1. The cell must define just a single function or class.
 2. The defined function or class can only refer to symbols defined in the
-   [setup cell](#create-a-setup-cell), or to other top-level symbols.
+   [setup cell](#1-create-a-setup-cell), or to other top-level symbols.
 
 
 ### Example
@@ -116,7 +116,7 @@ print(stats)
 
 - Functions cannot depend on variables defined in regular cells
 - Like other cells, cyclic dependencies between functions are not allowed
-- Functions cannot be exported from notebooks in [marimo's markdown format](editor_features/watching.md#markdown-file-support).
+- Functions cannot be exported from notebooks in [marimo's markdown format](editor_features/watching.md#as-markdown).
 
 ## Learn more
 
