@@ -239,7 +239,7 @@ export const Facet: React.FC = () => {
         : ("general.facet.column.linkXAxis" as const);
 
     return (
-      <>
+      <div className="flex flex-col gap-1">
         <div className="flex flex-row justify-between">
           <p className="font-semibold">{capitalize(facet)}</p>
           <ColumnSelector
@@ -279,12 +279,12 @@ export const Facet: React.FC = () => {
             />
           </>
         )}
-      </>
+      </div>
     );
   };
 
   return (
-    <FieldSection>
+    <FieldSection className="gap-3">
       {renderField("row")}
       {renderField("column")}
     </FieldSection>
