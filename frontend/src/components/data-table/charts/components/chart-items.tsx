@@ -1,11 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  ArrowDownWideNarrowIcon,
-  ArrowUpWideNarrowIcon,
-  ChevronDown,
-  Loader2,
-} from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { capitalize } from "lodash-es";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import {
@@ -26,12 +21,13 @@ import {
   AggregationSelect,
   DataTypeSelect,
   TimeUnitSelect,
-  SelectField,
   BooleanField,
+  SortField,
+  NumberField,
 } from "./form-fields";
-import { CHART_TYPES, type ChartType, SORT_TYPES } from "../types";
+import { CHART_TYPES, type ChartType } from "../types";
 import React from "react";
-import { FieldSection, IconWithText, Title } from "./layouts";
+import { FieldSection, Title } from "./layouts";
 import { useChartFormContext } from "../context";
 
 export const ChartLoadingState: React.FC = () => (
@@ -111,7 +107,7 @@ export const XAxis: React.FC = () => {
   return (
     <FieldSection>
       <Title text="X-Axis" />
-      <div className="flex flex-row gap-2 justify-between">
+      <div className="flex flex-row justify-between">
         <ColumnSelector
           fieldName="general.xColumn.field"
           columns={context.fields}
@@ -134,23 +130,10 @@ export const XAxis: React.FC = () => {
         />
       )}
       {xColumnExists && !isXCountField && (
-        <SelectField
+        <SortField
           fieldName="general.xColumn.sort"
           label="Sort"
-          options={SORT_TYPES.map((type) => ({
-            display: (
-              <IconWithText
-                Icon={
-                  type === "ascending"
-                    ? ArrowUpWideNarrowIcon
-                    : ArrowDownWideNarrowIcon
-                }
-                text={capitalize(type)}
-              />
-            ),
-            value: type,
-          }))}
-          defaultValue={formValues.general?.xColumn?.sort ?? "ascending"}
+          defaultValue={formValues.general?.xColumn?.sort}
         />
       )}
     </FieldSection>
@@ -183,7 +166,7 @@ export const YAxis: React.FC = () => {
   return (
     <FieldSection>
       <Title text="Y-Axis" />
-      <div className="flex flex-row gap-2 justify-between">
+      <div className="flex flex-row justify-between">
         <ColumnSelector
           fieldName="general.yColumn.field"
           columns={context.fields}
@@ -214,7 +197,7 @@ export const YAxis: React.FC = () => {
 };
 
 export const ColorByAxis: React.FC = () => {
-  const context = useChartFormContext();
+  const { fields } = useChartFormContext();
 
   return (
     <FieldSection>
@@ -222,7 +205,7 @@ export const ColorByAxis: React.FC = () => {
       <div className="flex flex-row justify-between">
         <ColumnSelector
           fieldName="general.colorByColumn.field"
-          columns={context.fields}
+          columns={fields}
         />
         <AggregationSelect fieldName="general.colorByColumn.aggregate" />
       </div>
@@ -234,19 +217,72 @@ export const Facet: React.FC = () => {
   const context = useChartFormContext();
   const fields = context.fields;
 
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const formValues = useWatch({ control: form.control });
+
+  const renderField = (facet: "column" | "row") => {
+    const field = formValues.general?.facet?.[facet];
+    const fieldExists = FieldValidators.exists(field?.field);
+
+    const inferredDataType = field?.type
+      ? TypeConverters.toSelectableDataType(field.type)
+      : "string";
+    const selectedDataType = field?.selectedDataType || inferredDataType;
+
+    const shouldShowTimeUnit = fieldExists && selectedDataType === "temporal";
+    const canShowBin = fieldExists && selectedDataType === "number";
+
+    const linkAxis = facet === "row" ? "linkYAxis" : "linkXAxis";
+
+    return (
+      <>
+        <div className="flex flex-row justify-between">
+          <p className="font-semibold">{capitalize(facet)}</p>
+          <ColumnSelector
+            fieldName={`general.facet.${facet}.field`}
+            columns={fields}
+          />
+        </div>
+        {fieldExists && (
+          <>
+            <DataTypeSelect
+              label="Data Type"
+              fieldName={`general.facet.${facet}.selectedDataType`}
+              defaultValue={inferredDataType}
+            />
+            {shouldShowTimeUnit && (
+              <TimeUnitSelect
+                fieldName={`general.facet.${facet}.timeUnit`}
+                label="Time Resolution"
+              />
+            )}
+            {canShowBin && (
+              <div className="flex flex-row justify-between">
+                <BooleanField
+                  fieldName={`general.facet.${facet}.binned`}
+                  label="Binned"
+                />
+                <NumberField
+                  fieldName={`general.facet.${facet}.maxbins`}
+                  label="Max Bins"
+                />
+              </div>
+            )}
+            <SortField fieldName={`general.facet.${facet}.sort`} label="Sort" />
+            <BooleanField
+              fieldName={`general.facet.${facet}.${linkAxis}`}
+              label={`Link ${facet === "row" ? "Y" : "X"} Axes`}
+            />
+          </>
+        )}
+      </>
+    );
+  };
+
   return (
     <FieldSection>
-      <div className="flex flex-row gap-2 justify-between">
-        <p>Row</p>
-        <ColumnSelector fieldName="general.facet.row.field" columns={fields} />
-      </div>
-      <div className="flex flex-row gap-2 justify-between">
-        <p>Column</p>
-        <ColumnSelector
-          fieldName="general.facet.column.field"
-          columns={fields}
-        />
-      </div>
+      {renderField("row")}
+      {renderField("column")}
     </FieldSection>
   );
 };

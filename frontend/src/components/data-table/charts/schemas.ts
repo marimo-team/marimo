@@ -24,20 +24,27 @@ export const BinSchema = z.object({
   maxbins: z.number().optional(),
 });
 
-export const AxisSchema = z.object({
+const BaseColumnSchema = z.object({
   field: z.string().optional(),
   type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
   selectedDataType: z.enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE]).optional(),
-  aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
   sort: z.enum(SORT_TYPES).default("ascending").optional(),
   timeUnit: z.enum(TIME_UNITS).optional(),
 });
 
-export const RowFacet = AxisSchema.extend({
-  linkYAxis: z.boolean().optional(),
+export const AxisSchema = BaseColumnSchema.extend({
+  aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
 });
-export const ColumnFacet = AxisSchema.extend({
-  linkXAxis: z.boolean().optional(),
+
+export const RowFacet = BaseColumnSchema.extend({
+  linkYAxis: z.boolean().default(true),
+  binned: z.boolean().default(true),
+  maxbins: z.number().optional(),
+});
+export const ColumnFacet = BaseColumnSchema.extend({
+  linkXAxis: z.boolean().default(true),
+  binned: z.boolean().default(true),
+  maxbins: z.number().optional(),
 });
 
 export const ChartSchema = z.object({
