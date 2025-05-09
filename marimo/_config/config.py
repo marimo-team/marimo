@@ -197,10 +197,12 @@ class ServerConfig(TypedDict):
         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
     - `follow_symlink`: if true, the server will follow symlinks it finds
         inside its static assets directory.
+    - `static_assets_root`: path or URL to static assets. If not provided, uses default package location.
     """
 
     browser: Union[Literal["default"], str]
     follow_symlink: bool
+    static_assets_root: NotRequired[Optional[str]]
 
 
 @dataclass
@@ -428,6 +430,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "server": {
         "browser": "default",
         "follow_symlink": False,
+        "static_assets_root": None,
     },
     "language_servers": {
         "pylsp": {
