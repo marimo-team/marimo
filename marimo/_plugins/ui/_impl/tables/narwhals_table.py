@@ -322,6 +322,7 @@ class NarwhalsTableManager(
                 false=cast(int, total - col.sum()),
             )
         if (col.dtype == nw.Date) or is_narwhals_time_type(col.dtype):
+            # Arrow does not support mean or quantile
             if self.data.implementation.is_pyarrow():
                 return ColumnSummary(
                     total=total,
