@@ -41,6 +41,7 @@ __all__ = [
     "defs",
     "doc",
     "download",
+    "file",
     "hstack",
     "Html",
     "icon",
@@ -127,6 +128,7 @@ from marimo._runtime.capture import (
 )
 from marimo._runtime.context.utils import running_in_notebook
 from marimo._runtime.control_flow import MarimoStopError, stop
+from marimo._runtime.file import file
 from marimo._runtime.runtime import (
     app_meta,
     cli_args,
