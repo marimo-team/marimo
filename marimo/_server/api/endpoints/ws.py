@@ -152,16 +152,19 @@ async def ws_sync(
     await websocket.accept()
 
     # Get or create the LoroDoc and add the client to it
+    LOGGER.debug("RTC: getting document")
     update_queue = asyncio.Queue[bytes]()
     doc = await DOC_MANAGER.get_or_create_doc(file_key)
     DOC_MANAGER.add_client_to_doc(file_key, update_queue)
 
     # Send initial sync
     # Use shallow snapshot for fewer bytes
+    LOGGER.debug("RTC: sending initial sync")
     init_sync_msg = doc.export(
         ExportMode.ShallowSnapshot(frontiers=doc.state_frontiers)
     )
     await websocket.send_bytes(init_sync_msg)
+    LOGGER.debug("RTC: initial sync sent")
 
     def handle_doc_update(event: DiffEvent) -> None:
         LOGGER.debug("RTC: doc updated", event)
