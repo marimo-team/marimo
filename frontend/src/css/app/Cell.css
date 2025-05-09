@@ -334,6 +334,10 @@
   font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
+.cm-lineNumbers {
+  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+}
+
 /* .marimo-cell is needed to take precedence over codemirror's generated class ... */
 .marimo-cell .cm-editor {
   border: 1px solid transparent;
