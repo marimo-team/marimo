@@ -2,7 +2,7 @@
 
 import { XAxis, YAxis, ColorByAxis, Facet } from "../components/chart-items";
 import { useFormContext, useWatch } from "react-hook-form";
-import { FieldValidators } from "../spec";
+import { isFieldSet } from "../chart-spec/spec";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
 import {
@@ -34,8 +34,8 @@ export const CommonChartForm: React.FC<{
   const yColumn = formValues.general?.yColumn;
   const groupByColumn = formValues.general?.colorByColumn;
 
-  const yColumnExists = FieldValidators.exists(yColumn?.field);
-  const showStacking = FieldValidators.exists(groupByColumn?.field);
+  const yColumnExists = isFieldSet(yColumn?.field);
+  const showStacking = isFieldSet(groupByColumn?.field);
 
   return (
     <>
@@ -80,7 +80,7 @@ export const StyleForm: React.FC = () => {
         <AccordionFormTrigger className="pt-0">
           <Title text="General" />
         </AccordionFormTrigger>
-        <AccordionFormContent wrapperClassName="pb-2">
+        <AccordionFormContent>
           <InputField label="Plot title" fieldName="general.title" />
         </AccordionFormContent>
       </AccordionFormItem>
@@ -89,7 +89,7 @@ export const StyleForm: React.FC = () => {
         <AccordionFormTrigger>
           <Title text="X-Axis" />
         </AccordionFormTrigger>
-        <AccordionFormContent wrapperClassName="pb-2 flex flex-col gap-2">
+        <AccordionFormContent>
           <InputField label="Label" fieldName="xAxis.label" />
           <SliderField
             fieldName="xAxis.width"
@@ -106,7 +106,7 @@ export const StyleForm: React.FC = () => {
         <AccordionFormTrigger>
           <Title text="Y-Axis" />
         </AccordionFormTrigger>
-        <AccordionFormContent wrapperClassName="pb-2 flex flex-col gap-2">
+        <AccordionFormContent>
           <InputField label="Label" fieldName="yAxis.label" />
           <SliderField
             fieldName="yAxis.height"
@@ -123,7 +123,7 @@ export const StyleForm: React.FC = () => {
         <AccordionFormTrigger>
           <Title text="Color" />
         </AccordionFormTrigger>
-        <AccordionFormContent wrapperClassName="pb-2 flex flex-col gap-2">
+        <AccordionFormContent>
           <SelectField
             fieldName="color.scheme"
             label="Color scheme"

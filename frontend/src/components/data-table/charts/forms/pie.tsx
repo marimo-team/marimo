@@ -3,8 +3,7 @@
 import { ColumnSelector } from "../components/form-fields";
 import { FormSectionHorizontalRule, Title } from "../components/layouts";
 import { useFormContext, useWatch } from "react-hook-form";
-import { FieldValidators } from "../spec";
-import { TypeConverters } from "../spec";
+import { isFieldSet } from "../chart-spec/spec";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
 import {
@@ -14,6 +13,7 @@ import {
 } from "../components/form-fields";
 import { useChartFormContext } from "../context";
 import { OtherOptions } from "./common-chart";
+import { convertDataTypeToSelectable } from "../chart-spec/types";
 
 export const PieForm: React.FC<{
   saveForm: () => void;
@@ -24,7 +24,7 @@ export const PieForm: React.FC<{
   const colorByColumn = formValues.general?.colorByColumn;
 
   const inferredColorByDataType = colorByColumn?.type
-    ? TypeConverters.toSelectableDataType(colorByColumn.type)
+    ? convertDataTypeToSelectable(colorByColumn.type)
     : "string";
 
   return (
@@ -35,7 +35,7 @@ export const PieForm: React.FC<{
         columns={fields}
         includeCountField={false}
       />
-      {FieldValidators.exists(colorByColumn?.field) && (
+      {isFieldSet(colorByColumn?.field) && (
         <DataTypeSelect
           fieldName="general.colorByColumn.selectedDataType"
           label="Data Type"

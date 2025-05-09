@@ -9,7 +9,7 @@ import {
   ArrowUpWideNarrowIcon,
   ArrowDownWideNarrowIcon,
 } from "lucide-react";
-import { type Path, type PathValue, useFormContext } from "react-hook-form";
+import { type Path, useFormContext } from "react-hook-form";
 import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
@@ -56,13 +56,14 @@ import {
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
 } from "../constants";
-import { TypeConverters } from "../spec";
 import { Slider } from "@/components/ui/slider";
 import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
 import type { NumberFieldProps } from "@/components/ui/number-field";
+import { convertDataTypeToSelectable } from "../chart-spec/types";
 
 const CLEAR_VALUE = "__clear__";
+type FieldName = Path<z.infer<typeof ChartSchema>>;
 
 export interface Field {
   name: string;
@@ -73,8 +74,6 @@ export interface Tooltip {
   field: string;
   type: string;
 }
-
-type FieldName = Path<z.infer<typeof ChartSchema>>;
 
 export const ColumnSelector = ({
   fieldName,
@@ -130,7 +129,7 @@ export const ColumnSelector = ({
                   form.setValue(pathType, column.type);
                   form.setValue(
                     pathSelectedDataType,
-                    TypeConverters.toSelectableDataType(column.type),
+                    convertDataTypeToSelectable(column.type),
                   );
                   onValueChange?.(fieldName, column.type);
                 }
@@ -380,7 +379,7 @@ export const SliderField = ({
               // Triggered on mouse up
               onValueCommit={([nextValue]) => {
                 field.onChange(nextValue);
-                form.setValue(fieldName, nextValue as PathValue<T, Path<T>>);
+                form.setValue(fieldName, nextValue);
               }}
               valueMap={(value) => value}
             />

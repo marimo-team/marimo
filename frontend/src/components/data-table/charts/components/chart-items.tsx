@@ -15,7 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { useFormContext, useWatch } from "react-hook-form";
 import type { z } from "zod";
 import type { ChartSchema } from "../schemas";
-import { FieldValidators, TypeConverters } from "../spec";
+import { isFieldSet } from "../chart-spec/spec";
 import {
   ColumnSelector,
   AggregationSelect,
@@ -29,6 +29,7 @@ import { CHART_TYPES, type ChartType } from "../types";
 import React from "react";
 import { FieldSection, Title } from "./layouts";
 import { useChartFormContext } from "../context";
+import { convertDataTypeToSelectable } from "../chart-spec/types";
 
 export const ChartLoadingState: React.FC = () => (
   <div className="flex items-center gap-2 justify-center h-full w-full">
@@ -89,10 +90,10 @@ export const XAxis: React.FC = () => {
   const context = useChartFormContext();
 
   const xColumn = formValues.general?.xColumn;
-  const xColumnExists = FieldValidators.exists(xColumn?.field);
+  const xColumnExists = isFieldSet(xColumn?.field);
 
   const inferredXDataType = xColumn?.type
-    ? TypeConverters.toSelectableDataType(xColumn.type)
+    ? convertDataTypeToSelectable(xColumn.type)
     : "string";
 
   const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
@@ -146,12 +147,12 @@ export const YAxis: React.FC = () => {
   const context = useChartFormContext();
 
   const yColumn = formValues.general?.yColumn;
-  const yColumnExists = FieldValidators.exists(yColumn?.field);
+  const yColumnExists = isFieldSet(yColumn?.field);
   const xColumn = formValues.general?.xColumn;
-  const xColumnExists = FieldValidators.exists(xColumn?.field);
+  const xColumnExists = isFieldSet(xColumn?.field);
 
   const inferredYDataType = yColumn?.type
-    ? TypeConverters.toSelectableDataType(yColumn.type)
+    ? convertDataTypeToSelectable(yColumn.type)
     : "string";
 
   const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
@@ -222,17 +223,20 @@ export const Facet: React.FC = () => {
 
   const renderField = (facet: "column" | "row") => {
     const field = formValues.general?.facet?.[facet];
-    const fieldExists = FieldValidators.exists(field?.field);
+    const fieldExists = isFieldSet(field?.field);
 
     const inferredDataType = field?.type
-      ? TypeConverters.toSelectableDataType(field.type)
+      ? convertDataTypeToSelectable(field.type)
       : "string";
     const selectedDataType = field?.selectedDataType || inferredDataType;
 
     const shouldShowTimeUnit = fieldExists && selectedDataType === "temporal";
     const canShowBin = fieldExists && selectedDataType === "number";
 
-    const linkAxis = facet === "row" ? "linkYAxis" : "linkXAxis";
+    const linkFieldName =
+      facet === "row"
+        ? ("general.facet.row.linkYAxis" as const)
+        : ("general.facet.column.linkXAxis" as const);
 
     return (
       <>
@@ -270,7 +274,7 @@ export const Facet: React.FC = () => {
             )}
             <SortField fieldName={`general.facet.${facet}.sort`} label="Sort" />
             <BooleanField
-              fieldName={`general.facet.${facet}.${linkAxis}`}
+              fieldName={linkFieldName}
               label={`Link ${facet === "row" ? "Y" : "X"} Axes`}
             />
           </>

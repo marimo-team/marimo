@@ -7,9 +7,9 @@ import { useTheme } from "@/theme/useTheme";
 import type { z } from "zod";
 import type { ChartSchema } from "./schemas";
 import type { TopLevelSpec } from "vega-lite";
-import type { ErrorMessage } from "./spec";
+import type { ErrorMessage } from "./chart-spec/spec";
 import { ChartPieIcon } from "lucide-react";
-import { createVegaSpec } from "./spec";
+import { createVegaSpec } from "./chart-spec/spec";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
