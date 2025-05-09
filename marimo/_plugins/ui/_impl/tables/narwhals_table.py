@@ -307,7 +307,7 @@ class NarwhalsTableManager(
             data = data.collect()
 
         col = data[column]
-        total = len(col)
+        total = col.shape[0]
         if is_narwhals_string_type(col.dtype):
             return ColumnSummary(
                 total=total,
@@ -322,6 +322,15 @@ class NarwhalsTableManager(
                 false=cast(int, total - col.sum()),
             )
         if (col.dtype == nw.Date) or is_narwhals_time_type(col.dtype):
+            # Arrow does not support mean or quantile
+            if self.data.implementation.is_pyarrow():
+                return ColumnSummary(
+                    total=total,
+                    nulls=col.null_count(),
+                    min=col.min(),
+                    max=col.max(),
+                )
+
             return ColumnSummary(
                 total=total,
                 nulls=col.null_count(),
@@ -348,6 +357,14 @@ class NarwhalsTableManager(
                 mean=str(res.mean()) + unit,
             )
         if is_narwhals_temporal_type(col.dtype):
+            # Arrow does not support mean or quantile
+            if self.data.implementation.is_pyarrow():
+                return ColumnSummary(
+                    total=total,
+                    nulls=col.null_count(),
+                    min=col.min(),
+                    max=col.max(),
+                )
             return ColumnSummary(
                 total=total,
                 nulls=col.null_count(),
