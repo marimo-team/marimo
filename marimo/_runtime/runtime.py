@@ -2716,9 +2716,22 @@ def launch_kernel(
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
     async def control_loop(kernel: Kernel) -> None:
+        from queue import Empty
+
         while True:
             try:
-                request: ControlRequest | None = control_queue.get()
+                TIMEOUT_S = 0.1
+                # 100ms timeout to avoid blocking
+                # this does not mean ControlRequest will be blocked for 100ms
+                # but rather background tasks may not start until 100ms have passed
+                request: ControlRequest | None = control_queue.get(
+                    timeout=TIMEOUT_S
+                )
+            except Empty:
+                # Yield control back to the event loop to give
+                # other tasks a chance to run
+                await asyncio.sleep(0)
+                continue
             except Exception as e:
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
