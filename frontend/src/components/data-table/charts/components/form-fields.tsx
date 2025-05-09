@@ -13,7 +13,6 @@ import { type Path, type PathValue, useFormContext } from "react-hook-form";
 import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
-import type { NumberFieldProps } from "@/components/ui/number-field";
 import type { ChartSchema } from "../schemas";
 
 import {
@@ -61,6 +60,7 @@ import { TypeConverters } from "../spec";
 import { Slider } from "@/components/ui/slider";
 import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
+import type { NumberFieldProps } from "@/components/ui/number-field";
 
 const CLEAR_VALUE = "__clear__";
 
@@ -74,37 +74,27 @@ export interface Tooltip {
   type: string;
 }
 
-interface BaseFormFieldProps<T extends object> {
-  fieldName: Path<T>;
-  label: string;
-  className?: string;
-}
+type FieldName = Path<z.infer<typeof ChartSchema>>;
 
-export const ColumnSelector = <T extends object>({
+export const ColumnSelector = ({
   fieldName,
   columns,
   onValueChange,
   includeCountField = true,
 }: {
-  fieldName: Path<T>;
+  fieldName: FieldName;
   columns: Array<{ name: string; type: DataType }>;
   onValueChange?: (fieldName: string, type: DataType | undefined) => void;
   includeCountField?: boolean;
 }) => {
-  const form = useFormContext<T>();
-  type AnyPath = Path<T>;
-  type AnyPathValue = PathValue<T, Path<T>>;
-  const ANY_VALUE = EMPTY_VALUE as AnyPathValue;
-  const pathType = fieldName.replace(".field", ".type") as AnyPath;
-  const pathSelectedDataType = fieldName.replace(
-    ".field",
-    ".selectedDataType",
-  ) as AnyPath;
+  const form = useFormContext();
+  const pathType = fieldName.replace(".field", ".type");
+  const pathSelectedDataType = fieldName.replace(".field", ".selectedDataType");
 
   const clear = () => {
-    form.setValue(fieldName, ANY_VALUE);
-    form.setValue(pathType, ANY_VALUE);
-    form.setValue(pathSelectedDataType, ANY_VALUE);
+    form.setValue(fieldName, EMPTY_VALUE);
+    form.setValue(pathType, EMPTY_VALUE);
+    form.setValue(pathSelectedDataType, EMPTY_VALUE);
     onValueChange?.(EMPTY_VALUE, undefined);
   };
 
@@ -126,9 +116,9 @@ export const ColumnSelector = <T extends object>({
 
                 // Handle count
                 if (value === COUNT_FIELD) {
-                  form.setValue(fieldName, value as AnyPathValue);
-                  form.setValue(pathType, ANY_VALUE);
-                  form.setValue(pathSelectedDataType, ANY_VALUE);
+                  form.setValue(fieldName, value);
+                  form.setValue(pathType, EMPTY_VALUE);
+                  form.setValue(pathSelectedDataType, EMPTY_VALUE);
                   onValueChange?.(fieldName, "number");
                   return;
                 }
@@ -136,13 +126,11 @@ export const ColumnSelector = <T extends object>({
                 // Handle column selection
                 const column = columns.find((column) => column.name === value);
                 if (column) {
-                  form.setValue(fieldName, value as AnyPathValue);
-                  form.setValue(pathType, column.type as AnyPathValue);
+                  form.setValue(fieldName, value);
+                  form.setValue(pathType, column.type);
                   form.setValue(
                     pathSelectedDataType,
-                    TypeConverters.toSelectableDataType(
-                      column.type,
-                    ) as AnyPathValue,
+                    TypeConverters.toSelectableDataType(column.type),
                   );
                   onValueChange?.(fieldName, column.type);
                 }
@@ -198,16 +186,19 @@ export const ColumnSelector = <T extends object>({
   );
 };
 
-export const SelectField = <T extends object>({
+export const SelectField = ({
   fieldName,
   label,
   options,
   defaultValue,
-}: BaseFormFieldProps<T> & {
+}: {
+  fieldName: FieldName;
+  label: string;
   options: Array<{ display: React.ReactNode; value: string }>;
   defaultValue: string;
 }) => {
-  const form = useFormContext<T>();
+  const form = useFormContext();
+
   return (
     <FormField
       control={form.control}
@@ -243,11 +234,14 @@ export const SelectField = <T extends object>({
   );
 };
 
-export const InputField = <T extends object>({
+export const InputField = ({
   fieldName,
   label,
-}: BaseFormFieldProps<T>) => {
-  const form = useFormContext<T>();
+}: {
+  fieldName: FieldName;
+  label: string;
+}) => {
+  const form = useFormContext();
   return (
     <FormField
       control={form.control}
@@ -269,14 +263,17 @@ export const InputField = <T extends object>({
   );
 };
 
-export const NumberField = <T extends object>({
+export const NumberField = ({
   fieldName,
   label,
   className,
   ...props
-}: BaseFormFieldProps<T> &
-  Omit<NumberFieldProps, "value" | "onValueChange">) => {
-  const form = useFormContext<T>();
+}: NumberFieldProps & {
+  fieldName: FieldName;
+  label: string;
+  className?: string;
+}) => {
+  const form = useFormContext();
   return (
     <FormField
       control={form.control}
@@ -300,12 +297,16 @@ export const NumberField = <T extends object>({
   );
 };
 
-export const BooleanField = <T extends object>({
+export const BooleanField = ({
   fieldName,
   label,
   className,
-}: BaseFormFieldProps<T>) => {
-  const form = useFormContext<T>();
+}: {
+  fieldName: FieldName;
+  label: string;
+  className?: string;
+}) => {
+  const form = useFormContext();
   return (
     <FormField
       control={form.control}
@@ -326,14 +327,17 @@ export const BooleanField = <T extends object>({
   );
 };
 
-interface SliderFieldProps<T extends object> extends BaseFormFieldProps<T> {
+interface SliderFieldProps {
+  fieldName: FieldName;
+  label: string;
+  className?: string;
   value: number;
   start: number;
   stop: number;
   step?: number;
 }
 
-export const SliderField = <T extends object>({
+export const SliderField = ({
   fieldName,
   label,
   value,
@@ -341,10 +345,9 @@ export const SliderField = <T extends object>({
   stop,
   step,
   className,
-  ...props
-}: SliderFieldProps<T>) => {
+}: SliderFieldProps) => {
   const [internalValue, setInternalValue] = React.useState(value);
-  const form = useFormContext<T>();
+  const form = useFormContext();
 
   // Update internal value on prop change
   React.useEffect(() => {
@@ -363,7 +366,6 @@ export const SliderField = <T extends object>({
           <FormControl>
             <Slider
               {...field}
-              {...props}
               id={fieldName}
               className="relative flex items-center select-none"
               value={[internalValue]}
@@ -389,32 +391,36 @@ export const SliderField = <T extends object>({
   );
 };
 
-export const ColorArrayField = <T extends object>({
+export const ColorArrayField = ({
   fieldName,
   label,
   className,
-}: BaseFormFieldProps<T>) => {
-  const form = useFormContext<T>();
+}: {
+  fieldName: FieldName;
+  label: string;
+  className?: string;
+}) => {
+  const form = useFormContext();
   const formValue = form.watch(fieldName);
   const [colors, setColors] = React.useState<string[]>(formValue ?? []);
 
   const addColor = () => {
     const newColors = [...colors, "#000000"];
     setColors(newColors);
-    form.setValue(fieldName, newColors as PathValue<T, Path<T>>);
+    form.setValue(fieldName, newColors);
   };
 
   const removeColor = (index: number) => {
     const newColors = colors.filter((_, i) => i !== index);
     setColors(newColors);
-    form.setValue(fieldName, newColors as PathValue<T, Path<T>>);
+    form.setValue(fieldName, newColors);
   };
 
   const updateColor = (index: number, value: string) => {
     const newColors = [...colors];
     newColors[index] = value;
     setColors(newColors);
-    form.setValue(fieldName, newColors as PathValue<T, Path<T>>);
+    form.setValue(fieldName, newColors);
   };
 
   return (
@@ -462,13 +468,16 @@ export const ColorArrayField = <T extends object>({
   );
 };
 
-export const TimeUnitSelect = <T extends object>({
+export const TimeUnitSelect = ({
   fieldName,
   label,
-}: BaseFormFieldProps<T>) => {
-  const form = useFormContext<T>();
+}: {
+  fieldName: FieldName;
+  label: string;
+}) => {
+  const form = useFormContext();
   const clear = () => {
-    form.setValue(fieldName, EMPTY_VALUE as PathValue<T, Path<T>>);
+    form.setValue(fieldName, EMPTY_VALUE);
   };
 
   const renderTimeUnit = (unit: TimeUnit) => {
@@ -536,17 +545,19 @@ export const TimeUnitSelect = <T extends object>({
   );
 };
 
-export const DataTypeSelect = <T extends object>({
+export const DataTypeSelect = ({
   fieldName,
   label,
   defaultValue,
   onValueChange,
-}: BaseFormFieldProps<T> & {
+}: {
+  fieldName: FieldName;
+  label: string;
   defaultValue: string;
   onValueChange?: (value: string) => void;
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const form = useFormContext<T>();
+  const form = useFormContext();
 
   return (
     <FormField
@@ -652,14 +663,14 @@ export const AggregationSelect = <T extends object>({
   );
 };
 
-export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
+export const TooltipSelect = ({
   fieldName,
   saveFunction,
 }: {
-  fieldName: Path<T>;
+  fieldName: FieldName;
   saveFunction: () => void;
 }) => {
-  const form = useFormContext<T>();
+  const form = useFormContext();
   const { fields } = useChartFormContext();
   return (
     <FormField
@@ -702,11 +713,13 @@ export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
   );
 };
 
-export const SortField = <T extends object>({
+export const SortField = ({
   fieldName,
   label,
   defaultValue,
-}: BaseFormFieldProps<T> & {
+}: {
+  fieldName: FieldName;
+  label: string;
   defaultValue?: string;
 }) => {
   return (
