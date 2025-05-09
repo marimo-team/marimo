@@ -52,7 +52,8 @@ import {
 } from "../constants";
 import { TypeConverters } from "../spec";
 import { Slider } from "@/components/ui/slider";
-import { IconWithText } from "../common/layouts";
+import { IconWithText } from "./layouts";
+import { useChartFormContext } from "../context";
 
 const CLEAR_VALUE = "__clear__";
 
@@ -646,16 +647,13 @@ export const AggregationSelect = <T extends object>({
 
 export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
   fieldName,
-  label,
-  fields,
   saveFunction,
 }: {
   fieldName: Path<T>;
-  label?: string;
-  fields: Field[];
   saveFunction: () => void;
 }) => {
   const form = useFormContext<T>();
+  const { fields } = useChartFormContext();
   return (
     <FormField
       control={form.control}
@@ -663,8 +661,7 @@ export const TooltipSelect = <T extends z.infer<typeof ChartSchema>>({
       render={({ field }) => {
         const tooltips = field.value as Tooltip[] | undefined;
         return (
-          <FormItem className="flex flex-row gap-2 items-center">
-            {label && <FormLabel>{label}</FormLabel>}
+          <FormItem>
             <FormControl>
               <Multiselect
                 options={fields?.map((field) => field.name) ?? []}

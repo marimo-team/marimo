@@ -16,6 +16,23 @@ export const TabContainer: React.FC<{
   return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
 };
 
+export const FormSectionHorizontalRule: React.FC<{
+  className?: string;
+}> = ({ className }) => {
+  return <hr className={cn("my-1", className)} />;
+};
+
+export const FieldSection: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className }) => {
+  return (
+    <section className={cn("flex flex-col gap-1.5", className)}>
+      {children}
+    </section>
+  );
+};
+
 export const IconWithText: React.FC<{
   Icon: React.ForwardRefExoticComponent<
     Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>
