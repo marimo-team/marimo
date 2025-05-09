@@ -25,7 +25,7 @@ import { parsePython } from "../embedded/embedded-python";
 import { conditionalCompletion } from "../../completion/utils";
 import { pythonCompletionSource } from "../../completion/completer";
 import { markdownCompletionSources } from "../../markdown/completions";
-import { ViewPlugin } from "@codemirror/view";
+import { type EditorView, ViewPlugin } from "@codemirror/view";
 import { languageMetadataField } from "../metadata";
 
 export interface MarkdownLanguageAdapterMetadata {
@@ -204,19 +204,20 @@ export class MarkdownLanguageAdapter
     _: PlaceholderType,
   ): Extension[] {
     const markdownLanguageData = markdown().language.data;
+    let view: EditorView | undefined;
 
     // Only activate completions for f-strings
-    let isFStringActive = () => false;
+    const isFStringActive = () => {
+      const metadata = view?.state.field(languageMetadataField);
+      if (metadata === undefined) {
+        return false;
+      }
+      return metadata.quotePrefix?.includes("f") ?? false;
+    };
 
     return [
-      ViewPlugin.define((view) => {
-        isFStringActive = () => {
-          const metadata = view.state.field(languageMetadataField);
-          if (metadata === undefined) {
-            return false;
-          }
-          return metadata.quotePrefix?.includes("f") ?? false;
-        };
+      ViewPlugin.define((_view) => {
+        view = _view;
         return {};
       }),
       markdown({

@@ -296,14 +296,10 @@ class WebsocketHandler(SessionConsumer):
                         "RTC: Loro is not installed, disabling real-time collaboration"
                     )
                     self.rtc_enabled = False
-                    return
-
-                async def init_loro_doc() -> None:
-                    await DOC_MANAGER.create_doc(
-                        self.file_key, cell_ids, codes
+                else:
+                    asyncio.create_task(
+                        DOC_MANAGER.create_doc(self.file_key, cell_ids, codes)
                     )
-
-                asyncio.create_task(init_loro_doc())
 
         else:
             codes, names, configs, cell_ids = tuple(

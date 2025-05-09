@@ -33,7 +33,9 @@ export const CollapseToggle: React.FC<Props> = (props) => {
   return (
     <Button variant="text" size="icon" onClick={props.onClick}>
       <Tooltip content={props.isCollapsed ? "Expand" : "Collapse"}>
-        <Arrow isCollapsed={props.isCollapsed} />
+        <span>
+          <Arrow isCollapsed={props.isCollapsed} />
+        </span>
       </Tooltip>
     </Button>
   );
