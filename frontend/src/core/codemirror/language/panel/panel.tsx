@@ -126,7 +126,7 @@ export const LanguagePanelComponent: React.FC<{
     let { quotePrefix } = metadata;
 
     // Handle the case where the quote prefix is not set
-    if (!quotePrefix) {
+    if (quotePrefix === undefined) {
       quotePrefix = "r";
       triggerUpdate<Metadata>({ quotePrefix });
     }
