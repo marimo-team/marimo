@@ -9,7 +9,7 @@ import {
   ArrowUpWideNarrowIcon,
   ArrowDownWideNarrowIcon,
 } from "lucide-react";
-import { type Path, useFormContext } from "react-hook-form";
+import { type Path, useFormContext, useWatch } from "react-hook-form";
 import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
@@ -61,6 +61,7 @@ import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
 import type { NumberFieldProps } from "@/components/ui/number-field";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
+import { isFieldSet } from "../chart-spec/spec";
 
 const CLEAR_VALUE = "__clear__";
 type FieldName = Path<z.infer<typeof ChartSchema>>;
@@ -670,32 +671,64 @@ export const TooltipSelect = ({
   saveFunction: () => void;
 }) => {
   const form = useFormContext();
+  const formValues = useWatch({ control: form.control });
   const { fields } = useChartFormContext();
+
+  // TODO: This hack allows users to deselect, but in return,
+  // whenever component is re-toggled, this gets reset
+  const [touched, setTouched] = React.useState(false);
+
+  const xField = formValues.general?.xColumn?.field;
+  const yField = formValues.general?.yColumn?.field;
+  const colorField = formValues.general?.colorByColumn?.field;
+  const defaultValues: string[] = [];
+  if (isFieldSet(xField)) {
+    defaultValues.push(xField);
+  }
+  if (isFieldSet(yField)) {
+    defaultValues.push(yField);
+  }
+  if (isFieldSet(colorField)) {
+    defaultValues.push(colorField);
+  }
+
+  const createTooltip = (name: string, fields: Field[]) => {
+    const field = fields.find((f) => f.name === name);
+    return {
+      field: name,
+      type: field?.type ?? "string",
+    };
+  };
+
   return (
     <FormField
       control={form.control}
       name={fieldName}
       render={({ field }) => {
         const tooltips = field.value as Tooltip[] | undefined;
+
+        let values = tooltips?.map((t) => t.field) ?? [];
+        if (values.length === 0 && !touched) {
+          values = defaultValues;
+          const tooltipObjects = values.map((fieldName) => {
+            return createTooltip(fieldName, fields);
+          });
+          field.onChange(tooltipObjects);
+        }
+
         return (
           <FormItem>
             <FormControl>
               <Multiselect
                 options={fields?.map((field) => field.name) ?? []}
-                value={tooltips?.map((t) => t.field) ?? []}
+                value={values}
                 setValue={(values) => {
+                  setTouched(true);
                   const selectedValues =
                     typeof values === "function" ? values([]) : values;
 
                   const tooltipObjects = selectedValues.map((fieldName) => {
-                    const fieldType = fields?.find(
-                      (f) => f.name === fieldName,
-                    )?.type;
-
-                    return {
-                      field: fieldName,
-                      type: fieldType ?? "string",
-                    };
+                    return createTooltip(fieldName, fields);
                   });
 
                   field.onChange(tooltipObjects);

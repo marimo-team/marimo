@@ -37,13 +37,13 @@ export const AxisSchema = BaseColumnSchema.extend({
 });
 
 export const RowFacet = BaseColumnSchema.extend({
-  linkYAxis: z.boolean().default(true),
-  binned: z.boolean().default(true),
+  linkYAxis: z.boolean().default(true).optional(),
+  binned: z.boolean().default(true).optional(),
   maxbins: z.number().optional(),
 });
 export const ColumnFacet = BaseColumnSchema.extend({
-  linkXAxis: z.boolean().default(true),
-  binned: z.boolean().default(true),
+  linkXAxis: z.boolean().default(true).optional(),
+  binned: z.boolean().default(true).optional(),
   maxbins: z.number().optional(),
 });
 
