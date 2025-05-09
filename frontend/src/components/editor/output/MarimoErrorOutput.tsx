@@ -142,7 +142,7 @@ export const MarimoErrorOutput = ({
 
     if (syntaxErrors.length > 0 || unknownErrors.length > 0) {
       messages.push(
-        <li key="syntax-unknown">
+        <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
             <p key={`syntax-${idx}`}>{error.msg}</p>
           ))}
@@ -155,7 +155,7 @@ export const MarimoErrorOutput = ({
               cellId={cellId}
             />
           )}
-        </li>,
+        </div>,
       );
     }
 
