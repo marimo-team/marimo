@@ -35,7 +35,7 @@ import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { Column } from "@tanstack/react-table";
 import { renderCellValue } from "../columns";
 
-export interface DataSelectionPanelProps {
+export interface RowViewerPanelProps {
   rowIdx: number;
   setRowIdx: (rowIdx: number) => void;
   totalRows: number;
@@ -43,13 +43,13 @@ export interface DataSelectionPanelProps {
   getRow: (rowIdx: number) => Promise<GetRowResult>;
 }
 
-export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
+export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   rowIdx,
   setRowIdx,
   totalRows,
   fieldTypes,
   getRow,
-}: DataSelectionPanelProps) => {
+}: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: rows, error } = useAsyncData(async () => {

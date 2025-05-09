@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { DataSelectionPanel } from "../data-selection";
+import { RowViewerPanel } from "../row-viewer";
 import { Provider } from "jotai";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
@@ -16,7 +16,7 @@ const renderWithProviders = (component: React.ReactNode) => {
   );
 };
 
-describe("DataSelectionPanel", () => {
+describe("RowExpandedPanel", () => {
   const mockFieldTypes: FieldTypesWithExternalType = [
     ["name", ["string", "string"]],
     ["age", ["number", "number"]],
@@ -37,7 +37,7 @@ describe("DataSelectionPanel", () => {
 
   it("renders data in selection panel", async () => {
     renderWithProviders(
-      <DataSelectionPanel
+      <RowViewerPanel
         rowIdx={0}
         setRowIdx={mockSetRowIdx}
         totalRows={3}
