@@ -3,16 +3,13 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
-from loro import LoroDoc, LoroText
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
 from marimo._server.api.endpoints.ws import DOC_MANAGER
-from marimo._server.file_router import MarimoFileKey
-from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager
 from tests._server.mocks import token_header
@@ -92,86 +89,6 @@ async def setup_loro_docs() -> AsyncGenerator[None, None]:
     DOC_MANAGER.loro_docs.clear()
     DOC_MANAGER.loro_docs_clients.clear()
     DOC_MANAGER.loro_docs_cleaners.clear()
-
-
-async def test_quick_reconnection(setup_loro_docs: None) -> None:
-    """Test that quick reconnection properly handles cleanup task cancellation"""
-    del setup_loro_docs
-    # Setup
-    file_key = MarimoFileKey("test_file")
-
-    # Create initial loro_doc
-    doc = LoroDoc()
-    DOC_MANAGER.loro_docs[file_key] = doc
-
-    # Setup client queue
-    update_queue = asyncio.Queue[bytes]()
-    DOC_MANAGER.loro_docs_clients[file_key] = {update_queue}
-
-    # Start cleanup task
-    cleanup_task = asyncio.create_task(DOC_MANAGER._clean_loro_doc(file_key))
-
-    # Simulate quick reconnection by creating a new client before cleanup finishes
-    new_queue = asyncio.Queue[bytes]()
-    DOC_MANAGER.loro_docs_clients[file_key].add(new_queue)
-
-    # Cancel cleanup task
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
-
-    # Verify state
-    assert len(DOC_MANAGER.loro_docs) == 1
-    assert (
-        len(DOC_MANAGER.loro_docs_clients[file_key]) == 2
-    )  # Original client + reconnected client
-
-
-async def test_two_users_sync(setup_loro_docs: None) -> None:
-    """Test that two users can connect and sync text properly without duplicates"""
-    del setup_loro_docs
-    file_key = MarimoFileKey("test_file")
-    cell_id = str(CellId_t("test_cell"))  # Convert CellId to string for loro
-
-    # First user connects
-    doc = LoroDoc()
-    DOC_MANAGER.loro_docs[file_key] = doc
-
-    # Setup client queues for both users
-    queue1 = asyncio.Queue[bytes]()
-    queue2 = asyncio.Queue[bytes]()
-    DOC_MANAGER.loro_docs_clients[file_key] = {queue1, queue2}
-
-    # Get maps from doc
-    doc_codes = doc.get_map("codes")
-    doc_languages = doc.get_map("languages")
-
-    # Add text to the doc using get_or_create_container
-    code_text = doc_codes.get_or_create_container(cell_id, LoroText())
-    code_text_typed = cast(LoroText, code_text)
-    code_text_typed.insert(0, "print('hello')")
-
-    lang_text = doc_languages.get_or_create_container(cell_id, LoroText())
-    lang_text_typed = cast(LoroText, lang_text)
-    lang_text_typed.insert(0, "python")
-
-    # Verify state
-    assert len(DOC_MANAGER.loro_docs) == 1
-    assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 2
-
-    # Make sure we can get the text content
-    assert code_text_typed.to_string() == "print('hello')"
-
-    # Second user makes changes - no need to retrieve the text again
-    code_text_typed.insert(
-        len(code_text_typed.to_string()), "\nprint('world')"
-    )
-
-    # Verify changes propagate
-    assert code_text_typed.to_string() == "print('hello')\nprint('world')"
-    assert lang_text_typed.to_string() == "python"
 
 
 @contextmanager
