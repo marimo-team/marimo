@@ -43,21 +43,41 @@ df
 /// tab | polars
 
 ```python
-import polars as pl
+import pandas as pd
 
-df = pl.read_json(
-    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+df = pd.read_json(
+"https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
 df
 ```
 
 ///
 
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+    )
+    return
+```
+
+///
+
+
 To opt out of the rich dataframe viewer, use [`mo.plain`][marimo.plain]:
 
 /// tab | pandas
 
 ```python
+import pandas as pd
+import marimo as mo
+
 df = pd.read_json(
 "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
@@ -69,10 +89,30 @@ mo.plain(df)
 /// tab | polars
 
 ```python
+import polars as pl
+import marimo as mo
+
 df = pl.read_json(
 "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
 mo.plain(df)
+```
+
+///
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    df = pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+    )
+    mo.plain(df)
+    return
 ```
 
 ///
@@ -134,12 +174,29 @@ transformed_df.value
 
 ///
 
-<div align="center">
-<figure>
-<img src="/_static/docs-dataframe-transform-code.png"/>
-<figcaption>Copy the code of the transformation</figcaption>
-</figure>
-</div>
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+    transformed_df = mo.ui.dataframe(df)
+    transformed_df
+    return
+
+@app.cell
+def __():
+    transformed_df.value
+
+    return
+```
+
+///
+
+
 
 ### Custom filters
 
@@ -243,6 +300,28 @@ table
 ```python
 # Cell 2 - display the selection
 table.value
+```
+
+///
+
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    table = mo.ui.table(df, selection="multi")
+    table
+    return
+
+@app.cell
+def __():
+    table.value
+    return
 ```
 
 ///
