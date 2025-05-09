@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, it, expect } from "vitest";
-import { createVegaSpec } from "../spec";
+import { createVegaSpec } from "../chart-spec/spec";
 import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "../schemas";
 import type { z } from "zod";
 import type { ChartSchema, ChartSchemaType } from "../schemas";

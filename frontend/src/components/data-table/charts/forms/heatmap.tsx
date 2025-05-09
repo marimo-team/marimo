@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useFormContext, useWatch } from "react-hook-form";
-import { FieldValidators } from "../spec";
+import { isFieldSet } from "../chart-spec/spec";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
 import { NumberField } from "../components/form-fields";
@@ -14,12 +14,8 @@ export const HeatmapForm: React.FC<{
 }> = ({ saveForm }) => {
   const form = useFormContext<z.infer<typeof ChartSchema>>();
   const formValues = useWatch({ control: form.control });
-  const xColumnExists = FieldValidators.exists(
-    formValues.general?.xColumn?.field,
-  );
-  const yColumnExists = FieldValidators.exists(
-    formValues.general?.yColumn?.field,
-  );
+  const xColumnExists = isFieldSet(formValues.general?.xColumn?.field);
+  const yColumnExists = isFieldSet(formValues.general?.yColumn?.field);
 
   return (
     <>
