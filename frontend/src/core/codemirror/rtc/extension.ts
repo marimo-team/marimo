@@ -181,22 +181,22 @@ export function realTimeCollaboration(
     loroText.insert(0, initialCode);
   }
 
-  const userName = store.get(usernameAtom) || "Anonymous";
+  const userState: UserState = {
+    // We use getters to ensure the user name is up-to-date
+    get name() {
+      return store.get(usernameAtom) || "Anonymous";
+    },
+    get colorClassName() {
+      return getColor(this.name);
+    },
+  };
+
   return {
     code: initialCode.toString(),
     extension: [
       languageObserverExtension(cellId),
       languageListenerExtension(cellId),
-      loroAwarenessPlugin(
-        doc,
-        awareness,
-        {
-          name: userName,
-          colorClassName: getColor(userName),
-        },
-        () => loroText,
-        cellId,
-      ),
+      loroAwarenessPlugin(doc, awareness, userState, () => loroText, cellId),
       loroSyncPlugin(doc, ["codes", cellId], () => {
         return loroText;
       }),
