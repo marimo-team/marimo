@@ -28,9 +28,8 @@ import { createSelectionLayer } from "./loro/awareness";
 import { createCursorLayer } from "./loro/awareness";
 import { remoteAwarenessStateField } from "./loro/awareness";
 import type { UserState } from "./loro/awareness";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { initialMode } from "@/core/mode";
-import { usernameAtom } from "@/core/rtc/state";
+import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
 import { getColor } from "./loro/colors";
 import {
   languageMetadataField,
@@ -138,8 +137,8 @@ const getWs = once(() => {
   return ws;
 });
 
-// Kick off the connection for edit mode
-if (getFeatureFlag("rtc_v2") && initialMode === "edit") {
+// Kickoff the WS connection for edit mode
+if (isRtcEnabled() && initialMode === "edit") {
   getWs();
 }
 

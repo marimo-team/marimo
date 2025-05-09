@@ -64,10 +64,28 @@ def _get_network_url(url: str) -> str:
 
     hostname = socket.gethostname()
     try:
-        local_ip = socket.gethostbyname(hostname)
+        # Find a non-loopback IPv4 address
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Doesn't need to be reachable
+        s.connect(("8.8.8.8", 1))
+        local_ip = s.getsockname()[0]
+        s.close()
     except Exception:
-        # Fallback to hostname if we can't get network address
-        local_ip = hostname
+        try:
+            # Get all IPs for the hostname
+            all_ips = socket.getaddrinfo(hostname, None)
+            # Filter for IPv4 addresses that aren't loopback
+            for ip_info in all_ips:
+                family, _, _, _, addr = ip_info
+                if family == socket.AF_INET and not addr[0].startswith("127."):
+                    local_ip = addr[0]
+                    break
+            else:
+                # If no suitable IP found, fall back to hostname
+                local_ip = hostname
+        except Exception:
+            # Final fallback to hostname
+            local_ip = hostname
 
     # Replace the host part of the URL with the local IP
     from urllib.parse import urlparse, urlunparse
