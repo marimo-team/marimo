@@ -861,6 +861,55 @@ def test_dataframe_with_mixed_types(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_summary_all_types() -> None:
+    dfs = create_dataframes(
+        {
+            "integer": [1, 2, 3],
+            "float": [1.1, 2.2, 3.3],
+            "string": ["a", "b", "c"],
+            "boolean": [True, False, True],
+            "datetime": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 3),
+            ],
+            "date": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 2),
+                datetime.date(2021, 1, 3),
+            ],
+            "list": [["a", "b"], ["c", "d"], ["e", "f"]],
+            "null": [None, None, None],
+            "duration": [
+                datetime.timedelta(days=1),
+                datetime.timedelta(hours=2),
+                datetime.timedelta(minutes=3),
+            ],
+        },
+        exclude=["duckdb", "ibis"],
+    )
+
+    error_count = 0
+    for df in dfs:
+        manager: NarwhalsTableManager[Any] = (
+            NarwhalsTableManager.from_dataframe(df)
+        )
+
+        for column in manager.get_column_names():
+            try:
+                summary = manager._get_summary_internal(column)
+                assert isinstance(summary, ColumnSummary)
+                assert summary.total == 3
+            except Exception as e:
+                error_count += 1
+                print(f"Error getting summary for column {column}: {e}")
+
+    assert error_count == 0, (
+        f"Got {error_count} errors when getting column summaries"
+    )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
