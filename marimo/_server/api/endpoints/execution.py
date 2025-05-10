@@ -266,12 +266,14 @@ async def restart_session(
     # This just closes the session, and the frontend will
     # do a full reload, which will restart the session.
     session_id = app_state.require_current_session_id()
+    session = app_state.require_current_session()
     session_manager.close_session(session_id)
 
     # Close RTC doc if it exists
     file_key: Optional[MarimoFileKey] = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
         or session_manager.file_router.get_unique_file_key()
+        or session.app_file_manager.path
     )
     if file_key is not None:
         await DOC_MANAGER.remove_doc(file_key)

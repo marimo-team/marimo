@@ -152,16 +152,19 @@ async def ws_sync(
     await websocket.accept()
 
     # Get or create the LoroDoc and add the client to it
+    LOGGER.debug("RTC: getting document")
     update_queue = asyncio.Queue[bytes]()
     doc = await DOC_MANAGER.get_or_create_doc(file_key)
     DOC_MANAGER.add_client_to_doc(file_key, update_queue)
 
     # Send initial sync
     # Use shallow snapshot for fewer bytes
+    LOGGER.debug("RTC: sending initial sync")
     init_sync_msg = doc.export(
         ExportMode.ShallowSnapshot(frontiers=doc.state_frontiers)
     )
     await websocket.send_bytes(init_sync_msg)
+    LOGGER.debug("RTC: initial sync sent")
 
     def handle_doc_update(event: DiffEvent) -> None:
         LOGGER.debug("RTC: doc updated", event)
@@ -193,7 +196,7 @@ async def ws_sync(
                 # Apply the update to the LoroDoc
                 doc.import_(message)
     except WebSocketDisconnect:
-        LOGGER.warning("RTC: WebSocket disconnected")
+        LOGGER.debug("RTC: WebSocket disconnected")
         # Normal disconnection
         pass
     except Exception as e:
@@ -201,7 +204,7 @@ async def ws_sync(
             f"RTC: Exception in websocket loop for file {file_key}: {str(e)}"
         )
     finally:
-        LOGGER.warning("RTC: Cleaning up resources")
+        LOGGER.debug("RTC: Cleaning up resources")
         # Cleanup resources
         send_task.cancel()
         subscription.unsubscribe()
@@ -296,14 +299,10 @@ class WebsocketHandler(SessionConsumer):
                         "RTC: Loro is not installed, disabling real-time collaboration"
                     )
                     self.rtc_enabled = False
-                    return
-
-                async def init_loro_doc() -> None:
-                    await DOC_MANAGER.create_doc(
-                        self.file_key, cell_ids, codes
+                else:
+                    asyncio.create_task(
+                        DOC_MANAGER.create_doc(self.file_key, cell_ids, codes)
                     )
-
-                asyncio.create_task(init_loro_doc())
 
         else:
             codes, names, configs, cell_ids = tuple(

@@ -28,9 +28,8 @@ import { createSelectionLayer } from "./loro/awareness";
 import { createCursorLayer } from "./loro/awareness";
 import { remoteAwarenessStateField } from "./loro/awareness";
 import type { UserState } from "./loro/awareness";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { initialMode } from "@/core/mode";
-import { usernameAtom } from "@/core/rtc/state";
+import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
 import { getColor } from "./loro/colors";
 import {
   languageMetadataField,
@@ -138,8 +137,8 @@ const getWs = once(() => {
   return ws;
 });
 
-// Kick off the connection for edit mode
-if (getFeatureFlag("rtc_v2") && initialMode === "edit") {
+// Kickoff the WS connection for edit mode
+if (isRtcEnabled() && initialMode === "edit") {
   getWs();
 }
 
@@ -182,22 +181,22 @@ export function realTimeCollaboration(
     loroText.insert(0, initialCode);
   }
 
-  const userName = store.get(usernameAtom) || "Anonymous";
+  const userState: UserState = {
+    // We use getters to ensure the user name is up-to-date
+    get name() {
+      return store.get(usernameAtom) || "Anonymous";
+    },
+    get colorClassName() {
+      return getColor(this.name);
+    },
+  };
+
   return {
     code: initialCode.toString(),
     extension: [
       languageObserverExtension(cellId),
       languageListenerExtension(cellId),
-      loroAwarenessPlugin(
-        doc,
-        awareness,
-        {
-          name: userName,
-          colorClassName: getColor(userName),
-        },
-        () => loroText,
-        cellId,
-      ),
+      loroAwarenessPlugin(doc, awareness, userState, () => loroText, cellId),
       loroSyncPlugin(doc, ["codes", cellId], () => {
         return loroText;
       }),

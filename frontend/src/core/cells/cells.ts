@@ -50,6 +50,7 @@ import {
 import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
+import { isRtcEnabled } from "../rtc/state";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -832,9 +833,12 @@ const {
       }
 
       // Update codemirror if mounted
-      const cellHandle = nextState.cellHandles[cellId].current;
-      if (cellHandle?.editorView) {
-        updateEditorCodeFromPython(cellHandle.editorView, code);
+      // If RTC is enabled, the editor view will already be updated, so we don't need to do this
+      if (!isRtcEnabled()) {
+        const cellHandle = nextState.cellHandles[cellId].current;
+        if (cellHandle?.editorViewOrNull) {
+          updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);
+        }
       }
 
       return {
@@ -1002,7 +1006,7 @@ const {
     // browser fails to scrollIntoView an element at the end of a long page
     if (index === column.length - 1) {
       const cellId = column.last();
-      state.cellHandles[cellId].current?.editorView.focus();
+      state.cellHandles[cellId].current?.editorViewOrNull?.focus();
     } else {
       const nextCellId = column.atOrThrow(index);
       focusAndScrollCellIntoView({

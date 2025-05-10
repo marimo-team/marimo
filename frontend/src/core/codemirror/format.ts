@@ -105,12 +105,15 @@ export async function formatSQL(editor: EditorView) {
   });
 
   // Update editor with formatted SQL
+  const doc = editor.state.doc;
+
+  // Noop if the code is the same
+  if (doc.toString() === formattedSQL) {
+    return;
+  }
+
   editor.dispatch({
-    changes: {
-      from: 0,
-      to: editor.state.doc.length,
-      insert: formattedSQL,
-    },
+    changes: { from: 0, to: doc.length, insert: formattedSQL },
     effects: [formattingChangeEffect.of(true)],
   });
 }

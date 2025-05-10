@@ -67,13 +67,14 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
 const addCopyButtonToCodehilite: TransformFn = (
   reactNode: ReactNode,
   domNode: DOMNode,
+  index: number,
 ): JSX.Element | undefined => {
   if (
     domNode instanceof Element &&
     domNode.name === "div" &&
     domNode.attribs?.class?.includes("codehilite")
   ) {
-    return <CopyableCode>{reactNode}</CopyableCode>;
+    return <CopyableCode key={index}>{reactNode}</CopyableCode>;
   }
 };
 

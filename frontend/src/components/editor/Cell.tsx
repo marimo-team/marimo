@@ -338,6 +338,10 @@ export interface CellHandle {
    * The CodeMirror editor view.
    */
   editorView: EditorView;
+  /**
+   * The CodeMirror editor view, or null if it is not yet mounted.
+   */
+  editorViewOrNull: EditorView | null;
 }
 
 export interface CellProps
@@ -417,6 +421,9 @@ const CellComponent = (
     () => ({
       get editorView() {
         return derefNotNull(editorView);
+      },
+      get editorViewOrNull() {
+        return editorView.current;
       },
     }),
     [editorView],
