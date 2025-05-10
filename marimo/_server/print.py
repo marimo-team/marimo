@@ -65,10 +65,11 @@ def _get_network_url(url: str) -> str:
     hostname = socket.gethostname()
     try:
         # Find a non-loopback IPv4 address
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            # Doesn't need to be reachable
-            s.connect(("255.255.255.254", 1))
-            local_ip = s.getsockname()[0]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Doesn't need to be reachable
+        s.connect(("255.255.255.254", 1))
+        local_ip = s.getsockname()[0]
+        s.close()
     except Exception:
         try:
             # Get all IPs for the hostname
