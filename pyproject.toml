@@ -195,6 +195,7 @@ dependencies = [
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
     "loro>=1.5.0",
+    "python-lsp-server>=1.12.1",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
     "types-Pillow~=10.2.0.20240520",
@@ -472,6 +473,11 @@ exclude = [
     'marimo/_smoke_tests/',
 ]
 warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "pylsp"
+# until https://github.com/python-lsp/python-lsp-server/pull/641 is released
+follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
