@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import AsyncGenerator
 from typing import cast
 
 import pytest
@@ -8,14 +9,26 @@ from marimo._server.file_router import MarimoFileKey
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._types.ids import CellId_t
 
-
-@pytest.fixture
-def doc_manager() -> LoroDocManager:
-    return LoroDocManager()
+doc_manager = LoroDocManager()
 
 
-async def test_quick_reconnection(doc_manager: LoroDocManager) -> None:
+@pytest.fixture  # type: ignore
+async def setup_doc_manager() -> AsyncGenerator[None, None]:
+    """Setup and teardown for loro_docs tests"""
+    # Clear any existing loro docs
+    doc_manager.loro_docs.clear()
+    doc_manager.loro_docs_clients.clear()
+    doc_manager.loro_docs_cleaners.clear()
+    yield
+    # Cleanup after test
+    doc_manager.loro_docs.clear()
+    doc_manager.loro_docs_clients.clear()
+    doc_manager.loro_docs_cleaners.clear()
+
+
+async def test_quick_reconnection(setup_doc_manager: None) -> None:
     """Test that quick reconnection properly handles cleanup task cancellation"""
+    del setup_doc_manager
     # Setup
     file_key = MarimoFileKey("test_file")
 
@@ -48,8 +61,9 @@ async def test_quick_reconnection(doc_manager: LoroDocManager) -> None:
     )  # Original client + reconnected client
 
 
-async def test_two_users_sync(doc_manager: LoroDocManager) -> None:
+async def test_two_users_sync(setup_doc_manager: None) -> None:
     """Test that two users can connect and sync text properly without duplicates"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     cell_id = str(CellId_t("test_cell"))  # Convert CellId to string for loro
 
@@ -92,8 +106,9 @@ async def test_two_users_sync(doc_manager: LoroDocManager) -> None:
     assert lang_text_typed.to_string() == "python"
 
 
-async def test_concurrent_doc_creation(doc_manager: LoroDocManager) -> None:
+async def test_concurrent_doc_creation(setup_doc_manager: None) -> None:
     """Test concurrent doc creation doesn't cause issues"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     cell_ids = (CellId_t("cell1"), CellId_t("cell2"))
     codes = ("print('hello')", "print('world')")
@@ -110,9 +125,10 @@ async def test_concurrent_doc_creation(doc_manager: LoroDocManager) -> None:
 
 
 async def test_concurrent_client_operations(
-    doc_manager: LoroDocManager,
+    setup_doc_manager: None,
 ) -> None:
     """Test concurrent client operations don't cause deadlocks"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
@@ -134,8 +150,9 @@ async def test_concurrent_client_operations(
     assert len(doc_manager.loro_docs_clients[file_key]) == 0
 
 
-async def test_cleanup_task_management(doc_manager: LoroDocManager) -> None:
+async def test_cleanup_task_management(setup_doc_manager: None) -> None:
     """Test cleanup task management and cancellation"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
@@ -164,8 +181,9 @@ async def test_cleanup_task_management(doc_manager: LoroDocManager) -> None:
     await doc_manager.remove_client(file_key, new_queue)
 
 
-async def test_broadcast_update(doc_manager: LoroDocManager) -> None:
+async def test_broadcast_update(setup_doc_manager: None) -> None:
     """Test broadcast update functionality"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc
@@ -188,8 +206,9 @@ async def test_broadcast_update(doc_manager: LoroDocManager) -> None:
             assert await queue.get() == message
 
 
-async def test_remove_nonexistent_doc(doc_manager: LoroDocManager) -> None:
+async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
     """Test removing a doc that doesn't exist"""
+    del setup_doc_manager
     file_key = MarimoFileKey("nonexistent")
     await doc_manager.remove_doc(file_key)
     assert file_key not in doc_manager.loro_docs
@@ -197,16 +216,18 @@ async def test_remove_nonexistent_doc(doc_manager: LoroDocManager) -> None:
     assert file_key not in doc_manager.loro_docs_cleaners
 
 
-async def test_remove_nonexistent_client(doc_manager: LoroDocManager) -> None:
+async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
     """Test removing a client that doesn't exist"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     queue = asyncio.Queue[bytes]()
     await doc_manager.remove_client(file_key, queue)
     assert file_key not in doc_manager.loro_docs_clients
 
 
-async def test_concurrent_doc_removal(doc_manager: LoroDocManager) -> None:
+async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     """Test concurrent doc removal doesn't cause issues"""
+    del setup_doc_manager
     file_key = MarimoFileKey("test_file")
     doc = LoroDoc()
     doc_manager.loro_docs[file_key] = doc

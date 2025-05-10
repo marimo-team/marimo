@@ -141,15 +141,18 @@ class LoroDocManager:
                 cleaner = self.loro_docs_cleaners.get(file_key, None)
                 if cleaner is not None:
                     cleaner.cancel()
-                    try:
-                        await cleaner
-                    except asyncio.CancelledError:
-                        pass
                     self.loro_docs_cleaners[file_key] = None
                 # Create a new cleaner with timeout of 60 seconds
-                self.loro_docs_cleaners[file_key] = asyncio.create_task(
-                    self._clean_loro_doc(file_key, 60.0)
-                )
+                self.loro_docs_cleaners[file_key] = None
+
+        # Create the cleaner task outside the lock
+        if (
+            file_key in self.loro_docs_clients
+            and len(self.loro_docs_clients[file_key]) == 0
+        ):
+            self.loro_docs_cleaners[file_key] = asyncio.create_task(
+                self._clean_loro_doc(file_key, 60.0)
+            )
 
     async def remove_doc(self, file_key: MarimoFileKey) -> None:
         """Remove a loro doc and all associated clients, without waiting."""

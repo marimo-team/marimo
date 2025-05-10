@@ -196,7 +196,7 @@ async def ws_sync(
                 # Apply the update to the LoroDoc
                 doc.import_(message)
     except WebSocketDisconnect:
-        LOGGER.warning("RTC: WebSocket disconnected")
+        LOGGER.debug("RTC: WebSocket disconnected")
         # Normal disconnection
         pass
     except Exception as e:
@@ -204,7 +204,7 @@ async def ws_sync(
             f"RTC: Exception in websocket loop for file {file_key}: {str(e)}"
         )
     finally:
-        LOGGER.warning("RTC: Cleaning up resources")
+        LOGGER.debug("RTC: Cleaning up resources")
         # Cleanup resources
         send_task.cancel()
         subscription.unsubscribe()
