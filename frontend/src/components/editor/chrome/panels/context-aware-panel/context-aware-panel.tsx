@@ -46,12 +46,12 @@ export const ContextAwarePanel: React.FC = () => {
             )}
           </Toggle>
         </Tooltip>
-        <Tooltip content={isCellAware ? "Cell-aware" : "Fixed"}>
+        <Tooltip content={isCellAware ? "Follow focused cell" : "Fixed"}>
           <Toggle
             size="xs"
             onPressedChange={() => setIsCellAware(!isCellAware)}
             pressed={isCellAware}
-            aria-label={isCellAware ? "Cell-aware" : "Fixed"}
+            aria-label={isCellAware ? "Follow focused cell" : "Fixed"}
           >
             <CrosshairIcon
               className={cn("w-4 h-4", isCellAware && "text-primary")}

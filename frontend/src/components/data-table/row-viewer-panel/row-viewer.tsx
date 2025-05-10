@@ -53,6 +53,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 }: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: rows, error } = useAsyncData(async () => {
     const data = await getRow(rowIdx);
@@ -67,8 +68,18 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   };
 
   useKeydownOnElement(panelRef, {
-    ArrowLeft: () => handleSelectRow(rowIdx - 1),
-    ArrowRight: () => handleSelectRow(rowIdx + 1),
+    ArrowLeft: (e) => {
+      if (e?.target === searchInputRef.current) {
+        return false;
+      }
+      handleSelectRow(rowIdx - 1);
+    },
+    ArrowRight: (e) => {
+      if (e?.target === searchInputRef.current) {
+        return false;
+      }
+      handleSelectRow(rowIdx + 1);
+    },
   });
 
   const buttonStyles = "h-6 w-6 p-0.5";
@@ -247,6 +258,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 
       <div className="mx-2 -mb-1">
         <Input
+          ref={searchInputRef}
           type="text"
           placeholder="Search"
           onChange={(e) => setSearchQuery(e.target.value)}
