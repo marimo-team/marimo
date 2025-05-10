@@ -26,20 +26,17 @@ export function smartPlaceholderExtension(text: string): Extension[] {
 
 function acceptPlaceholder(cm: EditorView, text: string) {
   // if empty, insert the placeholder
-  if (cm.state.doc.length === 0) {
-    const docLength = cm.state.doc.length;
+  const docLength = cm.state.doc.length;
+  if (docLength === 0) {
     cm.dispatch({
       changes: {
         from: 0,
         to: docLength,
         insert: text,
       },
-    });
-    // move cursor to end of placeholder
-    cm.dispatch({
       selection: {
-        anchor: docLength,
-        head: docLength,
+        head: text.length,
+        anchor: text.length,
       },
     });
     return true;
