@@ -1,12 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { CellId } from "@/core/cells/ids";
 import { atom } from "jotai";
 
 /**
  * Unique ID of the owner rendering the context-aware panel.
- * If null, the panel is not open.
  */
-export const contextAwarePanelOwner = atom<string | null>(null);
+export const contextAwarePanelOwner = atom<CellId | null>(null);
+
+/**
+ * If true, the panel is open.
+ */
+export const contextAwarePanelOpen = atom<boolean>(false);
 
 /**
  * If true, the panel is treated as part of the editor.

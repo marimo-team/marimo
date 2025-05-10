@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -58,12 +58,13 @@ import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import { Provider, useAtom, useAtomValue } from "jotai";
 import {
+  contextAwarePanelOpen,
   contextAwarePanelOwner,
   isCellAwareAtom,
 } from "@/components/editor/chrome/panels/context-aware-panel/atoms";
 import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/utils";
-import { useLastFocusedCellId } from "@/core/cells/focus";
+import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
@@ -321,7 +322,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
   host: HTMLElement;
-  cellId: CellId | null;
+  cellId?: CellId | null;
 }
 
 export type SetFilters = OnChangeFn<ColumnFiltersState>;
@@ -640,7 +641,6 @@ const DataTableComponent = ({
     columnSummaries?: ColumnSummaries;
     getRow: (rowIdx: number) => Promise<GetRowResult>;
   }): JSX.Element => {
-  const id = useId();
   const [focusedRowIdx, setFocusedRowIdx] = useState(0);
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
@@ -699,21 +699,37 @@ const DataTableComponent = ({
     [value],
   );
 
-  const lastFocusedCellId = useLastFocusedCellId();
-  const isContextAwarePanelCellAware = useAtomValue(isCellAwareAtom);
-
-  const [rowViewerPanelOwner, setRowViewerPanelOwner] = useAtom(
-    contextAwarePanelOwner,
+  let isPanelCellAware = useAtomValue(isCellAwareAtom);
+  const [lastFocusedCellId, setLastFocusedCellId] = useAtom(
+    lastFocusedCellIdAtom,
   );
-  const isRowViewerPanelOpen = rowViewerPanelOwner === id;
+  const [panelOwner, setPanelOwner] = useAtom(contextAwarePanelOwner);
+  const [isPanelOpen, setIsPanelOpen] = useAtom(contextAwarePanelOpen);
+
+  if (!cellId && isPanelCellAware) {
+    Logger.error("CellId is not found, defaulting to fixed mode");
+    isPanelCellAware = false;
+  }
+
+  const isRowViewerPanelOpen = panelOwner === cellId && isPanelOpen;
+
+  // In cell-aware mode, update panel owner when cell is focused
+  const thisCellIsFocused = lastFocusedCellId === cellId;
+  if (isPanelCellAware && thisCellIsFocused) {
+    setPanelOwner(cellId);
+  }
 
   function toggleRowViewerPanel() {
     if (isRowViewerPanelOpen) {
-      // Close if panel is open
-      setRowViewerPanelOwner(null);
+      setPanelOwner(null);
+      setIsPanelOpen(false);
     } else {
-      // Set the owner to current id, which will cause the panel to open
-      setRowViewerPanelOwner(id);
+      setPanelOwner(cellId ?? null);
+      // if cell-aware, we want to focus on this cell when toggled open
+      if (isPanelCellAware && cellId) {
+        setLastFocusedCellId(cellId);
+      }
+      setIsPanelOpen(true);
     }
   }
 

@@ -21,7 +21,7 @@ import {
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   INDEX_COLUMN_NAME,
@@ -34,6 +34,7 @@ import { NAMELESS_COLUMN_PREFIX } from "../columns";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { Column } from "@tanstack/react-table";
 import { renderCellValue } from "../columns";
+import { useKeydownOnElement } from "@/hooks/useHotkey";
 
 export interface RowViewerPanelProps {
   rowIdx: number;
@@ -51,6 +52,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   getRow,
 }: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const { data: rows, error } = useAsyncData(async () => {
     const data = await getRow(rowIdx);
@@ -63,6 +65,11 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     }
     setRowIdx(rowIdx);
   };
+
+  useKeydownOnElement(panelRef, {
+    ArrowLeft: () => handleSelectRow(rowIdx - 1),
+    ArrowRight: () => handleSelectRow(rowIdx + 1),
+  });
 
   const buttonStyles = "h-6 w-6 p-0.5";
 
@@ -188,7 +195,11 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 mt-4">
+    <div
+      className="flex flex-col gap-3 mt-4 focus:outline-none"
+      ref={panelRef}
+      tabIndex={-1}
+    >
       <div className="flex flex-row gap-2 justify-end items-center mr-2">
         <Button
           variant="outline"
