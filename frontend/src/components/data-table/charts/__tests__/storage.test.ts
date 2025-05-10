@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { getDefaultStore } from "jotai";
 import { tabsStorageAtom, KEY } from "../storage";
-import { ChartSchema } from "../chart-schemas";
+import { ChartSchema } from "../schemas";
 import type { CellId } from "@/core/cells/ids";
 import type { TabName } from "../storage";
 import { ChartType } from "../types";

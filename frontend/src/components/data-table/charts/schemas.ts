@@ -24,25 +24,41 @@ export const BinSchema = z.object({
   maxbins: z.number().optional(),
 });
 
-export const AxisSchema = z
-  .object({
-    field: z.string().optional(),
-    type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
-    selectedDataType: z
-      .enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE])
-      .optional(),
-    aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
-    sort: z.enum(SORT_TYPES).default("ascending").optional(),
-    timeUnit: z.enum(TIME_UNITS).optional(),
-  })
-  .optional();
+const BaseColumnSchema = z.object({
+  field: z.string().optional(),
+  type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
+  selectedDataType: z.enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE]).optional(),
+  sort: z.enum(SORT_TYPES).default("ascending").optional(),
+  timeUnit: z.enum(TIME_UNITS).optional(),
+});
+
+export const AxisSchema = BaseColumnSchema.extend({
+  aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
+});
+
+export const RowFacet = BaseColumnSchema.extend({
+  linkYAxis: z.boolean().default(true).optional(),
+  binned: z.boolean().default(true).optional(),
+  maxbins: z.number().optional(),
+});
+export const ColumnFacet = BaseColumnSchema.extend({
+  linkXAxis: z.boolean().default(true).optional(),
+  binned: z.boolean().default(true).optional(),
+  maxbins: z.number().optional(),
+});
 
 export const ChartSchema = z.object({
   general: z.object({
     title: z.string().optional(),
-    xColumn: AxisSchema,
-    yColumn: AxisSchema,
-    colorByColumn: AxisSchema,
+    xColumn: AxisSchema.optional(),
+    yColumn: AxisSchema.optional(),
+    colorByColumn: AxisSchema.optional(),
+    facet: z
+      .object({
+        row: RowFacet,
+        column: ColumnFacet,
+      })
+      .optional(),
     horizontal: z.boolean().optional(),
     stacking: z.boolean().optional(),
     tooltips: z
