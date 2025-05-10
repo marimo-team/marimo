@@ -35,7 +35,7 @@ describe("RowExpandedPanel", () => {
 
   const mockSetRowIdx = vi.fn();
 
-  it("renders data in selection panel", async () => {
+  it("renders data in row viewer panel", async () => {
     renderWithProviders(
       <RowViewerPanel
         rowIdx={0}
