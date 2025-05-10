@@ -67,7 +67,7 @@ def _get_network_url(url: str) -> str:
         # Find a non-loopback IPv4 address
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Doesn't need to be reachable
-        s.connect(("8.8.8.8", 1))
+        s.connect(("255.255.255.254", 1))
         local_ip = s.getsockname()[0]
         s.close()
     except Exception:
