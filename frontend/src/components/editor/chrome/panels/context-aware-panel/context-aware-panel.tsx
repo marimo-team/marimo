@@ -14,18 +14,27 @@ import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { ErrorBoundary } from "../../../boundary/ErrorBoundary";
 import { cn } from "@/utils/cn";
-import { contextAwarePanelOwner, isCellAwareAtom, isPinnedAtom } from "./atoms";
+import {
+  contextAwarePanelOwner,
+  isCellAwareAtom,
+  isPinnedAtom,
+  contextAwarePanelOpen,
+} from "./atoms";
 
 export const ContextAwarePanel: React.FC = () => {
   const [owner, setOwner] = useAtom(contextAwarePanelOwner);
+  const [isPanelOpen, setIsPanelOpen] = useAtom(contextAwarePanelOpen);
   const [isPinned, setIsPinned] = useAtom(isPinnedAtom);
   const [isCellAware, setIsCellAware] = useAtom(isCellAwareAtom);
 
-  const closePanel = () => setOwner(null);
+  const closePanel = () => {
+    setOwner(null);
+    setIsPanelOpen(false);
+  };
 
   const slots = useSlot(SlotNames.CONTEXT_AWARE_PANEL);
 
-  if (slots.length === 0 || !owner) {
+  if (slots.length === 0 || !owner || !isPanelOpen) {
     return null;
   }
 
