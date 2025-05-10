@@ -27,8 +27,8 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
-  toggleSelectionPanel?: () => void;
-  isSelectionPanelOpen?: boolean;
+  toggleRowViewerPanel?: () => void;
+  isRowViewerPanelOpen?: boolean;
 }
 
 export const TableActions = <TData,>({
@@ -45,8 +45,8 @@ export const TableActions = <TData,>({
   getRowIds,
   toggleDisplayHeader,
   chartsFeatureEnabled,
-  toggleSelectionPanel,
-  isSelectionPanelOpen,
+  toggleRowViewerPanel,
+  isRowViewerPanelOpen,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -118,13 +118,13 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {toggleSelectionPanel && (
-        <Tooltip content="Toggle selection panel">
-          <Button variant="text" size="xs" onClick={toggleSelectionPanel}>
+      {toggleRowViewerPanel && (
+        <Tooltip content="Toggle row viewer">
+          <Button variant="text" size="xs" onClick={toggleRowViewerPanel}>
             <PanelRightIcon
               className={cn(
                 "w-4 h-4 text-muted-foreground",
-                isSelectionPanelOpen && "text-primary",
+                isRowViewerPanelOpen && "text-primary",
               )}
             />
           </Button>

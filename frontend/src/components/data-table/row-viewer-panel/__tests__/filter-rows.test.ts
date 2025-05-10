@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { filterRows } from "../data-selection";
+import { filterRows } from "../row-viewer";
 
 describe("filterRows", () => {
   const defaultRowValues = {
