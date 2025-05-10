@@ -14,6 +14,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
+from marimo._types.ids import CellId_t
 from marimo._utils.formatter import FormatError, ruff
 from marimo._utils.paths import marimo_package_path
 
@@ -304,7 +305,10 @@ if DependencyManager.pylsp.has():
     def format_signature(signature: str) -> str:
         try:
             signature_as_func = f"def {signature.strip()}:\n    pass"
-            reformatted = ruff({"": signature_as_func}, "format")[""]
+            dummy_cell_id = cast(CellId_t, "")
+            reformatted = ruff({dummy_cell_id: signature_as_func}, "format")[
+                dummy_cell_id
+            ]
             signature = reformatted.removeprefix("def ").removesuffix(
                 ":\n    pass"
             )
