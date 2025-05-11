@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { CellId } from "@/core/cells/ids";
 import { atom } from "jotai";
 
 /**
  * Unique ID of the owner rendering the context-aware panel.
  */
-export const contextAwarePanelOwner = atom<CellId | null>(null);
+export const contextAwarePanelOwner = atom<string | null>(null);
 
 /**
  * If true, the panel is open.
