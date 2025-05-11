@@ -35,12 +35,12 @@ export function usePanelOwnership(
 
   const isPanelOpen = panelOwner === panelId && isContextAwarePanelOpen;
 
-  // In cell-aware mode, update panel owner when cell is focused
-  // Only set panel owner if no other table in this cell is currently the owner
   const thisCellIsFocused = lastFocusedCellId === cellId;
   const currentOwnerIsInThisCell =
     panelOwner && isPanelOwner(panelOwner, cellId);
 
+  // In cell-aware mode, update panel owner when cell is focused
+  // Only set panel owner if no other table in this cell is currently the owner
   if (
     isPanelCellAware &&
     thisCellIsFocused &&
