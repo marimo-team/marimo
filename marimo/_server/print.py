@@ -110,8 +110,12 @@ def _colorized_url(url_string: str) -> str:
 
     url_string = f"{url.scheme}://{url.hostname}"
     # raw https and http urls do not have a port to parse
-    if url.port:
-        url_string += f":{url.port}"
+    try:
+        if url.port:
+            url_string += f":{url.port}"
+    except Exception:
+        # If the port is not a number, don't include it
+        pass
 
     return bold(
         f"{url_string}{url.path}{query}",
