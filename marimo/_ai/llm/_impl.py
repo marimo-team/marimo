@@ -181,7 +181,6 @@ class anthropic(ChatModel):
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
-        self.system_message = system_message
 
     @property
     def _require_api_key(self) -> str:
@@ -313,6 +312,7 @@ class google(ChatModel):
         genai.configure(api_key=self._require_api_key)
         client = genai.GenerativeModel(
             model_name=self.model,
+            system_instruction=self.system_message,
             generation_config=genai.GenerationConfig(
                 max_output_tokens=config.max_tokens,
                 temperature=config.temperature,
