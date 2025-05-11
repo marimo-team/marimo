@@ -83,7 +83,6 @@ function getPanelId(id: string, cellId?: CellId | null) {
 
 /**
  * Check if the panel is owned by the cell.
- * If the cell ID is not provided, the panel is owned by the table.
  */
 function isPanelOwner(panelId: string, cellId?: CellId | null) {
   if (cellId) {
