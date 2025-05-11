@@ -692,7 +692,9 @@ class table(
             self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
-                self._selected_manager = self._manager.select_rows(indices)
+                self._selected_manager = self._manager.select_rows(
+                    indices
+                ).drop_columns([INDEX_COLUMN_NAME])
             else:
                 self._selected_manager = self._searched_manager.select_rows(
                     indices
@@ -729,7 +731,9 @@ class table(
 
         # Remove the selection column before downloading
         if isinstance(manager, TableManager):
-            manager = manager.drop_columns([INDEX_COLUMN_NAME])
+            manager: TableManager[Any] = manager.drop_columns(
+                [INDEX_COLUMN_NAME]
+            )
 
             ext = args.format
             if ext == "csv":
