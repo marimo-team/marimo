@@ -189,8 +189,8 @@ class slider(UIElement[Numeric, Numeric]):
             slider, either "horizontal" or "vertical". Defaults to "horizontal".
         show_value (bool): Whether to display the current value of the slider.
             Defaults to False.
-        show_input (bool): Whether to display an input with the current
-            value of the slider in an editable input. Defaults to False.
+        show_input (bool): Whether to display an editable input with the current
+            value of the slider. Defaults to False.
         steps (Optional[Sequence[Numeric]]): List of steps to customize the
             slider, mutually exclusive with `start`, `stop`, and `step`.
         label (str): Markdown label for the element. Defaults to an empty string.
