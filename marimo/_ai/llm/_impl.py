@@ -181,7 +181,6 @@ class anthropic(ChatModel):
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
-        self.system_message = system_message
 
     @property
     def _require_api_key(self) -> str:
