@@ -7,6 +7,7 @@ import { Slider } from "../../components/ui/slider";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
+import { NumberField } from "@/components/ui/number-field";
 
 type T = number;
 
@@ -20,6 +21,7 @@ interface Data {
   orientation: "horizontal" | "vertical";
   showValue: boolean;
   fullWidth: boolean;
+  includeInput: boolean;
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
@@ -36,6 +38,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
+    includeInput: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -77,6 +80,7 @@ const SliderComponent = ({
   showValue,
   fullWidth,
   valueMap,
+  includeInput,
 }: SliderProps): JSX.Element => {
   const id = useId();
 
@@ -133,6 +137,22 @@ const SliderComponent = ({
           <div className="text-xs text-muted-foreground min-w-[16px]">
             {prettyScientificNumber(valueMap(internalValue))}
           </div>
+        )}
+        {includeInput && (
+          <NumberField
+            value={valueMap(internalValue)}
+            onChange={(nextValue) => {
+              setInternalValue(nextValue);
+              if (!debounce) {
+                setValue(nextValue);
+              }
+            }}
+            minValue={start}
+            maxValue={stop}
+            step={step}
+            className="w-24"
+            aria-label={`${label || "Slider"} value input`}
+          />
         )}
       </div>
     </Labeled>

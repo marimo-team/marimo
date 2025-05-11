@@ -189,6 +189,8 @@ class slider(UIElement[Numeric, Numeric]):
             slider, either "horizontal" or "vertical". Defaults to "horizontal".
         show_value (bool): Whether to display the current value of the slider.
             Defaults to False.
+        include_input (bool): Whether to display an editable input with the current
+            value of the slider. Defaults to False.
         steps (Optional[Sequence[Numeric]]): List of steps to customize the
             slider, mutually exclusive with `start`, `stop`, and `step`.
         label (str): Markdown label for the element. Defaults to an empty string.
@@ -222,6 +224,7 @@ class slider(UIElement[Numeric, Numeric]):
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        include_input: bool = False,
         steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
@@ -292,6 +295,7 @@ class slider(UIElement[Numeric, Numeric]):
                     "debounce": debounce,
                     "orientation": orientation,
                     "show-value": show_value,
+                    "include-input": include_input,
                     "full-width": full_width,
                 },
                 on_change=on_change,
@@ -333,6 +337,7 @@ class slider(UIElement[Numeric, Numeric]):
                     "debounce": debounce,
                     "orientation": orientation,
                     "show-value": show_value,
+                    "include-input": include_input,
                     "full-width": full_width,
                 },
                 on_change=on_change,
