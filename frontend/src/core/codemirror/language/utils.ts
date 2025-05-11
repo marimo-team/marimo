@@ -32,15 +32,16 @@ export function getEditorCodeAsPython(
 export function updateEditorCodeFromPython(
   editor: EditorView,
   pythonCode: string,
-) {
+): string {
   const languageAdapter = editor.state.field(languageAdapterState);
   const [code] = languageAdapter.transformIn(pythonCode);
+  const doc = editor.state.doc;
+  // Noop if the code is the same
+  if (doc.toString() === code) {
+    return code;
+  }
   editor.dispatch({
-    changes: {
-      from: 0,
-      to: editor.state.doc.length,
-      insert: code,
-    },
+    changes: { from: 0, to: doc.length, insert: code },
   });
   return code;
 }

@@ -5,7 +5,6 @@ import { useAtomValue, useAtom } from "jotai";
 import { UsersIcon } from "lucide-react";
 import type React from "react";
 import { FooterItem } from "../footer-item";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   Popover,
   PopoverContent,
@@ -13,14 +12,14 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { usernameAtom } from "@/core/rtc/state";
+import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
 
 export const RTCStatus: React.FC = () => {
   const connectedDoc = useAtomValue(connectedDocAtom);
   const [username, setUsername] = useAtom(usernameAtom);
   const [open, setOpen] = useState(false);
 
-  if (!getFeatureFlag("rtc_v2")) {
+  if (!isRtcEnabled()) {
     return null;
   }
 

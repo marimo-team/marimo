@@ -111,8 +111,10 @@ describe("cell reducer", () => {
     state = reducer(state, action);
     for (const [cellId, handle] of Object.entries(state.cellHandles)) {
       if (!handle.current) {
+        const view = createEditor(state.cellData[cellId as CellId].code);
         const handle: CellHandle = {
-          editorView: createEditor(state.cellData[cellId as CellId].code),
+          editorView: view,
+          editorViewOrNull: view,
         };
         state.cellHandles[cellId as CellId] = { current: handle };
       }

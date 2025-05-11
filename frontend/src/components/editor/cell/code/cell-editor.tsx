@@ -5,7 +5,6 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import React, { memo, useEffect, useRef, useMemo } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import useEvent from "react-use-event-hook";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellRuntimeState, CellData } from "@/core/cells/types";
@@ -43,6 +42,7 @@ import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { Button } from "@/components/ui/button";
+import { isRtcEnabled } from "@/core/rtc/state";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -239,7 +239,7 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = getFeatureFlag("rtc_v2");
+  const rtcEnabled = isRtcEnabled();
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
@@ -365,8 +365,10 @@ const CellEditorInternal = ({
   ]);
 
   // Auto-focus. Should focus newly created editors.
+  // We don't focus if RTC is enabled, since other players will be creating editors
   const shouldFocus =
-    editorViewRef.current === null || serializedEditorState !== null;
+    (editorViewRef.current === null || serializedEditorState !== null) &&
+    !isRtcEnabled();
   useEffect(() => {
     // Perf:
     // We don't pass this in from the props since it causes lots of re-renders for unrelated cells
@@ -548,6 +550,6 @@ function WithWaitUntilConnected<T extends {}>(
   return WaitUntilConnectedComponent;
 }
 
-export const CellEditor = getFeatureFlag("rtc_v2")
+export const CellEditor = isRtcEnabled()
   ? WithWaitUntilConnected(memo(CellEditorInternal))
   : memo(CellEditorInternal);
