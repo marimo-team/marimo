@@ -20,6 +20,7 @@ interface Data {
   orientation: "horizontal" | "vertical";
   showValue: boolean;
   fullWidth: boolean;
+  showInput: boolean;
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
@@ -36,6 +37,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
+    showInput: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -77,6 +79,7 @@ const SliderComponent = ({
   showValue,
   fullWidth,
   valueMap,
+  showInput,
 }: SliderProps): JSX.Element => {
   const id = useId();
 
@@ -132,6 +135,11 @@ const SliderComponent = ({
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
             {prettyScientificNumber(valueMap(internalValue))}
+          </div>
+        )}
+        {showInput && (
+          <div className="text-xs text-muted-foreground min-w-[16px]">
+            {/* TODO: ADD THE NUMBER INPUT HERE */}
           </div>
         )}
       </div>
