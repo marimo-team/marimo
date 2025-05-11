@@ -7,6 +7,7 @@ import { Slider } from "../../components/ui/slider";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
+import { NumberField } from "@/components/ui/number-field";
 
 type T = number;
 
@@ -138,9 +139,20 @@ const SliderComponent = ({
           </div>
         )}
         {showInput && (
-          <div className="text-xs text-muted-foreground min-w-[16px]">
-            {/* TODO: ADD THE NUMBER INPUT HERE */}
-          </div>
+          <NumberField
+            value={valueMap(internalValue)}
+            onChange={(nextValue) => {
+              setInternalValue(nextValue);
+              if (!debounce) {
+                setValue(nextValue);
+              }
+            }}
+            minValue={start}
+            maxValue={stop}
+            step={step}
+            className="w-24"
+            aria-label={`${label || "Slider"} value input`}
+          />
         )}
       </div>
     </Labeled>
