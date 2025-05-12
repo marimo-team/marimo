@@ -210,7 +210,7 @@ def construct_uv_command(
     pyproject = (
         PyProjectReader.from_filename(name)
         if name is not None
-        else PyProjectReader({})
+        else PyProjectReader({}, config_path=None)
     )
 
     uv_cmd = ["uv", "run"]

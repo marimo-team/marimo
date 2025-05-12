@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, cast
 
 from marimo import _loggers
@@ -12,16 +13,21 @@ LOGGER = _loggers.marimo_logger()
 
 
 class PyProjectReader:
-    def __init__(self, project: dict[str, Any]):
+    def __init__(self, project: dict[str, Any], *, config_path: str | None):
         self.project = project
+        self.config_path = config_path
 
     @staticmethod
     def from_filename(name: str) -> PyProjectReader:
-        return PyProjectReader(_get_pyproject_from_filename(name) or {})
+        return PyProjectReader(
+            _get_pyproject_from_filename(name) or {}, config_path=name
+        )
 
     @staticmethod
     def from_script(script: str) -> PyProjectReader:
-        return PyProjectReader(read_pyproject_from_script(script) or {})
+        return PyProjectReader(
+            read_pyproject_from_script(script) or {}, config_path=None
+        )
 
     @property
     def extra_index_urls(self) -> list[str]:
@@ -64,7 +70,9 @@ class PyProjectReader:
     def requirements_txt_lines(self) -> list[str]:
         """Get dependencies from string representation of script."""
         try:
-            return _pyproject_toml_to_requirements_txt(self.project)
+            return _pyproject_toml_to_requirements_txt(
+                self.project, self.config_path
+            )
         except Exception as e:
             LOGGER.warning(f"Failed to parse dependencies: {e}")
             return []
@@ -102,6 +110,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
 
 def _pyproject_toml_to_requirements_txt(
     pyproject: dict[str, Any],
+    config_path: str | None = None,
 ) -> list[str]:
     """
     Convert a pyproject.toml file to a requirements.txt file.
@@ -115,6 +124,11 @@ def _pyproject_toml_to_requirements_txt(
     #
     # [tool.uv.sources]
     # python-gcode = { git = "https://github.com/fetlab/python_gcode", rev = "new" }
+
+    Args:
+        pyproject: A dict containing the pyproject.toml contents.
+        config_path: The path to the pyproject.toml or inline script metadata. This
+            is used to resolve relative paths used in the dependencies.
     """  # noqa: E501
     dependencies = cast(list[str], pyproject.get("dependencies", []))
     if not dependencies:
@@ -155,7 +169,12 @@ def _pyproject_toml_to_requirements_txt(
             )
         # Handle local paths
         elif "path" in source:
-            new_dependency = f"{dependency} @ {source['path']}"
+            source_path = Path(source["path"])
+            # If path is relative and we have a config path, resolve it relative to the config path
+            if not source_path.is_absolute() and config_path:
+                config_dir = Path(config_path).parent
+                source_path = (config_dir / source_path).resolve()
+            new_dependency = f"{dependency} @ {str(source_path)}"
 
         # Handle URLs
         elif "url" in source:
