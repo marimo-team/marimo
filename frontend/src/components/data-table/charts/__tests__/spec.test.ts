@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { getAxisEncoding } from "../chart-spec";
-import { ChartType } from "../types";
+import { getAxisEncoding } from "../chart-spec/spec";
+import { AGGREGATION_FNS, ChartType, STRING_AGGREGATION_FNS } from "../types";
 import { COUNT_FIELD } from "../constants";
 import { NONE_AGGREGATION } from "../types";
 
@@ -24,7 +24,7 @@ describe("getAxisEncoding", () => {
     expect(result).toEqual({
       aggregate: "count",
       type: "quantitative",
-      bin: { binned: true, step: 10 },
+      bin: { bin: true, step: 10 },
       title: undefined,
       stack: true,
     });
@@ -135,5 +135,51 @@ describe("getAxisEncoding", () => {
     );
 
     expect((result as { title?: string }).title).toBeUndefined();
+  });
+
+  it("should invalid aggregation for string data types", () => {
+    for (const agg of AGGREGATION_FNS) {
+      const result = getAxisEncoding(
+        {
+          field: "value",
+          selectedDataType: "string",
+          aggregate: agg,
+          timeUnit: undefined,
+        },
+        undefined,
+        "Value",
+        false,
+        ChartType.BAR,
+      );
+
+      const expectedAggregate = (result as { aggregate?: string }).aggregate;
+
+      // For aggregations that are not valid for string data types, we should return undefined
+      if (agg === NONE_AGGREGATION || !STRING_AGGREGATION_FNS.includes(agg)) {
+        expect(expectedAggregate).toBeUndefined();
+      } else if (STRING_AGGREGATION_FNS.includes(agg)) {
+        expect(expectedAggregate).toEqual(agg);
+      }
+    }
+  });
+
+  it("should return undefined for temporal data types", () => {
+    for (const agg of AGGREGATION_FNS) {
+      const result = getAxisEncoding(
+        {
+          field: "date",
+          selectedDataType: "temporal",
+          aggregate: agg,
+          timeUnit: undefined,
+        },
+        undefined,
+        "Date",
+        false,
+        ChartType.BAR,
+      );
+
+      const expectedAggregate = (result as { aggregate?: string }).aggregate;
+      expect(expectedAggregate).toBeUndefined();
+    }
   });
 });

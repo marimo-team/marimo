@@ -15,44 +15,49 @@ import {
 } from "./types";
 import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
 
-export const DEFAULT_BIN_VALUE = 0;
-export const NONE_GROUP_BY = "None";
-
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
   step: z.number().optional(),
   maxbins: z.number().optional(),
 });
 
-export const AxisSchema = z
-  .object({
-    field: z.string().optional(),
-    type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
-    selectedDataType: z
-      .enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE])
-      .optional(),
-    aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
-    sort: z.enum(SORT_TYPES).default("ascending").optional(),
-    timeUnit: z.enum(TIME_UNITS).optional(),
-  })
-  .optional();
+const BaseColumnSchema = z.object({
+  field: z.string().optional(),
+  type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
+  selectedDataType: z.enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE]).optional(),
+  sort: z.enum(SORT_TYPES).default("ascending").optional(),
+  timeUnit: z.enum(TIME_UNITS).optional(),
+});
+
+export const AxisSchema = BaseColumnSchema.extend({
+  aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
+});
+
+export const RowFacet = BaseColumnSchema.extend({
+  linkYAxis: z.boolean().default(true).optional(),
+  binned: z.boolean().default(true).optional(),
+  maxbins: z.number().optional(),
+});
+export const ColumnFacet = BaseColumnSchema.extend({
+  linkXAxis: z.boolean().default(true).optional(),
+  binned: z.boolean().default(true).optional(),
+  maxbins: z.number().optional(),
+});
 
 export const ChartSchema = z.object({
   general: z.object({
     title: z.string().optional(),
-    xColumn: AxisSchema,
-    yColumn: AxisSchema,
-    colorByColumn: AxisSchema,
+    xColumn: AxisSchema.optional(),
+    yColumn: AxisSchema.optional(),
+    colorByColumn: AxisSchema.optional(),
+    facet: z
+      .object({
+        row: RowFacet,
+        column: ColumnFacet,
+      })
+      .optional(),
     horizontal: z.boolean().optional(),
     stacking: z.boolean().optional(),
-    tooltips: z
-      .array(
-        z.object({
-          field: z.string(),
-          type: z.enum(DATA_TYPES),
-        }),
-      )
-      .optional(),
   }),
   xAxis: z
     .object({
@@ -73,12 +78,25 @@ export const ChartSchema = z.object({
       scheme: z.string().default(DEFAULT_COLOR_SCHEME).optional(),
       range: z.array(z.string()).optional(),
       domain: z.array(z.string()).optional(),
+      bin: BinSchema.optional(),
     })
     .optional(),
   style: z
     .object({
       innerRadius: z.number().optional(),
     })
+    .optional(),
+  tooltips: z
+    .object({
+      auto: z.boolean(),
+      fields: z.array(
+        z.object({
+          field: z.string(),
+          type: z.enum(DATA_TYPES),
+        }),
+      ),
+    })
+    .default({ auto: true, fields: [] })
     .optional(),
 });
 

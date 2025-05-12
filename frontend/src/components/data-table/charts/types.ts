@@ -64,8 +64,23 @@ export const AGGREGATION_FNS = [
   "min",
   "max",
   "distinct",
+  "valid",
+  "stdev",
+  "stdevp",
+  "variance",
+  "variancep",
 ] as const;
 export type AggregationFn = (typeof AGGREGATION_FNS)[number];
+
+/*
+ * Subset of AGGREGATION_FNS that are valid for string data types
+ */
+export const STRING_AGGREGATION_FNS: AggregationFn[] = [
+  "none",
+  "count",
+  "distinct",
+  "valid",
+];
 
 /**
  * Subset of VegaLite's MarkType, https://vega.github.io/vega-lite/docs/mark.html#types

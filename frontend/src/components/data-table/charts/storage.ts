@@ -4,11 +4,11 @@ import type { CellId } from "@/core/cells/ids";
 import type { TypedString } from "@/utils/typed";
 import { atomWithStorage } from "jotai/utils";
 import { z } from "zod";
-import { atom } from "jotai";
-import { ChartSchema } from "./chart-schemas";
+import { ChartSchema } from "./schemas";
 import { Logger } from "@/utils/Logger";
 import type { ChartType } from "./types";
 import { NotebookScopedLocalStorage } from "@/utils/localStorage";
+import { capitalize } from "lodash-es";
 
 export type TabName = TypedString<"TabName">;
 export const KEY = "marimo:charts:v2";
@@ -63,4 +63,14 @@ export const tabsStorageAtom = atomWithStorage<TabStorageMap>(
   new Map(),
   mapStorage,
 );
-export const tabNumberAtom = atom(0);
+
+/**
+ * Convenience function to get the tab name for a given tab number and chart type
+ */
+export function getChartTabName(tabNum: number, chartType: ChartType) {
+  const capitalizedChartType = capitalize(chartType);
+  if (tabNum === 0) {
+    return `${capitalizedChartType} Chart` as TabName;
+  }
+  return `${capitalizedChartType} Chart ${tabNum + 1}` as TabName;
+}

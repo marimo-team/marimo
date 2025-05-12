@@ -14,6 +14,8 @@ import {
   SquareFunctionIcon,
   TableIcon,
   AreaChartIcon,
+  ChartNoAxesColumn,
+  ChartColumn,
 } from "lucide-react";
 import type { ColorScheme } from "vega";
 import type {
@@ -25,6 +27,10 @@ import type {
 
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
+export const DEFAULT_BIN_SIZE = 0;
+
+// Set a field to this to reflect that it is not set
+export const EMPTY_VALUE = "";
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,
@@ -44,6 +50,11 @@ export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
   min: ArrowDownToLineIcon,
   max: ArrowUpToLineIcon,
   distinct: HashIcon,
+  valid: HashIcon,
+  stdev: ChartNoAxesColumn,
+  stdevp: ChartNoAxesColumn,
+  variance: ChartColumn,
+  variancep: ChartColumn,
 };
 
 export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
@@ -54,7 +65,12 @@ export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
   median: "Median of values",
   min: "Minimum value",
   max: "Maximum value",
-  distinct: "Distinct values",
+  distinct: "Count of distinct records",
+  valid: "Count non-null records",
+  stdev: "Standard deviation",
+  stdevp: "Standard deviation of population",
+  variance: "Variance",
+  variancep: "Variance of population",
 };
 
 export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [
@@ -115,9 +131,6 @@ export const SCALE_TYPE_DESCRIPTIONS: Record<SelectableDataType, string> = {
   string: "Discrete categorical scale (inputs treated as strings)",
   temporal: "Continuous temporal scale",
 };
-
-// Set a field to this to reflect that it is not set
-export const EMPTY_VALUE = "";
 
 export const TIME_UNIT_DESCRIPTIONS: Record<
   TimeUnit,

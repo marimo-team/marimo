@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, it, expect } from "vitest";
-import { createVegaSpec } from "../chart-spec";
-import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "../chart-schemas";
+import { createVegaSpec } from "../chart-spec/spec";
 import type { z } from "zod";
-import type { ChartSchema, ChartSchemaType } from "../chart-schemas";
+import type { ChartSchema, ChartSchemaType } from "../schemas";
 import { NONE_AGGREGATION, ChartType } from "../types";
 
 describe("createVegaSpec", () => {
@@ -89,7 +88,7 @@ describe("createVegaSpec", () => {
   it("should create a bar chart with binning", () => {
     const formValues: ChartSchemaType = {
       ...createBasicFormValues(),
-      xAxis: { bin: { binned: true, step: DEFAULT_BIN_VALUE } },
+      xAxis: { bin: { binned: true, step: 10 } },
     };
 
     const spec = createVegaSpec(
@@ -126,7 +125,10 @@ describe("createVegaSpec", () => {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
-          tooltips: [
+        },
+        tooltips: {
+          auto: true,
+          fields: [
             { field: "category", type: "string" as const },
             { field: "value", type: "number" as const },
           ],
@@ -223,31 +225,6 @@ describe("createVegaSpec", () => {
             type: "number" as const,
             aggregate: NONE_AGGREGATION,
           },
-        },
-      };
-
-      const spec = createVegaSpec(
-        ChartType.BAR,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(removeUndefined(spec)).toMatchSnapshot();
-    });
-
-    it("should handle NONE_GROUP_BY for groupByColumn", () => {
-      const formValues: ChartSchemaType = {
-        ...createBasicFormValues(),
-        general: {
-          ...createBasicFormValues().general,
-          colorByColumn: {
-            field: NONE_GROUP_BY,
-            type: "string" as const,
-          },
-          stacking: true,
         },
       };
 
