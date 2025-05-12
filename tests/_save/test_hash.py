@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
 from typing import Any
 
 import pytest
-from pathlib import Path
-
-import asyncio
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel

@@ -2,19 +2,20 @@
 from __future__ import annotations
 
 import sys
-import time
-
-from typing import TypeVar, Any, Callable
-from pathlib import Path
 import threading
+import time
+from pathlib import Path
+from typing import Any, Callable, TypeVar
 
 from marimo._output.rich_help import mddoc
+from marimo._runtime.context import (
+    ContextNotInitializedError,
+    get_context,
+    runtime_context_installed,
+)
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._runtime.threads import Thread
-
-from marimo._runtime.context import ContextNotInitializedError, get_context, runtime_context_installed
-
 
 T = TypeVar("T")
 
@@ -58,18 +59,21 @@ def watch_file(
             last_mtime = current_mtime
             state._set_value(path)
 
+
 def watch_directory(
     path: Path, state: DirectoryState, should_exit: threading.Event
 ) -> None:
     """Watch a directory for changes and update the state."""
     print([k for k in path.walk()])
-    last_structure = set((p, *map(tuple,r)) for p, *r in path.walk())
+    last_structure = set((p, *map(tuple, r)) for p, *r in path.walk())
     current_structure = last_structure
     sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
         time.sleep(sleep_interval)
         try:
-            current_structure = set((p, *map(tuple,r)) for p, *r in path.walk())
+            current_structure = set(
+                (p, *map(tuple, r)) for p, *r in path.walk()
+            )
         except FileNotFoundError:
             # Directory has been deleted, trigger a change
             current_mtime = 0
@@ -156,7 +160,9 @@ class FileState(PathState):
         "replace",
         "walk",
     }
-    _target: Callable[[Path, State, threading.Event], None] = staticmethod(watch_file)
+    _target: Callable[[Path, State, threading.Event], None] = staticmethod(
+        watch_file
+    )
 
     def read_text(self) -> str:
         """Read the file as a string."""
@@ -201,7 +207,9 @@ class DirectoryState(PathState):
         "mkdir",
         "touch",
     }
-    _target: Callable[[Path, State, threading.Event], None] = staticmethod(watch_directory)
+    _target: Callable[[Path, State, threading.Event], None] = staticmethod(
+        watch_directory
+    )
 
     def walk(self) -> iter[Path]:
         """Walk the directory."""
@@ -243,7 +251,7 @@ def file(path: Path | str) -> FileState:
     - `rename()`
     - `replace()`
 
-    This object will trigger depdent cells to re-evaluate when the file is
+    This object will trigger dependent cells to re-evaluate when the file is
     changed.
 
     Warning:
