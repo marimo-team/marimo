@@ -258,8 +258,9 @@ const ChatPanelBody = () => {
     append,
     handleSubmit,
     error,
-    isLoading,
+    status,
     reload,
+    stop,
   } = useChat({
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
@@ -292,6 +293,8 @@ const ChatPanelBody = () => {
       Logger.debug("Received HTTP response from server:", response);
     },
   });
+
+  const isLoading = status === "submitted" || status === "streaming";
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
@@ -417,6 +420,14 @@ const ChatPanelBody = () => {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {isLoading && (
+        <div className="w-full flex justify-center items-center z-20 border-t">
+          <Button variant="linkDestructive" size="sm" onClick={stop}>
+            Stop
+          </Button>
+        </div>
+      )}
 
       {messages && messages.length > 0 && (
         <ChatInput
