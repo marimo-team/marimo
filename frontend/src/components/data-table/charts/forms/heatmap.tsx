@@ -8,11 +8,9 @@ import { NumberField } from "../components/form-fields";
 import { ColorByAxis, XAxis, YAxis } from "../components/chart-items";
 import { OtherOptions } from "./common-chart";
 import { FormSectionHorizontalRule } from "../components/layouts";
-import { useChartFormContext } from "../context";
 
 export const HeatmapForm: React.FC = () => {
   const form = useFormContext<z.infer<typeof ChartSchema>>();
-  const { saveForm } = useChartFormContext();
 
   const formValues = useWatch({ control: form.control });
   const xColumnExists = isFieldSet(formValues.general?.xColumn?.field);

@@ -2,7 +2,6 @@
 
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec/spec";
-import { DEFAULT_BIN_VALUE } from "../schemas";
 import type { z } from "zod";
 import type { ChartSchema, ChartSchemaType } from "../schemas";
 import { NONE_AGGREGATION, ChartType } from "../types";
@@ -89,7 +88,7 @@ describe("createVegaSpec", () => {
   it("should create a bar chart with binning", () => {
     const formValues: ChartSchemaType = {
       ...createBasicFormValues(),
-      xAxis: { bin: { binned: true, step: DEFAULT_BIN_VALUE } },
+      xAxis: { bin: { binned: true, step: 10 } },
     };
 
     const spec = createVegaSpec(
@@ -126,7 +125,10 @@ describe("createVegaSpec", () => {
         ...createBasicFormValues(),
         general: {
           ...createBasicFormValues().general,
-          tooltips: [
+        },
+        tooltips: {
+          auto: true,
+          fields: [
             { field: "category", type: "string" as const },
             { field: "value", type: "number" as const },
           ],

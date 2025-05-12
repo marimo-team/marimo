@@ -8,6 +8,7 @@ import { ChartSchema } from "./schemas";
 import { Logger } from "@/utils/Logger";
 import type { ChartType } from "./types";
 import { NotebookScopedLocalStorage } from "@/utils/localStorage";
+import { capitalize } from "lodash-es";
 
 export type TabName = TypedString<"TabName">;
 export const KEY = "marimo:charts:v2";
