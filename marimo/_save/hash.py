@@ -261,7 +261,7 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
     try:
         return type_sign(common_container_to_bytes(value), label)
     # Fallback to raw state for eval in content hash.
-    except TypeError:
+    except (TypeError, ValueError):
         return value
 
 

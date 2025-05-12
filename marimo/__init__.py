@@ -41,12 +41,12 @@ __all__ = [
     "defs",
     "doc",
     "download",
-    "file",
     "hstack",
     "Html",
     "icon",
     "iframe",
     "image",
+    "json",
     "latex",
     "lazy",
     "left",
@@ -79,9 +79,9 @@ __all__ = [
     "style",
     "tabs",
     "tree",
-    "json",
     "video",
     "vstack",
+    "watch",
 ]
 __version__ = "0.13.6"
 
@@ -119,7 +119,7 @@ from marimo._plugins.stateless.style import style
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._plugins.stateless.video import video
-from marimo._runtime import output
+from marimo._runtime import output, watch
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,
@@ -128,7 +128,6 @@ from marimo._runtime.capture import (
 )
 from marimo._runtime.context.utils import running_in_notebook
 from marimo._runtime.control_flow import MarimoStopError, stop
-from marimo._runtime.file import file
 from marimo._runtime.runtime import (
     app_meta,
     cli_args,

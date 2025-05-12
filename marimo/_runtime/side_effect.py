@@ -11,18 +11,20 @@ if TYPE_CHECKING:
 
 
 class SideEffect(CellLifecycleItem):
-    def __init__(self, key: str) -> None:
+    def __init__(self, key: str | bytes) -> None:
         self._key = key
 
     @property
-    def key(self) -> str:
+    def key(self) -> bytes:
         assert self._key is not None
-        return self._key
+        if isinstance(self._key, bytes):
+            return self._key
+        return self._key.encode("utf-8")
 
     @property
     def hash(self) -> bytes:
         """Hash the lookup to a consistent size."""
-        return hashlib.sha256(self._key.encode()).digest()
+        return hashlib.sha256(self.key).digest()
 
     def create(self, context: RuntimeContext | None) -> None:
         """NoOp for side effect.

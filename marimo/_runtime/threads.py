@@ -79,7 +79,10 @@ class Thread(threading.Thread):
 
     def run(self) -> None:
         if self._marimo_ctx is not None:
-            initialize_context(self._marimo_ctx)
+            try:
+                initialize_context(self._marimo_ctx)
+            except RuntimeError:
+                pass
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
             self._marimo_ctx.execution_context = ExecutionContext(
                 cell_id=self._marimo_ctx.stream.cell_id,  # type: ignore
