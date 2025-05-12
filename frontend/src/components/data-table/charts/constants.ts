@@ -14,6 +14,8 @@ import {
   SquareFunctionIcon,
   TableIcon,
   AreaChartIcon,
+  ChartNoAxesColumn,
+  ChartColumn,
 } from "lucide-react";
 import type { ColorScheme } from "vega";
 import type {
@@ -44,6 +46,11 @@ export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
   min: ArrowDownToLineIcon,
   max: ArrowUpToLineIcon,
   distinct: HashIcon,
+  valid: HashIcon,
+  stdev: ChartNoAxesColumn,
+  stdevp: ChartNoAxesColumn,
+  variance: ChartColumn,
+  variancep: ChartColumn,
 };
 
 export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
@@ -54,7 +61,12 @@ export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
   median: "Median of values",
   min: "Minimum value",
   max: "Maximum value",
-  distinct: "Distinct values",
+  distinct: "Count of distinct records",
+  valid: "Count non-null records",
+  stdev: "Standard deviation",
+  stdevp: "Standard deviation of population",
+  variance: "Variance",
+  variancep: "Variance of population",
 };
 
 export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [

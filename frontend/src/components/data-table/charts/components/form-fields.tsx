@@ -44,8 +44,10 @@ import {
   COMBINED_TIME_UNITS,
   NONE_AGGREGATION,
   SELECTABLE_DATA_TYPES,
+  type SelectableDataType,
   SINGLE_TIME_UNITS,
   SORT_TYPES,
+  STRING_AGGREGATION_FNS,
   type TimeUnit,
 } from "../types";
 import {
@@ -613,8 +615,15 @@ export const DataTypeSelect = ({
 
 export const AggregationSelect = <T extends object>({
   fieldName,
-}: { fieldName: Path<T> }) => {
+  selectedDataType,
+}: {
+  fieldName: Path<T>;
+  selectedDataType: SelectableDataType;
+}) => {
   const form = useFormContext<T>();
+  const availableAggregations =
+    selectedDataType === "string" ? STRING_AGGREGATION_FNS : AGGREGATION_FNS;
+
   return (
     <FormField
       control={form.control}
@@ -633,7 +642,7 @@ export const AggregationSelect = <T extends object>({
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Aggregation</SelectLabel>
-                  {AGGREGATION_FNS.map((agg) => {
+                  {availableAggregations.map((agg) => {
                     const Icon = AGGREGATION_TYPE_ICON[agg];
                     return (
                       <SelectItem

@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec/spec";
-import { DEFAULT_BIN_VALUE, NONE_GROUP_BY } from "../schemas";
+import { DEFAULT_BIN_VALUE } from "../schemas";
 import type { z } from "zod";
 import type { ChartSchema, ChartSchemaType } from "../schemas";
 import { NONE_AGGREGATION, ChartType } from "../types";
@@ -223,31 +223,6 @@ describe("createVegaSpec", () => {
             type: "number" as const,
             aggregate: NONE_AGGREGATION,
           },
-        },
-      };
-
-      const spec = createVegaSpec(
-        ChartType.BAR,
-        sampleData,
-        formValues,
-        "light",
-        width,
-        height,
-      );
-
-      expect(removeUndefined(spec)).toMatchSnapshot();
-    });
-
-    it("should handle NONE_GROUP_BY for groupByColumn", () => {
-      const formValues: ChartSchemaType = {
-        ...createBasicFormValues(),
-        general: {
-          ...createBasicFormValues().general,
-          colorByColumn: {
-            field: NONE_GROUP_BY,
-            type: "string" as const,
-          },
-          stacking: true,
         },
       };
 

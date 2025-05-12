@@ -9,7 +9,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { CHART_TYPE_ICON, COUNT_FIELD } from "../constants";
+import { CHART_TYPE_ICON, COUNT_FIELD, EMPTY_VALUE } from "../constants";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { buttonVariants } from "@/components/ui/button";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -114,7 +114,10 @@ export const XAxis: React.FC = () => {
           columns={context.fields}
         />
         {shouldShowXAggregation && (
-          <AggregationSelect fieldName="general.xColumn.aggregate" />
+          <AggregationSelect
+            fieldName="general.xColumn.aggregate"
+            selectedDataType={selectedXDataType}
+          />
         )}
       </div>
       {xColumnExists && !isXCountField && (
@@ -173,7 +176,10 @@ export const YAxis: React.FC = () => {
           columns={context.fields}
         />
         {shouldShowYAggregation && (
-          <AggregationSelect fieldName="general.yColumn.aggregate" />
+          <AggregationSelect
+            fieldName="general.yColumn.aggregate"
+            selectedDataType={selectedYDataType}
+          />
         )}
       </div>
 
@@ -199,6 +205,14 @@ export const YAxis: React.FC = () => {
 
 export const ColorByAxis: React.FC = () => {
   const { fields } = useChartFormContext();
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const formValues = useWatch({ control: form.control });
+
+  let selectedColorByDataType =
+    formValues.general?.colorByColumn?.selectedDataType;
+  if (selectedColorByDataType === EMPTY_VALUE || !selectedColorByDataType) {
+    selectedColorByDataType = "string";
+  }
 
   return (
     <FieldSection>
@@ -208,7 +222,10 @@ export const ColorByAxis: React.FC = () => {
           fieldName="general.colorByColumn.field"
           columns={fields}
         />
-        <AggregationSelect fieldName="general.colorByColumn.aggregate" />
+        <AggregationSelect
+          fieldName="general.colorByColumn.aggregate"
+          selectedDataType={selectedColorByDataType}
+        />
       </div>
     </FieldSection>
   );

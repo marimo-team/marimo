@@ -33,7 +33,7 @@ import { CommonChartForm, StyleForm } from "./forms/common-chart";
 import { TabContainer } from "./components/layouts";
 import { ChartFormContext } from "./context";
 
-const NEW_CHART_TYPE = "line" as ChartType;
+const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
 const CHART_HEIGHT = 300;
 

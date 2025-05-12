@@ -14,6 +14,7 @@ import {
 import { useChartFormContext } from "../context";
 import { OtherOptions } from "./common-chart";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
+import { EMPTY_VALUE } from "../constants";
 
 export const PieForm: React.FC<{
   saveForm: () => void;
@@ -22,6 +23,11 @@ export const PieForm: React.FC<{
   const { fields } = useChartFormContext();
   const formValues = useWatch({ control: form.control });
   const colorByColumn = formValues.general?.colorByColumn;
+
+  let ySelectedDataType = formValues.general?.yColumn?.selectedDataType;
+  if (ySelectedDataType === EMPTY_VALUE || !ySelectedDataType) {
+    ySelectedDataType = "string";
+  }
 
   const inferredColorByDataType = colorByColumn?.type
     ? convertDataTypeToSelectable(colorByColumn.type)
@@ -46,7 +52,10 @@ export const PieForm: React.FC<{
       <Title text="Size by" />
       <div className="flex flex-row justify-between">
         <ColumnSelector fieldName="general.yColumn.field" columns={fields} />
-        <AggregationSelect fieldName="general.yColumn.aggregate" />
+        <AggregationSelect
+          fieldName="general.yColumn.aggregate"
+          selectedDataType={ySelectedDataType}
+        />
       </div>
 
       <NumberField

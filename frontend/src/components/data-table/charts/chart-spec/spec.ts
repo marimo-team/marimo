@@ -8,7 +8,13 @@ import type {
   RowFacet,
   ColumnFacet,
 } from "../schemas";
-import { ChartType, NONE_AGGREGATION } from "../types";
+import {
+  type AggregationFn,
+  ChartType,
+  NONE_AGGREGATION,
+  type SelectableDataType,
+  STRING_AGGREGATION_FNS,
+} from "../types";
 import type { z } from "zod";
 import type {
   ColorDef,
@@ -145,7 +151,10 @@ export function getAxisEncoding(
     bin: getBinEncoding(binValues, chartType),
     title: label,
     stack: stack,
-    aggregate: getAggregate(column.aggregate),
+    aggregate: getAggregate(
+      column.aggregate,
+      column.selectedDataType || "string",
+    ),
     timeUnit: getTimeUnit(column),
   };
 }
@@ -256,8 +265,25 @@ export function isFieldSet(field: string | undefined): field is string {
   return field !== undefined && field.trim() !== EMPTY_VALUE;
 }
 
-function getAggregate(aggregate: string | undefined): Aggregate | undefined {
-  return aggregate === NONE_AGGREGATION ? undefined : (aggregate as Aggregate);
+function getAggregate(
+  aggregate: AggregationFn | undefined,
+  selectedDataType: SelectableDataType,
+): Aggregate | undefined {
+  // temporal data types don't support aggregation
+  if (selectedDataType === "temporal") {
+    return undefined;
+  }
+
+  if (aggregate === NONE_AGGREGATION || !aggregate) {
+    return undefined;
+  }
+
+  if (selectedDataType === "string") {
+    return STRING_AGGREGATION_FNS.includes(aggregate)
+      ? (aggregate as Aggregate)
+      : undefined;
+  }
+  return aggregate as Aggregate;
 }
 
 function getTimeUnit(column: z.infer<typeof AxisSchema>) {
