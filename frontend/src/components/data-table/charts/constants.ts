@@ -27,6 +27,10 @@ import type {
 
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
+export const DEFAULT_BIN_SIZE = 0;
+
+// Set a field to this to reflect that it is not set
+export const EMPTY_VALUE = "";
 
 export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   line: LineChartIcon,
@@ -127,9 +131,6 @@ export const SCALE_TYPE_DESCRIPTIONS: Record<SelectableDataType, string> = {
   string: "Discrete categorical scale (inputs treated as strings)",
   temporal: "Continuous temporal scale",
 };
-
-// Set a field to this to reflect that it is not set
-export const EMPTY_VALUE = "";
 
 export const TIME_UNIT_DESCRIPTIONS: Record<
   TimeUnit,

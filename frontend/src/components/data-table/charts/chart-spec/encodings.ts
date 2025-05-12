@@ -5,7 +5,7 @@ import type { BinSchema, ChartSchema } from "../schemas";
 
 import { ChartType, NONE_AGGREGATION, type SelectableDataType } from "../types";
 
-import { DEFAULT_BIN_VALUE } from "../schemas";
+import { DEFAULT_BIN_SIZE } from "../constants";
 import { isFieldSet } from "./spec";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
 import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
@@ -31,9 +31,9 @@ export function getBinEncoding(
   }
 
   const binstep =
-    binValues.step === DEFAULT_BIN_VALUE ? undefined : binValues.step;
+    binValues.step === DEFAULT_BIN_SIZE ? undefined : binValues.step;
   const binmaxbins =
-    binValues.maxbins === DEFAULT_BIN_VALUE ? undefined : binValues.maxbins;
+    binValues.maxbins === DEFAULT_BIN_SIZE ? undefined : binValues.maxbins;
 
   return { bin: true, step: binstep, maxbins: binmaxbins };
 }

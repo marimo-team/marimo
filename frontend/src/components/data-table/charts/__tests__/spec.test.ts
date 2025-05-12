@@ -24,7 +24,7 @@ describe("getAxisEncoding", () => {
     expect(result).toEqual({
       aggregate: "count",
       type: "quantitative",
-      bin: { binned: true, step: 10 },
+      bin: { bin: true, step: 10 },
       title: undefined,
       stack: true,
     });

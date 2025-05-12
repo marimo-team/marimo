@@ -41,18 +41,22 @@ exports[`createVegaSpec > Bar Chart > should create a horizontal bar chart 1`] =
   "encoding": {
     "x": {
       "field": "value",
-      "title": "value",
       "type": "nominal",
     },
     "y": {
       "field": "category",
-      "title": "category",
       "type": "nominal",
     },
   },
   "height": 300,
   "mark": {
     "type": "bar",
+  },
+  "resolve": {
+    "axis": {
+      "x": "independent",
+      "y": "independent",
+    },
   },
   "title": "Test Chart",
   "width": 400,
@@ -105,13 +109,11 @@ exports[`createVegaSpec > Bar Chart > should create a stacked bar chart with gro
     },
     "x": {
       "field": "category",
-      "title": "category",
       "type": "nominal",
     },
     "y": {
       "field": "value",
       "stack": true,
-      "title": "value",
       "type": "nominal",
     },
   },
@@ -119,70 +121,11 @@ exports[`createVegaSpec > Bar Chart > should create a stacked bar chart with gro
   "mark": {
     "type": "bar",
   },
-  "title": "Test Chart",
-  "width": 400,
-}
-`;
-
-exports[`createVegaSpec > Edge cases > should handle NONE_GROUP_BY for groupByColumn 1`] = `
-{
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-  "background": "white",
-  "data": {
-    "values": [
-      {
-        "category": "A",
-        "group": "Group 1",
-        "value": 10,
-      },
-      {
-        "category": "B",
-        "group": "Group 1",
-        "value": 20,
-      },
-      {
-        "category": "C",
-        "group": "Group 1",
-        "value": 15,
-      },
-      {
-        "category": "A",
-        "group": "Group 2",
-        "value": 5,
-      },
-      {
-        "category": "B",
-        "group": "Group 2",
-        "value": 10,
-      },
-      {
-        "category": "C",
-        "group": "Group 2",
-        "value": 25,
-      },
-    ],
-  },
-  "encoding": {
-    "color": {
-      "field": "None",
-      "scale": {},
-      "type": "nominal",
+  "resolve": {
+    "axis": {
+      "x": "independent",
+      "y": "independent",
     },
-    "x": {
-      "field": "category",
-      "title": "category",
-      "type": "nominal",
-    },
-    "y": {
-      "field": "value",
-      "stack": true,
-      "title": "value",
-      "type": "nominal",
-    },
-  },
-  "height": 300,
-  "mark": {
-    "type": "bar",
   },
   "title": "Test Chart",
   "width": 400,
@@ -234,18 +177,22 @@ exports[`createVegaSpec > Line Chart > should create a basic line chart spec 1`]
   "encoding": {
     "x": {
       "field": "category",
-      "title": "category",
       "type": "nominal",
     },
     "y": {
       "field": "value",
-      "title": "value",
       "type": "nominal",
     },
   },
   "height": 300,
   "mark": {
     "type": "line",
+  },
+  "resolve": {
+    "axis": {
+      "x": "independent",
+      "y": "independent",
+    },
   },
   "title": "Test Chart",
   "width": 400,
@@ -300,18 +247,22 @@ exports[`createVegaSpec > Scatter Chart > should create a scatter chart with gro
     },
     "x": {
       "field": "category",
-      "title": "category",
       "type": "nominal",
     },
     "y": {
       "field": "value",
-      "title": "value",
       "type": "nominal",
     },
   },
   "height": 300,
   "mark": {
     "type": "point",
+  },
+  "resolve": {
+    "axis": {
+      "x": "independent",
+      "y": "independent",
+    },
   },
   "title": "Test Chart",
   "width": 400,
@@ -359,18 +310,22 @@ exports[`createVegaSpec > Theme variations > should create a chart with dark the
   "encoding": {
     "x": {
       "field": "category",
-      "title": "category",
       "type": "nominal",
     },
     "y": {
       "field": "value",
-      "title": "value",
       "type": "nominal",
     },
   },
   "height": 300,
   "mark": {
     "type": "bar",
+  },
+  "resolve": {
+    "axis": {
+      "x": "independent",
+      "y": "independent",
+    },
   },
   "title": "Test Chart",
   "width": 400,
@@ -417,20 +372,23 @@ exports[`createVegaSpec > should create a bar chart with binning 1`] = `
   },
   "encoding": {
     "x": {
-      "bin": true,
       "field": "category",
-      "title": "category",
       "type": "nominal",
     },
     "y": {
       "field": "value",
-      "title": "value",
       "type": "nominal",
     },
   },
   "height": 300,
   "mark": {
     "type": "bar",
+  },
+  "resolve": {
+    "axis": {
+      "x": "independent",
+      "y": "independent",
+    },
   },
   "title": "Test Chart",
   "width": 400,

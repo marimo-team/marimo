@@ -15,9 +15,6 @@ import {
 } from "./types";
 import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
 
-export const DEFAULT_BIN_VALUE = 0;
-export const NONE_GROUP_BY = "None";
-
 export const BinSchema = z.object({
   binned: z.boolean().optional(),
   step: z.number().optional(),

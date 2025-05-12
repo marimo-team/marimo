@@ -38,9 +38,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
-import { DEFAULT_BIN_VALUE } from "../schemas";
 import {
   AGGREGATION_FNS,
+  type AggregationFn,
   COMBINED_TIME_UNITS,
   NONE_AGGREGATION,
   SELECTABLE_DATA_TYPES,
@@ -57,6 +57,7 @@ import {
   EMPTY_VALUE,
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
+  DEFAULT_BIN_SIZE,
 } from "../constants";
 import { Slider } from "@/components/ui/slider";
 import { IconWithText } from "./layouts";
@@ -289,7 +290,7 @@ export const NumberField = ({
           <FormControl>
             <DebouncedNumberInput
               {...field}
-              value={field.value ?? DEFAULT_BIN_VALUE}
+              value={field.value ?? DEFAULT_BIN_SIZE}
               onValueChange={field.onChange}
               aria-label={label}
               className={cn("w-16", inputClassName)}
@@ -629,6 +630,14 @@ export const AggregationSelect = <T extends object>({
   const availableAggregations =
     selectedDataType === "string" ? STRING_AGGREGATION_FNS : AGGREGATION_FNS;
 
+  const renderSubtitle = (agg: AggregationFn) => {
+    return (
+      <span className="text-xs text-muted-foreground pr-10">
+        {AGGREGATION_TYPE_DESCRIPTIONS[agg]}
+      </span>
+    );
+  };
+
   return (
     <FormField
       control={form.control}
@@ -654,11 +663,7 @@ export const AggregationSelect = <T extends object>({
                         key={agg}
                         value={agg}
                         className="flex flex-col items-start justify-center"
-                        subtitle={
-                          <span className="text-xs text-muted-foreground pr-10">
-                            {AGGREGATION_TYPE_DESCRIPTIONS[agg]}
-                          </span>
-                        }
+                        subtitle={renderSubtitle(agg)}
                       >
                         <div className="flex items-center">
                           <Icon className="w-3 h-3 mr-2" />
@@ -769,7 +774,7 @@ export const BinFields: React.FC<{
   const formValues = useWatch({ control: form.control });
   const isBinned = formValues[fieldName]?.bin?.binned;
 
-  const hasStep = formValues[fieldName]?.bin?.step !== DEFAULT_BIN_VALUE;
+  const hasStep = formValues[fieldName]?.bin?.step !== DEFAULT_BIN_SIZE;
 
   return (
     <div className="flex flex-row justify-between">
@@ -780,12 +785,14 @@ export const BinFields: React.FC<{
             fieldName={`${fieldName}.bin.step`}
             label="Step"
             inputClassName="w-14"
+            placeholder="0.5" // TODO: This doesn't work yet, we still show 0
           />
           <NumberField
             fieldName={`${fieldName}.bin.maxbins`}
             label="Maxbins"
             inputClassName="w-14"
             isDisabled={hasStep}
+            placeholder="10"
           />
         </>
       )}
