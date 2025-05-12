@@ -11,7 +11,6 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-
 class TestHash:
     @staticmethod
     def test_pure_hash(app) -> None:
@@ -1157,6 +1156,7 @@ class TestSideEffects:
                 exec_req.get("""
                 from tests._save.loaders.mocks import MockLoader
                 import marimo as mo
+                mo.watch.watch._TEST_SLEEP_INTERVAL = 0.05
                 from pathlib import Path
 
                 hashes = []
@@ -1192,7 +1192,7 @@ class TestSideEffects:
             ]
         )
         (tmp_path / "test.txt").touch()
-        await asyncio.sleep(3)
+        await asyncio.sleep(0.2)
         await k.run([])
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
@@ -1215,6 +1215,7 @@ class TestSideEffects:
                 exec_req.get("""
                 from tests._save.loaders.mocks import MockLoader
                 import marimo as mo
+                mo.watch.watch._TEST_SLEEP_INTERVAL = 0.05
                 from pathlib import Path
 
                 hashes = []
@@ -1250,7 +1251,7 @@ class TestSideEffects:
             ]
         )
         (tmp_path / "test_dir" / "test.txt").write_text("test")
-        await asyncio.sleep(3)
+        await asyncio.sleep(0.2)
         await k.run([])
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
