@@ -18,7 +18,7 @@ import { EMPTY_VALUE } from "../constants";
 
 export const PieForm: React.FC = () => {
   const form = useFormContext<z.infer<typeof ChartSchema>>();
-  const { fields, saveForm } = useChartFormContext();
+  const { fields } = useChartFormContext();
 
   const formValues = useWatch({ control: form.control });
   const colorByColumn = formValues.general?.colorByColumn;
@@ -64,7 +64,7 @@ export const PieForm: React.FC = () => {
       />
 
       <FormSectionHorizontalRule />
-      <OtherOptions saveForm={saveForm} />
+      <OtherOptions />
     </>
   );
 };

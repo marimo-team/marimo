@@ -28,7 +28,6 @@ import {
 import { useChartFormContext } from "../context";
 
 export const CommonChartForm: React.FC = () => {
-  const { saveForm } = useChartFormContext();
   const form = useFormContext<z.infer<typeof ChartSchema>>();
 
   const formValues = useWatch({ control: form.control });
@@ -55,7 +54,7 @@ export const CommonChartForm: React.FC = () => {
       )}
 
       <FormSectionHorizontalRule />
-      <OtherOptions saveForm={saveForm} />
+      <OtherOptions />
     </>
   );
 };
@@ -145,9 +144,13 @@ export const StyleForm: React.FC = () => {
   );
 };
 
-export const OtherOptions: React.FC<{ saveForm: () => void }> = ({
-  saveForm,
-}) => {
+export const OtherOptions: React.FC = () => {
+  const { saveForm } = useChartFormContext();
+
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const formValues = useWatch({ control: form.control });
+  const autoTooltips = formValues.tooltips?.auto;
+
   return (
     <Accordion type="multiple">
       <AccordionFormItem value="facet">
@@ -163,8 +166,14 @@ export const OtherOptions: React.FC<{ saveForm: () => void }> = ({
         <AccordionFormTrigger>
           <Title text="Tooltips" />
         </AccordionFormTrigger>
-        <AccordionFormContent>
-          <TooltipSelect fieldName="general.tooltips" saveFunction={saveForm} />
+        <AccordionFormContent wrapperClassName="flex-row justify-between">
+          <BooleanField fieldName="tooltips.auto" label="Auto" />
+          {!autoTooltips && (
+            <TooltipSelect
+              fieldName="tooltips.fields"
+              saveFunction={saveForm}
+            />
+          )}
         </AccordionFormContent>
       </AccordionFormItem>
     </Accordion>

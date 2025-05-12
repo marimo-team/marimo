@@ -61,14 +61,6 @@ export const ChartSchema = z.object({
       .optional(),
     horizontal: z.boolean().optional(),
     stacking: z.boolean().optional(),
-    tooltips: z
-      .array(
-        z.object({
-          field: z.string(),
-          type: z.enum(DATA_TYPES),
-        }),
-      )
-      .optional(),
   }),
   xAxis: z
     .object({
@@ -95,6 +87,18 @@ export const ChartSchema = z.object({
     .object({
       innerRadius: z.number().optional(),
     })
+    .optional(),
+  tooltips: z
+    .object({
+      auto: z.boolean(),
+      fields: z.array(
+        z.object({
+          field: z.string(),
+          type: z.enum(DATA_TYPES),
+        }),
+      ),
+    })
+    .default({ auto: true, fields: [] })
     .optional(),
 });
 

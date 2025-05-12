@@ -6,23 +6,23 @@ import type { AxisSchema, ChartSchema } from "../schemas";
 import { NONE_AGGREGATION, type TimeUnitTooltip } from "../types";
 import type { DataType } from "@/core/kernel/messages";
 import type { Tooltip } from "../components/form-fields";
+import type { Aggregate } from "vega-lite/build/src/aggregate";
+import { isFieldSet } from "./spec";
+import { COUNT_FIELD } from "../constants";
 
 function getTooltipAggregate(
   field: string,
   yColumn?: z.infer<typeof AxisSchema>,
-): "count" | "sum" | "mean" | "median" | "min" | "max" | undefined {
+): Aggregate | undefined {
   if (field !== yColumn?.field) {
     return undefined;
   }
-  return yColumn.aggregate === NONE_AGGREGATION
-    ? undefined
-    : (yColumn.aggregate as
-        | "count"
-        | "sum"
-        | "mean"
-        | "median"
-        | "min"
-        | "max");
+
+  if (yColumn?.field === COUNT_FIELD) {
+    return "count";
+  }
+
+  return yColumn.aggregate === NONE_AGGREGATION ? undefined : yColumn.aggregate;
 }
 
 function getTooltipFormat(dataType: DataType): string | undefined {
@@ -70,11 +70,44 @@ function getTooltipTimeUnit(
 }
 
 export function getTooltips(formValues: z.infer<typeof ChartSchema>) {
-  if (!formValues.general.tooltips) {
+  if (!formValues.tooltips) {
     return undefined;
   }
 
-  return formValues.general.tooltips.map((tooltip): StringFieldDef<string> => {
+  let tooltips = formValues.tooltips.fields ?? [];
+
+  // If autoTooltips is enabled, we manually add the x, y, and color columns to the tooltips
+  if (formValues.tooltips.auto) {
+    const newTooltips: Tooltip[] = [];
+    const xColumn = formValues.general.xColumn;
+    const yColumn = formValues.general.yColumn;
+    const colorByColumn = formValues.general.colorByColumn;
+
+    if (isFieldSet(xColumn?.field)) {
+      newTooltips.push({
+        field: xColumn.field,
+        type: xColumn.type || "string",
+      });
+    }
+
+    if (isFieldSet(yColumn?.field)) {
+      newTooltips.push({
+        field: yColumn.field,
+        type: yColumn.type || "string",
+      });
+    }
+
+    if (isFieldSet(colorByColumn?.field)) {
+      newTooltips.push({
+        field: colorByColumn.field,
+        type: colorByColumn.type || "string",
+      });
+    }
+
+    tooltips = newTooltips;
+  }
+
+  return tooltips.map((tooltip): StringFieldDef<string> => {
     const timeUnit = getTooltipTimeUnit(tooltip, formValues);
     return {
       field: tooltip.field,

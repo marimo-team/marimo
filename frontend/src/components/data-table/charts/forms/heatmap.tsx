@@ -41,7 +41,7 @@ export const HeatmapForm: React.FC = () => {
       )}
 
       <FormSectionHorizontalRule />
-      <OtherOptions saveForm={saveForm} />
+      <OtherOptions />
     </>
   );
 };
