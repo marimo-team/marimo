@@ -23,6 +23,8 @@ FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
     "marimo._runtime.state.SetFunctor",
+    "marimo._runtime.watch.watch.FileState",
+    "marimo._runtime.watch.watch.DirectoryState",
 ]
 
 UNCLONABLE_MODULES = set(

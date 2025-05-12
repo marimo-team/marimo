@@ -5,9 +5,8 @@ import os
 import sys
 import threading
 import time
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import (
@@ -18,6 +17,9 @@ from marimo._runtime.context import (
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._runtime.threads import Thread
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -77,7 +79,7 @@ def _hashable_walk(
     walked: Iterable[tuple[Path, list[str], list[str]]],
 ) -> set[tuple[Path, tuple[str], tuple[str]]]:
     return cast(
-        Iterable[tuple[Path, tuple[str], tuple[str]]],
+        set[tuple[Path, tuple[str], tuple[str]]],
         set((p, *map(tuple, r)) for p, *r in walked),
     )
 
