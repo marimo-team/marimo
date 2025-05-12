@@ -5,7 +5,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Self, TypeVar
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import (
@@ -17,10 +17,12 @@ from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._runtime.threads import Thread
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 T = TypeVar("T")
 
-
-MODULE_WATCHER_SLEEP_INTERVAL = 1.0
+WATCHER_SLEEP_INTERVAL = 1.0
 
 # For testing only - do not use in production
 _TEST_SLEEP_INTERVAL: float | None = None
@@ -40,9 +42,9 @@ def watch_file(
     path: Path, state: FileState, should_exit: threading.Event
 ) -> None:
     """Watch a file for changes and update the state."""
-    last_mtime = 0
+    last_mtime: float = 0
     current_mtime = last_mtime
-    sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
+    sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
         time.sleep(sleep_interval)
         try:
@@ -64,10 +66,9 @@ def watch_directory(
     path: Path, state: DirectoryState, should_exit: threading.Event
 ) -> None:
     """Watch a directory for changes and update the state."""
-    print([k for k in path.walk()])
     last_structure = set((p, *map(tuple, r)) for p, *r in path.walk())
     current_structure = last_structure
-    sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
+    sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
         time.sleep(sleep_interval)
         try:
@@ -91,7 +92,7 @@ class PathState(State[Path]):
     """Base class for path state."""
 
     _forbidden_attributes: set[str]
-    _target: Callable[[Path, State, threading.Event], None]
+    _target: Callable[[Path, Self, threading.Event], None]
 
     def __init__(
         self,
@@ -100,13 +101,24 @@ class PathState(State[Path]):
         allow_self_loops: bool = True,
         **kwargs: Any,
     ) -> None:
+        if kwargs.pop("_context", None) is not None:
+            raise ValueError(
+                "The '_context' argument is not supported for this class."
+            )
+        if kwargs.pop("allow_self_loops", None) is not None:
+            raise ValueError(
+                "The 'allow_self_loops' argument is not supported for this class."
+            )
+
+        # Mypy seems to think we could provide multiple kwargs definitions here
+        # but we can't.
         super().__init__(
             path,
             *args,
             allow_self_loops=allow_self_loops,
             _context="file",
             **kwargs,
-        )
+        )  # type: ignore[misc]
         self._should_exit = threading.Event()
         # Only bother with the watcher if the context is installed
         # State is not enabled in script mode
@@ -160,7 +172,7 @@ class FileState(PathState):
         "replace",
         "walk",
     }
-    _target: Callable[[Path, State, threading.Event], None] = staticmethod(
+    _target: Callable[[Path, FileState, threading.Event], None] = staticmethod(
         watch_file
     )
 
@@ -180,14 +192,14 @@ class FileState(PathState):
     def read_bytes(self) -> bytes:
         """Read the file as bytes."""
         data = self._value.read_bytes()
-        write_side_effect(f"read_bytes:{data}")
+        write_side_effect(f"read_bytes:{data!r}")
         return data
 
     def write_bytes(self, value: bytes) -> int:
         """Write the file as bytes."""
         response = self._value.write_bytes(value)
         data = self._value.read_bytes()
-        write_side_effect(f"write_bytes:{data}")
+        write_side_effect(f"write_bytes:{data!r}")
         return response
 
 
@@ -207,29 +219,29 @@ class DirectoryState(PathState):
         "mkdir",
         "touch",
     }
-    _target: Callable[[Path, State, threading.Event], None] = staticmethod(
-        watch_directory
+    _target: Callable[[Path, DirectoryState, threading.Event], None] = (
+        staticmethod(watch_directory)
     )
 
-    def walk(self) -> iter[Path]:
+    def walk(self) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Walk the directory."""
         items = list(self._value.walk())
         write_side_effect(f"walk:{items}")
         return iter(items)
 
-    def iterdir(self) -> iter[Path]:
+    def iterdir(self) -> Iterable[Path]:
         """Iterate over the directory."""
         items = list(self._value.iterdir())
         write_side_effect(f"iterdir:{items}")
         return iter(items)
 
-    def glob(self, pattern: str) -> iter[Path]:
+    def glob(self, pattern: str) -> Iterable[Path]:
         """Glob the directory."""
         items = list(self._value.glob(pattern))
         write_side_effect(f"glob:{items}")
         return iter(items)
 
-    def rglob(self, pattern: str) -> iter[Path]:
+    def rglob(self, pattern: str) -> Iterable[Path]:
         """Recursive glob the directory."""
         items = list(self._value.rglob(pattern))
         write_side_effect(f"rglob:{items}")
@@ -276,7 +288,7 @@ def file(path: Path | str) -> FileState:
 
 
 @mddoc
-def directory(path: Path | str):
+def directory(path: Path | str) -> DirectoryState:
     """
     A reactive wrapper for directory paths.
 
