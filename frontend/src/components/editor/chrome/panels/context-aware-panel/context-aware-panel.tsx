@@ -104,7 +104,7 @@ export const ContextAwarePanel: React.FC = () => {
         onDragging={handleDragging}
         className="resize-handle border-border z-20 no-print border-l"
       />
-      <Panel defaultSize={20} minSize={15}>
+      <Panel defaultSize={20} minSize={15} maxSize={80}>
         {renderBody()}
       </Panel>
     </>
@@ -129,6 +129,7 @@ const ResizableComponent = ({ children }: ResizableComponentProps) => {
   const { resizableDivRef, handleRefs, style } = useResizeHandle({
     startingWidth: 400,
     minWidth: 300,
+    maxWidth: 1500,
   });
 
   return (
