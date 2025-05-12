@@ -87,6 +87,7 @@ __version__ = "0.13.6"
 
 import marimo._ai as ai
 import marimo._islands as islands
+import marimo._runtime.watch as watch
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands._island_generator import MarimoIslandGenerator
@@ -120,7 +121,6 @@ from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._plugins.stateless.video import video
 from marimo._runtime import output
-import marimo._runtime.watch as watch
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,
