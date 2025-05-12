@@ -60,6 +60,7 @@ import { usePanelOwnership } from "@/components/data-table/row-viewer-panel/use-
 import { Provider } from "jotai";
 import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/utils";
+import { hasChart } from "@/components/data-table/charts/storage";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -344,6 +345,8 @@ export const LoadingDataTableComponent = memo(
   <T extends {}>(
     props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> },
   ) => {
+    const cellId = findCellId(props.host);
+
     const search = props.search;
     const setValue = props.setValue;
     // Sorting/searching state
@@ -355,7 +358,13 @@ export const LoadingDataTableComponent = memo(
       });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
-    const [displayHeader, setDisplayHeader] = useState(false);
+    const [displayHeader, setDisplayHeader] = useState(() => {
+      // Show the header if a single chart is configured
+      if (!getFeatureFlag("table_charts") || !cellId) {
+        return false;
+      }
+      return hasChart(cellId);
+    });
 
     // We need to clear the selection when sort, query, or filters change
     // if we don't have a stable ID for each row, which is determined by
@@ -375,8 +384,6 @@ export const LoadingDataTableComponent = memo(
         });
       }
     }, [props.pageSize, paginationState.pageSize]);
-
-    const cellId = findCellId(props.host);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{

@@ -74,3 +74,15 @@ export function getChartTabName(tabNum: number, chartType: ChartType) {
   }
   return `${capitalizedChartType} Chart ${tabNum + 1}` as TabName;
 }
+
+const initialStorageValue = mapStorage.getItem(KEY);
+/**
+ * Returns true if the cell has a chart
+ */
+export function hasChart(cellId: CellId) {
+  const tabs = initialStorageValue.get(cellId);
+  if (!tabs) {
+    return false;
+  }
+  return tabs.length > 0;
+}
