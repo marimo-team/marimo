@@ -307,7 +307,7 @@ def file(path: Path | str) -> FileState:
         path = Path(path)
     if path.is_dir():
         raise ValueError(
-            "Path must be a file, not a directory, usemo.directory()"
+            "Path must be a file, not a directory, use mo.directory() instead"
         )
     return FileState(path, allow_self_loops=True)
 
@@ -325,7 +325,7 @@ def directory(path: Path | str) -> DirectoryState:
 
     NOTE: This function does NOT react to file content changes, only to changes
     in the directory structure. Utilize `mo.file()` to watch for changes in
-    specific files. Additional note: this will not followe symlinks.
+    specific files. Additional note: this will not follow symlinks.
 
     Args:
       path: Path to watch.
