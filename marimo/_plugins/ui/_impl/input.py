@@ -185,6 +185,7 @@ class slider(UIElement[Numeric, Numeric]):
         value (Optional[Numeric]): Default value.
         debounce (bool): Whether to debounce the slider to only send the value
             on mouse-up or drag-end. Defaults to False.
+        disabled (bool, optional): Whether the slider is disabled. Defaults to False.
         orientation (Literal["horizontal", "vertical"]): The orientation of the
             slider, either "horizontal" or "vertical". Defaults to "horizontal".
         show_value (bool): Whether to display the current value of the slider.
@@ -222,6 +223,7 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[Numeric] = None,
         value: Optional[Numeric] = None,
         debounce: bool = False,
+        disabled: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
         include_input: bool = False,
@@ -293,6 +295,7 @@ class slider(UIElement[Numeric, Numeric]):
                     "step": 1,
                     "steps": steps,
                     "debounce": debounce,
+                    "disabled": disabled,
                     "orientation": orientation,
                     "show-value": show_value,
                     "include-input": include_input,
@@ -335,6 +338,7 @@ class slider(UIElement[Numeric, Numeric]):
                     "step": step if step is not None else None,
                     "steps": [],
                     "debounce": debounce,
+                    "disabled": disabled,
                     "orientation": orientation,
                     "show-value": show_value,
                     "include-input": include_input,
