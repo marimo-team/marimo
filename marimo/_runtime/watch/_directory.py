@@ -24,7 +24,7 @@ _TEST_SLEEP_INTERVAL: float | None = None
 
 
 def walk(path: Path) -> Iterable[tuple[Path, list[str], list[str]]]:
-    if sys.version_info > (3, 11):
+    if sys.version_info >= (3, 12):
         return path.walk()
     return os.walk(path)
 
