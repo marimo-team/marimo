@@ -76,7 +76,7 @@ def watch_directory(
             )
         except FileNotFoundError:
             # Directory has been deleted, trigger a change
-            current_mtime = 0
+            current_structure = set()
         except Exception as e:
             # Handle other exceptions (e.g., permission denied)
             sys.stderr.write(f"Error watching directory {path}: {e}\n")
