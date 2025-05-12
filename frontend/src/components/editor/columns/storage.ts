@@ -24,11 +24,11 @@ const storage = new NotebookScopedLocalStorage<ColumnSizes>(
 export const storageFn = {
   // Default to "contentWidth" if the column width is not set.
   getColumnWidth: (index: number) => {
-    const widths = storage.get().widths;
+    const widths = storage.get(BASE_KEY).widths;
     return widths[index] ?? "contentWidth";
   },
   saveColumnWidth: (index: number, width: number | "contentWidth") => {
-    const widths = storage.get().widths;
+    const widths = storage.get(BASE_KEY).widths;
     if (widths[index]) {
       widths[index] = width;
     } else {
@@ -38,16 +38,16 @@ export const storageFn = {
       }
       widths[index] = width;
     }
-    storage.set({ widths });
+    storage.set(BASE_KEY, { widths });
   },
   clearStorage: () => {
-    storage.remove();
+    storage.remove(BASE_KEY);
   },
 };
 
 // When a column is reordered, we need to update the storage to reflect the new order.
 export function reorderColumnSizes(fromIdx: number, toIdx: number) {
-  const widths = storage.get().widths;
+  const widths = storage.get(BASE_KEY).widths;
   const newWidths = arrayMove(widths, fromIdx, toIdx);
-  storage.set({ widths: newWidths });
+  storage.set(BASE_KEY, { widths: newWidths });
 }

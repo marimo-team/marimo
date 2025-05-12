@@ -11,13 +11,14 @@ export interface FileStore {
   readFile(): string | null | Promise<string | null>;
 }
 
-const storage = new TypedLocalStorage<string | null>("marimo:file", null);
+const KEY = "marimo:file";
+const storage = new TypedLocalStorage<string | null>(null);
 export const localStorageFileStore: FileStore = {
   saveFile(contents: string) {
-    storage.set(contents);
+    storage.set(KEY, contents);
   },
   readFile() {
-    return storage.get();
+    return storage.get(KEY);
   },
 };
 

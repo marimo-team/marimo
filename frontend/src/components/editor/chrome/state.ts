@@ -11,8 +11,8 @@ export interface ChromeState {
   isTerminalOpen: boolean;
 }
 
+const KEY = "marimo:sidebar";
 const storage = new ZodLocalStorage<ChromeState>(
-  "marimo:sidebar",
   z.object({
     selectedPanel: z
       .string()
@@ -38,7 +38,7 @@ const {
   valueAtom: chromeAtom,
   useActions,
 } = createReducerAndAtoms(
-  () => storage.get(),
+  () => storage.get(KEY),
   {
     openApplication: (state, selectedPanel: PanelType) => ({
       ...state,
@@ -71,7 +71,7 @@ const {
       isTerminalOpen: isOpen,
     }),
   },
-  [(_prevState, newState) => storage.set(newState)],
+  [(_prevState, newState) => storage.set(KEY, newState)],
 );
 
 export const useChromeState = () => {
