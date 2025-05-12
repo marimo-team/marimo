@@ -793,7 +793,8 @@ class SessionManager:
             self.skew_protection_token = SkewProtectionToken.random()
         else:
             app = file_router.get_single_app_file_manager(
-                default_width=self._config_manager.default_width
+                default_width=self._config_manager.default_width,
+                default_sql_output=self._config_manager.default_sql_output,
             ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
@@ -809,6 +810,7 @@ class SessionManager:
         return self.file_router.get_file_manager(
             key,
             default_width=self._config_manager.default_width,
+            default_sql_output=self._config_manager.default_sql_output,
         )
 
     def create_session(
@@ -824,6 +826,7 @@ class SessionManager:
             app_file_manager = self.file_router.get_file_manager(
                 file_key,
                 default_width=self._config_manager.default_width,
+                default_sql_output=self._config_manager.default_sql_output,
             )
 
             if app_file_manager.path:

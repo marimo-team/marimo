@@ -95,6 +95,7 @@ export const UserConfigSchema = z
         on_cell_change: z.enum(["lazy", "autorun"]).default("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
         watcher_on_save: z.enum(["lazy", "autorun"]).default("lazy"),
+        default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto"),
       })
       .passthrough()
       .default({}),

@@ -84,6 +84,9 @@ line_length = 120
 
 [tool.marimo.display]
 default_width = "full"
+
+[tool.marimo.runtime]
+default_sql_output = "native"
 ```
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SettingSubtitle } from "./common";
+import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 
 import React, { useRef } from "react";
 import { type FieldPath, useForm } from "react-hook-form";
@@ -50,7 +50,6 @@ import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
 import { getMarimoVersion } from "@/core/dom/marimo-tag";
-import { OptionalFeatures } from "./optional-features";
 import { Badge } from "../ui/badge";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -830,6 +829,42 @@ export const UserConfigForm: React.FC = () => {
           <SettingGroup title="Runtime configuration">
             <FormField
               control={form.control}
+              name="runtime.default_sql_output"
+              render={({ field }) => (
+                <div className="flex flex-col space-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>Default SQL output</FormLabel>
+                    <FormControl>
+                      <NativeSelect
+                        data-testid="user-config-sql-output-select"
+                        onChange={(e) => field.onChange(e.target.value)}
+                        value={field.value}
+                        disabled={field.disabled}
+                        className="inline-flex mr-2"
+                      >
+                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.default_sql_output"
+                    />
+                  </FormItem>
+
+                  <FormDescription>
+                    The default SQL output format for new notebooks; overridden
+                    by "sql_output" in the application config.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="runtime.auto_instantiate"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
@@ -1259,7 +1294,6 @@ export const UserConfigForm: React.FC = () => {
           </>
         );
       case "optionalDeps":
-        return <OptionalFeatures />;
       case "labs":
         return (
           <SettingGroup title="Experimental Features">
