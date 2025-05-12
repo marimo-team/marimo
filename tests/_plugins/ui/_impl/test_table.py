@@ -246,6 +246,27 @@ def test_value_with_initial_selection() -> None:
     assert table.value == ["banana", "cherry"]
 
 
+def test_value_does_not_include_index_column() -> None:
+    data: list[dict[str, Any]] = [
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+        {"name": "Charlie", "age": 35},
+    ]
+    table = ui.table(data, initial_selection=[0, 2])
+    selected_data = table.value
+    assert isinstance(selected_data, list)
+    assert len(selected_data) == 2
+    assert all(isinstance(row, dict) for row in selected_data)
+    # Check that INDEX_COLUMN_NAME is not in any of the selected rows
+    for row in selected_data:
+        assert isinstance(row, dict)
+        assert INDEX_COLUMN_NAME not in row
+    assert selected_data == [
+        {"name": "Alice", "age": 30},
+        {"name": "Charlie", "age": 35},
+    ]
+
+
 def test_invalid_initial_selection() -> None:
     data = ["banana", "apple"]
     with pytest.raises(IndexError):
@@ -320,6 +341,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     )
     value = table._convert_value(["0"])
     assert not isinstance(value, nw.DataFrame)
+    assert INDEX_COLUMN_NAME not in value.columns
     assert nw.from_native(value)["a"][0] == "x"
 
 
@@ -383,6 +405,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     )
     value = table._convert_value(["1"])
     assert not isinstance(value, nw.DataFrame)
+    assert INDEX_COLUMN_NAME not in value.columns
     assert nw.from_native(value)["a"][0] == "bar"
 
     table._search(
@@ -395,6 +418,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     # Can still select rows not in the search
     value = table._convert_value(["0", "1"])
     assert not isinstance(value, nw.DataFrame)
+    assert INDEX_COLUMN_NAME not in value.columns
     assert nw.from_native(value)["a"][0] == "foo"
     assert nw.from_native(value)["a"][1] == "bar"
     # empty search
