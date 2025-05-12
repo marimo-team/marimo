@@ -3,7 +3,7 @@
 import type { z } from "zod";
 import type { BinSchema, ChartSchema } from "../schemas";
 
-import { ChartType, NONE_AGGREGATION } from "../types";
+import { ChartType, NONE_AGGREGATION, type SelectableDataType } from "../types";
 
 import { DEFAULT_BIN_VALUE } from "../schemas";
 import { isFieldSet } from "./spec";
@@ -13,6 +13,7 @@ import { convertDataTypeToVega } from "./types";
 import type { ColorScheme } from "vega";
 
 export function getBinEncoding(
+  selectedDataType: SelectableDataType,
   binValues?: z.infer<typeof BinSchema>,
   chartType?: ChartType,
 ) {
@@ -24,9 +25,17 @@ export function getBinEncoding(
     return undefined;
   }
 
-  return binValues.step === DEFAULT_BIN_VALUE
-    ? true
-    : { binned: true, step: binValues.step };
+  // Don't bin non-numeric data
+  if (selectedDataType !== "number") {
+    return undefined;
+  }
+
+  const binstep =
+    binValues.step === DEFAULT_BIN_VALUE ? undefined : binValues.step;
+  const binmaxbins =
+    binValues.maxbins === DEFAULT_BIN_VALUE ? undefined : binValues.maxbins;
+
+  return { bin: true, step: binstep, maxbins: binmaxbins };
 }
 
 export function getColorInScale(formValues: z.infer<typeof ChartSchema>) {
@@ -62,14 +71,17 @@ export function getColorEncoding(
     };
   }
 
+  const colorBin = formValues.color?.bin;
+  const selectedDataType = colorByColumn.selectedDataType || "string";
   const aggregate = formValues.general.colorByColumn.aggregate;
 
   return {
     color: {
       field: colorByColumn.field,
-      type: convertDataTypeToVega(colorByColumn.selectedDataType || "unknown"),
+      type: convertDataTypeToVega(selectedDataType),
       scale: getColorInScale(formValues),
       aggregate: aggregate === NONE_AGGREGATION ? undefined : aggregate,
+      bin: getBinEncoding(selectedDataType, colorBin, chartType),
     },
   };
 }

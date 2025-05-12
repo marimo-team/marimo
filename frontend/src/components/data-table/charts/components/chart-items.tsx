@@ -24,6 +24,7 @@ import {
   BooleanField,
   SortField,
   NumberField,
+  BinFields,
 } from "./form-fields";
 import { CHART_TYPES, type ChartType } from "../types";
 import React from "react";
@@ -105,6 +106,8 @@ export const XAxis: React.FC = () => {
   const shouldShowXTimeUnit =
     xColumnExists && selectedXDataType === "temporal" && !isXCountField;
 
+  const showBinFields = xColumn?.selectedDataType === "number";
+
   return (
     <FieldSection>
       <Title text="X-Axis" />
@@ -134,11 +137,14 @@ export const XAxis: React.FC = () => {
         />
       )}
       {xColumnExists && !isXCountField && (
-        <SortField
-          fieldName="general.xColumn.sort"
-          label="Sort"
-          defaultValue={formValues.general?.xColumn?.sort}
-        />
+        <>
+          <SortField
+            fieldName="general.xColumn.sort"
+            label="Sort"
+            defaultValue={formValues.general?.xColumn?.sort}
+          />
+          {showBinFields && <BinFields fieldName="xAxis" />}
+        </>
       )}
     </FieldSection>
   );
@@ -166,6 +172,9 @@ export const YAxis: React.FC = () => {
 
   const shouldShowYTimeUnit =
     yColumnExists && selectedYDataType === "temporal" && !isYCountField;
+
+  const showBinFields =
+    yColumnExists && !isYCountField && yColumn.selectedDataType === "number";
 
   return (
     <FieldSection>
@@ -196,8 +205,9 @@ export const YAxis: React.FC = () => {
           label="Time Resolution"
         />
       )}
+      {showBinFields && <BinFields fieldName="yAxis" />}
       {yColumnExists && xColumnExists && (
-        <BooleanField fieldName="general.horizontal" label="Horizontal chart" />
+        <BooleanField fieldName="general.horizontal" label="Invert axis" />
       )}
     </FieldSection>
   );
@@ -214,6 +224,11 @@ export const ColorByAxis: React.FC = () => {
     selectedColorByDataType = "string";
   }
 
+  const showBinFields =
+    formValues.general?.colorByColumn?.type &&
+    ["number", "integer"].includes(formValues.general?.colorByColumn?.type) &&
+    formValues.general?.colorByColumn?.field !== COUNT_FIELD;
+
   return (
     <FieldSection>
       <Title text="Color by" />
@@ -227,6 +242,7 @@ export const ColorByAxis: React.FC = () => {
           selectedDataType={selectedColorByDataType}
         />
       </div>
+      {showBinFields && <BinFields fieldName="color" />}
     </FieldSection>
   );
 };

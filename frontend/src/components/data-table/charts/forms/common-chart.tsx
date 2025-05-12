@@ -6,7 +6,6 @@ import { isFieldSet } from "../chart-spec/spec";
 import type { ChartSchema } from "../schemas";
 import type { z } from "zod";
 import {
-  NumberField,
   BooleanField,
   InputField,
   SliderField,
@@ -60,20 +59,6 @@ export const CommonChartForm: React.FC = () => {
 };
 
 export const StyleForm: React.FC = () => {
-  const renderBinFields = (axis: "x" | "y") => {
-    return (
-      <div className="flex flex-row gap-2 w-full">
-        <BooleanField fieldName={`${axis}Axis.bin.binned`} label="Binned" />
-        <NumberField
-          fieldName={`${axis}Axis.bin.step`}
-          label="Bin step"
-          step={0.05}
-          className="w-32"
-        />
-      </div>
-    );
-  };
-
   return (
     <Accordion type="multiple">
       <AccordionFormItem value="general">
@@ -98,7 +83,6 @@ export const StyleForm: React.FC = () => {
             start={200}
             stop={800}
           />
-          {renderBinFields("x")}
         </AccordionFormContent>
       </AccordionFormItem>
 
@@ -115,7 +99,6 @@ export const StyleForm: React.FC = () => {
             start={150}
             stop={600}
           />
-          {renderBinFields("y")}
         </AccordionFormContent>
       </AccordionFormItem>
 

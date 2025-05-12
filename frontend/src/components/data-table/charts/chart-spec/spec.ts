@@ -73,13 +73,6 @@ export function createVegaSpec(
     return "Y-axis column is required" as ErrorMessage;
   }
 
-  // Get axis labels
-  const xAxisLabel = getFieldLabel(xColumn.field, formValues.xAxis?.label);
-  const yAxisLabel = getFieldLabel(
-    getAggregatedLabel(yColumn.field, yColumn.aggregate),
-    formValues.yAxis?.label,
-  );
-
   // Determine encoding keys based on chart type
   const xEncodingKey = "x";
   const yEncodingKey = "y";
@@ -88,7 +81,7 @@ export function createVegaSpec(
   const xEncoding = getAxisEncoding(
     xColumn,
     formValues.xAxis?.bin,
-    xAxisLabel,
+    getFieldLabel(formValues.xAxis?.label),
     colorByColumn?.field && horizontal ? stacking : undefined,
     chartType,
   );
@@ -96,7 +89,7 @@ export function createVegaSpec(
   const yEncoding = getAxisEncoding(
     yColumn,
     formValues.yAxis?.bin,
-    yAxisLabel,
+    getFieldLabel(formValues.yAxis?.label),
     colorByColumn?.field && !horizontal ? stacking : undefined,
     chartType,
   );
@@ -135,11 +128,13 @@ export function getAxisEncoding(
   stack: boolean | undefined,
   chartType: ChartType,
 ): PositionDef<string> {
+  const selectedDataType = column.selectedDataType || "string";
+
   if (column.field === COUNT_FIELD) {
     return {
       aggregate: "count",
       type: "quantitative",
-      bin: getBinEncoding(binValues, chartType),
+      bin: getBinEncoding(selectedDataType, binValues, chartType),
       title: label === COUNT_FIELD ? undefined : label,
       stack: stack,
     };
@@ -148,13 +143,10 @@ export function getAxisEncoding(
   return {
     field: column.field,
     type: convertDataTypeToVega(column.selectedDataType || "unknown"),
-    bin: getBinEncoding(binValues, chartType),
+    bin: getBinEncoding(selectedDataType, binValues, chartType),
     title: label,
     stack: stack,
-    aggregate: getAggregate(
-      column.aggregate,
-      column.selectedDataType || "string",
-    ),
+    aggregate: getAggregate(column.aggregate, selectedDataType),
     timeUnit: getTimeUnit(column),
   };
 }
@@ -196,17 +188,10 @@ function getPieChartSpec(
     return "Size by column is required" as ErrorMessage;
   }
 
-  const colorFieldLabel = getFieldLabel(
-    colorByColumn.field,
-    formValues.xAxis?.label,
-  );
-
-  const thetaFieldLabel = getFieldLabel(yColumn.field, formValues.xAxis?.label);
-
   const thetaEncoding: PolarDef<string> = getAxisEncoding(
     yColumn,
     formValues.xAxis?.bin,
-    thetaFieldLabel,
+    getFieldLabel(formValues.xAxis?.label),
     undefined,
     ChartType.PIE,
   );
@@ -215,7 +200,7 @@ function getPieChartSpec(
     field: colorByColumn.field,
     type: convertDataTypeToVega(colorByColumn.selectedDataType || "unknown"),
     scale: getColorInScale(formValues),
-    title: colorFieldLabel,
+    title: getFieldLabel(formValues.yAxis?.label),
   };
 
   return {
@@ -250,19 +235,14 @@ function getBaseSpec(
   };
 }
 
-function getFieldLabel(field: string, label?: string): string {
-  return label?.trim() || field;
-}
-
-function getAggregatedLabel(field: string, agg?: string): string {
-  if (!agg || agg === NONE_AGGREGATION) {
-    return field;
-  }
-  return `${agg.toUpperCase()}(${field})`;
-}
-
 export function isFieldSet(field: string | undefined): field is string {
   return field !== undefined && field.trim() !== EMPTY_VALUE;
+}
+
+// Returns undefined if the label is empty, as Vega-Lite will use the proper name
+function getFieldLabel(label?: string): string | undefined {
+  const trimmedLabel = label?.trim();
+  return trimmedLabel === EMPTY_VALUE ? undefined : trimmedLabel;
 }
 
 function getAggregate(

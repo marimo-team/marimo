@@ -81,6 +81,7 @@ export const ChartSchema = z.object({
       scheme: z.string().default(DEFAULT_COLOR_SCHEME).optional(),
       range: z.array(z.string()).optional(),
       domain: z.array(z.string()).optional(),
+      bin: BinSchema.optional(),
     })
     .optional(),
   style: z

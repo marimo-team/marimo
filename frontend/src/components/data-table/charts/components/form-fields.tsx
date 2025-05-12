@@ -9,7 +9,7 @@ import {
   ArrowUpWideNarrowIcon,
   ArrowDownWideNarrowIcon,
 } from "lucide-react";
-import { type Path, useFormContext } from "react-hook-form";
+import { type Path, useFormContext, useWatch } from "react-hook-form";
 import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
@@ -268,11 +268,15 @@ export const NumberField = ({
   fieldName,
   label,
   className,
+  inputClassName,
+  isDisabled,
   ...props
 }: NumberFieldProps & {
   fieldName: FieldName;
   label: string;
   className?: string;
+  inputClassName?: string;
+  isDisabled?: boolean;
 }) => {
   const form = useFormContext();
   return (
@@ -288,8 +292,10 @@ export const NumberField = ({
               value={field.value ?? DEFAULT_BIN_VALUE}
               onValueChange={field.onChange}
               aria-label={label}
+              className={cn("w-16", inputClassName)}
+              isDisabled={isDisabled}
+              minValue={0}
               {...props}
-              className="w-16"
             />
           </FormControl>
         </FormItem>
@@ -753,5 +759,36 @@ export const SortField = ({
       }))}
       defaultValue={defaultValue ?? "ascending"}
     />
+  );
+};
+
+export const BinFields: React.FC<{
+  fieldName: "xAxis" | "yAxis" | "color";
+}> = ({ fieldName }) => {
+  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const formValues = useWatch({ control: form.control });
+  const isBinned = formValues[fieldName]?.bin?.binned;
+
+  const hasStep = formValues[fieldName]?.bin?.step !== DEFAULT_BIN_VALUE;
+
+  return (
+    <div className="flex flex-row justify-between">
+      <BooleanField fieldName={`${fieldName}.bin.binned`} label="Binned" />
+      {isBinned && (
+        <>
+          <NumberField
+            fieldName={`${fieldName}.bin.step`}
+            label="Step"
+            inputClassName="w-14"
+          />
+          <NumberField
+            fieldName={`${fieldName}.bin.maxbins`}
+            label="Maxbins"
+            inputClassName="w-14"
+            isDisabled={hasStep}
+          />
+        </>
+      )}
+    </div>
   );
 };
