@@ -2,7 +2,7 @@
 
 import type { StringFieldDef } from "vega-lite/build/src/channeldef";
 import type { z } from "zod";
-import type { AxisSchema, ChartSchema } from "../schemas";
+import type { AxisSchema, ChartSchemaType } from "../schemas";
 import { NONE_AGGREGATION, type TimeUnitTooltip } from "../types";
 import type { DataType } from "@/core/kernel/messages";
 import type { Tooltip } from "../components/form-fields";
@@ -38,7 +38,7 @@ function getTooltipFormat(dataType: DataType): string | undefined {
 
 function getTooltipTimeUnit(
   tooltip: Tooltip,
-  formValues: z.infer<typeof ChartSchema>,
+  formValues: ChartSchemaType,
 ): TimeUnitTooltip | undefined {
   const xColumn = formValues.general.xColumn;
   const yColumn = formValues.general.yColumn;
@@ -69,7 +69,7 @@ function getTooltipTimeUnit(
   }
 }
 
-export function getTooltips(formValues: z.infer<typeof ChartSchema>) {
+export function getTooltips(formValues: ChartSchemaType) {
   if (!formValues.tooltips) {
     return undefined;
   }

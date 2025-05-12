@@ -3,20 +3,18 @@
 import React from "react";
 import type { ChartType } from "./types";
 import { useTheme } from "@/theme/useTheme";
-
-import type { z } from "zod";
-import type { ChartSchema } from "./schemas";
 import type { TopLevelSpec } from "vega-lite";
 import type { ErrorMessage } from "./chart-spec/spec";
 import { ChartPieIcon } from "lucide-react";
 import { createVegaSpec } from "./chart-spec/spec";
+import type { ChartSchemaType } from "./schemas";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
 );
 export const LazyChart: React.FC<{
   chartType: ChartType;
-  formValues: z.infer<typeof ChartSchema>;
+  formValues: ChartSchemaType;
   data?: object[];
   width: number | "container";
   height: number;

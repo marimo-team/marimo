@@ -2,8 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createVegaSpec } from "../chart-spec/spec";
-import type { z } from "zod";
-import type { ChartSchema, ChartSchemaType } from "../schemas";
+import type { ChartSchemaType } from "../schemas";
 import { NONE_AGGREGATION, ChartType } from "../types";
 
 describe("createVegaSpec", () => {
@@ -22,7 +21,7 @@ describe("createVegaSpec", () => {
   const height = 300;
 
   // Helper function to create basic form values
-  const createBasicFormValues = (): z.infer<typeof ChartSchema> => ({
+  const createBasicFormValues = (): ChartSchemaType => ({
     general: {
       title: "Test Chart",
       xColumn: {

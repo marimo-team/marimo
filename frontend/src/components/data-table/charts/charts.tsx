@@ -4,10 +4,9 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { TableIcon, XIcon, DatabaseIcon, PaintRollerIcon } from "lucide-react";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
-import type { z } from "zod";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema } from "./schemas";
+import { ChartSchema, type ChartSchemaType } from "./schemas";
 import { Form } from "@/components/ui/form";
 import { getDefaults } from "@/components/forms/form-utils";
 import { useAtom } from "jotai";
@@ -100,7 +99,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   const saveTabChart = (
     tabName: TabName,
     chartType: ChartType,
-    chartConfig: z.infer<typeof ChartSchema>,
+    chartConfig: ChartSchemaType,
   ) => {
     if (!cellId) {
       return;
@@ -186,7 +185,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         {dataTable}
       </TabsContent>
       {tabs.map((tab, idx) => {
-        const saveChart = (formValues: z.infer<typeof ChartSchema>) => {
+        const saveChart = (formValues: ChartSchemaType) => {
           saveTabChart(tab.tabName, tab.chartType, formValues);
         };
         const saveChartType = (chartType: ChartType) => {
@@ -210,9 +209,9 @@ export const TablePanel: React.FC<TablePanelProps> = ({
 };
 
 export const ChartPanel: React.FC<{
-  chartConfig: z.infer<typeof ChartSchema> | null;
+  chartConfig: ChartSchemaType | null;
   chartType: ChartType;
-  saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
+  saveChart: (formValues: ChartSchemaType) => void;
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
@@ -224,7 +223,7 @@ export const ChartPanel: React.FC<{
   getDataUrl,
   fieldTypes,
 }) => {
-  const form = useForm<z.infer<typeof ChartSchema>>({
+  const form = useForm<ChartSchemaType>({
     defaultValues: chartConfig ?? getDefaults(ChartSchema),
     resolver: zodResolver(ChartSchema),
   });
@@ -311,9 +310,9 @@ const ChartFormContainer = ({
   fieldTypes,
   chartType,
 }: {
-  form: UseFormReturn<z.infer<typeof ChartSchema>>;
+  form: UseFormReturn<ChartSchemaType>;
   chartType: ChartType;
-  saveChart: (formValues: z.infer<typeof ChartSchema>) => void;
+  saveChart: (formValues: ChartSchemaType) => void;
   fieldTypes?: FieldTypesWithExternalType | null;
 }) => {
   let fields: Field[] = [];

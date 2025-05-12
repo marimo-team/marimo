@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { z } from "zod";
-import type { BinSchema, ChartSchema } from "../schemas";
+import type { BinSchema, ChartSchemaType } from "../schemas";
 
 import { ChartType, NONE_AGGREGATION, type SelectableDataType } from "../types";
 
@@ -38,7 +38,7 @@ export function getBinEncoding(
   return { bin: true, step: binstep, maxbins: binmaxbins };
 }
 
-export function getColorInScale(formValues: z.infer<typeof ChartSchema>) {
+export function getColorInScale(formValues: ChartSchemaType) {
   const colorRange = formValues.color?.range;
   if (colorRange?.length) {
     return { range: colorRange };
@@ -52,7 +52,7 @@ export function getColorInScale(formValues: z.infer<typeof ChartSchema>) {
 
 export function getColorEncoding(
   chartType: ChartType,
-  formValues: z.infer<typeof ChartSchema>,
+  formValues: ChartSchemaType,
 ): { color?: ColorDef<string> } | undefined {
   if (
     chartType === ChartType.PIE ||
@@ -88,7 +88,7 @@ export function getColorEncoding(
 
 export function getOffsetEncoding(
   chartType: ChartType,
-  formValues: z.infer<typeof ChartSchema>,
+  formValues: ChartSchemaType,
 ): OffsetDef<string> | undefined {
   // Offset only applies to bar charts, to unstack them
   if (

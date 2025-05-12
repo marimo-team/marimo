@@ -3,10 +3,10 @@ import type { TopLevelSpec } from "vega-lite";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type {
   BinSchema,
-  ChartSchema,
   AxisSchema,
   RowFacet,
   ColumnFacet,
+  ChartSchemaType,
 } from "../schemas";
 import {
   type AggregationFn,
@@ -45,7 +45,7 @@ export type ErrorMessage = TypedString<"ErrorMessage">;
 export function createVegaSpec(
   chartType: ChartType,
   data: object[],
-  formValues: z.infer<typeof ChartSchema>,
+  formValues: ChartSchemaType,
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
@@ -173,7 +173,7 @@ export function getFacetEncoding(
 
 function getPieChartSpec(
   data: object[],
-  formValues: z.infer<typeof ChartSchema>,
+  formValues: ChartSchemaType,
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
@@ -219,7 +219,7 @@ function getPieChartSpec(
 
 function getBaseSpec(
   data: object[],
-  formValues: z.infer<typeof ChartSchema>,
+  formValues: ChartSchemaType,
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
