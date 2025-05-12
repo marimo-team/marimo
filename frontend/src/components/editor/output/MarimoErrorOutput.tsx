@@ -406,7 +406,7 @@ export const MarimoErrorOutput = ({
 
     if (exceptionErrors.length > 0) {
       messages.push(
-        <div key="exception">
+        <ul key="exception">
           {exceptionErrors.map((error, idx) => (
             <li className="my-2" key={`exception-${idx}`}>
               {error.raising_cell == null ? (
@@ -431,13 +431,13 @@ export const MarimoErrorOutput = ({
             </Tip>
           )}
           {cellId && <AutoFixButton errors={exceptionErrors} cellId={cellId} />}
-        </div>,
+        </ul>,
       );
     }
 
     if (strictExceptionErrors.length > 0) {
       messages.push(
-        <div key="strict-exception">
+        <ul key="strict-exception">
           {strictExceptionErrors.map((error, idx) => (
             <li className="my-2" key={`strict-exception-${idx}`}>
               {error.blamed_cell == null ? (
@@ -458,7 +458,7 @@ export const MarimoErrorOutput = ({
               ? "Ensure that the referenced cells define the required variables, or turn off strict execution."
               : "Something is wrong with your declarations. Fix any discrepancies, or turn off strict execution."}
           </Tip>
-        </div>,
+        </ul>,
       );
     }
 
