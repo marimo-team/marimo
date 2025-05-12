@@ -22,6 +22,7 @@ interface Data {
   showValue: boolean;
   fullWidth: boolean;
   includeInput: boolean;
+  disabled?: boolean;
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
@@ -39,6 +40,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
     includeInput: z.boolean().default(false),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -81,6 +83,7 @@ const SliderComponent = ({
   fullWidth,
   valueMap,
   includeInput,
+  disabled,
 }: SliderProps): JSX.Element => {
   const id = useId();
 
@@ -132,6 +135,7 @@ const SliderComponent = ({
             }
           }}
           valueMap={valueMap} // Pass valueMap to Slider
+          disabled={disabled}
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
@@ -152,6 +156,7 @@ const SliderComponent = ({
             step={step}
             className="w-24"
             aria-label={`${label || "Slider"} value input`}
+            isDisabled={disabled}
           />
         )}
       </div>
