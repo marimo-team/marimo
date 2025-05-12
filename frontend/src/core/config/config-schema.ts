@@ -40,6 +40,7 @@ const VALID_SQL_OUTPUT_FORMATS = [
   "lazy-polars",
   "pandas",
 ] as const;
+export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
 
 export const UserConfigSchema = z
   .object({

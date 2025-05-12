@@ -2,6 +2,7 @@
 import { cn } from "@/utils/cn";
 import type { HTMLProps, PropsWithChildren } from "react";
 import type { SqlOutputType } from "@/core/config/config-schema";
+
 export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (
     <div className="text-md font-semibold text-muted-foreground uppercase tracking-wide  mb-1">
