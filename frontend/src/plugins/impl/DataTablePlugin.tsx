@@ -52,14 +52,15 @@ import {
 } from "@/components/data-table/filters";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { findCellId } from "@/core/cells/ids";
+import { type CellId, findCellId } from "@/core/cells/ids";
 import { slotsController } from "@/core/slots/slots";
-import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel";
-import { DataSelectionPanel } from "@/components/data-table/selection-panel/data-selection";
-import { Provider, useAtom } from "jotai";
-import { contextAwarePanelOwner } from "@/components/editor/chrome/state";
+import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
+import { usePanelOwnership } from "@/components/data-table/row-viewer-panel/use-panel-ownership";
+import { Provider } from "jotai";
 import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/utils";
+
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
@@ -317,6 +318,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
   host: HTMLElement;
+  cellId?: CellId | null;
 }
 
 export type SetFilters = OnChangeFn<ColumnFiltersState>;
@@ -568,6 +570,7 @@ export const LoadingDataTableComponent = memo(
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
         getRow={getRow}
+        cellId={cellId}
       />
     );
 
@@ -627,6 +630,7 @@ const DataTableComponent = ({
   chartsFeatureEnabled,
   calculate_top_k_rows,
   getRow,
+  cellId,
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
@@ -635,6 +639,11 @@ const DataTableComponent = ({
   }): JSX.Element => {
   const id = useId();
   const [focusedRowIdx, setFocusedRowIdx] = useState(0);
+  const {
+    isPanelOpen: isRowViewerPanelOpen,
+    togglePanel: toggleRowViewerPanel,
+  } = usePanelOwnership(id, cellId);
+
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
@@ -692,21 +701,6 @@ const DataTableComponent = ({
     [value],
   );
 
-  const [selectionPanelOwner, setSelectionPanelOwner] = useAtom(
-    contextAwarePanelOwner,
-  );
-  const isSelectionPanelOpen = selectionPanelOwner === id;
-
-  function toggleSelectionPanel() {
-    if (isSelectionPanelOpen) {
-      // Close if panel is open
-      setSelectionPanelOwner(null);
-    } else {
-      // Set the owner to current id, which will cause the panel to open
-      setSelectionPanelOwner(id);
-    }
-  }
-
   const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useEvent(
     (updater) => {
       if (selection === "single") {
@@ -763,9 +757,9 @@ const DataTableComponent = ({
           1,000,000 rows.
         </Banner>
       )}
-      {isSelectionPanelOpen && (
+      {isRowViewerPanelOpen && (
         <ContextAwarePanelItem>
-          <DataSelectionPanel
+          <RowViewerPanel
             getRow={getRow}
             fieldTypes={memoizedFieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
@@ -808,8 +802,8 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
-            toggleSelectionPanel={toggleSelectionPanel}
-            isSelectionPanelOpen={isSelectionPanelOpen}
+            toggleRowViewerPanel={toggleRowViewerPanel}
+            isRowViewerPanelOpen={isRowViewerPanelOpen}
             onFocusRowChange={(rowIdx) => setFocusedRowIdx(rowIdx)}
           />
         </Labeled>

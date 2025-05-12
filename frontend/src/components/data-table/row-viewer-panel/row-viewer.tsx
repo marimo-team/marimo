@@ -21,7 +21,7 @@ import {
 import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   INDEX_COLUMN_NAME,
@@ -34,8 +34,9 @@ import { NAMELESS_COLUMN_PREFIX } from "../columns";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { Column } from "@tanstack/react-table";
 import { renderCellValue } from "../columns";
+import { useKeydownOnElement } from "@/hooks/useHotkey";
 
-export interface DataSelectionPanelProps {
+export interface RowViewerPanelProps {
   rowIdx: number;
   setRowIdx: (rowIdx: number) => void;
   totalRows: number;
@@ -43,14 +44,16 @@ export interface DataSelectionPanelProps {
   getRow: (rowIdx: number) => Promise<GetRowResult>;
 }
 
-export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
+export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   rowIdx,
   setRowIdx,
   totalRows,
   fieldTypes,
   getRow,
-}: DataSelectionPanelProps) => {
+}: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: rows, error } = useAsyncData(async () => {
     const data = await getRow(rowIdx);
@@ -63,6 +66,21 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     }
     setRowIdx(rowIdx);
   };
+
+  useKeydownOnElement(panelRef, {
+    ArrowLeft: (e) => {
+      if (e?.target === searchInputRef.current) {
+        return false;
+      }
+      handleSelectRow(rowIdx - 1);
+    },
+    ArrowRight: (e) => {
+      if (e?.target === searchInputRef.current) {
+        return false;
+      }
+      handleSelectRow(rowIdx + 1);
+    },
+  });
 
   const buttonStyles = "h-6 w-6 p-0.5";
 
@@ -125,7 +143,7 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
     const filteredRows = filterRows(rowValues, searchQuery);
 
     return (
-      <Table>
+      <Table className="mb-4">
         <TableHeader>
           <TableRow>
             <TableHead className="w-1/4">Column</TableHead>
@@ -188,7 +206,11 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 mt-4">
+    <div
+      className="flex flex-col gap-3 mt-4 focus:outline-none"
+      ref={panelRef}
+      tabIndex={-1}
+    >
       <div className="flex flex-row gap-2 justify-end items-center mr-2">
         <Button
           variant="outline"
@@ -236,6 +258,7 @@ export const DataSelectionPanel: React.FC<DataSelectionPanelProps> = ({
 
       <div className="mx-2 -mb-1">
         <Input
+          ref={searchInputRef}
           type="text"
           placeholder="Search"
           onChange={(e) => setSearchQuery(e.target.value)}
