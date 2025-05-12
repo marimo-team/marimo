@@ -60,7 +60,7 @@ import { usePanelOwnership } from "@/components/data-table/row-viewer-panel/use-
 import { Provider } from "jotai";
 import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/utils";
-import { hasChart } from "@/components/data-table/chart-transforms/storage";
+import { hasChart } from "@/components/data-table/charts/storage";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
