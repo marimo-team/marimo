@@ -49,12 +49,7 @@ class SQLEngine(ABC):
         if runtime_context_installed():
             try:
                 ctx = get_context()
-                sql_output = ctx.app_config.sql_output
-                if sql_output is not None:
-                    return _validate_sql_output_format(sql_output)
-                return _validate_sql_output_format(
-                    ctx.marimo_config["runtime"]["default_sql_output"]
-                )
+                return _validate_sql_output_format(ctx.app_config.sql_output)
             except ContextNotInitializedError:
                 return "auto"
         return "auto"
