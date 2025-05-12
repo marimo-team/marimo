@@ -1,11 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import sys
 import threading
 import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Self, TypeVar
+from typing import Any, Callable, TypeVar, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import (
@@ -17,8 +19,11 @@ from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._runtime.threads import Thread
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 
 T = TypeVar("T")
 
@@ -62,19 +67,36 @@ def watch_file(
             state._set_value(path)
 
 
+def walk(path: Path) -> Iterable[tuple[Path, list[str], list[str]]]:
+    if sys.version_info > (3, 11):
+        return path.walk()
+    return os.walk(path)
+
+
+def _hashable_walk(
+    walked: Iterable[tuple[Path, list[str], list[str]]],
+) -> set[tuple[Path, tuple[str], tuple[str]]]:
+    return cast(
+        Iterable[tuple[Path, tuple[str], tuple[str]]],
+        set((p, *map(tuple, r)) for p, *r in walked),
+    )
+
+
+def hashable_walk(path: Path) -> set[tuple[Path, tuple[str], tuple[str]]]:
+    return _hashable_walk(walk(path))
+
+
 def watch_directory(
     path: Path, state: DirectoryState, should_exit: threading.Event
 ) -> None:
     """Watch a directory for changes and update the state."""
-    last_structure = set((p, *map(tuple, r)) for p, *r in path.walk())
+    last_structure = hashable_walk(path)
     current_structure = last_structure
     sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
         time.sleep(sleep_interval)
         try:
-            current_structure = set(
-                (p, *map(tuple, r)) for p, *r in path.walk()
-            )
+            current_structure = hashable_walk(path)
         except FileNotFoundError:
             # Directory has been deleted, trigger a change
             current_structure = set()
@@ -225,8 +247,9 @@ class DirectoryState(PathState):
 
     def walk(self) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Walk the directory."""
-        items = list(self._value.walk())
-        write_side_effect(f"walk:{items}")
+        items = walk(self._value)
+        as_list = list(_hashable_walk(items))
+        write_side_effect(f"walk:{sorted(as_list)}")
         return iter(items)
 
     def iterdir(self) -> Iterable[Path]:

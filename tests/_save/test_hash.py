@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -1192,7 +1191,7 @@ class TestSideEffects:
                 """),
             ]
         )
-        (Path(tmp_path.as_posix()) / "test.txt").touch()
+        (tmp_path / "test.txt").touch()
         await asyncio.sleep(3)
         await k.run([])
         assert not k.stdout.messages, k.stdout
@@ -1221,7 +1220,8 @@ class TestSideEffects:
                 hashes = []
                 """),
                 exec_req.get("""
-                d = mo.watch.directory(tmp_path_fixture)
+                (tmp_path_fixture / "test_dir").mkdir(parents=True, exist_ok=True)
+                d = mo.watch.directory(tmp_path_fixture / "test_dir")
                 """),
             ]
         )
@@ -1249,7 +1249,7 @@ class TestSideEffects:
                 """),
             ]
         )
-        (Path(tmp_path.as_posix()) / "test.txt").touch()
+        (tmp_path / "test_dir" / "test.txt").write_text("test")
         await asyncio.sleep(3)
         await k.run([])
         assert not k.stdout.messages, k.stdout
