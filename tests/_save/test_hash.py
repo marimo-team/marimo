@@ -1157,7 +1157,7 @@ class TestSideEffects:
                 exec_req.get("""
                 from tests._save.loaders.mocks import MockLoader
                 import marimo as mo
-                mo.watch._file._TEST_SLEEP_INTERVAL = 0.05
+                mo.watch._file._TEST_SLEEP_INTERVAL = 0.01
                 from pathlib import Path
 
                 hashes = []
@@ -1193,7 +1193,7 @@ class TestSideEffects:
             ]
         )
         (tmp_path / "test.txt").touch()
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.25)
         await k.run([])
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
@@ -1216,7 +1216,7 @@ class TestSideEffects:
                 exec_req.get("""
                 from tests._save.loaders.mocks import MockLoader
                 import marimo as mo
-                mo.watch._directory._TEST_SLEEP_INTERVAL = 0.05
+                mo.watch._directory._TEST_SLEEP_INTERVAL = 0.01
                 from pathlib import Path
 
                 hashes = []
@@ -1252,7 +1252,7 @@ class TestSideEffects:
             ]
         )
         (tmp_path / "test_dir" / "test.txt").write_text("test")
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.25)
         await k.run([])
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
