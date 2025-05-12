@@ -731,9 +731,7 @@ class table(
 
         # Remove the selection column before downloading
         if isinstance(manager, TableManager):
-            manager: TableManager[Any] = manager.drop_columns(
-                [INDEX_COLUMN_NAME]
-            )
+            manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
             ext = args.format
             if ext == "csv":
