@@ -11,6 +11,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
+
 class TestHash:
     @staticmethod
     def test_pure_hash(app) -> None:
