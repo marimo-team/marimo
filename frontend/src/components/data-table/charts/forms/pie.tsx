@@ -16,11 +16,10 @@ import { OtherOptions } from "./common-chart";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
 import { EMPTY_VALUE } from "../constants";
 
-export const PieForm: React.FC<{
-  saveForm: () => void;
-}> = ({ saveForm }) => {
+export const PieForm: React.FC = () => {
   const form = useFormContext<z.infer<typeof ChartSchema>>();
-  const { fields } = useChartFormContext();
+  const { fields, saveForm } = useChartFormContext();
+
   const formValues = useWatch({ control: form.control });
   const colorByColumn = formValues.general?.colorByColumn;
 

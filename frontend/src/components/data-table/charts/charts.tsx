@@ -340,7 +340,7 @@ const ChartFormContainer = ({
   }
 
   return (
-    <ChartFormContext.Provider value={{ fields }}>
+    <ChartFormContext.Provider value={{ fields, saveForm: debouncedSave }}>
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
           <Tabs defaultValue="data">
@@ -358,7 +358,7 @@ const ChartFormContainer = ({
             <TabsContent value="data">
               <hr className="my-2" />
               <TabContainer>
-                <ChartForm saveForm={debouncedSave} />
+                <ChartForm />
               </TabContainer>
             </TabsContent>
 

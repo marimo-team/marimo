@@ -25,11 +25,12 @@ import {
   Title,
   FormSectionHorizontalRule,
 } from "../components/layouts";
+import { useChartFormContext } from "../context";
 
-export const CommonChartForm: React.FC<{
-  saveForm: () => void;
-}> = ({ saveForm }) => {
+export const CommonChartForm: React.FC = () => {
+  const { saveForm } = useChartFormContext();
   const form = useFormContext<z.infer<typeof ChartSchema>>();
+
   const formValues = useWatch({ control: form.control });
   const yColumn = formValues.general?.yColumn;
   const groupByColumn = formValues.general?.colorByColumn;
