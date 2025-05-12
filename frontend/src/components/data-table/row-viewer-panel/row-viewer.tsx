@@ -143,7 +143,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     const filteredRows = filterRows(rowValues, searchQuery);
 
     return (
-      <Table>
+      <Table className="mb-4">
         <TableHeader>
           <TableRow>
             <TableHead className="w-1/4">Column</TableHead>
