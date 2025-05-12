@@ -53,6 +53,7 @@ import { getMarimoVersion } from "@/core/dom/marimo-tag";
 import { Badge } from "../ui/badge";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
+import { OptionalFeatures } from "./optional-features";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -1294,6 +1295,7 @@ export const UserConfigForm: React.FC = () => {
           </>
         );
       case "optionalDeps":
+        return <OptionalFeatures />;
       case "labs":
         return (
           <SettingGroup title="Experimental Features">
