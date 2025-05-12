@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -421,6 +422,21 @@ class table(
         self._lazy = _internal_lazy
         self._page_size = page_size
 
+        # HACK: this is a hack to get the name of the variable that was passed in
+        dataframe_name = '"<data>"'
+        try:
+            frame = inspect.currentframe()
+            if frame is not None and frame.f_back is not None:
+                for (
+                    var_name,
+                    var_value,
+                ) in frame.f_back.f_locals.items():
+                    if var_value is data:
+                        dataframe_name = var_name
+                        break
+        except Exception:
+            pass
+
         has_stable_row_id = False
         if selection is not None:
             data, has_stable_row_id = add_selection_column(data)
@@ -610,6 +626,7 @@ class table(
                 "cell-styles": search_result_styles,
                 "lazy": _internal_lazy,
                 "preload": _internal_preload,
+                "dataframe-name": dataframe_name,
             },
             on_change=on_change,
             functions=(

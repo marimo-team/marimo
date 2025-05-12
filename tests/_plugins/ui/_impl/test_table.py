@@ -1717,6 +1717,34 @@ def test_calculate_top_k_rows():
     )
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_dataframe_name():
+    # Test with a named dataframe
+    import pandas as pd
+
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    table = ui.table(df)
+    assert table._component_args["dataframe-name"] == "df"
+
+    df_foo = pd.DataFrame({"B": [4, 5, 6]})
+    table_foo = ui.table(df_foo)
+    assert table_foo._component_args["dataframe-name"] == "df_foo"
+
+    # Test with list data
+    table_list = ui.table([1, 2, 3])
+    assert table_list._component_args["dataframe-name"] == '"<data>"'
+
+    # Test with dict data
+    table_dict = ui.table({"C": [7, 8, 9]})
+    assert table_dict._component_args["dataframe-name"] == '"<data>"'
+
+    # Test with inlined dataframe
+    table_inlined = ui.table(pd.DataFrame({"A": [1, 2, 3]}))
+    assert table_inlined._component_args["dataframe-name"] == '"<data>"'
+
+
 def _convert_data_bytes_to_pandas_df(
     data: str, data_format: str
 ) -> pd.DataFrame:
