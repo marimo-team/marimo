@@ -73,6 +73,7 @@ class FileState(PathState):
         response = self._value.write_text(value)
         text = self._value.read_text()
         write_side_effect(f"write_text:{text}")
+        self._set_value(self._value)
         return response
 
     def read_bytes(self) -> bytes:
@@ -86,6 +87,7 @@ class FileState(PathState):
         response = self._value.write_bytes(value)
         data = self._value.read_bytes()
         write_side_effect(f"write_bytes:{data!r}")
+        self._set_value(self._value)
         return response
 
 
