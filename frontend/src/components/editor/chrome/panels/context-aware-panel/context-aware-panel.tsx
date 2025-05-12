@@ -104,7 +104,7 @@ export const ContextAwarePanel: React.FC = () => {
         onDragging={handleDragging}
         className="resize-handle border-border z-20 no-print border-l"
       />
-      <Panel defaultSize={25} minSize={15}>
+      <Panel defaultSize={20} minSize={15}>
         {renderBody()}
       </Panel>
     </>
