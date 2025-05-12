@@ -119,7 +119,8 @@ from marimo._plugins.stateless.style import style
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._plugins.stateless.video import video
-from marimo._runtime import output, watch
+from marimo._runtime import output
+import marimo._runtime.watch as watch
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,

@@ -114,3 +114,6 @@ ui
   text_area
 video
 vstack
+watch
+  directory
+  file

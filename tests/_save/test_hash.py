@@ -1157,7 +1157,7 @@ class TestSideEffects:
                 exec_req.get("""
                 from tests._save.loaders.mocks import MockLoader
                 import marimo as mo
-                mo.watch.watch._TEST_SLEEP_INTERVAL = 0.05
+                mo.watch._file._TEST_SLEEP_INTERVAL = 0.05
                 from pathlib import Path
 
                 hashes = []
@@ -1216,7 +1216,7 @@ class TestSideEffects:
                 exec_req.get("""
                 from tests._save.loaders.mocks import MockLoader
                 import marimo as mo
-                mo.watch.watch._TEST_SLEEP_INTERVAL = 0.05
+                mo.watch._directory._TEST_SLEEP_INTERVAL = 0.05
                 from pathlib import Path
 
                 hashes = []
