@@ -540,7 +540,7 @@ vimrc = "configs/.vimrc"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
 nodejs = "20.*"
