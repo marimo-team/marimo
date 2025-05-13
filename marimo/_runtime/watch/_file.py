@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import hashlib
 import sys
+import threading
 import time
 from pathlib import Path
-from typing import Callable
-import threading
+from typing import Any, Callable
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.watch._path import (
@@ -14,7 +14,6 @@ from marimo._runtime.watch._path import (
     PathState,
     write_side_effect,
 )
-
 
 # For testing only - do not use in production
 _TEST_SLEEP_INTERVAL: float | None = None
@@ -64,7 +63,7 @@ class FileState(PathState):
         watch_file
     )
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._debounced = False
         self._debounce_lock = threading.Lock()
