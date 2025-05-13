@@ -24,7 +24,7 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from sqlalchemy import Engine
+    from sqlalchemy import Engine, Inspector
     from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.sql.type_api import TypeEngine
 
@@ -36,13 +36,14 @@ class SQLAlchemyEngine(SQLEngine):
     def __init__(
         self, connection: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
-        from sqlalchemy import Inspector, inspect
-
         self._engine = connection
         self._engine_name = engine_name
         self.inspector: Optional[Inspector] = None
 
         try:
+            # May not exist in older versions of SQLAlchemy
+            from sqlalchemy import inspect
+
             self.inspector = inspect(self._engine)
         except Exception:
             LOGGER.warning("Failed to create inspector", exc_info=True)

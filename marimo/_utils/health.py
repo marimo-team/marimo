@@ -10,6 +10,8 @@ from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
+TIMEOUT = 10  # seconds
+
 
 def get_node_version() -> Optional[str]:
     try:
@@ -19,7 +21,7 @@ def get_node_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = process.communicate(timeout=TIMEOUT)
         if stderr:
             return None
         if stdout and (stripped := stdout.strip()):
@@ -107,7 +109,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = process.communicate(timeout=TIMEOUT)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -125,7 +127,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = process.communicate(timeout=TIMEOUT)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -140,7 +142,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = process.communicate(timeout=TIMEOUT)
         if stderr:
             return None
         parts = stdout.strip().split()
