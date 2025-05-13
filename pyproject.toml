@@ -544,7 +544,7 @@ platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
 nodejs = "22.*"
-pnpm = "9.*"
+pnpm = "10.*"
 hatch = ">=1.14.0,<2"
 make = ">=4.4.1,<5"
 pre_commit = ">=4.2.0,<5"
