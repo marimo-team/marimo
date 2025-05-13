@@ -260,27 +260,23 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <Provider store={store}>
-        <SlotzProvider controller={slotsController}>
-          <TooltipProvider>
-            <LazyDataTableComponent
-              isLazy={props.data.lazy}
-              preload={props.data.preload}
-            >
-              <LoadingDataTableComponent
-                {...props.data}
-                {...props.functions}
-                host={props.host}
-                enableSearch={true}
-                data={props.data.data}
-                value={props.value}
-                setValue={props.setValue}
-                experimentalChartsEnabled={true}
-              />
-            </LazyDataTableComponent>
-          </TooltipProvider>
-        </SlotzProvider>
-      </Provider>
+      <TableProviders>
+        <LazyDataTableComponent
+          isLazy={props.data.lazy}
+          preload={props.data.preload}
+        >
+          <LoadingDataTableComponent
+            {...props.data}
+            {...props.functions}
+            host={props.host}
+            enableSearch={true}
+            data={props.data.data}
+            value={props.value}
+            setValue={props.setValue}
+            experimentalChartsEnabled={true}
+          />
+        </LazyDataTableComponent>
+      </TableProviders>
     );
   });
 
@@ -828,5 +824,20 @@ const DataTableComponent = ({
         </Labeled>
       </ColumnChartContext.Provider>
     </>
+  );
+};
+
+/**
+ * Common providers for data tables
+ */
+export const TableProviders: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return (
+    <Provider store={store}>
+      <SlotzProvider controller={slotsController}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </SlotzProvider>
+    </Provider>
   );
 };
