@@ -664,7 +664,9 @@ class BlockHasher:
                 if isinstance(value, PathState):
                     # Path state only contains the path as value, it should
                     # contain the path contents.
-                    scope[ref] = attempt_signed_bytes(repr(value), "pathstate")
+                    scope[ref] = attempt_signed_bytes(
+                        repr(value).encode(), "pathstate"
+                    )
                 else:
                     scope[ref] = attempt_signed_bytes(value(), "state")
                 if ctx:
