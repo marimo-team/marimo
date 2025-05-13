@@ -97,6 +97,12 @@ class ColumnSummaries:
     is_disabled: Optional[bool] = None
 
 
+DEFAULT_MAX_COLUMNS = 50
+
+MaxColumnsNotProvided = Literal["max_columns_not_provided"]
+MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "max_columns_not_provided"
+
+
 @dataclass(frozen=True)
 class SearchTableArgs:
     page_size: int
@@ -105,6 +111,9 @@ class SearchTableArgs:
     sort: Optional[SortArgs] = None
     filters: Optional[list[Condition]] = None
     limit: Optional[int] = None
+    max_columns: Optional[int | MaxColumnsNotProvided] = (
+        MAX_COLUMNS_NOT_PROVIDED
+    )
 
 
 CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
@@ -351,7 +360,7 @@ class table(
             label="",
             on_change=None,
             style_cell=None,
-            max_columns=50,
+            max_columns=DEFAULT_MAX_COLUMNS,
             _internal_column_charts_row_limit=None,
             _internal_summary_row_limit=None,
             _internal_total_rows="too_many",
@@ -388,7 +397,7 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        max_columns: Optional[int] = 50,
+        max_columns: Optional[int] = DEFAULT_MAX_COLUMNS,
         *,
         label: str = "",
         on_change: Optional[
@@ -576,11 +585,7 @@ class table(
                 text_justify_columns, wrapped_columns, column_names_set
             )
 
-            # Clamp field types to max columns
             field_types = self._manager.get_field_types()
-            field_types = _get_clamped_field_types(
-                field_types, self._max_columns
-            )
 
         super().__init__(
             component_name=table._name,
@@ -955,6 +960,8 @@ class table(
                 - sort: Optional sorting configuration
                 - filters: Optional list of filter conditions
                 - limit: Optional row limit
+                - max_columns: Optional max number of columns to display. If
+                  `MAX_COLUMNS_NOT_PROVIDED`, default to table's max columns.
 
         Returns:
             SearchTableResponse: Response containing:
@@ -963,16 +970,18 @@ class table(
                 - cell_styles: User defined styling information for each cell in the page
         """
         offset = args.page_number * args.page_size
+        max_columns = args.max_columns
+        if max_columns == MAX_COLUMNS_NOT_PROVIDED:
+            max_columns = self._max_columns
 
         def clamp_rows_and_columns(manager: TableManager[Any]) -> str:
             # Limit to page and column clamping for the frontend
             data = manager.take(args.page_size, offset)
             column_names = data.get_column_names()
-            if (
-                self._max_columns is not None
-                and len(column_names) > self._max_columns
-            ):
-                data = data.select_columns(column_names[: self._max_columns])
+
+            # Do not clamp if max_columns is None
+            if max_columns is not None and len(column_names) > max_columns:
+                data = data.select_columns(column_names[:max_columns])
             return data.to_json_str(self._format_mapping)
 
         # If no query or sort, return nothing
@@ -1092,14 +1101,6 @@ class table(
 
     def __hash__(self) -> int:
         return id(self)
-
-
-def _get_clamped_field_types(
-    field_types: list[Any], max_columns: Optional[int]
-) -> list[Any]:
-    if max_columns is not None and len(field_types) > max_columns:
-        return field_types[:max_columns]
-    return field_types
 
 
 def _validate_frozen_columns(

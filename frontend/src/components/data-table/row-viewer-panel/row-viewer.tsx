@@ -140,8 +140,6 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
       }
     }
 
-    const filteredRows = filterRows(rowValues, searchQuery);
-
     return (
       <Table className="mb-4">
         <TableHeader>
@@ -151,12 +149,14 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredRows.map(([columnName, columnValue]) => {
-            const dataType = fieldTypes?.find(
-              ([name]) => name === columnName,
-            )?.[1][0];
-
+          {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
             const Icon = dataType ? DATA_TYPE_ICON[dataType] : null;
+            const columnValue = rowValues[columnName];
+
+            if (!inSearchQuery(columnName, columnValue, searchQuery)) {
+              return null;
+            }
+
             const mockColumn = {
               id: columnName,
               columnDef: {
@@ -175,6 +175,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
               undefined,
               "text-left break-all",
             );
+
             const copyValue =
               typeof columnValue === "object"
                 ? JSON.stringify(columnValue)
@@ -272,22 +273,24 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   );
 };
 
-export function filterRows(rowValues: object, searchQuery: string) {
-  return Object.entries(rowValues).filter(([columnName, columnValue]) => {
-    const colName = columnName.toLowerCase();
+export function inSearchQuery(
+  columnName: string,
+  columnValue: unknown,
+  searchQuery: string,
+) {
+  const colName = columnName.toLowerCase();
+  const searchQueryLower = searchQuery.toLowerCase();
 
-    let columnValueString =
-      typeof columnValue === "object"
-        ? JSON.stringify(columnValue)
-        : String(columnValue);
-    columnValueString = columnValueString.toLowerCase();
-    const searchQueryLower = searchQuery.toLowerCase();
+  let columnValueString =
+    typeof columnValue === "object"
+      ? JSON.stringify(columnValue)
+      : String(columnValue);
+  columnValueString = columnValueString.toLowerCase();
 
-    return (
-      colName.includes(searchQueryLower) ||
-      columnValueString.includes(searchQueryLower)
-    );
-  });
+  return (
+    colName.includes(searchQueryLower) ||
+    columnValueString.includes(searchQueryLower)
+  );
 }
 
 const SimpleBanner: React.FC<{
