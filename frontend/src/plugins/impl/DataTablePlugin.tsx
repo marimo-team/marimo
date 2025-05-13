@@ -675,28 +675,24 @@ const DataTableComponent = ({
   }, [fieldTypes, columnSummaries]);
 
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
-  // Clamp number of columns
-  const clampedFieldTypesOrInferred = fieldTypesOrInferred.slice(
-    0,
-    MAX_COLUMNS,
-  );
-  const shownColumns = clampedFieldTypesOrInferred.length;
-
-  const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
-  const memoizedFieldTypes = useDeepCompareMemoize(clampedFieldTypesOrInferred);
+  const clampedFieldTypes = memoizedUnclampedFieldTypes.slice(0, MAX_COLUMNS);
+
+  const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const showDataTypes = Boolean(fieldTypes);
+  const shownColumns = clampedFieldTypes.length;
+
   const columns = useMemo(
     () =>
       generateColumns({
         rowHeaders: memoizedRowHeaders,
         selection: selection,
         chartSpecModel: memoizedChartSpecModel,
-        fieldTypes: memoizedFieldTypes,
+        fieldTypes: clampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
         // Only show data types if they are explicitly set
@@ -708,7 +704,7 @@ const DataTableComponent = ({
       showDataTypes,
       memoizedChartSpecModel,
       memoizedRowHeaders,
-      memoizedFieldTypes,
+      clampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
       calculate_top_k_rows,

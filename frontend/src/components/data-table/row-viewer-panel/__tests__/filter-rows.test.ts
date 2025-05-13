@@ -1,24 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { filterRows } from "../row-viewer";
+import { inSearchQuery } from "../row-viewer";
 
-describe("filterRows", () => {
-  const defaultRowValues = {
-    name: "John",
-    age: 30,
-  };
-
+describe("inSearchQuery", () => {
   it("should filter rows based on column name", () => {
-    const result = filterRows(defaultRowValues, "name");
-    expect(result).toHaveLength(1);
-    expect(result[0][0]).toBe("name");
+    const result = inSearchQuery("name", "John", "name");
+    expect(result).toBe(true);
   });
 
   it("should filter rows based on cell value", () => {
-    const result = filterRows(defaultRowValues, "john");
-    expect(result).toHaveLength(1);
-    expect(result[0][0]).toBe("name");
+    const result = inSearchQuery("name", "John", "John");
+    expect(result).toBe(true);
+  });
+
+  it("should return false when no matches found", () => {
+    const result = inSearchQuery("name", "John", "xyz");
+    expect(result).toBe(false);
   });
 
   it("should handle object values by converting them to strings", () => {
@@ -26,51 +24,27 @@ describe("filterRows", () => {
       data: { key: "value" },
     };
 
-    const result = filterRows(rowValues, "value");
-    expect(result).toHaveLength(1);
-    expect(result[0][0]).toBe("data");
+    const result = inSearchQuery("data", rowValues, "value");
+    expect(result).toBe(true);
   });
 
   it("should be case insensitive", () => {
-    const rowValues = {
-      Name: "John",
-      AGE: 30,
-    };
-
-    const result = filterRows(rowValues, "name");
-    expect(result).toHaveLength(1);
-    expect(result[0][0]).toBe("Name");
+    const result = inSearchQuery("name", "John", "john");
+    expect(result).toBe(true);
   });
 
   it("should handle partial matches", () => {
-    const rowValues = {
-      firstName: "John",
-      lastName: "Doe",
-    };
-
-    const result = filterRows(rowValues, "name");
-    expect(result).toHaveLength(2);
-    expect(result.map(([name]) => name)).toEqual(["firstName", "lastName"]);
-  });
-
-  it("should return empty array when no matches found", () => {
-    const result = filterRows(defaultRowValues, "xyz");
-    expect(result).toHaveLength(0);
+    const result = inSearchQuery("name", "Johnathan Clark", "john");
+    expect(result).toBe(true);
   });
 
   it("should handle empty search query", () => {
-    const result = filterRows(defaultRowValues, "");
-    expect(result).toHaveLength(2);
+    const result = inSearchQuery("name", "John", "");
+    expect(result).toBe(true);
   });
 
   it("should handle null values", () => {
-    const rowValues = {
-      name: null,
-      age: 30,
-    };
-
-    const result = filterRows(rowValues, "null");
-    expect(result).toHaveLength(1);
-    expect(result[0][0]).toBe("name");
+    const result = inSearchQuery("name", null, "null");
+    expect(result).toBe(true);
   });
 });

@@ -273,24 +273,6 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   );
 };
 
-export function filterRows(rowValues: object, searchQuery: string) {
-  return Object.entries(rowValues).filter(([columnName, columnValue]) => {
-    const colName = columnName.toLowerCase();
-
-    let columnValueString =
-      typeof columnValue === "object"
-        ? JSON.stringify(columnValue)
-        : String(columnValue);
-    columnValueString = columnValueString.toLowerCase();
-    const searchQueryLower = searchQuery.toLowerCase();
-
-    return (
-      colName.includes(searchQueryLower) ||
-      columnValueString.includes(searchQueryLower)
-    );
-  });
-}
-
 export function inSearchQuery(
   columnName: string,
   columnValue: unknown,
