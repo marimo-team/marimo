@@ -110,6 +110,7 @@ def file(path: Path | str) -> FileState:
     The "wrapped" file Path object exposes most of the same methods as the
     [pathlib.Path object](https://docs.python.org/3/library/pathlib.html#pathlib.Path),
     with a few exceptions. The following methods are not available:
+
     - `open()`
     - `rename()`
     - `replace()`
@@ -119,9 +120,9 @@ def file(path: Path | str) -> FileState:
 
     Warning:
         It is possible to misuse this API in similar ways to `state()`. Consider
-        reading the warning and caveats in the `state()` documentation, and
-        using this function only when reading file paths, and not when writing
-        them.
+        reading the warning and caveats in the
+        [`state()` documentation](../state), and using this function only when
+        reading file paths, and not when writing them.
 
     Args:
       path: Path to watch.

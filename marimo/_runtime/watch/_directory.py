@@ -130,9 +130,10 @@ def directory(path: Path | str) -> DirectoryState:
     This object will trigger dependent cells to re-evaluate when the directory
     structure is changed (i.e., files are added or removed).
 
-    NOTE: This function does NOT react to file content changes, only to changes
-    in the directory structure. Utilize `mo.file()` to watch for changes in
-    specific files. Additional note: this will not follow symlinks.
+    Note:
+        This function does NOT react to file content changes, only to changes in
+        the directory structure. Utilize `mo.watch.file()` to watch for changes
+        in specific files. Additional note: this will not follow symlinks.
 
     Args:
       path: Path to watch.
