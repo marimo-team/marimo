@@ -51,6 +51,7 @@ export const SORT_TYPES = ["ascending", "descending"] as const;
 export type SortType = (typeof SORT_TYPES)[number];
 
 export const NONE_AGGREGATION = "none";
+export const BIN_AGGREGATION = "bin"; // We use this not to aggregate, but to bin
 
 /**
  * Subset of VegaLite's AggregateOp, https://vega.github.io/vega-lite/docs/aggregate.html#op
@@ -69,6 +70,7 @@ export const AGGREGATION_FNS = [
   "stdevp",
   "variance",
   "variancep",
+  BIN_AGGREGATION,
 ] as const;
 export type AggregationFn = (typeof AGGREGATION_FNS)[number];
 

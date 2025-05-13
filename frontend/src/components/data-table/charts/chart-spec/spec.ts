@@ -8,13 +8,7 @@ import type {
   RowFacet,
   ColumnFacet,
 } from "../schemas";
-import {
-  type AggregationFn,
-  ChartType,
-  NONE_AGGREGATION,
-  type SelectableDataType,
-  STRING_AGGREGATION_FNS,
-} from "../types";
+import { ChartType } from "../types";
 import type { z } from "zod";
 import type {
   ColorDef,
@@ -26,12 +20,12 @@ import type { ExprRef, SignalRef } from "vega";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
 import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
-import type { Aggregate } from "vega-lite/build/src/aggregate";
 import {
   getBinEncoding,
   getColorEncoding,
   getColorInScale,
   getOffsetEncoding,
+  getAggregate,
 } from "./encodings";
 import { convertChartTypeToMark, convertDataTypeToVega } from "./types";
 import { getTooltips } from "./tooltips";
@@ -243,27 +237,6 @@ export function isFieldSet(field: string | undefined): field is string {
 function getFieldLabel(label?: string): string | undefined {
   const trimmedLabel = label?.trim();
   return trimmedLabel === EMPTY_VALUE ? undefined : trimmedLabel;
-}
-
-function getAggregate(
-  aggregate: AggregationFn | undefined,
-  selectedDataType: SelectableDataType,
-): Aggregate | undefined {
-  // temporal data types don't support aggregation
-  if (selectedDataType === "temporal") {
-    return undefined;
-  }
-
-  if (aggregate === NONE_AGGREGATION || !aggregate) {
-    return undefined;
-  }
-
-  if (selectedDataType === "string") {
-    return STRING_AGGREGATION_FNS.includes(aggregate)
-      ? (aggregate as Aggregate)
-      : undefined;
-  }
-  return aggregate as Aggregate;
 }
 
 function getTimeUnit(column: z.infer<typeof AxisSchema>) {

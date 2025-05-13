@@ -3,14 +3,21 @@
 import type { z } from "zod";
 import type { BinSchema, ChartSchema } from "../schemas";
 
-import { ChartType, NONE_AGGREGATION, type SelectableDataType } from "../types";
+import {
+  type AggregationFn,
+  BIN_AGGREGATION,
+  ChartType,
+  NONE_AGGREGATION,
+  STRING_AGGREGATION_FNS,
+  type SelectableDataType,
+} from "../types";
 
-import { DEFAULT_BIN_SIZE } from "../constants";
 import { isFieldSet } from "./spec";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
 import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
 import { convertDataTypeToVega } from "./types";
 import type { ColorScheme } from "vega";
+import type { Aggregate } from "vega-lite/build/src/aggregate";
 
 export function getBinEncoding(
   selectedDataType: SelectableDataType,
@@ -30,12 +37,7 @@ export function getBinEncoding(
     return undefined;
   }
 
-  const binstep =
-    binValues.step === DEFAULT_BIN_SIZE ? undefined : binValues.step;
-  const binmaxbins =
-    binValues.maxbins === DEFAULT_BIN_SIZE ? undefined : binValues.maxbins;
-
-  return { bin: true, step: binstep, maxbins: binmaxbins };
+  return { bin: true, step: binValues.step, maxbins: binValues.maxbins };
 }
 
 export function getColorInScale(formValues: z.infer<typeof ChartSchema>) {
@@ -80,7 +82,7 @@ export function getColorEncoding(
       field: colorByColumn.field,
       type: convertDataTypeToVega(selectedDataType),
       scale: getColorInScale(formValues),
-      aggregate: aggregate === NONE_AGGREGATION ? undefined : aggregate,
+      aggregate: getAggregate(aggregate, selectedDataType),
       bin: getBinEncoding(selectedDataType, colorBin, chartType),
     },
   };
@@ -99,4 +101,29 @@ export function getOffsetEncoding(
     return undefined;
   }
   return { field: formValues.general.colorByColumn?.field };
+}
+
+export function getAggregate(
+  aggregate: AggregationFn | undefined,
+  selectedDataType: SelectableDataType,
+): Aggregate | undefined {
+  // temporal data types don't support aggregation
+  if (selectedDataType === "temporal") {
+    return undefined;
+  }
+
+  if (
+    aggregate === NONE_AGGREGATION ||
+    aggregate === BIN_AGGREGATION ||
+    !aggregate
+  ) {
+    return undefined;
+  }
+
+  if (selectedDataType === "string") {
+    return STRING_AGGREGATION_FNS.includes(aggregate)
+      ? (aggregate as Aggregate)
+      : undefined;
+  }
+  return aggregate as Aggregate;
 }
