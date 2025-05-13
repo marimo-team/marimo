@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import pathlib
 import sys
-from types import ModuleType
 from typing import TYPE_CHECKING, cast
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, Mock, call, patch
 
 import pytest
 
@@ -225,12 +224,11 @@ async def test_manage_script_metadata_pip_noop(
         assert "" == f.read()
 
 
+@patch.dict(sys.modules, {"pyodide": Mock()})
 async def test_install_missing_packages_micropip(
     mocked_kernel: MockedKernel,
 ) -> None:
     k = mocked_kernel.k
-    # Fake put pyodide in sys.modules
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
         await k.packages_callbacks.install_missing_packages(
@@ -245,16 +243,12 @@ async def test_install_missing_packages_micropip(
             call(["foobar"]),
         ]
 
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
 
-
+@patch.dict(sys.modules, {"pyodide": Mock()})
 async def test_install_missing_packages_micropip_with_versions(
     mocked_kernel: MockedKernel,
 ) -> None:
     k = mocked_kernel.k
-    # Fake put pyodide in sys.modules
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
         await k.packages_callbacks.install_missing_packages(
@@ -269,10 +263,8 @@ async def test_install_missing_packages_micropip_with_versions(
             call(["pandas==1.5.0"]),
         ]
 
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
 
-
+@patch.dict(sys.modules, {"pyodide": Mock(), "already_installed": Mock()})
 async def test_install_missing_packages_micropip_other_modules(
     mocked_kernel: MockedKernel,
 ) -> None:
@@ -281,8 +273,6 @@ async def test_install_missing_packages_micropip_other_modules(
     k.module_registry.modules = lambda: set(
         {"idk", "done", "already_installed"}
     )
-    sys.modules["pyodide"] = ModuleType("pyodide")
-    sys.modules["already_installed"] = ModuleType("already_installed")
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
         await k.packages_callbacks.install_missing_packages(
@@ -297,11 +287,8 @@ async def test_install_missing_packages_micropip_other_modules(
             call(["idk"]),
         ]
 
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
-    del sys.modules["already_installed"]
 
-
+@patch.dict(sys.modules, {"pyodide": Mock()})
 async def test_missing_packages_hook(
     mocked_kernel: MockedKernel,
 ) -> None:
@@ -321,8 +308,6 @@ async def test_missing_packages_hook(
     k.enqueue_control_request = mock_enqueue
     InstallingPackageAlert.broadcast = mock_broadcast  # type: ignore
     MissingPackageAlert.broadcast = mock_broadcast  # type: ignore
-
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     # Create a mock runner with ModuleNotFoundError
     class MockRunner:
@@ -432,8 +417,6 @@ async def test_missing_packages_hook(
             "pandas": "",
             "scipy": "",
         }
-
-    del sys.modules["pyodide"]
 
 
 def test_missing_packages_hook_pip(
