@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import io
-from types import ModuleType
+import sys
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -193,15 +193,11 @@ async def test_webbrowser_easter_egg(
     not DependencyManager.polars.has(),
     reason="Polars is not installed",
 )
+@patch.dict(sys.modules, {"pyodide": Mock()})
 def test_polars_write_json_patch(tmp_path: Path):
-    import sys
-
     import polars as pl
 
     file_path = tmp_path / "test.json"
-
-    # Fake put pyodide in sys.modules
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     # Make write_json throw an error
     with patch(
@@ -240,6 +236,3 @@ def test_polars_write_json_patch(tmp_path: Path):
         # Test it fails again
         with pytest.raises(ValueError, match="Test error"):
             df.write_json(file_path)
-
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
