@@ -222,7 +222,7 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-asyncio~=0.26.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -250,7 +250,7 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-asyncio~=0.26.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",

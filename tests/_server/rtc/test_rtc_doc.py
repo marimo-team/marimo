@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from collections.abc import AsyncGenerator
 from typing import cast
 
@@ -242,6 +243,9 @@ async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs_cleaners
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Python 3.10+ required for Barrier"
+)
 async def test_prevent_lock_deadlock(setup_doc_manager: None) -> None:
     """Test that our deadlock prevention measures work correctly.
 
