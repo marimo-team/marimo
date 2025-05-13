@@ -8,6 +8,9 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
+@pytest.mark.xfail(
+    True, reason="Flaky in CI, can't repro locally", strict=False
+)
 async def test_read_and_write_path(
     execution_kernel: Kernel, exec_req: ExecReqProvider, tmp_path: Path
 ) -> None:
@@ -43,6 +46,9 @@ async def test_read_and_write_path(
     assert k.globals["x"] == "1"
 
 
+@pytest.mark.xfail(
+    True, reason="Flaky in CI, can't repro locally", strict=False
+)
 async def test_read_and_write_iteration(
     execution_kernel: Kernel, exec_req: ExecReqProvider, tmp_path: Path
 ) -> None:

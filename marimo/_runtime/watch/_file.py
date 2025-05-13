@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
 import sys
 import time
 from pathlib import Path
@@ -89,6 +90,13 @@ class FileState(PathState):
         write_side_effect(f"write_bytes:{data!r}")
         self._set_value(self._value)
         return response
+
+    def __repr__(self) -> str:
+        """Return a string representation of the file state."""
+        if not self._value.exists():
+            return f"FileState({self._value}: File not found)"
+        _hash = hashlib.sha256(self._value.read_bytes()).hexdigest()
+        return f"FileState({self._value}: {_hash})"
 
 
 @mddoc

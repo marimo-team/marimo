@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import time
@@ -110,6 +111,12 @@ class DirectoryState(PathState):
         items = list(self._value.rglob(pattern))
         write_side_effect(f"rglob:{items}")
         return iter(items)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the file state."""
+        _walk = self.walk()  # Call to issue side effect
+        _hash = hashlib.sha256(f"{list(_walk)}".encode()).hexdigest()
+        return f"DirectoryState({self._value}: {_hash})"
 
 
 @mddoc

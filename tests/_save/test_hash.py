@@ -1262,3 +1262,57 @@ class TestSideEffects:
         assert len(hashes) == 2
         assert hashes[0] != hashes[1]
         assert non_primitive[1] == 1 == v
+
+    @staticmethod
+    async def test_side_effect_file_ref(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                hashes = []
+                """),
+                exec_req.get(
+                    'u = mo.watch.file(tmp_path_fixture / "test.txt")'
+                ),
+                exec_req.get("""
+                non_primitive = [object(), len(hashes)]
+                with mo.cache("prim") as prim_cache:
+                    # unused, but should trigger side effect
+                    u
+                """),
+                exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    u.write_text("test")
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                hashes.append((prim_cache.cache_type, prim_cache._cache.hash))
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v
