@@ -72,9 +72,7 @@ class DuckDBEngine(SQLEngine):
                 pl.exceptions.ComputeError,
             ) as e:
                 LOGGER.warning("Failed to convert to polars. Reason: %s.", e)
-                DependencyManager.pandas.require(
-                    "to convert this data correctly."
-                )
+                DependencyManager.pandas.require("to convert this data")
 
         if DependencyManager.pandas.has():
             try:
