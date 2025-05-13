@@ -57,7 +57,7 @@ export const LazyChart: React.FC<{
   };
 
   return (
-    <div className="h-full m-auto rounded-md mt-4 w-full">
+    <div className="h-full m-auto rounded-md w-full">
       {renderChart(specOrMessage)}
     </div>
   );

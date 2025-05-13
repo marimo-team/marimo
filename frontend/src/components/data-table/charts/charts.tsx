@@ -2,7 +2,14 @@
 
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { TableIcon, XIcon, DatabaseIcon, PaintRollerIcon } from "lucide-react";
+import {
+  TableIcon,
+  XIcon,
+  DatabaseIcon,
+  PaintRollerIcon,
+  CodeIcon,
+  ChartColumnIcon,
+} from "lucide-react";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +38,8 @@ import { PieForm } from "./forms/pie";
 import { CommonChartForm, StyleForm } from "./forms/common-chart";
 import { TabContainer } from "./components/layouts";
 import { ChartFormContext } from "./context";
+import { PythonIcon } from "@/components/editor/cell/code/icons";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -281,6 +290,52 @@ export const ChartPanel: React.FC<{
     );
   }, [loading, error, memoizedFormValues, data, selectedChartType]);
 
+  const developmentMode = import.meta.env.DEV;
+  const renderChartDisplay = () => {
+    if (!developmentMode) {
+      return memoizedChart;
+    }
+
+    return (
+      <Tabs defaultValue="chart">
+        <TabsList>
+          <TabsTrigger value="chart" className="h-6">
+            <ChartColumnIcon className="text-muted-foreground mr-2 w-4 h-4" />
+            Chart
+          </TabsTrigger>
+          <TabsTrigger value="code" className="h-6">
+            <PythonIcon className="text-muted-foreground mr-2" />
+            Python code
+          </TabsTrigger>
+          {developmentMode && (
+            <TabsTrigger value="formValues" className="h-6">
+              <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+              Form values (dev mode)
+            </TabsTrigger>
+          )}
+        </TabsList>
+        <TabsContent value="chart">{memoizedChart}</TabsContent>
+        <TabsContent value="code">
+          <ReadonlyCode
+            minHeight="330px"
+            maxHeight="330px"
+            code="mo..."
+            language="python"
+          />
+        </TabsContent>
+        {developmentMode && (
+          <TabsContent value="formValues">
+            <ReadonlyCode
+              minHeight="330px"
+              maxHeight="330px"
+              code={JSON.stringify(formValues, null, 2)}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
+    );
+  };
+
   return (
     <div className="flex flex-row gap-2 h-full rounded-md border pr-2">
       <div className="flex flex-col gap-2 w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
@@ -299,7 +354,9 @@ export const ChartPanel: React.FC<{
           chartType={selectedChartType}
         />
       </div>
-      <div className="flex-1 overflow-auto h-full w-full">{memoizedChart}</div>
+      <div className="flex-1 overflow-auto h-full w-full mt-3">
+        {renderChartDisplay()}
+      </div>
     </div>
   );
 };
