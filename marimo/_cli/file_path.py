@@ -128,8 +128,12 @@ class StaticNotebookReader(FileReader):
         if url.startswith("https://static.marimo.app/static"):
             return download(os.path.join(url, "download"))
 
-        # Starts with https://marimo.app/
-        if url.startswith("https://marimo.app/"):
+        # Other marimo domains
+        DOMAINS = [
+            "marimo.app",
+            "links.marimo.app",
+        ]
+        if any(url.startswith(f"https://{domain}/") for domain in DOMAINS):
             return download(url)
 
         # Otherwise, not a static marimo notebook
