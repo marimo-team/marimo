@@ -1348,6 +1348,25 @@ def test_search_no_clamping_columns():
     assert len(selected_data) == 100
 
 
+def test_search_clamp_max_columns_in_search():
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data, max_columns=20)
+
+    response = table._search(
+        SearchTableArgs(page_size=10, page_number=0, query="1", max_columns=1)
+    )
+    result_data = json.loads(response.data)
+    # Only 1 column is shown
+    assert len(result_data[0].keys()) == 1
+
+    response = table._search(
+        SearchTableArgs(page_size=10, page_number=0, query="1", max_columns=30)
+    )
+    result_data = json.loads(response.data)
+    # Show 30 columns
+    assert len(result_data[0].keys()) == 30
+
+
 def test_column_clamping_with_exact_max_columns():
     data = {f"col{i}": [1, 2, 3] for i in range(50)}
     table = ui.table(data, max_columns=50)

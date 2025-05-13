@@ -132,6 +132,7 @@ type DataTableFunctions = {
     filters?: ConditionType[];
     page_number: number;
     page_size: number;
+    max_columns?: number | null;
   }) => Promise<{
     data: TableData<T>;
     total_rows: number | "too_many";
@@ -223,6 +224,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           filters: z.array(ConditionSchema).optional(),
           page_number: z.number(),
           page_size: z.number(),
+          max_columns: z.number().nullable().optional(),
         }),
       )
       .output(
@@ -485,6 +487,8 @@ export const LoadingDataTableComponent = memo(
               filter.value as ColumnFilterValue,
             );
           }),
+          // Do not clamp number of columns since we are viewing a single row
+          max_columns: null,
         });
         const loadedData = await loadTableData(result.data);
         return {
