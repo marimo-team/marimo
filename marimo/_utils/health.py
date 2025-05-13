@@ -21,7 +21,7 @@ def get_node_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate(timeout=TIMEOUT)
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         if stdout and (stripped := stdout.strip()):
@@ -109,7 +109,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate(timeout=TIMEOUT)
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -127,7 +127,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate(timeout=TIMEOUT)
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -142,7 +142,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate(timeout=TIMEOUT)
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -168,3 +168,13 @@ def get_chrome_version() -> Optional[str]:
 
 def get_python_version() -> str:
     return sys.version.split()[0]
+
+
+def communicate_with_timeout(
+    process: subprocess.Popen[str], timeout: float = TIMEOUT
+) -> tuple[str, str]:
+    try:
+        return process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return "Error: Process timed out", ""
