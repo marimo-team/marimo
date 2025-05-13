@@ -240,3 +240,81 @@ async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs
     assert file_key not in doc_manager.loro_docs_clients
     assert file_key not in doc_manager.loro_docs_cleaners
+
+
+async def test_prevent_lock_deadlock(setup_doc_manager: None) -> None:
+    """Test that our deadlock prevention measures work correctly.
+
+    This test simulates the scenario that could cause a deadlock:
+    1. A client disconnects, starting the cleanup process
+    2. Another operation acquires the lock before cleanup timer finishes
+    3. Cleanup timer expires and tries to acquire the lock
+
+    The fixed implementation should handle this without deadlocking.
+    """
+    del setup_doc_manager
+    file_key = MarimoFileKey("test_file")
+
+    # Create a doc and add a client
+    doc = LoroDoc()
+    doc_manager.loro_docs[file_key] = doc
+    queue = asyncio.Queue[bytes]()
+    doc_manager.add_client_to_doc(file_key, queue)
+
+    # Set a very short cleanup timeout for testing
+    original_timeout = 60.0
+    cleanup_timeout = 0.1  # 100ms
+
+    # Create a barrier to coordinate tasks
+    barrier = asyncio.Barrier(2)
+    long_operation_done = asyncio.Event()
+
+    # Task 1: Remove client, which will schedule cleanup with short timeout
+    async def remove_client_task() -> None:
+        await doc_manager.remove_client(file_key, queue)
+        # Wait at barrier to synchronize with the long operation
+        await barrier.wait()
+        # Wait for long operation to complete
+        await long_operation_done.wait()
+
+    # Task 2: Simulate a long operation that holds the lock
+    async def long_lock_operation() -> None:
+        # Wait for remove_client to schedule the cleanup
+        await barrier.wait()
+
+        # Acquire the lock and hold it for longer than the cleanup timeout
+        async with doc_manager.loro_docs_lock:
+            # Sleep while holding the lock (longer than cleanup timeout)
+            await asyncio.sleep(cleanup_timeout * 2)
+
+        # Signal that we're done holding the lock
+        long_operation_done.set()
+
+    # Modified test version of _clean_loro_doc with shorter timeout
+    original_clean_loro_doc = doc_manager._clean_loro_doc
+
+    async def test_clean_loro_doc(
+        file_key: MarimoFileKey, timeout: float = original_timeout
+    ) -> None:
+        del timeout
+        # Override timeout with our test value
+        await original_clean_loro_doc(file_key, cleanup_timeout)
+
+    # Override the method for this test
+    doc_manager._clean_loro_doc = test_clean_loro_doc
+
+    try:
+        # Run both tasks simultaneously
+        task1 = asyncio.create_task(remove_client_task())
+        task2 = asyncio.create_task(long_lock_operation())
+
+        # This should complete without deadlocking
+        await asyncio.gather(task1, task2)
+
+        # Verify the doc was properly cleaned up
+        assert file_key not in doc_manager.loro_docs
+        assert file_key not in doc_manager.loro_docs_clients
+        assert file_key not in doc_manager.loro_docs_cleaners
+    finally:
+        # Restore the original method
+        doc_manager._clean_loro_doc = original_clean_loro_doc

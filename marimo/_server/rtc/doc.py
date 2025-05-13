@@ -40,7 +40,7 @@ class LoroDocManager:
                         f"RTC: Removing loro doc for file {file_key} as it has no clients"
                     )
                     # Clean up the document
-                    await self.remove_doc(file_key)
+                    await self._do_remove_doc(file_key)
         except asyncio.CancelledError:
             # Task was cancelled due to client reconnection
             LOGGER.debug(
@@ -130,6 +130,8 @@ class LoroDocManager:
         update_queue: asyncio.Queue[bytes],
     ) -> None:
         """Clean up a loro client and potentially the doc if no clients remain."""
+        should_create_cleaner = False
+
         async with self.loro_docs_lock:
             if file_key not in self.loro_docs_clients:
                 return
@@ -141,25 +143,25 @@ class LoroDocManager:
                 cleaner = self.loro_docs_cleaners.get(file_key, None)
                 if cleaner is not None:
                     cleaner.cancel()
-                    self.loro_docs_cleaners[file_key] = None
-                # Create a new cleaner with timeout of 60 seconds
                 self.loro_docs_cleaners[file_key] = None
+                should_create_cleaner = True
 
-        # Create the cleaner task outside the lock
-        if (
-            file_key in self.loro_docs_clients
-            and len(self.loro_docs_clients[file_key]) == 0
-        ):
+        # Create the cleaner task outside the lock to avoid deadlocks
+        if should_create_cleaner:
             self.loro_docs_cleaners[file_key] = asyncio.create_task(
                 self._clean_loro_doc(file_key, 60.0)
             )
 
+    async def _do_remove_doc(self, file_key: MarimoFileKey) -> None:
+        """Actual implementation of removing a doc, separate from remove_doc to avoid deadlocks."""
+        if file_key in self.loro_docs:
+            del self.loro_docs[file_key]
+        if file_key in self.loro_docs_clients:
+            del self.loro_docs_clients[file_key]
+        if file_key in self.loro_docs_cleaners:
+            del self.loro_docs_cleaners[file_key]
+
     async def remove_doc(self, file_key: MarimoFileKey) -> None:
-        """Remove a loro doc and all associated clients, without waiting."""
+        """Remove a loro doc and all associated clients"""
         async with self.loro_docs_lock:
-            if file_key in self.loro_docs:
-                del self.loro_docs[file_key]
-            if file_key in self.loro_docs_clients:
-                del self.loro_docs_clients[file_key]
-            if file_key in self.loro_docs_cleaners:
-                del self.loro_docs_cleaners[file_key]
+            await self._do_remove_doc(file_key)
