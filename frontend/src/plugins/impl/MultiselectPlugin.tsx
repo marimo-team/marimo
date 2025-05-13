@@ -78,7 +78,7 @@ export const Multiselect = ({
   }, [options, searchQuery]);
 
   const handleValueChange = (newValues: string[] | null) => {
-    if (!newValues) {
+    if (!newValues || newValues.length === 0) {
       setValue([]);
       return;
     }
