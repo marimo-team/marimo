@@ -67,7 +67,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/more-itertools-10.7.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/nodeenv-1.9.1-pyhd8ed1ab_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/nodejs-20.18.1-hc55a1b2_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/nodejs-22.13.0-hf235a45_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.5.0-h7b32b05_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-25.0-pyh29332c3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-0.12.1-pyhd8ed1ab_1.conda
@@ -76,7 +76,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pip-25.1.1-pyh8b19718_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.3.8-pyhe01879c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pluggy-1.5.0-pyhd8ed1ab_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pnpm-9.15.3-ha573bdf_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pnpm-9.15.3-h6417eb3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.2.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre_commit-4.2.0-hd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd8ed1ab_1.conda
@@ -164,7 +164,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/more-itertools-10.6.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ncurses-6.5-h5e97a16_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/nodeenv-1.9.1-pyhd8ed1ab_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/nodejs-20.18.1-h02a13b7_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/nodejs-22.13.0-h02a13b7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.4.1-h81ee809_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-24.2-pyhd8ed1ab_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-0.12.1-pyhd8ed1ab_1.conda
@@ -172,7 +172,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pip-25.0.1-pyh8b19718_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.3.7-pyh29332c3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pluggy-1.5.0-pyhd8ed1ab_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pnpm-9.15.3-hd5b824e_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pnpm-9.15.3-h7c8fa8f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.2.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre_commit-4.2.0-hd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd8ed1ab_1.conda
@@ -1349,39 +1349,39 @@ packages:
   - pkg:pypi/nodeenv?source=hash-mapping
   size: 34574
   timestamp: 1734112236147
-- conda: https://conda.anaconda.org/conda-forge/linux-64/nodejs-20.18.1-hc55a1b2_0.conda
-  sha256: 0964eeefba203edac8f72401501a5b62d136e6a6e15d09959d815fc67c1f33ec
-  md5: 65d4cfcb1793a3e4f102da0d0ce9ebd8
+- conda: https://conda.anaconda.org/conda-forge/linux-64/nodejs-22.13.0-hf235a45_0.conda
+  sha256: 925ea8839d6f26d0eb4204675b98a862803a9a9657fd36a4a22c4c29a479a911
+  md5: 1f9efd96347aa008bd2c735d7d88fc75
   depends:
-  - __glibc >=2.17,<3.0.a0
+  - __glibc >=2.28,<3.0.a0
   - icu >=75.1,<76.0a0
   - libgcc >=13
   - libstdcxx >=13
-  - libuv >=1.49.2,<2.0a0
+  - libuv >=1.50.0,<2.0a0
   - libzlib >=1.3.1,<2.0a0
-  - openssl >=3.4.0,<4.0a0
+  - openssl >=3.4.1,<4.0a0
   - zlib
   license: MIT
   license_family: MIT
   purls: []
-  size: 17154381
-  timestamp: 1734114221313
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/nodejs-20.18.1-h02a13b7_0.conda
-  sha256: ed98114ccff06460617b851fa9fd39f4cac432110d50985d10d3bb63cbed96e4
-  md5: 8891c7be9fe3e708cc9354b36d5fff2e
+  size: 21691794
+  timestamp: 1741809786920
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/nodejs-22.13.0-h02a13b7_0.conda
+  sha256: d390651526630468e385a74474bb3f17849861182257c161bbca8fca7734d578
+  md5: 93cd91b998422ebf2dace6c13c1842ce
   depends:
   - __osx >=11.0
   - icu >=75.1,<76.0a0
   - libcxx >=18
-  - libuv >=1.49.2,<2.0a0
+  - libuv >=1.50.0,<2.0a0
   - libzlib >=1.3.1,<2.0a0
   - openssl >=3.4.0,<4.0a0
   - zlib
   license: MIT
   license_family: MIT
   purls: []
-  size: 11751871
-  timestamp: 1734121972740
+  size: 15490642
+  timestamp: 1737401388520
 - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.5.0-h7b32b05_1.conda
   sha256: b4491077c494dbf0b5eaa6d87738c22f2154e9277e5293175ec187634bd808a0
   md5: de356753cfdbffcde5bb1e86e3aa6cd0
@@ -1535,31 +1535,31 @@ packages:
   - pkg:pypi/pluggy?source=hash-mapping
   size: 23595
   timestamp: 1733222855563
-- conda: https://conda.anaconda.org/conda-forge/linux-64/pnpm-9.15.3-ha573bdf_0.conda
-  sha256: d31569cbde40e7c314578b76de71ece999f500663fe7fd0aaebd00f7a184f80e
-  md5: c61b8caea02ee928b45456a1b4c49c24
+- conda: https://conda.anaconda.org/conda-forge/linux-64/pnpm-9.15.3-h6417eb3_0.conda
+  sha256: 1ff42bce1fc19b5fe3b0bc9fd0e5d4536138c4c303be361165d91f471b0947c4
+  md5: dd11bb38687a95c11db80fd146fdf54d
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=13
   - libstdcxx >=13
-  - nodejs >=20.18.1,<21.0a0
+  - nodejs >=22.12.0,<23.0a0
   license: MIT
   license_family: MIT
   purls: []
-  size: 3279895
-  timestamp: 1736151845373
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/pnpm-9.15.3-hd5b824e_0.conda
-  sha256: f59179f3a4df6f4d7eb371c394b61c4916f9bd5ccfcb339906ae5d0d524b0c1c
-  md5: 85bd93035ac03bd81a8005eff2640fdb
+  size: 3329817
+  timestamp: 1736151883915
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/pnpm-9.15.3-h7c8fa8f_0.conda
+  sha256: 48115bc8d6b3ce0474c9d4b7de1db52dd92519584c45f018c5854986b4ec73d7
+  md5: 119d03010a87240e29bb86bbed0353f3
   depends:
   - __osx >=11.0
   - libcxx >=18
-  - nodejs >=20.18.1,<21.0a0
+  - nodejs >=22.12.0,<23.0a0
   license: MIT
   license_family: MIT
   purls: []
-  size: 3343093
-  timestamp: 1736152121893
+  size: 3295956
+  timestamp: 1736151991861
 - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.2.0-pyha770c72_0.conda
   sha256: d0bd8cce5f31ae940934feedec107480c00f67e881bf7db9d50c6fc0216a2ee0
   md5: 17e487cc8b5507cd3abc09398cf27949
