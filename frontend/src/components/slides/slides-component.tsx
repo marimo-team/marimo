@@ -79,6 +79,9 @@ const SlidesComponent = ({
         clickable: true,
       }}
       virtual={true}
+      // Instant swipes, which make sequences of slides
+      // that overlay content more legible
+      speed={1}
     >
       {React.Children.map(children, (child, index) => {
         if (child == null) {
