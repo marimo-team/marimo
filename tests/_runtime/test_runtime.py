@@ -6,6 +6,7 @@ import sys
 import textwrap
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -1157,38 +1158,31 @@ class TestExecution:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Windows paths behave differently"
     )
+    @patch.dict(
+        sys.modules,
+        {
+            "pyodide": Mock(),
+            "js": Mock(
+                location="https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
+            ),
+        },
+    )
     async def test_notebook_location_for_pyodide(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
         k = any_kernel
-        import sys
-        from types import ModuleType
 
-        # Mock pyodide and js modules
-        sys.modules["pyodide"] = ModuleType("pyodide")
-        js = ModuleType("js")
-        js.location = "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
-        sys.modules["js"] = js
-
-        try:
-            await k.run(
-                [
-                    exec_req.get(
-                        "import marimo as mo; loc = mo.notebook_location()"
-                    )
-                ]
-            )
-            assert (
-                str(k.globals["loc"])
-                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
-            )
-            assert (
-                str(k.globals["loc"] / "public" / "data.csv")
-                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
-            )
-        finally:
-            del sys.modules["pyodide"]
-            del sys.modules["js"]
+        await k.run(
+            [exec_req.get("import marimo as mo; loc = mo.notebook_location()")]
+        )
+        assert (
+            str(k.globals["loc"])
+            == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+        )
+        assert (
+            str(k.globals["loc"] / "public" / "data.csv")
+            == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
+        )
 
     async def test_notebook_dir_for_unnamed_notebook(
         self, tmp_path: pathlib.Path, exec_req: ExecReqProvider

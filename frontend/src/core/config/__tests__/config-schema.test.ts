@@ -69,6 +69,7 @@ test("default UserConfig - empty", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
       },
@@ -123,6 +124,7 @@ test("default UserConfig - one level", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
       },

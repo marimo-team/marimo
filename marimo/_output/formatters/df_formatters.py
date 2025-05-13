@@ -7,10 +7,14 @@ import narwhals.stable.v1 as nw
 
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.formatters.formatter_factory import (
+    FormatterFactory,
+    Unregister,
+)
 from marimo._output.md import md
 from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import get_default_table_page_size, table
+from marimo._runtime.patches import patch_polars_write_json
 
 LOGGER = _loggers.marimo_logger()
 
@@ -35,13 +39,15 @@ class PolarsFormatter(FormatterFactory):
     def package_name() -> str:
         return "polars"
 
-    def register(self) -> None:
+    def register(self) -> Unregister | None:
         import polars as pl
 
         from marimo._output import formatting
 
         if not include_opinionated():
-            return
+            return None
+
+        unpatch_polars_write_json = patch_polars_write_json()
 
         @formatting.opinionated_formatter(pl.DataFrame)
         def _show_marimo_dataframe(
@@ -78,6 +84,8 @@ class PolarsFormatter(FormatterFactory):
                     "Query plan": md(df._repr_html_()),
                 }
             )._mime_()
+
+        return unpatch_polars_write_json
 
 
 class PyArrowFormatter(FormatterFactory):

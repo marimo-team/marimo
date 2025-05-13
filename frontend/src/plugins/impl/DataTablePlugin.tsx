@@ -5,6 +5,7 @@ import { DataTable } from "../../components/data-table/data-table";
 import {
   generateColumns,
   inferFieldTypes,
+  MAX_COLUMNS,
 } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -132,6 +133,7 @@ type DataTableFunctions = {
     filters?: ConditionType[];
     page_number: number;
     page_size: number;
+    max_columns?: number | null;
   }) => Promise<{
     data: TableData<T>;
     total_rows: number | "too_many";
@@ -223,6 +225,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           filters: z.array(ConditionSchema).optional(),
           page_number: z.number(),
           page_size: z.number(),
+          max_columns: z.number().nullable().optional(),
         }),
       )
       .output(
@@ -257,27 +260,23 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   })
   .renderer((props) => {
     return (
-      <Provider store={store}>
-        <SlotzProvider controller={slotsController}>
-          <TooltipProvider>
-            <LazyDataTableComponent
-              isLazy={props.data.lazy}
-              preload={props.data.preload}
-            >
-              <LoadingDataTableComponent
-                {...props.data}
-                {...props.functions}
-                host={props.host}
-                enableSearch={true}
-                data={props.data.data}
-                value={props.value}
-                setValue={props.setValue}
-                experimentalChartsEnabled={true}
-              />
-            </LazyDataTableComponent>
-          </TooltipProvider>
-        </SlotzProvider>
-      </Provider>
+      <TableProviders>
+        <LazyDataTableComponent
+          isLazy={props.data.lazy}
+          preload={props.data.preload}
+        >
+          <LoadingDataTableComponent
+            {...props.data}
+            {...props.functions}
+            host={props.host}
+            enableSearch={true}
+            data={props.data.data}
+            value={props.value}
+            setValue={props.setValue}
+            experimentalChartsEnabled={true}
+          />
+        </LazyDataTableComponent>
+      </TableProviders>
     );
   });
 
@@ -485,6 +484,8 @@ export const LoadingDataTableComponent = memo(
               filter.value as ColumnFilterValue,
             );
           }),
+          // Do not clamp number of columns since we are viewing a single row
+          max_columns: null,
         });
         const loadedData = await loadTableData(result.data);
         return {
@@ -670,21 +671,28 @@ const DataTableComponent = ({
   }, [fieldTypes, columnSummaries]);
 
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
-  const shownColumns = fieldTypesOrInferred.length;
+
+  const memoizedUnclampedFieldTypes =
+    useDeepCompareMemoize(fieldTypesOrInferred);
+  const memoizedClampedFieldTypes = useMemo(
+    () => memoizedUnclampedFieldTypes.slice(0, MAX_COLUMNS),
+    [memoizedUnclampedFieldTypes],
+  );
 
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
-  const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const showDataTypes = Boolean(fieldTypes);
+  const shownColumns = memoizedClampedFieldTypes.length;
+
   const columns = useMemo(
     () =>
       generateColumns({
         rowHeaders: memoizedRowHeaders,
         selection: selection,
         chartSpecModel: memoizedChartSpecModel,
-        fieldTypes: memoizedFieldTypes,
+        fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
         // Only show data types if they are explicitly set
@@ -696,7 +704,7 @@ const DataTableComponent = ({
       showDataTypes,
       memoizedChartSpecModel,
       memoizedRowHeaders,
-      memoizedFieldTypes,
+      memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
       calculate_top_k_rows,
@@ -768,7 +776,7 @@ const DataTableComponent = ({
         <ContextAwarePanelItem>
           <RowViewerPanel
             getRow={getRow}
-            fieldTypes={memoizedFieldTypes}
+            fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
             rowIdx={focusedRowIdx}
             setRowIdx={setFocusedRowIdx}
@@ -816,5 +824,20 @@ const DataTableComponent = ({
         </Labeled>
       </ColumnChartContext.Provider>
     </>
+  );
+};
+
+/**
+ * Common providers for data tables
+ */
+export const TableProviders: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return (
+    <Provider store={store}>
+      <SlotzProvider controller={slotsController}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </SlotzProvider>
+    </Provider>
   );
 };

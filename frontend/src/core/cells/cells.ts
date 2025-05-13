@@ -1002,21 +1002,16 @@ const {
     const column = state.cellIds.findWithId(scrollKey);
     const index = column.indexOfOrThrow(scrollKey);
 
-    // Special-case scrolling to the end of the page: bug in Chrome where
-    // browser fails to scrollIntoView an element at the end of a long page
-    if (index === column.length - 1) {
-      const cellId = column.last();
-      state.cellHandles[cellId].current?.editorViewOrNull?.focus();
-    } else {
-      const nextCellId = column.atOrThrow(index);
-      focusAndScrollCellIntoView({
-        cellId: nextCellId,
-        cell: state.cellHandles[nextCellId],
-        config: state.cellData[nextCellId].config,
-        codeFocus: undefined,
-        variableName: undefined,
-      });
-    }
+    const cellId =
+      index === column.length - 1 ? column.last() : column.atOrThrow(index);
+
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      config: state.cellData[cellId].config,
+      codeFocus: undefined,
+      variableName: undefined,
+    });
 
     return {
       ...state,

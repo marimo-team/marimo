@@ -52,6 +52,7 @@ describe("Cell data attributes", () => {
         package_management: { manager: "pip" },
         runtime: {
           auto_instantiate: false,
+          default_sql_output: "native",
           auto_reload: "off",
           on_cell_change: "lazy",
           watcher_on_save: "lazy",

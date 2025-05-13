@@ -3,12 +3,13 @@
 import type { StringFieldDef } from "vega-lite/build/src/channeldef";
 import type { z } from "zod";
 import type { AxisSchema, ChartSchemaType } from "../schemas";
-import { NONE_AGGREGATION, type TimeUnitTooltip } from "../types";
+import type { TimeUnitTooltip } from "../types";
 import type { DataType } from "@/core/kernel/messages";
 import type { Tooltip } from "../components/form-fields";
 import type { Aggregate } from "vega-lite/build/src/aggregate";
 import { isFieldSet } from "./spec";
 import { COUNT_FIELD } from "../constants";
+import { getAggregate } from "./encodings";
 
 function getTooltipAggregate(
   field: string,
@@ -22,7 +23,8 @@ function getTooltipAggregate(
     return "count";
   }
 
-  return yColumn.aggregate === NONE_AGGREGATION ? undefined : yColumn.aggregate;
+  const selectedDataType = yColumn?.selectedDataType;
+  return getAggregate(yColumn.aggregate, selectedDataType || "string");
 }
 
 function getTooltipFormat(dataType: DataType): string | undefined {

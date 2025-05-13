@@ -3053,6 +3053,13 @@ export interface components {
         auto_instantiate: boolean;
         /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
+        /** @enum {string} */
+        default_sql_output:
+          | "polars"
+          | "lazy-polars"
+          | "pandas"
+          | "native"
+          | "auto";
         dotenv?: string[];
         /** @enum {string} */
         on_cell_change: "lazy" | "autorun";

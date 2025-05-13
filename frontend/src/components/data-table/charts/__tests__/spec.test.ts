@@ -5,6 +5,7 @@ import { getAxisEncoding } from "../chart-spec/spec";
 import { AGGREGATION_FNS, ChartType, STRING_AGGREGATION_FNS } from "../types";
 import { COUNT_FIELD } from "../constants";
 import { NONE_AGGREGATION } from "../types";
+import { getTooltips } from "../chart-spec/tooltips";
 
 describe("getAxisEncoding", () => {
   it("should return correct encoding for COUNT_FIELD", () => {
@@ -181,5 +182,105 @@ describe("getAxisEncoding", () => {
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
       expect(expectedAggregate).toBeUndefined();
     }
+  });
+});
+
+describe("getTooltips", () => {
+  it("should return no tooltips if undefined", () => {
+    const result = getTooltips({
+      general: {
+        xColumn: { field: "x", selectedDataType: "string" },
+      },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should return tooltips for x, y and colour when auto is enabled", () => {
+    const autoTooltips = {
+      auto: true,
+      fields: [],
+    };
+
+    const result = getTooltips({
+      general: {
+        xColumn: { field: "x", selectedDataType: "string" },
+        yColumn: { field: "y", selectedDataType: "number" },
+      },
+      tooltips: autoTooltips,
+    });
+
+    const expected = [
+      {
+        field: "x",
+        format: undefined,
+        timeUnit: undefined,
+        title: undefined,
+        aggregate: undefined,
+      },
+      {
+        field: "y",
+        format: undefined,
+        timeUnit: undefined,
+        title: undefined,
+        aggregate: undefined,
+      },
+    ];
+
+    expect(result).toEqual(expected);
+
+    const resultWithColor = getTooltips({
+      general: {
+        xColumn: { field: "x", selectedDataType: "string" },
+        yColumn: { field: "y", selectedDataType: "number" },
+        colorByColumn: { field: "color", selectedDataType: "string" },
+      },
+      tooltips: autoTooltips,
+    });
+
+    expect(resultWithColor).toEqual([
+      ...expected,
+      {
+        field: "color",
+        format: undefined,
+        timeUnit: undefined,
+        title: undefined,
+        aggregate: undefined,
+      },
+    ]);
+  });
+
+  it("should return no fields when auto is false", () => {
+    const result = getTooltips({
+      general: {
+        xColumn: { field: "x", selectedDataType: "string" },
+        yColumn: { field: "y", selectedDataType: "number" },
+      },
+      tooltips: {
+        auto: false,
+        fields: [],
+      },
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it("should return fields when provided", () => {
+    const result = getTooltips({
+      general: {
+        xColumn: { field: "x", selectedDataType: "string" },
+        yColumn: { field: "y", selectedDataType: "number" },
+      },
+      tooltips: {
+        auto: false,
+        fields: [{ field: "x", type: "string" }],
+      },
+    });
+
+    expect(result).toEqual([
+      {
+        field: "x",
+      },
+    ]);
   });
 });

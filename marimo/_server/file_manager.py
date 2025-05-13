@@ -12,7 +12,7 @@ from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._config.config import WidthType
+from marimo._config.config import SqlOutputType, WidthType
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
@@ -33,10 +33,13 @@ class AppFileManager:
     def __init__(
         self,
         filename: Optional[Union[str, Path]],
+        *,
         default_width: WidthType | None = None,
+        default_sql_output: SqlOutputType | None = None,
     ) -> None:
         self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
+        self._default_sql_output: SqlOutputType | None = default_sql_output
         self.app = self._load_app(self.path)
 
     @staticmethod
@@ -184,12 +187,13 @@ class AppFileManager:
         """Read the app from the file."""
         app = load.load_app(path)
         if app is None:
-            kwargs = (
-                {"width": self._default_width}
-                if self._default_width is not None
-                # App decides its own default width
-                else {}
-            )
+            kwargs: dict[str, Any] = {}
+            # Add defaults if it is a new file
+            if self._default_width is not None:
+                kwargs["width"] = self._default_width
+            if self._default_sql_output is not None:
+                kwargs["sql_output"] = self._default_sql_output
+
             empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(
                 cell_id=None,

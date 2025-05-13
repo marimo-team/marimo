@@ -278,7 +278,6 @@ const DatabaseForm: React.FC<{
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
       skipIfCodeExists: true,
-      autoFocus: true,
     });
   };
 

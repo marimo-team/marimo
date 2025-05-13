@@ -24,6 +24,7 @@ import {
   BooleanField,
   SortField,
   NumberField,
+  BinFields,
 } from "./form-fields";
 import { CHART_TYPES, type ChartType } from "../types";
 import React from "react";
@@ -105,8 +106,6 @@ export const XAxis: React.FC = () => {
   const shouldShowXTimeUnit =
     xColumnExists && selectedXDataType === "temporal" && !isXCountField;
 
-  // const showBinFields = xColumn?.selectedDataType === "number";
-
   return (
     <FieldSection>
       <Title text="X-Axis" />
@@ -119,6 +118,7 @@ export const XAxis: React.FC = () => {
           <AggregationSelect
             fieldName="general.xColumn.aggregate"
             selectedDataType={selectedXDataType}
+            binFieldName="xAxis.bin.binned"
           />
         )}
       </div>
@@ -142,7 +142,7 @@ export const XAxis: React.FC = () => {
             label="Sort"
             defaultValue={formValues.general?.xColumn?.sort}
           />
-          {/* {showBinFields && <BinFields fieldName="xAxis" />} */}
+          <BinFields fieldName="xAxis" />
         </>
       )}
     </FieldSection>
@@ -172,9 +172,6 @@ export const YAxis: React.FC = () => {
   const shouldShowYTimeUnit =
     yColumnExists && selectedYDataType === "temporal" && !isYCountField;
 
-  // const showBinFields =
-  //   yColumnExists && !isYCountField && yColumn.selectedDataType === "number";
-
   return (
     <FieldSection>
       <Title text="Y-Axis" />
@@ -187,6 +184,7 @@ export const YAxis: React.FC = () => {
           <AggregationSelect
             fieldName="general.yColumn.aggregate"
             selectedDataType={selectedYDataType}
+            binFieldName="yAxis.bin.binned"
           />
         )}
       </div>
@@ -204,7 +202,6 @@ export const YAxis: React.FC = () => {
           label="Time Resolution"
         />
       )}
-      {/* {showBinFields && <BinFields fieldName="yAxis" />} */}
       {yColumnExists && xColumnExists && (
         <BooleanField fieldName="general.horizontal" label="Invert axis" />
       )}
@@ -223,11 +220,6 @@ export const ColorByAxis: React.FC = () => {
     selectedColorByDataType = "string";
   }
 
-  // const showBinFields =
-  //   formValues.general?.colorByColumn?.type &&
-  //   ["number", "integer"].includes(formValues.general?.colorByColumn?.type) &&
-  //   formValues.general?.colorByColumn?.field !== COUNT_FIELD;
-
   return (
     <FieldSection>
       <Title text="Color by" />
@@ -239,9 +231,9 @@ export const ColorByAxis: React.FC = () => {
         <AggregationSelect
           fieldName="general.colorByColumn.aggregate"
           selectedDataType={selectedColorByDataType}
+          binFieldName="color.bin.binned"
         />
       </div>
-      {/* {showBinFields && <BinFields fieldName="color" />} */}
     </FieldSection>
   );
 };
@@ -301,6 +293,7 @@ export const Facet: React.FC = () => {
                 <NumberField
                   fieldName={`general.facet.${facet}.maxbins`}
                   label="Max Bins"
+                  placeholder="10"
                 />
               </div>
             )}

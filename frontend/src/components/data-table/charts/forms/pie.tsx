@@ -53,6 +53,7 @@ export const PieForm: React.FC = () => {
         <AggregationSelect
           fieldName="general.yColumn.aggregate"
           selectedDataType={ySelectedDataType}
+          binFieldName="yAxis.bin.binned"
         />
       </div>
 
