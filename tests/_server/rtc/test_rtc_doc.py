@@ -1,13 +1,16 @@
 import asyncio
+import sys
 from collections.abc import AsyncGenerator
 from typing import cast
 
 import pytest
-from loro import LoroDoc, LoroText
 
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._types.ids import CellId_t
+
+if sys.version_info >= (3, 11):
+    from loro import LoroDoc, LoroText
 
 doc_manager = LoroDocManager()
 
