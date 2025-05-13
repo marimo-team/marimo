@@ -231,6 +231,9 @@ def test_polars_write_json_patch(tmp_path: Path):
         df.write_json(buffer)
         assert buffer.getvalue() == expected_json
 
+        # Test it succeeds with None
+        assert df.write_json() == expected_json
+
         # Patch the patch
         unpatch_polars_write_json()
 

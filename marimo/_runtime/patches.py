@@ -443,10 +443,10 @@ def patch_polars_write_json() -> Unpatch:
 
     def patched_write_json(
         self: polars.DataFrame,
-        file: io.IOBase | str | pathlib.Path,
+        file: io.IOBase | str | pathlib.Path | None = None,
         *args: Any,
         **kwargs: Any,
-    ) -> None:
+    ) -> str | None:
         try:
             # First try the original method
             return original_write_json(self, file, *args, **kwargs)
@@ -472,7 +472,9 @@ def patch_polars_write_json() -> Unpatch:
                     values: list[str] = line.split(",")
                     json_data.append(dict(zip(headers, values)))
 
-            if isinstance(file, io.IOBase):
+            if file is None:
+                return json.dumps(json_data)
+            elif isinstance(file, io.IOBase):
                 json.dump(json_data, file)
             elif isinstance(file, pathlib.Path):
                 file.write_text(json.dumps(json_data))
