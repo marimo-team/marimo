@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
+from marimo._utils.platform import is_pyodide
+
+Unpatch = Callable[[], None]
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -419,3 +422,70 @@ def patch_jedi_parameter_completion() -> None:
         SignatureParamName.infer = wrap_infer(original_dynamic_infer)
     if not getattr(SignatureParamName.__init__, "patched", False):
         SignatureParamName.__init__ = enhanced_init
+
+
+def patch_polars_write_json() -> Unpatch:
+    """Patch polars.DataFrame.write_json to work in WASM environments.
+
+    In WASM, file system operations may fail. This patch attempts to use
+    write_json first, and if it fails, falls back to write_csv and then
+    converts the CSV to JSON.
+    """
+    if not is_pyodide():
+        return lambda: None
+
+    import io
+    import pathlib
+
+    import polars
+
+    original_write_json = polars.DataFrame.write_json
+
+    def patched_write_json(
+        self: polars.DataFrame,
+        file: io.IOBase | str | pathlib.Path,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        try:
+            # First try the original method
+            return original_write_json(self, file, *args, **kwargs)
+        except Exception:
+            # Fallback to CSV
+            import json
+
+            buffer = io.BytesIO()
+
+            # Write to CSV
+            self.write_csv(buffer)
+
+            # Read CSV as text
+            buffer.seek(0)
+            csv_content = buffer.read().decode("utf-8")
+
+            # Parse CSV to create JSON
+            lines = csv_content.strip().split("\n")
+            json_data: list[dict[str, str]] = []
+            if lines:
+                headers: list[str] = lines[0].split(",")
+                for line in lines[1:]:
+                    values: list[str] = line.split(",")
+                    json_data.append(dict(zip(headers, values)))
+
+            if isinstance(file, io.IOBase):
+                json.dump(json_data, file)
+            elif isinstance(file, pathlib.Path):
+                file.write_text(json.dumps(json_data))
+            else:
+                with open(file, "w", encoding="utf-8") as f:
+                    json.dump(json_data, f)
+
+            return None
+
+    # Apply the patch
+    polars.DataFrame.write_json = patched_write_json  # type: ignore
+
+    def unpatch_polars_write_json() -> None:
+        polars.DataFrame.write_json = original_write_json  # type: ignore
+
+    return unpatch_polars_write_json
