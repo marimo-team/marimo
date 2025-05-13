@@ -159,6 +159,7 @@ def test_pyproject_toml_to_requirements_txt_with_local_path():
     ]
 
 
+@pytest.mark.skipif(is_windows(), reason="only testing posix paths")
 def test_pyproject_toml_to_requirements_txt_with_relative_path():
     pyproject = {
         "dependencies": [
