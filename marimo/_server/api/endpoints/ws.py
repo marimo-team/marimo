@@ -722,11 +722,11 @@ class WebsocketHandler(SessionConsumer):
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)
             # but don't keep toasting.
-            global HAS_TOASTED
-            if HAS_TOASTED:
+            global has_toasted
+            if has_toasted:
                 return
 
-            HAS_TOASTED = True
+            has_toasted = True
 
             title = f"Update available {current_version} → {latest_version}"
             release_url = "https://github.com/marimo-team/marimo/releases"
@@ -755,4 +755,4 @@ class WebsocketHandler(SessionConsumer):
         self._replay_previous_session(session)
 
 
-HAS_TOASTED = False
+has_toasted = False
