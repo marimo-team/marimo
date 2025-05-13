@@ -104,7 +104,9 @@ async def test_allow_self_loops(
             ),
         ]
     )
-    await asyncio.sleep(0.25)
+    await asyncio.sleep(0.1)
+    # Flakey in CI 3.13
+    await k.run([])
 
     assert not k.stderr.messages, k.stderr
     assert k.globals["x"] == 3
