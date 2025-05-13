@@ -1425,7 +1425,8 @@ def test_column_clamping_with_polars():
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
     assert len(headers) == 50  # 50 columns
-    assert len(table._component_args["field-types"]) == 50
+    # Field types are not clamped
+    assert len(table._component_args["field-types"]) == 60
 
     table = ui.table(data, max_columns=40)
 
@@ -1435,7 +1436,8 @@ def test_column_clamping_with_polars():
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
     assert len(headers) == 40  # 40 columns
-    assert len(table._component_args["field-types"]) == 40
+    # Field types aren't clamped
+    assert len(table._component_args["field-types"]) == 60
 
     table = ui.table(data, max_columns=None)
 
