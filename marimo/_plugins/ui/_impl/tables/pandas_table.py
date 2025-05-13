@@ -98,7 +98,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                         exc_info=e,
                     )
                     return sanitize_json_bigint(
-                        result.to_json(orient="records")
+                        result.to_json(
+                            orient="records",
+                            date_format="iso",
+                            default_handler=str,
+                        )
                     )
 
                 # Flatten row multi-index
@@ -122,7 +126,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                             )
 
                 return sanitize_json_bigint(
-                    result.to_json(orient="records", date_format="iso")
+                    result.to_json(
+                        orient="records",
+                        date_format="iso",
+                        default_handler=str,
+                    )
                 )
 
             def to_arrow_ipc(self) -> bytes:
