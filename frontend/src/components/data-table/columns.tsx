@@ -31,6 +31,7 @@ import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
+export const MAX_COLUMNS = 50;
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {

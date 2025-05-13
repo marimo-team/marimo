@@ -5,6 +5,7 @@ import { DataTable } from "../../components/data-table/data-table";
 import {
   generateColumns,
   inferFieldTypes,
+  MAX_COLUMNS,
 } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -674,10 +675,17 @@ const DataTableComponent = ({
   }, [fieldTypes, columnSummaries]);
 
   const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
-  const shownColumns = fieldTypesOrInferred.length;
+  // Clamp number of columns
+  const clampedFieldTypesOrInferred = fieldTypesOrInferred.slice(
+    0,
+    MAX_COLUMNS,
+  );
+  const shownColumns = clampedFieldTypesOrInferred.length;
 
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
-  const memoizedFieldTypes = useDeepCompareMemoize(fieldTypesOrInferred);
+  const memoizedUnclampedFieldTypes =
+    useDeepCompareMemoize(fieldTypesOrInferred);
+  const memoizedFieldTypes = useDeepCompareMemoize(clampedFieldTypesOrInferred);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
@@ -772,7 +780,7 @@ const DataTableComponent = ({
         <ContextAwarePanelItem>
           <RowViewerPanel
             getRow={getRow}
-            fieldTypes={memoizedFieldTypes}
+            fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows === "too_many" ? 100 : totalRows}
             rowIdx={focusedRowIdx}
             setRowIdx={setFocusedRowIdx}

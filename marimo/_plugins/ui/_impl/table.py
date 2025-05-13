@@ -583,11 +583,7 @@ class table(
                 text_justify_columns, wrapped_columns, column_names_set
             )
 
-            # Clamp field types to max columns
             field_types = self._manager.get_field_types()
-            field_types = _get_clamped_field_types(
-                field_types, self._max_columns
-            )
 
         super().__init__(
             component_name=table._name,
@@ -1103,14 +1099,6 @@ class table(
 
     def __hash__(self) -> int:
         return id(self)
-
-
-def _get_clamped_field_types(
-    field_types: list[Any], max_columns: Optional[int]
-) -> list[Any]:
-    if max_columns is not None and len(field_types) > max_columns:
-        return field_types[:max_columns]
-    return field_types
 
 
 def _validate_frozen_columns(
