@@ -34,6 +34,7 @@ async def test_read_and_write_path(
             ),
         ]
     )
+    await asyncio.sleep(0.1)
 
     assert not k.stdout.messages, k.stdout
     assert not k.stderr.messages, k.stderr
@@ -69,6 +70,7 @@ async def test_read_and_write_iteration(
             ),
         ]
     )
+    await asyncio.sleep(0.1)
 
     assert not k.stderr.messages, k.stderr
     assert k.globals["x"] == b"000"
@@ -102,6 +104,7 @@ async def test_allow_self_loops(
             ),
         ]
     )
+    await asyncio.sleep(0.1)
 
     assert not k.stderr.messages, k.stderr
     assert k.globals["x"] == 3
