@@ -173,7 +173,7 @@ def _pyproject_toml_to_requirements_txt(
             # If path is relative and we have a config path, resolve it relative to the config path
             if not source_path.is_absolute() and config_path:
                 config_dir = Path(config_path).parent
-                source_path = (config_dir / source_path).absolute()
+                source_path = (config_dir / source_path).resolve()
             new_dependency = f"{dependency} @ {str(source_path)}"
 
         # Handle URLs
