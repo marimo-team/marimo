@@ -17,5 +17,6 @@ jobs:
        with:
          pixi-version: v0.47.0
          cache: true
+     - run: pixi run make check-prereqs
      - run: pixi run make fe 
      - run: pixi run make py
