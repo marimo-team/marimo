@@ -14,4 +14,4 @@ jobs:
        with:
          pixi-version: v0.47.0
          cache: true
-     - run: pixi install
+     - run: pixi run make fe && make py
