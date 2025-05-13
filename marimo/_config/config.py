@@ -130,6 +130,9 @@ class RuntimeConfig(TypedDict):
     - `dotenv`: a list of paths to `.env` files to load.
         If the file does not exist, it will be silently ignored.
         The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+    - `default_sql_output`: the default output format for SQL queries. Can be one of:
+        `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+        The default is `"auto"`.
     """
 
     auto_instantiate: bool
@@ -141,6 +144,7 @@ class RuntimeConfig(TypedDict):
     std_stream_max_bytes: int
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
+    default_sql_output: SqlOutputType
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -418,6 +422,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "std_stream_max_bytes": int(
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
+        "default_sql_output": "auto",
     },
     "save": {
         "autosave": "after_delay",

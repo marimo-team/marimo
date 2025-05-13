@@ -596,3 +596,37 @@ if __name__ == "__main__":
 
     # Clean up
     os.remove(tmp_file)
+
+
+def test_default_app_settings(tmp_path: Path) -> None:
+    """Test that default_sql_output and default_width are properly applied."""
+    # Test with custom defaults
+    manager = AppFileManager(
+        filename=None,
+        default_width="full",
+        default_sql_output="polars",
+    )
+    assert manager.app.config.width == "full"
+    assert manager.app.config.sql_output == "polars"
+
+    # Test with None defaults (should use system defaults)
+    manager = AppFileManager(filename=None)
+
+    assert manager.app.config.width == "compact"
+    assert manager.app.config.sql_output == "auto"
+
+    # Existing file does not get overwritten
+    tmp_file = tmp_path / "test.py"
+    tmp_file.write_text(
+        """
+import marimo
+app = marimo.App(sql_output="lazy-polars", width="columns")
+"""
+    )
+    manager = AppFileManager(
+        filename=tmp_file,
+        default_width="full",
+        default_sql_output="polars",
+    )
+    assert manager.app.config.width == "columns"
+    assert manager.app.config.sql_output == "lazy-polars"

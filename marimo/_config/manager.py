@@ -15,6 +15,7 @@ from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
     RuntimeConfig,
+    SqlOutputType,
     Theme,
     WidthType,
     merge_config,
@@ -77,6 +78,10 @@ class MarimoConfigReader:
     @property
     def default_width(self) -> WidthType:
         return self._config["display"]["default_width"]
+
+    @property
+    def default_sql_output(self) -> SqlOutputType:
+        return self._config["runtime"]["default_sql_output"]
 
     @property
     def theme(self) -> Theme:

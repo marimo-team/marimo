@@ -20,7 +20,11 @@ import { Input } from "../ui/input";
 import { NativeSelect } from "../ui/native-select";
 import { useAppConfig } from "@/core/config/config";
 import { saveAppConfig } from "@/core/network/requests";
-import { SettingTitle, SettingDescription } from "./common";
+import {
+  SettingTitle,
+  SettingDescription,
+  SQL_OUTPUT_SELECT_OPTIONS,
+} from "./common";
 import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
 import { arrayToggle } from "@/utils/arrays";
@@ -214,11 +218,11 @@ export const AppConfigForm: React.FC = () => {
                         disabled={field.disabled}
                         className="inline-flex mr-2"
                       >
-                        <option value="auto">Auto (Default)</option>
-                        <option value="native">Native</option>
-                        <option value="polars">Polars</option>
-                        <option value="lazy-polars">Lazy Polars</option>
-                        <option value="pandas">Pandas</option>
+                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </NativeSelect>
                     </FormControl>
                     <FormMessage />

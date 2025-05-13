@@ -97,6 +97,7 @@ def create_session(
     app_file_manager = AppFileManager(
         filename=filename,
         default_width=user_config["display"]["default_width"],
+        default_sql_output=user_config["runtime"]["default_sql_output"],
     )
     app = app_file_manager.app
 
