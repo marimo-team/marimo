@@ -30,6 +30,7 @@ from marimo._runtime.primitives import (
 )
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import SetFunctor, State
+from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
 
@@ -261,7 +262,7 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
     try:
         return type_sign(common_container_to_bytes(value), label)
     # Fallback to raw state for eval in content hash.
-    except TypeError:
+    except (TypeError, ValueError):
         return value
 
 
@@ -660,7 +661,14 @@ class BlockHasher:
             if value is not None and (
                 ref not in scope or isinstance(scope[ref], State)
             ):
-                scope[ref] = attempt_signed_bytes(value(), "state")
+                if isinstance(value, PathState):
+                    # Path state only contains the path as value, it should
+                    # contain the path contents.
+                    scope[ref] = attempt_signed_bytes(
+                        repr(value).encode(), "pathstate"
+                    )
+                else:
+                    scope[ref] = attempt_signed_bytes(value(), "state")
                 if ctx:
                     for state_name in ctx.state_registry.bound_names(value):
                         scope[state_name] = scope[ref]

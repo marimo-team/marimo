@@ -47,6 +47,7 @@ __all__ = [
     "icon",
     "iframe",
     "image",
+    "json",
     "latex",
     "lazy",
     "left",
@@ -79,14 +80,15 @@ __all__ = [
     "style",
     "tabs",
     "tree",
-    "json",
     "video",
     "vstack",
+    "watch",
 ]
 __version__ = "0.13.7"
 
 import marimo._ai as ai
 import marimo._islands as islands
+import marimo._runtime.watch as watch
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands._island_generator import MarimoIslandGenerator
