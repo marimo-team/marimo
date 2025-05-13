@@ -104,7 +104,7 @@ async def test_allow_self_loops(
             ),
         ]
     )
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.25)
 
     assert not k.stderr.messages, k.stderr
     assert k.globals["x"] == 3
