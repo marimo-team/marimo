@@ -26,4 +26,5 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | [state](state.md)         | Synchronize multiple UI elements with `mo.state`          |
 | [app](app.md)           | Embed notebooks in other notebooks                        |
 | [cell](cell.md)          | Run cells defined in another notebook                     |
+| [watch](watch.md)         | Reactively respond to file changes on disk          |
 | [miscellaneous](miscellaneous.md) | Miscellaneous utilities                                   |
