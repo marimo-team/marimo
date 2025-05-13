@@ -144,17 +144,6 @@ class IPythonFormatter(FormatterFactory):
                 )
             else:
                 data = str(html._repr_html_())  # type: ignore
-                
-                # Remove inline styles from progress elements to allow global CSS to apply
-                if "<progress" in data:
-                    import re
-                    
-                    # Replace progress elements with inline styles to use our global styling
-                    data = re.sub(
-                        r'<progress([^>]*) style="([^>]*)"([^>]*)>',
-                        r'<progress\1\3>',
-                        data
-                    )
 
             return ("text/html", data)
 

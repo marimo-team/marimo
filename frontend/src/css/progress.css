@@ -1,95 +1,89 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-/* 
+/*
  * Global styling for progress bars to ensure consistent appearance
  * across both marimo native components and IPython outputs
  */
 
 /* Container styling */
 .progress-container {
-    display: flex;
-    flex-direction: column;
-    max-width: 384px; /* max-w-sm */
-    padding: 1.5rem; /* p-6 */
-    margin-left: auto;
-    margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+  margin-right: auto;
+
+  @apply max-w-sm p-6;
 }
 
 /* Title styling */
 .progress-title {
-    font-size: 1.125rem; /* text-lg */
-    font-weight: 700; /* font-bold */
-    color: rgba(55, 65, 81, 0.6); /* text-foreground/60 */
-    font-family: var(--heading-font, "Lora", serif);
+  font-family: var(--heading-font, "Lora", serif);
+
+  @apply text-lg font-bold text-foreground/60;
 }
 
 /* Subtitle styling */
 .progress-subtitle {
-    font-size: 0.875rem; /* text-sm */
-    color: rgba(107, 114, 128, 0.8); /* text-muted-foreground */
-    font-family: var(--text-font, "PT Sans", sans-serif);
+  font-family: var(--text-font, "PT Sans", sans-serif);
+
+  @apply text-sm text-muted-foreground font-normal;
 }
 
 /* Progress wrapper */
 .progress-wrapper {
-    margin-top: 0.5rem; /* mt-2 */
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem; /* gap-1 */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  @apply gap-1 mt-2;
 }
 
 /* Progress bar row */
 .progress-row {
-    display: flex;
-    gap: 0.75rem; /* gap-3 */
-    font-size: 0.875rem; /* text-sm */
-    color: rgba(107, 114, 128, 0.8); /* text-muted-foreground */
-    align-items: baseline;
-    font-family: var(--text-font, "PT Sans", sans-serif);
+  display: flex;
+  align-items: baseline;
+  font-family: var(--text-font, "PT Sans", sans-serif);
+
+  @apply gap-3 text-sm text-muted-foreground;
 }
 
 /* Meta information row */
 .progress-meta {
-    display: flex;
-    gap: 0.5rem; /* gap-2 */
-    color: rgba(107, 114, 128, 0.8); /* text-muted-foreground */
-    font-size: 0.875rem; /* text-sm */
-    font-family: var(--text-font, "PT Sans", sans-serif);
+  display: flex;
+  font-family: var(--text-font, "PT Sans", sans-serif);
+
+  @apply gap-2 text-muted-foreground text-sm;
 }
 
 /* Base progress element styling */
 progress {
-    -webkit-appearance: none;
-    appearance: none;
-    position: relative;
-    height: 8px !important;
-    max-height: 8px !important;
-    width: 100% !important;
-    overflow: hidden;
-    border-radius: 9999px;
-    background-color: rgba(59, 130, 246, 0.2);
-    border: none;
-    flex: 1;
+  appearance: none;
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: none;
+  flex: 1;
+
+  @apply bg-slate-200 dark:bg-accent/60 h-2 max-h-2 mr-1;
 }
 
 /* Progress bar fill styling */
 progress::-webkit-progress-bar {
-    background-color: rgba(59, 130, 246, 0.2);
-    border-radius: 9999px;
+  border-radius: 9999px;
+
+  @apply bg-slate-200 dark:bg-accent/60;
 }
 
 progress::-webkit-progress-value {
-    background-color: rgb(59, 130, 246);
-    transition: width 0.2s ease;
+  transition: width 0.2s ease;
+  @apply bg-blue-500 dark:bg-primary;
 }
 
 progress::-moz-progress-bar {
-    background-color: rgb(59, 130, 246);
-    transition: width 0.2s ease;
+  transition: width 0.2s ease;
+  @apply bg-blue-500 dark:bg-primary;
 }
 
 /* Wrap existing progress elements */
 progress:not(.wrapped) {
-    display: inline-block;
+  display: inline-block;
 }
