@@ -38,6 +38,7 @@
     > blockquote,
     > details,
     div.codehilite,
+    div.codehilite-wrapper,
     div.admonition,
     /* Target <span> that is not empty and does not consist entirely of child elements;
      * this makes sure text with embedded HTML (such as a slider) has a max width,
