@@ -101,6 +101,7 @@ def rtc_enabled(config: UserConfigManager):
         config.save_config(prev_config)
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_loro_sync(client: TestClient) -> None:
     """Test that Loro-CRDT sync works between multiple clients"""
     # Set up unique websocket paths for each client
@@ -144,6 +145,7 @@ async def test_loro_sync(client: TestClient) -> None:
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_loro_cleanup_on_session_close(
     client: TestClient,
 ) -> None:
@@ -188,6 +190,7 @@ async def test_loro_cleanup_on_session_close(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_loro_persistence(client: TestClient) -> None:
     """Test that cell content persists between connections"""
     from loro import ExportMode, LoroDoc

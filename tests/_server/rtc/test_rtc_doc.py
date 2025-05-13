@@ -26,6 +26,7 @@ async def setup_doc_manager() -> AsyncGenerator[None, None]:
     doc_manager.loro_docs_cleaners.clear()
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_quick_reconnection(setup_doc_manager: None) -> None:
     """Test that quick reconnection properly handles cleanup task cancellation"""
     del setup_doc_manager
@@ -61,6 +62,7 @@ async def test_quick_reconnection(setup_doc_manager: None) -> None:
     )  # Original client + reconnected client
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_two_users_sync(setup_doc_manager: None) -> None:
     """Test that two users can connect and sync text properly without duplicates"""
     del setup_doc_manager
@@ -106,6 +108,7 @@ async def test_two_users_sync(setup_doc_manager: None) -> None:
     assert lang_text_typed.to_string() == "python"
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_concurrent_doc_creation(setup_doc_manager: None) -> None:
     """Test concurrent doc creation doesn't cause issues"""
     del setup_doc_manager
@@ -124,6 +127,7 @@ async def test_concurrent_doc_creation(setup_doc_manager: None) -> None:
     assert len(doc_manager.loro_docs) == 1
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_concurrent_client_operations(
     setup_doc_manager: None,
 ) -> None:
@@ -150,6 +154,7 @@ async def test_concurrent_client_operations(
     assert len(doc_manager.loro_docs_clients[file_key]) == 0
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_cleanup_task_management(setup_doc_manager: None) -> None:
     """Test cleanup task management and cancellation"""
     del setup_doc_manager
@@ -181,6 +186,7 @@ async def test_cleanup_task_management(setup_doc_manager: None) -> None:
     await doc_manager.remove_client(file_key, new_queue)
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_broadcast_update(setup_doc_manager: None) -> None:
     """Test broadcast update functionality"""
     del setup_doc_manager
@@ -206,6 +212,7 @@ async def test_broadcast_update(setup_doc_manager: None) -> None:
             assert await queue.get() == message
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
     """Test removing a doc that doesn't exist"""
     del setup_doc_manager
@@ -216,6 +223,7 @@ async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs_cleaners
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
     """Test removing a client that doesn't exist"""
     del setup_doc_manager
@@ -225,6 +233,7 @@ async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs_clients
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     """Test concurrent doc removal doesn't cause issues"""
     del setup_doc_manager
