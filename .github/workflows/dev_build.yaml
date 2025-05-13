@@ -1,9 +1,9 @@
 name: Dev Build
 
 on:
-  push:
+  pull_request:
     branches:
-      - test/*
+      - main
 
 jobs:
   build:
