@@ -98,7 +98,9 @@ class ColumnSummaries:
 
 
 DEFAULT_MAX_COLUMNS = 50
-MAX_COLUMNS_NOT_PROVIDED = "max_columns_not_provided"
+
+MaxColumnsNotProvided = Literal["max_columns_not_provided"]
+MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "max_columns_not_provided"
 
 
 @dataclass(frozen=True)
@@ -109,7 +111,7 @@ class SearchTableArgs:
     sort: Optional[SortArgs] = None
     filters: Optional[list[Condition]] = None
     limit: Optional[int] = None
-    max_columns: Optional[int | Literal["max_columns_not_provided"]] = (
+    max_columns: Optional[int | MaxColumnsNotProvided] = (
         MAX_COLUMNS_NOT_PROVIDED
     )
 
