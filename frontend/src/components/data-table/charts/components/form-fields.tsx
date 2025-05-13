@@ -323,7 +323,7 @@ export const BooleanField = ({
           <FormLabel>{label}</FormLabel>
           <FormControl>
             <Checkbox
-              checked={field.value}
+              checked={field.value ?? false}
               onCheckedChange={field.onChange}
               className="w-4 h-4"
             />
