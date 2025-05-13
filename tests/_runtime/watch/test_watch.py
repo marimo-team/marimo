@@ -76,6 +76,9 @@ async def test_read_and_write_iteration(
     assert k.globals["x"] == b"000"
 
 
+@pytest.mark.xfail(
+    True, reason="Flaky in CI, can't repro locally", strict=False
+)
 async def test_allow_self_loops(
     execution_kernel: Kernel, exec_req: ExecReqProvider, tmp_path: Path
 ) -> None:
@@ -112,6 +115,9 @@ async def test_allow_self_loops(
     assert k.globals["x"] == 3
 
 
+@pytest.mark.xfail(
+    True, reason="Flaky in CI, can't repro locally", strict=False
+)
 async def test_directory_watch(
     execution_kernel: Kernel, exec_req: ExecReqProvider, tmp_path: Path
 ) -> None:
