@@ -160,7 +160,7 @@
     "start": "vite",
     "dev": "vite",
     "build:watch": "vite build --watch --outDir ../marimo/_static",
-    "build": "vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "run-s lint:eslint lint:stylelint lint:biome format",
