@@ -16,6 +16,7 @@ import {
   AreaChartIcon,
   ChartNoAxesColumn,
   ChartColumn,
+  RulerDimensionLine,
 } from "lucide-react";
 import type { ColorScheme } from "vega";
 import type {
@@ -27,7 +28,6 @@ import type {
 
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
-export const DEFAULT_BIN_SIZE = 0;
 
 // Set a field to this to reflect that it is not set
 export const EMPTY_VALUE = "";
@@ -55,6 +55,7 @@ export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
   stdevp: ChartNoAxesColumn,
   variance: ChartColumn,
   variancep: ChartColumn,
+  bin: RulerDimensionLine,
 };
 
 export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
@@ -71,6 +72,7 @@ export const AGGREGATION_TYPE_DESCRIPTIONS: Record<AggregationFn, string> = {
   stdevp: "Standard deviation of population",
   variance: "Variance",
   variancep: "Variance of population",
+  bin: "Group values into bins",
 };
 
 export const COLOR_SCHEMES: Array<ColorScheme | typeof DEFAULT_COLOR_SCHEME> = [

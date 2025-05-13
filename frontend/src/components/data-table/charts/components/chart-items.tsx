@@ -24,6 +24,7 @@ import {
   BooleanField,
   SortField,
   NumberField,
+  BinFields,
 } from "./form-fields";
 import { CHART_TYPES, type ChartType } from "../types";
 import React from "react";
@@ -119,6 +120,7 @@ export const XAxis: React.FC = () => {
           <AggregationSelect
             fieldName="general.xColumn.aggregate"
             selectedDataType={selectedXDataType}
+            binFieldName="xAxis.bin.binned"
           />
         )}
       </div>
@@ -143,6 +145,7 @@ export const XAxis: React.FC = () => {
             defaultValue={formValues.general?.xColumn?.sort}
           />
           {/* {showBinFields && <BinFields fieldName="xAxis" />} */}
+          <BinFields fieldName="xAxis" />
         </>
       )}
     </FieldSection>
@@ -187,6 +190,7 @@ export const YAxis: React.FC = () => {
           <AggregationSelect
             fieldName="general.yColumn.aggregate"
             selectedDataType={selectedYDataType}
+            binFieldName="yAxis.bin.binned"
           />
         )}
       </div>
@@ -239,6 +243,7 @@ export const ColorByAxis: React.FC = () => {
         <AggregationSelect
           fieldName="general.colorByColumn.aggregate"
           selectedDataType={selectedColorByDataType}
+          binFieldName="color.bin.binned"
         />
       </div>
       {/* {showBinFields && <BinFields fieldName="color" />} */}
@@ -301,6 +306,7 @@ export const Facet: React.FC = () => {
                 <NumberField
                   fieldName={`general.facet.${facet}.maxbins`}
                   label="Max Bins"
+                  placeholder="10"
                 />
               </div>
             )}

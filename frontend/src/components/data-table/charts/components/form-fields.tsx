@@ -40,7 +40,6 @@ import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 
 import {
   AGGREGATION_FNS,
-  type AggregationFn,
   COMBINED_TIME_UNITS,
   NONE_AGGREGATION,
   SELECTABLE_DATA_TYPES,
@@ -48,6 +47,7 @@ import {
   SINGLE_TIME_UNITS,
   SORT_TYPES,
   STRING_AGGREGATION_FNS,
+  BIN_AGGREGATION,
   type TimeUnit,
 } from "../types";
 import {
@@ -57,7 +57,6 @@ import {
   EMPTY_VALUE,
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
-  DEFAULT_BIN_SIZE,
 } from "../constants";
 import { Slider } from "@/components/ui/slider";
 import { IconWithText } from "./layouts";
@@ -290,7 +289,7 @@ export const NumberField = ({
           <FormControl>
             <DebouncedNumberInput
               {...field}
-              value={field.value ?? DEFAULT_BIN_SIZE}
+              value={field.value}
               onValueChange={field.onChange}
               aria-label={label}
               className={cn("w-16", inputClassName)}
@@ -619,23 +618,57 @@ export const DataTypeSelect = ({
   );
 };
 
-export const AggregationSelect = <T extends object>({
+export const AggregationSelect = ({
   fieldName,
   selectedDataType,
+  binFieldName,
 }: {
-  fieldName: Path<T>;
+  fieldName: FieldName;
   selectedDataType: SelectableDataType;
+  binFieldName: FieldName;
 }) => {
-  const form = useFormContext<T>();
+  const form = useFormContext();
   const availableAggregations =
     selectedDataType === "string" ? STRING_AGGREGATION_FNS : AGGREGATION_FNS;
 
-  const renderSubtitle = (agg: AggregationFn) => {
+  const renderSubtitle = (text: string) => {
+    return <span className="text-xs text-muted-foreground pr-10">{text}</span>;
+  };
+
+  const renderSelectItem = (
+    value: string,
+    Icon: React.ElementType,
+    subtitle: React.ReactNode,
+  ) => {
     return (
-      <span className="text-xs text-muted-foreground pr-10">
-        {AGGREGATION_TYPE_DESCRIPTIONS[agg]}
-      </span>
+      <SelectItem
+        key={value}
+        value={value}
+        className="flex flex-col items-start justify-center"
+        subtitle={subtitle}
+      >
+        <div className="flex items-center">
+          <Icon className="w-3 h-3 mr-2" />
+          {capitalize(value)}
+        </div>
+      </SelectItem>
     );
+  };
+
+  const handleFieldChange = (
+    value: string,
+    previousValue: string,
+    onChange: (value: string) => void,
+  ) => {
+    // Special handling for binning, as this is not a valid aggregation
+    if (value === BIN_AGGREGATION) {
+      form.setValue(binFieldName, true);
+    } else if (previousValue === BIN_AGGREGATION) {
+      // Otherwise, unset the bin field
+      form.setValue(binFieldName, false);
+    }
+
+    onChange(value);
   };
 
   return (
@@ -647,8 +680,10 @@ export const AggregationSelect = <T extends object>({
           <FormControl>
             <Select
               {...field}
-              value={field.value ?? NONE_AGGREGATION}
-              onValueChange={field.onChange}
+              value={(field.value ?? NONE_AGGREGATION).toString()}
+              onValueChange={(value) => {
+                handleFieldChange(value, field.value, field.onChange);
+              }}
             >
               <SelectTrigger variant="ghost">
                 <SelectValue />
@@ -658,19 +693,19 @@ export const AggregationSelect = <T extends object>({
                   <SelectLabel>Aggregation</SelectLabel>
                   {availableAggregations.map((agg) => {
                     const Icon = AGGREGATION_TYPE_ICON[agg];
-                    return (
-                      <SelectItem
-                        key={agg}
-                        value={agg}
-                        className="flex flex-col items-start justify-center"
-                        subtitle={renderSubtitle(agg)}
-                      >
-                        <div className="flex items-center">
-                          <Icon className="w-3 h-3 mr-2" />
-                          {capitalize(agg)}
-                        </div>
-                      </SelectItem>
+                    const subtitle = renderSubtitle(
+                      AGGREGATION_TYPE_DESCRIPTIONS[agg],
                     );
+                    const selectItem = renderSelectItem(agg, Icon, subtitle);
+                    if (agg === BIN_AGGREGATION) {
+                      return (
+                        <>
+                          <SelectSeparator />
+                          {selectItem}
+                        </>
+                      );
+                    }
+                    return selectItem;
                   })}
                 </SelectGroup>
               </SelectContent>
@@ -774,28 +809,27 @@ export const BinFields: React.FC<{
   const formValues = useWatch({ control: form.control });
   const isBinned = formValues[fieldName]?.bin?.binned;
 
-  const hasStep = formValues[fieldName]?.bin?.step !== DEFAULT_BIN_SIZE;
+  if (!isBinned) {
+    return null;
+  }
+
+  const hasStep = !Number.isNaN(formValues[fieldName]?.bin?.step);
 
   return (
     <div className="flex flex-row justify-between">
-      <BooleanField fieldName={`${fieldName}.bin.binned`} label="Binned" />
-      {isBinned && (
-        <>
-          <NumberField
-            fieldName={`${fieldName}.bin.step`}
-            label="Step"
-            inputClassName="w-14"
-            placeholder="0.5" // TODO: This doesn't work yet, we still show 0
-          />
-          <NumberField
-            fieldName={`${fieldName}.bin.maxbins`}
-            label="Maxbins"
-            inputClassName="w-14"
-            isDisabled={hasStep}
-            placeholder="10"
-          />
-        </>
-      )}
+      <NumberField
+        fieldName={`${fieldName}.bin.step`}
+        label="Bin step"
+        inputClassName="w-14"
+        placeholder="0.5"
+      />
+      <NumberField
+        fieldName={`${fieldName}.bin.maxbins`}
+        label="Max bins"
+        inputClassName="w-14"
+        isDisabled={hasStep}
+        placeholder="10"
+      />
     </div>
   );
 };
