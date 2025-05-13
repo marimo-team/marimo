@@ -1314,7 +1314,7 @@ class TestSideEffects:
         non_primitive = k.globals["non_primitive"]
         # Docs warn not to use write directly since RC can occur, causing double
         # event.
-        assert len(hashes) in (4, 6)
+        assert len(hashes) == 4
         assert hashes[1] != hashes[3]
         assert hashes[0] != hashes[2]
         assert non_primitive[1] == 2 == v

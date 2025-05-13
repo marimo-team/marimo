@@ -5,7 +5,8 @@ import hashlib
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
+import threading
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.watch._path import (
@@ -13,9 +14,6 @@ from marimo._runtime.watch._path import (
     PathState,
     write_side_effect,
 )
-
-if TYPE_CHECKING:
-    import threading
 
 
 # For testing only - do not use in production
@@ -43,7 +41,10 @@ def watch_file(
 
         if current_mtime != last_mtime:
             last_mtime = current_mtime
-            state._set_value(path)
+            with state._debounce_lock:
+                if not state._debounced:
+                    state._set_value(path)
+                state._debounced = False
 
 
 class FileState(PathState):
@@ -63,6 +64,11 @@ class FileState(PathState):
         watch_file
     )
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._debounced = False
+        self._debounce_lock = threading.Lock()
+
     def read_text(self) -> str:
         """Read the file as a string."""
         text = self._value.read_text()
@@ -74,7 +80,9 @@ class FileState(PathState):
         response = self._value.write_text(value)
         text = self._value.read_text()
         write_side_effect(f"write_text:{text}")
-        self._set_value(self._value)
+        with self._debounce_lock:
+            self._debounced = True
+            self._set_value(self._value)
         return response
 
     def read_bytes(self) -> bytes:
@@ -88,7 +96,9 @@ class FileState(PathState):
         response = self._value.write_bytes(value)
         data = self._value.read_bytes()
         write_side_effect(f"write_bytes:{data!r}")
-        self._set_value(self._value)
+        with self._debounce_lock:
+            self._debounced = True
+            self._set_value(self._value)
         return response
 
     def __repr__(self) -> str:
