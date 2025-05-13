@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-     - uses: action/checkout@v4
+     - uses: actions/checkout@v4
      - uses: prefix-dev/setup-pixi@v0.8.3
        with:
          pixi-version: v0.47.0
