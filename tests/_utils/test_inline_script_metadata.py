@@ -157,6 +157,30 @@ def test_pyproject_toml_to_requirements_txt_with_local_path():
     ]
 
 
+def test_pyproject_toml_to_requirements_txt_with_relative_path():
+    pyproject = {
+        "dependencies": [
+            "marimo",
+            "polars",
+        ],
+        "tool": {
+            "uv": {
+                "sources": {
+                    "marimo": {
+                        "path": "../local/marimo",
+                    }
+                }
+            }
+        },
+    }
+    # Test with a config path to verify relative path resolution
+    config_path = "/Users/me/project/script.py"
+    assert _pyproject_toml_to_requirements_txt(pyproject, config_path) == [
+        "marimo @ /Users/me/local/marimo",
+        "polars",
+    ]
+
+
 @pytest.mark.parametrize(
     "version_spec",
     [
@@ -193,15 +217,17 @@ def test_pyproject_toml_to_requirements_txt_with_versioned_dependencies(
 
 def test_get_python_version_requirement():
     pyproject = {"requires-python": ">=3.11"}
-    assert PyProjectReader(pyproject).python_version == ">=3.11"
+    assert (
+        PyProjectReader(pyproject, config_path=None).python_version == ">=3.11"
+    )
 
     pyproject = {"dependencies": ["polars"]}
-    assert PyProjectReader(pyproject).python_version is None
+    assert PyProjectReader(pyproject, config_path=None).python_version is None
 
-    assert PyProjectReader({}).python_version is None
+    assert PyProjectReader({}, config_path=None).python_version is None
 
     pyproject = {"requires-python": {"invalid": "type"}}
-    assert PyProjectReader(pyproject).python_version is None
+    assert PyProjectReader(pyproject, config_path=None).python_version is None
 
 
 def test_get_dependencies_with_python_version():
@@ -217,7 +243,9 @@ import marimo
 
     pyproject = read_pyproject_from_script(SCRIPT)
     assert pyproject is not None
-    assert PyProjectReader(pyproject).python_version == ">=3.11"
+    assert (
+        PyProjectReader(pyproject, config_path=None).python_version == ">=3.11"
+    )
 
     SCRIPT_NO_PYTHON = """
 # /// script
@@ -228,7 +256,10 @@ import marimo
 """
     pyproject_no_python = read_pyproject_from_script(SCRIPT_NO_PYTHON)
     assert pyproject_no_python is not None
-    assert PyProjectReader(pyproject_no_python).python_version is None
+    assert (
+        PyProjectReader(pyproject_no_python, config_path=None).python_version
+        is None
+    )
     assert PyProjectReader.from_script(SCRIPT_NO_PYTHON).dependencies == [
         "polars"
     ]

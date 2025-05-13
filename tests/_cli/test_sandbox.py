@@ -195,7 +195,7 @@ def test_construct_uv_cmd_with_index_urls() -> None:
         }
     }
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
-        mock.return_value = PyProjectReader(pyproject)
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
         uv_cmd = construct_uv_command(
             ["edit", "test.py", "--sandbox"],
             "test.py",
@@ -223,7 +223,7 @@ def test_construct_uv_cmd_with_index_configs() -> None:
         }
     }
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
-        mock.return_value = PyProjectReader(pyproject)
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
         uv_cmd = construct_uv_command(
             ["edit", "test.py", "--sandbox"],
             name="test.py",
@@ -248,7 +248,7 @@ def test_construct_uv_cmd_with_sandbox_flag() -> None:
 def test_construct_uv_cmd_empty_dependencies() -> None:
     # Test empty dependencies triggers refresh
     with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
-        mock.return_value = PyProjectReader({})
+        mock.return_value = PyProjectReader({}, config_path=None)
         uv_cmd = construct_uv_command(
             ["edit", "test.py"],
             name="test.py",
