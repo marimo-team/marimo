@@ -1,5 +1,5 @@
 # Copyright 2025 Marimo. All rights reserved.
-from typing import Any, Literal, Optional, TypedDict, cast
+from typing import Any, Literal, Optional, TypedDict, Union, cast
 
 from marimo import _loggers
 from marimo._save.stores.file import FileStore
@@ -31,7 +31,7 @@ DEFAULT_STORE: StoreType = CACHE_STORES[DEFAULT_STORE_KEY]
 def get_store(current_path: Optional[str] = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: list[StoreConfig] | StoreConfig = (
+    cache_config: Union[list[StoreConfig], StoreConfig] = (
         get_default_config_manager(current_path=current_path)
         .get_config()
         .get("experimental", {})
@@ -42,7 +42,7 @@ def get_store(current_path: Optional[str] = None) -> Store:
 
 
 def _get_store_from_config(
-    config: list[StoreConfig] | StoreConfig | None,
+    config: Union[list[StoreConfig], StoreConfig, None],
 ) -> Store:
     if config is None:
         return DEFAULT_STORE()
