@@ -107,13 +107,14 @@ describe("Python Poet", () => {
     });
 
     it("should convert nested array to nested list", () => {
-      const literal = new Literal([1, [2, null, 3, undefined], 4]);
+      const literal = new Literal([1, [2, null, 3, undefined, "5"], 4]);
       expect(literal.toCode()).toBe(`[
     1,
     [
         2,
         None,
-        3
+        3,
+        '5'
     ],
     4
 ]`);
@@ -157,6 +158,18 @@ describe("Python Poet", () => {
       expect(literal.toCode()).toBe(`
     a=1,
     b=2
+`);
+    });
+
+    it("should maintain nested object structure when objectAsFieldNames is true", () => {
+      const literal = new Literal({ a: 1, b: { c: 1, d: null, e: "5" } }, true);
+      expect(literal.toCode()).toBe(`
+    a=1,
+    b={
+        c: 1,
+        d: None,
+        e: '5'
+    }
 `);
     });
   });
