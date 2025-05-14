@@ -9,6 +9,16 @@ import { getQuotePrefix } from "../panel/markdown";
 const adapter = new MarkdownLanguageAdapter();
 
 describe("MarkdownLanguageAdapter", () => {
+  describe("defaultMetadata", () => {
+    it("should be set", () => {
+      expect(adapter.defaultMetadata).toMatchInlineSnapshot(`
+        {
+          "quotePrefix": "r",
+        }
+      `);
+    });
+  });
+
   describe("transformIn", () => {
     it("empty", () => {
       const [innerCode, offset, metadata] = adapter.transformIn("");

@@ -60,6 +60,15 @@ export class SQLLanguageAdapter
   implements LanguageAdapter<SQLLanguageAdapterMetadata>
 {
   readonly type = "sql";
+  get defaultMetadata(): SQLLanguageAdapterMetadata {
+    return {
+      dataframeName: "_df",
+      quotePrefix: "f",
+      commentLines: [],
+      showOutput: true,
+      engine: getLatestEngine() || this.defaultEngine,
+    };
+  }
 
   get defaultCode(): string {
     const latestEngine = getLatestEngine();
@@ -84,11 +93,8 @@ export class SQLLanguageAdapter
 
     // Default metadata
     const metadata: SQLLanguageAdapterMetadata = {
-      dataframeName: "_df",
+      ...this.defaultMetadata,
       commentLines: this.extractCommentLines(pythonCode),
-      quotePrefix: "f",
-      showOutput: true,
-      engine: getLatestEngine() || this.defaultEngine,
     };
 
     if (!this.isSupported(pythonCode)) {
