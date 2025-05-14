@@ -139,6 +139,7 @@ const lspClient = once((lspConfig: LSPConfig) => {
 export class PythonLanguageAdapter implements LanguageAdapter<{}> {
   readonly type = "python";
   readonly defaultCode = "";
+  readonly defaultMetadata = {};
 
   transformIn(code: string): [string, number, {}] {
     return [code, 0, {}];

@@ -20,6 +20,12 @@ import type { DatasetsState } from "@/core/datasets/types";
 const adapter = new SQLLanguageAdapter();
 
 describe("SQLLanguageAdapter", () => {
+  describe("defaultMetadata", () => {
+    it("should be set", () => {
+      expect(adapter.defaultMetadata).toMatchInlineSnapshot();
+    });
+  });
+
   describe("transformIn", () => {
     it("empty", () => {
       const [innerCode, offset, metadata] = adapter.transformIn("");
