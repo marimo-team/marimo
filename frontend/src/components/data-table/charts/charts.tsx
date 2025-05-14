@@ -296,12 +296,9 @@ export const ChartPanel: React.FC<{
   }, [loading, error, specWithoutData, data]);
 
   const developmentMode = import.meta.env.DEV;
-  const renderChartDisplay = () => {
-    if (!developmentMode) {
-      return memoizedChart;
-    }
 
-    let altairCodeSnippet = "";
+  const renderChartDisplay = () => {
+    let altairCodeSnippet = "X and Y columns are not set";
     if (typeof specWithoutData !== "string") {
       altairCodeSnippet = generateAltairChartSnippet(
         specWithoutData,
@@ -321,32 +318,40 @@ export const ChartPanel: React.FC<{
             <PythonIcon className="text-muted-foreground mr-2" />
             Python code
           </TabsTrigger>
-          <TabsTrigger value="formValues" className="h-6">
-            <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-            Form values (debug)
-          </TabsTrigger>
-          <TabsTrigger value="vegaSpec" className="h-6">
-            <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-            Vega spec (debug)
-          </TabsTrigger>
+          {developmentMode && (
+            <>
+              <TabsTrigger value="formValues" className="h-6">
+                <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+                Form values (debug)
+              </TabsTrigger>
+              <TabsTrigger value="vegaSpec" className="h-6">
+                <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+                Vega spec (debug)
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         <TabsContent value="chart">{memoizedChart}</TabsContent>
         <TabsContent value="code">
           <CodeSnippet code={altairCodeSnippet} language="python" />
         </TabsContent>
-        <TabsContent value="formValues">
-          <CodeSnippet
-            code={JSON.stringify(formValues, null, 2)}
-            language="python"
-          />
-        </TabsContent>
-        <TabsContent value="vegaSpec">
-          <CodeSnippet
-            code={JSON.stringify(specWithoutData, null, 2)}
-            language="python"
-          />
-        </TabsContent>
+        {developmentMode && (
+          <>
+            <TabsContent value="formValues">
+              <CodeSnippet
+                code={JSON.stringify(formValues, null, 2)}
+                language="python"
+              />
+            </TabsContent>
+            <TabsContent value="vegaSpec">
+              <CodeSnippet
+                code={JSON.stringify(specWithoutData, null, 2)}
+                language="python"
+              />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     );
   };

@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  FunctionArg,
   FunctionCall,
   Literal,
   objectsToPythonCode,
@@ -8,11 +7,7 @@ import {
   Variable,
   VariableDeclaration,
 } from "@/utils/python-poet/poet";
-import type { AxisSchema } from "../schemas";
-import { DATA_TYPE_LETTERS } from "../types";
-import type { z } from "zod";
-import { getAggregate } from "./encodings";
-import { COUNT_FIELD } from "../constants";
+
 import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 
 /**
@@ -24,9 +19,6 @@ export function generateAltairChart(
 ): PythonCode {
   let code = new FunctionCall("alt.Chart", [new Variable(datasource)], true);
 
-  const encodeArgs: Record<string, PythonCode> = {};
-
-  // Check if spec has a mark property (only exists on unit specs)
   const hasMarkProperty = "mark" in spec;
   if (hasMarkProperty) {
     const markSpec = spec.mark;
@@ -44,10 +36,12 @@ export function generateAltairChart(
 
   const hasEncodings = "encoding" in spec;
   if (hasEncodings) {
+    const encodeArgs: Record<string, PythonCode> = {};
     const encodings = spec.encoding;
 
     if (encodings?.x) {
-      encodeArgs.x = objectsToPythonCode([encodings.x], "alt.X");
+      const xCode = objectsToPythonCode([encodings.x], "alt.X");
+      encodeArgs.x = xCode;
     }
 
     if (encodings?.y) {
@@ -58,15 +52,41 @@ export function generateAltairChart(
       encodeArgs.color = objectsToPythonCode([encodings.color], "alt.Color");
     }
 
+    const hasRow = encodings && "row" in encodings;
+    if (hasRow && encodings.row) {
+      encodeArgs.row = objectsToPythonCode([encodings.row], "alt.Row");
+    }
+
+    const hasColumn = encodings && "column" in encodings;
+    if (hasColumn && encodings.column) {
+      encodeArgs.column = objectsToPythonCode([encodings.column], "alt.Column");
+    }
+
     if (encodings?.tooltip) {
       const tooltip = encodings.tooltip;
       const tooltipArray = Array.isArray(tooltip) ? tooltip : [tooltip];
       const tooltipCode = objectsToPythonCode(tooltipArray, "alt.Tooltip");
       encodeArgs.tooltip = tooltipCode;
     }
+
+    code = code.chain("encode", encodeArgs);
   }
 
-  code = code.chain("encode", encodeArgs);
+  if (spec.resolve) {
+    const resolve = spec.resolve;
+    const axisArgs: Record<string, PythonCode> = {};
+
+    if (resolve.axis?.x) {
+      axisArgs.x = new Literal(resolve.axis.x);
+    }
+
+    if (resolve.axis?.y) {
+      axisArgs.y = new Literal(resolve.axis.y);
+    }
+
+    code = code.chain("resolve_scale", axisArgs);
+  }
+
   return code;
 }
 
@@ -88,40 +108,4 @@ export function generateAltairChartSnippet(
 ${new VariableDeclaration(variableName, code).toCode()}
 ${variableName}
   `.trim();
-}
-
-function generateAxisCode(column?: z.infer<typeof AxisSchema>): PythonCode[] {
-  if (!column) {
-    return [];
-  }
-
-  const result: PythonCode[] = [];
-
-  const selectedDataType = column.selectedDataType || "string";
-
-  if (column.field && column.field !== COUNT_FIELD) {
-    const letter = DATA_TYPE_LETTERS[selectedDataType];
-    result.push(new Literal(`${column.field}:${letter}`));
-  }
-
-  if (column.field === COUNT_FIELD) {
-    result.push(new FunctionArg("aggregate", new Literal("count")));
-    return result;
-  }
-
-  const aggregate = getAggregate(column.aggregate, selectedDataType);
-
-  if (aggregate) {
-    result.push(new FunctionArg("aggregate", new Literal(aggregate)));
-  }
-
-  if (column.sort) {
-    result.push(new FunctionArg("sort", new Literal(column.sort)));
-  }
-
-  if (column.timeUnit) {
-    result.push(new FunctionArg("timeUnit", new Literal(column.timeUnit)));
-  }
-
-  return result;
 }

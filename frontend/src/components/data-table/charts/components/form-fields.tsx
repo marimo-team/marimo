@@ -307,10 +307,12 @@ export const BooleanField = ({
   fieldName,
   label,
   className,
+  defaultValue,
 }: {
   fieldName: FieldName;
   label: string;
   className?: string;
+  defaultValue?: boolean;
 }) => {
   const form = useFormContext();
   return (
@@ -322,7 +324,7 @@ export const BooleanField = ({
           <FormLabel>{label}</FormLabel>
           <FormControl>
             <Checkbox
-              checked={field.value ?? false}
+              checked={field.value ?? defaultValue ?? false}
               onCheckedChange={field.onChange}
               className="w-4 h-4"
             />

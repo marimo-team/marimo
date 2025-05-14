@@ -301,6 +301,7 @@ export const Facet: React.FC = () => {
             <BooleanField
               fieldName={linkFieldName}
               label={`Link ${facet === "row" ? "Y" : "X"} Axes`}
+              defaultValue={true}
             />
           </>
         )}

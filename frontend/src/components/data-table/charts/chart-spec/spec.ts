@@ -29,90 +29,13 @@ import {
 } from "./encodings";
 import { convertChartTypeToMark, convertDataTypeToVega } from "./types";
 import { getTooltips } from "./tooltips";
+import type { Resolve } from "vega-lite/build/src/resolve";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
  */
 
 export type ErrorMessage = TypedString<"ErrorMessage">;
-
-export function createVegaSpec(
-  chartType: ChartType,
-  data: object[],
-  formValues: ChartSchemaType,
-  theme: ResolvedTheme,
-  width: number | "container",
-  height: number,
-): TopLevelSpec | ErrorMessage {
-  const {
-    xColumn,
-    yColumn,
-    colorByColumn,
-    horizontal,
-    stacking,
-    title,
-    facet,
-  } = formValues.general ?? {};
-
-  if (chartType === ChartType.PIE) {
-    return getPieChartSpec(data, formValues, theme, width, height);
-  }
-
-  // Validate required fields
-  if (!isFieldSet(xColumn?.field)) {
-    return "X-axis column is required" as ErrorMessage;
-  }
-  if (!isFieldSet(yColumn?.field)) {
-    return "Y-axis column is required" as ErrorMessage;
-  }
-
-  // Determine encoding keys based on chart type
-  const xEncodingKey = "x";
-  const yEncodingKey = "y";
-
-  // Create encodings
-  const xEncoding = getAxisEncoding(
-    xColumn,
-    formValues.xAxis?.bin,
-    getFieldLabel(formValues.xAxis?.label),
-    colorByColumn?.field && horizontal ? stacking : undefined,
-    chartType,
-  );
-
-  const yEncoding = getAxisEncoding(
-    yColumn,
-    formValues.yAxis?.bin,
-    getFieldLabel(formValues.yAxis?.label),
-    colorByColumn?.field && !horizontal ? stacking : undefined,
-    chartType,
-  );
-
-  const rowFacet = facet?.row.field ? getFacetEncoding(facet.row) : undefined;
-  const columnFacet = facet?.column.field
-    ? getFacetEncoding(facet.column)
-    : undefined;
-
-  // Create the final spec
-  return {
-    ...getBaseSpec(data, formValues, theme, width, height, title),
-    mark: { type: convertChartTypeToMark(chartType) },
-    encoding: {
-      [xEncodingKey]: horizontal ? yEncoding : xEncoding,
-      [yEncodingKey]: horizontal ? xEncoding : yEncoding,
-      xOffset: getOffsetEncoding(chartType, formValues),
-      ...getColorEncoding(chartType, formValues),
-      tooltip: getTooltips(formValues),
-      row: rowFacet,
-      column: columnFacet,
-    },
-    resolve: {
-      axis: {
-        x: facet?.column.linkXAxis ? "shared" : "independent",
-        y: facet?.row.linkYAxis ? "shared" : "independent",
-      },
-    },
-  };
-}
 
 export function createSpecWithoutData(
   chartType: ChartType,
@@ -182,12 +105,7 @@ export function createSpecWithoutData(
       row: rowFacet,
       column: columnFacet,
     },
-    resolve: {
-      axis: {
-        x: facet?.column.linkXAxis ? "shared" : "independent",
-        y: facet?.row.linkYAxis ? "shared" : "independent",
-      },
-    },
+    ...getResolve(facet?.column, facet?.row),
   };
 }
 
@@ -330,4 +248,24 @@ function getTimeUnit(column: z.infer<typeof AxisSchema>) {
     return column.timeUnit;
   }
   return undefined;
+}
+
+function getResolve(
+  columnFacet?: z.infer<typeof ColumnFacet>,
+  rowFacet?: z.infer<typeof RowFacet>,
+): { resolve: Resolve } | undefined {
+  const resolveAxis: Resolve["axis"] = {};
+
+  if (columnFacet?.linkXAxis === false) {
+    resolveAxis.x = "independent";
+  }
+
+  if (rowFacet?.linkYAxis === false) {
+    resolveAxis.y = "independent";
+  }
+
+  // If no independent axes, return undefined (shared)
+  return Object.keys(resolveAxis).length > 0
+    ? { resolve: { axis: resolveAxis } }
+    : undefined;
 }
