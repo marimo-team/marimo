@@ -51,6 +51,116 @@ describe("Python Poet", () => {
     });
   });
 
+  describe("Literal", () => {
+    it("should convert boolean to True/False", () => {
+      const literal = new Literal(true);
+      expect(literal.toCode()).toBe("True");
+    });
+
+    it("should convert undefined", () => {
+      const literal = new Literal(undefined);
+      expect(literal.toCode()).toBe("");
+
+      // When removeUndefined is false, undefined is converted to None
+      const literal2 = new Literal(undefined, false, false, false);
+      expect(literal2.toCode()).toBe("None");
+    });
+
+    it("should convert null to None", () => {
+      const literal = new Literal(null);
+      expect(literal.toCode()).toBe("None");
+
+      // When removeNull is false, null is converted to empty string
+      const literal2 = new Literal(null, false, true);
+      expect(literal2.toCode()).toBe("");
+    });
+
+    it("should convert empty array to empty list", () => {
+      const literal = new Literal([]);
+      expect(literal.toCode()).toBe("[]");
+    });
+
+    it("should convert array to list", () => {
+      const literal = new Literal([1, 2, 3]);
+      expect(literal.toCode()).toBe(`[
+    1,
+    2,
+    3
+]`);
+    });
+
+    it("should replace null values with None", () => {
+      const literal = new Literal([1, null, 3]);
+      expect(literal.toCode()).toBe(`[
+    1,
+    None,
+    3
+]`);
+    });
+
+    it("should remove undefined values", () => {
+      const literal = new Literal([1, undefined, 3], false, false, true);
+      expect(literal.toCode()).toBe(`[
+    1,
+    3
+]`);
+    });
+
+    it("should convert nested array to nested list", () => {
+      const literal = new Literal([1, [2, null, 3, undefined], 4]);
+      expect(literal.toCode()).toBe(`[
+    1,
+    [
+        2,
+        None,
+        3
+    ],
+    4
+]`);
+    });
+
+    it("should convert empty object to empty dict", () => {
+      const literal = new Literal({});
+      expect(literal.toCode()).toBe("{}");
+    });
+
+    it("should convert object to dict", () => {
+      const literal = new Literal({ a: 1, b: 2 });
+      expect(literal.toCode()).toBe(`{
+    a: 1,
+    b: 2
+}`);
+    });
+
+    it("should convert nested object to nested dict", () => {
+      const literal = new Literal({
+        a: 1,
+        b: { c: 2, d: null, e: undefined },
+        f: [1, 2, 3],
+      });
+      expect(literal.toCode()).toBe(`{
+    a: 1,
+    b: {
+        c: 2,
+        d: None
+    },
+    f: [
+        1,
+        2,
+        3
+    ]
+}`);
+    });
+
+    it("should return direct field names when objectAsFieldNames is true", () => {
+      const literal = new Literal({ a: 1, b: 2 }, true);
+      expect(literal.toCode()).toBe(`
+    a=1,
+    b=2
+`);
+    });
+  });
+
   describe("Altair Charts", () => {
     it("should create a basic bar chart", () => {
       const chart = new FunctionCall("alt.Chart", [

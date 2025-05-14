@@ -33,14 +33,68 @@ export class Variable implements PythonCode {
 }
 
 export class Literal implements PythonCode {
-  constructor(public value: unknown) {}
+  constructor(
+    public value: unknown,
+    public objectAsFieldNames = false,
+    public removeNull = false,
+    public removeUndefined = true,
+  ) {}
 
   toCode(): string {
+    const EMPTY_VALUE = "";
+
+    if (this.value === undefined) {
+      if (this.removeUndefined) {
+        return EMPTY_VALUE;
+      }
+      return "None";
+    }
+    if (this.value === null) {
+      if (this.removeNull) {
+        return EMPTY_VALUE;
+      }
+      return "None";
+    }
     if (typeof this.value === "string") {
       return `'${this.value}'`;
     }
     if (typeof this.value === "boolean") {
       return this.value ? "True" : "False";
+    }
+    if (Array.isArray(this.value)) {
+      if (this.value.length === 0) {
+        return "[]";
+      }
+      return `[\n${indent(
+        this.value
+          .map((item) => new Literal(item).toCode())
+          .filter((item) => item !== EMPTY_VALUE)
+          .join(",\n"),
+      )}\n]`;
+    }
+    if (typeof this.value === "object") {
+      const entries = Object.entries(this.value as Record<string, unknown>);
+      if (entries.length === 0) {
+        return "{}";
+      }
+
+      const formatEntry = (key: string, value: unknown, separator: string) => {
+        const code = new Literal(value).toCode();
+        return code === "" ? "" : `${key}${separator}${code}`;
+      };
+
+      // When objectAsFieldNames is true, we use = as the separator (eg. field=value)
+      // Otherwise, we use : (eg. field: value)
+      const formattedEntries = entries
+        .map(([key, value]) =>
+          formatEntry(key, value, this.objectAsFieldNames ? "=" : ": "),
+        )
+        .filter(Boolean)
+        .join(",\n");
+
+      return this.objectAsFieldNames
+        ? `\n${indent(formattedEntries)}\n`
+        : `{\n${indent(formattedEntries)}\n}`;
     }
     return String(this.value);
   }
@@ -127,40 +181,19 @@ function objectToArgs(
   return Object.entries(obj).map(([key, value]) => new FunctionArg(key, value));
 }
 
-/**
- * Converts a JavaScript object to a Python dictionary representation
- */
-export function objectToPythonDict(obj: Record<string, unknown>): PythonCode {
-  return {
-    toCode: () => {
-      const entries = Object.entries(obj)
-        .filter(([, value]) => value !== undefined)
-        .map(([key, value]) => {
-          // Handle different value types
-          const valueStr =
-            value && typeof value === "object"
-              ? Array.isArray(value)
-                ? `[${value
-                    .map((item) =>
-                      item && typeof item === "object"
-                        ? objectToPythonDict(
-                            item as Record<string, unknown>,
-                          ).toCode()
-                        : new Literal(item).toCode(),
-                    )
-                    .join(", ")}]`
-                : objectToPythonDict(value as Record<string, unknown>).toCode()
-              : new Literal(value).toCode();
-
-          return `'${key}': ${valueStr}`;
-        });
-
-      // Format the dictionary with proper indentation
-      return entries.length === 0
-        ? "{}"
-        : `{\n${indent(entries.join(",\n"))}\n}`;
-    },
-  };
+export function functionCallToPythonCodeList(
+  functionCalls: FunctionCall[],
+  prefix: string,
+): PythonCode {
+  if (functionCalls.length === 0) {
+    return new Literal(functionCalls);
+  }
+  return new Literal(
+    functionCalls.map((fc) => fc.toCode()).join(", "),
+    true,
+    false,
+    false,
+  );
 }
 
 /**
@@ -178,11 +211,6 @@ export function objectsToPythonCode(obj: object[], prefix: string): PythonCode {
       Object.entries(o)
         .filter(([, value]) => value !== undefined)
         .map(([key, value]) => {
-          // Handle object values (both nested objects and arrays)
-          if (value && typeof value === "object") {
-            return [key, objectToPythonDict(value as Record<string, unknown>)];
-          }
-          // Handle primitives
           return [key, new Literal(value)];
         }),
     );

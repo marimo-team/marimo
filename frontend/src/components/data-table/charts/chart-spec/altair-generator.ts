@@ -40,25 +40,35 @@ export function generateAltairChart(
     const encodings = spec.encoding;
 
     if (encodings?.x) {
-      encodeArgs.x = objectsToPythonCode([encodings.x], "alt.X");
+      encodeArgs.x = new FunctionCall("alt.X", [
+        new Literal(encodings.x, true),
+      ]);
     }
 
     if (encodings?.y) {
-      encodeArgs.y = objectsToPythonCode([encodings.y], "alt.Y");
+      encodeArgs.y = new FunctionCall("alt.Y", [
+        new Literal(encodings.y, true),
+      ]);
     }
 
     if (encodings?.color) {
-      encodeArgs.color = objectsToPythonCode([encodings.color], "alt.Color");
+      encodeArgs.color = new FunctionCall("alt.Color", [
+        new Literal(encodings.color, true),
+      ]);
     }
 
     const hasRow = encodings && "row" in encodings;
     if (hasRow && encodings.row) {
-      encodeArgs.row = objectsToPythonCode([encodings.row], "alt.Row");
+      encodeArgs.row = new FunctionCall("alt.Row", [
+        new Literal(encodings.row, true),
+      ]);
     }
 
     const hasColumn = encodings && "column" in encodings;
     if (hasColumn && encodings.column) {
-      encodeArgs.column = objectsToPythonCode([encodings.column], "alt.Column");
+      encodeArgs.column = new FunctionCall("alt.Column", [
+        new Literal(encodings.column, true),
+      ]);
     }
 
     if (encodings?.tooltip) {
