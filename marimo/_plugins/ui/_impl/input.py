@@ -77,6 +77,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label (str): Markdown label for the element. Defaults to an empty string.
         on_change (Optional[Callable[[Optional[Numeric]], None]]): Optional callback to run when this element's value changes. Defaults to None.
         full_width (bool): Whether the input should take up the full width of its container. Defaults to False.
+        disabled (bool, optional): Whether the input is disabled. Defaults to False.
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> number:
@@ -96,6 +97,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         validate_range(min_value=start, max_value=stop)
         validate_between_range(value, min_value=start, max_value=stop)
@@ -124,6 +126,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "step": step if step is not None else None,
                 "debounce": debounce,
                 "full-width": full_width,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
