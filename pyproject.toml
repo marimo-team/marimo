@@ -35,7 +35,7 @@ dependencies = [
     # websockets for use with starlette, and for lsp
     "websockets >= 10.0.0",
     # loro for collaborative editing
-    "loro>=1.5.0; python_version >= '3.11'",
+    "loro>=1.5.1",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
