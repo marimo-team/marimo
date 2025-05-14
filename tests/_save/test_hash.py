@@ -290,7 +290,7 @@ class TestHash:
         assert defs1["output"] != defs2["output"]
 
     @staticmethod
-    def test_transitive_state_hash(tmp_path) -> None:
+    def test_transitive_state_hash() -> None:
         app1 = App()
         app1._anonymous_file = True
         app1._pytest_rewrite = True
