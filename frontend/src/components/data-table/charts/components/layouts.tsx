@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AccordionContent } from "@/components/ui/accordion";
 import { cn } from "@/utils/cn";
@@ -79,5 +80,19 @@ export const AccordionFormContent: React.FC<{
     >
       {children}
     </AccordionContent>
+  );
+};
+
+export const CodeSnippet: React.FC<{
+  code: string;
+  language?: "python" | "sql";
+}> = ({ code, language }) => {
+  return (
+    <ReadonlyCode
+      minHeight="330px"
+      maxHeight="330px"
+      code={code}
+      language={language}
+    />
   );
 };

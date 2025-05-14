@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   generateAltairChart,
   generateAltairChartSnippet,
+  generateTooltipCode,
 } from "../chart-spec/altair-generator";
 import { ChartType } from "../types";
 import type { ChartSchemaType } from "../schemas";
+import type { StringFieldDef } from "vega-lite/build/src/channeldef";
 
 describe("generateAltairChart", () => {
   it("should generate a basic bar chart", () => {
@@ -110,7 +112,12 @@ describe("generateAltairChart", () => {
     } as ChartSchemaType;
     const datasource = "df";
 
-    const result = generateAltairChartSnippet(chartType, spec, datasource);
+    const result = generateAltairChartSnippet(
+      chartType,
+      spec,
+      datasource,
+      "_chart",
+    );
 
     expect(result).toMatchInlineSnapshot(`
       "_chart = (
@@ -122,6 +129,34 @@ describe("generateAltairChart", () => {
           )
       )
       _chart"
+    `);
+  });
+});
+
+describe("generateTooltips", () => {
+  it("should generate tooltips with variable keys", () => {
+    const tooltips: Array<StringFieldDef<string>> = [
+      {
+        field: "sepalLength",
+        format: ",.2f",
+        timeUnit: undefined,
+        aggregate: undefined,
+      },
+      {
+        field: "species",
+        aggregate: undefined,
+        format: undefined,
+        timeUnit: undefined,
+      },
+    ];
+
+    const result = generateTooltipCode(tooltips).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "[
+          alt.Tooltip(field='sepalLength', format=',.2f'),
+          alt.Tooltip(field='species')
+      ]"
     `);
   });
 });

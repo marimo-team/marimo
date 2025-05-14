@@ -58,7 +58,7 @@ export function getColorEncoding(
 ): { color?: ColorDef<string> } | undefined {
   if (
     chartType === ChartType.PIE ||
-    !isFieldSet(formValues.general.colorByColumn?.field)
+    !isFieldSet(formValues.general?.colorByColumn?.field)
   ) {
     return undefined;
   }
@@ -94,13 +94,13 @@ export function getOffsetEncoding(
 ): OffsetDef<string> | undefined {
   // Offset only applies to bar charts, to unstack them
   if (
-    formValues.general.stacking ||
-    !isFieldSet(formValues.general.colorByColumn?.field) ||
+    formValues.general?.stacking ||
+    !isFieldSet(formValues.general?.colorByColumn?.field) ||
     chartType !== ChartType.BAR
   ) {
     return undefined;
   }
-  return { field: formValues.general.colorByColumn?.field };
+  return { field: formValues.general?.colorByColumn?.field };
 }
 
 export function getAggregate(

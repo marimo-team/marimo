@@ -36,10 +36,12 @@ import { ChartType } from "./types";
 import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { CommonChartForm, StyleForm } from "./forms/common-chart";
-import { TabContainer } from "./components/layouts";
+import { CodeSnippet, TabContainer } from "./components/layouts";
 import { ChartFormContext } from "./context";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
-import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
+import { createSpecWithoutData } from "./chart-spec/spec";
+import { useTheme } from "@/theme/useTheme";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -232,6 +234,7 @@ export const ChartPanel: React.FC<{
   getDataUrl,
   fieldTypes,
 }) => {
+  const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
     defaultValues: chartConfig ?? getDefaults(ChartSchema),
     resolver: zodResolver(ChartSchema),
@@ -271,6 +274,14 @@ export const ChartPanel: React.FC<{
     return structuredClone(formValues);
   }, [formValues]);
 
+  const specWithoutData = createSpecWithoutData(
+    selectedChartType,
+    memoizedFormValues,
+    theme,
+    "container",
+    CHART_HEIGHT,
+  );
+
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {
     if (loading) {
@@ -280,20 +291,23 @@ export const ChartPanel: React.FC<{
       return <ChartErrorState error={error} />;
     }
     return (
-      <LazyChart
-        chartType={selectedChartType}
-        formValues={memoizedFormValues}
-        data={data}
-        width="container"
-        height={CHART_HEIGHT}
-      />
+      <LazyChart baseSpec={specWithoutData} data={data} height={CHART_HEIGHT} />
     );
-  }, [loading, error, memoizedFormValues, data, selectedChartType]);
+  }, [loading, error, specWithoutData, data]);
 
   const developmentMode = import.meta.env.DEV;
   const renderChartDisplay = () => {
     if (!developmentMode) {
       return memoizedChart;
+    }
+
+    let altairCodeSnippet = "";
+    if (typeof specWithoutData !== "string") {
+      altairCodeSnippet = generateAltairChartSnippet(
+        specWithoutData,
+        "df",
+        "_chart",
+      );
     }
 
     return (
@@ -307,31 +321,32 @@ export const ChartPanel: React.FC<{
             <PythonIcon className="text-muted-foreground mr-2" />
             Python code
           </TabsTrigger>
-          {developmentMode && (
-            <TabsTrigger value="formValues" className="h-6">
-              <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-              Form values (dev mode)
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="formValues" className="h-6">
+            <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+            Form values (debug)
+          </TabsTrigger>
+          <TabsTrigger value="vegaSpec" className="h-6">
+            <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+            Vega spec (debug)
+          </TabsTrigger>
         </TabsList>
+
         <TabsContent value="chart">{memoizedChart}</TabsContent>
         <TabsContent value="code">
-          <ReadonlyCode
-            minHeight="330px"
-            maxHeight="330px"
-            code="mo..."
+          <CodeSnippet code={altairCodeSnippet} language="python" />
+        </TabsContent>
+        <TabsContent value="formValues">
+          <CodeSnippet
+            code={JSON.stringify(formValues, null, 2)}
             language="python"
           />
         </TabsContent>
-        {developmentMode && (
-          <TabsContent value="formValues">
-            <ReadonlyCode
-              minHeight="330px"
-              maxHeight="330px"
-              code={JSON.stringify(formValues, null, 2)}
-            />
-          </TabsContent>
-        )}
+        <TabsContent value="vegaSpec">
+          <CodeSnippet
+            code={JSON.stringify(specWithoutData, null, 2)}
+            language="python"
+          />
+        </TabsContent>
       </Tabs>
     );
   };

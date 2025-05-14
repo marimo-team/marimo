@@ -13,6 +13,10 @@ function indent(code: string): string {
     .join("\n");
 }
 
+function indentList(list: PythonCode[]): string {
+  return `\n${indent(list.map(asString).join(",\n"))}\n`;
+}
+
 function asString(value: string | PythonCode): string {
   if (typeof value === "string") {
     return value;
@@ -34,6 +38,9 @@ export class Literal implements PythonCode {
   toCode(): string {
     if (typeof this.value === "string") {
       return `'${this.value}'`;
+    }
+    if (typeof this.value === "boolean") {
+      return this.value ? "True" : "False";
     }
     return String(this.value);
   }
@@ -84,7 +91,7 @@ export class FunctionCall implements PythonCode {
       if (this.args.length === 1) {
         return `${this.name}(${this.args[0].toCode()})`;
       }
-      return `${this.name}(\n${indent(this.args.map(asString).join(",\n"))}\n)`;
+      return `${this.name}(${indentList(this.args)})`;
     }
     return `${this.name}(${this.args.map(asString).join(", ")})`;
   }
@@ -118,4 +125,77 @@ function objectToArgs(
     return obj;
   }
   return Object.entries(obj).map(([key, value]) => new FunctionArg(key, value));
+}
+
+/**
+ * Converts a JavaScript object to a Python dictionary representation
+ */
+export function objectToPythonDict(obj: Record<string, unknown>): PythonCode {
+  return {
+    toCode: () => {
+      const entries = Object.entries(obj)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => {
+          // Handle different value types
+          const valueStr =
+            value && typeof value === "object"
+              ? Array.isArray(value)
+                ? `[${value
+                    .map((item) =>
+                      item && typeof item === "object"
+                        ? objectToPythonDict(
+                            item as Record<string, unknown>,
+                          ).toCode()
+                        : new Literal(item).toCode(),
+                    )
+                    .join(", ")}]`
+                : objectToPythonDict(value as Record<string, unknown>).toCode()
+              : new Literal(value).toCode();
+
+          return `'${key}': ${valueStr}`;
+        });
+
+      // Format the dictionary with proper indentation
+      return entries.length === 0
+        ? "{}"
+        : `{\n${indent(entries.join(",\n"))}\n}`;
+    },
+  };
+}
+
+/**
+ * Converts an array of objects to a PythonCode object.
+ * If there is only one object, it returns the object as a function call.
+ * If there are multiple objects, it returns the objects wrapped in a list.
+ */
+export function objectsToPythonCode(obj: object[], prefix: string): PythonCode {
+  if (obj.length === 0) {
+    return new Literal(obj);
+  }
+
+  const functionCalls = obj.map((o) => {
+    const args = Object.fromEntries(
+      Object.entries(o)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => {
+          // Handle object values (both nested objects and arrays)
+          if (value && typeof value === "object") {
+            return [key, objectToPythonDict(value as Record<string, unknown>)];
+          }
+          // Handle primitives
+          return [key, new Literal(value)];
+        }),
+    );
+    return new FunctionCall(prefix, args);
+  });
+
+  // If there's only one object, return it directly
+  if (obj.length === 1) {
+    return functionCalls[0];
+  }
+
+  // Otherwise, return a list of function calls
+  return {
+    toCode: () => `[${indentList(functionCalls)}]`,
+  };
 }

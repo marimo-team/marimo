@@ -43,7 +43,6 @@ export function createVegaSpec(
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
-  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 ): TopLevelSpec | ErrorMessage {
   const {
     xColumn,
@@ -53,7 +52,7 @@ export function createVegaSpec(
     stacking,
     title,
     facet,
-  } = formValues.general;
+  } = formValues.general ?? {};
 
   if (chartType === ChartType.PIE) {
     return getPieChartSpec(data, formValues, theme, width, height);
@@ -115,6 +114,93 @@ export function createVegaSpec(
   };
 }
 
+export function createSpecWithoutData(
+  chartType: ChartType,
+  formValues: ChartSchemaType,
+  theme: ResolvedTheme,
+  width: number | "container",
+  height: number,
+): TopLevelSpec | ErrorMessage {
+  const {
+    xColumn,
+    yColumn,
+    colorByColumn,
+    horizontal,
+    stacking,
+    title,
+    facet,
+  } = formValues.general ?? {};
+
+  if (chartType === ChartType.PIE) {
+    return getPieChartSpec([], formValues, theme, width, height);
+  }
+
+  // Validate required fields
+  if (!isFieldSet(xColumn?.field)) {
+    return "X-axis column is required" as ErrorMessage;
+  }
+  if (!isFieldSet(yColumn?.field)) {
+    return "Y-axis column is required" as ErrorMessage;
+  }
+
+  // Determine encoding keys based on chart type
+  const xEncodingKey = "x";
+  const yEncodingKey = "y";
+
+  // Create encodings
+  const xEncoding = getAxisEncoding(
+    xColumn,
+    formValues.xAxis?.bin,
+    getFieldLabel(formValues.xAxis?.label),
+    colorByColumn?.field && horizontal ? stacking : undefined,
+    chartType,
+  );
+
+  const yEncoding = getAxisEncoding(
+    yColumn,
+    formValues.yAxis?.bin,
+    getFieldLabel(formValues.yAxis?.label),
+    colorByColumn?.field && !horizontal ? stacking : undefined,
+    chartType,
+  );
+
+  const rowFacet = facet?.row.field ? getFacetEncoding(facet.row) : undefined;
+  const columnFacet = facet?.column.field
+    ? getFacetEncoding(facet.column)
+    : undefined;
+
+  // Create the final spec
+  return {
+    ...getBaseSpec([], formValues, theme, width, height, title),
+    mark: { type: convertChartTypeToMark(chartType) },
+    encoding: {
+      [xEncodingKey]: horizontal ? yEncoding : xEncoding,
+      [yEncodingKey]: horizontal ? xEncoding : yEncoding,
+      xOffset: getOffsetEncoding(chartType, formValues),
+      ...getColorEncoding(chartType, formValues),
+      tooltip: getTooltips(formValues),
+      row: rowFacet,
+      column: columnFacet,
+    },
+    resolve: {
+      axis: {
+        x: facet?.column.linkXAxis ? "shared" : "independent",
+        y: facet?.row.linkYAxis ? "shared" : "independent",
+      },
+    },
+  };
+}
+
+export function augmentSpecWithData(
+  spec: TopLevelSpec,
+  data: object[],
+): TopLevelSpec {
+  return {
+    ...spec,
+    data: { values: data },
+  };
+}
+
 export function getAxisEncoding(
   column: NonNullable<z.infer<typeof AxisSchema>>,
   binValues: z.infer<typeof BinSchema> | undefined,
@@ -172,7 +258,7 @@ function getPieChartSpec(
   width: number | "container",
   height: number,
 ) {
-  const { yColumn, colorByColumn, title } = formValues.general;
+  const { yColumn, colorByColumn, title } = formValues.general ?? {};
 
   if (!isFieldSet(colorByColumn?.field)) {
     return "Color by column is required" as ErrorMessage;
